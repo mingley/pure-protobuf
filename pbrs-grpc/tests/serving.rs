@@ -3915,6 +3915,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive."
+        ),
+        "ResponseInterceptor rustdoc must Distinct method-level Interceptor Err without reading the body from this ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a Server intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive."
         ),
         "ResponseInterceptor rustdoc must Distinct Server intercept Err without reading the body from this ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive"

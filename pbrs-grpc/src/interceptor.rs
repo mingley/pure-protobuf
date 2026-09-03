@@ -197,6 +197,7 @@ where
 /// [`crate::Status::from_error_details`] is the typed bag on this ResponseInterceptor Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a handler Err: that is after the handler ran; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from an Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+/// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a Server intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a Router intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
