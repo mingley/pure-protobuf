@@ -10384,6 +10384,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::with_rpc must Distinct the fresh from_rpc constructor from this trailer-preserving builder"
     );
     assert!(
+        status_src.contains("let status = status.with_rpc(&rpc)?;"),
+        "Status::with_rpc rustdoc must encode a packed google.rpc.Status without dropping trailers"
+    );
+    assert!(
         status_src.contains(
             "[`Self::set_rpc`] / [`Self::set_error_details`] / [`Self::set_from_error_details`] replace the protobuf"
         ),

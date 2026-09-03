@@ -550,6 +550,34 @@ impl Status {
     /// [`Self::set_rpc`] as a builder.
     ///
     /// Distinct from [`Self::from_rpc`]: that mints a fresh status with empty trailers; this keeps existing trailers.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo, Status as RpcStatus};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut status = Status::internal("temp");
+    /// status.metadata_mut().insert("x-name", "svc")?;
+    /// let info = ErrorInfo::with_reason("NAME_TAKEN", "dns.example.com");
+    /// let rpc = RpcStatus::with_details(
+    ///     Code::AlreadyExists,
+    ///     "taken",
+    ///     [Any::pack(&info)?],
+    /// );
+    /// let status = status.with_rpc(&rpc)?;
+    /// assert_eq!(status.code(), Code::AlreadyExists);
+    /// assert_eq!(status.message(), "taken");
+    /// assert_eq!(status.metadata().get("x-name"), Some("svc"));
+    /// assert_eq!(
+    ///     status
+    ///         .error_info()
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "NAME_TAKEN"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn with_rpc(mut self, rpc: &crate::pb::Status) -> Result<Self, Self> {
         self.set_rpc(rpc)?;
         Ok(self)
