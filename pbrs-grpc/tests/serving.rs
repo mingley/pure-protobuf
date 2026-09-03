@@ -9435,6 +9435,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "FieldViolation::with_reason must Distinct a request field path from the field-violation reason"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_field`]: that is a request field path, not a field-violation localized message."
+        ),
+        "FieldViolation::with_localized_message must Distinct a request field path from a field-violation localized message"
+    );
+    assert!(
         pb_src.contains("Distinct from [`crate::Status::invalid_argument`], which"),
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );

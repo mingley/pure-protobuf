@@ -298,6 +298,40 @@ impl FieldViolation {
         self.set_reason(reason.into());
         self
     }
+
+    /// Sets `localized_message` on this field violation.
+    ///
+    /// Chain after [`Self::with_field`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
+    /// Distinct from [`Self::with_field`]: that is a request field path, not a field-violation localized message.
+    /// Distinct from [`Self::with_reason`]: that is the field-violation reason, not a field-violation localized message.
+    /// Distinct from [`LocalizedMessage::with_locale`]: that builds the locale payload; this attaches it to a field violation.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails, FieldViolation, LocalizedMessage};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = FieldViolation::with_field("name", "required")
+    ///     .with_localized_message(LocalizedMessage::with_locale("fr-FR", "requis"));
+    /// let mut bad = BadRequest::new();
+    /// bad.set_field_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     bad_request: Some(bad),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let got = status.bad_request().expect("BadRequest");
+    /// let field = got.field_violations().get(0).expect("field");
+    /// let local = field.localized_message_opt().expect("locale");
+    /// assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+    /// assert_eq!(local.message().to_str().unwrap_or(""), "requis");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_localized_message(mut self, localized_message: LocalizedMessage) -> Self {
+        self.set_localized_message(localized_message);
+        self
+    }
 }
 
 impl BadRequest {
@@ -1334,6 +1368,30 @@ mod tests {
         assert_eq!(field.reason().to_str().unwrap_or(""), "REQUIRED");
         assert!(field.localized_message_opt().is_none());
         assert!(status.error_info().is_none());
+    }
+
+    #[test]
+    fn field_violation_with_localized_message_round_trips() {
+        let violation = FieldViolation::with_field("name", "required")
+            .with_localized_message(LocalizedMessage::with_locale("fr-FR", "requis"));
+        assert_eq!(violation.field().to_str().unwrap_or(""), "name");
+        let local = violation.localized_message_opt().expect("locale");
+        assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(local.message().to_str().unwrap_or(""), "requis");
+        let mut bad = BadRequest::new();
+        bad.set_field_violations([violation]);
+        let details = ErrorDetails {
+            bad_request: Some(bad),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::InvalidArgument, "bad", &details)
+            .expect("encode");
+        let got = status.bad_request().expect("BadRequest");
+        let field = got.field_violations().get(0).expect("field");
+        let local = field.localized_message_opt().expect("locale");
+        assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(local.message().to_str().unwrap_or(""), "requis");
+        assert!(status.localized_message().is_none());
     }
 
     #[test]
