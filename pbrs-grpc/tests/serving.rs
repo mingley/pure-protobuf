@@ -16831,6 +16831,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ResourceInfo::with_resource as the builder"
     );
     assert!(
+        guide.contains("`ResourceInfo::with_description` builds a packed resource description after this guide ResourceInfo builder."),
+        "guide must name ResourceInfo::with_description next to ResourceInfo::with_resource"
+    );
+    assert!(
         guide.contains("`status.debug_info()` for an operator stack"),
         "guide must name Status::debug_info as an operator stack"
     );
