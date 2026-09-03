@@ -140,6 +140,17 @@ impl Duration {
     ///
     /// Seconds saturate at [`i64::MAX`]. Nanos always fit the protobuf range.
     /// Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::Duration;
+    ///
+    /// let proto = Duration::from_std(std::time::Duration::from_secs(7));
+    /// assert_eq!(
+    ///     proto.try_to_std()?,
+    ///     std::time::Duration::from_secs(7)
+    /// );
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     #[must_use]
     pub fn from_std(delay: std::time::Duration) -> Self {
         let mut out = Self::new();

@@ -10133,6 +10133,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Duration::from_std must Distinct converting to std from building the protobuf"
     );
     assert!(
+        pb_src.contains("Duration::from_std(std::time::Duration::from_secs(7))"),
+        "Duration::from_std rustdoc must build the protobuf from std"
+    );
+    assert!(
         pb_src.contains(
             "Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`."
         ),
