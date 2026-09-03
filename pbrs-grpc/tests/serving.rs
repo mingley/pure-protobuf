@@ -9065,8 +9065,13 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name FieldViolation::with_reason next to FieldViolation::with_field"
     );
     assert!(
-        crate_src.contains("[`pb::FieldViolation::with_reason`], [`pb::bad_request`]"),
-        "crate map must name pb::bad_request next to FieldViolation::with_reason"
+        crate_src
+            .contains("[`pb::FieldViolation::with_reason`], [`pb::FieldViolation::with_localized_message`]"),
+        "crate map must name FieldViolation::with_localized_message next to FieldViolation::with_reason"
+    );
+    assert!(
+        crate_src.contains("[`pb::FieldViolation::with_localized_message`], [`pb::bad_request`]"),
+        "crate map must name pb::bad_request next to FieldViolation::with_localized_message"
     );
     assert!(
         crate_src.contains("[`pb::bad_request`], [`Status::quota_failure`]"),
