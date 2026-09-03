@@ -1357,6 +1357,31 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`RequestInfo`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::request_info`].
+    /// Distinct from [`RequestInfo::with_request_id`]: that is request_id and serving_data, not planting RequestInfo on the bag.
+    /// Distinct from [`crate::Status::request_info`]: that unpacks packed RequestInfo; this plants it on the bag.
+    /// Distinct from [`Self::with_bad_request`]: that plants BadRequest, not RequestInfo.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RequestInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_request_info(RequestInfo::with_request_id("req-9", "encrypted"));
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let info = status.request_info().expect("RequestInfo");
+    /// assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_request_info(mut self, request_info: RequestInfo) -> Self {
+        self.request_info = Some(request_info);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1599,6 +1624,19 @@ mod tests {
         assert_eq!(field.field().to_str().unwrap_or(""), "sku");
         assert_eq!(field.description().to_str().unwrap_or(""), "unknown");
         assert!(status.precondition_failure().is_none());
+        assert!(status.error_info().is_none());
+    }
+
+    #[test]
+    fn error_details_with_request_info_round_trips() {
+        let details = ErrorDetails::new()
+            .with_request_info(RequestInfo::with_request_id("req-9", "encrypted"));
+        let status =
+            crate::Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let got = status.request_info().expect("RequestInfo");
+        assert_eq!(got.request_id().to_str().unwrap_or(""), "req-9");
+        assert_eq!(got.serving_data().to_str().unwrap_or(""), "encrypted");
+        assert!(status.bad_request().is_none());
         assert!(status.error_info().is_none());
     }
 

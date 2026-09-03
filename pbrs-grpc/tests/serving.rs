@@ -9868,6 +9868,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`RequestInfo::with_request_id`]: that is request_id and serving_data, not planting RequestInfo on the bag."
+        ),
+        "ErrorDetails::with_request_info must Distinct request_id and serving_data from planting RequestInfo on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
