@@ -4323,6 +4323,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a Router intercept Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok."
+        ),
+        "Intercepted::on_response rustdoc must Distinct Router intercept Err without reading the body from this Intercepted on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok."
         ),
         "Intercepted::on_response rustdoc must Distinct ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive from this Intercepted on_response Err trailers-only after handler Ok"
