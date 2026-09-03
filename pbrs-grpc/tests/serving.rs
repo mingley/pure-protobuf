@@ -3173,6 +3173,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level intercept Err is a local reject never opens a stream."
+        ),
+        "ClientInterceptor::intercept rustdoc must Distinct Intercepted on_response Err trailers-only after handler Ok from this method-level intercept Err local reject never opens a stream"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream."
         ),
         "ClientInterceptor::intercept rustdoc must Distinct method-level Interceptor Err without reading the body from this method-level intercept Err local reject never opens a stream"
