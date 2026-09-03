@@ -184,6 +184,13 @@ impl Duration {
     /// );
     /// # Ok::<(), pbrs_grpc::Status>(())
     /// ```
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::Duration;
+    ///
+    /// let proto = Duration::from_std(std::time::Duration::from_secs(u64::MAX));
+    /// assert_eq!(proto.seconds(), i64::MAX);
+    /// ```
     #[must_use]
     pub fn from_std(delay: std::time::Duration) -> Self {
         let mut out = Self::new();

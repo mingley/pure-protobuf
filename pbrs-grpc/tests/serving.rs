@@ -10186,6 +10186,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Duration::from_std(std::time::Duration::from_secs(u64::MAX));\n    /// assert_eq!(proto.seconds(), i64::MAX);"
+        ),
+        "Duration::from_std rustdoc must saturate seconds at i64::MAX"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`."
         ),
         "Duration::try_to_std must Distinct building the protobuf from converting to std"
