@@ -9184,6 +9184,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name DebugInfo::with_stack next to Status::debug_info"
     );
     assert!(
+        crate_src.contains("[`pb::DebugInfo::with_stack`], [`pb::DebugInfo::with_stack_entry`]"),
+        "crate map must name DebugInfo::with_stack_entry next to DebugInfo::with_stack"
+    );
+    assert!(
+        crate_src.contains("[`pb::DebugInfo::with_stack_entry`], [`Status::metadata`]"),
+        "crate map must name Status::metadata next to DebugInfo::with_stack_entry"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
@@ -9695,8 +9703,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name DebugInfo::with_stack"
     );
     assert!(
-        crate_src.contains("[`pb::DebugInfo::with_stack`], [`Status::metadata`]"),
-        "crate map must name Status::metadata next to DebugInfo::with_stack"
+        crate_src.contains("[`pb::DebugInfo::with_stack_entry`], [`Status::metadata`]"),
+        "crate map must name Status::metadata next to DebugInfo::with_stack_entry"
     );
     assert!(
         crate_src.contains("[`Status::metadata`], [`Status::metadata_mut`]"),
