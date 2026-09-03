@@ -353,6 +353,7 @@ impl<S, I> Intercepted<S, I> {
     /// Distinct from a handler Err: that is after the handler ran; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
+    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok.
