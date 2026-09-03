@@ -601,7 +601,9 @@ locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.
 request_id for logs. Distinct from `error_info`. Distinct from `help`.
 `RequestInfo::with_request_id` builds that payload. `Status::resource_info` is packed
 resource type and name. Distinct from `quota_failure`. Distinct from `request_info`.
-`ResourceInfo::with_resource` builds that payload. `Status::debug_info` is packed
+`ResourceInfo::with_resource` builds that payload.
+`ResourceInfo::with_description` builds a packed resource description after this architecture ResourceInfo builder.
+`Status::debug_info` is packed
 operator stack. Distinct from `localized_message`. Distinct from `help`.
 `DebugInfo::with_stack` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details` / `set_from_error_details` replace the protobuf without dropping trailing metadata. Handler `Err` and
