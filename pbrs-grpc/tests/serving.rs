@@ -6367,6 +6367,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "[`std::io::ErrorKind::AddrNotAvailable`] is that same dropped-socket\n    /// set (unroutable bind), Distinct from leftover kinds which stay\n    /// [`Code::Unauthenticated`]."
+        ),
+        "Channel::connect_tls must Distinct handshake AddrNotAvailable Unavailable from leftover Unauthenticated"
+    );
+    assert!(
+        channel.contains(
             "[`ChannelConfig::local_address`] binds the TCP source before connect\n/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.\n/// Distinct from [`crate::Rpc::local_addr`], which is the accepted"
         ),
         "Channel rustdoc must Distinct local_address bind from Rpc::local_addr"

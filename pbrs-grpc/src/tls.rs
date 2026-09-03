@@ -76,8 +76,13 @@ fn require_h2(alpn: Option<&[u8]>) -> Result<(), Status> {
 ///
 /// A reset or abort while the peer is dropping the socket (accept-loop cap,
 /// mute close) is [`crate::Code::Unavailable`], matching an h2c preface
-/// close. Certificate and protocol failures stay
-/// [`crate::Code::Unauthenticated`].
+/// close. [`std::io::ErrorKind::AddrNotAvailable`] is that same dropped-socket
+/// set (unroutable bind), Distinct from leftover kinds which stay
+/// [`crate::Code::Unauthenticated`]. Certificate and protocol failures stay
+/// [`crate::Code::Unauthenticated`]. Distinct from [`crate::Status`]'s
+/// `From<std::io::Error>`: that maps local I/O `InvalidData` to
+/// [`crate::Code::Internal`]; this handshake maps `InvalidData` to
+/// Unauthenticated.
 fn tls_handshake_status(err: std::io::Error) -> Status {
     let status = match err.kind() {
         std::io::ErrorKind::ConnectionRefused
@@ -85,7 +90,10 @@ fn tls_handshake_status(err: std::io::Error) -> Status {
         | std::io::ErrorKind::ConnectionAborted
         | std::io::ErrorKind::NotConnected
         | std::io::ErrorKind::BrokenPipe
-        | std::io::ErrorKind::UnexpectedEof => Status::unavailable(format!("tls handshake: {err}")),
+        | std::io::ErrorKind::UnexpectedEof
+        | std::io::ErrorKind::AddrNotAvailable => {
+            Status::unavailable(format!("tls handshake: {err}"))
+        }
         _ => Status::unauthenticated(format!("tls handshake: {err}")),
     };
     status.with_cause(err)
@@ -466,6 +474,17 @@ mod tests {
         let status = super::tls_handshake_status(err);
         assert_eq!(status.code(), Code::Unauthenticated);
         assert!(std::error::Error::source(&status).is_some());
+    }
+
+    #[test]
+    fn tls_handshake_addr_not_available_is_unavailable() {
+        let err = std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "no usable address");
+        let status = super::tls_handshake_status(err);
+        assert_eq!(status.code(), Code::Unavailable);
+        assert!(std::error::Error::source(&status).is_some());
+        let err = std::io::Error::new(std::io::ErrorKind::InvalidData, "bad cert");
+        let status = super::tls_handshake_status(err);
+        assert_eq!(status.code(), Code::Unauthenticated);
     }
 
     #[test]

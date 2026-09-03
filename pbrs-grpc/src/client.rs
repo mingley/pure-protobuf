@@ -474,7 +474,9 @@ impl Channel {
     /// against the certificate, which can be different (dial `127.0.0.1`,
     /// verify `localhost`). Applies to every call shape.
     /// A dropped socket during the handshake is [`Code::Unavailable`].
-    /// Certificate and protocol failures (rustls `InvalidData`) are
+    /// [`std::io::ErrorKind::AddrNotAvailable`] is that same dropped-socket
+    /// set (unroutable bind), Distinct from leftover kinds which stay
+    /// [`Code::Unauthenticated`]. Certificate and protocol failures (rustls `InvalidData`) are
     /// [`Code::Unauthenticated`]. Distinct from [`Status`]'s
     /// `From<std::io::Error>`: that maps local I/O `InvalidData` to
     /// [`Code::Internal`].
