@@ -442,6 +442,7 @@ Or `status.quota_failure()` for quota subjects without unpacking the bag. Distin
 `quota_failure::Violation::with_quota_value` builds a nested quota value after this guide quota subject builder.
 `quota_failure::Violation::with_future_quota_value` builds a nested future quota value after this guide quota subject builder.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
+`PreconditionFailure::with_violation_entry` builds an extra packed precondition violation after this guide PreconditionFailure builder.
 `precondition_failure::Violation::with_type` builds a nested precondition type after this guide PreconditionFailure builder.
 Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
 `Help::with_link_entry` builds an extra packed docs URL after this guide Help builder.

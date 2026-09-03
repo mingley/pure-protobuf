@@ -16900,6 +16900,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name PreconditionFailure::with_violation as the builder"
     );
     assert!(
+        guide.contains("`PreconditionFailure::with_violation_entry` builds an extra packed precondition violation after this guide PreconditionFailure builder."),
+        "guide must name PreconditionFailure::with_violation_entry next to PreconditionFailure::with_violation"
+    );
+    assert!(
         guide.contains("`precondition_failure::Violation::with_type` builds a nested precondition type after this guide PreconditionFailure builder."),
         "guide must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
     );
