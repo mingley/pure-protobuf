@@ -1541,6 +1541,28 @@ impl ErrorDetails {
     /// second value of a known type, goes to [`Self::unknown`].
     /// Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag.
     /// Distinct from [`crate::Status::error_details`]: that unpacks `grpc-status-details-bin` on a kernel Status; this unpacks the `Any` list on a packed `google.rpc.Status`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorDetails, ErrorInfo, Status};
+    /// use pbrs_grpc::Code;
+    ///
+    /// let info = ErrorInfo::with_reason("FROZEN", "billing.example.com");
+    /// let rpc = Status::with_details(
+    ///     Code::FailedPrecondition,
+    ///     "frozen",
+    ///     [Any::pack(&info)?],
+    /// );
+    /// let bag = ErrorDetails::from_rpc(&rpc)?;
+    /// assert_eq!(
+    ///     bag.error_info
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "FROZEN"
+    /// );
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     pub fn from_rpc(rpc: &Status) -> Result<Self, crate::Status> {
         let mut out = Self::new();
         let details = rpc.details();

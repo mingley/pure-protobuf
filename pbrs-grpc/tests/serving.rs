@@ -10043,6 +10043,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ErrorDetails::from_rpc must Distinct the kernel Status trailer unpack from this google.rpc.Status Any list"
     );
     assert!(
+        pb_src.contains("let bag = ErrorDetails::from_rpc(&rpc)?;"),
+        "ErrorDetails::from_rpc rustdoc must unpack the Any list on a packed google.rpc.Status"
+    );
+    assert!(
         pb_src.contains(
             "Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list."
         ),
