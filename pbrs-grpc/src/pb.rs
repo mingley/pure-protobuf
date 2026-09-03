@@ -1038,12 +1038,9 @@ impl DebugInfo {
     /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     debug_info: Some(
-    ///         DebugInfo::with_stack("handler.rs:9", "nil pointer").with_stack_entry("rpc.rs:4"),
-    ///     ),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_debug_info(
+    ///     DebugInfo::with_stack("handler.rs:9", "nil pointer").with_stack_entry("rpc.rs:4"),
+    /// );
     /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
     /// let debug = status.debug_info().expect("DebugInfo");
     /// assert_eq!(

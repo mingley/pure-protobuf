@@ -10022,6 +10022,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "let details = ErrorDetails::new().with_debug_info(\n    ///     DebugInfo::with_stack(\"handler.rs:9\", \"nil pointer\").with_stack_entry(\"rpc.rs:4\"),"
+        ),
+        "DebugInfo::with_stack_entry rustdoc must plant DebugInfo with with_debug_info"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
         ),
         "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
