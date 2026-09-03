@@ -132,6 +132,8 @@
 //!
 //! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map interceptor Err is a local reject never opens a stream.
 //!
 //! Distinct from a crate-map server intercept Err: that is trailers without reading the body; this crate-map interceptor Err is a local reject never opens a stream.
