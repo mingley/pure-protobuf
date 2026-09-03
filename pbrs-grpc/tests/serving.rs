@@ -9956,6 +9956,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ResourceInfo::with_description must Distinct type, name, and owner from a resource description"
     );
     assert!(
+        pb_src.contains(
+            "let details = ErrorDetails::new().with_resource_info(\n    ///     ResourceInfo::with_resource(\n    ///         \"sqladmin.googleapis.com/Instance\",\n    ///         \"projects/1/instances/a\",\n    ///         \"project:1\",\n    ///     )\n    ///     .with_description(\"Cloud SQL instance\"),"
+        ),
+        "ResourceInfo::with_description rustdoc must plant ResourceInfo with with_resource_info"
+    );
+    assert!(
         crate_src.contains("[`Status::debug_info`]"),
         "crate map must name Status::debug_info"
     );

@@ -976,17 +976,14 @@ impl ResourceInfo {
     /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     resource_info: Some(
-    ///         ResourceInfo::with_resource(
-    ///             "sqladmin.googleapis.com/Instance",
-    ///             "projects/1/instances/a",
-    ///             "project:1",
-    ///         )
-    ///         .with_description("Cloud SQL instance"),
-    ///     ),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_resource_info(
+    ///     ResourceInfo::with_resource(
+    ///         "sqladmin.googleapis.com/Instance",
+    ///         "projects/1/instances/a",
+    ///         "project:1",
+    ///     )
+    ///     .with_description("Cloud SQL instance"),
+    /// );
     /// let status = Status::from_error_details(Code::NotFound, "gone", &details)?;
     /// let info = status.resource_info().expect("ResourceInfo");
     /// assert_eq!(
