@@ -1121,25 +1121,27 @@ See `docs/upb.md`. Short list:
   hedging, channelz (`grpc.channelz.v1`), binary logging (`grpc.binarylog.v1`), and grpc.stats / OpenTelemetry tracing are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
 - There are no arena views.
-- Generated `google.protobuf.Timestamp`, `Duration`, `Empty`, and the
+- Generated `google.protobuf.Timestamp`, `Duration`, `Empty`, the
   proto3 wrappers (BoolValue, Int32Value, Int64Value, UInt32Value,
-  UInt64Value, FloatValue, DoubleValue, StringValue, BytesValue)
-  JSON / text are field-wise. Timestamp / Duration use the official
-  proto3 JSON string mapping (text is `seconds` / `nanos`). Empty
-  JSON is `{}`. Wrappers encode as the wrapped JSON value, not an
-  object. Text for Empty / wrappers is the existing field mapping.
-  Other WKT (Struct, Value, ListValue, Any, FieldMask) still go
-  through `DynamicMessage`; a field-wise object for those would
-  disagree with the official mapping. Person-shaped proto3, the
-  extra proto3 scalars (bool, int64, uint32, uint64, sint32,
-  sint64, fixed32, fixed64, sfixed32, sfixed64, float, double,
-  bytes, open proto3 enums, plus repeated and scalar maps of those
-  types), real oneofs of that set (`OneofHole`), and messages whose
-  only WKT fields are Timestamp / Duration / Empty / wrappers are
+  UInt64Value, FloatValue, DoubleValue, StringValue, BytesValue),
+  and `FieldMask` JSON / text are field-wise. Timestamp / Duration
+  use the official proto3 JSON string mapping (text is `seconds` /
+  `nanos`). Empty JSON is `{}`. Wrappers encode as the wrapped JSON
+  value, not an object. FieldMask JSON is a comma-separated path
+  string (`"a,b.c"`), not an object. Text for Empty / wrappers /
+  FieldMask is the existing field mapping. Other WKT (Struct,
+  Value, ListValue, Any) still go through `DynamicMessage`; a
+  field-wise object for those would disagree with the official
+  mapping. Person-shaped proto3, the extra proto3 scalars (bool,
+  int64, uint32, uint64, sint32, sint64, fixed32, fixed64,
+  sfixed32, sfixed64, float, double, bytes, open proto3 enums,
+  plus repeated and scalar maps of those types), real oneofs of
+  that set (`OneofHole`), and messages whose only WKT fields are
+  Timestamp / Duration / Empty / wrappers / FieldMask are
   field-wise. Map-of-enum is skipped: map-entry descriptors used at
   codegen do not carry enum names, so names would be a guess. TAT
-  is not closed (it still has the other WKT). Remaining is not
-  closed.
+  is not closed (it still has Struct / Value / ListValue / Any).
+  Remaining is not closed.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are last-wins `Vec` plus a lazy index (not a codec win).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still
