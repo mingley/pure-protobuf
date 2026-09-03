@@ -52,13 +52,77 @@ async fn bind_connect(local: SocketAddr, remote: SocketAddr) -> std::io::Result<
 }
 
 /// `TCP_NODELAY` always; `SO_KEEPALIVE` when `keepalive` is `Some`.
-pub(crate) fn tune(tcp: &TcpStream, keepalive: Option<Duration>) -> std::io::Result<()> {
+/// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time. It does not
+/// turn `SO_KEEPALIVE` on by itself.
+pub(crate) fn tune(
+    tcp: &TcpStream,
+    keepalive: Option<Duration>,
+    keepalive_interval: Option<Duration>,
+) -> std::io::Result<()> {
     tcp.set_nodelay(true)?;
     if let Some(time) = keepalive {
         let ka = socket2::TcpKeepalive::new().with_time(time);
+        let ka = apply_keepalive_interval(ka, keepalive_interval);
         socket2::SockRef::from(tcp).set_tcp_keepalive(&ka)?;
+    } else {
+        let _ = keepalive_interval;
     }
     Ok(())
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "windows",
+    target_os = "cygwin",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+))]
+fn apply_keepalive_interval(
+    ka: socket2::TcpKeepalive,
+    interval: Option<Duration>,
+) -> socket2::TcpKeepalive {
+    match interval {
+        Some(interval) => ka.with_interval(interval),
+        None => ka,
+    }
+}
+
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "windows",
+    target_os = "cygwin",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+)))]
+fn apply_keepalive_interval(
+    ka: socket2::TcpKeepalive,
+    _interval: Option<Duration>,
+) -> socket2::TcpKeepalive {
+    ka
 }
 
 #[cfg(test)]
@@ -75,11 +139,16 @@ mod tests {
         let client = TcpStream::connect(addr).await.unwrap();
         let (server, _) = listener.accept().await.unwrap();
 
-        tune(&client, Some(Duration::from_secs(15))).unwrap();
+        tune(
+            &client,
+            Some(Duration::from_secs(15)),
+            Some(Duration::from_secs(5)),
+        )
+        .unwrap();
         assert!(client.nodelay().unwrap());
         assert!(socket2::SockRef::from(&client).keepalive().unwrap());
 
-        tune(&server, None).unwrap();
+        tune(&server, None, Some(Duration::from_secs(5))).unwrap();
         assert!(server.nodelay().unwrap());
         assert!(!socket2::SockRef::from(&server).keepalive().unwrap());
     }

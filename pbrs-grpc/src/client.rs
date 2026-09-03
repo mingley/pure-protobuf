@@ -2125,8 +2125,12 @@ async fn handshake_io(
             let tcp = crate::tcp::connect(host, config.bound_local_address())
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
-            crate::tcp::tune(&tcp, config.tcp_keepalive_period())
-                .map_err(|e| Status::unavailable(e.to_string()))?;
+            crate::tcp::tune(
+                &tcp,
+                config.tcp_keepalive_period(),
+                config.tcp_keepalive_probe_interval(),
+            )
+            .map_err(|e| Status::unavailable(e.to_string()))?;
             match tls {
                 None => finish_h2(config, tcp).await,
                 Some(tls) => finish_h2(config, tls.connect(tcp).await?).await,

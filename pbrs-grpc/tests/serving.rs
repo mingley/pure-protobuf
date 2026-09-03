@@ -6326,6 +6326,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Only applied when [`Self::tcp_keepalive`] is also set; this does\n    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the\n    /// kernel default. Only TCP sockets are affected; Unix domain sockets and\n    /// [`crate::Channel::from_io`] streams are not.\n    ///\n    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.\n    /// Distinct from [`Self::tcp_keepalive`], which is idle time before the\n    /// first probe (`TCP_KEEPIDLE`)."
+        ),
+        "ChannelConfig/ServerConfig::tcp_keepalive_interval must Distinct TCP_KEEPINTVL from HTTP/2 PING and from idle SO_KEEPALIVE"
+    );
+    assert_eq!(
+        src.matches("not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig tcp_keepalive_interval must both Distinct idle enable"
+    );
+    assert!(
+        src.contains(
             "mTLS bind the TCP socket first, then handshake. Unix domain sockets\n    /// and [`crate::Channel::from_io`] skip this bind: those streams are not\n    /// TCP."
         ),
         "ChannelConfig::local_address must skip Unix and from_io"
@@ -7340,6 +7352,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("[`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`]"),
         "crate threat table must name ChannelConfig::tcp_keepalive next to ServerConfig"
+    );
+    assert!(
+        crate_src.contains("[`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default."),
+        "crate-map must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
     );
     assert!(
         crate_src.contains(
@@ -18052,6 +18068,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must Distinct ServerConfig keep_alive_interval from grpc-go EnforcementPolicy MinTime"
     );
     assert!(
+        guide.contains("`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default. Only TCP is affected; Unix sockets and `Channel::from_io` skip it."),
+        "guide must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
+    );
+    assert!(
+        architecture.contains("`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default."),
+        "architecture must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
+    );
+    assert!(
+        status_guide.contains("  `ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default."),
+        "status guide must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
+    );
+    assert!(
+        readme.contains("`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default."),
+        "crate README must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
+    );
+    assert!(
         guide.contains("grpc-go keepalive `EnforcementPolicy` / `MinTime` | Inbound client PINGs are not rate-limited. There is no MinTime setter and no GOAWAY `ENHANCE_YOUR_CALM` / `too_many_pings`. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` for tiny DATA (`too_many_data_frames`), not PING rate. Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING."),
         "guide must keep grpc-go EnforcementPolicy MinTime as an omission Distinct from too_many_data_frames and PermitWithoutStream"
     );
@@ -20777,6 +20809,12 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server::tcp_keepalive and Router::tcp_keepalive must name every call shape"
+    );
+    assert_eq!(
+        src.matches("TCP `TCP_KEEPINTVL` probe interval. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::tcp_keepalive_interval and Router::tcp_keepalive_interval must name every call shape"
     );
     assert_eq!(
         src.matches(

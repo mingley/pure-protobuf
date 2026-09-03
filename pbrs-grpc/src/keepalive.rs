@@ -3,7 +3,11 @@
 //! from handshake; PINGs do not postpone it.
 //!
 //! TCP `SO_KEEPALIVE` is [`crate::ServerConfig::tcp_keepalive`] /
-//! [`crate::ChannelConfig::tcp_keepalive`], applied in `tcp`.
+//! [`crate::ChannelConfig::tcp_keepalive`], applied in `tcp`. Probe interval
+//! is [`crate::ServerConfig::tcp_keepalive_interval`] /
+//! [`crate::ChannelConfig::tcp_keepalive_interval`] (`TCP_KEEPINTVL`); it does
+//! not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel
+//! default.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

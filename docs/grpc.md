@@ -897,14 +897,19 @@ There is no `http2_keep_alive_while_idle` setter: once `keep_alive_interval` is 
 There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` (`too_many_data_frames`) for tiny DATA, not PING rate (`too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING.
 
 **TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
-time before the first probe. Probe interval and retry count stay at the kernel
-default. Only TCP is affected; Unix sockets and `Channel::from_io` streams
+time before the first probe. Only TCP is affected; Unix sockets and `Channel::from_io` streams
 are not. Applies to every call shape:
 
 ```rust
-GreeterServer::new(MyGreeter).tcp_keepalive(Duration::from_secs(30))
-ChannelConfig::new().tcp_keepalive(Duration::from_secs(30))
+GreeterServer::new(MyGreeter)
+    .tcp_keepalive(Duration::from_secs(30))
+    .tcp_keepalive_interval(Duration::from_secs(10));
+ChannelConfig::new()
+    .tcp_keepalive(Duration::from_secs(30))
+    .tcp_keepalive_interval(Duration::from_secs(10));
 ```
+
+`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default. Only TCP is affected; Unix sockets and `Channel::from_io` skip it.
 
 PING sees a half-open HTTP/2 session. TCP keepalive sees a half-open socket
 when there is no HTTP/2 traffic, including when PING is off. Use both when

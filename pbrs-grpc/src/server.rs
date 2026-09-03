@@ -1882,6 +1882,17 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// TCP `TCP_KEEPINTVL` probe interval. Applies to every call shape.
+    /// Only applied when [`Self::tcp_keepalive`] is also set; this does not
+    /// turn `SO_KEEPALIVE` on by itself. Distinct from
+    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs. See
+    /// [`ServerConfig::tcp_keepalive_interval`].
+    #[must_use]
+    pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
+        self.config = self.config.tcp_keepalive_interval(interval);
+        self
+    }
+
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
     /// same in-flight RPC is unary and server-streaming after request bytes,
@@ -2804,6 +2815,17 @@ impl Router {
         self
     }
 
+    /// TCP `TCP_KEEPINTVL` probe interval. Applies to every call shape.
+    /// Only applied when [`Self::tcp_keepalive`] is also set; this does not
+    /// turn `SO_KEEPALIVE` on by itself. Distinct from
+    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs. See
+    /// [`ServerConfig::tcp_keepalive_interval`].
+    #[must_use]
+    pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
+        self.config = self.config.tcp_keepalive_interval(interval);
+        self
+    }
+
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
     /// same in-flight RPC is unary and server-streaming after request bytes,
@@ -3365,7 +3387,12 @@ async fn accept_loop<D: Dispatch>(
                 let tls = tls.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    crate::tcp::tune(&tcp, config.tcp_keepalive_period()).ok();
+                    crate::tcp::tune(
+                        &tcp,
+                        config.tcp_keepalive_period(),
+                        config.tcp_keepalive_probe_interval(),
+                    )
+                    .ok();
                     let local = tcp.local_addr().ok();
                     match tls {
                         None => {

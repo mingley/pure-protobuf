@@ -4413,6 +4413,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// TCP `TCP_KEEPINTVL` probe interval. Applies only when [`Self::tcp_keepalive`] is set; this does not turn `SO_KEEPALIVE` on by itself. Distinct from [`Self::keep_alive_interval`] (HTTP/2 PING). See [`{G}::ServerConfig::tcp_keepalive_interval`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn tcp_keepalive_interval(mut self, interval: ::std::time::Duration) -> Self {{ self.config = self.config.tcp_keepalive_interval(interval); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Send GOAWAY this long after accept. The next RPC of every call shape redials, including over TLS, mTLS, and Unix; transparent retry of the same in-flight RPC is unary and server-streaming after request bytes, client-streaming and bidi before HEADERS. See [`{G}::ServerConfig::max_connection_age`]."
     );
     let _ = writeln!(src, "    #[must_use]");
