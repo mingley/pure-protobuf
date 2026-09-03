@@ -698,6 +698,7 @@ See `docs/upb.md`. Short list:
   `ErrorDetails::with_bad_request` plants packed BadRequest on this packed-status bag.
   `ErrorDetails::with_request_info` plants packed RequestInfo on this packed-status bag.
   `ErrorDetails::with_resource_info` plants packed ResourceInfo on this packed-status bag.
+  `ErrorDetails::with_help` plants packed Help on this packed-status bag.
   `Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`.
   `Duration::try_to_std` converts this protobuf to `std` on this packed-status, Distinct from `from_std` building the protobuf from `std`.
   `Status::details` returns raw trailer bytes on this packed-status, Distinct from `rpc` parsing a packed `google.rpc.Status`.
