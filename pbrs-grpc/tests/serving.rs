@@ -19731,6 +19731,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok."
+        ),
+        "Server::on_response rustdoc must Distinct ClientInterceptor Err local reject never opens a stream from this Server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        src.contains(
             "Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok."
         ),
         "Server::on_response rustdoc must Distinct Channel intercept Err local reject never opens a stream from this Server on_response Err trailers-only after handler Ok"
