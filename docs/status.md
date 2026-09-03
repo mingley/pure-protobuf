@@ -656,6 +656,7 @@ See `docs/upb.md`. Short list:
   `Status::help` is packed documentation links. Distinct from failure
   classifications: links can sit next to a retryable UNAVAILABLE.
   `Help::with_link` builds that payload.
+  `Help::with_link_entry` builds an extra packed docs URL on this packed-status.
   `help::Link::with_url` builds a nested docs URL on this packed-status.
   `Status::localized_message` is packed locale text. Distinct from the ASCII
   `grpc-message`. Distinct from `help` (a docs URL).

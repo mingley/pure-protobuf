@@ -12886,6 +12886,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
     );
     assert!(
+        status_guide.contains(
+            "`Help::with_link_entry` builds an extra packed docs URL on this packed-status."
+        ),
+        "status guide must name Help::with_link_entry next to Help::with_link"
+    );
+    assert!(
         status_guide
             .contains("`help::Link::with_url` builds a nested docs URL on this packed-status."),
         "status guide must name help::Link::with_url next to Help::with_link"
