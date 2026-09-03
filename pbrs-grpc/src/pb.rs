@@ -672,6 +672,42 @@ impl QuotaFailure {
         quota.set_violations([quota_failure::Violation::with_subject(subject, description)]);
         quota
     }
+
+    /// Pushes another quota violation onto this quota failure.
+    ///
+    /// Chain after [`Self::with_violation`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`Self::with_violation`]: that is the first quota subject, not an extra quota violation.
+    /// Distinct from [`quota_failure::Violation::with_subject`]: that builds one nested violation; this appends another onto QuotaFailure.
+    /// Distinct from [`crate::Status::bad_request`]: that is a field path, not an extra quota violation.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(
+    ///         QuotaFailure::with_violation("project:1", "tokens")
+    ///             .with_violation_entry("client:9", "qps"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// let quota = status.quota_failure().expect("QuotaFailure");
+    /// let extra = quota.violations().get(1).expect("subject");
+    /// assert_eq!(extra.subject().to_str().unwrap_or(""), "client:9");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_violation_entry(
+        mut self,
+        subject: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        self.violations_mut()
+            .push(quota_failure::Violation::with_subject(subject, description));
+        self
+    }
 }
 
 impl precondition_failure::Violation {
@@ -1595,6 +1631,45 @@ mod tests {
         assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
         assert!(status.retry_delay().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn quota_failure_with_violation_entry_round_trips() {
+        let packed = QuotaFailure::with_violation("project:1", "tokens")
+            .with_violation_entry("client:9", "qps");
+        assert_eq!(
+            packed
+                .violations()
+                .get(0)
+                .expect("first")
+                .subject()
+                .to_str()
+                .unwrap_or(""),
+            "project:1"
+        );
+        assert_eq!(
+            packed
+                .violations()
+                .get(1)
+                .expect("second")
+                .subject()
+                .to_str()
+                .unwrap_or(""),
+            "client:9"
+        );
+        let details = ErrorDetails {
+            quota_failure: Some(packed),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.quota_failure().expect("QuotaFailure");
+        let extra = got.violations().get(1).expect("subject");
+        assert_eq!(extra.subject().to_str().unwrap_or(""), "client:9");
+        assert_eq!(extra.description().to_str().unwrap_or(""), "qps");
+        assert!(status.bad_request().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]

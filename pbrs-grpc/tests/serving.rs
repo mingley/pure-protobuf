@@ -9525,6 +9525,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "QuotaFailure::with_violation must Distinct field path from quota subject"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_violation`]: that is the first quota subject, not an extra quota violation."
+        ),
+        "QuotaFailure::with_violation_entry must Distinct the first quota subject from an extra quota violation"
+    );
+    assert!(
         crate_src.contains("[`Status::precondition_failure`]"),
         "crate map must name Status::precondition_failure"
     );
