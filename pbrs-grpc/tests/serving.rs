@@ -9587,6 +9587,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::quota_failure must Distinct ASCII resource_exhausted"
     );
     assert!(
+        status_src.contains(
+            ".with_quota_failure(QuotaFailure::with_violation(\"project:1\", \"tokens\"));"
+        ),
+        "Status::quota_failure rustdoc must plant QuotaFailure with with_quota_failure"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::quota_failure`]"),
         "QuotaFailure::with_violation must name Status::quota_failure unpack"
     );

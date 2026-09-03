@@ -755,10 +755,8 @@ impl Status {
     /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     quota_failure: Some(QuotaFailure::with_violation("project:1", "tokens")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_quota_failure(QuotaFailure::with_violation("project:1", "tokens"));
     /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
     /// assert!(!status.is_retryable());
     /// let quota = status.quota_failure().expect("QuotaFailure");
