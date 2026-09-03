@@ -603,6 +603,17 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+        ),
+        "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithNoProxy`").count(),
+        1,
+        "Channel::connect must not copy the WithNoProxy Distinct"
+    );
+    assert!(
+        src.contains(
             "[`ChannelConfig::local_address`] binds the TCP source before connect\n/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.\n/// Distinct from [`crate::Rpc::local_addr`], which is the accepted"
         ),
         "Channel rustdoc must Distinct local_address bind from Rpc::local_addr"
@@ -6456,6 +6467,22 @@ fn channel_connect_with_documents_with_connect_params() {
 }
 
 #[test]
+fn channel_documents_with_no_proxy() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+        ),
+        "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithNoProxy`").count(),
+        1,
+        "Channel::connect must not copy the WithNoProxy Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6598,6 +6625,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "Channel::connect must not copy the WithConnectParams Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+        ),
+        "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert_eq!(
+        channel.matches("There is no grpc-go `WithNoProxy`").count(),
+        1,
+        "Channel::connect must not copy the WithNoProxy Distinct"
     );
     assert!(
         channel.contains(
@@ -7837,6 +7875,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. This crate-map [`Channel::connect_with`] redials a dead slot on the next RPC with no channel-level reconnect backoff. There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from [`Channel::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
         "crate-map must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map dials TCP `host:port` directly; there is no HTTP CONNECT proxy. There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy)."),
+        "crate-map must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19099,6 +19141,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithConnectParams` / `WithBackoffMaxDelay` / `WithBackoffConfig` | Not channel reconnect backoff: grpc-go exponential reconnect plus `MinConnectTimeout` for creating and maintaining connections. `Channel::connect_with` redials a dead slot on the next RPC with no channel-level reconnect backoff. Distinct from wait-for-ready handshake retries (`[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
         "guide must keep grpc-go WithConnectParams as an omission Distinct from next-RPC redial"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. TCP `host:port` is dialed directly; there is no HTTP CONNECT proxy. There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from `Channel::from_io` (already-connected bytes, not a proxy bypass). Distinct from `Channel::connect_unix` (filesystem path; this dialer is skipped). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
+        "guide must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. Distinct from `Channel::connect` (TCP `host:port` dialed directly; no HTTP CONNECT proxy). There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from `Channel::from_io` (already-connected bytes, not a proxy bypass). Distinct from `Channel::connect_unix` (filesystem path; this dialer is skipped). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
+        "architecture must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. Distinct from `Channel::connect` (TCP `host:port` dialed directly; no HTTP CONNECT proxy). There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from `Channel::from_io` (already-connected bytes, not a proxy bypass). Distinct from `Channel::connect_unix` (filesystem path; this dialer is skipped). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
+        "status guide must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. Distinct from `Channel::connect` (TCP `host:port` dialed directly; no HTTP CONNECT proxy). There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from `Channel::from_io` (already-connected bytes, not a proxy bypass). Distinct from `Channel::connect_unix` (filesystem path; this dialer is skipped). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
+        "crate README must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert!(
+        guide.contains("grpc-go `WithNoProxy` / `WithLocalDNSResolution` | Not a DialOption: grpc-go honors `HTTPS_PROXY` by default; `WithNoProxy` disables it. TCP `host:port` is dialed directly; there is no HTTP CONNECT proxy. Distinct from `WithLocalDNSResolution` (resolve locally so the proxy CONNECT sees an IP; ignored when `WithNoProxy` is set). Distinct from `from_io` (already-connected bytes, not a proxy bypass). Distinct from `connect_unix` (filesystem path). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
+        "guide must keep grpc-go WithNoProxy as an omission Distinct from direct TCP dial"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

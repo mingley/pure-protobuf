@@ -369,6 +369,14 @@ impl Endpoint {
 /// TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and
 /// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct
 /// from tonic, which defaults Nagle off but lets you turn it back on.
+/// There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by
+/// default; that DialOption disables it. TCP `host:port` is dialed
+/// directly; there is no HTTP CONNECT proxy. There is no
+/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT
+/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,
+/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem
+/// path; this dialer is skipped). Distinct from
+/// [`ChannelConfig::local_address`] (source bind, not proxy).
 /// [`ChannelConfig::local_address`] binds the TCP source before connect
 /// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.
 /// Distinct from [`crate::Rpc::local_addr`], which is the accepted
