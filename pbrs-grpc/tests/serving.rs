@@ -16914,6 +16914,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`ErrorDetails::with_unknown` plants a non-standard Any after this guide ErrorDetails bag."
+        ),
+        "guide must name ErrorDetails::with_unknown next to ErrorDetails::with_localized_message"
+    );
+    assert!(
+        guide.contains(
             "`Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
         "guide must name Duration::from_std next to ErrorDetails::new"
