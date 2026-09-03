@@ -1253,6 +1253,31 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`DebugInfo`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::debug_info`].
+    /// Distinct from [`DebugInfo::with_stack`]: that is the first frame and detail, not planting DebugInfo on the bag.
+    /// Distinct from [`crate::Status::debug_info`]: that unpacks packed DebugInfo; this plants it on the bag.
+    /// Distinct from [`Self::with_retry_info`]: that plants RetryInfo, not DebugInfo.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_debug_info(DebugInfo::with_stack("rpc.rs:4", "deadline"));
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let debug = status.debug_info().expect("DebugInfo");
+    /// assert_eq!(debug.detail().to_str().unwrap_or(""), "deadline");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_debug_info(mut self, debug_info: DebugInfo) -> Self {
+        self.debug_info = Some(debug_info);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1429,6 +1454,26 @@ mod tests {
         );
         assert!(status.error_info().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn error_details_with_debug_info_round_trips() {
+        let details =
+            ErrorDetails::new().with_debug_info(DebugInfo::with_stack("rpc.rs:4", "deadline"));
+        let status =
+            crate::Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let got = status.debug_info().expect("DebugInfo");
+        assert_eq!(got.detail().to_str().unwrap_or(""), "deadline");
+        assert_eq!(
+            got.stack_entries()
+                .get(0)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "rpc.rs:4"
+        );
+        assert!(status.retry_delay().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]
