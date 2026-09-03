@@ -892,6 +892,7 @@ impl Channel {
     /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
+    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a Router intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
