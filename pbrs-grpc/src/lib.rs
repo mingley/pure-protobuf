@@ -170,6 +170,8 @@
 //!
 //! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map server intercept Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map server intercept Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map server intercept Err is trailers without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
