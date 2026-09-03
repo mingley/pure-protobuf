@@ -540,6 +540,13 @@ impl ServerConfig {
     /// pin a connection task forever. A completed handshake is not subject to
     /// this cap; use [`Self::max_connection_idle`] / [`Self::max_connection_age`]
     /// for live connections.
+    /// There is no grpc-go `ConnectionTimeout` setter: that is one deadline
+    /// from accept through HTTP/2 handshake (default 120 s). This cap is 20 s
+    /// on TLS accept (if any) and 20 s on the HTTP/2 preface, separately.
+    /// Distinct from [`ChannelConfig::connect_timeout`] (client whole dial).
+    /// Distinct from [`Self::timeout`] (RPC deadline overlay). Distinct from
+    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from
+    /// [`Self::max_connection_age`] (live connections after handshake).
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.handshake_timeout = timeout.max(Duration::from_millis(1));

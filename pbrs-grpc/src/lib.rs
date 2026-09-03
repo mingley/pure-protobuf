@@ -777,6 +777,8 @@
 //!
 //! There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. This crate-map [`ChannelConfig::timeout`] writes `grpc-timeout` when the request omits one. Distinct from [`ServerConfig::timeout`] (server overlay). Distinct from [`ChannelConfig::connect_timeout`] (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). This crate-map [`ServerConfig::handshake_timeout`] is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK).
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

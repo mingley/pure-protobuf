@@ -6829,6 +6829,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `ConnectionTimeout` setter: that is one deadline\n    /// from accept through HTTP/2 handshake (default 120 s). This cap is 20 s\n    /// on TLS accept (if any) and 20 s on the HTTP/2 preface, separately.\n    /// Distinct from [`ChannelConfig::connect_timeout`] (client whole dial).\n    /// Distinct from [`Self::timeout`] (RPC deadline overlay). Distinct from\n    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from\n    /// [`Self::max_connection_age`] (live connections after handshake)."
+        ),
+        "ServerConfig::handshake_timeout rustdoc must Distinct two sequential 20 s caps from grpc-go ConnectionTimeout"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `ConnectionTimeout` setter")
+            .count(),
+        1,
+        "ChannelConfig::connect_timeout must not copy the server ConnectionTimeout Distinct"
+    );
+    assert!(
+        src.contains(
             "Cap how many RPCs the process will run at once, across every\n    /// connection. Applies to every call shape, including over TLS, mTLS,\n    /// Unix, and [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::max_concurrent_rpcs must name every transport"
@@ -7498,6 +7510,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. This crate-map [`ChannelConfig::timeout`] writes `grpc-timeout` when the request omits one. Distinct from [`ServerConfig::timeout`] (server overlay). Distinct from [`ChannelConfig::connect_timeout`] (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). This crate-map [`ServerConfig::handshake_timeout`] is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK)."),
+        "crate-map must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
     );
     assert!(
         crate_src.contains(
@@ -18504,6 +18520,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::timeout` | Times out the client future without writing `grpc-timeout`, so the server is not informed. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::timeout as an omission Distinct from writing grpc-timeout"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
+        "guide must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). Distinct from `ServerConfig::handshake_timeout` (20 s on TLS accept and 20 s on the HTTP/2 preface, separately). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
+        "architecture must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). Distinct from `ServerConfig::handshake_timeout` (20 s on TLS accept and 20 s on the HTTP/2 preface, separately). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
+        "status guide must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). Distinct from `ServerConfig::handshake_timeout` (20 s on TLS accept and 20 s on the HTTP/2 preface, separately). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
+        "crate README must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
+    );
+    assert!(
+        guide.contains("grpc-go `ConnectionTimeout` | Not one 120 s deadline from accept through HTTP/2 handshake. `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
+        "guide must keep grpc-go ConnectionTimeout as an omission Distinct from sequential 20 s handshake caps"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

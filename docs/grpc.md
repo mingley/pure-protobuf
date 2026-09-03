@@ -738,6 +738,7 @@ with backoff. An RPC deadline still races the dial.
 On the server, `GreeterServer::handshake_timeout` (same 20 s default) drops a
 client that never completes TLS or the HTTP/2 preface, so a mute peer cannot
 pin a connection task forever, including over TLS, mTLS, and Unix.
+There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake).
 
 ## Serving several services
 
@@ -2460,6 +2461,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots). |
 | tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | tonic `Endpoint::timeout` | Times out the client future without writing `grpc-timeout`, so the server is not informed. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| grpc-go `ConnectionTimeout` | Not one 120 s deadline from accept through HTTP/2 handshake. `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
