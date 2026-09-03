@@ -3564,6 +3564,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive from this ServiceExt intercept Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body."
         ),
         "ServiceExt::intercept rustdoc must Distinct Channel intercept Err local reject never opens a stream from this ServiceExt intercept Err without reading the body"
