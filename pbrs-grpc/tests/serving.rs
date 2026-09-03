@@ -19193,6 +19193,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Server intercept Err is trailers without reading the body."
+        ),
+        "Server::intercept rustdoc must Distinct ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive from this Server intercept Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server intercept Err is trailers without reading the body."
         ),
         "Server::intercept rustdoc must Distinct Channel intercept Err local reject never opens a stream from this Server intercept Err without reading the body"
