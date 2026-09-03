@@ -6423,6 +6423,22 @@ fn channel_documents_with_max_call_attempts() {
 }
 
 #[test]
+fn channel_origin_documents_with_authority() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithAuthority`: that sets `:authority` and the\n    /// TLS authentication server name. This overlay is `:authority` only.\n    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct\n    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no\n    /// `CallAuthority`: interceptors cannot override `:authority` per call."
+        ),
+        "Channel::origin rustdoc must Distinct :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithAuthority`").count(),
+        1,
+        "Channel::authority must not copy the WithAuthority Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6539,6 +6555,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and\n    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]\n    /// or [`Self::https_scheme`]."
         ),
         "Channel::origin must Distinct tonic Endpoint::origin Uri scheme"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithAuthority`: that sets `:authority` and the\n    /// TLS authentication server name. This overlay is `:authority` only.\n    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct\n    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no\n    /// `CallAuthority`: interceptors cannot override `:authority` per call."
+        ),
+        "Channel::origin rustdoc must Distinct :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithAuthority`")
+            .count(),
+        1,
+        "Channel::authority must not copy the WithAuthority Distinct"
     );
     assert!(
         channel.contains(
@@ -7770,6 +7799,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
         "crate-map must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. This crate-map [`Channel::origin`] is `:authority` only. Distinct from [`ClientTls`] (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "crate-map must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -18992,6 +19025,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithMaxCallAttempts` | Not a DialOption: grpc-go caps retries and hedging per call (default 5; values below 2 become 5). Transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
         "guide must keep grpc-go WithMaxCallAttempts as an omission Distinct from at-most-once transparent retry"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. `Channel::origin` is `:authority` only. Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "guide must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. Distinct from `Channel::origin` (`:authority` only). Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "architecture must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. Distinct from `Channel::origin` (`:authority` only). Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "status guide must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. Distinct from `Channel::origin` (`:authority` only). Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "crate README must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        guide.contains("grpc-go `WithAuthority` / `CallAuthority` | Not coupled TLS server name: grpc-go `WithAuthority` sets `:authority` and the TLS authentication server name. `Channel::origin` is `:authority` only. Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
+        "guide must keep grpc-go WithAuthority as an omission Distinct from :authority-only origin"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

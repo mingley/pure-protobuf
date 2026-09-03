@@ -860,6 +860,7 @@ Unix, `serve_connection`, and the default `Incoming` yield `None`.
 `Incoming::peer` can supply a chain the acceptor already verified
 (`PeerIdentity::from_der_certs`). `:scheme` is `https` on every call shape.
 `:authority` is the client's `Target` (a `SocketAddr` is `127.0.0.1:port`), not TLS SNI, unless `Channel::origin` / `FooClient::origin` overrode it on that clone. Distinct from `ClientTls` (SNI / certificate name) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`.
+There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. `Channel::origin` is `:authority` only. Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call.
 The kernel does not parse X.509;
 an interceptor that needs a CN or SAN decodes the leaf:
 
@@ -2481,6 +2482,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `WithDefaultServiceConfig` / `WithDisableServiceConfig` | Not JSON service config: `ChannelConfig` is typed `Copy` fields; there is no name resolver to fetch or ignore. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). |
 | grpc-go `WithIdleTimeout` | Not resolver/LB idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down. |
 | grpc-go `WithMaxCallAttempts` | Not a DialOption: grpc-go caps retries and hedging per call (default 5; values below 2 become 5). Transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented). |
+| grpc-go `WithAuthority` / `CallAuthority` | Not coupled TLS server name: grpc-go `WithAuthority` sets `:authority` and the TLS authentication server name. `Channel::origin` is `:authority` only. Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

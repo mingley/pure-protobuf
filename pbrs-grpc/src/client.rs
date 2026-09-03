@@ -687,6 +687,11 @@ impl Channel {
     /// Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and
     /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]
     /// or [`Self::https_scheme`].
+    /// There is no grpc-go `WithAuthority`: that sets `:authority` and the
+    /// TLS authentication server name. This overlay is `:authority` only.
+    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct
+    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no
+    /// `CallAuthority`: interceptors cannot override `:authority` per call.
     ///
     /// Unix defaults to `localhost`; this overlay can replace it.
     /// [`Self::from_io`] already takes an authority argument; this overlay
