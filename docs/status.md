@@ -692,6 +692,7 @@ See `docs/upb.md`. Short list:
   `ErrorDetails::new` is an empty bag on this packed-status, Distinct from `from_rpc` unpacking the `Any` list.
   `ErrorDetails::with_error_info` plants packed ErrorInfo on this packed-status bag.
   `ErrorDetails::with_retry_info` plants packed RetryInfo on this packed-status bag.
+  `ErrorDetails::with_debug_info` plants packed DebugInfo on this packed-status bag.
   `Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`.
   `Duration::try_to_std` converts this protobuf to `std` on this packed-status, Distinct from `from_std` building the protobuf from `std`.
   `Status::details` returns raw trailer bytes on this packed-status, Distinct from `rpc` parsing a packed `google.rpc.Status`.
