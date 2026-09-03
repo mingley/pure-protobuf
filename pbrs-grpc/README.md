@@ -312,6 +312,7 @@ Distinct from a crate README UnimplementedService interceptor Err: that is trail
 Distinct from a crate README InteropTestService interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README server on_response Err is trailers-only after handler Ok.
+Distinct from a crate README interceptor Err: that is a local reject never opens a stream; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this crate README on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this crate README Channel on_response Err; a local reject fails the Call after a successful receive.

@@ -11918,6 +11918,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README interceptor Err: that is a local reject never opens a stream; this crate README server on_response Err is trailers-only after handler Ok."
+        ),
+        "crate README must Distinct crate README interceptor Err local reject never opens a stream from this crate README server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        readme.contains(
             "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README server on_response runs after the handler returns Ok."
         ),
         "crate README must Distinct server on_response from Server intercept"
