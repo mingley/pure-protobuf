@@ -538,6 +538,7 @@ and HTTP/2 connection death attach the original error as
 `Any::unpack` decodes the payload after this architecture is type-URL check, Distinct from checking the type URL.
 `Any::is` is a type-URL check after this architecture unpack decode, Distinct from decoding the payload.
 `ErrorDetails::new` is an empty bag after this architecture from_rpc unpack, Distinct from unpacking the `Any` list.
+`ErrorDetails::with_error_info` plants packed ErrorInfo after this architecture ErrorDetails bag.
 `Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`.
 `Duration::try_to_std` converts this protobuf to `std` after this architecture from_std builder, Distinct from building the protobuf from `std`.
 `Status::details` returns raw trailer bytes after this architecture rpc parse, Distinct from parsing a packed `google.rpc.Status`.
