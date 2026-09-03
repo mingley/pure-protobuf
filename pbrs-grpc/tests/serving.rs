@@ -9694,6 +9694,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::help must Distinct precondition type from docs URL"
     );
     assert!(
+        status_src.contains(
+            ".with_help(Help::with_link(\"quota docs\", \"https://example.com/quota\"));"
+        ),
+        "Status::help rustdoc must plant Help with with_help"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::help`]"),
         "Help::with_link must name Status::help unpack"
     );
