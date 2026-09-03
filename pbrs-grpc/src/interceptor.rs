@@ -699,6 +699,7 @@ impl<S: Service> ServiceExt for S {}
 /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from an Interceptor Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
+/// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a Server intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a Router intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
