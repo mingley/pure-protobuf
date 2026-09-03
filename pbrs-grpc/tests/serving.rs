@@ -10210,6 +10210,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "status.set_details(vec![0xff]);\n    /// assert_eq!(status.details(), &[0xff]);"
+        ),
+        "Status::set_details rustdoc must ship raw trailer bytes on an existing status"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes."
         ),
         "Status::details must Distinct packed google.rpc.Status parse from raw trailer bytes"

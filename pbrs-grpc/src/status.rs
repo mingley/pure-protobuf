@@ -436,6 +436,19 @@ impl Status {
     /// [`Self::details`] returns those bytes; they do not appear as a metadata
     /// key.
     /// Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut status = Status::unavailable("proxy");
+    /// status.metadata_mut().insert("x-via", "edge")?;
+    /// status.set_details(vec![0xff]);
+    /// assert_eq!(status.details(), &[0xff]);
+    /// assert_eq!(status.metadata().get("x-via"), Some("edge"));
+    /// let err = status.rpc().expect_err("corrupt");
+    /// assert_eq!(err.code(), Code::Internal);
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn set_details(&mut self, details: impl Into<Bytes>) {
         let details = details.into();
         if details.is_empty() {
