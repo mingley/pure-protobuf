@@ -1965,6 +1965,7 @@ Distinct from a guide UnimplementedService interceptor Err: that is trailers wit
 Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
+Distinct from a guide server intercept Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this guide Channel on_response runs after a successful receive.
 

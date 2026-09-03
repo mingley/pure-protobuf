@@ -16022,6 +16022,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide server intercept Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive."
+        ),
+        "guide must Distinct guide server intercept Err without reading the body from this guide Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Channel on_response Err fails the Call after a successful receive."
         ),
         "guide must Distinct guide server on_response Err trailers-only after handler Ok from this guide Channel on_response Err Call fail after receive"
