@@ -12210,6 +12210,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`FieldViolation::with_reason` builds a nested field-violation reason on this crate README"
+        ),
+        "crate README must name FieldViolation::with_reason next to FieldViolation::with_field"
+    );
+    assert!(
+        readme.contains(
             "`Status::quota_failure` / `QuotaFailure::with_violation` builds packed quota subjects on this crate README"
         ),
         "crate README must name QuotaFailure::with_violation next to Status::quota_failure"
