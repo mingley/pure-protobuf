@@ -9898,6 +9898,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "RequestInfo::with_request_id must Distinct ErrorInfo metadata map from typed request_id"
     );
     assert!(
+        pb_src.contains(
+            ".with_request_info(RequestInfo::with_request_id(\"req-9\", \"encrypted\"));\n    /// let status = Status::from_error_details(Code::Internal, \"boom\", &details)?;\n    /// let info = status.request_info().expect(\"RequestInfo\");\n    /// assert_eq!(info.request_id().to_str().unwrap_or(\"\"), \"req-9\");\n    /// assert_eq!(info.serving_data().to_str().unwrap_or(\"\"), \"encrypted\");"
+        ),
+        "RequestInfo::with_request_id rustdoc must plant RequestInfo with with_request_info"
+    );
+    assert!(
         crate_src.contains("[`Status::resource_info`]"),
         "crate map must name Status::resource_info"
     );
