@@ -17466,6 +17466,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorInfo::with_metadata as the metadata builder"
     );
     assert!(
+        architecture.contains("`BadRequest::with_field_entry` builds an extra packed field violation after this architecture BadRequest builder."),
+        "architecture must name BadRequest::with_field_entry next to BadRequest::with_field"
+    );
+    assert!(
         architecture.contains("`FieldViolation::with_field` builds a nested field path after this architecture BadRequest builder."),
         "architecture must name FieldViolation::with_field next to BadRequest::with_field"
     );

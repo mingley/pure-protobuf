@@ -574,6 +574,7 @@ unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 `ErrorInfo::with_metadata` fills a metadata pair after this architecture ErrorInfo builder.
 `Status::bad_request` is packed field violations. Distinct from
 `error_info`. `BadRequest::with_field` builds that payload.
+`BadRequest::with_field_entry` builds an extra packed field violation after this architecture BadRequest builder.
 `FieldViolation::with_field` builds a nested field path after this architecture BadRequest builder.
 `FieldViolation::with_reason` builds a nested field-violation reason after this architecture FieldViolation builder.
 `FieldViolation::with_localized_message` builds a nested field-violation locale after this architecture FieldViolation builder.
