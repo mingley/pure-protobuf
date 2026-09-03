@@ -581,6 +581,7 @@ unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 `Status::quota_failure`
 is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `bad_request`. `QuotaFailure::with_violation` builds that payload.
+`QuotaFailure::with_violation_entry` builds an extra packed quota violation after this architecture QuotaFailure builder.
 `quota_failure::Violation::with_subject` builds a nested quota subject after this architecture QuotaFailure builder.
 `quota_failure::Violation::with_api_service` builds a nested quota API service after this architecture quota subject builder.
 `quota_failure::Violation::with_quota_metric` builds a nested quota metric after this architecture quota subject builder.

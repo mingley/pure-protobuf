@@ -17508,6 +17508,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name FieldViolation::with_localized_message next to FieldViolation::with_reason"
     );
     assert!(
+        architecture.contains("`QuotaFailure::with_violation_entry` builds an extra packed quota violation after this architecture QuotaFailure builder."),
+        "architecture must name QuotaFailure::with_violation_entry next to QuotaFailure::with_violation"
+    );
+    assert!(
         architecture.contains("`quota_failure::Violation::with_subject` builds a nested quota subject after this architecture QuotaFailure builder."),
         "architecture must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
     );
