@@ -934,6 +934,43 @@ impl DebugInfo {
         info.set_detail(detail.into());
         info
     }
+
+    /// Pushes another stack `entry` onto this debug info.
+    ///
+    /// Chain after [`Self::with_stack`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::debug_info`].
+    /// Distinct from [`Self::with_stack`]: that is the first frame and detail, not an extra stack frame.
+    /// Distinct from [`crate::Status::localized_message`]: that is a locale, not an extra stack frame.
+    /// Distinct from [`crate::Status::help`]: that is a docs URL, not an extra stack frame.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     debug_info: Some(
+    ///         DebugInfo::with_stack("handler.rs:9", "nil pointer").with_stack_entry("rpc.rs:4"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let debug = status.debug_info().expect("DebugInfo");
+    /// assert_eq!(
+    ///     debug
+    ///         .stack_entries()
+    ///         .get(1)
+    ///         .expect("frame")
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "rpc.rs:4"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_stack_entry(mut self, entry: impl Into<String>) -> Self {
+        self.stack_entries_mut().push(entry.into());
+        self
+    }
 }
 
 impl Status {
@@ -1800,6 +1837,48 @@ mod tests {
             "handler.rs:9"
         );
         assert_eq!(got.detail().to_str().unwrap_or(""), "nil pointer");
+        assert!(status.localized_message().is_none());
+        assert!(status.help().is_none());
+    }
+
+    #[test]
+    fn debug_info_with_stack_entry_round_trips() {
+        let debug =
+            DebugInfo::with_stack("handler.rs:9", "nil pointer").with_stack_entry("rpc.rs:4");
+        assert_eq!(
+            debug
+                .stack_entries()
+                .get(0)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "handler.rs:9"
+        );
+        assert_eq!(
+            debug
+                .stack_entries()
+                .get(1)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "rpc.rs:4"
+        );
+        assert_eq!(debug.detail().to_str().unwrap_or(""), "nil pointer");
+        let details = ErrorDetails {
+            debug_info: Some(debug),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let got = status.debug_info().expect("DebugInfo");
+        assert_eq!(
+            got.stack_entries()
+                .get(1)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "rpc.rs:4"
+        );
         assert!(status.localized_message().is_none());
         assert!(status.help().is_none());
     }

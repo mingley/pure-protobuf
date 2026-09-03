@@ -9729,6 +9729,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`Self::with_stack`]: that is the first frame and detail, not an extra stack frame."
+        ),
+        "DebugInfo::with_stack_entry must Distinct the first frame and detail from an extra stack frame"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
         ),
         "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
