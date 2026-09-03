@@ -9579,6 +9579,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "PreconditionFailure::with_violation must Distinct quota subject from precondition type"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_violation`]: that is the first precondition type, not an extra precondition violation."
+        ),
+        "PreconditionFailure::with_violation_entry must Distinct the first precondition type from an extra precondition violation"
+    );
+    assert!(
         crate_src.contains("[`Status::help`]"),
         "crate map must name Status::help"
     );

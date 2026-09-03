@@ -779,6 +779,50 @@ impl PreconditionFailure {
         )]);
         pre
     }
+
+    /// Pushes another precondition violation onto this precondition failure.
+    ///
+    /// Chain after [`Self::with_violation`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::precondition_failure`].
+    /// Distinct from [`Self::with_violation`]: that is the first precondition type, not an extra precondition violation.
+    /// Distinct from [`precondition_failure::Violation::with_type`]: that builds one nested violation; this appends another onto PreconditionFailure.
+    /// Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not an extra precondition violation.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     precondition_failure: Some(
+    ///         PreconditionFailure::with_violation("TOS", "google.com/cloud", "unsigned")
+    ///             .with_violation_entry("googleapis.com/iam/resource", "user:9", "missing"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "tos", &details)?;
+    /// let pre = status.precondition_failure().expect("PreconditionFailure");
+    /// let extra = pre.violations().get(1).expect("violation");
+    /// assert_eq!(
+    ///     extra.r#type().to_str().unwrap_or(""),
+    ///     "googleapis.com/iam/resource"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_violation_entry(
+        mut self,
+        r#type: impl Into<String>,
+        subject: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        self.violations_mut()
+            .push(precondition_failure::Violation::with_type(
+                r#type,
+                subject,
+                description,
+            ));
+        self
+    }
 }
 
 impl help::Link {
@@ -1861,6 +1905,49 @@ mod tests {
         assert!(status.retry_delay().is_none());
         assert!(status.quota_failure().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn precondition_failure_with_violation_entry_round_trips() {
+        let packed = PreconditionFailure::with_violation("TOS", "google.com/cloud", "unsigned")
+            .with_violation_entry("googleapis.com/iam/resource", "user:9", "missing");
+        assert_eq!(
+            packed
+                .violations()
+                .get(0)
+                .expect("first")
+                .r#type()
+                .to_str()
+                .unwrap_or(""),
+            "TOS"
+        );
+        assert_eq!(
+            packed
+                .violations()
+                .get(1)
+                .expect("second")
+                .r#type()
+                .to_str()
+                .unwrap_or(""),
+            "googleapis.com/iam/resource"
+        );
+        let details = ErrorDetails {
+            precondition_failure: Some(packed),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::FailedPrecondition, "tos", &details)
+            .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.precondition_failure().expect("PreconditionFailure");
+        let extra = got.violations().get(1).expect("violation");
+        assert_eq!(
+            extra.r#type().to_str().unwrap_or(""),
+            "googleapis.com/iam/resource"
+        );
+        assert_eq!(extra.subject().to_str().unwrap_or(""), "user:9");
+        assert_eq!(extra.description().to_str().unwrap_or(""), "missing");
+        assert!(status.quota_failure().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]
