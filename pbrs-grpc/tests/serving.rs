@@ -17712,6 +17712,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep GetState as an omission"
     );
     assert!(
+        guide.contains(
+            "Channelz (`grpc.channelz.v1`) | Not implemented. `Channel::connected` / `Outgoing::connected` / `FooClient::connected` is a live-socket snapshot, not channelz sockets, channels, or subchannels."
+        ),
+        "guide must keep channelz as an omission Distinct from the connected snapshot"
+    );
+    assert!(
+        status_guide
+            .contains("hedging, and channelz (`grpc.channelz.v1`) are documented omissions."),
+        "status guide must keep channelz as a documented omission"
+    );
+    assert!(
         guide.contains("`FooClient::connected` is that snapshot on a generated client"),
         "guide omissions must name FooClient::connected as the generated-client snapshot"
     );
