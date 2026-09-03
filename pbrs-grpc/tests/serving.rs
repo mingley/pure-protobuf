@@ -10359,6 +10359,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "status.set_from_error_details(Code::Unavailable, \"backend died\", &details)?;"
+        ),
+        "Status::set_from_error_details rustdoc must plant the typed bag in place"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`."
         ),
         "Status::set_rpc must Distinct packing Anys from encoding a packed google.rpc.Status"

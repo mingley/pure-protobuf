@@ -627,6 +627,29 @@ impl Status {
     /// [`Self::from_error_details`] in place. Trailing metadata is left
     /// alone.
     /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this takes the typed bag.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut status = Status::internal("boom");
+    /// status.metadata_mut().insert("x-epoch", "9")?;
+    /// let details = ErrorDetails::new()
+    ///     .with_error_info(ErrorInfo::with_reason("BACKEND_DIED", "mesh.example.com"));
+    /// status.set_from_error_details(Code::Unavailable, "backend died", &details)?;
+    /// assert!(status.is_retryable());
+    /// assert_eq!(status.metadata().get("x-epoch"), Some("9"));
+    /// assert_eq!(
+    ///     status
+    ///         .error_info()
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "BACKEND_DIED"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn set_from_error_details(
         &mut self,
         code: Code,
