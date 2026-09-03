@@ -576,6 +576,7 @@ unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 `error_info`. `BadRequest::with_field` builds that payload.
 `FieldViolation::with_field` builds a nested field path after this architecture BadRequest builder.
 `FieldViolation::with_reason` builds a nested field-violation reason after this architecture FieldViolation builder.
+`FieldViolation::with_localized_message` builds a nested field-violation locale after this architecture FieldViolation builder.
 `Status::quota_failure`
 is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `bad_request`. `QuotaFailure::with_violation` builds that payload.
