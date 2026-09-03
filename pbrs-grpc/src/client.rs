@@ -496,6 +496,16 @@ impl Channel {
     /// spread over them round-robin. All of them must succeed. A slot that
     /// later dies is redialed on the next RPC that lands on it. Each dial is
     /// bounded by [`ChannelConfig::connect_timeout`].
+    /// There is no grpc-go `WithConnectParams`: that is exponential reconnect
+    /// backoff plus `MinConnectTimeout` for creating and maintaining
+    /// connections. A dead slot is redialed on the next RPC with no
+    /// channel-level reconnect backoff. There is no `WithBackoffMaxDelay` /
+    /// `WithBackoffConfig` (deprecated aliases). Distinct from
+    /// [`Self::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320,
+    /// 640, 1000]` ms, not channel reconnect). Distinct from
+    /// [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not
+    /// grpc-go `MinConnectTimeout`, also default 20 s). Distinct from
+    /// transparent retry (one redial of the same RPC, not connect backoff).
     pub async fn connect_with(
         target: impl Into<Target>,
         config: ChannelConfig,

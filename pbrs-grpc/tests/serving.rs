@@ -6439,6 +6439,23 @@ fn channel_origin_documents_with_authority() {
 }
 
 #[test]
+fn channel_connect_with_documents_with_connect_params() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithConnectParams`: that is exponential reconnect\n    /// backoff plus `MinConnectTimeout` for creating and maintaining\n    /// connections. A dead slot is redialed on the next RPC with no\n    /// channel-level reconnect backoff. There is no `WithBackoffMaxDelay` /\n    /// `WithBackoffConfig` (deprecated aliases). Distinct from\n    /// [`Self::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320,\n    /// 640, 1000]` ms, not channel reconnect). Distinct from\n    /// [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not\n    /// grpc-go `MinConnectTimeout`, also default 20 s). Distinct from\n    /// transparent retry (one redial of the same RPC, not connect backoff)."
+        ),
+        "Channel::connect_with rustdoc must Distinct next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithConnectParams`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithConnectParams Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6568,6 +6585,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "Channel::authority must not copy the WithAuthority Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithConnectParams`: that is exponential reconnect\n    /// backoff plus `MinConnectTimeout` for creating and maintaining\n    /// connections. A dead slot is redialed on the next RPC with no\n    /// channel-level reconnect backoff. There is no `WithBackoffMaxDelay` /\n    /// `WithBackoffConfig` (deprecated aliases). Distinct from\n    /// [`Self::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320,\n    /// 640, 1000]` ms, not channel reconnect). Distinct from\n    /// [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not\n    /// grpc-go `MinConnectTimeout`, also default 20 s). Distinct from\n    /// transparent retry (one redial of the same RPC, not connect backoff)."
+        ),
+        "Channel::connect_with rustdoc must Distinct next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithConnectParams`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithConnectParams Distinct"
     );
     assert!(
         channel.contains(
@@ -7803,6 +7833,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. This crate-map [`Channel::origin`] is `:authority` only. Distinct from [`ClientTls`] (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
         "crate-map must Distinct Channel::origin :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. This crate-map [`Channel::connect_with`] redials a dead slot on the next RPC with no channel-level reconnect backoff. There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from [`Channel::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "crate-map must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19045,6 +19079,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithAuthority` / `CallAuthority` | Not coupled TLS server name: grpc-go `WithAuthority` sets `:authority` and the TLS authentication server name. `Channel::origin` is `:authority` only. Distinct from `ClientTls` (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call."),
         "guide must keep grpc-go WithAuthority as an omission Distinct from :authority-only origin"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. `Channel::connect_with` redials a dead slot on the next RPC with no channel-level reconnect backoff. There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from `Channel::wait_for_ready` (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "guide must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. Distinct from `Channel::connect_with` (redials a dead slot on the next RPC with no channel-level reconnect backoff). There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from `Channel::wait_for_ready` (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "architecture must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. Distinct from `Channel::connect_with` (redials a dead slot on the next RPC with no channel-level reconnect backoff). There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from `Channel::wait_for_ready` (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "status guide must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. Distinct from `Channel::connect_with` (redials a dead slot on the next RPC with no channel-level reconnect backoff). There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from `Channel::wait_for_ready` (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "crate README must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
+    );
+    assert!(
+        guide.contains("grpc-go `WithConnectParams` / `WithBackoffMaxDelay` / `WithBackoffConfig` | Not channel reconnect backoff: grpc-go exponential reconnect plus `MinConnectTimeout` for creating and maintaining connections. `Channel::connect_with` redials a dead slot on the next RPC with no channel-level reconnect backoff. Distinct from wait-for-ready handshake retries (`[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from `ChannelConfig::connect_timeout` (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff)."),
+        "guide must keep grpc-go WithConnectParams as an omission Distinct from next-RPC redial"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
