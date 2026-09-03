@@ -71,6 +71,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Outgoing::connected` is the live-socket snapshot on this crate README interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README interceptor Err; a local reject never opens a stream.
 Distinct from a crate README handler Err: that is after the handler ran; this crate README interceptor Err is a local reject never opens a stream.
+Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README interceptor Err is a local reject never opens a stream.
 Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README interceptor Err is a local reject never opens a stream.
 Distinct from a crate README server intercept Err: that is trailers without reading the body; this crate README interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README interceptor already ran, so a local Err never consumes that budget.
