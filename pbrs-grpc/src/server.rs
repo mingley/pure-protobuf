@@ -2950,6 +2950,7 @@ impl Router {
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
+    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok.
