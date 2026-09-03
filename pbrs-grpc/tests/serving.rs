@@ -9092,8 +9092,13 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name quota_failure::Violation::with_quota_dimension next to quota_failure::Violation::with_quota_id"
     );
     assert!(
-        crate_src.contains("[`pb::quota_failure::Violation::with_quota_dimension`], [`pb::quota_failure`]"),
-        "crate map must name pb::quota_failure next to quota_failure::Violation::with_quota_dimension"
+        crate_src.contains("[`pb::quota_failure::Violation::with_quota_dimension`], [`pb::quota_failure::Violation::with_quota_value`]"),
+        "crate map must name quota_failure::Violation::with_quota_value next to quota_failure::Violation::with_quota_dimension"
+    );
+    assert!(
+        crate_src
+            .contains("[`pb::quota_failure::Violation::with_quota_value`], [`pb::quota_failure`]"),
+        "crate map must name pb::quota_failure next to quota_failure::Violation::with_quota_value"
     );
     assert!(
         crate_src.contains("[`pb::quota_failure`], [`Status::precondition_failure`]"),
