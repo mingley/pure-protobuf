@@ -891,6 +891,7 @@ next RPC redials that slot; if the peer is still gone, the call fails with
 `UNAVAILABLE` (or `DEADLINE_EXCEEDED` if the request deadline elapses while
 connecting) instead of hanging on a dead socket. PINGs do not reset
 `max_connection_idle`. Applies to every call shape.
+There is no `http2_keep_alive_while_idle` setter: once `keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off so a client interval does not PING an idle socket. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag.
 
 **TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
 time before the first probe. Probe interval and retry count stay at the kernel
@@ -2416,7 +2417,7 @@ Deliberate omissions, with what to do instead.
 | `grpc.stats` / OpenTelemetry tracing | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is envelope mutation, not `stats.Handler` Begin/End/payload and not OpenTelemetry spans. Distinct from binary logging (`grpc.binarylog.v1`), which is the event proto. Distinct from tonic's `trace_fn`, which installs a tracing span per RPC. |
 | tonic `http://` / `https://` / `unix://` channel URIs | `Target` is `host:port`. `Channel::connect_tls` dials TLS; `Channel::connect_unix` takes a filesystem path; `Channel::origin` overlays `:authority`. A URI-shaped string is `INVALID_ARGUMENT`, not a silent `connect_tls`. |
 | grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URIs | `Target` is `host:port`. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`, not a silent resolver. |
-| Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
+| Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

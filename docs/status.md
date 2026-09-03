@@ -188,7 +188,9 @@ See `docs/upb.md`. Short list:
   Unix credentials / transport scheme via `Incoming::peer` and
   `ConnectionInfo`. Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc. TLS `:scheme https` and mTLS `peer_identity` apply to
   every call shape. HTTP/2 PING keepalive still serves every Greeter shape
-  after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`. TCP
+  after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`.
+  There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag.
+  TCP
   `SO_KEEPALIVE` is TCP-only and still serves every Greeter shape on h2c, TLS,
   and mTLS. `Server::max_concurrent_connections` refuses a second TCP, TLS,
   mTLS, or Unix dial with `UNAVAILABLE` while the cap is full (`from_io` is

@@ -6657,6 +6657,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no `http2_keep_alive_while_idle` setter: once this interval\n    /// is set, idle connections PING too. Distinct from tonic's\n    /// `Endpoint::http2_keep_alive_while_idle`, which defaults off so a\n    /// client interval does not PING an idle socket."
+        ),
+        "ChannelConfig::keep_alive_interval must Distinct tonic http2_keep_alive_while_idle default-off"
+    );
+    assert!(
+        src.contains(
+            "Distinct from grpc-go\n    /// `PermitWithoutStream`, which is that same idle-PING flag (omitted\n    /// because this behavior is already on)."
+        ),
+        "ChannelConfig::keep_alive_interval must Distinct grpc-go PermitWithoutStream as already-on"
+    );
+    assert!(
+        src.contains(
             "postpone [`Self::max_connection_age`] (age is wall-clock from\n    /// accept)."
         ),
         "ServerConfig::keep_alive_interval must name that PINGs do not postpone age"
@@ -17914,6 +17926,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URIs | `Target` is `host:port`. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`, not a silent resolver."),
         "guide must keep grpc-go resolver URIs as an omission Distinct from tonic URIs and xDS"
+    );
+    assert!(
+        guide.contains("There is no `http2_keep_alive_while_idle` setter: once `keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off so a client interval does not PING an idle socket. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
+        "guide must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
+    );
+    assert!(
+        architecture.contains("There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
+        "architecture must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
+    );
+    assert!(
+        status_guide.contains("  There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
+        "status guide must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
+    );
+    assert!(
+        readme.contains("There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
+        "crate README must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
+    );
+    assert!(
+        guide.contains("Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off."),
+        "guide must keep PermitWithoutStream and tonic while_idle as an omission Distinct from default-off"
     );
     assert!(
         status_guide

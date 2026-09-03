@@ -1244,6 +1244,12 @@ impl ChannelConfig {
     /// as while RPCs are in flight. They do not reset
     /// [`Self::max_connection_idle`] and they do not postpone
     /// [`Self::max_connection_age`] (age is wall-clock from the handshake).
+    /// There is no `http2_keep_alive_while_idle` setter: once this interval
+    /// is set, idle connections PING too. Distinct from tonic's
+    /// `Endpoint::http2_keep_alive_while_idle`, which defaults off so a
+    /// client interval does not PING an idle socket. Distinct from grpc-go
+    /// `PermitWithoutStream`, which is that same idle-PING flag (omitted
+    /// because this behavior is already on).
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets, TLS (including
     /// mTLS), and [`crate::Channel::from_io`]. For `SO_KEEPALIVE` on TCP

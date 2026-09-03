@@ -138,6 +138,7 @@ Unix. A long-running stream is not idle. `from_io` cannot redial after that
 close. `ChannelConfig::max_connection_age` closes the client socket even while
 RPCs are in flight; in-flight get grace, then the driver stops. Distinct from idle.
 Keepalive PINGs do not postpone age.
+There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag.
 `Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
 `Outgoing::connected` is that same snapshot when a client interceptor runs.
 Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
