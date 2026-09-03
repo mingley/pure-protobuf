@@ -7285,6 +7285,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name timeout next to gzip"
     );
     assert!(
+        crate_src.contains(
+            "Generated [`reflection`] aliases `grpc.reflection.v1alpha.ServerReflection` onto the v1 handler so a [`Router`] still answers older grpcurl. That is a path alias, not a second proto. Distinct from [`Server::new`], which already answers that path because it does not look up [`Service::NAME`]."
+        ),
+        "crate-map must Distinct reflection v1alpha path alias from a second proto and from Server::new"
+    );
+    assert!(
         crate_src
             .contains("[`gzip::decode_limited`]); opt-out [`ServerConfig::accept_compressed`]"),
         "crate threat table must name accept_compressed next to decode_limited"
@@ -18044,6 +18050,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep tonic Endpoint::buffer_size and grpc-go ReadBufferSize as an omission Distinct from this send buffer"
     );
     assert!(
+        guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
+        "guide must Distinct reflection v1alpha path alias from a second proto and from Server::new"
+    );
+    assert!(
+        architecture.contains("A `Router` serves `grpc.reflection.v1alpha.ServerReflection` as a path alias of v1 so older grpcurl still lists. Distinct from a second proto. Distinct from `Server::new`, which already answers that path because it does not look up `Service::NAME`."),
+        "architecture must Distinct reflection v1alpha path alias from a second proto and from Server::new"
+    );
+    assert!(
+        status_guide.contains("  A `Router` serves `grpc.reflection.v1alpha.ServerReflection` as a path alias of v1 so older grpcurl still lists. Distinct from a second proto. Distinct from `Server::new`, which already answers that path because it does not look up `Service::NAME`."),
+        "status guide must Distinct reflection v1alpha path alias from a second proto and from Server::new"
+    );
+    assert!(
+        readme.contains("A `Router` serves `grpc.reflection.v1alpha.ServerReflection` as a path alias of v1 so older grpcurl still lists. Distinct from a second proto. Distinct from `Server::new`, which already answers that path because it does not look up `Service::NAME`."),
+        "crate README must Distinct reflection v1alpha path alias from a second proto and from Server::new"
+    );
+    assert!(
         status_guide
             .contains("hedging, channelz (`grpc.channelz.v1`), binary logging (`grpc.binarylog.v1`), and grpc.stats / OpenTelemetry tracing are documented omissions."),
         "status guide must keep channelz, binary logging, and grpc.stats as documented omissions"
@@ -21149,6 +21171,30 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Generated reflection also mounts `grpc.reflection.v1alpha.ServerReflection`\n/// as a [`Service::ALIASES`] path of v1, so older grpcurl still lists.\n/// Distinct from a second proto. Distinct from [`Server`], which does not\n/// look up the path."
+        ),
+        "Router rustdoc must Distinct v1alpha path alias from a second proto and from Server"
+    );
+    assert!(
+        src.contains(
+            "aliases `grpc.reflection.v1alpha.ServerReflection` so older grpcurl\n    /// that falls back to v1alpha hits the same handler. That is a path\n    /// alias, not a second proto and not a second `ServerReflectionServer`."
+        ),
+        "Service::ALIASES rustdoc must Distinct v1alpha path alias from a second proto"
+    );
+    assert!(
+        src.contains(
+            "Router with greeter + health + reflection still answers older grpcurl.\n    /// Distinct from a second proto: messages are the v1 types. Distinct from\n    /// [`Server::new`], which does not look up the path."
+        ),
+        "Router::add_service rustdoc must Distinct v1alpha alias from a second proto and from Server::new"
+    );
+    assert!(
+        src.contains(
+            "Mounted service names, in unspecified order, including [`Service::ALIASES`].\n    /// Distinct from reflection `list_services`, which reports\n    /// `FILE_DESCRIPTOR_SET` names, not these route keys."
+        ),
+        "Router::service_names rustdoc must Distinct ALIASES route keys from list_services FILE_DESCRIPTOR_SET names"
+    );
+    assert!(
+        src.contains(
             "The last mount is the one that serves, on every call shape, including\n    /// over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         ),
         "Router::add_service must name last-wins remount on every transport"
@@ -22971,8 +23017,8 @@ async fn from_io_an_expired_deadline_is_never_a_clean_end_of_stream() {
 }
 
 /// The wrapping-service pattern from `docs/grpc.md`: authenticate, then
-/// delegate. `NAME` is inherited, so the wrapper mounts where the wrapped
-/// service would.
+/// delegate. `NAME` and `ALIASES` are inherited, so the wrapper mounts where
+/// the wrapped service would, including a reflection v1alpha path alias.
 struct RequireAuth<S> {
     inner: Arc<S>,
     token: String,
@@ -22980,6 +23026,7 @@ struct RequireAuth<S> {
 
 impl<S: Service> Service for RequireAuth<S> {
     const NAME: &'static str = S::NAME;
+    const ALIASES: &'static [&'static str] = S::ALIASES;
 
     async fn call(&self, rpc: Rpc) {
         if rpc.metadata().get("authorization") != Some(self.token.as_str()) {

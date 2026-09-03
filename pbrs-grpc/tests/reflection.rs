@@ -626,6 +626,70 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must Distinct StreamSender fail after any messages already sent from this reflection client on_response Err Call fail after receive"
     );
+    assert!(
+        src.contains(
+            "A [`crate::Router`] also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo`\n//! as a path alias of v1, so older grpcurl that falls back to v1alpha still lists.\n//! That is not a second proto and not a second [`ServerReflectionServer`]."
+        ),
+        "reflection crate rustdoc must Distinct v1alpha path alias from a second proto"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Server::new`] already answers that path because it does not look up\n//! [`crate::Service::NAME`]. An interceptor sees [`crate::Rpc::service`] as the\n//! path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names,\n//! not the v1alpha alias."
+        ),
+        "reflection crate rustdoc must Distinct Server::new v1alpha dispatch from list_services FILE_DESCRIPTOR_SET names"
+    );
+}
+
+const V1ALPHA_INFO: &str = "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo";
+
+async fn ask_path(
+    channel: &Channel,
+    path: &'static str,
+    req: ServerReflectionRequest,
+) -> ServerReflectionResponse {
+    let (tx, call) = channel.bidi(path, Request::new(()));
+    let mut inbound = call.await.expect("open").into_inner();
+    tx.send(req).await.expect("send");
+    inbound
+        .message()
+        .await
+        .expect("read")
+        .expect("reflection reply")
+}
+
+#[test]
+fn router_mounts_reflection_v1alpha_as_a_path_alias() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let router = Router::new()
+        .add_service(reflection)
+        .add_service(GreeterServer::new(Echo));
+    let mut names: Vec<&str> = router.service_names().collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "grpc.reflection.v1.ServerReflection",
+            "grpc.reflection.v1alpha.ServerReflection",
+            "helloworld.Greeter",
+        ]
+    );
+}
+
+#[test]
+fn intercepted_reflection_keeps_the_v1alpha_alias() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let wrapped =
+        pbrs_grpc::Intercepted::new(reflection, |_: &mut pbrs_grpc::Rpc| Ok::<(), Status>(()));
+    let router = Router::new().add_service(wrapped);
+    let mut names: Vec<&str> = router.service_names().collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "grpc.reflection.v1.ServerReflection",
+            "grpc.reflection.v1alpha.ServerReflection",
+        ]
+    );
 }
 
 #[tokio::test]
@@ -646,6 +710,92 @@ async fn list_services_includes_the_registered_greeter() {
     assert!(
         !names.iter().any(|n| n.contains("ServerReflection")),
         "reflection itself is not registered: {names:?}"
+    );
+}
+
+#[tokio::test]
+async fn v1alpha_path_lists_the_registered_greeter() {
+    let (addr, _guard) = serve().await;
+    let channel = client(addr).await.into_inner();
+    let resp = ask_path(&channel, V1ALPHA_INFO, list_req()).await;
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+    assert!(
+        !names.iter().any(|n| n.contains("ServerReflection")),
+        "v1alpha is a path alias, not a FILE_DESCRIPTOR_SET name: {names:?}"
+    );
+}
+
+#[tokio::test]
+async fn server_new_already_answers_v1alpha() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        pbrs_grpc::Server::new(reflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let channel = client(addr).await.into_inner();
+    let resp = ask_path(&channel, V1ALPHA_INFO, list_req()).await;
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+}
+
+#[tokio::test]
+async fn v1alpha_interceptor_sees_the_path_the_peer_sent() {
+    let seen = Arc::new(std::sync::Mutex::new(None::<String>));
+    let seen_v1alpha = Arc::clone(&seen);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .add_service(reflection)
+            .add_service(GreeterServer::new(Echo))
+            .intercept(move |rpc: &mut pbrs_grpc::Rpc| {
+                *seen_v1alpha.lock().expect("lock") = Some(rpc.service().to_owned());
+                Ok::<(), Status>(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await;
+    let channel = client.clone().into_inner();
+    let resp = ask_path(&channel, V1ALPHA_INFO, list_req()).await;
+    assert!(resp.has_list_services_response());
+    assert_eq!(
+        seen.lock().expect("lock").as_deref(),
+        Some("grpc.reflection.v1alpha.ServerReflection")
+    );
+    let _ = ask(&client, list_req()).await;
+    assert_eq!(
+        seen.lock().expect("lock").as_deref(),
+        Some("grpc.reflection.v1.ServerReflection")
     );
 }
 

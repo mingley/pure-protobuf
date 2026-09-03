@@ -72,6 +72,22 @@ pub trait Service: Send + Sync + 'static {
     /// `/<service>/<method>` request path.
     const NAME: &'static str;
 
+    /// Extra `/<service>/` prefixes [`Router`] also mounts this service at.
+    ///
+    /// Default is empty. Generated `grpc.reflection.v1.ServerReflection`
+    /// aliases `grpc.reflection.v1alpha.ServerReflection` so older grpcurl
+    /// that falls back to v1alpha hits the same handler. That is a path
+    /// alias, not a second proto and not a second `ServerReflectionServer`.
+    /// An interceptor on the v1alpha path sees
+    /// [`Rpc::service`] `grpc.reflection.v1alpha.ServerReflection` — Distinct
+    /// from the v1 name, which is the path the peer sent.
+    /// [`Server`] does not look up [`Self::NAME`] or these aliases: a lone
+    /// reflection server already answers a v1alpha path. Distinct from
+    /// mounting the same handler twice. Distinct from grpc-web, which is a
+    /// second protocol, not a path alias.
+    /// A wrapping [`Service`] should forward these like [`Self::NAME`].
+    const ALIASES: &'static [&'static str] = &[];
+
     /// Dispatch one RPC.
     ///
     /// Match on [`Rpc::method`] and consume the [`Rpc`] with the call shape
@@ -661,6 +677,7 @@ impl Rpc {
     ///
     /// impl<S: Service> Service for RequireAuth<S> {
     ///     const NAME: &'static str = S::NAME;
+    ///     const ALIASES: &'static [&'static str] = S::ALIASES;
     ///
     ///     async fn call(&self, mut rpc: Rpc) {
     ///         if rpc.metadata().get("authorization") != Some(self.token.as_str()) {
@@ -2375,6 +2392,11 @@ impl<S: Service> Dispatch for Single<S> {
 /// not have, is [`crate::Code::Unimplemented`] on every call shape, including
 /// over TLS, mTLS, Unix, and [`Server::serve_connection`].
 ///
+/// Generated reflection also mounts `grpc.reflection.v1alpha.ServerReflection`
+/// as a [`Service::ALIASES`] path of v1, so older grpcurl still lists.
+/// Distinct from a second proto. Distinct from [`Server`], which does not
+/// look up the path.
+///
 /// ```no_run
 /// use pbrs_grpc::Router;
 /// # use pbrs_grpc::{Rpc, Service};
@@ -2822,6 +2844,13 @@ impl Router {
 
     /// Mount `service` at `S::NAME`, replacing any service already there.
     ///
+    /// [`Service::ALIASES`] are mounted the same way (last mount wins on
+    /// each name). Generated reflection aliases
+    /// `grpc.reflection.v1alpha.ServerReflection` onto the v1 handler so a
+    /// Router with greeter + health + reflection still answers older grpcurl.
+    /// Distinct from a second proto: messages are the v1 types. Distinct from
+    /// [`Server::new`], which does not look up the path.
+    ///
     /// The last mount is the one that serves, on every call shape, including
     /// over TLS, mTLS, Unix, and [`Self::serve_connection`].
     #[must_use]
@@ -3001,11 +3030,17 @@ impl Router {
     }
 
     fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
+        let service: Arc<dyn DynService> = service;
+        for &alias in S::ALIASES {
+            self.routes.insert(alias, Arc::clone(&service));
+        }
         self.routes.insert(S::NAME, service);
         self
     }
 
-    /// Mounted service names, in unspecified order.
+    /// Mounted service names, in unspecified order, including [`Service::ALIASES`].
+    /// Distinct from reflection `list_services`, which reports
+    /// `FILE_DESCRIPTOR_SET` names, not these route keys.
     pub fn service_names(&self) -> impl Iterator<Item = &'static str> + '_ {
         self.routes.keys().copied()
     }

@@ -4724,6 +4724,20 @@ fn emit_kernel_server(
 
     let _ = writeln!(src, "impl<T: {trait_name}> {G}::Service for {server}<T> {{");
     let _ = writeln!(src, "    const NAME: &'static str = \"{full_name}\";");
+    if full_name == "grpc.reflection.v1.ServerReflection" {
+        let _ = writeln!(
+            src,
+            "    /// Path alias for older grpcurl that falls back to `grpc.reflection.v1alpha`."
+        );
+        let _ = writeln!(
+            src,
+            "    /// Same handler as [`Self::NAME`]. Not a second proto."
+        );
+        let _ = writeln!(
+            src,
+            "    const ALIASES: &'static [&'static str] = &[\"grpc.reflection.v1alpha.ServerReflection\"];"
+        );
+    }
     let _ = writeln!(
         src,
         "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + Send {{"

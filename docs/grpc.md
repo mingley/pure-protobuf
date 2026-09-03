@@ -1097,6 +1097,8 @@ Router::new()
     .await?;
 ```
 
+A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias.
+
 `list_services` reports every service in those sets. `file_containing_symbol`
 and `file_by_filename` return the serialized `FileDescriptorProto` plus
 whatever transitive imports were in the set, including over TLS, mTLS, Unix,

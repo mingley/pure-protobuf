@@ -110,6 +110,8 @@
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
+//! Generated [`reflection`] aliases `grpc.reflection.v1alpha.ServerReflection` onto the v1 handler so a [`Router`] still answers older grpcurl. That is a path alias, not a second proto. Distinct from [`Server::new`], which already answers that path because it does not look up [`Service::NAME`].
+//!
 //! Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip.
 //!
 //! [`Outgoing::user_agent_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can prefix only when unset.

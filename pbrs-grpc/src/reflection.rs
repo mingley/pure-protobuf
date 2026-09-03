@@ -2,6 +2,13 @@
 //!
 //! Register each service's generated `FILE_DESCRIPTOR_SET`, mount the result
 //! next to your handlers, and `grpcurl` can list and describe them.
+//! A [`crate::Router`] also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo`
+//! as a path alias of v1, so older grpcurl that falls back to v1alpha still lists.
+//! That is not a second proto and not a second [`ServerReflectionServer`].
+//! [`crate::Server::new`] already answers that path because it does not look up
+//! [`crate::Service::NAME`]. An interceptor sees [`crate::Rpc::service`] as the
+//! path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names,
+//! not the v1alpha alias.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {

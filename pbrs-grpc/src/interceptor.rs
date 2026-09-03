@@ -492,6 +492,7 @@ impl<S: Service, I> fmt::Debug for Intercepted<S, I> {
 
 impl<S: Service, I: Interceptor> Service for Intercepted<S, I> {
     const NAME: &'static str = S::NAME;
+    const ALIASES: &'static [&'static str] = S::ALIASES;
 
     async fn call(&self, mut rpc: Rpc) {
         if let Err(status) = self.interceptor.intercept(&mut rpc) {
@@ -900,6 +901,28 @@ mod tests {
         async fn call(&self, rpc: Rpc) {
             rpc.unimplemented();
         }
+    }
+
+    #[test]
+    fn intercepted_forwards_service_aliases() {
+        struct Aliased;
+        impl Service for Aliased {
+            const NAME: &'static str = "dummy.Name";
+            const ALIASES: &'static [&'static str] = &["dummy.Alias"];
+
+            async fn call(&self, rpc: Rpc) {
+                rpc.unimplemented();
+            }
+        }
+        type Hook = fn(&mut Rpc) -> Result<(), crate::Status>;
+        assert_eq!(
+            <super::Intercepted<Aliased, Hook> as Service>::ALIASES,
+            &["dummy.Alias"]
+        );
+        assert_eq!(
+            <super::Intercepted<Aliased, Hook> as Service>::NAME,
+            "dummy.Name"
+        );
     }
 
     #[test]
