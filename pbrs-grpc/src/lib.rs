@@ -767,6 +767,8 @@
 //!
 //! There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain).
 //!
+//! There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

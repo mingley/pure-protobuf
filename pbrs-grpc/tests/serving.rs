@@ -6823,6 +6823,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Server::load_shed` setter: that is tower\n    /// `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting).\n    /// This kernel is not a tower stack. This cap already refuses extras as\n    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct\n    /// from [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.\n    /// Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection\n    /// wait layer). Distinct from `tower` integration, which is protobuf-tonic\n    /// keeping tonic."
+        ),
+        "ServerConfig::max_concurrent_rpcs rustdoc must Distinct try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from\n    /// [`Self::max_concurrent_rpcs`], which refuses extras as\n    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both\n    /// RPCs still complete, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::max_concurrent_streams must name serialize vs RESOURCE_EXHAUSTED on every transport"
@@ -7430,6 +7436,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain)."),
         "crate-map must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
     );
     assert!(
         crate_src.contains(
@@ -18336,6 +18346,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WaitForHandlers` | Drain always waits for in-flight RPCs. grpc-go `Stop` can return before handlers exit; there is no WaitForHandlers setter. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain). `from_io` / `serve_connection` is one duplex: no accept loop to refuse."),
         "guide must keep grpc-go WaitForHandlers as an omission Distinct from drain wait"
+    );
+    assert!(
+        guide.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). Distinct from `ServerConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). Distinct from `ServerConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        readme.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). Distinct from `ServerConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        guide.contains("tonic `Server::load_shed` | Not a tower stack: there is no `LoadShedLayer`. `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `WaitForHandlers` (drain, not overload). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Server::load_shed as an omission Distinct from try_acquire RESOURCE_EXHAUSTED"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

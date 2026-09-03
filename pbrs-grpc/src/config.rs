@@ -649,6 +649,14 @@ impl ServerConfig {
     /// slots, not a per-connection tower layer. Distinct from
     /// [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.
     /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+    /// There is no tonic `Server::load_shed` setter: that is tower
+    /// `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting).
+    /// This kernel is not a tower stack. This cap already refuses extras as
+    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct
+    /// from [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.
+    /// Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection
+    /// wait layer). Distinct from `tower` integration, which is protobuf-tonic
+    /// keeping tonic.
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.max_concurrent_rpcs = Some(n.max(1));
