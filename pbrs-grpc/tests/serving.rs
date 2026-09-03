@@ -10480,7 +10480,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
-            "std::io::ErrorKind::TimedOut,\n    ///     \"slow disk\",\n    /// ));\n    /// assert_eq!(status.code(), Code::DeadlineExceeded);"
+            "std::io::ErrorKind::TimedOut,\n///     \"slow disk\",\n/// ));\n/// assert_eq!(status.code(), Code::DeadlineExceeded);"
         ),
         "Status From<io::Error> rustdoc must map a local timeout to DeadlineExceeded"
     );
