@@ -16730,6 +16730,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ErrorDetails::with_debug_info next to ErrorDetails::with_retry_info"
     );
     assert!(
+        guide.contains("`ErrorDetails::with_quota_failure` plants packed QuotaFailure after this guide ErrorDetails bag."),
+        "guide must name ErrorDetails::with_quota_failure next to ErrorDetails::with_debug_info"
+    );
+    assert!(
         guide.contains(
             "`Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
