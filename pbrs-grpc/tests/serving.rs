@@ -7208,8 +7208,13 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_quota_failure next to ErrorDetails::with_debug_info"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_quota_failure`], [`ErrorDetails::to_anys`]"),
-        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_quota_failure"
+        crate_src.contains("[`ErrorDetails::with_quota_failure`], [`ErrorDetails::with_precondition_failure`]"),
+        "crate map must name ErrorDetails::with_precondition_failure next to ErrorDetails::with_quota_failure"
+    );
+    assert!(
+        crate_src
+            .contains("[`ErrorDetails::with_precondition_failure`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_precondition_failure"
     );
     assert!(
         crate_src.contains("[`pb`], [`Any::pack`]"),
