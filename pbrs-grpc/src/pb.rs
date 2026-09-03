@@ -1498,6 +1498,28 @@ impl ErrorDetails {
     /// types first, then [`Self::unknown`].
     ///
     /// Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_error_info(ErrorInfo::with_reason("THROTTLED", "edge.example.com"));
+    /// let anys = details.to_anys()?;
+    /// assert_eq!(anys.len(), 1);
+    /// assert!(anys.get(0).expect("Any").is::<ErrorInfo>());
+    /// let status = Status::with_error_details(Code::ResourceExhausted, "slow", anys)?;
+    /// assert_eq!(
+    ///     status
+    ///         .error_info()
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "THROTTLED"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn to_anys(&self) -> Result<Vec<Any>, crate::Status> {
         let mut out = Vec::new();
         push_named(&mut out, self.error_info.as_ref())?;

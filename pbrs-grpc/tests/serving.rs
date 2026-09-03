@@ -10049,6 +10049,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ErrorDetails::to_anys must Distinct the typed-bag trailer constructor from this Any list"
     );
     assert!(
+        pb_src.contains("let anys = details.to_anys()?;\n    /// assert_eq!(anys.len(), 1);"),
+        "ErrorDetails::to_anys rustdoc must return the Any list from a typed bag"
+    );
+    assert!(
         pb_src.contains(
             "Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag."
         ),
