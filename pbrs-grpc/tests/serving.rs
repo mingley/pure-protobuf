@@ -9411,6 +9411,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         status_src.contains("Distinct from [`Self::invalid_argument`], which is"),
         "Status::bad_request must Distinct ASCII invalid_argument"
     );
+    assert!(
+        status_src.contains(".with_bad_request(BadRequest::with_field(\"name\", \"required\"));"),
+        "Status::bad_request rustdoc must plant BadRequest with with_bad_request"
+    );
     let pb_src = include_str!("../src/pb.rs");
     assert!(
         pb_src.contains("unpack with [`crate::Status::error_info`]"),
