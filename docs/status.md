@@ -695,6 +695,7 @@ See `docs/upb.md`. Short list:
   `ErrorDetails::with_debug_info` plants packed DebugInfo on this packed-status bag.
   `ErrorDetails::with_quota_failure` plants packed QuotaFailure on this packed-status bag.
   `ErrorDetails::with_precondition_failure` plants packed PreconditionFailure on this packed-status bag.
+  `ErrorDetails::with_bad_request` plants packed BadRequest on this packed-status bag.
   `Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`.
   `Duration::try_to_std` converts this protobuf to `std` on this packed-status, Distinct from `from_std` building the protobuf from `std`.
   `Status::details` returns raw trailer bytes on this packed-status, Distinct from `rpc` parsing a packed `google.rpc.Status`.
