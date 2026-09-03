@@ -581,6 +581,7 @@ See `docs/upb.md`. Short list:
   `Channel::origin`.
   `Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`.
   `Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`.
+  `Target` is `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name. An abstract-socket URI is `INVALID_ARGUMENT`.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
   `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus

@@ -51,6 +51,11 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// are [`Code::InvalidArgument`] at connect, not a silent resolver.
 /// [`ChannelConfig::connections`] pools to one `host:port`; it does
 /// not speak xDS.
+/// Distinct from grpc-go `unix-abstract://`, which names a Linux
+/// abstract Unix socket. That is [`Code::InvalidArgument`] at connect,
+/// not a silent `\0`-prefixed Unix dial. Distinct from tonic `unix://`
+/// (also [`Code::InvalidArgument`], a filesystem URI) and from
+/// [`Channel::connect_unix`], which takes a filesystem [`std::path::Path`].
 ///
 /// ```
 /// use pbrs_grpc::Target;
@@ -85,6 +90,14 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// let err = Channel::connect_lazy("xds:///backend").expect_err("xds");
 /// assert_eq!(err.code(), Code::InvalidArgument);
 /// ```
+///
+/// ```
+/// use pbrs_grpc::{Channel, Code};
+///
+/// let err = Channel::connect_lazy("unix-abstract:///grpc.sock").expect_err("abstract");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// assert!(err.message().contains("not a grpc-go unix-abstract://"));
+/// ```
 #[derive(Clone, Debug)]
 pub struct Target {
     authority: String,
@@ -107,6 +120,11 @@ impl Target {
         if grpc_go_resolver_uri(authority) {
             return Err(Status::invalid_argument(format!(
                 "Target {authority:?} is host:port, not a grpc-go dns:///, passthrough:///, or xds:/// URI; Channel::connect dials host:port, ChannelConfig::connections pools to one authority, Channel::connect_unix takes a filesystem path"
+            )));
+        }
+        if grpc_go_unix_abstract_uri(authority) {
+            return Err(Status::invalid_argument(format!(
+                "Target {authority:?} is host:port, not a grpc-go unix-abstract:// URI; Channel::connect_unix takes a filesystem path, not a Linux abstract name; Channel::connect dials host:port"
             )));
         }
         self.authority.parse().map_err(|e| {
@@ -136,6 +154,12 @@ fn grpc_go_resolver_uri(s: &str) -> bool {
             || scheme.eq_ignore_ascii_case("passthrough")
             || scheme.eq_ignore_ascii_case("xds")
     })
+}
+
+// grpc-go also takes unix-abstract:// for Linux abstract sockets. That is
+// not Target, not tonic unix://, and not Channel::connect_unix.
+fn grpc_go_unix_abstract_uri(s: &str) -> bool {
+    uri_scheme(s).is_some_and(|scheme| scheme.eq_ignore_ascii_case("unix-abstract"))
 }
 
 impl From<SocketAddr> for Target {
@@ -2575,6 +2599,11 @@ mod tests {
                 "{}",
                 err.message()
             );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
         }
         let err = Target::from("not a host").parse().expect_err("malformed");
         assert_eq!(err.code(), crate::status::Code::Unavailable);
@@ -2604,6 +2633,11 @@ mod tests {
                 "{}",
                 err.message()
             );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
         }
         let err = Target::from("https://example.com:443")
             .parse()
@@ -2618,6 +2652,53 @@ mod tests {
             "{}",
             err.message()
         );
+        assert!(
+            !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+    }
+
+    #[test]
+    fn grpc_go_unix_abstract_uri_is_invalid_argument() {
+        for uri in [
+            "unix-abstract:///grpc.sock",
+            "unix-abstract://localhost/grpc.sock",
+            "UNIX-ABSTRACT:///grpc.sock",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("unix:///tmp/grpc.sock")
+            .parse()
+            .expect_err("tonic unix");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
     }
 
     #[test]

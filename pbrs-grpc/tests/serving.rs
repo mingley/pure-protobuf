@@ -6397,6 +6397,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "Distinct from grpc-go `unix-abstract://`, which names a Linux\n/// abstract Unix socket. That is [`Code::InvalidArgument`] at connect,\n/// not a silent `\\0`-prefixed Unix dial. Distinct from tonic `unix://`"
+        ),
+        "Target rustdoc must Distinct grpc-go unix-abstract:// from tonic unix:// and connect_unix"
+    );
+    assert!(
+        channel.contains(
             "[`ChannelConfig::connections`] pools to one `host:port`; it does\n/// not speak xDS."
         ),
         "Target rustdoc must Distinct ChannelConfig::connections from xDS"
@@ -17940,6 +17946,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep grpc-go resolver URIs as an omission Distinct from tonic URIs and xDS"
     );
     assert!(
+        guide.contains("`Target` is `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`, a filesystem URI). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name. An abstract-socket URI is `INVALID_ARGUMENT` at connect, including `connect_lazy`, so wait-for-ready does not retry it."),
+        "guide must Distinct Target host:port from grpc-go unix-abstract:// and connect_unix"
+    );
+    assert!(
+        architecture.contains("`Target` is `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name."),
+        "architecture must Distinct Target host:port from grpc-go unix-abstract://"
+    );
+    assert!(
+        status_guide.contains("  `Target` is `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name. An abstract-socket URI is `INVALID_ARGUMENT`."),
+        "status guide must Distinct Target host:port from grpc-go unix-abstract://"
+    );
+    assert!(
+        readme.contains("`Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name. An abstract-socket URI is `INVALID_ARGUMENT`."),
+        "crate README must Distinct Target host:port from grpc-go unix-abstract://"
+    );
+    assert!(
+        guide.contains("grpc-go `unix-abstract://` | `Target` is `host:port`. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`, filesystem URI). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name. An abstract-socket URI is `INVALID_ARGUMENT`, not a silent `\\0`-prefixed Unix dial."),
+        "guide must keep grpc-go unix-abstract:// as an omission Distinct from tonic unix:// and connect_unix"
+    );
+    assert!(
         guide.contains("There is no `http2_keep_alive_while_idle` setter: once `keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off so a client interval does not PING an idle socket. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
         "guide must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
     );
@@ -25738,6 +25764,74 @@ fn grpc_go_resolver_uri_is_invalid_argument_not_unavailable() {
     );
     assert!(
         !err.message().contains("not a grpc-go dns:///"),
+        "{}",
+        err.message()
+    );
+}
+
+#[test]
+fn grpc_go_unix_abstract_uri_is_invalid_argument_not_unavailable() {
+    for uri in [
+        "unix-abstract:///grpc.sock",
+        "unix-abstract://localhost/grpc.sock",
+        "UNIX-ABSTRACT:///grpc.sock",
+    ] {
+        let err = Channel::connect_lazy(uri).expect_err(uri);
+        assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+        assert!(
+            err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go dns:///"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.is_retryable(),
+            "abstract-socket URI Target must not look retryable: {err}"
+        );
+    }
+    let tls = ClientTls::webpki("localhost").expect("tls");
+    let err =
+        Channel::connect_tls_lazy("unix-abstract:///grpc.sock", tls).expect_err("tls abstract");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("not a grpc-go unix-abstract://"),
+        "{}",
+        err.message()
+    );
+    let err = GreeterClient::connect_lazy("unix-abstract:///grpc.sock").expect_err("generated");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = Channel::connect_lazy("unix:///tmp/grpc.sock").expect_err("tonic unix");
+    assert!(
+        err.message().contains("not a tonic http://"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc-go unix-abstract://"),
+        "{}",
+        err.message()
+    );
+    let channel = Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+    let err = channel
+        .origin("unix-abstract:///grpc.sock")
+        .expect_err("origin abstract");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("invalid origin"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc-go unix-abstract://"),
         "{}",
         err.message()
     );

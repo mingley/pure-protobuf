@@ -147,6 +147,7 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::origin` /
 `FooClient::origin` overrides `:authority` without changing the dial. Distinct from `ClientTls` (SNI) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`.
 `Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`.
 `Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS.
+`Target` is `host:port`, not a grpc-go `unix-abstract://` abstract-socket URI. Distinct from tonic `unix://` (also `INVALID_ARGUMENT`). `Channel::connect_unix` takes a filesystem path, not a Linux abstract name.
 `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
