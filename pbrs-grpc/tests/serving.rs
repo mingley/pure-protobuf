@@ -9324,6 +9324,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"
     );
     assert!(
+        status_src.contains(
+            "let status = Status::data_loss(\"truncated\");\n    /// assert!(status.details().is_empty());\n    /// let bag = status.error_details()?;"
+        ),
+        "Status::error_details rustdoc must yield an empty bag when the trailer is absent"
+    );
+    assert!(
         status_src
             .contains("Distinct from [`Self::rpc`]: that parses the trailer; this encodes it."),
         "Status::from_rpc must Distinct the parse getter from this encode constructor"

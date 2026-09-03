@@ -758,6 +758,17 @@ impl Status {
     /// Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag.
     /// Absent or empty `grpc-status-details-bin` yields an empty bag, not an
     /// error. Corrupt bytes are [`Code::Internal`].
+    ///
+    /// ```
+    /// use pbrs_grpc::Status;
+    ///
+    /// let status = Status::data_loss("truncated");
+    /// assert!(status.details().is_empty());
+    /// let bag = status.error_details()?;
+    /// assert!(bag.error_info.is_none());
+    /// assert!(bag.unknown.is_empty());
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn error_details(&self) -> Result<crate::pb::ErrorDetails, Self> {
         crate::pb::ErrorDetails::from_rpc(&self.rpc()?)
     }
