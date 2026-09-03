@@ -9552,6 +9552,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_quota_value(8);\n    /// let mut quota = QuotaFailure::new();\n    /// quota.set_violations([violation]);\n    /// let details = ErrorDetails::new().with_quota_failure(quota);"
+        ),
+        "quota_failure::Violation::with_quota_value rustdoc must plant QuotaFailure with with_quota_failure"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_subject`]: that is subject and description, not the future quota value."
         ),
         "quota_failure::Violation::with_future_quota_value must Distinct subject and description from the future quota value"
