@@ -1278,6 +1278,32 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`QuotaFailure`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`QuotaFailure::with_violation`]: that is the first quota subject, not planting QuotaFailure on the bag.
+    /// Distinct from [`crate::Status::quota_failure`]: that unpacks packed QuotaFailure; this plants it on the bag.
+    /// Distinct from [`Self::with_debug_info`]: that plants DebugInfo, not QuotaFailure.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_quota_failure(QuotaFailure::with_violation("client:3", "qps"));
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "over", &details)?;
+    /// let quota = status.quota_failure().expect("QuotaFailure");
+    /// let subject = quota.violations().get(0).expect("subject");
+    /// assert_eq!(subject.subject().to_str().unwrap_or(""), "client:3");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_quota_failure(mut self, quota_failure: QuotaFailure) -> Self {
+        self.quota_failure = Some(quota_failure);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1474,6 +1500,21 @@ mod tests {
         );
         assert!(status.retry_delay().is_none());
         assert!(status.help().is_none());
+    }
+
+    #[test]
+    fn error_details_with_quota_failure_round_trips() {
+        let details =
+            ErrorDetails::new().with_quota_failure(QuotaFailure::with_violation("client:3", "qps"));
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "over", &details)
+            .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.quota_failure().expect("QuotaFailure");
+        let subject = got.violations().get(0).expect("subject");
+        assert_eq!(subject.subject().to_str().unwrap_or(""), "client:3");
+        assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
+        assert!(status.debug_info().is_none());
+        assert!(status.bad_request().is_none());
     }
 
     #[test]

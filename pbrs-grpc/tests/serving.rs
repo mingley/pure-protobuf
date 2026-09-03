@@ -9838,6 +9838,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`QuotaFailure::with_violation`]: that is the first quota subject, not planting QuotaFailure on the bag."
+        ),
+        "ErrorDetails::with_quota_failure must Distinct the first quota subject from planting QuotaFailure on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
