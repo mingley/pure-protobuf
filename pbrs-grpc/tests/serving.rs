@@ -17556,6 +17556,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorDetails::with_request_info next to ErrorDetails::with_bad_request"
     );
     assert!(
+        architecture.contains("`ErrorDetails::with_resource_info` plants packed ResourceInfo after this architecture ErrorDetails bag."),
+        "architecture must name ErrorDetails::with_resource_info next to ErrorDetails::with_request_info"
+    );
+    assert!(
         architecture.contains(
             "`Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
