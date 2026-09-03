@@ -8823,6 +8823,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map server on_response Err is trailers-only after handler Ok."
+        ),
+        "crate docs must Distinct crate-map interceptor Err local reject never opens a stream from this crate-map server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map server on_response runs after the handler returns Ok."
         ),
         "crate docs must Distinct crate-map server on_response from Server intercept"
