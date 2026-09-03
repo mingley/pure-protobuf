@@ -1299,6 +1299,22 @@ impl Status {
     /// connection death already attach the original error. A peer trailer has
     /// no cause: [`std::error::Error::source`] is `None`. Distinct from
     /// [`Self::with_error_details`] (a packed `google.rpc.Status` on the wire).
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let status = Status::internal("flush").with_cause(std::io::Error::new(
+    ///     std::io::ErrorKind::Other,
+    ///     "nvme",
+    /// ));
+    /// assert_eq!(status.code(), Code::Internal);
+    /// assert!(!status.is_retryable());
+    /// assert_eq!(
+    ///     std::error::Error::source(&status).expect("cause").to_string(),
+    ///     "nvme"
+    /// );
+    /// assert!(std::error::Error::source(&Status::cancelled()).is_none());
+    /// ```
     #[must_use]
     pub fn with_cause(mut self, cause: impl std::error::Error + Send + Sync + 'static) -> Self {
         self.detail.get_or_insert_with(Box::default).source = Some(Arc::new(cause));

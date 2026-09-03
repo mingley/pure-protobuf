@@ -10473,6 +10473,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::from_error must Distinct with_cause from building a status"
     );
     assert!(
+        status_src.contains(
+            "Status::internal(\"flush\").with_cause(std::io::Error::new(\n    ///     std::io::ErrorKind::Other,\n    ///     \"nvme\",\n    /// ));"
+        ),
+        "Status::with_cause rustdoc must attach Error::source without remapping the code"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),
