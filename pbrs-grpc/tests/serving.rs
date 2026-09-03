@@ -6650,6 +6650,23 @@ fn server_documents_trace_fn() {
 }
 
 #[test]
+fn client_tls_ca_documents_assume_http2() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and\n    /// still treats the socket as HTTP/2. This constructor always requires ALPN\n    /// `h2` after handshake. Distinct from [`crate::Channel::connect`] (h2c, no\n    /// TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on\n    /// TLS). Distinct from [`crate::ServerTls`] (server ALPN require; this is\n    /// the client require). Distinct from a skip-verify constructor (there is\n    /// none)."
+        ),
+        "ClientTls::ca rustdoc must Distinct required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ClientTlsConfig::assume_http2`")
+            .count(),
+        1,
+        "ClientTls::webpki must not copy the assume_http2 Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6974,6 +6991,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         0,
         "ClientInterceptor must not copy the use_key_log Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and\n    /// still treats the socket as HTTP/2. This constructor always requires ALPN\n    /// `h2` after handshake. Distinct from [`crate::Channel::connect`] (h2c, no\n    /// TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on\n    /// TLS). Distinct from [`crate::ServerTls`] (server ALPN require; this is\n    /// the client require). Distinct from a skip-verify constructor (there is\n    /// none)."
+        ),
+        "ClientTls::ca rustdoc must Distinct required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `ClientTlsConfig::assume_http2`")
+            .count(),
+        1,
+        "ClientTls::webpki must not copy the assume_http2 Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ClientTlsConfig::assume_http2`")
+            .count(),
+        0,
+        "ChannelConfig must not copy the assume_http2 Distinct"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no tonic `ClientTlsConfig::assume_http2`")
+            .count(),
+        0,
+        "Channel::connect_tls must not copy the assume_http2 Distinct"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no tonic `ClientTlsConfig::assume_http2`")
+            .count(),
+        0,
+        "ClientInterceptor must not copy the assume_http2 Distinct"
     );
     assert_eq!(
         intercept
@@ -8295,6 +8344,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. This crate-map [`Server`] has no span installer. Distinct from [`Interceptor`] (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
         "crate-map must Distinct Server no span installer from tonic Server::trace_fn"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. This crate-map [`ClientTls::ca`] always requires ALPN `h2` after handshake. Distinct from [`Channel::connect`] (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from [`ServerTls`] (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "crate-map must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19777,6 +19830,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Server::trace_fn` | Not a tracing span installer: tonic intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
         "guide must keep tonic Server::trace_fn as an omission Distinct from Interceptor envelope mutation"
+    );
+    assert!(
+        guide.contains("There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. `ClientTls::ca` always requires ALPN `h2` after handshake. Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "guide must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert!(
+        architecture.contains("There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. Distinct from `ClientTls::ca` (always requires ALPN `h2` after handshake). Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "architecture must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. Distinct from `ClientTls::ca` (always requires ALPN `h2` after handshake). Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "status guide must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert!(
+        readme.contains("There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. Distinct from `ClientTls::ca` (always requires ALPN `h2` after handshake). Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "crate README must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
+    );
+    assert!(
+        guide.contains("tonic `ClientTlsConfig::assume_http2` | Not skip-ALPN: tonic can treat a TLS socket as HTTP/2 without ALPN. `ClientTls::ca` always requires ALPN `h2` after handshake. Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none)."),
+        "guide must keep tonic ClientTlsConfig::assume_http2 as an omission Distinct from required ALPN h2"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

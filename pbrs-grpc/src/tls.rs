@@ -392,6 +392,13 @@ impl ClientTls {
 
     /// Trust this CA bundle (PEM) and verify `server_name`. For private PKI
     /// and tests; WebPKI roots are not consulted.
+    /// There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and
+    /// still treats the socket as HTTP/2. This constructor always requires ALPN
+    /// `h2` after handshake. Distinct from [`crate::Channel::connect`] (h2c, no
+    /// TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on
+    /// TLS). Distinct from [`crate::ServerTls`] (server ALPN require; this is
+    /// the client require). Distinct from a skip-verify constructor (there is
+    /// none).
     pub fn ca(server_name: impl Into<String>, ca_pem: impl AsRef<[u8]>) -> Result<Self, Status> {
         let roots = roots_from_certs(certs_from_pem(ca_pem.as_ref())?)?;
         build_client(server_name.into(), roots, None)

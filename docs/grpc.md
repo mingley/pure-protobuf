@@ -824,6 +824,7 @@ The kernel uses rustls with the Graviola crypto provider. Graviola builds with
 `rustc` only — no C compiler, no `aws-lc-rs`, no `ring`. Certificate
 verification is not optional; there is no insecure constructor. ALPN is `h2`,
 and a peer that does not negotiate it is dropped.
+There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. `ClientTls::ca` always requires ALPN `h2` after handshake. Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none).
 
 ```rust
 use pbrs_grpc::{ClientTls, Identity, ServerTls};
@@ -2507,6 +2508,7 @@ Deliberate omissions, with what to do instead.
 | tonic `ServerTlsConfig::timeout` | Not a TLS-handshake-only acceptor timeout: tonic times out only the TLS handshake. `ServerTls` has no timeout setter; `ServerConfig::handshake_timeout` is 20 s TLS accept and 20 s HTTP/2 preface, separately. Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay). |
 | tonic `ServerTlsConfig::use_key_log` | Not key log: tonic enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). `ServerTls::new` does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none). |
 | tonic `Server::trace_fn` | Not a tracing span installer: tonic intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower). |
+| tonic `ClientTlsConfig::assume_http2` | Not skip-ALPN: tonic can treat a TLS socket as HTTP/2 without ALPN. `ClientTls::ca` always requires ALPN `h2` after handshake. Distinct from `Channel::connect` (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from `ServerTls` (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
