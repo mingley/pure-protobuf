@@ -2934,6 +2934,7 @@ impl Router {
     /// Distinct from a handler Err: that is after the handler ran; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a Router intercept Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok.
+    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Router on_response runs after the handler returns Ok.
     /// Distinct from [`Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Router on_response runs after the handler returns Ok on every mounted service on this Router.
