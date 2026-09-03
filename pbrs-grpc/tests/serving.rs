@@ -6617,6 +6617,23 @@ fn server_tls_documents_server_tls_config_timeout() {
 }
 
 #[test]
+fn server_tls_new_documents_use_key_log() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls\n    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls\n    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client\n    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key\n    /// log). Distinct from a skip-verify constructor (there is none)."
+        ),
+        "ServerTls::new rustdoc must Distinct no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ServerTlsConfig::use_key_log`")
+            .count(),
+        1,
+        "ServerTls::mtls must not copy the use_key_log Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6909,6 +6926,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         0,
         "ClientInterceptor must not copy the ServerTlsConfig::timeout Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls\n    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls\n    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client\n    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key\n    /// log). Distinct from a skip-verify constructor (there is none)."
+        ),
+        "ServerTls::new rustdoc must Distinct no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `ServerTlsConfig::use_key_log`")
+            .count(),
+        1,
+        "ServerTls::mtls must not copy the use_key_log Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ServerTlsConfig::use_key_log`")
+            .count(),
+        0,
+        "ServerConfig must not copy the use_key_log Distinct"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no tonic `ServerTlsConfig::use_key_log`")
+            .count(),
+        0,
+        "Channel must not copy the use_key_log Distinct"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no tonic `ServerTlsConfig::use_key_log`")
+            .count(),
+        0,
+        "ClientInterceptor must not copy the use_key_log Distinct"
     );
     assert!(
         health.contains(
@@ -8198,6 +8247,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. This crate-map [`ServerTls`] has no timeout setter; the bound is [`ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay)."),
         "crate-map must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). This crate-map [`ServerTls::new`] does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from [`ServerTls::mtls`] (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "crate-map must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19640,6 +19693,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `ServerTlsConfig::timeout` | Not a TLS-handshake-only acceptor timeout: tonic times out only the TLS handshake. `ServerTls` has no timeout setter; `ServerConfig::handshake_timeout` is 20 s TLS accept and 20 s HTTP/2 preface, separately. Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
         "guide must keep tonic ServerTlsConfig::timeout as an omission Distinct from sequential handshake caps"
+    );
+    assert!(
+        guide.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). `ServerTls::new` does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "guide must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert!(
+        architecture.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). Distinct from `ServerTls::new` (does not enable rustls key logging). Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "architecture must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). Distinct from `ServerTls::new` (does not enable rustls key logging). Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "status guide must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert!(
+        readme.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). Distinct from `ServerTls::new` (does not enable rustls key logging). Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "crate README must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert!(
+        guide.contains("tonic `ServerTlsConfig::use_key_log` | Not key log: tonic enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). `ServerTls::new` does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        "guide must keep tonic ServerTlsConfig::use_key_log as an omission Distinct from no rustls key logging"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

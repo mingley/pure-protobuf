@@ -267,6 +267,11 @@ impl fmt::Debug for ServerTls {
 
 impl ServerTls {
     /// Serve with `identity`. Clients are not asked for a certificate.
+    /// There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls
+    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls
+    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client
+    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key
+    /// log). Distinct from a skip-verify constructor (there is none).
     pub fn new(identity: Identity) -> Result<Self, Status> {
         build_server(identity, None)
     }
