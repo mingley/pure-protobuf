@@ -9878,6 +9878,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`ResourceInfo::with_resource`]: that is type, name, and owner, not planting ResourceInfo on the bag."
+        ),
+        "ErrorDetails::with_resource_info must Distinct type, name, and owner from planting ResourceInfo on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"

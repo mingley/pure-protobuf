@@ -1382,6 +1382,37 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`ResourceInfo`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::resource_info`].
+    /// Distinct from [`ResourceInfo::with_resource`]: that is type, name, and owner, not planting ResourceInfo on the bag.
+    /// Distinct from [`crate::Status::resource_info`]: that unpacks packed ResourceInfo; this plants it on the bag.
+    /// Distinct from [`Self::with_request_info`]: that plants RequestInfo, not ResourceInfo.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new().with_resource_info(ResourceInfo::with_resource(
+    ///     "sqladmin.googleapis.com/Instance",
+    ///     "projects/1/instances/a",
+    ///     "project:1",
+    /// ));
+    /// let status = Status::from_error_details(Code::NotFound, "gone", &details)?;
+    /// let info = status.resource_info().expect("ResourceInfo");
+    /// assert_eq!(
+    ///     info.resource_name().to_str().unwrap_or(""),
+    ///     "projects/1/instances/a"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_resource_info(mut self, resource_info: ResourceInfo) -> Self {
+        self.resource_info = Some(resource_info);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1638,6 +1669,24 @@ mod tests {
         assert_eq!(got.serving_data().to_str().unwrap_or(""), "encrypted");
         assert!(status.bad_request().is_none());
         assert!(status.error_info().is_none());
+    }
+
+    #[test]
+    fn error_details_with_resource_info_round_trips() {
+        let details = ErrorDetails::new().with_resource_info(ResourceInfo::with_resource(
+            "sqladmin.googleapis.com/Instance",
+            "projects/1/instances/a",
+            "project:1",
+        ));
+        let status =
+            crate::Status::from_error_details(Code::NotFound, "gone", &details).expect("encode");
+        let got = status.resource_info().expect("ResourceInfo");
+        assert_eq!(
+            got.resource_name().to_str().unwrap_or(""),
+            "projects/1/instances/a"
+        );
+        assert!(status.request_info().is_none());
+        assert!(status.quota_failure().is_none());
     }
 
     #[test]
