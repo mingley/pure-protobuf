@@ -609,10 +609,8 @@ impl Status {
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     error_info: Some(ErrorInfo::with_reason("API_DISABLED", "example.com")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_error_info(ErrorInfo::with_reason("API_DISABLED", "example.com"));
     /// let status = Status::from_error_details(Code::FailedPrecondition, "typed-bag", &details)?;
     /// let info = status.error_details()?.error_info.expect("ErrorInfo");
     /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
