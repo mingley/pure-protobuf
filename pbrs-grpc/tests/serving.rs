@@ -6811,6 +6811,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `NumStreamWorkers` setter: that is a worker pool\n    /// for stream dispatch (0 means a goroutine per stream). Each accepted\n    /// stream is `tokio::spawn`ed on the current tokio runtime. This cap is\n    /// in-flight handler slots, not a worker count. Distinct from tonic\n    /// `Server::executor` (`SharedExec`, which executor, not a worker pool)."
+        ),
+        "ServerConfig::max_concurrent_rpcs rustdoc must Distinct in-flight handler slots from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from\n    /// [`Self::max_concurrent_rpcs`], which refuses extras as\n    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both\n    /// RPCs still complete, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::max_concurrent_streams must name serialize vs RESOURCE_EXHAUSTED on every transport"
@@ -7402,6 +7408,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ServerConfig::max_concurrent_connections`] handshake task is `tokio::spawn`ed on the current tokio runtime. Distinct from tonic `Endpoint::executor` (client [`ChannelConfig::connections`]). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct ServerConfig::max_concurrent_connections handshake spawn from tonic Server::executor SharedExec"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). This crate-map [`ServerConfig::max_concurrent_rpcs`] is in-flight handler slots, not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
+        "crate-map must Distinct ServerConfig::max_concurrent_rpcs in-flight slots from grpc-go NumStreamWorkers"
     );
     assert!(
         crate_src.contains(
@@ -18228,6 +18238,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Server::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each accept-loop handshake task is `tokio::spawn`ed on the current tokio runtime. `ServerConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. `serve_connection` is already-connected: not an accept-loop spawn."),
         "guide must keep tonic Server::executor as an omission Distinct from Endpoint::executor and from accept-loop spawn"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Each accepted stream is `tokio::spawn`ed on the current tokio runtime. `ServerConfig::max_concurrent_rpcs` is in-flight handler slots, not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
+        "guide must Distinct ServerConfig::max_concurrent_rpcs from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Distinct from `ServerConfig::max_concurrent_rpcs` (in-flight handler slots). Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
+        "architecture must Distinct ServerConfig::max_concurrent_rpcs from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Distinct from `ServerConfig::max_concurrent_rpcs` (in-flight handler slots). Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
+        "status guide must Distinct ServerConfig::max_concurrent_rpcs from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Distinct from `ServerConfig::max_concurrent_rpcs` (in-flight handler slots). Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
+        "crate README must Distinct ServerConfig::max_concurrent_rpcs from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        guide.contains("grpc-go `NumStreamWorkers` | Not a worker pool: each accepted stream is `tokio::spawn`ed on the current tokio runtime. `ServerConfig::max_concurrent_rpcs` is in-flight handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool). Distinct from `max_concurrent_connections` (how many sockets)."),
+        "guide must keep grpc-go NumStreamWorkers as an omission Distinct from in-flight max_concurrent_rpcs"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

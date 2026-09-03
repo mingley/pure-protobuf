@@ -638,6 +638,11 @@ impl ServerConfig {
     /// [`Self::max_concurrent_streams`] (per HTTP/2 connection) and
     /// [`Self::max_concurrent_connections`] (accept-loop sockets). Disabled
     /// by default.
+    /// There is no grpc-go `NumStreamWorkers` setter: that is a worker pool
+    /// for stream dispatch (0 means a goroutine per stream). Each accepted
+    /// stream is `tokio::spawn`ed on the current tokio runtime. This cap is
+    /// in-flight handler slots, not a worker count. Distinct from tonic
+    /// `Server::executor` (`SharedExec`, which executor, not a worker pool).
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.max_concurrent_rpcs = Some(n.max(1));
