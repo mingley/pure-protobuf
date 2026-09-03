@@ -12855,6 +12855,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name help::Link::with_url next to Help::with_link"
     );
     assert!(
+        status_guide.contains(
+            "`ResourceInfo::with_description` builds a packed resource description on this packed-status."
+        ),
+        "status guide must name ResourceInfo::with_description next to ResourceInfo::with_resource"
+    );
+    assert!(
         status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "status guide must name RetryInfo::with_retry_delay as the builder"
     );
