@@ -121,6 +121,7 @@ pub trait Interceptor: Send + Sync + 'static {
     /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
+    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level Interceptor Err is trailers without reading the body.
