@@ -434,6 +434,7 @@ Or `status.bad_request()` for field violations without unpacking the bag. Distin
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 `quota_failure::Violation::with_subject` builds a nested quota subject after this guide QuotaFailure builder.
 `quota_failure::Violation::with_api_service` builds a nested quota API service after this guide quota subject builder.
+`quota_failure::Violation::with_quota_metric` builds a nested quota metric after this guide quota subject builder.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 `precondition_failure::Violation::with_type` builds a nested precondition type after this guide PreconditionFailure builder.
 Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
