@@ -9945,6 +9945,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`crate::Status::request_info`]: that is a request_id, not a resource.\n    ///\n    /// ```\n    /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};\n    /// use pbrs_grpc::{Code, Status};\n    ///\n    /// let details = ErrorDetails::new().with_resource_info(ResourceInfo::with_resource("
+        ),
+        "ResourceInfo::with_resource rustdoc must plant ResourceInfo with with_resource_info"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_resource`]: that is type, name, and owner, not a resource description."
         ),
         "ResourceInfo::with_description must Distinct type, name, and owner from a resource description"
