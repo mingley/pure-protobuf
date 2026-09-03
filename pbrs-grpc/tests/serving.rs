@@ -16701,6 +16701,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name quota_failure::Violation::with_quota_id next to quota_failure::Violation::with_quota_metric"
     );
     assert!(
+        guide.contains("`quota_failure::Violation::with_quota_dimension` builds a nested quota dimension pair after this guide quota subject builder."),
+        "guide must name quota_failure::Violation::with_quota_dimension next to quota_failure::Violation::with_quota_id"
+    );
+    assert!(
         guide.contains("Distinct from `status.is_retryable()`."),
         "guide must Distinct quota_failure from is_retryable"
     );
