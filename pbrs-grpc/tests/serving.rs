@@ -9313,6 +9313,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "let status = Status::permission_denied(\"acl\");\n    /// assert!(status.details().is_empty());\n    /// let rpc = status.rpc()?;"
+        ),
+        "Status::rpc rustdoc must synthesize a packed google.rpc.Status when the trailer is absent"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag."
         ),
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"

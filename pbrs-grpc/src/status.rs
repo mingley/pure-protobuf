@@ -604,6 +604,18 @@ impl Status {
     /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
     /// is this protobuf on the client for every call shape, including a
     /// client-interceptor `Err` that never opens a stream.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let status = Status::permission_denied("acl");
+    /// assert!(status.details().is_empty());
+    /// let rpc = status.rpc()?;
+    /// assert_eq!(rpc.code(), Code::PermissionDenied.to_i32());
+    /// assert_eq!(rpc.message().to_str().unwrap_or(""), "acl");
+    /// assert!(rpc.details().is_empty());
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn rpc(&self) -> Result<crate::pb::Status, Self> {
         if self.details().is_empty() {
             return Ok(crate::pb::Status::with_details(
