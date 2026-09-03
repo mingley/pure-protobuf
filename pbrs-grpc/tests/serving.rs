@@ -9799,6 +9799,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_help(Help::with_link(\"quota docs\", \"https://example.com/quota\"));"
+        ),
+        "Help::with_link rustdoc must plant Help with with_help"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_link`]: that is the first docs URL, not an extra help link."
         ),
         "Help::with_link_entry must Distinct the first docs URL from an extra help link"

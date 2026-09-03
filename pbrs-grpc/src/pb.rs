@@ -809,10 +809,8 @@ impl Help {
     /// use pbrs_grpc::pb::{ErrorDetails, Help};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     help: Some(Help::with_link("quota docs", "https://example.com/quota")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_help(Help::with_link("quota docs", "https://example.com/quota"));
     /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
     /// assert!(status.is_retryable());
     /// let help = status.help().expect("Help");
