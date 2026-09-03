@@ -7428,6 +7428,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler catch-all"
     );
     assert!(
+        crate_src.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain)."),
+        "crate-map must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
         crate_src.contains(
             "[`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]"
         ),
@@ -18314,6 +18318,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep grpc-go UnknownServiceHandler as an omission Distinct from UNIMPLEMENTED"
     );
     assert!(
+        guide.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit; this drain always waits for in-flight RPCs. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain)."),
+        "guide must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. Distinct from `Server::serve_with_shutdown` (drain always waits). Distinct from `ServerConfig::max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain)."),
+        "architecture must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. Distinct from `Server::serve_with_shutdown` (drain always waits). Distinct from `ServerConfig::max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain)."),
+        "status guide must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. Distinct from `Server::serve_with_shutdown` (drain always waits). Distinct from `ServerConfig::max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain)."),
+        "crate README must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        guide.contains("grpc-go `WaitForHandlers` | Drain always waits for in-flight RPCs. grpc-go `Stop` can return before handlers exit; there is no WaitForHandlers setter. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain). `from_io` / `serve_connection` is one duplex: no accept loop to refuse."),
+        "guide must keep grpc-go WaitForHandlers as an omission Distinct from drain wait"
+    );
+    assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
         "guide must Distinct reflection v1alpha path alias from a second proto and from Server::new"
     );
@@ -20995,6 +21019,12 @@ fn server_and_router_config_document_every_call_shape() {
             "Serve until `shutdown` resolves, then drain. Applies to every call\n    /// shape. In-flight RPCs finish; new connections are refused. TLS and"
         ),
         "Server::serve_with_shutdown must name TLS and Unix drain"
+    );
+    assert!(
+        src.contains(
+            "There is no grpc-go `WaitForHandlers` setter: grpc-go `Stop` can\n    /// return before handlers exit; this drain always waits for in-flight\n    /// RPCs. Distinct from [`ServerConfig::max_connection_age_grace`]: that\n    /// is GOAWAY then force-close, not this process-wide drain. Distinct\n    /// from [`crate::health::HealthReporter::shutdown`]: that flips serving\n    /// status, it does not drain. [`Self::serve_connection`] is one duplex:\n    /// no accept loop to refuse."
+        ),
+        "Server::serve_with_shutdown rustdoc must Distinct drain wait from grpc-go WaitForHandlers"
     );
     assert_eq!(
         src.matches("HTTP/2 PING keepalive. Applies to every call shape.")

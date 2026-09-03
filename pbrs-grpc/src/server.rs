@@ -2197,6 +2197,13 @@ impl<S: Service> Server<S> {
     /// `GOAWAY` on every live connection, and waits for in-flight RPCs to
     /// finish. To bind an address and then drain, use
     /// [`Self::serve_until_shutdown`].
+    /// There is no grpc-go `WaitForHandlers` setter: grpc-go `Stop` can
+    /// return before handlers exit; this drain always waits for in-flight
+    /// RPCs. Distinct from [`ServerConfig::max_connection_age_grace`]: that
+    /// is GOAWAY then force-close, not this process-wide drain. Distinct
+    /// from [`crate::health::HealthReporter::shutdown`]: that flips serving
+    /// status, it does not drain. [`Self::serve_connection`] is one duplex:
+    /// no accept loop to refuse.
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,

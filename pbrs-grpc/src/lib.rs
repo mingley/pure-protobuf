@@ -765,6 +765,8 @@
 //!
 //! There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. This crate-map [`Router`] answers `UNIMPLEMENTED` for an unmounted service, not a fallback [`Service`]. Distinct from [`Server`], which is one service. Distinct from [`Service::ALIASES`], which is a known path alias.
 //!
+//! There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain).
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

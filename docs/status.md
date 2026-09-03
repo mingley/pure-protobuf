@@ -278,6 +278,7 @@ See `docs/upb.md`. Short list:
   There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Distinct from `ServerConfig::max_concurrent_rpcs` (in-flight handler slots). Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool).
   There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. Distinct from `ServerConfig::max_concurrent_rpcs` (process-wide handler slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
   There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. Distinct from `Router` (`UNIMPLEMENTED`, not a fallback `Service`). Distinct from `Server` (one service). Distinct from `Service::ALIASES` (a known path alias).
+  There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. Distinct from `Server::serve_with_shutdown` (drain always waits). Distinct from `ServerConfig::max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain).
   A
   `TestServiceClient` pool larger than `TestServiceServer::max_concurrent_connections`
   fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix

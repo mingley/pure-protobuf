@@ -56,7 +56,9 @@ handler runs, on every call shape, including over TLS, mTLS, Unix, and
 `RESOURCE_EXHAUSTED` before the stream opens on those transports. Distinct
 from `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits.
 Graceful drain finishes in-flight RPCs and refuses new connections on TLS,
-mTLS, and Unix; `from_io` has no accept loop. A dead Channel slot redials
+mTLS, and Unix; `from_io` has no accept loop.
+There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. Distinct from `Server::serve_with_shutdown` (drain always waits). Distinct from `ServerConfig::max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain).
+A dead Channel slot redials
 the same TCP, TLS, mTLS, or Unix address on the next RPC of every call
 shape and fails fast when nothing is listening; `from_io` cannot redial.
 `Incoming::peer` stamps connection facts onto every call shape on that

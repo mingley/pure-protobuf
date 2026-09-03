@@ -1168,6 +1168,7 @@ and has no accept loop to drain. Use `serve_with_shutdown` when you already have
 and `serve_tls_with_shutdown(listener, shutdown, tls)`. On Unix the path forms
 are `serve_unix_until_shutdown(path, shutdown)` and
 `serve_unix_unlink_until_shutdown` after a crash leftover.
+There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit; this drain always waits for in-flight RPCs. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain).
 
 ```rust
 let (tx, rx) = tokio::sync::oneshot::channel();
@@ -2449,6 +2450,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `NumStreamWorkers` | Not a worker pool: each accepted stream is `tokio::spawn`ed on the current tokio runtime. `ServerConfig::max_concurrent_rpcs` is in-flight handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool). Distinct from `max_concurrent_connections` (how many sockets). |
 | tonic `Server::concurrency_limit_per_connection` | Not a tower stack: there is no per-connection `ConcurrencyLimitLayer`. `ServerConfig::max_concurrent_rpcs` is process-wide handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N in-flight RPCs per connection. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `NumStreamWorkers` (worker pool, not a cap). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | grpc-go `UnknownServiceHandler` | Not a catch-all: an unmounted service is `UNIMPLEMENTED`, not a fallback bidi handler. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler). |
+| grpc-go `WaitForHandlers` | Drain always waits for in-flight RPCs. grpc-go `Stop` can return before handlers exit; there is no WaitForHandlers setter. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain). `from_io` / `serve_connection` is one duplex: no accept loop to refuse. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
