@@ -161,6 +161,7 @@ that then calls `Outgoing::set_user_agent` wins.
 `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`,
 `stream_buffer_size`, `send_buffer_size`, and `limits` read
 the same overlays as the channel (the setter names cannot collide).
+There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. Distinct from `ChannelConfig::stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer.
 `FooClient::connected` is the live-socket snapshot on a generated client. Distinct from `waits_for_ready` (overlay). Same snapshot as `Channel::connected`.
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are
 first-class for a hand-written `Service`; generated clients call the same

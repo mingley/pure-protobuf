@@ -6849,6 +6849,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request\n    /// slots (default 1024), not these bytes. This kernel is not a tower stack;\n    /// clones share the pool without an mpsc of RPCs."
+        ),
+        "ChannelConfig::max_send_buffer_size rustdoc must Distinct tonic Endpoint::buffer_size as tower Buffer slots"
+    );
+    assert!(
+        src.contains(
+            "Distinct from grpc-go `ReadBufferSize` /\n    /// `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not\n    /// this HTTP/2 send buffer."
+        ),
+        "ChannelConfig::max_send_buffer_size rustdoc must Distinct grpc-go ReadBufferSize as socket bytes"
+    );
+    assert!(
+        src.contains(
             "A well-behaved client never fills that queue; every call shape still\n    /// completes, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
         ),
         "ServerConfig::max_pending_accept_reset_streams must name still-serves Distinct from a raw RST flood"
@@ -17946,6 +17958,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off."),
         "guide must keep PermitWithoutStream and tonic while_idle as an omission Distinct from default-off"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. This kernel is not a tower stack; clones share the pool without an mpsc of RPCs. Distinct from `stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer."),
+        "guide must Distinct ChannelConfig::max_send_buffer_size from tonic Endpoint::buffer_size"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. Distinct from `ChannelConfig::stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer."),
+        "architecture must Distinct ChannelConfig::max_send_buffer_size from tonic Endpoint::buffer_size"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. Distinct from `ChannelConfig::stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer."),
+        "status guide must Distinct ChannelConfig::max_send_buffer_size from tonic Endpoint::buffer_size"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. Distinct from `ChannelConfig::stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer."),
+        "crate README must Distinct ChannelConfig::max_send_buffer_size from tonic Endpoint::buffer_size"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::buffer_size` / grpc-go `ReadBufferSize` | Not a tower stack: there is no request mpsc. Clones share the pool. `ChannelConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure (default 1 MiB). `ChannelConfig::stream_buffer` is client-streaming/bidi message queue depth (default 16). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this send buffer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::buffer_size and grpc-go ReadBufferSize as an omission Distinct from this send buffer"
     );
     assert!(
         status_guide

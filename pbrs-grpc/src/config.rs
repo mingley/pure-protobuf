@@ -1096,6 +1096,13 @@ impl ChannelConfig {
     /// every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`].
     /// [`crate::Channel::max_send_buffer_size`] sets the write-time DATA threshold on a live clone without building a [`ChannelConfig`].
+    /// There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request
+    /// slots (default 1024), not these bytes. This kernel is not a tower stack;
+    /// clones share the pool without an mpsc of RPCs. Distinct from
+    /// [`Self::stream_buffer`]: that is client-streaming/bidi message queue
+    /// depth, not this send buffer. Distinct from grpc-go `ReadBufferSize` /
+    /// `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not
+    /// this HTTP/2 send buffer.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;

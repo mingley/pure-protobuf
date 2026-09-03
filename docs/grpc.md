@@ -1692,6 +1692,8 @@ channel.max_send_buffer_size(16 * 1024)
 ChannelConfig::new().max_send_buffer_size(16 * 1024)
 ```
 
+There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. This kernel is not a tower stack; clones share the pool without an mpsc of RPCs. Distinct from `stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer.
+
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
 `data_frame_budget`,
@@ -2418,6 +2420,7 @@ Deliberate omissions, with what to do instead.
 | tonic `http://` / `https://` / `unix://` channel URIs | `Target` is `host:port`. `Channel::connect_tls` dials TLS; `Channel::connect_unix` takes a filesystem path; `Channel::origin` overlays `:authority`. A URI-shaped string is `INVALID_ARGUMENT`, not a silent `connect_tls`. |
 | grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URIs | `Target` is `host:port`. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`, not a silent resolver. |
 | Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. |
+| tonic `Endpoint::buffer_size` / grpc-go `ReadBufferSize` | Not a tower stack: there is no request mpsc. Clones share the pool. `ChannelConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure (default 1 MiB). `ChannelConfig::stream_buffer` is client-streaming/bidi message queue depth (default 16). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this send buffer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
