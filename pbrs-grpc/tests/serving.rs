@@ -9440,9 +9440,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
-            "error_info: Some(ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\")),\n///     ..ErrorDetails::default()\n/// };\n/// let status = Status::from_error_details"
+            ".with_error_info(ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\"));"
         ),
-        "ErrorDetails rustdoc must build ErrorInfo with with_reason"
+        "ErrorDetails rustdoc must plant ErrorInfo with with_error_info"
     );
     assert!(
         pb_src.contains("that is a wait hint, not a cause"),
