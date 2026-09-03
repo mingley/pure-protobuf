@@ -16780,6 +16780,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name BadRequest::with_field as the builder"
     );
     assert!(
+        guide.contains("`BadRequest::with_field_entry` builds an extra packed field violation after this guide BadRequest builder."),
+        "guide must name BadRequest::with_field_entry next to BadRequest::with_field"
+    );
+    assert!(
         guide.contains("`FieldViolation::with_field` builds a nested field path after this guide BadRequest builder."),
         "guide must name FieldViolation::with_field next to BadRequest::with_field"
     );

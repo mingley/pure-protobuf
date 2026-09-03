@@ -428,6 +428,7 @@ Or `status.retry_delay()` for that wait hint without unpacking the bag. Distinct
 Or `status.error_info()` for the reason and domain without unpacking the bag. Distinct from `status.error_details()`. `ErrorInfo::with_reason` builds that payload.
 `ErrorInfo::with_metadata` fills a metadata pair after this guide ErrorInfo builder.
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
+`BadRequest::with_field_entry` builds an extra packed field violation after this guide BadRequest builder.
 `FieldViolation::with_field` builds a nested field path after this guide BadRequest builder.
 `FieldViolation::with_reason` builds a nested field-violation reason after this guide FieldViolation builder.
 `FieldViolation::with_localized_message` builds a nested field-violation locale after this guide FieldViolation builder.
