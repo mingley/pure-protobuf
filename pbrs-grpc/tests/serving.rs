@@ -9373,6 +9373,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::retry_delay must name RetryInfo::with_retry_delay as the builder"
     );
     assert!(
+        status_src.contains(
+            ".with_retry_info(RetryInfo::with_retry_delay(\n    ///     std::time::Duration::from_millis(1500),"
+        ),
+        "Status::retry_delay rustdoc must plant RetryInfo with with_retry_info"
+    );
+    assert!(
         status_src.contains("Packed `google.rpc.ErrorInfo`, if this status carries one."),
         "Status::error_info must name packed ErrorInfo"
     );

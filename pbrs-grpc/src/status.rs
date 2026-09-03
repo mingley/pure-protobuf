@@ -672,6 +672,23 @@ impl Status {
     /// unparseable protobuf durations are `None`, so a retry loop can treat
     /// absence as "no hint". A zero delay is `Some(Duration::ZERO)`, not
     /// `None`. Build the payload with [`crate::pb::RetryInfo::with_retry_delay`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RetryInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new().with_retry_info(RetryInfo::with_retry_delay(
+    ///     std::time::Duration::from_millis(1500),
+    /// ));
+    /// let status = Status::from_error_details(Code::Unavailable, "backoff", &details)?;
+    /// assert!(status.is_retryable());
+    /// assert_eq!(
+    ///     status.retry_delay(),
+    ///     Some(std::time::Duration::from_millis(1500))
+    /// );
+    /// assert!(Status::unavailable("backoff").retry_delay().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
     #[must_use]
     pub fn retry_delay(&self) -> Option<std::time::Duration> {
         let retry = self.error_details().ok()?.retry_info?;
