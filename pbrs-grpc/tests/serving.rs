@@ -6793,6 +6793,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "accept storm cannot pin an unbounded number of handshake tasks.\n    /// Disabled by default.\n    /// There is no tonic `Server::executor` setter: that is `SharedExec` on\n    /// tonic's hyper stack. Each accept-loop handshake task is `tokio::spawn`ed\n    /// on the current tokio runtime. This kernel is not a hyper/tower stack.\n    /// [`Self`] is `Copy`, so it cannot store a non-`Copy` executor. Distinct\n    /// from tonic `Endpoint::executor`, which is the client `SharedExec` (see\n    /// [`ChannelConfig::connections`]). Distinct from `tower` integration,\n    /// which is protobuf-tonic keeping tonic. [`crate::Server::serve_connection`]\n    /// is already-connected: it is not an accept-loop spawn."
+        ),
+        "ServerConfig::max_concurrent_connections rustdoc must Distinct accept-loop spawn from tonic Server::executor SharedExec"
+    );
+    assert!(
+        src.contains(
             "How long TLS accept (if any) and the HTTP/2 preface may each take.\n    /// Default 20 s. Values below 1 ms are raised to 1 ms.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
         ),
         "ServerConfig::handshake_timeout must name TLS, mTLS, and Unix"
@@ -7392,6 +7398,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor SharedExec"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ServerConfig::max_concurrent_connections`] handshake task is `tokio::spawn`ed on the current tokio runtime. Distinct from tonic `Endpoint::executor` (client [`ChannelConfig::connections`]). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct ServerConfig::max_concurrent_connections handshake spawn from tonic Server::executor SharedExec"
     );
     assert!(
         crate_src.contains(
@@ -18198,6 +18208,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. `ChannelConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::rate_limit` (token bucket) and `Endpoint::buffer_size` (request mpsc), which are also tower. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::executor as an omission Distinct from SharedExec and from rate_limit buffer_size"
+    );
+    assert!(
+        guide.contains("There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. Each accept-loop handshake task is `tokio::spawn`ed on the current tokio runtime. Distinct from tonic `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. `serve_connection` / `from_io` is already-connected: not an accept-loop spawn."),
+        "guide must Distinct accept-loop handshake spawn from tonic Server::executor"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ServerConfig::max_concurrent_connections` (`tokio::spawn` on the current runtime). Distinct from tonic `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ServerConfig::max_concurrent_connections handshake spawn from tonic Server::executor"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ServerConfig::max_concurrent_connections` (`tokio::spawn` on the current runtime). Distinct from tonic `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ServerConfig::max_concurrent_connections handshake spawn from tonic Server::executor"
+    );
+    assert!(
+        readme.contains("There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ServerConfig::max_concurrent_connections` (`tokio::spawn` on the current runtime). Distinct from tonic `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ServerConfig::max_concurrent_connections handshake spawn from tonic Server::executor"
+    );
+    assert!(
+        guide.contains("tonic `Server::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each accept-loop handshake task is `tokio::spawn`ed on the current tokio runtime. `ServerConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. `serve_connection` is already-connected: not an accept-loop spawn."),
+        "guide must keep tonic Server::executor as an omission Distinct from Endpoint::executor and from accept-loop spawn"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

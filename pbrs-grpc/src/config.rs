@@ -610,6 +610,14 @@ impl ServerConfig {
     /// Further accepts are dropped immediately (the peer sees a reset), so an
     /// accept storm cannot pin an unbounded number of handshake tasks.
     /// Disabled by default.
+    /// There is no tonic `Server::executor` setter: that is `SharedExec` on
+    /// tonic's hyper stack. Each accept-loop handshake task is `tokio::spawn`ed
+    /// on the current tokio runtime. This kernel is not a hyper/tower stack.
+    /// [`Self`] is `Copy`, so it cannot store a non-`Copy` executor. Distinct
+    /// from tonic `Endpoint::executor`, which is the client `SharedExec` (see
+    /// [`ChannelConfig::connections`]). Distinct from `tower` integration,
+    /// which is protobuf-tonic keeping tonic. [`crate::Server::serve_connection`]
+    /// is already-connected: it is not an accept-loop spawn.
     ///
     /// [`crate::Server::max_concurrent_connections`],
     /// [`crate::Router::max_concurrent_connections`], and generated
