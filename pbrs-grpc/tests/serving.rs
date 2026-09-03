@@ -9816,6 +9816,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::resource_info must Distinct request_id from resource"
     );
     assert!(
+        status_src.contains(
+            ".with_resource_info(ResourceInfo::with_resource(\n    ///     \"sqladmin.googleapis.com/Instance\","
+        ),
+        "Status::resource_info rustdoc must plant ResourceInfo with with_resource_info"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::resource_info`]"),
         "ResourceInfo::with_resource must name Status::resource_info unpack"
     );
