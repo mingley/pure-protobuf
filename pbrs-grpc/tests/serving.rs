@@ -12347,6 +12347,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name DebugInfo::with_stack next to Status::debug_info"
     );
     assert!(
+        readme.contains(
+            "`DebugInfo::with_stack_entry` builds an extra packed stack frame on this crate README"
+        ),
+        "crate README must name DebugInfo::with_stack_entry next to DebugInfo::with_stack"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
