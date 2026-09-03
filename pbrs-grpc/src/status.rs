@@ -893,10 +893,8 @@ impl Status {
     /// use pbrs_grpc::pb::{ErrorDetails, RequestInfo};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     request_info: Some(RequestInfo::with_request_id("req-9", "encrypted")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_request_info(RequestInfo::with_request_id("req-9", "encrypted"));
     /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
     /// let info = status.request_info().expect("RequestInfo");
     /// assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");

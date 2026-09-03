@@ -9776,6 +9776,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::request_info must Distinct Help docs URL from request_id"
     );
     assert!(
+        status_src.contains(
+            ".with_request_info(RequestInfo::with_request_id(\"req-9\", \"encrypted\"));"
+        ),
+        "Status::request_info rustdoc must plant RequestInfo with with_request_info"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::request_info`]"),
         "RequestInfo::with_request_id must name Status::request_info unpack"
     );
