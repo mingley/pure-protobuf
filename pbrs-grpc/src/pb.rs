@@ -1413,6 +1413,36 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`Help`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::help`].
+    /// Distinct from [`Help::with_link`]: that is the first docs URL, not planting Help on the bag.
+    /// Distinct from [`crate::Status::help`]: that unpacks packed Help; this plants it on the bag.
+    /// Distinct from [`Self::with_resource_info`]: that plants ResourceInfo, not Help.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, Help};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_help(Help::with_link("quota docs", "https://example.com/quota"));
+    /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
+    /// assert!(status.is_retryable());
+    /// let help = status.help().expect("Help");
+    /// let link = help.links().get(0).expect("link");
+    /// assert_eq!(
+    ///     link.url().to_str().unwrap_or(""),
+    ///     "https://example.com/quota"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_help(mut self, help: Help) -> Self {
+        self.help = Some(help);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1687,6 +1717,23 @@ mod tests {
         );
         assert!(status.request_info().is_none());
         assert!(status.quota_failure().is_none());
+    }
+
+    #[test]
+    fn error_details_with_help_round_trips() {
+        let details = ErrorDetails::new()
+            .with_help(Help::with_link("quota docs", "https://example.com/quota"));
+        let status = crate::Status::from_error_details(Code::Unavailable, "backend", &details)
+            .expect("encode");
+        assert!(status.is_retryable());
+        let got = status.help().expect("Help");
+        let link = got.links().get(0).expect("link");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/quota"
+        );
+        assert!(status.resource_info().is_none());
+        assert!(status.localized_message().is_none());
     }
 
     #[test]

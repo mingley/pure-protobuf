@@ -9888,6 +9888,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`Help::with_link`]: that is the first docs URL, not planting Help on the bag."
+        ),
+        "ErrorDetails::with_help must Distinct the first docs URL from planting Help on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
