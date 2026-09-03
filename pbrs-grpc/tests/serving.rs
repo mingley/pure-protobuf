@@ -9647,6 +9647,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::precondition_failure must Distinct ASCII failed_precondition"
     );
     assert!(
+        status_src.contains(
+            ".with_precondition_failure(\n    ///     PreconditionFailure::with_violation(\"TOS\", \"google.com/cloud\", \"unsigned\"),"
+        ),
+        "Status::precondition_failure rustdoc must plant PreconditionFailure with with_precondition_failure"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::precondition_failure`]"),
         "PreconditionFailure::with_violation must name Status::precondition_failure unpack"
     );

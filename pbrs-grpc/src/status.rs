@@ -793,14 +793,9 @@ impl Status {
     /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     precondition_failure: Some(PreconditionFailure::with_violation(
-    ///         "TOS",
-    ///         "google.com/cloud",
-    ///         "unsigned",
-    ///     )),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_precondition_failure(
+    ///     PreconditionFailure::with_violation("TOS", "google.com/cloud", "unsigned"),
+    /// );
     /// let status = Status::from_error_details(Code::FailedPrecondition, "tos", &details)?;
     /// assert!(!status.is_retryable());
     /// let pre = status.precondition_failure().expect("PreconditionFailure");
