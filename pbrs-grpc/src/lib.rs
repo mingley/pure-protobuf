@@ -771,6 +771,8 @@
 //!
 //! There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. This crate-map [`ServerConfig::max_send_buffer_size`] is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots).
 //!
+//! There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. This crate-map [`ServerConfig::timeout`] is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

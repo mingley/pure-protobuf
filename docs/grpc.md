@@ -593,6 +593,7 @@ Generated handlers see the same client duration on `Request::peer_timeout`
 A client that omits `grpc-timeout` can otherwise pin a handler forever; the
 server cap closes that hole. An interceptor can only tighten that deadline,
 not extend it.
+There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -2455,6 +2456,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `WaitForHandlers` | Drain always waits for in-flight RPCs. grpc-go `Stop` can return before handlers exit; there is no WaitForHandlers setter. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain). `from_io` / `serve_connection` is one duplex: no accept loop to refuse. |
 | tonic `Server::load_shed` | Not a tower stack: there is no `LoadShedLayer`. `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `WaitForHandlers` (drain, not overload). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots). |
+| tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

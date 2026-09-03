@@ -6765,6 +6765,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer`\n    /// wrapping every request handler. This cap is a gRPC deadline overlay\n    /// when the client omits `grpc-timeout`. This kernel is not a tower stack.\n    /// Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from\n    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from `tower`\n    /// integration, which is protobuf-tonic keeping tonic."
+        ),
+        "ServerConfig::timeout rustdoc must Distinct gRPC deadline overlay from tonic Server::timeout TimeoutLayer"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Server::timeout` tower layer")
+            .count(),
+        1,
+        "ChannelConfig::timeout must not copy the server TimeoutLayer Distinct"
+    );
+    assert!(
+        src.contains(
             "the other end redials the next RPC of every call shape, including over\n    /// TLS, mTLS, and Unix."
         ),
         "ServerConfig::max_connection_age must name redial on TLS, mTLS, and Unix"
@@ -7450,6 +7462,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. This crate-map [`ServerConfig::max_send_buffer_size`] is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
         "crate-map must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer reuse"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. This crate-map [`ServerConfig::timeout`] is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct ServerConfig::timeout gRPC deadline overlay from tonic Server::timeout TimeoutLayer"
     );
     assert!(
         crate_src.contains(
@@ -18396,6 +18412,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
         "guide must keep grpc-go SharedWriteBuffer as an omission Distinct from per-connection HTTP/2 send buffer"
+    );
+    assert!(
+        guide.contains("There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct ServerConfig::timeout from tonic Server::timeout TimeoutLayer"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. Distinct from `ServerConfig::timeout` (gRPC deadline overlay when the client omits `grpc-timeout`). Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ServerConfig::timeout from tonic Server::timeout TimeoutLayer"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. Distinct from `ServerConfig::timeout` (gRPC deadline overlay when the client omits `grpc-timeout`). Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ServerConfig::timeout from tonic Server::timeout TimeoutLayer"
+    );
+    assert!(
+        readme.contains("There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. Distinct from `ServerConfig::timeout` (gRPC deadline overlay when the client omits `grpc-timeout`). Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ServerConfig::timeout from tonic Server::timeout TimeoutLayer"
+    );
+    assert!(
+        guide.contains("tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Server::timeout as an omission Distinct from gRPC deadline overlay"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

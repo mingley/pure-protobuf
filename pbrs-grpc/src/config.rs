@@ -599,6 +599,12 @@ impl ServerConfig {
     /// The effective deadline is the soonest of this, the client's, and any
     /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.
     /// Values below 1 ms are raised to 1 ms.
+    /// There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer`
+    /// wrapping every request handler. This cap is a gRPC deadline overlay
+    /// when the client omits `grpc-timeout`. This kernel is not a tower stack.
+    /// Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from
+    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from `tower`
+    /// integration, which is protobuf-tonic keeping tonic.
     ///
     /// [`crate::Server::timeout`], [`crate::Router::timeout`], and generated
     /// `FooServer::timeout` set this without building a [`ServerConfig`].
