@@ -424,6 +424,45 @@ impl quota_failure::Violation {
         self.set_quota_id(quota_id.into());
         self
     }
+
+    /// Inserts `key` → `value` into this violation's `quota_dimensions` map.
+    ///
+    /// Chain after [`Self::with_subject`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`Self::with_subject`]: that is subject and description, not a quota dimension pair.
+    /// Distinct from [`Self::with_quota_id`]: that is the quota id, not a quota dimension pair.
+    /// Distinct from [`crate::pb::ErrorInfo::with_metadata`]: that is ErrorInfo metadata, not quota dimensions.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{quota_failure, ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+    ///     .with_quota_dimension("region", "us-central1");
+    /// let mut quota = QuotaFailure::new();
+    /// quota.set_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(quota),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// let got = status.quota_failure().expect("QuotaFailure");
+    /// let region = got
+    ///     .violations()
+    ///     .get(0)
+    ///     .expect("v")
+    ///     .quota_dimensions()
+    ///     .get("region")
+    ///     .and_then(|s| s.to_str().ok().map(str::to_owned));
+    /// assert_eq!(region.as_deref(), Some("us-central1"));
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_quota_dimension(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        self.quota_dimensions_mut()
+            .insert(key.as_ref(), value.as_ref());
+        self
+    }
 }
 
 impl QuotaFailure {
@@ -1274,6 +1313,35 @@ mod tests {
             "CPUS-PER-PROJECT"
         );
         assert!(subject.quota_metric().to_str().unwrap_or("").is_empty());
+        assert!(status.error_info().is_none());
+    }
+
+    #[test]
+    fn quota_failure_with_quota_dimension_round_trips() {
+        let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+            .with_quota_dimension("region", "us-central1");
+        let region = violation
+            .quota_dimensions()
+            .get("region")
+            .and_then(|s| s.to_str().ok().map(str::to_owned));
+        assert_eq!(region.as_deref(), Some("us-central1"));
+        let mut quota = QuotaFailure::new();
+        quota.set_violations([violation]);
+        let details = ErrorDetails {
+            quota_failure: Some(quota),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        let got = status.quota_failure().expect("QuotaFailure");
+        let region = got
+            .violations()
+            .get(0)
+            .expect("subject")
+            .quota_dimensions()
+            .get("region")
+            .and_then(|s| s.to_str().ok().map(str::to_owned));
+        assert_eq!(region.as_deref(), Some("us-central1"));
         assert!(status.error_info().is_none());
     }
 
