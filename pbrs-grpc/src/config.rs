@@ -999,6 +999,13 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 }
 
 /// HTTP/2 and resource settings for a [`Channel`](crate::Channel).
+/// There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when
+/// the name resolver does not provide a service config, or when
+/// `WithDisableServiceConfig` ignores the resolver. This config is typed
+/// `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go
+/// `WithDisableRetry` (`retryPolicy` only). Distinct from [`Self::timeout`]
+/// (kernel overlay, not methodConfig timeout). There is no
+/// `WithDisableServiceConfig`: nothing to ignore.
 ///
 /// ```
 /// use std::time::Duration;

@@ -789,6 +789,8 @@
 //!
 //! There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented).
 //!
+//! There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

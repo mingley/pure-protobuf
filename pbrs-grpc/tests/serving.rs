@@ -6361,6 +6361,23 @@ fn health_reporter_documents_with_disable_health_check() {
 }
 
 #[test]
+fn channel_config_documents_with_default_service_config() {
+    let src = include_str!("../src/config.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when\n/// the name resolver does not provide a service config, or when\n/// `WithDisableServiceConfig` ignores the resolver. This config is typed\n/// `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go\n/// `WithDisableRetry` (`retryPolicy` only). Distinct from [`Self::timeout`]\n/// (kernel overlay, not methodConfig timeout). There is no\n/// `WithDisableServiceConfig`: nothing to ignore."
+        ),
+        "ChannelConfig rustdoc must Distinct typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDefaultServiceConfig`")
+            .count(),
+        1,
+        "ServerConfig must not copy the WithDefaultServiceConfig Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -7095,6 +7112,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when\n/// the name resolver does not provide a service config, or when\n/// `WithDisableServiceConfig` ignores the resolver. This config is typed\n/// `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go\n/// `WithDisableRetry` (`retryPolicy` only). Distinct from [`Self::timeout`]\n/// (kernel overlay, not methodConfig timeout). There is no\n/// `WithDisableServiceConfig`: nothing to ignore."
+        ),
+        "ChannelConfig rustdoc must Distinct typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDefaultServiceConfig`")
+            .count(),
+        1,
+        "ServerConfig must not copy the WithDefaultServiceConfig Distinct"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 connection receive window the client advertises. Distinct from\n    /// [`ServerConfig::initial_connection_window_size`], which still serves when\n    /// the server advertises a small window. A well-behaved server still\n    /// completes every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::initial_connection_window_size must name client advertised Distinct from server still-serves"
@@ -7668,6 +7697,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented)."),
         "crate-map must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        "crate-map must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
     );
     assert!(
         crate_src.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
@@ -18822,6 +18855,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithDisableHealthCheck` | Not a DialOption: grpc-go disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
         "guide must keep grpc-go WithDisableHealthCheck as an omission Distinct from grpc.health.v1 serving status"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. `ChannelConfig` is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        "guide must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. Distinct from `ChannelConfig` (typed `Copy` fields, not JSON; no resolver). Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        "architecture must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. Distinct from `ChannelConfig` (typed `Copy` fields, not JSON; no resolver). Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        "status guide must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. Distinct from `ChannelConfig` (typed `Copy` fields, not JSON; no resolver). Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        "crate README must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert!(
+        guide.contains("grpc-go `WithDefaultServiceConfig` / `WithDisableServiceConfig` | Not JSON service config: `ChannelConfig` is typed `Copy` fields; there is no name resolver to fetch or ignore. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout)."),
+        "guide must keep grpc-go WithDefaultServiceConfig as an omission Distinct from typed Copy ChannelConfig"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
