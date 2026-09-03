@@ -9565,6 +9565,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );
     assert!(
+        pb_src.contains(".with_bad_request(BadRequest::with_field(\"name\", \"required\"));"),
+        "BadRequest::with_field rustdoc must plant BadRequest with with_bad_request"
+    );
+    assert!(
         pb_src.contains(
             "Distinct from [`Self::with_field`]: that is the first field path, not an extra field violation."
         ),

@@ -336,10 +336,8 @@ impl BadRequest {
     /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     bad_request: Some(BadRequest::with_field("name", "required")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_bad_request(BadRequest::with_field("name", "required"));
     /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
     /// let bad = status.bad_request().expect("BadRequest");
     /// assert_eq!(
