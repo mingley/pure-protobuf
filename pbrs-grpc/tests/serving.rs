@@ -12773,6 +12773,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`quota_failure::Violation::with_quota_metric` builds a nested quota metric on this packed-status."
+        ),
+        "status guide must name quota_failure::Violation::with_quota_metric next to quota_failure::Violation::with_api_service"
+    );
+    assert!(
+        status_guide.contains(
             "`precondition_failure::Violation::with_type` builds a nested precondition type on this packed-status."
         ),
         "status guide must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
