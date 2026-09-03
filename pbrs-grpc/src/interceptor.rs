@@ -235,6 +235,7 @@ pub trait ResponseInterceptor: Send + Sync + 'static {
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a handler Err: that is after the handler ran; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+    /// Distinct from a Server intercept Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
