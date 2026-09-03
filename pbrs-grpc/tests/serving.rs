@@ -9575,6 +9575,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "BadRequest::with_field_entry must Distinct the first field path from an extra field violation"
     );
     assert!(
+        pb_src.contains(
+            ".with_bad_request(\n    ///     BadRequest::with_field(\"name\", \"required\").with_field_entry(\"email\", \"invalid\"),"
+        ),
+        "BadRequest::with_field_entry rustdoc must plant BadRequest with with_bad_request"
+    );
+    assert!(
         crate_src.contains("[`Status::quota_failure`]"),
         "crate map must name Status::quota_failure"
     );
