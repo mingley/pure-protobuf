@@ -503,6 +503,34 @@ impl Status {
     /// Prefer this over [`Self::from_rpc`] when the status already carries
     /// trailers such as `x-retry-after`.
     /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo, Status as RpcStatus};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut status = Status::internal("temp");
+    /// status.metadata_mut().insert("x-row", "42")?;
+    /// let info = ErrorInfo::with_reason("ROW_EXISTS", "kv.example.com");
+    /// let rpc = RpcStatus::with_details(
+    ///     Code::AlreadyExists,
+    ///     "duplicate",
+    ///     [Any::pack(&info)?],
+    /// );
+    /// status.set_rpc(&rpc)?;
+    /// assert_eq!(status.code(), Code::AlreadyExists);
+    /// assert_eq!(status.message(), "duplicate");
+    /// assert_eq!(status.metadata().get("x-row"), Some("42"));
+    /// assert_eq!(
+    ///     status
+    ///         .error_info()
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "ROW_EXISTS"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn set_rpc(&mut self, rpc: &crate::pb::Status) -> Result<(), Self> {
         let bytes = pbrs::Serialize::serialize(rpc)
             .map_err(|e| Self::internal(format!("serialize google.rpc.Status: {e}")))?;

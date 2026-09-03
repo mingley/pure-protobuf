@@ -10374,6 +10374,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::set_rpc must Distinct packing Anys from encoding a packed google.rpc.Status"
     );
     assert!(
+        status_src.contains("status.set_rpc(&rpc)?;"),
+        "Status::set_rpc rustdoc must encode a packed google.rpc.Status without dropping trailers"
+    );
+    assert!(
         status_src.contains(
             "Distinct from [`Self::from_rpc`]: that mints a fresh status with empty trailers; this keeps existing trailers."
         ),
