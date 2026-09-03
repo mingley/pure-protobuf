@@ -594,6 +594,7 @@ builds that payload.
 `Status::help` is packed documentation links. Distinct from
 failure classifications: links can sit next to a retryable UNAVAILABLE.
 `Help::with_link` builds that payload.
+`Help::with_link_entry` builds an extra packed docs URL after this architecture Help builder.
 `help::Link::with_url` builds a nested docs URL after this architecture Help builder.
 `Status::localized_message` is packed
 locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.

@@ -17483,6 +17483,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
     );
     assert!(
+        architecture.contains("`Help::with_link_entry` builds an extra packed docs URL after this architecture Help builder."),
+        "architecture must name Help::with_link_entry next to Help::with_link"
+    );
+    assert!(
         architecture.contains(
             "`help::Link::with_url` builds a nested docs URL after this architecture Help builder."
         ),
