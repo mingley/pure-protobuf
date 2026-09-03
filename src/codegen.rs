@@ -285,7 +285,8 @@ impl Config {
     /// must depend on `pbrs-grpc`. `FooClient` gets the same dialers as
     /// `Channel` (`connect`, `connect_tls`, `connect_unix`, `from_io`, and
     /// the lazy/`_with` variants) and the same overlays, including
-    /// `https_scheme` for already-encrypted `from_io` streams. Read those
+    /// `https_scheme` for already-encrypted `from_io` streams and `origin`
+    /// for `:authority`. Read those
     /// overlays with `scheme` / `authority` / `grpc_user_agent` /
     /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
     /// `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits` / `config`.
@@ -4992,6 +4993,19 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn https_scheme(self) -> Self {{ Self {{ channel: self.channel.https_scheme() }} }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Override `:authority` on this clone without changing the dial. See [`{G}::Channel::origin`]. Applies to every call shape."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn origin(self, authority: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self {{ channel: self.channel.origin(authority)? }})"
+    );
+    let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
         "    /// HTTP/2 `:scheme` this client sends. See [`{G}::Channel::scheme`]. Applies to every call shape."

@@ -235,6 +235,10 @@ fn source_bind() -> SocketAddr {
     SocketAddr::from(([127, 0, 0, 2], 0))
 }
 
+fn origin_name() -> &'static str {
+    "greeter.internal:50051"
+}
+
 async fn channel(addr: SocketAddr) -> Channel {
     let mut last = None;
     for _ in 0..80 {
@@ -1769,6 +1773,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "TLS uses the channel [`crate::Target`], not SNI, unless\n    /// [`crate::Channel::origin`] overrode it on this clone."
+        ),
+        "Outgoing::authority must name origin overlay Distinct from Target and SNI"
+    );
+    assert!(
+        outgoing.contains(
+            "[`crate::Target`], not SNI, unless [`crate::Channel::origin`] overrode\n    /// `:authority` on that clone."
+        ),
+        "Request::authority must name origin overlay Distinct from Target and SNI"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::method`]: that is a server interceptor; this is a client interceptor before send."
         ),
         "Outgoing::method must Distinct the server interceptor method from the outbound split"
@@ -2970,9 +2986,19 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "Taken from the [`Target`] used to dial. A [`SocketAddr`] is that\n    /// address"
+            "Taken from the [`Target`] used to dial, unless [`Self::origin`]\n    /// overrode it on this clone. A [`SocketAddr`] is that\n    /// address"
         ),
-        "Channel::authority must name Target, not TLS SNI"
+        "Channel::authority must name Target unless origin overrode it, not TLS SNI"
+    );
+    assert!(
+        src.contains(
+            "Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and\n    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]\n    /// or [`Self::https_scheme`]."
+        ),
+        "Channel::origin must Distinct tonic Endpoint::origin Uri scheme"
+    );
+    assert!(
+        src.contains("Invalid HTTP `:authority` is [`Code::InvalidArgument`]."),
+        "Channel::origin must name InvalidArgument for a bad authority"
     );
     let intercept = include_str!("../src/interceptor.rs");
     assert!(
@@ -6332,6 +6358,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "[`ChannelConfig::local_address`] binds the TCP source before connect\n/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.\n/// Distinct from [`crate::Rpc::local_addr`], which is the accepted"
         ),
         "Channel rustdoc must Distinct local_address bind from Rpc::local_addr"
+    );
+    assert!(
+        channel.contains(
+            "Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and\n    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]\n    /// or [`Self::https_scheme`]."
+        ),
+        "Channel::origin must Distinct tonic Endpoint::origin Uri scheme"
+    );
+    assert!(
+        channel.contains(
+            "[`Self::https_scheme`] (for [`Self::from_io`]), and [`Self::origin`]\n/// overlay this clone."
+        ),
+        "Channel rustdoc must name origin as a clone overlay next to https_scheme"
     );
     assert!(
         channel.contains("keepalive, local bind, connection count"),
@@ -17768,6 +17806,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep binary logging as an omission Distinct from interceptors"
     );
     assert!(
+        guide.contains("`Channel::origin` / `FooClient::origin` overrode it on that clone. Distinct from `ClientTls` (SNI / certificate name) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`."),
+        "guide must Distinct Channel::origin from ClientTls SNI and tonic Endpoint::origin"
+    );
+    assert!(
+        architecture.contains("`FooClient::origin` overrides `:authority` without changing the dial. Distinct from `ClientTls` (SNI) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`."),
+        "architecture must Distinct Channel::origin from ClientTls SNI and tonic Endpoint::origin"
+    );
+    assert!(
+        status_guide.contains("unless\n  `Channel::origin` overrode it; Unix interceptor"),
+        "status guide must name Channel::origin as an :authority overlay"
+    );
+    assert!(
+        readme.contains("`Channel::origin` / `FooClient::origin` to override `:authority` without changing the dial. Distinct from `Target` (dial) and from `ClientTls` (SNI). Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`."),
+        "crate README must Distinct Channel::origin from Target, ClientTls, and tonic Endpoint::origin"
+    );
+    assert!(
         status_guide
             .contains("hedging, channelz (`grpc.channelz.v1`), and binary logging (`grpc.binarylog.v1`) are documented omissions."),
         "status guide must keep channelz and binary logging as documented omissions"
@@ -20854,8 +20908,10 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::serve_with_incoming_shutdown and Router::serve_with_incoming_shutdown must name every call shape"
     );
     assert!(
-        src.contains("TLS uses the client's [`crate::Target`], not SNI."),
-        "Rpc::authority must name Target, not TLS SNI"
+        src.contains(
+            "TLS uses the client's [`crate::Target`], not SNI, unless\n    /// [`crate::Channel::origin`] overrode `:authority` on that clone."
+        ),
+        "Rpc::authority must name Target unless origin overrode it, not TLS SNI"
     );
     assert!(
         src.contains(
@@ -25270,6 +25326,154 @@ async fn mtls_interceptors_see_socket_authority_not_sni() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     assert_tls_socket_authority_not_sni(tls_channel_with(addr, client_tls).await, &want).await;
+    task.abort();
+}
+
+fn interceptor_require_origin(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.authority() != Some(origin_name()) {
+        return Err(Status::internal(format!(
+            "authority {:?} want {}",
+            rpc.authority(),
+            origin_name()
+        )));
+    }
+    Ok(())
+}
+
+fn interceptor_require_client_origin(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.authority() != origin_name() {
+        return Err(Status::internal(format!(
+            "authority {} want {}",
+            call.authority(),
+            origin_name()
+        )));
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn origin_is_the_authority_the_server_sees() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_origin)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = channel(addr).await.origin(origin_name()).expect("origin");
+    assert_eq!(channel.authority(), origin_name());
+    let client = GreeterClient::new(channel)
+        .origin(origin_name())
+        .expect("generated origin");
+    assert_eq!(client.authority(), origin_name());
+    let client = client.intercept(interceptor_require_client_origin);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_origin_is_distinct_from_sni() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_origin)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = tls_channel_with(addr, client_tls)
+        .await
+        .origin(origin_name())
+        .expect("origin");
+    assert_eq!(channel.authority(), origin_name());
+    assert_eq!(channel.scheme(), "https");
+    assert_ne!(channel.authority(), "localhost");
+    let client = GreeterClient::new(channel).intercept(interceptor_require_client_origin);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_origin_is_distinct_from_sni() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_origin)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = tls_channel_with(addr, client_tls)
+        .await
+        .origin(origin_name())
+        .expect("origin");
+    assert_eq!(channel.authority(), origin_name());
+    let client = GreeterClient::new(channel).intercept(interceptor_require_client_origin);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_origin_replaces_localhost() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_origin)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let channel = unix_channel(&path)
+        .await
+        .origin(origin_name())
+        .expect("origin");
+    assert_eq!(channel.authority(), origin_name());
+    let client = GreeterClient::new(channel).intercept(interceptor_require_client_origin);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_origin_replaces_the_constructor_authority() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_origin)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .origin(origin_name())
+        .expect("origin");
+    assert_eq!(channel.authority(), origin_name());
+    let client = GreeterClient::new(channel).intercept(interceptor_require_client_origin);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn origin_rejects_invalid_authority() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let err = channel(addr).await.origin("[").expect_err("invalid origin");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("invalid origin"),
+        "{}",
+        err.message()
+    );
     task.abort();
 }
 

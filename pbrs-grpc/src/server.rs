@@ -326,8 +326,9 @@ impl Rpc {
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051` or
     /// `localhost` on a Unix socket.
     ///
-    /// TLS uses the client's [`crate::Target`], not SNI. Applies to every call
-    /// shape.
+    /// TLS uses the client's [`crate::Target`], not SNI, unless
+    /// [`crate::Channel::origin`] overrode `:authority` on that clone.
+    /// Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> Option<&str> {
         self.request

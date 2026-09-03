@@ -845,8 +845,7 @@ certificate chain (DER, leaf first) on every call shape. TLS without a client ce
 Unix, `serve_connection`, and the default `Incoming` yield `None`.
 `Incoming::peer` can supply a chain the acceptor already verified
 (`PeerIdentity::from_der_certs`). `:scheme` is `https` on every call shape.
-`:authority` is the client's `Target` (a `SocketAddr` is `127.0.0.1:port`),
-not TLS SNI.
+`:authority` is the client's `Target` (a `SocketAddr` is `127.0.0.1:port`), not TLS SNI, unless `Channel::origin` / `FooClient::origin` overrode it on that clone. Distinct from `ClientTls` (SNI / certificate name) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`.
 The kernel does not parse X.509;
 an interceptor that needs a CN or SAN decodes the leaf:
 
@@ -1739,11 +1738,7 @@ Stacked server interceptors can only tighten that cap, on those transports
 too. The handler Instant is stamped once at dispatch. That original duration is
 `Request::peer_timeout` / `Parts::peer_timeout`. The server overlay is
 `Request::rpc_timeout` / `Parts::rpc_timeout` and stays visible after
-`Rpc::set_timeout`, including over TLS, mTLS, Unix, and `from_io`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent. On TLS (including
-mTLS) that is the client's `Target` — a `SocketAddr` is `127.0.0.1:port`,
-not TLS SNI (`ClientTls` verifies `localhost` separately) — and matches
-`Channel::authority` / `Outgoing::authority`. Unix is `localhost` even after
-`Channel::https_scheme`.
+`Rpc::set_timeout`, including over TLS, mTLS, Unix, and `from_io`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent. On TLS (including mTLS) that is the client's `Target` — a `SocketAddr` is `127.0.0.1:port`, not TLS SNI (`ClientTls` verifies `localhost` separately) — unless `Channel::origin` overrode it, and matches `Channel::authority` / `Outgoing::authority`. Unix is `localhost` even after `Channel::https_scheme` until `Channel::origin`.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a

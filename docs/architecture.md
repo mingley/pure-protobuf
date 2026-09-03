@@ -142,7 +142,8 @@ Keepalive PINGs do not postpone age.
 `Outgoing::connected` is that same snapshot when a client interceptor runs.
 Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
-a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
+a TLS handshake; TCP and Unix keep the transport. `Channel::origin` /
+`FooClient::origin` overrides `:authority` without changing the dial. Distinct from `ClientTls` (SNI) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
@@ -250,7 +251,7 @@ including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Those mutations
 survive `into_message_and_parts`. TLS `:authority` is
-the dial `Target`, not SNI.
+the dial `Target`, not SNI, unless `Channel::origin` overrode it.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 `accepts_gzip` / encoding, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. `Server::timeout` / `Router::timeout`

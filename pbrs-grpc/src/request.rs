@@ -689,7 +689,8 @@ impl<T> Request<T> {
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
     ///
     /// Same value as [`crate::Rpc::authority`]. TLS uses the client's
-    /// [`crate::Target`], not SNI. Outbound requests you build
+    /// [`crate::Target`], not SNI, unless [`crate::Channel::origin`] overrode
+    /// `:authority` on that clone. Outbound requests you build
     /// yourself have `None` until the channel stamps its authority on the
     /// wire; this is a server-side field. Applies to every call shape.
     #[must_use]
@@ -1029,7 +1030,8 @@ impl<'a> Outgoing<'a> {
     /// or `localhost` on a Unix socket.
     ///
     /// Distinct from [`crate::Rpc::authority`]: that is the inbound `:authority`; this is the `:authority` this channel sends.
-    /// TLS uses the channel [`crate::Target`], not SNI. Applies to every call
+    /// TLS uses the channel [`crate::Target`], not SNI, unless
+    /// [`crate::Channel::origin`] overrode it on this clone. Applies to every call
     /// shape.
     #[must_use]
     pub fn authority(&self) -> &'a str {

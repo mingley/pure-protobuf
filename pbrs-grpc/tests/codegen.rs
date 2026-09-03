@@ -4853,6 +4853,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated https_scheme rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "Override `:authority` on this clone without changing the dial. See [`::pbrs_grpc::Channel::origin`]. Applies to every call shape."
+        ),
+        "generated origin rustdoc must name every call shape"
+    );
+    assert!(
         src.contains("A local [`::pbrs_grpc::Status::with_error_details`] is [`::pbrs_grpc::Status::rpc`] / [`::pbrs_grpc::Status::error_details`] on that Call for every call shape."),
         "generated client intercept rustdoc must name packed Status unpacking on local Err"
     );

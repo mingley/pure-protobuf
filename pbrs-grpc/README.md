@@ -59,7 +59,7 @@ sockets (h2c; `serve_unix_unlink` after a crash, without stealing a live listene
 cancellation (dropping a `Call` or a received `Streaming` resets the stream; a `CallHandle` taken before await still cancels while waiting for server-streaming or bidi headers, after streaming headers, and after a client-streaming sender is closed; `StreamSender::fail` on a client request sender resets CANCEL and resolves a client-streaming or pre-headers bidi `Call` with that status, not `UNAVAILABLE` from the reset; after bidi headers the received `Streaming` sees `CANCELLED`, not that status; `Request::cancelled` for spawned work), ASCII and `-bin` metadata, OK-path custom trailers,
 mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`,
 `Incoming::peer` / `ConnectionInfo` for custom acceptors, `Channel::https_scheme`
-for already-encrypted `from_io` streams. Outbound
+for already-encrypted `from_io` streams, `Channel::origin` / `FooClient::origin` to override `:authority` without changing the dial. Distinct from `Target` (dial) and from `ClientTls` (SNI). Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`. Outbound
 RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`, `Request::set_user_agent`, or `Outgoing::set_user_agent`.
 `Outgoing::user_agent_is_set` is occupancy on this crate README interceptor path, so a later interceptor can prefix only when unset.
 `Outgoing::wait_for_ready_is_set` is occupancy on this crate README interceptor path, so a later interceptor can fill wait-for-ready only when unset.

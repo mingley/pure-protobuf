@@ -143,13 +143,12 @@ const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
 struct ChannelInner {
     slots: Vec<Mutex<ConnSlot>>,
     next: AtomicUsize,
-    authority: Authority,
     endpoint: Endpoint,
     tls: Option<ClientTls>,
     /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
     /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
-    /// stream_buffer, max_send_buffer_size) do not change how a dead slot is
-    /// redialed.
+    /// stream_buffer, max_send_buffer_size, https_scheme, origin) do not change
+    /// how a dead slot is redialed.
     dial: ChannelConfig,
 }
 
@@ -261,8 +260,9 @@ impl Endpoint {
 /// [`Self::send_compressed`], [`Self::gzip_compression_level`],
 /// [`Self::accept_compressed`], the two message-size caps /
 /// [`Self::message_limits`], [`Self::stream_buffer`],
-/// [`Self::max_send_buffer_size`], [`Self::max_concurrent_rpcs`], and
-/// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
+/// [`Self::max_send_buffer_size`], [`Self::max_concurrent_rpcs`],
+/// [`Self::https_scheme`] (for [`Self::from_io`]), and [`Self::origin`]
+/// overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
 /// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
 /// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
@@ -309,12 +309,15 @@ pub struct Channel {
     /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
     /// starts `false` until [`Self::https_scheme`].
     https: bool,
+    /// `:authority` this clone sends. Defaults to the dial [`Target`];
+    /// [`Self::origin`] overrides it.
+    authority: Authority,
 }
 
 impl fmt::Debug for Channel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Channel")
-            .field("authority", &self.inner.authority.as_str())
+            .field("authority", &self.authority.as_str())
             .field("endpoint", &self.inner.endpoint.describe())
             .field("connections", &self.inner.slots.len())
             .field("tls", &self.inner.tls.is_some())
@@ -511,6 +514,40 @@ impl Channel {
             self.https = true;
         }
         self
+    }
+
+    /// Override the HTTP/2 `:authority` this clone sends.
+    ///
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`]. Dial still uses the [`Target`] passed to
+    /// [`Self::connect`] / [`Self::connect_tls`] / [`Self::connect_unix`];
+    /// this overlay does not rebind the socket. Distinct from
+    /// [`crate::ClientTls`]: that is SNI / certificate name, not this header.
+    /// Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and
+    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]
+    /// or [`Self::https_scheme`].
+    ///
+    /// Unix defaults to `localhost`; this overlay can replace it.
+    /// [`Self::from_io`] already takes an authority argument; this overlay
+    /// replaces that value on the clone.
+    /// Invalid HTTP `:authority` is [`Code::InvalidArgument`].
+    /// Read the result with [`Self::authority`]. Client interceptors see
+    /// the same string as [`crate::Outgoing::authority`].
+    ///
+    /// ```
+    /// # fn demo(channel: pbrs_grpc::Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let channel = channel.origin("greeter.internal:50051")?;
+    /// assert_eq!(channel.authority(), "greeter.internal:50051");
+    /// # let _ = channel;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn origin(mut self, authority: impl Into<Target>) -> Result<Self, Status> {
+        let target = authority.into();
+        self.authority = target.authority().parse().map_err(|e| {
+            Status::invalid_argument(format!("invalid origin {:?}: {e}", target.authority()))
+        })?;
+        Ok(self)
     }
 
     /// [`Self::from_io`] with `config`. Applies to every call shape.
@@ -1107,13 +1144,15 @@ impl Channel {
 
     /// The `:authority` sent with every request.
     ///
-    /// Taken from the [`Target`] used to dial. A [`SocketAddr`] is that
+    /// Taken from the [`Target`] used to dial, unless [`Self::origin`]
+    /// overrode it on this clone. A [`SocketAddr`] is that
     /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
-    /// such as `localhost` separately). Unix sockets send `localhost`.
-    /// Applies to every call shape.
+    /// such as `localhost` separately). Unix sockets send `localhost`
+    /// until [`Self::origin`]. Applies to every call shape.
+    /// Distinct from [`Self::origin`], which sets it.
     #[must_use]
     pub fn authority(&self) -> &str {
-        self.inner.authority.as_str()
+        self.authority.as_str()
     }
 
     /// HTTP/2 `:scheme` this clone sends.
@@ -1176,7 +1215,7 @@ impl Channel {
             let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
             match open(
                 live.send,
-                &self.inner.authority,
+                &self.authority,
                 path,
                 md,
                 timeout,
@@ -1263,7 +1302,7 @@ impl Channel {
                     let (slot, gen) = (live.slot, live.gen);
                     match run_unary(
                         live.send,
-                        &channel.inner.authority,
+                        &channel.authority,
                         path,
                         &md,
                         timeout,
@@ -1367,7 +1406,7 @@ impl Channel {
                     let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
                     match run_server_stream(
                         live.send,
-                        &channel.inner.authority,
+                        &channel.authority,
                         path,
                         &md,
                         timeout,
@@ -1652,7 +1691,6 @@ fn finish_channel(
     let inner = Arc::new(ChannelInner {
         slots,
         next: AtomicUsize::new(0),
-        authority,
         endpoint,
         tls,
         dial: config,
@@ -1669,6 +1707,7 @@ fn finish_channel(
         rpc_slots: rpc_slots_from(config),
         user_agent: crate::wire::PBRS_GRPC_UA,
         https,
+        authority,
     }
 }
 

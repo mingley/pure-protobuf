@@ -571,8 +571,10 @@ See `docs/upb.md`. Short list:
   the handler, `retain` keeps a subset including `-bin` keys; `Request` and
   `Parts` after `into_message_and_parts` see the same mutation). TLS
   (including mTLS) interceptor `:authority` is the dial `Target`
-  (`SocketAddr` is `127.0.0.1:port`), not SNI `localhost`; Unix interceptor
-  `:authority` is `localhost` on both sides even after `https_scheme`.
+  (`SocketAddr` is `127.0.0.1:port`), not SNI `localhost`, unless
+  `Channel::origin` overrode it; Unix interceptor
+  `:authority` is `localhost` on both sides even after `https_scheme` until
+  `Channel::origin`.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
   `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus
