@@ -12608,6 +12608,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ErrorDetails::with_resource_info next to ErrorDetails::with_request_info"
     );
     assert!(
+        readme.contains("`ErrorDetails::with_help` plants packed Help on this crate README bag."),
+        "crate README must name ErrorDetails::with_help next to ErrorDetails::with_resource_info"
+    );
+    assert!(
         readme.contains("`Duration::from_std` builds the protobuf from `std` on this crate README, Distinct from `try_to_std` converting this protobuf to `std`."),
         "crate README must name Duration::from_std next to ErrorDetails::new"
     );
