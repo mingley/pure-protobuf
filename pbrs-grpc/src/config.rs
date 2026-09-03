@@ -441,6 +441,13 @@ impl ServerConfig {
     /// accept). For `SO_KEEPALIVE`
     /// on TCP sockets, see [`Self::tcp_keepalive`]. Applies to every call
     /// shape.
+    /// There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound
+    /// client PINGs are not GOAWAY'd. Distinct from [`Self::data_frame_budget`],
+    /// which is `ENHANCE_YOUR_CALM` (`too_many_data_frames`) for tiny DATA,
+    /// not PING rate (`too_many_pings`). Distinct from
+    /// [`ChannelConfig::keep_alive_interval`]: that sends client PINGs (and
+    /// already Distincts tonic `http2_keep_alive_while_idle` / grpc-go
+    /// `PermitWithoutStream`).
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);

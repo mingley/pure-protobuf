@@ -190,6 +190,7 @@ See `docs/upb.md`. Short list:
   every call shape. HTTP/2 PING keepalive still serves every Greeter shape
   after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`.
   There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag.
+  There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. Distinct from `ServerConfig::data_frame_budget` (`too_many_data_frames`, not `too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`.
   TCP
   `SO_KEEPALIVE` is TCP-only and still serves every Greeter shape on h2c, TLS,
   and mTLS. `Server::max_concurrent_connections` refuses a second TCP, TLS,

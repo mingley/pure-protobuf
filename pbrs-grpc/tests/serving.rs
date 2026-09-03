@@ -6681,6 +6681,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound\n    /// client PINGs are not GOAWAY'd. Distinct from [`Self::data_frame_budget`],\n    /// which is `ENHANCE_YOUR_CALM` (`too_many_data_frames`) for tiny DATA,\n    /// not PING rate (`too_many_pings`)."
+        ),
+        "ServerConfig::keep_alive_interval rustdoc must Distinct grpc-go EnforcementPolicy MinTime from too_many_data_frames"
+    );
+    assert!(
+        src.contains(
+            "Distinct from\n    /// [`ChannelConfig::keep_alive_interval`]: that sends client PINGs (and\n    /// already Distincts tonic `http2_keep_alive_while_idle` / grpc-go\n    /// `PermitWithoutStream`)."
+        ),
+        "ServerConfig::keep_alive_interval rustdoc must Distinct ChannelConfig keep_alive_interval client PINGs"
+    );
+    assert!(
+        src.contains(
             "Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::send_compressed must name every transport"
@@ -17984,6 +17996,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off."),
         "guide must keep PermitWithoutStream and tonic while_idle as an omission Distinct from default-off"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` (`too_many_data_frames`) for tiny DATA, not PING rate (`too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING."),
+        "guide must Distinct ServerConfig keep_alive_interval from grpc-go EnforcementPolicy MinTime"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. Distinct from `ServerConfig::data_frame_budget` (`too_many_data_frames`, not `too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`."),
+        "architecture must Distinct ServerConfig keep_alive_interval from grpc-go EnforcementPolicy MinTime"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. Distinct from `ServerConfig::data_frame_budget` (`too_many_data_frames`, not `too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`."),
+        "status guide must Distinct ServerConfig keep_alive_interval from grpc-go EnforcementPolicy MinTime"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. Distinct from `ServerConfig::data_frame_budget` (`too_many_data_frames`, not `too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`."),
+        "crate README must Distinct ServerConfig keep_alive_interval from grpc-go EnforcementPolicy MinTime"
+    );
+    assert!(
+        guide.contains("grpc-go keepalive `EnforcementPolicy` / `MinTime` | Inbound client PINGs are not rate-limited. There is no MinTime setter and no GOAWAY `ENHANCE_YOUR_CALM` / `too_many_pings`. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` for tiny DATA (`too_many_data_frames`), not PING rate. Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING."),
+        "guide must keep grpc-go EnforcementPolicy MinTime as an omission Distinct from too_many_data_frames and PermitWithoutStream"
     );
     assert!(
         guide.contains("There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. This kernel is not a tower stack; clones share the pool without an mpsc of RPCs. Distinct from `stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer."),
