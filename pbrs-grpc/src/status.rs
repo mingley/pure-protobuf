@@ -1416,8 +1416,10 @@ impl std::error::Error for Status {
 
 /// Map a local I/O failure onto a gRPC code.
 ///
-/// Timeouts become [`Code::DeadlineExceeded`]. Connection failures become
-/// [`Code::Unavailable`]. [`std::io::ErrorKind::InvalidData`] is
+/// Timeouts become [`Code::DeadlineExceeded`]. Connection failures
+/// (`ConnectionRefused`, `ConnectionReset`, `ConnectionAborted`,
+/// `NotConnected`, `BrokenPipe`, `UnexpectedEof`, `AddrNotAvailable`)
+/// become [`Code::Unavailable`]. [`std::io::ErrorKind::InvalidData`] is
 /// [`Code::Internal`]. Everything else is [`Code::Unknown`], with the
 /// original error text as the message. This is for *this process's* I/O,
 /// not for a peer status.
@@ -1455,6 +1457,17 @@ impl std::error::Error for Status {
 /// assert_eq!(status.code(), Code::Unknown);
 /// assert!(!status.is_retryable());
 /// assert!(std::error::Error::source(&status).is_some());
+/// ```
+///
+/// ```
+/// use pbrs_grpc::{Code, Status};
+///
+/// let status = Status::from(std::io::Error::new(
+///     std::io::ErrorKind::BrokenPipe,
+///     "writer gone",
+/// ));
+/// assert_eq!(status.code(), Code::Unavailable);
+/// assert!(status.is_retryable());
 /// ```
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {

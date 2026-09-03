@@ -10509,6 +10509,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status From<io::Error> rustdoc must map leftover local I/O to Unknown"
     );
     assert!(
+        status_src.contains(
+            "`NotConnected`, `BrokenPipe`, `UnexpectedEof`, `AddrNotAvailable`)\n/// become [`Code::Unavailable`]"
+        ),
+        "Status From<io::Error> rustdoc must name the connection-failure kinds that map to Unavailable"
+    );
+    assert!(
+        status_src.contains(
+            "std::io::ErrorKind::BrokenPipe,\n///     \"writer gone\",\n/// ));\n/// assert_eq!(status.code(), Code::Unavailable);"
+        ),
+        "Status From<io::Error> rustdoc must map BrokenPipe to retryable UNAVAILABLE"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),
