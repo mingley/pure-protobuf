@@ -807,6 +807,16 @@ impl Status {
 
     /// Whether this status represents success.
     /// Distinct from [`Self::is_retryable`]: that is UNAVAILABLE only; this is Code::Ok.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// assert!(Status::from_code(Code::Ok).is_ok());
+    /// assert!(!Status::from_code(Code::Ok).is_retryable());
+    /// let down = Status::unavailable("peer");
+    /// assert!(!down.is_ok());
+    /// assert!(down.is_retryable());
+    /// ```
     #[must_use]
     pub fn is_ok(&self) -> bool {
         self.code == Code::Ok

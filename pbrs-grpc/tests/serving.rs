@@ -10311,6 +10311,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "assert!(Status::from_code(Code::Ok).is_ok());\n    /// assert!(!Status::from_code(Code::Ok).is_retryable());\n    /// let down = Status::unavailable(\"peer\");"
+        ),
+        "Status::is_ok rustdoc must Distinct Code::Ok from A6 retryable UNAVAILABLE"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the ASCII `grpc-status` code."
         ),
         "Status::code must Distinct the ASCII grpc-message from this ASCII grpc-status code"
