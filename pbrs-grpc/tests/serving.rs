@@ -9859,6 +9859,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`BadRequest::with_field`]: that is the first field path, not planting BadRequest on the bag."
+        ),
+        "ErrorDetails::with_bad_request must Distinct the first field path from planting BadRequest on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"

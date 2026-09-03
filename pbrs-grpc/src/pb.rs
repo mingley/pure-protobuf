@@ -1331,6 +1331,32 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`BadRequest`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
+    /// Distinct from [`BadRequest::with_field`]: that is the first field path, not planting BadRequest on the bag.
+    /// Distinct from [`crate::Status::bad_request`]: that unpacks packed BadRequest; this plants it on the bag.
+    /// Distinct from [`Self::with_precondition_failure`]: that plants PreconditionFailure, not BadRequest.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_bad_request(BadRequest::with_field("sku", "unknown"));
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let bad = status.bad_request().expect("BadRequest");
+    /// let field = bad.field_violations().get(0).expect("field");
+    /// assert_eq!(field.field().to_str().unwrap_or(""), "sku");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_bad_request(mut self, bad_request: BadRequest) -> Self {
+        self.bad_request = Some(bad_request);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1560,6 +1586,20 @@ mod tests {
         assert_eq!(violation.description().to_str().unwrap_or(""), "expired");
         assert!(status.quota_failure().is_none());
         assert!(status.help().is_none());
+    }
+
+    #[test]
+    fn error_details_with_bad_request_round_trips() {
+        let details =
+            ErrorDetails::new().with_bad_request(BadRequest::with_field("sku", "unknown"));
+        let status = crate::Status::from_error_details(Code::InvalidArgument, "bad", &details)
+            .expect("encode");
+        let got = status.bad_request().expect("BadRequest");
+        let field = got.field_violations().get(0).expect("field");
+        assert_eq!(field.field().to_str().unwrap_or(""), "sku");
+        assert_eq!(field.description().to_str().unwrap_or(""), "unknown");
+        assert!(status.precondition_failure().is_none());
+        assert!(status.error_info().is_none());
     }
 
     #[test]
