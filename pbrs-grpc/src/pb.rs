@@ -81,6 +81,17 @@ impl Any {
     /// `type.googleapis.com/` prefix. [`Self::unpack`] still matches on the
     /// type name after the last `/`.
     /// Distinct from [`Self::pack`]: that uses `type.googleapis.com/<FULL_NAME>`; this takes an explicit type URL.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo};
+    ///
+    /// let info = ErrorInfo::with_reason("API_DISABLED", "example.com");
+    /// let any = Any::pack_with("example.com/google.rpc.ErrorInfo", &info)?;
+    /// assert!(any.is::<ErrorInfo>());
+    /// let got = any.unpack::<ErrorInfo>()?;
+    /// assert_eq!(got.reason().to_str().unwrap_or(""), "API_DISABLED");
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     pub fn pack_with<M: pbrs::Serialize>(
         type_url: impl Into<String>,
         msg: &M,

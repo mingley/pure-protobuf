@@ -9449,6 +9449,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Any::pack_with must Distinct the default type URL from an explicit type URL"
     );
     assert!(
+        pb_src.contains("Any::pack_with(\"example.com/google.rpc.ErrorInfo\", &info)?"),
+        "Any::pack_with rustdoc must pack ErrorInfo with an explicit type URL"
+    );
+    assert!(
         pb_src.contains(
             "Distinct from [`Self::is`]: that is a type-URL check; this decodes the payload."
         ),
