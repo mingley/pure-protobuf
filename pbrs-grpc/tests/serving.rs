@@ -9544,6 +9544,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_reason(\"REQUIRED\");\n    /// let mut bad = BadRequest::new();\n    /// bad.set_field_violations([violation]);\n    /// let details = ErrorDetails::new().with_bad_request(bad);"
+        ),
+        "FieldViolation::with_reason rustdoc must plant BadRequest with with_bad_request"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_field`]: that is a request field path, not a field-violation localized message."
         ),
         "FieldViolation::with_localized_message must Distinct a request field path from a field-violation localized message"

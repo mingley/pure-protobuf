@@ -271,10 +271,7 @@ impl FieldViolation {
     ///     .with_reason("REQUIRED");
     /// let mut bad = BadRequest::new();
     /// bad.set_field_violations([violation]);
-    /// let details = ErrorDetails {
-    ///     bad_request: Some(bad),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_bad_request(bad);
     /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
     /// let got = status.bad_request().expect("BadRequest");
     /// assert_eq!(
