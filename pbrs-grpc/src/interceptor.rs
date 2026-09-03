@@ -697,6 +697,7 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Status::from_error_details`] is the typed bag on this ClientInterceptor Err; a local reject never opens a stream.
 /// Distinct from a handler Err: that is after the handler ran; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
+/// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
