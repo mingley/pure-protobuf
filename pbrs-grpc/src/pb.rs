@@ -142,6 +142,18 @@ impl Any {
     /// assert_eq!(err.code(), Code::InvalidArgument);
     /// # Ok::<(), pbrs_grpc::Status>(())
     /// ```
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo};
+    /// use pbrs_grpc::Code;
+    ///
+    /// let mut any = Any::pack(&ErrorInfo::with_reason("BAD_BYTES", "corrupt.example.com"))?;
+    /// assert!(any.is::<ErrorInfo>());
+    /// any.set_value(vec![0xff]);
+    /// let err = any.unpack::<ErrorInfo>().expect_err("bytes");
+    /// assert_eq!(err.code(), Code::Internal);
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     pub fn unpack<M: pbrs::Parse + Default + pbrs::MessageName>(&self) -> Result<M, crate::Status> {
         if !self.is::<M>() {
             return Err(crate::Status::invalid_argument(format!(

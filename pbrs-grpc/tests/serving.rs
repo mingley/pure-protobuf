@@ -9482,6 +9482,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Any::pack(&ErrorInfo::with_reason(\"BAD_BYTES\", \"corrupt.example.com\"))?;\n    /// assert!(any.is::<ErrorInfo>());\n    /// any.set_value(vec![0xff]);\n    /// let err = any.unpack::<ErrorInfo>().expect_err(\"bytes\");"
+        ),
+        "Any::unpack rustdoc must reject corrupt ErrorInfo bytes as Internal"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::unpack`]: that decodes the payload; this is a type-URL check."
         ),
         "Any::is must Distinct decoding the payload from this type-URL check"
