@@ -12251,6 +12251,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`BadRequest::with_field_entry` builds an extra packed field violation on this crate README"
+        ),
+        "crate README must name BadRequest::with_field_entry next to BadRequest::with_field"
+    );
+    assert!(
+        readme.contains(
             "`FieldViolation::with_field` builds a nested field path on this crate README"
         ),
         "crate README must name FieldViolation::with_field next to BadRequest::with_field"
