@@ -165,6 +165,16 @@ impl Duration {
     /// [`crate::Code::InvalidArgument`]. An overflow of `std`'s range is the
     /// same code rather than a panic.
     /// Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::Duration;
+    /// use pbrs_grpc::Code;
+    ///
+    /// let mut proto = Duration::new();
+    /// proto.set_seconds(-1);
+    /// let err = proto.try_to_std().expect_err("negative");
+    /// assert_eq!(err.code(), Code::InvalidArgument);
+    /// ```
     pub fn try_to_std(&self) -> Result<std::time::Duration, crate::Status> {
         let seconds = self.seconds();
         let nanos = self.nanos();

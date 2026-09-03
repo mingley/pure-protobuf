@@ -10144,6 +10144,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "proto.set_seconds(-1);\n    /// let err = proto.try_to_std().expect_err(\"negative\");"
+        ),
+        "Duration::try_to_std rustdoc must reject a negative protobuf duration"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`."
         ),
         "pb::Status::with_details must Distinct raw trailer bytes from this packed google.rpc.Status"
