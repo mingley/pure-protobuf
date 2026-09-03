@@ -47,6 +47,7 @@ use std::sync::Arc;
 /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
 /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
 /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
+/// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
 /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Interceptor Err is trailers without reading the body.
 /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Interceptor Err is trailers without reading the body.
 /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Interceptor Err is trailers without reading the body.
