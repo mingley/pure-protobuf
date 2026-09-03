@@ -6600,6 +6600,23 @@ fn server_tls_mtls_documents_client_auth_optional() {
 }
 
 #[test]
+fn server_tls_documents_server_tls_config_timeout() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only\n/// timeout on the tonic acceptor. This type has no timeout setter; the bound is\n/// [`crate::ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2\n/// preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s\n/// deadline covering both). Distinct from [`crate::ChannelConfig::connect_timeout`]\n/// (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client\n/// TLS handshake). Distinct from [`crate::ServerConfig::timeout`] (RPC deadline\n/// overlay)."
+        ),
+        "ServerTls rustdoc must Distinct sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ServerTlsConfig::timeout`")
+            .count(),
+        1,
+        "ServerTls::mtls must not copy the ServerTlsConfig::timeout Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6860,6 +6877,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "ServerTls::new must not copy the client_auth_optional Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only\n/// timeout on the tonic acceptor. This type has no timeout setter; the bound is\n/// [`crate::ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2\n/// preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s\n/// deadline covering both). Distinct from [`crate::ChannelConfig::connect_timeout`]\n/// (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client\n/// TLS handshake). Distinct from [`crate::ServerConfig::timeout`] (RPC deadline\n/// overlay)."
+        ),
+        "ServerTls rustdoc must Distinct sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `ServerTlsConfig::timeout`")
+            .count(),
+        1,
+        "ServerTls::mtls must not copy the ServerTlsConfig::timeout Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ServerTlsConfig::timeout`")
+            .count(),
+        0,
+        "ServerConfig::handshake_timeout must not copy the ServerTlsConfig::timeout Distinct"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no tonic `ServerTlsConfig::timeout`")
+            .count(),
+        0,
+        "Channel must not copy the ServerTlsConfig::timeout Distinct"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no tonic `ServerTlsConfig::timeout`")
+            .count(),
+        0,
+        "ClientInterceptor must not copy the ServerTlsConfig::timeout Distinct"
     );
     assert!(
         health.contains(
@@ -8145,6 +8194,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. This crate-map [`ServerTls::mtls`] always requires a client certificate issued by that CA. Distinct from [`ServerTls::new`] (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents; this is the server require)."),
         "crate-map must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. This crate-map [`ServerTls`] has no timeout setter; the bound is [`ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay)."),
+        "crate-map must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19567,6 +19620,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `ServerTlsConfig::client_auth_optional` | Not optional client auth: tonic requests a client certificate but does not require one. `ServerTls::mtls` always requires a client certificate issued by that CA. Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `webpki_mtls` (client presents; this is the server require)."),
         "guide must keep tonic ServerTlsConfig::client_auth_optional as an omission Distinct from required mTLS"
+    );
+    assert!(
+        guide.contains("There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. `ServerTls` has no timeout setter; the bound is `ServerConfig::handshake_timeout` (20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
+        "guide must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert!(
+        architecture.contains("There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. Distinct from `ServerTls` (no timeout setter; the bound is `ServerConfig::handshake_timeout`: 20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
+        "architecture must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. Distinct from `ServerTls` (no timeout setter; the bound is `ServerConfig::handshake_timeout`: 20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
+        "status guide must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert!(
+        readme.contains("There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. Distinct from `ServerTls` (no timeout setter; the bound is `ServerConfig::handshake_timeout`: 20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
+        "crate README must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
+    );
+    assert!(
+        guide.contains("tonic `ServerTlsConfig::timeout` | Not a TLS-handshake-only acceptor timeout: tonic times out only the TLS handshake. `ServerTls` has no timeout setter; `ServerConfig::handshake_timeout` is 20 s TLS accept and 20 s HTTP/2 preface, separately. Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay)."),
+        "guide must keep tonic ServerTlsConfig::timeout as an omission Distinct from sequential handshake caps"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

@@ -227,6 +227,15 @@ impl fmt::Debug for Identity {
 
 /// Server-side TLS: a rustls acceptor with ALPN `h2`.
 ///
+/// There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only
+/// timeout on the tonic acceptor. This type has no timeout setter; the bound is
+/// [`crate::ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2
+/// preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s
+/// deadline covering both). Distinct from [`crate::ChannelConfig::connect_timeout`]
+/// (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client
+/// TLS handshake). Distinct from [`crate::ServerConfig::timeout`] (RPC deadline
+/// overlay).
+///
 /// ```no_run
 /// # use pbrs_grpc::{Identity, Rpc, Server, ServerTls, Service};
 /// # struct Echo;
