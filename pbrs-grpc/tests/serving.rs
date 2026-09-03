@@ -9131,8 +9131,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name PreconditionFailure::with_violation next to Status::precondition_failure"
     );
     assert!(
-        crate_src.contains("[`pb::PreconditionFailure::with_violation`], [`pb::precondition_failure::Violation::with_type`]"),
-        "crate map must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
+        crate_src.contains("[`pb::PreconditionFailure::with_violation`], [`pb::PreconditionFailure::with_violation_entry`]"),
+        "crate map must name PreconditionFailure::with_violation_entry next to PreconditionFailure::with_violation"
+    );
+    assert!(
+        crate_src.contains("[`pb::PreconditionFailure::with_violation_entry`], [`pb::precondition_failure::Violation::with_type`]"),
+        "crate map must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation_entry"
     );
     assert!(
         crate_src.contains("[`pb::precondition_failure::Violation::with_type`], [`pb::precondition_failure`]"),
