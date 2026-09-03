@@ -16841,6 +16841,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Help::with_link as the builder"
     );
     assert!(
+        guide.contains("`Help::with_link_entry` builds an extra packed docs URL after this guide Help builder."),
+        "guide must name Help::with_link_entry next to Help::with_link"
+    );
+    assert!(
         guide.contains(
             "`help::Link::with_url` builds a nested docs URL after this guide Help builder."
         ),
