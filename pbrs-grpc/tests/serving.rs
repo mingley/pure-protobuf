@@ -20067,6 +20067,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok."
+        ),
+        "Router::on_response rustdoc must Distinct method-level on_response Err trailers-only after handler Ok or Call fail after receive from this Router on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        src.contains(
             "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Router on_response Err is trailers-only after handler Ok."
         ),
         "Router::on_response rustdoc must Distinct Channel on_response Err Call fail after receive from this Router on_response Err trailers-only after handler Ok"
