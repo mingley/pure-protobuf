@@ -10479,6 +10479,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::with_cause rustdoc must attach Error::source without remapping the code"
     );
     assert!(
+        status_src.contains(
+            "std::io::ErrorKind::TimedOut,\n    ///     \"slow disk\",\n    /// ));\n    /// assert_eq!(status.code(), Code::DeadlineExceeded);"
+        ),
+        "Status From<io::Error> rustdoc must map a local timeout to DeadlineExceeded"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),

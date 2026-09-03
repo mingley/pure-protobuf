@@ -1418,6 +1418,18 @@ impl std::error::Error for Status {
 /// [`Code::Unavailable`]. Everything else is [`Code::Unknown`], with the
 /// original error text as the message. This is for *this process's* I/O,
 /// not for a peer status.
+///
+/// ```
+/// use pbrs_grpc::{Code, Status};
+///
+/// let status = Status::from(std::io::Error::new(
+///     std::io::ErrorKind::TimedOut,
+///     "slow disk",
+/// ));
+/// assert_eq!(status.code(), Code::DeadlineExceeded);
+/// assert!(!status.is_retryable());
+/// assert!(std::error::Error::source(&status).is_some());
+/// ```
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
         let code = match err.kind() {
