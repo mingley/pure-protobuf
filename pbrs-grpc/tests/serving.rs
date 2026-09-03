@@ -16830,6 +16830,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name QuotaFailure::with_violation as the builder"
     );
     assert!(
+        guide.contains("`QuotaFailure::with_violation_entry` builds an extra packed quota violation after this guide QuotaFailure builder."),
+        "guide must name QuotaFailure::with_violation_entry next to QuotaFailure::with_violation"
+    );
+    assert!(
         guide.contains("`quota_failure::Violation::with_subject` builds a nested quota subject after this guide QuotaFailure builder."),
         "guide must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
     );

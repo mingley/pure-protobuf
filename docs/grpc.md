@@ -433,6 +433,7 @@ Or `status.bad_request()` for field violations without unpacking the bag. Distin
 `FieldViolation::with_reason` builds a nested field-violation reason after this guide FieldViolation builder.
 `FieldViolation::with_localized_message` builds a nested field-violation locale after this guide FieldViolation builder.
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
+`QuotaFailure::with_violation_entry` builds an extra packed quota violation after this guide QuotaFailure builder.
 `quota_failure::Violation::with_subject` builds a nested quota subject after this guide QuotaFailure builder.
 `quota_failure::Violation::with_api_service` builds a nested quota API service after this guide quota subject builder.
 `quota_failure::Violation::with_quota_metric` builds a nested quota metric after this guide quota subject builder.
