@@ -9670,6 +9670,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_quota_failure(QuotaFailure::with_violation(\"project:1\", \"tokens\"));"
+        ),
+        "QuotaFailure::with_violation rustdoc must plant QuotaFailure with with_quota_failure"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_violation`]: that is the first quota subject, not an extra quota violation."
         ),
         "QuotaFailure::with_violation_entry must Distinct the first quota subject from an extra quota violation"
