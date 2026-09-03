@@ -12919,6 +12919,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`ErrorDetails::with_unknown` plants a non-standard Any on this packed-status bag."
+        ),
+        "status guide must name ErrorDetails::with_unknown next to ErrorDetails::with_localized_message"
+    );
+    assert!(
+        status_guide.contains(
             "`Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`."
         ),
         "status guide must name Duration::from_std next to ErrorDetails::new"
