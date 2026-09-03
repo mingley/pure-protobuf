@@ -10486,6 +10486,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "connection failures [`Code::Unavailable`] (`ConnectionRefused`,\n    /// `ConnectionReset`, `ConnectionAborted`, `NotConnected`, `BrokenPipe`,\n    /// `UnexpectedEof`, `AddrNotAvailable`),"
+        ),
+        "Status::from_error rustdoc must name the From connection-failure kinds"
+    );
+    assert!(
+        status_src.contains(
             "Status::internal(\"flush\").with_cause(std::io::Error::new(\n    ///     std::io::ErrorKind::Other,\n    ///     \"nvme\",\n    /// ));"
         ),
         "Status::with_cause rustdoc must attach Error::source without remapping the code"
