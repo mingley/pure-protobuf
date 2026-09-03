@@ -10485,6 +10485,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status From<io::Error> rustdoc must map a local timeout to DeadlineExceeded"
     );
     assert!(
+        status_src.contains(
+            "ErrorKind::InvalidData`] is\n/// [`Code::Internal`]. Everything else is [`Code::Unknown`]"
+        ),
+        "Status From<io::Error> rustdoc must Distinct InvalidData Internal from everything-else Unknown"
+    );
+    assert!(
+        status_src.contains(
+            "std::io::ErrorKind::InvalidData,\n///     \"truncated frame\",\n/// ));\n/// assert_eq!(status.code(), Code::Internal);"
+        ),
+        "Status From<io::Error> rustdoc must map InvalidData to Internal"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),

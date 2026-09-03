@@ -1415,7 +1415,8 @@ impl std::error::Error for Status {
 /// Map a local I/O failure onto a gRPC code.
 ///
 /// Timeouts become [`Code::DeadlineExceeded`]. Connection failures become
-/// [`Code::Unavailable`]. Everything else is [`Code::Unknown`], with the
+/// [`Code::Unavailable`]. [`std::io::ErrorKind::InvalidData`] is
+/// [`Code::Internal`]. Everything else is [`Code::Unknown`], with the
 /// original error text as the message. This is for *this process's* I/O,
 /// not for a peer status.
 ///
@@ -1429,6 +1430,17 @@ impl std::error::Error for Status {
 /// assert_eq!(status.code(), Code::DeadlineExceeded);
 /// assert!(!status.is_retryable());
 /// assert!(std::error::Error::source(&status).is_some());
+/// ```
+///
+/// ```
+/// use pbrs_grpc::{Code, Status};
+///
+/// let status = Status::from(std::io::Error::new(
+///     std::io::ErrorKind::InvalidData,
+///     "truncated frame",
+/// ));
+/// assert_eq!(status.code(), Code::Internal);
+/// assert!(!status.is_retryable());
 /// ```
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
