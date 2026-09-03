@@ -9170,8 +9170,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ResourceInfo::with_resource next to Status::resource_info"
     );
     assert!(
-        crate_src.contains("[`pb::ResourceInfo::with_resource`], [`Status::debug_info`]"),
-        "crate map must name Status::debug_info next to ResourceInfo::with_resource"
+        crate_src.contains(
+            "[`pb::ResourceInfo::with_resource`], [`pb::ResourceInfo::with_description`]"
+        ),
+        "crate map must name ResourceInfo::with_description next to ResourceInfo::with_resource"
+    );
+    assert!(
+        crate_src.contains("[`pb::ResourceInfo::with_description`], [`Status::debug_info`]"),
+        "crate map must name Status::debug_info next to ResourceInfo::with_description"
     );
     assert!(
         crate_src.contains("[`Status::debug_info`], [`pb::DebugInfo::with_stack`]"),
