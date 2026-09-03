@@ -17285,6 +17285,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture interceptor Err is a local reject never opens a stream."
+        ),
+        "architecture must Distinct architecture server on_response Err trailers-only after handler Ok from this architecture interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture interceptor Err is a local reject never opens a stream."
         ),
         "architecture must Distinct architecture Channel on_response Err Call fail after receive from this architecture interceptor Err local reject never opens a stream"
