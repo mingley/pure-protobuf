@@ -9468,6 +9468,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_field`]: that is the first field path, not an extra field violation."
+        ),
+        "BadRequest::with_field_entry must Distinct the first field path from an extra field violation"
+    );
+    assert!(
         crate_src.contains("[`Status::quota_failure`]"),
         "crate map must name Status::quota_failure"
     );

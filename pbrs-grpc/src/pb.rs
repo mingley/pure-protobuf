@@ -365,6 +365,41 @@ impl BadRequest {
         bad.set_field_violations([FieldViolation::with_field(field, description)]);
         bad
     }
+
+    /// Pushes another field violation onto this bad request.
+    ///
+    /// Chain after [`Self::with_field`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
+    /// Distinct from [`Self::with_field`]: that is the first field path, not an extra field violation.
+    /// Distinct from [`FieldViolation::with_field`]: that builds one nested violation; this appends another onto BadRequest.
+    /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not an extra field violation.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     bad_request: Some(
+    ///         BadRequest::with_field("name", "required").with_field_entry("email", "invalid"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let bad = status.bad_request().expect("BadRequest");
+    /// let field = bad.field_violations().get(1).expect("field");
+    /// assert_eq!(field.field().to_str().unwrap_or(""), "email");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_field_entry(
+        mut self,
+        field: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        self.field_violations_mut()
+            .push(FieldViolation::with_field(field, description));
+        self
+    }
 }
 
 impl quota_failure::Violation {
@@ -1460,6 +1495,40 @@ mod tests {
         let field = got.field_violations().get(0).expect("field");
         assert_eq!(field.field().to_str().unwrap_or(""), "email");
         assert_eq!(field.description().to_str().unwrap_or(""), "invalid");
+    }
+
+    #[test]
+    fn bad_request_with_field_entry_round_trips() {
+        let bad = BadRequest::with_field("name", "required").with_field_entry("email", "invalid");
+        assert_eq!(
+            bad.field_violations()
+                .get(0)
+                .expect("first")
+                .field()
+                .to_str()
+                .unwrap_or(""),
+            "name"
+        );
+        assert_eq!(
+            bad.field_violations()
+                .get(1)
+                .expect("second")
+                .field()
+                .to_str()
+                .unwrap_or(""),
+            "email"
+        );
+        let details = ErrorDetails {
+            bad_request: Some(bad),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::InvalidArgument, "bad", &details)
+            .expect("encode");
+        let got = status.bad_request().expect("BadRequest");
+        let field = got.field_violations().get(1).expect("field");
+        assert_eq!(field.field().to_str().unwrap_or(""), "email");
+        assert!(status.error_info().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]
