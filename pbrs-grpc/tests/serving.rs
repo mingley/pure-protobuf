@@ -12291,6 +12291,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`QuotaFailure::with_violation_entry` builds an extra packed quota violation on this crate README"
+        ),
+        "crate README must name QuotaFailure::with_violation_entry next to QuotaFailure::with_violation"
+    );
+    assert!(
+        readme.contains(
             "`quota_failure::Violation::with_subject` builds a nested quota subject on this crate README"
         ),
         "crate README must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
