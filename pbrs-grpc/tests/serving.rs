@@ -6549,6 +6549,23 @@ fn channel_send_compressed_documents_with_compressor() {
 }
 
 #[test]
+fn channel_connect_lazy_documents_with_context_dialer() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithContextDialer`: that is a DialOption plugging a\n    /// custom `func(context.Context, string) (net.Conn, error)` that still\n    /// dials. `WithDialer` is the deprecated context-less form. The first RPC\n    /// still dials TCP `host:port`; there is no replacement hook. Distinct from\n    /// tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still\n    /// dials). Distinct from [`Self::from_io`] (already-connected bytes; it\n    /// does not dial). Distinct from [`Self::connect_unix`] (filesystem path,\n    /// not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`]\n    /// (source bind, still this kernel's TCP dialer). Distinct from grpc-go\n    /// `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go\n    /// `WithBlock` (handshake wait, not a dial function)."
+        ),
+        "Channel::connect_lazy rustdoc must Distinct kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithContextDialer`")
+            .count(),
+        1,
+        "Channel::from_io must not copy the WithContextDialer Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6834,6 +6851,25 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         src.matches("There is no grpc-go `WithCompressor`").count(),
         0,
         "ChannelConfig::send_compressed must not copy the WithCompressor Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithContextDialer`: that is a DialOption plugging a\n    /// custom `func(context.Context, string) (net.Conn, error)` that still\n    /// dials. `WithDialer` is the deprecated context-less form. The first RPC\n    /// still dials TCP `host:port`; there is no replacement hook. Distinct from\n    /// tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still\n    /// dials). Distinct from [`Self::from_io`] (already-connected bytes; it\n    /// does not dial). Distinct from [`Self::connect_unix`] (filesystem path,\n    /// not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`]\n    /// (source bind, still this kernel's TCP dialer). Distinct from grpc-go\n    /// `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go\n    /// `WithBlock` (handshake wait, not a dial function)."
+        ),
+        "Channel::connect_lazy rustdoc must Distinct kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithContextDialer`")
+            .count(),
+        1,
+        "Channel::from_io must not copy the WithContextDialer Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithContextDialer`")
+            .count(),
+        0,
+        "ChannelConfig::local_address must not copy the WithContextDialer Distinct"
     );
     assert!(
         channel.contains(
@@ -8025,6 +8061,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithCompressor`: that is a DialOption plugging a custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor` is global). This crate-map [`Channel::send_compressed`] is gzip on or off, not a compressor plugin. There is no `WithDecompressor` (deprecated inbound plugin). Distinct from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct from [`Channel::gzip_compression_level`] (deflate effort, not a plugin). Distinct from grpc-go `UseCompressor` (a CallOption name, not this overlay)."),
         "crate-map must Distinct Channel::send_compressed gzip on/off from grpc-go WithCompressor plugin"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. This crate-map [`Channel::connect_lazy`] still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from [`Channel::from_io`] (already-connected bytes; it does not dial). Distinct from [`Channel::connect_unix`] (filesystem path, not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`] (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
+        "crate-map must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19387,6 +19427,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithCompressor` / `WithDecompressor` | Not a compressor plugin: grpc-go `WithCompressor` plugs a custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor` is global). `Channel::send_compressed` is gzip on or off. Distinct from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct from `gzip_compression_level` (deflate effort, not a plugin). Distinct from grpc-go `UseCompressor` (a CallOption name, not this overlay)."),
         "guide must keep grpc-go WithCompressor as an omission Distinct from gzip on/off overlay"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. `Channel::connect_lazy` still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `Channel::from_io` (already-connected bytes; it does not dial). Distinct from `Channel::connect_unix` (filesystem path, not a custom TCP dialer). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
+        "guide must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. Distinct from `Channel::connect_lazy` (first RPC still dials TCP `host:port`; no replacement hook). Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `Channel::from_io` (already-connected bytes; it does not dial). Distinct from `Channel::connect_unix` (filesystem path, not a custom TCP dialer). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
+        "architecture must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. Distinct from `Channel::connect_lazy` (first RPC still dials TCP `host:port`; no replacement hook). Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `Channel::from_io` (already-connected bytes; it does not dial). Distinct from `Channel::connect_unix` (filesystem path, not a custom TCP dialer). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
+        "status guide must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. Distinct from `Channel::connect_lazy` (first RPC still dials TCP `host:port`; no replacement hook). Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `Channel::from_io` (already-connected bytes; it does not dial). Distinct from `Channel::connect_unix` (filesystem path, not a custom TCP dialer). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
+        "crate README must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert!(
+        guide.contains("grpc-go `WithContextDialer` / `WithDialer` | Not a custom dial function: grpc-go `WithContextDialer` still dials via `func(context.Context, string) (net.Conn, error)`. `WithDialer` is the deprecated context-less form. `Channel::connect_lazy` still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `from_io` (already-connected bytes; it does not dial). Distinct from `connect_unix` (filesystem path). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from `WithNoProxy` (proxy bypass, not a dial function). Distinct from `WithBlock` (handshake wait, not a dial function)."),
+        "guide must keep grpc-go WithContextDialer as an omission Distinct from kernel TCP dial"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

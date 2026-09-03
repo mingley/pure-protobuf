@@ -579,6 +579,17 @@ impl Channel {
 
     /// Build a channel that dials on the first RPC instead of now.
     /// Applies to every call shape.
+    /// There is no grpc-go `WithContextDialer`: that is a DialOption plugging a
+    /// custom `func(context.Context, string) (net.Conn, error)` that still
+    /// dials. `WithDialer` is the deprecated context-less form. The first RPC
+    /// still dials TCP `host:port`; there is no replacement hook. Distinct from
+    /// tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still
+    /// dials). Distinct from [`Self::from_io`] (already-connected bytes; it
+    /// does not dial). Distinct from [`Self::connect_unix`] (filesystem path,
+    /// not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`]
+    /// (source bind, still this kernel's TCP dialer). Distinct from grpc-go
+    /// `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go
+    /// `WithBlock` (handshake wait, not a dial function).
     ///
     /// Invalid `target` still fails immediately. A closed port, a name that
     /// does not resolve, or a TLS handshake the peer refuses surfaces on the
