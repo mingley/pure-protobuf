@@ -17467,6 +17467,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ResourceInfo::with_description next to ResourceInfo::with_resource"
     );
     assert!(
+        architecture.contains("`DebugInfo::with_stack_entry` builds an extra packed stack frame after this architecture DebugInfo builder."),
+        "architecture must name DebugInfo::with_stack_entry next to DebugInfo::with_stack"
+    );
+    assert!(
         architecture.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "architecture must name RetryInfo::with_retry_delay as the builder"
     );
