@@ -6516,6 +6516,23 @@ fn client_interceptor_documents_with_unary_interceptor() {
 }
 
 #[test]
+fn channel_documents_with_default_call_options() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of\n/// per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …)\n/// applied as channel defaults. These methods are typed overlays on this\n/// clone, not a `CallOption` list and not a DialOption. Distinct from\n/// grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions).\n/// Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from\n/// [`Self::intercept`] (per-RPC mutation after connect)."
+        ),
+        "Channel rustdoc must Distinct typed clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDefaultCallOptions`")
+            .count(),
+        1,
+        "Channel::timeout must not copy the WithDefaultCallOptions Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6764,6 +6781,25 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "Interceptor must not copy the WithUnaryInterceptor Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of\n/// per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …)\n/// applied as channel defaults. These methods are typed overlays on this\n/// clone, not a `CallOption` list and not a DialOption. Distinct from\n/// grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions).\n/// Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from\n/// [`Self::intercept`] (per-RPC mutation after connect)."
+        ),
+        "Channel rustdoc must Distinct typed clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithDefaultCallOptions`")
+            .count(),
+        1,
+        "Channel::timeout must not copy the WithDefaultCallOptions Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDefaultCallOptions`")
+            .count(),
+        0,
+        "ChannelConfig must not copy the WithDefaultCallOptions Distinct"
     );
     assert!(
         channel.contains(
@@ -7947,6 +7983,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. This crate-map [`ClientInterceptor`] is one hook for every call shape, attached with [`Channel::intercept`] after connect (not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from [`Interceptor`] (inbound before the handler). Distinct from [`ResponseInterceptor`] (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
         "crate-map must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. This crate-map [`Channel`] clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps) are typed methods, not a `CallOption` list and not a DialOption. Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from [`Channel::intercept`] (per-RPC mutation after connect)."),
+        "crate-map must Distinct Channel clone overlays from grpc-go WithDefaultCallOptions bag"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19269,6 +19309,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithUnaryInterceptor` / `WithStreamInterceptor` / `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` | Not a DialOption split: grpc-go unary vs stream interceptors are separate DialOptions; chain variants append lists. `ClientInterceptor` is one hook for every call shape, attached with `Channel::intercept` after connect. Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
         "guide must keep grpc-go WithUnaryInterceptor as an omission Distinct from one ClientInterceptor hook"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps) are typed methods, not a `CallOption` list and not a DialOption. Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect)."),
+        "guide must Distinct Channel clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. Distinct from `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps: typed methods, not a `CallOption` list). Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect)."),
+        "architecture must Distinct Channel clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. Distinct from `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps: typed methods, not a `CallOption` list). Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect)."),
+        "status guide must Distinct Channel clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. Distinct from `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps: typed methods, not a `CallOption` list). Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect)."),
+        "crate README must Distinct Channel clone overlays from grpc-go WithDefaultCallOptions bag"
+    );
+    assert!(
+        guide.contains("grpc-go `WithDefaultCallOptions` | Not a DialOption bag: grpc-go applies `CallOption` defaults (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) at dial. `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps) are typed methods, not a `CallOption` list. Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect)."),
+        "guide must keep grpc-go WithDefaultCallOptions as an omission Distinct from typed Channel overlays"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

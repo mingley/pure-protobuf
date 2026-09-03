@@ -411,6 +411,13 @@ impl Endpoint {
 /// [`Self::max_send_buffer_size`], [`Self::max_concurrent_rpcs`],
 /// [`Self::https_scheme`] (for [`Self::from_io`]), and [`Self::origin`]
 /// overlay this clone.
+/// There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of
+/// per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …)
+/// applied as channel defaults. These methods are typed overlays on this
+/// clone, not a `CallOption` list and not a DialOption. Distinct from
+/// grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions).
+/// Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from
+/// [`Self::intercept`] (per-RPC mutation after connect).
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
 /// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
 /// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
