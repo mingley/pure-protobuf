@@ -761,6 +761,45 @@ impl Help {
         out.set_links([link]);
         out
     }
+
+    /// Pushes another documentation link onto this help payload.
+    ///
+    /// Chain after [`Self::with_link`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::help`].
+    /// Distinct from [`Self::with_link`]: that is the first docs URL, not an extra help link.
+    /// Distinct from [`help::Link::with_url`]: that builds one nested link; this appends another onto Help.
+    /// Distinct from [`crate::Status::localized_message`]: that is a locale, not an extra help link.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, Help};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     help: Some(
+    ///         Help::with_link("quota docs", "https://example.com/quota")
+    ///             .with_link_entry("retry", "https://example.com/retry"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
+    /// let help = status.help().expect("Help");
+    /// let link = help.links().get(1).expect("link");
+    /// assert_eq!(
+    ///     link.url().to_str().unwrap_or(""),
+    ///     "https://example.com/retry"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_link_entry(
+        mut self,
+        description: impl Into<String>,
+        url: impl Into<String>,
+    ) -> Self {
+        self.links_mut()
+            .push(help::Link::with_url(description, url));
+        self
+    }
 }
 
 impl LocalizedMessage {
@@ -1706,6 +1745,46 @@ mod tests {
         assert!(status.retry_delay().is_none());
         assert!(status.precondition_failure().is_none());
         assert!(status.quota_failure().is_none());
+    }
+
+    #[test]
+    fn help_with_link_entry_round_trips() {
+        let packed = Help::with_link("quota docs", "https://example.com/quota")
+            .with_link_entry("retry", "https://example.com/retry");
+        assert_eq!(
+            packed
+                .links()
+                .get(0)
+                .expect("first")
+                .url()
+                .to_str()
+                .unwrap_or(""),
+            "https://example.com/quota"
+        );
+        assert_eq!(
+            packed
+                .links()
+                .get(1)
+                .expect("second")
+                .url()
+                .to_str()
+                .unwrap_or(""),
+            "https://example.com/retry"
+        );
+        let details = ErrorDetails {
+            help: Some(packed),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::Unavailable, "backend", &details)
+            .expect("encode");
+        let got = status.help().expect("Help");
+        let link = got.links().get(1).expect("link");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/retry"
+        );
+        assert!(status.localized_message().is_none());
+        assert!(status.precondition_failure().is_none());
     }
 
     #[test]

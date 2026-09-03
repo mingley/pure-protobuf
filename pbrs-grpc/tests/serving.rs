@@ -9591,6 +9591,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Help::with_link must Distinct retryable UNAVAILABLE from failure classifications"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_link`]: that is the first docs URL, not an extra help link."
+        ),
+        "Help::with_link_entry must Distinct the first docs URL from an extra help link"
+    );
+    assert!(
         crate_src.contains("[`Status::localized_message`]"),
         "crate map must name Status::localized_message"
     );
