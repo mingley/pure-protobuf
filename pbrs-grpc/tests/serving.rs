@@ -9810,6 +9810,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Help::with_link_entry must Distinct the first docs URL from an extra help link"
     );
     assert!(
+        pb_src.contains(
+            ".with_help(\n    ///         Help::with_link(\"quota docs\", \"https://example.com/quota\")\n    ///             .with_link_entry(\"retry\", \"https://example.com/retry\"),"
+        ),
+        "Help::with_link_entry rustdoc must plant Help with with_help"
+    );
+    assert!(
         crate_src.contains("[`Status::localized_message`]"),
         "crate map must name Status::localized_message"
     );

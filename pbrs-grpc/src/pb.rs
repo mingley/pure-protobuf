@@ -840,13 +840,11 @@ impl Help {
     /// use pbrs_grpc::pb::{ErrorDetails, Help};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     help: Some(
+    /// let details = ErrorDetails::new()
+    ///     .with_help(
     ///         Help::with_link("quota docs", "https://example.com/quota")
     ///             .with_link_entry("retry", "https://example.com/retry"),
-    ///     ),
-    ///     ..ErrorDetails::default()
-    /// };
+    ///     );
     /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
     /// let help = status.help().expect("Help");
     /// let link = help.links().get(1).expect("link");
