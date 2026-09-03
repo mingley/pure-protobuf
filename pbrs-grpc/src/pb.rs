@@ -1443,6 +1443,31 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`LocalizedMessage`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::localized_message`].
+    /// Distinct from [`LocalizedMessage::with_locale`]: that is locale and message, not planting LocalizedMessage on the bag.
+    /// Distinct from [`crate::Status::localized_message`]: that unpacks packed LocalizedMessage; this plants it on the bag.
+    /// Distinct from [`Self::with_help`]: that plants Help, not LocalizedMessage.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, LocalizedMessage};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_localized_message(LocalizedMessage::with_locale("fr-FR", "introuvable"));
+    /// let status = Status::from_error_details(Code::NotFound, "not found", &details)?;
+    /// let local = status.localized_message().expect("LocalizedMessage");
+    /// assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_localized_message(mut self, localized_message: LocalizedMessage) -> Self {
+        self.localized_message = Some(localized_message);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1734,6 +1759,20 @@ mod tests {
         );
         assert!(status.resource_info().is_none());
         assert!(status.localized_message().is_none());
+    }
+
+    #[test]
+    fn error_details_with_localized_message_round_trips() {
+        let details = ErrorDetails::new()
+            .with_localized_message(LocalizedMessage::with_locale("fr-FR", "introuvable"));
+        let status = crate::Status::from_error_details(Code::NotFound, "not found", &details)
+            .expect("encode");
+        assert_eq!(status.message(), "not found");
+        let got = status.localized_message().expect("LocalizedMessage");
+        assert_eq!(got.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(got.message().to_str().unwrap_or(""), "introuvable");
+        assert!(status.help().is_none());
+        assert!(status.precondition_failure().is_none());
     }
 
     #[test]

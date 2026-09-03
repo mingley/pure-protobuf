@@ -9898,6 +9898,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`LocalizedMessage::with_locale`]: that is locale and message, not planting LocalizedMessage on the bag."
+        ),
+        "ErrorDetails::with_localized_message must Distinct locale and message from planting LocalizedMessage on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
