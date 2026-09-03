@@ -10497,6 +10497,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status From<io::Error> rustdoc must map InvalidData to Internal"
     );
     assert!(
+        status_src.contains(
+            "std::io::ErrorKind::Other,\n///     \"policy\",\n/// ));\n/// assert_eq!(status.code(), Code::Unknown);"
+        ),
+        "Status From<io::Error> rustdoc must map leftover local I/O to Unknown"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),

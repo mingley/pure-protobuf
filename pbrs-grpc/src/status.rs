@@ -1442,6 +1442,18 @@ impl std::error::Error for Status {
 /// assert_eq!(status.code(), Code::Internal);
 /// assert!(!status.is_retryable());
 /// ```
+///
+/// ```
+/// use pbrs_grpc::{Code, Status};
+///
+/// let status = Status::from(std::io::Error::new(
+///     std::io::ErrorKind::Other,
+///     "policy",
+/// ));
+/// assert_eq!(status.code(), Code::Unknown);
+/// assert!(!status.is_retryable());
+/// assert!(std::error::Error::source(&status).is_some());
+/// ```
 impl From<std::io::Error> for Status {
     fn from(err: std::io::Error) -> Self {
         let code = match err.kind() {
