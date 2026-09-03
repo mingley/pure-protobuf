@@ -50,6 +50,7 @@ Docs:
 - [Status](docs/status.md)
 - [tonic 0.14](protobuf-tonic/README.md)
 - [HTTP/2 gRPC kernel](pbrs-grpc/README.md) and its [guide](docs/grpc.md)
+- [Civilization plan](docs/civilization-plan.md) (agent-executable; adoptability, proof, safety wedge)
 
 Conformance (official `conformance_test_runner` v35.1,
 `--maximum_edition 2023`, `protoc` hidden / vendored FDS):
