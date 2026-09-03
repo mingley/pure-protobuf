@@ -6503,6 +6503,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::executor` setter: that is `SharedExec` on\n    /// tonic's hyper stack. Each pooled connection's `h2` driver is\n    /// `tokio::spawn`ed on the current tokio runtime. This kernel is not a\n    /// hyper/tower stack. [`Self`] is `Copy`, so it cannot store a non-`Copy`\n    /// executor. Distinct from `tower` integration, which is protobuf-tonic\n    /// keeping tonic. Distinct from [`Self::max_concurrent_rpcs`]: that is\n    /// in-flight slots, not where tasks run."
+        ),
+        "ChannelConfig::connections rustdoc must Distinct h2 driver spawn from tonic Endpoint::executor SharedExec"
+    );
+    assert!(
+        src.contains(
             "Applies to every call shape, including when set on\n    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]\n    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live\n    /// [`crate::Channel`] with [`crate::Channel::max_decoding_message_size`]."
         ),
         "ChannelConfig::max_decoding_message_size must name dial-time overlay on every transport"
@@ -7382,6 +7388,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct max_concurrent_rpcs in-flight slots from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor SharedExec"
     );
     assert!(
         crate_src.contains(
@@ -18168,6 +18178,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::rate_limit` | Not a tower stack: there is no `RateLimitLayer`. `ChannelConfig::max_concurrent_rpcs` is in-flight slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N RPCs per duration. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::rate_limit as an omission Distinct from in-flight max_concurrent_rpcs"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ChannelConfig::connections` (`tokio::spawn` on the current runtime). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ChannelConfig::connections` (`tokio::spawn` on the current runtime). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ChannelConfig::connections` (`tokio::spawn` on the current runtime). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ChannelConfig::connections h2 driver spawn from tonic Endpoint::executor"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. `ChannelConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::rate_limit` (token bucket) and `Endpoint::buffer_size` (request mpsc), which are also tower. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::executor as an omission Distinct from SharedExec and from rate_limit buffer_size"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

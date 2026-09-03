@@ -755,6 +755,8 @@
 //!
 //! There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

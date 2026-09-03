@@ -1667,6 +1667,7 @@ Channel::connect_with(target, ChannelConfig::new().connections(4)).await?
 TLS (including mTLS) uses `connect_tls_with` with the same `connections`
 knob; Unix uses `connect_unix_with`. `from_io` cannot pool: one duplex is
 one HTTP/2 connection.
+There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 
 **Window sizes.** The 16 MiB default keeps a 4 MiB message from stalling on a
 `WINDOW_UPDATE` round trip, which is where large-payload throughput usually
@@ -2439,6 +2440,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go keepalive `EnforcementPolicy` / `MinTime` | Inbound client PINGs are not rate-limited. There is no MinTime setter and no GOAWAY `ENHANCE_YOUR_CALM` / `too_many_pings`. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` for tiny DATA (`too_many_data_frames`), not PING rate. Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING. |
 | tonic `Endpoint::buffer_size` / grpc-go `ReadBufferSize` | Not a tower stack: there is no request mpsc. Clones share the pool. `ChannelConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure (default 1 MiB). `ChannelConfig::stream_buffer` is client-streaming/bidi message queue depth (default 16). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this send buffer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | tonic `Endpoint::rate_limit` | Not a tower stack: there is no `RateLimitLayer`. `ChannelConfig::max_concurrent_rpcs` is in-flight slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N RPCs per duration. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| tonic `Endpoint::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. `ChannelConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::rate_limit` (token bucket) and `Endpoint::buffer_size` (request mpsc), which are also tower. Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

@@ -1059,6 +1059,13 @@ impl ChannelConfig {
     /// One connection means one `h2` driver task, so one core drives all
     /// framing. Raising this is the single biggest throughput lever for
     /// concurrent small RPCs; see [the tuning guide](crate#tuning).
+    /// There is no tonic `Endpoint::executor` setter: that is `SharedExec` on
+    /// tonic's hyper stack. Each pooled connection's `h2` driver is
+    /// `tokio::spawn`ed on the current tokio runtime. This kernel is not a
+    /// hyper/tower stack. [`Self`] is `Copy`, so it cannot store a non-`Copy`
+    /// executor. Distinct from `tower` integration, which is protobuf-tonic
+    /// keeping tonic. Distinct from [`Self::max_concurrent_rpcs`]: that is
+    /// in-flight slots, not where tasks run.
     ///
     /// A slot that later dies is redialed on the next RPC that lands on it;
     /// the other slots keep serving.
