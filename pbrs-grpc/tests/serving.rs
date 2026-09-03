@@ -16782,6 +16782,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ErrorDetails::with_precondition_failure next to ErrorDetails::with_quota_failure"
     );
     assert!(
+        guide.contains("`ErrorDetails::with_bad_request` plants packed BadRequest after this guide ErrorDetails bag."),
+        "guide must name ErrorDetails::with_bad_request next to ErrorDetails::with_precondition_failure"
+    );
+    assert!(
         guide.contains(
             "`Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`."
         ),

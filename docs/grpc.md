@@ -366,6 +366,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `ErrorDetails::with_debug_info` plants packed DebugInfo after this guide ErrorDetails bag.
 `ErrorDetails::with_quota_failure` plants packed QuotaFailure after this guide ErrorDetails bag.
 `ErrorDetails::with_precondition_failure` plants packed PreconditionFailure after this guide ErrorDetails bag.
+`ErrorDetails::with_bad_request` plants packed BadRequest after this guide ErrorDetails bag.
 `Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`.
 `Duration::try_to_std` converts this protobuf to `std` after this guide from_std builder, Distinct from building the protobuf from `std`.
 `Status::details` returns raw trailer bytes after this guide rpc parse, Distinct from parsing a packed `google.rpc.Status`.
