@@ -218,6 +218,16 @@ impl Duration {
     /// let err = proto.try_to_std().expect_err("nanos");
     /// assert_eq!(err.code(), Code::InvalidArgument);
     /// ```
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::Duration;
+    /// use pbrs_grpc::Code;
+    ///
+    /// let mut proto = Duration::new();
+    /// proto.set_nanos(-1);
+    /// let err = proto.try_to_std().expect_err("neg-nanos");
+    /// assert_eq!(err.code(), Code::InvalidArgument);
+    /// ```
     pub fn try_to_std(&self) -> Result<std::time::Duration, crate::Status> {
         let seconds = self.seconds();
         let nanos = self.nanos();

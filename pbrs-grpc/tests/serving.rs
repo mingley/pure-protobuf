@@ -10204,6 +10204,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "proto.set_nanos(-1);\n    /// let err = proto.try_to_std().expect_err(\"neg-nanos\");"
+        ),
+        "Duration::try_to_std rustdoc must reject negative protobuf nanos"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`."
         ),
         "pb::Status::with_details must Distinct raw trailer bytes from this packed google.rpc.Status"
