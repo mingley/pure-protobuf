@@ -636,6 +636,7 @@ See `docs/upb.md`. Short list:
   `ErrorInfo::with_metadata` fills a metadata pair on that payload.
      Distinct from `error_info`. `BadRequest::with_field` builds
   that payload.
+  `BadRequest::with_field_entry` builds an extra packed field violation on this packed-status.
   `FieldViolation::with_field` builds a nested field path on this packed-status.
   `FieldViolation::with_reason` builds a nested field-violation reason on this packed-status.
   `FieldViolation::with_localized_message` builds a nested field-violation locale on this packed-status.

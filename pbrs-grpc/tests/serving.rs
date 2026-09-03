@@ -12838,6 +12838,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`BadRequest::with_field_entry` builds an extra packed field violation on this packed-status."
+        ),
+        "status guide must name BadRequest::with_field_entry next to BadRequest::with_field"
+    );
+    assert!(
+        status_guide.contains(
             "`FieldViolation::with_field` builds a nested field path on this packed-status."
         ),
         "status guide must name FieldViolation::with_field next to BadRequest::with_field"
