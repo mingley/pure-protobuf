@@ -9555,6 +9555,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "FieldViolation::with_localized_message must Distinct a request field path from a field-violation localized message"
     );
     assert!(
+        pb_src.contains(
+            ".with_localized_message(LocalizedMessage::with_locale(\"fr-FR\", \"requis\"));\n    /// let mut bad = BadRequest::new();\n    /// bad.set_field_violations([violation]);\n    /// let details = ErrorDetails::new().with_bad_request(bad);"
+        ),
+        "FieldViolation::with_localized_message rustdoc must plant BadRequest with with_bad_request"
+    );
+    assert!(
         pb_src.contains("Distinct from [`crate::Status::invalid_argument`], which"),
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );

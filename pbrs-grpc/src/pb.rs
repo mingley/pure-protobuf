@@ -307,10 +307,7 @@ impl FieldViolation {
     ///     .with_localized_message(LocalizedMessage::with_locale("fr-FR", "requis"));
     /// let mut bad = BadRequest::new();
     /// bad.set_field_violations([violation]);
-    /// let details = ErrorDetails {
-    ///     bad_request: Some(bad),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_bad_request(bad);
     /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
     /// let got = status.bad_request().expect("BadRequest");
     /// let field = got.field_violations().get(0).expect("field");
