@@ -669,8 +669,9 @@ See `docs/upb.md`. Short list:
   `ResourceInfo::with_description` builds a packed resource description on this packed-status.
   `Status::debug_info` is packed operator stack. Distinct from
   `localized_message` (a locale). Distinct from `help` (a docs URL).
-  `DebugInfo::with_stack` builds that payload. A
-  server interceptor `Err` ships those trailers the same way a handler
+  `DebugInfo::with_stack` builds that payload.
+  `DebugInfo::with_stack_entry` builds an extra packed stack frame on this packed-status.
+  A server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata.
   `Status::set_error_details` / `set_from_error_details` replace the protobuf without dropping trailing metadata on this packed-status.

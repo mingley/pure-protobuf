@@ -12881,6 +12881,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ResourceInfo::with_description next to ResourceInfo::with_resource"
     );
     assert!(
+        status_guide.contains(
+            "`DebugInfo::with_stack_entry` builds an extra packed stack frame on this packed-status."
+        ),
+        "status guide must name DebugInfo::with_stack_entry next to DebugInfo::with_stack"
+    );
+    assert!(
         status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "status guide must name RetryInfo::with_retry_delay as the builder"
     );
