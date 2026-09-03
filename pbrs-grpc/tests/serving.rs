@@ -9738,6 +9738,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_precondition_failure(\n    ///     PreconditionFailure::with_violation(\"TOS\", \"google.com/cloud\", \"unsigned\"),"
+        ),
+        "PreconditionFailure::with_violation rustdoc must plant PreconditionFailure with with_precondition_failure"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_violation`]: that is the first precondition type, not an extra precondition violation."
         ),
         "PreconditionFailure::with_violation_entry must Distinct the first precondition type from an extra precondition violation"
