@@ -62,6 +62,7 @@ mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::pe
 for already-encrypted `from_io` streams, `Channel::origin` / `FooClient::origin` to override `:authority` without changing the dial. Distinct from `Target` (dial) and from `ClientTls` (SNI). Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`. Outbound
 RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`, `Request::set_user_agent`, or `Outgoing::set_user_agent`.
 `Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`.
+`Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`.
 `Outgoing::user_agent_is_set` is occupancy on this crate README interceptor path, so a later interceptor can prefix only when unset.
 `Outgoing::wait_for_ready_is_set` is occupancy on this crate README interceptor path, so a later interceptor can fill wait-for-ready only when unset.
 `Outgoing::compress_is_set` is occupancy on this crate README interceptor path, so a later interceptor can fill compress only when unset.

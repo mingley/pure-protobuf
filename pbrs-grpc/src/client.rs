@@ -46,6 +46,11 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// Distinct from a malformed `host:port`, which is
 /// [`Code::Unavailable`]. Distinct from tonic's
 /// `Endpoint::from_static`, which is that URI constructor.
+/// Distinct from grpc-go `NewClient("dns:///host:port")`, which takes
+/// a resolver URI (`dns:///` / `passthrough:///` / `xds:///`). Those
+/// are [`Code::InvalidArgument`] at connect, not a silent resolver.
+/// [`ChannelConfig::connections`] pools to one `host:port`; it does
+/// not speak xDS.
 ///
 /// ```
 /// use pbrs_grpc::Target;
@@ -68,6 +73,18 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// let err = Channel::connect_lazy("unix:///tmp/grpc.sock").expect_err("unix");
 /// assert_eq!(err.code(), Code::InvalidArgument);
 /// ```
+///
+/// ```
+/// use pbrs_grpc::{Channel, Code};
+///
+/// let err = Channel::connect_lazy("dns:///localhost:50051").expect_err("dns");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// assert!(err.message().contains("not a grpc-go dns:///"));
+/// let err = Channel::connect_lazy("passthrough:///127.0.0.1:50051").expect_err("pass");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// let err = Channel::connect_lazy("xds:///backend").expect_err("xds");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// ```
 #[derive(Clone, Debug)]
 pub struct Target {
     authority: String,
@@ -81,10 +98,15 @@ impl Target {
     }
 
     fn parse(&self) -> Result<Authority, Status> {
-        if tonic_style_channel_uri(&self.authority) {
-            let authority = self.authority.as_str();
+        let authority = self.authority.as_str();
+        if tonic_style_channel_uri(authority) {
             return Err(Status::invalid_argument(format!(
                 "Target {authority:?} is host:port, not a tonic http://, https://, or unix:// URI; Channel::connect_tls dials TLS, Channel::connect_unix takes a filesystem path, Channel::origin overlays :authority"
+            )));
+        }
+        if grpc_go_resolver_uri(authority) {
+            return Err(Status::invalid_argument(format!(
+                "Target {authority:?} is host:port, not a grpc-go dns:///, passthrough:///, or xds:/// URI; Channel::connect dials host:port, ChannelConfig::connections pools to one authority, Channel::connect_unix takes a filesystem path"
             )));
         }
         self.authority.parse().map_err(|e| {
@@ -93,13 +115,26 @@ impl Target {
     }
 }
 
+fn uri_scheme(s: &str) -> Option<&str> {
+    s.split_once("://").map(|(scheme, _)| scheme)
+}
+
 // tonic Endpoint::from_static takes http:// / https://; grpc-go also uses
 // unix://. None of those are a Target.
 fn tonic_style_channel_uri(s: &str) -> bool {
-    s.split_once("://").is_some_and(|(scheme, _)| {
+    uri_scheme(s).is_some_and(|scheme| {
         scheme.eq_ignore_ascii_case("http")
             || scheme.eq_ignore_ascii_case("https")
             || scheme.eq_ignore_ascii_case("unix")
+    })
+}
+
+// grpc-go NewClient takes dns:/// / passthrough:/// / xds:/// resolver URIs.
+fn grpc_go_resolver_uri(s: &str) -> bool {
+    uri_scheme(s).is_some_and(|scheme| {
+        scheme.eq_ignore_ascii_case("dns")
+            || scheme.eq_ignore_ascii_case("passthrough")
+            || scheme.eq_ignore_ascii_case("xds")
     })
 }
 
@@ -375,6 +410,8 @@ impl Channel {
     /// inbound cap. Applies to every call shape.
     /// Distinct from tonic's `Endpoint::from_static`, which takes an
     /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`]).
+    /// Distinct from grpc-go `NewClient("dns:///host:port")`: still
+    /// `host:port`, not a resolver URI (see [`Target`]).
     pub async fn connect(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_with(target, ChannelConfig::default()).await
     }
@@ -2544,6 +2581,42 @@ mod tests {
         assert_eq!(
             Target::from("https://example.com:443").authority(),
             "https://example.com:443"
+        );
+    }
+
+    #[test]
+    fn grpc_go_resolver_uri_is_invalid_argument() {
+        for uri in [
+            "dns:///localhost:50051",
+            "passthrough:///127.0.0.1:50051",
+            "xds:///backend",
+            "DNS:///example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("https://example.com:443")
+            .parse()
+            .expect_err("tonic");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go dns:///"),
+            "{}",
+            err.message()
         );
     }
 

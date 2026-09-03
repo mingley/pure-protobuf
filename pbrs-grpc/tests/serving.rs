@@ -485,6 +485,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::connect must Distinct tonic Endpoint::from_static URI from Target host:port"
     );
     assert!(
+        src.contains(
+            "Distinct from grpc-go `NewClient(\"dns:///host:port\")`: still\n    /// `host:port`, not a resolver URI (see [`Target`])."
+        ),
+        "Channel::connect must Distinct grpc-go NewClient dns URI from Target host:port"
+    );
+    assert!(
         src.contains("Build a channel that dials on the first RPC instead of now.\n    /// Applies to every call shape."),
         "Channel::connect_lazy must name every call shape"
     );
@@ -6385,9 +6391,27 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "Distinct from grpc-go `NewClient(\"dns:///host:port\")`, which takes\n/// a resolver URI (`dns:///` / `passthrough:///` / `xds:///`). Those\n/// are [`Code::InvalidArgument`] at connect, not a silent resolver."
+        ),
+        "Target rustdoc must Distinct grpc-go NewClient resolver URIs from silent xDS"
+    );
+    assert!(
+        channel.contains(
+            "[`ChannelConfig::connections`] pools to one `host:port`; it does\n/// not speak xDS."
+        ),
+        "Target rustdoc must Distinct ChannelConfig::connections from xDS"
+    );
+    assert!(
+        channel.contains(
             "Distinct from tonic's `Endpoint::from_static`, which takes an\n    /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`])."
         ),
         "Channel::connect must Distinct tonic Endpoint::from_static URI from Target host:port"
+    );
+    assert!(
+        channel.contains(
+            "Distinct from grpc-go `NewClient(\"dns:///host:port\")`: still\n    /// `host:port`, not a resolver URI (see [`Target`])."
+        ),
+        "Channel::connect must Distinct grpc-go NewClient dns URI from Target host:port"
     );
     assert!(
         channel.contains(
@@ -17872,6 +17896,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep tonic channel URIs as an omission Distinct from connect_tls and origin"
     );
     assert!(
+        guide.contains("`Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`, TLS inferred from the scheme). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT` at connect, including `connect_lazy`."),
+        "guide must Distinct Target host:port from grpc-go resolver URIs and xDS"
+    );
+    assert!(
+        architecture.contains("`Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS."),
+        "architecture must Distinct Target host:port from grpc-go resolver URIs and xDS"
+    );
+    assert!(
+        status_guide.contains("  `Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`."),
+        "status guide must Distinct Target host:port from grpc-go resolver URIs and xDS"
+    );
+    assert!(
+        readme.contains("`Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs. `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`."),
+        "crate README must Distinct Target host:port from grpc-go resolver URIs and xDS"
+    );
+    assert!(
+        guide.contains("grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URIs | `Target` is `host:port`. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`, not a silent resolver."),
+        "guide must keep grpc-go resolver URIs as an omission Distinct from tonic URIs and xDS"
+    );
+    assert!(
         status_guide
             .contains("hedging, channelz (`grpc.channelz.v1`), binary logging (`grpc.binarylog.v1`), and grpc.stats / OpenTelemetry tracing are documented omissions."),
         "status guide must keep channelz, binary logging, and grpc.stats as documented omissions"
@@ -25565,6 +25609,71 @@ fn tonic_channel_uri_is_invalid_argument_not_unavailable() {
     );
     assert!(
         !err.message().contains("not a tonic http://"),
+        "{}",
+        err.message()
+    );
+}
+
+#[test]
+fn grpc_go_resolver_uri_is_invalid_argument_not_unavailable() {
+    for uri in [
+        "dns:///localhost:50051",
+        "passthrough:///127.0.0.1:50051",
+        "xds:///backend",
+        "DNS:///example.com:443",
+        "PASSTHROUGH:///127.0.0.1:50051",
+        "XDS:///backend",
+    ] {
+        let err = Channel::connect_lazy(uri).expect_err(uri);
+        assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+        assert!(
+            err.message().contains("not a grpc-go dns:///"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.is_retryable(),
+            "resolver URI Target must not look retryable: {err}"
+        );
+    }
+    let tls = ClientTls::webpki("localhost").expect("tls");
+    let err = Channel::connect_tls_lazy("dns:///localhost:50051", tls).expect_err("tls dns");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("not a grpc-go dns:///"),
+        "{}",
+        err.message()
+    );
+    let err = GreeterClient::connect_lazy("dns:///localhost:50051").expect_err("generated");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = Channel::connect_lazy("https://example.com:443").expect_err("tonic");
+    assert!(
+        err.message().contains("not a tonic http://"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc-go dns:///"),
+        "{}",
+        err.message()
+    );
+    let channel = Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+    let err = channel
+        .origin("dns:///localhost:50051")
+        .expect_err("origin dns");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("invalid origin"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc-go dns:///"),
         "{}",
         err.message()
     );

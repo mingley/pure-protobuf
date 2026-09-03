@@ -128,6 +128,7 @@ println!("{}", reply.get_ref().message());
 `Target`: a `SocketAddr`, or a `host:port`
 string that goes through DNS.
 `Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT` at connect, including `connect_lazy`, so wait-for-ready does not retry it. Distinct from a malformed `host:port`, which is `UNAVAILABLE`.
+`Target` is `host:port`, not a grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URI. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`, TLS inferred from the scheme). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT` at connect, including `connect_lazy`.
 The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, including over TLS, mTLS, and Unix, so a server restart
@@ -2414,6 +2415,7 @@ Deliberate omissions, with what to do instead.
 | Binary logging (`grpc.binarylog.v1`) | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is not the binary-log event proto. |
 | `grpc.stats` / OpenTelemetry tracing | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is envelope mutation, not `stats.Handler` Begin/End/payload and not OpenTelemetry spans. Distinct from binary logging (`grpc.binarylog.v1`), which is the event proto. Distinct from tonic's `trace_fn`, which installs a tracing span per RPC. |
 | tonic `http://` / `https://` / `unix://` channel URIs | `Target` is `host:port`. `Channel::connect_tls` dials TLS; `Channel::connect_unix` takes a filesystem path; `Channel::origin` overlays `:authority`. A URI-shaped string is `INVALID_ARGUMENT`, not a silent `connect_tls`. |
+| grpc-go `dns:///` / `passthrough:///` / `xds:///` resolver URIs | `Target` is `host:port`. Distinct from tonic `http://` / `https://` URIs (also `INVALID_ARGUMENT`). `ChannelConfig::connections` pools to one authority; it does not speak xDS. A resolver URI is `INVALID_ARGUMENT`, not a silent resolver. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
