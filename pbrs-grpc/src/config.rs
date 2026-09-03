@@ -1164,6 +1164,13 @@ impl ChannelConfig {
     /// the server advertises a small window. A well-behaved server still
     /// completes every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`].
+    /// There is no tonic `Endpoint::http2_adaptive_window`: that enables
+    /// hyper adaptive flow control and overrides stream and connection
+    /// windows. This cap is a fixed SETTINGS window. Distinct from
+    /// [`Self::initial_connection_window_size`] (connection window, still
+    /// fixed). Distinct from [`Self::data_frame_budget`] (`h2 Auto` tiny-DATA
+    /// budget, not window adaptation). Distinct from tonic
+    /// `Server::http2_adaptive_window` (server adaptive override).
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;

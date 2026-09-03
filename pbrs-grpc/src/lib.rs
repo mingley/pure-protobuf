@@ -973,6 +973,9 @@
 //! is the small-DATA framing budget (default 25600). Distinct from the
 //! connection window (flow-control bytes). h2 Auto (half the window) is not
 //! exposed.
+//!
+//! There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. This crate-map [`ChannelConfig::initial_stream_window_size`] is a fixed SETTINGS window. Distinct from [`ChannelConfig::initial_connection_window_size`] (connection window, still fixed). Distinct from [`ChannelConfig::data_frame_budget`] (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override).
+//!
 //! [`ServerConfig::max_concurrent_reset_streams`] /
 //! [`ChannelConfig::max_concurrent_reset_streams`]
 //! is remembered locally-reset stream IDs (default 50). Distinct from

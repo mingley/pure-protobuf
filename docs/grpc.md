@@ -1366,6 +1366,7 @@ Handshake-only on the client; not a live `Channel` overlay.
 `data_frame_budget` is the small-DATA framing budget (default 25600).
 Distinct from the connection window, which is flow-control bytes.
 h2 Auto (half the window) is not exposed.
+There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override).
 
 `max_concurrent_reset_streams` is remembered locally-reset HTTP/2 stream IDs (default 50).
 When the cap is reached, the oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
@@ -2471,6 +2472,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `WithBlock` / `WithReturnConnectionError` | Not a DialOption: `Channel::connect` already waits for the TCP dial and HTTP/2 preface. Deprecated grpc-go `Dial` needed `WithBlock` to wait until READY; `NewClient` does not support it. Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange` (no READY state). Handshake failure is the returned `Status`; there is no `WithReturnConnectionError`. |
 | grpc-go `WithDisableRetry` | Not a DialOption: grpc-go disables service-config retries and leaves transparent retries on. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off (`from_io` never had it). Distinct from hedging (not implemented). |
 | tonic `Endpoint::tls_config_with_verifier` | Not a custom rustls `ServerCertVerifier`: `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none). Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). |
+| tonic `Endpoint::http2_adaptive_window` | Not adaptive flow control: that overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

@@ -7052,6 +7052,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::http2_adaptive_window`: that enables\n    /// hyper adaptive flow control and overrides stream and connection\n    /// windows. This cap is a fixed SETTINGS window. Distinct from\n    /// [`Self::initial_connection_window_size`] (connection window, still\n    /// fixed). Distinct from [`Self::data_frame_budget`] (`h2 Auto` tiny-DATA\n    /// budget, not window adaptation). Distinct from tonic\n    /// `Server::http2_adaptive_window` (server adaptive override)."
+        ),
+        "ChannelConfig::initial_stream_window_size rustdoc must Distinct fixed SETTINGS window from tonic http2_adaptive_window"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Endpoint::http2_adaptive_window`")
+            .count(),
+        1,
+        "ChannelConfig::initial_connection_window_size must not copy the http2_adaptive_window Distinct"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 connection receive window the client advertises. Distinct from\n    /// [`ServerConfig::initial_connection_window_size`], which still serves when\n    /// the server advertises a small window. A well-behaved server still\n    /// completes every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::initial_connection_window_size must name client advertised Distinct from server still-serves"
@@ -7625,6 +7637,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
         "crate-map must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. This crate-map [`ChannelConfig::initial_stream_window_size`] is a fixed SETTINGS window. Distinct from [`ChannelConfig::initial_connection_window_size`] (connection window, still fixed). Distinct from [`ChannelConfig::data_frame_budget`] (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "crate-map must Distinct ChannelConfig::initial_stream_window_size fixed SETTINGS from tonic http2_adaptive_window"
     );
     assert!(
         crate_src.contains(
@@ -18731,6 +18747,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::tls_config_with_verifier` | Not a custom rustls `ServerCertVerifier`: `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none). Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake)."),
         "guide must keep tonic tls_config_with_verifier as an omission Distinct from ClientTls::webpki"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "guide must Distinct ChannelConfig::initial_stream_window_size fixed SETTINGS from tonic http2_adaptive_window"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. Distinct from `ChannelConfig::initial_stream_window_size` (fixed SETTINGS window). Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "architecture must Distinct ChannelConfig::initial_stream_window_size fixed SETTINGS from tonic http2_adaptive_window"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. Distinct from `ChannelConfig::initial_stream_window_size` (fixed SETTINGS window). Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "status guide must Distinct ChannelConfig::initial_stream_window_size fixed SETTINGS from tonic http2_adaptive_window"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. Distinct from `ChannelConfig::initial_stream_window_size` (fixed SETTINGS window). Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "crate README must Distinct ChannelConfig::initial_stream_window_size fixed SETTINGS from tonic http2_adaptive_window"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::http2_adaptive_window` | Not adaptive flow control: that overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
+        "guide must keep tonic http2_adaptive_window as an omission Distinct from fixed SETTINGS windows"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
