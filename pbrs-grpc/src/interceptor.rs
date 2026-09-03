@@ -578,6 +578,7 @@ pub trait ServiceExt: Service + Sized {
     /// Distinct from a handler Err: that is after the handler ran; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
+    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ServiceExt on_response Err is trailers-only after handler Ok.
