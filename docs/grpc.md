@@ -996,6 +996,7 @@ acceptor that should not trust the preface uses `Incoming::peer`.
 Generated handlers see that empty peer set (`local_addr` / `remote_addr` /
 `peer_identity` / `peer_cred` are `None`) and the peer's `:authority` /
 `:scheme` on `Request` and `Parts`, including after `https_scheme`.
+There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes; there is no connector and no URI. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 
 ```rust
 let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
@@ -2462,6 +2463,7 @@ Deliberate omissions, with what to do instead.
 | tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | tonic `Endpoint::timeout` | Times out the client future without writing `grpc-timeout`, so the server is not informed. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | grpc-go `ConnectionTimeout` | Not one 120 s deadline from accept through HTTP/2 handshake. `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake). |
+| tonic `Endpoint::connect_with_connector` | Not a tower connector: there is no `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

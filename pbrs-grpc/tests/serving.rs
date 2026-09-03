@@ -540,6 +540,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::connect_with_connector`: that is a tower\n    /// `Service<Uri>` that still dials. This stream is already connected; there\n    /// is no connector and no URI. Distinct from [`Self::connect_unix`]\n    /// (filesystem path, not a connector). [`ChannelConfig::connect_timeout`]\n    /// still bounds the HTTP/2 preface. Distinct from `tower` integration,\n    /// which is protobuf-tonic keeping tonic."
+        ),
+        "Channel::from_io rustdoc must Distinct already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Endpoint::connect_with_connector`")
+            .count(),
+        1,
+        "Channel::from_io_with must not copy the connect_with_connector Distinct"
+    );
+    assert!(
+        src.contains(
             "next RPC on that slot dials again, including over TLS, mTLS, and Unix.\n/// [`Self::from_io`] cannot redial."
         ),
         "Channel rustdoc must name redial on TLS, mTLS, and Unix"
@@ -6409,6 +6421,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "There is no tonic `Endpoint::connect_with_connector`: that is a tower\n    /// `Service<Uri>` that still dials. This stream is already connected; there\n    /// is no connector and no URI. Distinct from [`Self::connect_unix`]\n    /// (filesystem path, not a connector). [`ChannelConfig::connect_timeout`]\n    /// still bounds the HTTP/2 preface. Distinct from `tower` integration,\n    /// which is protobuf-tonic keeping tonic."
+        ),
+        "Channel::from_io rustdoc must Distinct already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        channel.contains(
             "Distinct from tonic's `Endpoint`, which takes an `http://` /\n/// `https://` URI and infers TLS from the scheme. This kernel does\n/// not parse that URI: TLS is [`Channel::connect_tls`] plus"
         ),
         "Target rustdoc must Distinct tonic Endpoint URI TLS inference from connect_tls"
@@ -7514,6 +7532,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). This crate-map [`ServerConfig::handshake_timeout`] is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK)."),
         "crate-map must Distinct ServerConfig::handshake_timeout sequential caps from grpc-go ConnectionTimeout"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. This crate-map [`Channel::from_io`] takes already-connected bytes; there is no connector and no URI. Distinct from [`Channel::connect_unix`] (filesystem path, not a connector). [`ChannelConfig::connect_timeout`] still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
     );
     assert!(
         crate_src.contains(
@@ -18540,6 +18562,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `ConnectionTimeout` | Not one 120 s deadline from accept through HTTP/2 handshake. `ServerConfig::handshake_timeout` is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from `ServerConfig::timeout` (RPC deadline overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `max_connection_age` (live connections after handshake)."),
         "guide must keep grpc-go ConnectionTimeout as an omission Distinct from sequential 20 s handshake caps"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes; there is no connector and no URI. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. Distinct from `Channel::from_io` (already-connected bytes, no connector and no URI). Distinct from `connect_unix` (filesystem path, not a connector). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. Distinct from `Channel::from_io` (already-connected bytes, no connector and no URI). Distinct from `connect_unix` (filesystem path, not a connector). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. Distinct from `Channel::from_io` (already-connected bytes, no connector and no URI). Distinct from `connect_unix` (filesystem path, not a connector). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::connect_with_connector` | Not a tower connector: there is no `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::connect_with_connector as an omission Distinct from from_io already-connected bytes"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

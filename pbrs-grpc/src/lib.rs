@@ -779,6 +779,8 @@
 //!
 //! There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). This crate-map [`ServerConfig::handshake_timeout`] is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK).
 //!
+//! There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. This crate-map [`Channel::from_io`] takes already-connected bytes; there is no connector and no URI. Distinct from [`Channel::connect_unix`] (filesystem path, not a connector). [`ChannelConfig::connect_timeout`] still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

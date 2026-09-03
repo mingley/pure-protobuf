@@ -614,6 +614,12 @@ impl Channel {
     /// [`Outgoing::scheme`](crate::Outgoing::scheme) is `http`. If the byte
     /// stream is already encrypted, call [`Self::https_scheme`].
     /// Applies to every call shape.
+    /// There is no tonic `Endpoint::connect_with_connector`: that is a tower
+    /// `Service<Uri>` that still dials. This stream is already connected; there
+    /// is no connector and no URI. Distinct from [`Self::connect_unix`]
+    /// (filesystem path, not a connector). [`ChannelConfig::connect_timeout`]
+    /// still bounds the HTTP/2 preface. Distinct from `tower` integration,
+    /// which is protobuf-tonic keeping tonic.
     ///
     /// ```no_run
     /// # async fn run(
