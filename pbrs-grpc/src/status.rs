@@ -463,6 +463,16 @@ impl Status {
     /// [`Self::new`] plus [`Self::set_details`].
     ///
     /// Distinct from [`Self::with_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes a proxy can forward without parsing.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let status = Status::with_details(Code::Unknown, "opaque", vec![0x0a]);
+    /// assert_eq!(status.code(), Code::Unknown);
+    /// assert_eq!(status.details(), &[0x0a]);
+    /// assert!(status.metadata().get("x-via").is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
     #[must_use]
     pub fn with_details(code: Code, message: impl Into<String>, details: impl Into<Bytes>) -> Self {
         let mut status = Self::new(code, message);

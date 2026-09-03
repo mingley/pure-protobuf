@@ -10203,6 +10203,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::with_details must Distinct packing Anys from raw trailer bytes"
     );
     assert!(
+        status_src
+            .contains("let status = Status::with_details(Code::Unknown, \"opaque\", vec![0x0a]);"),
+        "Status::with_details rustdoc must ship raw trailer bytes a proxy can forward"
+    );
+    assert!(
         status_src.contains(
             "Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status."
         ),
