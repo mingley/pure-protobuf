@@ -9808,6 +9808,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`ErrorInfo::with_reason`]: that is reason and domain, not planting ErrorInfo on the bag."
+        ),
+        "ErrorDetails::with_error_info must Distinct reason and domain from planting ErrorInfo on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"

@@ -1200,6 +1200,31 @@ impl ErrorDetails {
         Self::default()
     }
 
+    /// Plants packed [`ErrorInfo`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::error_info`].
+    /// Distinct from [`ErrorInfo::with_reason`]: that is reason and domain, not planting ErrorInfo on the bag.
+    /// Distinct from [`crate::Status::error_info`]: that unpacks packed ErrorInfo; this plants it on the bag.
+    /// Distinct from [`Self::from_rpc`]: that unpacks the Any list; this plants one typed ErrorInfo.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new()
+    ///     .with_error_info(ErrorInfo::with_reason("RATE_LIMITED", "example.com"));
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "limited", &details)?;
+    /// let info = status.error_info().expect("ErrorInfo");
+    /// assert_eq!(info.reason().to_str().unwrap_or(""), "RATE_LIMITED");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_error_info(mut self, error_info: ErrorInfo) -> Self {
+        self.error_info = Some(error_info);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1347,6 +1372,20 @@ mod tests {
         assert!(crate::Status::failed_precondition("disabled")
             .error_info()
             .is_none());
+    }
+
+    #[test]
+    fn error_details_with_error_info_round_trips() {
+        let details = ErrorDetails::new()
+            .with_error_info(ErrorInfo::with_reason("RATE_LIMITED", "example.com"));
+        let status =
+            crate::Status::from_error_details(Code::ResourceExhausted, "limited", &details)
+                .expect("encode");
+        let got = status.error_info().expect("ErrorInfo");
+        assert_eq!(got.reason().to_str().unwrap_or(""), "RATE_LIMITED");
+        assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
+        assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
     }
 
     #[test]
