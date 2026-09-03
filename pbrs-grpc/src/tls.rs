@@ -347,6 +347,11 @@ impl fmt::Debug for ClientTls {
 
 impl ClientTls {
     /// Trust Mozilla's CA set ([`webpki_roots`]) and verify `server_name`.
+    /// There is no tonic `Endpoint::tls_config_with_verifier`: that replaces
+    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor
+    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]
+    /// (pin a CA, still verifies). Distinct from a skip-verify constructor
+    /// (there is none).
     pub fn webpki(server_name: impl Into<String>) -> Result<Self, Status> {
         build_client(server_name.into(), webpki_roots(), None)
     }

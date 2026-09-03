@@ -847,7 +847,9 @@ To drain a TLS listener the same way as h2c, use
 [Graceful shutdown](#graceful-shutdown).
 
 `ClientTls::webpki("api.example.com")` trusts Mozilla's CA set. For private
-PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
+PKI and tests, pin a CA with `ClientTls::ca`.
+There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none).
+Mutual TLS is
 `ServerTls::mtls(identity, client_ca_pem)` plus `ClientTls::ca_mtls` (or
 `webpki_mtls`) with a client `Identity`. On mTLS,
 `Rpc::peer_identity` / `Request::peer_identity` is the verified client
@@ -2468,6 +2470,7 @@ Deliberate omissions, with what to do instead.
 | tonic `Endpoint::connect_with_connector` | Not a tower connector: there is no `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | grpc-go `WithBlock` / `WithReturnConnectionError` | Not a DialOption: `Channel::connect` already waits for the TCP dial and HTTP/2 preface. Deprecated grpc-go `Dial` needed `WithBlock` to wait until READY; `NewClient` does not support it. Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange` (no READY state). Handshake failure is the returned `Status`; there is no `WithReturnConnectionError`. |
 | grpc-go `WithDisableRetry` | Not a DialOption: grpc-go disables service-config retries and leaves transparent retries on. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off (`from_io` never had it). Distinct from hedging (not implemented). |
+| tonic `Endpoint::tls_config_with_verifier` | Not a custom rustls `ServerCertVerifier`: `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none). Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

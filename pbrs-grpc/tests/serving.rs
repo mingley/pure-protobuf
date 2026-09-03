@@ -6327,6 +6327,23 @@ fn official_interop_rustdoc_names_every_transport() {
 }
 
 #[test]
+fn client_tls_webpki_documents_tls_config_with_verifier() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]\n    /// (pin a CA, still verifies). Distinct from a skip-verify constructor\n    /// (there is none)."
+        ),
+        "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Endpoint::tls_config_with_verifier`")
+            .count(),
+        1,
+        "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6410,6 +6427,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::max_connection_age must name client age redial on TLS, mTLS, and Unix"
     );
     let channel = include_str!("../src/client.rs");
+    let tls = include_str!("../src/tls.rs");
     assert!(
         channel.contains("does not postpone age. The next RPC of every call shape redials"),
         "Channel rustdoc must name client max_connection_age redial"
@@ -6471,6 +6489,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "Channel::connect must not copy the WithDisableRetry Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]\n    /// (pin a CA, still verifies). Distinct from a skip-verify constructor\n    /// (there is none)."
+        ),
+        "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `Endpoint::tls_config_with_verifier`")
+            .count(),
+        1,
+        "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
     );
     assert!(
         channel.contains(
@@ -7591,6 +7621,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented)."),
         "crate-map must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        "crate-map must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
     );
     assert!(
         crate_src.contains(
@@ -18677,6 +18711,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithDisableRetry` | Not a DialOption: grpc-go disables service-config retries and leaves transparent retries on. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off (`from_io` never had it). Distinct from hedging (not implemented)."),
         "guide must keep grpc-go WithDisableRetry as an omission Distinct from transparent retry"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        "guide must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. Distinct from `ClientTls::webpki` (always verifies against Mozilla's CA set). Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        "architecture must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. Distinct from `ClientTls::webpki` (always verifies against Mozilla's CA set). Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        "status guide must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. Distinct from `ClientTls::webpki` (always verifies against Mozilla's CA set). Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        "crate README must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::tls_config_with_verifier` | Not a custom rustls `ServerCertVerifier`: `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none). Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake)."),
+        "guide must keep tonic tls_config_with_verifier as an omission Distinct from ClientTls::webpki"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

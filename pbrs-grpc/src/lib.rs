@@ -749,6 +749,8 @@
 //! behind a sidecar should call [`Server::serve_tls`] / [`Channel::connect_tls`].
 //! There is no constructor that skips certificate verification.
 //!
+//! There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none).
+//!
 //! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count is [`ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`).
 //!
 //! [`ChannelConfig::tcp_keepalive_retries`] is `TCP_KEEPCNT` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::tcp_keepalive_interval`] (`TCP_KEEPINTVL` time, not count). This crate-map retry count does not turn `SO_KEEPALIVE` on by itself.
