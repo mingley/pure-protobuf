@@ -12797,6 +12797,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`quota_failure::Violation::with_quota_dimension` builds a nested quota dimension pair on this packed-status."
+        ),
+        "status guide must name quota_failure::Violation::with_quota_dimension next to quota_failure::Violation::with_quota_id"
+    );
+    assert!(
+        status_guide.contains(
             "`precondition_failure::Violation::with_type` builds a nested precondition type on this packed-status."
         ),
         "status guide must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
