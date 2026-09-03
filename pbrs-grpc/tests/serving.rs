@@ -16886,6 +16886,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`ErrorDetails::with_localized_message` plants packed LocalizedMessage after this guide ErrorDetails bag."
+        ),
+        "guide must name ErrorDetails::with_localized_message next to ErrorDetails::with_help"
+    );
+    assert!(
+        guide.contains(
             "`Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
         "guide must name Duration::from_std next to ErrorDetails::new"
