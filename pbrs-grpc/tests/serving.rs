@@ -9908,6 +9908,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`Any::pack`]: that packs one message into an Any, not planting it on the bag."
+        ),
+        "ErrorDetails::with_unknown must Distinct packing one message into an Any from planting it on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"

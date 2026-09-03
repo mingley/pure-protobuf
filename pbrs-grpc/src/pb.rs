@@ -1468,6 +1468,35 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants one non-standard [`Any`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack from
+    /// [`crate::Status::error_details`] `.unknown`. Standard types belong on
+    /// the typed fields; a first packed ErrorInfo still re-homes there on decode.
+    /// Distinct from [`Any::pack`]: that packs one message into an Any, not planting it on the bag.
+    /// Distinct from [`crate::Status::error_details`]: that unpacks the bag; this plants one unknown Any.
+    /// Distinct from [`Self::with_localized_message`]: that plants LocalizedMessage, not an unknown Any.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorDetails};
+    /// use pbrs_grpc::{Code, HelloRequest, Status};
+    ///
+    /// let mut extra = HelloRequest::new();
+    /// extra.set_name("custom");
+    /// let details = ErrorDetails::new().with_unknown(Any::pack(&extra)?);
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
+    /// let bag = status.error_details()?;
+    /// let hello = bag.unknown.first().expect("custom Any").unpack::<HelloRequest>()?;
+    /// assert_eq!(hello.name().to_str().unwrap_or(""), "custom");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_unknown(mut self, unknown: Any) -> Self {
+        self.unknown.push(unknown);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1773,6 +1802,27 @@ mod tests {
         assert_eq!(got.message().to_str().unwrap_or(""), "introuvable");
         assert!(status.help().is_none());
         assert!(status.precondition_failure().is_none());
+    }
+
+    #[test]
+    fn error_details_with_unknown_round_trips() {
+        let mut extra = crate::HelloRequest::new();
+        extra.set_name("custom");
+        let details = ErrorDetails::new().with_unknown(Any::pack(&extra).expect("pack hello"));
+        let status =
+            crate::Status::from_error_details(Code::FailedPrecondition, "disabled", &details)
+                .expect("encode");
+        let bag = status.error_details().expect("bag");
+        assert_eq!(bag.unknown.len(), 1);
+        let hello = bag
+            .unknown
+            .first()
+            .expect("custom Any")
+            .unpack::<crate::HelloRequest>()
+            .expect("hello");
+        assert_eq!(hello.name().to_str().unwrap_or(""), "custom");
+        assert!(status.localized_message().is_none());
+        assert!(status.error_info().is_none());
     }
 
     #[test]
