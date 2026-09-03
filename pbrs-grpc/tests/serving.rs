@@ -10155,6 +10155,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "pb::Status::with_details must Distinct raw trailer bytes from this packed google.rpc.Status"
     );
     assert!(
+        pb_src.contains(
+            "let rpc = Status::with_details(\n    ///     Code::Aborted,\n    ///     \"conflict\","
+        ),
+        "pb::Status::with_details rustdoc must build a packed google.rpc.Status"
+    );
+    assert!(
         status_src.contains(
             "Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag."
         ),

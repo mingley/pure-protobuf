@@ -1113,6 +1113,23 @@ impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     ///
     /// Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo, Status};
+    /// use pbrs_grpc::Code;
+    ///
+    /// let info = ErrorInfo::with_reason("CAS_MISMATCH", "store.example.com");
+    /// let rpc = Status::with_details(
+    ///     Code::Aborted,
+    ///     "conflict",
+    ///     [Any::pack(&info)?],
+    /// );
+    /// assert_eq!(rpc.code(), Code::Aborted.to_i32());
+    /// assert_eq!(rpc.message().to_str().unwrap_or(""), "conflict");
+    /// let got = rpc.details().get(0).expect("Any").unpack::<ErrorInfo>()?;
+    /// assert_eq!(got.reason().to_str().unwrap_or(""), "CAS_MISMATCH");
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     pub fn with_details(
         code: crate::Code,
         message: impl Into<String>,
