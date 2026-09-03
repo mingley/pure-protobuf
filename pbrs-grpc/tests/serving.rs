@@ -16869,6 +16869,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name DebugInfo::with_stack as the builder"
     );
     assert!(
+        guide.contains("`DebugInfo::with_stack_entry` builds an extra packed stack frame after this guide DebugInfo builder."),
+        "guide must name DebugInfo::with_stack_entry next to DebugInfo::with_stack"
+    );
+    assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),
         "guide must name Status::from_error as local wrapping"
     );

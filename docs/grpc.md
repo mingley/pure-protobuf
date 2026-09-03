@@ -448,6 +448,7 @@ Or `status.request_info()` for a request_id without unpacking the bag. Distinct 
 Or `status.resource_info()` for resource type and name without unpacking the bag. Distinct from `status.quota_failure()`. `ResourceInfo::with_resource` builds that payload. Distinct from `status.request_info()`.
 `ResourceInfo::with_description` builds a packed resource description after this guide ResourceInfo builder.
 Or `status.debug_info()` for an operator stack without unpacking the bag. Distinct from `status.localized_message()`. `DebugInfo::with_stack` builds that payload. Distinct from `status.help()`.
+`DebugInfo::with_stack_entry` builds an extra packed stack frame after this guide DebugInfo builder.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `PreconditionFailure.Violation`, `Help.Link` — live in modules named after the parent:
