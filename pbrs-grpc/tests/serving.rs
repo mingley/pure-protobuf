@@ -6566,6 +6566,23 @@ fn channel_connect_lazy_documents_with_context_dialer() {
 }
 
 #[test]
+fn client_tls_documents_with_per_rpc_credentials() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging\n/// `credentials.PerRPCCredentials` that add per-RPC metadata. This type is\n/// transport TLS, not call credentials. There is no `WithCredentialsBundle`\n/// (transport plus per-RPC credentials). Distinct from GCP-auth (a library,\n/// not this DialOption). Distinct from grpc-go `WithTransportCredentials`\n/// (transport; TLS is [`crate::Channel::connect_tls`] plus this type). Distinct\n/// from [`crate::ClientInterceptor`] (user hook that can add metadata, not a\n/// credentials plugin). Distinct from [`crate::Channel::intercept`] (attaches\n/// that hook after connect)."
+        ),
+        "ClientTls rustdoc must Distinct transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithPerRPCCredentials`")
+            .count(),
+        1,
+        "ClientTls::webpki must not copy the WithPerRPCCredentials Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6788,6 +6805,32 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging\n/// `credentials.PerRPCCredentials` that add per-RPC metadata. This type is\n/// transport TLS, not call credentials. There is no `WithCredentialsBundle`\n/// (transport plus per-RPC credentials). Distinct from GCP-auth (a library,\n/// not this DialOption). Distinct from grpc-go `WithTransportCredentials`\n/// (transport; TLS is [`crate::Channel::connect_tls`] plus this type). Distinct\n/// from [`crate::ClientInterceptor`] (user hook that can add metadata, not a\n/// credentials plugin). Distinct from [`crate::Channel::intercept`] (attaches\n/// that hook after connect)."
+        ),
+        "ClientTls rustdoc must Distinct transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert_eq!(
+        tls.matches("There is no grpc-go `WithPerRPCCredentials`")
+            .count(),
+        1,
+        "ClientTls::webpki must not copy the WithPerRPCCredentials Distinct"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithPerRPCCredentials`")
+            .count(),
+        0,
+        "Channel::connect_tls must not copy the WithPerRPCCredentials Distinct"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no grpc-go `WithPerRPCCredentials`")
+            .count(),
+        0,
+        "ClientInterceptor must not copy the WithPerRPCCredentials Distinct"
     );
     assert!(
         health.contains(
@@ -8065,6 +8108,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. This crate-map [`Channel::connect_lazy`] still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from [`Channel::from_io`] (already-connected bytes; it does not dial). Distinct from [`Channel::connect_unix`] (filesystem path, not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`] (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function)."),
         "crate-map must Distinct Channel::connect_lazy kernel TCP dial from grpc-go WithContextDialer"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. This crate-map [`ClientTls`] is transport TLS, not call credentials. There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from [`ClientInterceptor`] (user hook that can add metadata, not a credentials plugin). Distinct from [`Channel::intercept`] (attaches that hook after connect)."),
+        "crate-map must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19447,6 +19494,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithContextDialer` / `WithDialer` | Not a custom dial function: grpc-go `WithContextDialer` still dials via `func(context.Context, string) (net.Conn, error)`. `WithDialer` is the deprecated context-less form. `Channel::connect_lazy` still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from `from_io` (already-connected bytes; it does not dial). Distinct from `connect_unix` (filesystem path). Distinct from `ChannelConfig::local_address` (source bind, still this kernel's TCP dialer). Distinct from `WithNoProxy` (proxy bypass, not a dial function). Distinct from `WithBlock` (handshake wait, not a dial function)."),
         "guide must keep grpc-go WithContextDialer as an omission Distinct from kernel TCP dial"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. `ClientTls` is transport TLS, not call credentials. There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is `Channel::connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect)."),
+        "guide must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. Distinct from `ClientTls` (transport TLS, not call credentials). There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is `Channel::connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect)."),
+        "architecture must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. Distinct from `ClientTls` (transport TLS, not call credentials). There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is `Channel::connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect)."),
+        "status guide must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. Distinct from `ClientTls` (transport TLS, not call credentials). There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is `Channel::connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect)."),
+        "crate README must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert!(
+        guide.contains("grpc-go `WithPerRPCCredentials` / `WithCredentialsBundle` | Not call credentials: grpc-go `WithPerRPCCredentials` plugs `credentials.PerRPCCredentials` that add per-RPC metadata. `ClientTls` is transport TLS, not call credentials. Distinct from GCP-auth (a library, not this DialOption). Distinct from `WithTransportCredentials` (transport; TLS is `connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect). There is no `WithCredentialsBundle`."),
+        "guide must keep grpc-go WithPerRPCCredentials as an omission Distinct from transport ClientTls"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

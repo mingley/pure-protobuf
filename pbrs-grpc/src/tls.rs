@@ -321,6 +321,15 @@ fn build_server(
 /// `server_name` is both SNI and the name verified against the certificate.
 /// It is independent of the TCP address, so you can dial `127.0.0.1` while
 /// verifying `localhost`.
+/// There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging
+/// `credentials.PerRPCCredentials` that add per-RPC metadata. This type is
+/// transport TLS, not call credentials. There is no `WithCredentialsBundle`
+/// (transport plus per-RPC credentials). Distinct from GCP-auth (a library,
+/// not this DialOption). Distinct from grpc-go `WithTransportCredentials`
+/// (transport; TLS is [`crate::Channel::connect_tls`] plus this type). Distinct
+/// from [`crate::ClientInterceptor`] (user hook that can add metadata, not a
+/// credentials plugin). Distinct from [`crate::Channel::intercept`] (attaches
+/// that hook after connect).
 ///
 /// ```no_run
 /// use pbrs_grpc::{Channel, ClientTls};
