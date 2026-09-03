@@ -781,6 +781,8 @@
 //!
 //! There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. This crate-map [`Channel::from_io`] takes already-connected bytes; there is no connector and no URI. Distinct from [`Channel::connect_unix`] (filesystem path, not a connector). [`ChannelConfig::connect_timeout`] still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`].
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

@@ -491,6 +491,17 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::connect must Distinct grpc-go NewClient dns URI from Target host:port"
     );
     assert!(
+        src.contains(
+            "There is no grpc-go `WithBlock` DialOption: that makes deprecated\n    /// `Dial` wait until READY. This constructor already waits for the TCP\n    /// dial and HTTP/2 preface; there is no READY state. Distinct from\n    /// [`Self::connect_lazy`] (first RPC dials). Distinct from\n    /// [`Self::wait_for_ready`] (RPC queue, not Dial). Distinct from\n    /// [`Self::connected`] (live-socket snapshot). Distinct from gRPC\n    /// `GetState` / `WaitForStateChange`. There is no\n    /// `WithReturnConnectionError`: handshake failure is the returned\n    /// [`Status`]."
+        ),
+        "Channel::connect rustdoc must Distinct handshake wait from grpc-go WithBlock READY"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithBlock`").count(),
+        1,
+        "Channel::connect_lazy must not copy the WithBlock Distinct"
+    );
+    assert!(
         src.contains("Build a channel that dials on the first RPC instead of now.\n    /// Applies to every call shape."),
         "Channel::connect_lazy must name every call shape"
     );
@@ -6427,6 +6438,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "There is no grpc-go `WithBlock` DialOption: that makes deprecated\n    /// `Dial` wait until READY. This constructor already waits for the TCP\n    /// dial and HTTP/2 preface; there is no READY state. Distinct from\n    /// [`Self::connect_lazy`] (first RPC dials). Distinct from\n    /// [`Self::wait_for_ready`] (RPC queue, not Dial). Distinct from\n    /// [`Self::connected`] (live-socket snapshot). Distinct from gRPC\n    /// `GetState` / `WaitForStateChange`. There is no\n    /// `WithReturnConnectionError`: handshake failure is the returned\n    /// [`Status`]."
+        ),
+        "Channel::connect rustdoc must Distinct handshake wait from grpc-go WithBlock READY"
+    );
+    assert_eq!(
+        channel.matches("There is no grpc-go `WithBlock`").count(),
+        1,
+        "Channel::connect_lazy must not copy the WithBlock Distinct"
+    );
+    assert!(
+        channel.contains(
             "Distinct from tonic's `Endpoint`, which takes an `http://` /\n/// `https://` URI and infers TLS from the scheme. This kernel does\n/// not parse that URI: TLS is [`Channel::connect_tls`] plus"
         ),
         "Target rustdoc must Distinct tonic Endpoint URI TLS inference from connect_tls"
@@ -7536,6 +7558,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. This crate-map [`Channel::from_io`] takes already-connected bytes; there is no connector and no URI. Distinct from [`Channel::connect_unix`] (filesystem path, not a connector). [`ChannelConfig::connect_timeout`] still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct Channel::from_io already-connected bytes from tonic Endpoint::connect_with_connector"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`]."),
+        "crate-map must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
     );
     assert!(
         crate_src.contains(
@@ -18582,6 +18608,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::connect_with_connector` | Not a tower connector: there is no `Service<Uri>` that still dials. `Channel::from_io` takes already-connected bytes. Distinct from `connect_unix` (filesystem path, not a connector). `ChannelConfig::connect_timeout` still bounds the HTTP/2 preface. Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::connect_with_connector as an omission Distinct from from_io already-connected bytes"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. `Channel::connect` already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned `Status`."),
+        "guide must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. Distinct from `Channel::connect` (already waits for the TCP dial and HTTP/2 preface; no READY state). Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange`."),
+        "architecture must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. Distinct from `Channel::connect` (already waits for the TCP dial and HTTP/2 preface; no READY state). Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange`."),
+        "status guide must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. Distinct from `Channel::connect` (already waits for the TCP dial and HTTP/2 preface; no READY state). Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange`."),
+        "crate README must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
+    );
+    assert!(
+        guide.contains("grpc-go `WithBlock` / `WithReturnConnectionError` | Not a DialOption: `Channel::connect` already waits for the TCP dial and HTTP/2 preface. Deprecated grpc-go `Dial` needed `WithBlock` to wait until READY; `NewClient` does not support it. Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange` (no READY state). Handshake failure is the returned `Status`; there is no `WithReturnConnectionError`."),
+        "guide must keep grpc-go WithBlock as an omission Distinct from Channel::connect handshake wait"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

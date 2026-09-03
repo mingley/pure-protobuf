@@ -465,6 +465,15 @@ impl Channel {
     /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`]).
     /// Distinct from grpc-go `NewClient("dns:///host:port")`: still
     /// `host:port`, not a resolver URI (see [`Target`]).
+    /// There is no grpc-go `WithBlock` DialOption: that makes deprecated
+    /// `Dial` wait until READY. This constructor already waits for the TCP
+    /// dial and HTTP/2 preface; there is no READY state. Distinct from
+    /// [`Self::connect_lazy`] (first RPC dials). Distinct from
+    /// [`Self::wait_for_ready`] (RPC queue, not Dial). Distinct from
+    /// [`Self::connected`] (live-socket snapshot). Distinct from gRPC
+    /// `GetState` / `WaitForStateChange`. There is no
+    /// `WithReturnConnectionError`: handshake failure is the returned
+    /// [`Status`].
     pub async fn connect(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_with(target, ChannelConfig::default()).await
     }
