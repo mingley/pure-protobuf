@@ -643,6 +643,7 @@ See `docs/upb.md`. Short list:
   `Status::quota_failure` is packed quota subjects.
   Distinct from `is_retryable` (`RESOURCE_EXHAUSTED` is never A6-retryable)
   and from `bad_request`. `QuotaFailure::with_violation` builds that payload.
+  `QuotaFailure::with_violation_entry` builds an extra packed quota violation on this packed-status.
   `quota_failure::Violation::with_subject` builds a nested quota subject on this packed-status.
   `quota_failure::Violation::with_api_service` builds a nested quota API service on this packed-status.
   `quota_failure::Violation::with_quota_metric` builds a nested quota metric on this packed-status.

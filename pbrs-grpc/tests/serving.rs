@@ -12878,6 +12878,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`QuotaFailure::with_violation_entry` builds an extra packed quota violation on this packed-status."
+        ),
+        "status guide must name QuotaFailure::with_violation_entry next to QuotaFailure::with_violation"
+    );
+    assert!(
+        status_guide.contains(
             "`quota_failure::Violation::with_subject` builds a nested quota subject on this packed-status."
         ),
         "status guide must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
