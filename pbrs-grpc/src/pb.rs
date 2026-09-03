@@ -649,13 +649,10 @@ impl QuotaFailure {
     /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     quota_failure: Some(
-    ///         QuotaFailure::with_violation("project:1", "tokens")
-    ///             .with_violation_entry("client:9", "qps"),
-    ///     ),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_quota_failure(
+    ///     QuotaFailure::with_violation("project:1", "tokens")
+    ///         .with_violation_entry("client:9", "qps"),
+    /// );
     /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
     /// let quota = status.quota_failure().expect("QuotaFailure");
     /// let extra = quota.violations().get(1).expect("subject");
