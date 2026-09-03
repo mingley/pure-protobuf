@@ -289,6 +289,12 @@ impl ServerConfig {
     /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
     /// minimum, and from [`Self::initial_stream_window_size`], which still
     /// serves at a small receive window.
+    /// There is no grpc-go `SharedWriteBuffer` setter: that reuses a
+    /// per-connection transport write buffer after flush. This cap is HTTP/2
+    /// write-byte backpressure per connection; buffers are not pooled across
+    /// connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize`
+    /// (socket byte buffers, default 32 KiB). Distinct from tonic
+    /// `Endpoint::buffer_size` (tower `Buffer` request slots).
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;

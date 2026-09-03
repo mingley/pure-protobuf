@@ -6919,6 +6919,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::max_send_buffer_size must name still-serves Distinct from frame size and windows"
     );
+    assert!(
+        src.contains(
+            "There is no grpc-go `SharedWriteBuffer` setter: that reuses a\n    /// per-connection transport write buffer after flush. This cap is HTTP/2\n    /// write-byte backpressure per connection; buffers are not pooled across\n    /// connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize`\n    /// (socket byte buffers, default 32 KiB). Distinct from tonic\n    /// `Endpoint::buffer_size` (tower `Buffer` request slots)."
+        ),
+        "ServerConfig::max_send_buffer_size rustdoc must Distinct per-connection HTTP/2 buffer from grpc-go SharedWriteBuffer"
+    );
     assert_eq!(
         src.matches("Write backpressure still completes every call shape, including over")
             .count(),
@@ -7440,6 +7446,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct max_concurrent_rpcs try_acquire refuse from tonic Server::load_shed"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. This crate-map [`ServerConfig::max_send_buffer_size`] is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "crate-map must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer reuse"
     );
     assert!(
         crate_src.contains(
@@ -18366,6 +18376,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Server::load_shed` | Not a tower stack: there is no `LoadShedLayer`. `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `WaitForHandlers` (drain, not overload). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Server::load_shed as an omission Distinct from try_acquire RESOURCE_EXHAUSTED"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. `ServerConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "guide must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. Distinct from `ServerConfig::max_send_buffer_size` (HTTP/2 write-byte backpressure per connection, not a shared pool). Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "architecture must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. Distinct from `ServerConfig::max_send_buffer_size` (HTTP/2 write-byte backpressure per connection, not a shared pool). Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "status guide must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. Distinct from `ServerConfig::max_send_buffer_size` (HTTP/2 write-byte backpressure per connection, not a shared pool). Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "crate README must Distinct ServerConfig::max_send_buffer_size from grpc-go SharedWriteBuffer"
+    );
+    assert!(
+        guide.contains("grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots)."),
+        "guide must keep grpc-go SharedWriteBuffer as an omission Distinct from per-connection HTTP/2 send buffer"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

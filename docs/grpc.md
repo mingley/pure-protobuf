@@ -1714,6 +1714,7 @@ ChannelConfig::new().max_send_buffer_size(16 * 1024)
 ```
 
 There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request slots (default 1024), not these bytes. This kernel is not a tower stack; clones share the pool without an mpsc of RPCs. Distinct from `stream_buffer` (decoded-message queue depth). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this HTTP/2 send buffer.
+There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. `ServerConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots).
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
@@ -2453,6 +2454,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `UnknownServiceHandler` | Not a catch-all: an unmounted service is `UNIMPLEMENTED`, not a fallback bidi handler. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler). |
 | grpc-go `WaitForHandlers` | Drain always waits for in-flight RPCs. grpc-go `Stop` can return before handlers exit; there is no WaitForHandlers setter. Distinct from `max_connection_age_grace` (GOAWAY then force-close). Distinct from `HealthReporter::shutdown` (serving status, not drain). `from_io` / `serve_connection` is one duplex: no accept loop to refuse. |
 | tonic `Server::load_shed` | Not a tower stack: there is no `LoadShedLayer`. `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `WaitForHandlers` (drain, not overload). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
