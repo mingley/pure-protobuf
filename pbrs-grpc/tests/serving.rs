@@ -7204,8 +7204,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_debug_info next to ErrorDetails::with_retry_info"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_debug_info`], [`ErrorDetails::to_anys`]"),
-        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_debug_info"
+        crate_src.contains("[`ErrorDetails::with_debug_info`], [`ErrorDetails::with_quota_failure`]"),
+        "crate map must name ErrorDetails::with_quota_failure next to ErrorDetails::with_debug_info"
+    );
+    assert!(
+        crate_src.contains("[`ErrorDetails::with_quota_failure`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_quota_failure"
     );
     assert!(
         crate_src.contains("[`pb`], [`Any::pack`]"),
