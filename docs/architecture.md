@@ -583,6 +583,7 @@ is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `quota_failure::Violation::with_subject` builds a nested quota subject after this architecture QuotaFailure builder.
 `quota_failure::Violation::with_api_service` builds a nested quota API service after this architecture quota subject builder.
 `quota_failure::Violation::with_quota_metric` builds a nested quota metric after this architecture quota subject builder.
+`quota_failure::Violation::with_quota_id` builds a nested quota id after this architecture quota subject builder.
 `Status::precondition_failure` is packed type and subject. Distinct from
 `quota_failure`. Distinct from `bad_request`. `PreconditionFailure::with_violation`
 builds that payload.
