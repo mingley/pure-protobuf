@@ -30,19 +30,27 @@ fn apply_cargo_home(cmd: &mut Command) {
 }
 
 /// Keep the real PATH so `cc`/`cargo`/`rustc` stay resolvable. Prepend a
-/// directory with a `protoc` shim that exits 127 so `Command::new("protoc")`
-/// finds the shim first. Does not rewrite HOME / CARGO_HOME / RUSTUP_HOME.
+/// unique directory with a `protoc` shim that exits 127 so
+/// `Command::new("protoc")` finds the shim first. Unique dir per call so
+/// parallel tests never share a truncated shim. Does not rewrite HOME /
+/// CARGO_HOME / RUSTUP_HOME.
 fn path_without_protoc() -> OsString {
     use std::os::unix::fs::PermissionsExt;
-    let shim_dir = std::env::temp_dir().join(format!("pbrs-hide-protoc-{}", std::process::id()));
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SHIM_SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SHIM_SEQ.fetch_add(1, Ordering::Relaxed);
+    let shim_dir =
+        std::env::temp_dir().join(format!("pbrs-hide-protoc-{}-{}", std::process::id(), n));
     std::fs::create_dir_all(&shim_dir).expect("hide-protoc dir");
     let shim = shim_dir.join("protoc");
-    std::fs::write(&shim, "#!/bin/sh\nexit 127\n").expect("write protoc shim");
-    let mut perms = std::fs::metadata(&shim)
+    let tmp = shim_dir.join(format!(".protoc.{n}.tmp"));
+    std::fs::write(&tmp, "#!/bin/sh\nexit 127\n").expect("write protoc shim");
+    let mut perms = std::fs::metadata(&tmp)
         .expect("shim metadata")
         .permissions();
     perms.set_mode(0o755);
-    std::fs::set_permissions(&shim, perms).expect("chmod protoc shim");
+    std::fs::set_permissions(&tmp, perms).expect("chmod protoc shim");
+    std::fs::rename(&tmp, &shim).expect("install protoc shim");
     let path = std::env::var_os("PATH").unwrap_or_default();
     let mut dirs = vec![shim_dir];
     dirs.extend(std::env::split_paths(&path));
