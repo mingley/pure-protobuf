@@ -4,6 +4,11 @@
 //! against the path. Adapters' packaged manifests depend on crates.io `pbrs`;
 //! `[patch.crates-io]` points that at the unpacked core so this test does not
 //! need the version to be live.
+//!
+//! Adapter packing rewrites the path `pbrs` dep to crates.io. Try cargo
+//! without `--offline` first (GitHub Actions can download it); fall back to
+//! `--offline` when `crates-io` is `replace-with` artifactory and the cache
+//! already has `pbrs`.
 
 #![allow(
     clippy::disallowed_methods,
@@ -41,6 +46,31 @@ fn dump(out: &Output) -> String {
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     )
+}
+
+/// Try without `--offline` first (CI can reach crates.io). If that fails,
+/// retry with `--offline` (local `crates-io` may be `replace-with` artifactory
+/// while the crates.io cache already has `pbrs`).
+fn cargo_online_then_offline(mut build: impl FnMut(bool) -> Command, what: &str) -> Output {
+    let mut online = build(false);
+    apply_cargo_home(&mut online);
+    let online_out = online.output().unwrap_or_else(|e| panic!("{what}: {e}"));
+    if online_out.status.success() {
+        return online_out;
+    }
+    let online_dump = dump(&online_out);
+    println!("{what}: without --offline failed; retrying --offline");
+    let mut offline = build(true);
+    apply_cargo_home(&mut offline);
+    let offline_out = offline
+        .output()
+        .unwrap_or_else(|e| panic!("{what} --offline: {e}"));
+    assert!(
+        offline_out.status.success(),
+        "{what} failed without --offline, then with --offline:\n--- without --offline ---\n{online_dump}\n--- --offline ---\n{}",
+        dump(&offline_out)
+    );
+    offline_out
 }
 
 /// First `[package]` `name` / `version` in a manifest. Not a TOML parser.
@@ -86,26 +116,26 @@ fn outside_dir(kind: &str, name: &str) -> PathBuf {
     dir
 }
 
-fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
+fn cargo_package_cmd(pkg: &str, target_dir: &Path, list: bool, offline: bool) -> Command {
     let mut cmd = Command::new("cargo");
-    cmd.args([
-        "package",
-        "-p",
-        pkg,
-        "--list",
-        "--no-verify",
-        "--offline",
-        "--allow-dirty",
-    ])
-    .current_dir(repo_root())
-    .env("CARGO_TARGET_DIR", target_dir)
-    .env("CARGO_TERM_COLOR", "never");
-    apply_cargo_home(&mut cmd);
-    let out = cmd.output().expect("cargo package --list");
-    assert!(
-        out.status.success(),
-        "cargo package --list -p {pkg} failed:\n{}",
-        dump(&out)
+    cmd.args(["package", "-p", pkg]);
+    if list {
+        cmd.arg("--list");
+    }
+    cmd.args(["--no-verify", "--allow-dirty"]);
+    if offline {
+        cmd.arg("--offline");
+    }
+    cmd.current_dir(repo_root())
+        .env("CARGO_TARGET_DIR", target_dir)
+        .env("CARGO_TERM_COLOR", "never");
+    cmd
+}
+
+fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
+    let out = cargo_online_then_offline(
+        |offline| cargo_package_cmd(pkg, target_dir, true, offline),
+        &format!("cargo package --list -p {pkg}"),
     );
     String::from_utf8_lossy(&out.stdout)
         .lines()
@@ -114,24 +144,9 @@ fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
 }
 
 fn cargo_package(pkg: &str, target_dir: &Path) {
-    let mut cmd = Command::new("cargo");
-    cmd.args([
-        "package",
-        "-p",
-        pkg,
-        "--no-verify",
-        "--offline",
-        "--allow-dirty",
-    ])
-    .current_dir(repo_root())
-    .env("CARGO_TARGET_DIR", target_dir)
-    .env("CARGO_TERM_COLOR", "never");
-    apply_cargo_home(&mut cmd);
-    let out = cmd.output().expect("cargo package");
-    assert!(
-        out.status.success(),
-        "cargo package -p {pkg} failed:\n{}",
-        dump(&out)
+    cargo_online_then_offline(
+        |offline| cargo_package_cmd(pkg, target_dir, false, offline),
+        &format!("cargo package -p {pkg}"),
     );
 }
 
@@ -173,18 +188,19 @@ fn write_consumer(dir: &Path, toml: &str, main_rs: &str) {
 
 fn cargo_run_consumer(dir: &Path, expected_stdout: &str) {
     let target = dir.join("target");
-    let mut cmd = Command::new("cargo");
-    cmd.args(["run", "--offline", "--quiet"])
-        .current_dir(dir)
-        .env("CARGO_TARGET_DIR", &target)
-        .env("CARGO_TERM_COLOR", "never");
-    apply_cargo_home(&mut cmd);
-    let out = cmd.output().expect("cargo run consumer");
-    assert!(
-        out.status.success(),
-        "isolated consumer in {} failed:\n{}",
-        dir.display(),
-        dump(&out)
+    let out = cargo_online_then_offline(
+        |offline| {
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "--quiet"]);
+            if offline {
+                cmd.arg("--offline");
+            }
+            cmd.current_dir(dir)
+                .env("CARGO_TARGET_DIR", &target)
+                .env("CARGO_TERM_COLOR", "never");
+            cmd
+        },
+        &format!("isolated consumer in {}", dir.display()),
     );
     assert_eq!(
         String::from_utf8_lossy(&out.stdout).trim(),
@@ -192,7 +208,7 @@ fn cargo_run_consumer(dir: &Path, expected_stdout: &str) {
         "consumer stdout:\n{}",
         dump(&out)
     );
-    println!("{}", expected_stdout);
+    println!("{expected_stdout}");
 }
 
 fn assert_licenses(pkg: &str, list: &[String]) {
