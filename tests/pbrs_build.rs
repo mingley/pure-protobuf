@@ -29,19 +29,32 @@ fn apply_cargo_home(cmd: &mut Command) {
     }
 }
 
-/// Drop PATH entries that contain a `protoc` binary. Keep cargo/rustc dirs.
+/// Keep the real PATH so `cc`/`cargo`/`rustc` stay resolvable. Prepend a
+/// directory with a `protoc` shim that exits 127 so `Command::new("protoc")`
+/// finds the shim first. Does not rewrite HOME / CARGO_HOME / RUSTUP_HOME.
 fn path_without_protoc() -> OsString {
+    use std::os::unix::fs::PermissionsExt;
+    let shim_dir = std::env::temp_dir().join(format!("pbrs-hide-protoc-{}", std::process::id()));
+    std::fs::create_dir_all(&shim_dir).expect("hide-protoc dir");
+    let shim = shim_dir.join("protoc");
+    std::fs::write(&shim, "#!/bin/sh\nexit 127\n").expect("write protoc shim");
+    let mut perms = std::fs::metadata(&shim)
+        .expect("shim metadata")
+        .permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(&shim, perms).expect("chmod protoc shim");
     let path = std::env::var_os("PATH").unwrap_or_default();
-    std::env::join_paths(
-        std::env::split_paths(&path)
-            .filter(|dir| !dir.join("protoc").exists() && !dir.join("protoc.exe").exists()),
-    )
-    .expect("join PATH")
+    let mut dirs = vec![shim_dir];
+    dirs.extend(std::env::split_paths(&path));
+    std::env::join_paths(dirs).expect("join PATH")
 }
 
+/// First PATH entry is the one `/usr/bin/env protoc` finds.
 fn path_has_protoc(path: &OsStr) -> bool {
     std::env::split_paths(path)
-        .any(|dir| dir.join("protoc").exists() || dir.join("protoc.exe").exists())
+        .next()
+        .map(|dir| dir.join("protoc").exists() || dir.join("protoc.exe").exists())
+        .unwrap_or(false)
 }
 
 fn env_protoc_runs(path: &OsStr) -> bool {
@@ -52,6 +65,37 @@ fn env_protoc_runs(path: &OsStr) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+fn env_cc_runs(path: &OsStr) -> bool {
+    Command::new("/usr/bin/env")
+        .arg("cc")
+        .arg("--version")
+        .env("PATH", path)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn assert_filtered_path(path: &OsStr) {
+    assert!(
+        std::env::split_paths(path).any(|d| d.join("cargo").exists() || d.join("rustc").exists()),
+        "PATH filter dropped cargo/rustc"
+    );
+    assert!(
+        path_has_protoc(path),
+        "shim PATH must start with a protoc shim"
+    );
+    assert!(
+        !env_protoc_runs(path),
+        "protoc still runs on the filtered PATH"
+    );
+    assert!(
+        env_cc_runs(path)
+            || std::env::split_paths(path)
+                .any(|d| d.join("cc").exists() || d.join("cc.exe").exists()),
+        "PATH hid cc; keep the real PATH and prepend a failing protoc shim"
+    );
 }
 
 fn dump(out: &Output) -> String {
@@ -82,6 +126,10 @@ fn assert_build_failed_without_protoc(out: &Output) {
     assert!(
         !out.status.success(),
         "consumer must fail without protoc:\n{text}"
+    );
+    assert!(
+        !text.contains("linker `cc` not found"),
+        "failure should be the build script / protoc path, not a skipped test:\n{text}"
     );
     assert!(
         text.contains("failed to run custom build command")
@@ -140,18 +188,7 @@ fn main() {
     .unwrap();
 
     let no_protoc = path_without_protoc();
-    assert!(
-        std::env::split_paths(&no_protoc).any(|d| d.join("cargo").exists()),
-        "PATH filter dropped cargo"
-    );
-    assert!(
-        !path_has_protoc(&no_protoc),
-        "filtered PATH still has protoc"
-    );
-    assert!(
-        !env_protoc_runs(&no_protoc),
-        "protoc still runs on the filtered PATH"
-    );
+    assert_filtered_path(&no_protoc);
     assert_build_failed_without_protoc(&cargo_run(&tmp, Some(&no_protoc), false));
 
     let run = cargo_run(&tmp, None, true);
