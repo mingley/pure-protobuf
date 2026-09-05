@@ -1,0 +1,82 @@
+syntax = "proto3";
+package cases;
+
+// Common unary/RPC shapes. One message per shape so gencode is specialized
+// (hello-sized), not TestAllTypes.
+
+message Empty {}
+
+message Id {
+  int64 id = 1;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_OK = 1;
+  STATUS_ERR = 2;
+}
+
+message Scalars {
+  int64 id = 1;
+  uint32 seq = 2;
+  bool ok = 3;
+  Status status = 4;
+  int64 ts = 5;
+  double lat = 6;
+}
+
+message Name {
+  string name = 1;
+}
+
+message Blob {
+  bytes payload = 1;
+}
+
+message Meta {
+  int64 id = 1;
+  int64 ts = 2;
+  string trace = 3;
+}
+
+message Envelope {
+  Meta meta = 1;
+  string body = 2;
+}
+
+message Node {
+  int32 n = 1;
+  Node child = 2;
+}
+
+message Ids {
+  repeated int64 ids = 1;
+}
+
+message Tags {
+  repeated string tags = 1;
+}
+
+message Headers {
+  map<string, string> h = 1;
+}
+
+message Result {
+  oneof kind {
+    string ok = 1;
+    string err = 2;
+  }
+}
+
+// Typical unary: ids + short strings + optional nested + packed + tags + map.
+message Rpc {
+  int64 id = 1;
+  string method = 2;
+  string path = 3;
+  string user = 4;
+  Meta meta = 5;
+  repeated int64 ids = 6;
+  repeated string tags = 7;
+  map<string, string> headers = 8;
+  bytes extra = 9;
+}

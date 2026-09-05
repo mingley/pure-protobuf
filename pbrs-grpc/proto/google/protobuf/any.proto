@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+// Official proto3 Any. Packed as type_url + value; JSON is a special case.
+message Any {
+  string type_url = 1;
+  bytes value = 2;
+}

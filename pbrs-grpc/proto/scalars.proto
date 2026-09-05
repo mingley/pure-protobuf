@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package example;
+
+// Extra proto3 scalars that Person does not host. Used to prove generated
+// JSON / text leave DynamicMessage for this set. Not TAT.
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_A = 1;
+  KIND_B = 2;
+}
+
+message ExtraScalars {
+  bool ok = 1;
+  int64 big = 2;
+  uint32 seq = 3;
+  uint64 wide = 4;
+  sint32 zig = 5;
+  sint64 zag = 6;
+  fixed32 fix32 = 7;
+  fixed64 fix64 = 8;
+  sfixed32 sfix32 = 9;
+  sfixed64 sfix64 = 10;
+  float flt = 11;
+  double dbl = 12;
+  bytes blob = 13;
+  Kind kind = 14;
+  repeated bool flags = 15;
+  repeated int64 ids = 16;
+  repeated Kind kinds = 17;
+  map<string, int64> counts = 18;
+  map<int32, bool> bits = 19;
+  // map<string, Kind> is skipped: map-entry descriptors at codegen do not
+  // carry enum names, so field-wise names would be a guess.
+  optional bool maybe = 21;
+  optional bytes note = 22;
+}
+
+// Real oneof of proto3 scalars. Used to prove generated JSON / text leave
+// DynamicMessage for this set. TAT / WKT stay on DynamicMessage.
+// Remaining is not closed.
+message OneofHole {
+  oneof kind {
+    string a = 1;
+    int64 b = 2;
+  }
+}

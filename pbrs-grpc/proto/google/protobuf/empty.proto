@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+// Official proto3 Empty. JSON is `{}`.
+message Empty {}
