@@ -113,6 +113,7 @@ jobs:
       - name: Install protoc
         run: brew install protobuf
       - run: protoc --version
+      - run: cargo fetch
       - run: cargo test -p pbrs-grpc --lib tcp::tests -- --nocapture
       - run: cargo test --test pbrs_build -- --nocapture
       - run: cargo test --test onboarding -- --nocapture
@@ -120,6 +121,8 @@ jobs:
   # `--no-verify`: adapter manifests depend on this SHA's pbrs version, which
   # crates.io may not have yet. tests/package_consumer.rs unpacks each .crate
   # outside the workspace and compiles path consumers (patching pbrs).
+  # `cargo fetch` first so `--offline` packing/consumers see the git-tree
+  # lockfile in CARGO_HOME (pbrs tests do not otherwise download pbrs-grpc deps).
   package-consumers:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -128,6 +131,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: cargo fetch
       - run: cargo test --test package_consumer -- --nocapture
 
   # Drift among bundled hello/WKT copies, and stub-flavour selection, must
