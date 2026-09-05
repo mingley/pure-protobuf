@@ -29,7 +29,9 @@ pbrs = { version = "0.1.0", path = ".." }
 # rustls default features pull in aws-lc-rs, which compiles C. We disable
 # them and supply Graviola, which builds with rustc only.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
-rustls-graviola = "0.4"
+# 0.3+ pulls graviola ≥0.3, which declares rust-version 1.89. Pinning 0.2.1
+# keeps the declared pbrs-grpc MSRV (1.85) honest. Same `default_provider()` API.
+rustls-graviola = "0.2.1"
 rustls-pemfile = "2"
 # Pure-Rust wrapper around libc socket options. Tokio already depends on it;
 # a direct dep lets the kernel set SO_KEEPALIVE without compiling C.

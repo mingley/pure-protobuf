@@ -4,9 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml calls this so a tag/dispatch publish cannot proceed on a SHA
+  # whose required lane failed or was skipped.
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -70,3 +76,72 @@ jobs:
           key: conformance-runner-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
       - name: Official conformance_test_runner
         run: ./scripts/conformance.sh
+
+  # Declared rust-version on pbrs and pbrs-grpc. Adapter build.rs needs protoc
+  # even for `--lib` tests. Do not skip if a dep needs a newer rustc: pin or
+  # raise rust-version instead.
+  msrv-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: cargo test -p pbrs --lib
+      - run: cargo test -p pbrs-grpc --lib
+
+  # Declared rust-version on protobuf-tonic (tonic 0.14.6).
+  msrv-tonic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: cargo test -p protobuf-tonic
+
+  # Source-bind proof must run here: Linux CI never saw the macOS
+  # AddrNotAvailable failure. Do not treat bind failure as success.
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: brew install protobuf
+      - run: protoc --version
+      - run: cargo test -p pbrs-grpc --lib tcp::tests -- --nocapture
+      - run: cargo test --test pbrs_build -- --nocapture
+      - run: cargo test --test onboarding -- --nocapture
+
+  # `--no-verify`: adapter manifests depend on this SHA's pbrs version, which
+  # crates.io may not have yet. tests/package_consumer.rs unpacks each .crate
+  # outside the workspace and compiles path consumers (patching pbrs).
+  package-consumers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: cargo test --test package_consumer -- --nocapture
+
+  # Drift among bundled hello/WKT copies, and stub-flavour selection, must
+  # fail the required lane (not only a local onboarding run).
+  generated-output:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Hello/WKT copies and stub flavours
+        run: |
+          set -euo pipefail
+          cargo test --test onboarding committed_hello_and_wkt_copies_match -- --nocapture --exact
+          cargo test --test onboarding codegen_stub_flavours_are_explicit -- --nocapture --exact
