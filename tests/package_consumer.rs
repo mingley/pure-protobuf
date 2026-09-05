@@ -94,6 +94,7 @@ fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
         pkg,
         "--list",
         "--no-verify",
+        "--offline",
         "--allow-dirty",
     ])
     .current_dir(repo_root())
@@ -114,10 +115,17 @@ fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
 
 fn cargo_package(pkg: &str, target_dir: &Path) {
     let mut cmd = Command::new("cargo");
-    cmd.args(["package", "-p", pkg, "--no-verify", "--allow-dirty"])
-        .current_dir(repo_root())
-        .env("CARGO_TARGET_DIR", target_dir)
-        .env("CARGO_TERM_COLOR", "never");
+    cmd.args([
+        "package",
+        "-p",
+        pkg,
+        "--no-verify",
+        "--offline",
+        "--allow-dirty",
+    ])
+    .current_dir(repo_root())
+    .env("CARGO_TARGET_DIR", target_dir)
+    .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
     let out = cmd.output().expect("cargo package");
     assert!(
@@ -166,7 +174,7 @@ fn write_consumer(dir: &Path, toml: &str, main_rs: &str) {
 fn cargo_run_consumer(dir: &Path, expected_stdout: &str) {
     let target = dir.join("target");
     let mut cmd = Command::new("cargo");
-    cmd.args(["run", "--quiet"])
+    cmd.args(["run", "--offline", "--quiet"])
         .current_dir(dir)
         .env("CARGO_TARGET_DIR", &target)
         .env("CARGO_TERM_COLOR", "never");

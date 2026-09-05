@@ -2,7 +2,8 @@
 # Publish workspace crates to crates.io in dependency order.
 #
 # Names and versions come from each crate's [package] table, not literals.
-# If a version is already on the index, skip it (idempotent retry).
+# If a version is already on the index, skip the real upload (idempotent retry).
+# DRY_RUN=1 still packs so a no-publish rehearsal names exact .crate artifacts.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/publish-crates.sh
@@ -91,22 +92,24 @@ wait_for_index() {
 for i in "${!NAMES[@]}"; do
   name="${NAMES[$i]}"
   ver="${VERS[$i]}"
+  crate_file="target/package/${name}-${ver}.crate"
 
-  if already_on_index "$name" "$ver"; then
-    echo "${name} ${ver} already on crates.io — skipping (idempotent)"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    # Always pack, even when this version is already on the index.
+    # `cargo publish --dry-run` queries crates.io; hosts that replace
+    # crates-io (and offline CI after `cargo fetch`) cannot. Packing
+    # `--offline` uses CARGO_HOME populated from the workspace lockfile.
+    # Isolated package-consumers compile the unpacked path; skip verify.
+    if already_on_index "$name" "$ver"; then
+      echo "${name} ${ver} already on crates.io — packing anyway (dry-run)"
+    fi
+    cargo package -p "$name" --no-verify --offline
+    echo "dry-run packed ${crate_file}"
     continue
   fi
 
-  if [[ "$DRY_RUN" == "1" ]]; then
-    # Adapters depend on this SHA's pbrs version; crates.io may not have it
-    # yet. Pack without verify. Isolated package-consumers compile against
-    # the unpacked path. pbrs itself can verify from its own crate graph.
-    if [[ "$name" == "pbrs" ]]; then
-      cargo publish -p "$name" --dry-run
-    else
-      cargo publish -p "$name" --dry-run --no-verify
-    fi
-    echo "dry-run packed ${name}-${ver}.crate"
+  if already_on_index "$name" "$ver"; then
+    echo "${name} ${ver} already on crates.io — skipping (idempotent)"
     continue
   fi
 
