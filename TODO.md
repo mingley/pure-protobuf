@@ -5,15 +5,15 @@ dependencies and acceptance evidence. This checklist schedules that work; it
 does not repeat a feature-parity inventory or claim the current crates are
 production-certified.
 
-**Coordinator:** Michael Ingley. **Implementers/reviewers:** unassigned until
-claimed. All items are open; existing code and historical test results are
-starting points, not completion of the larger qualification packages.
+**Coordinator:** Michael Ingley. Later packages stay with the coordinator
+until claimed. Existing code and historical test results are starting
+points, not completion of the larger qualification packages.
 
 ## First three PRs
 
-- [ ] [GR-02 recovery slice](docs/ROADMAP.md#resume-from-the-frozen-work-not-from-assumed-completion). Reconcile interrupted experiments and status notes with committed source, assign unfinished work, and repair the reproduced macOS source-bind test without weakening its assertion.
-- [ ] [GR-01: Executable onboarding and support matrix](docs/ROADMAP.md#gr-01-make-the-supported-contract-and-onboarding-executable). Compile messages/native/tonic examples as external consumers, fix tonic stub selection and document actual build dependencies. Record supported versus untested versions.
-- [ ] [GR-02 remaining CI and release gates](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract). Test declared MSRVs and Linux/macOS, isolate package consumers, select one CI-gated publisher and reconcile the release guide.
+- [x] [GR-02 recovery slice](docs/ROADMAP.md#resume-from-the-frozen-work-not-from-assumed-completion). Reconcile interrupted experiments and status notes with committed source, assign unfinished work, and repair the reproduced macOS source-bind test without weakening its assertion. **Implementer:** this recovery change. **Reviewer:** Michael Ingley. Evidence: `pbrs-grpc` TCP/serving tests listen on `127.0.0.1`, dial with the shipped bound connect, and assert the accepted peer IP equals the bound source IP. GR-01 and remaining GR-02 are still open.
+- [ ] [GR-01: Executable onboarding and support matrix](docs/ROADMAP.md#gr-01-make-the-supported-contract-and-onboarding-executable). Compile messages/native/tonic examples as external consumers, fix tonic stub selection and document actual build dependencies. Record supported versus untested versions. **Implementer:** Michael Ingley. **Reviewer:** Michael Ingley.
+- [ ] [GR-02 remaining CI and release gates](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract). Test declared MSRVs and Linux/macOS, isolate package consumers, select one CI-gated publisher and reconcile the release guide. **Implementer:** Michael Ingley. **Reviewer:** Michael Ingley.
 
 ## Qualify a bounded production profile
 

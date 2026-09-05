@@ -1,5 +1,34 @@
 # Status
 
+## Recovery classification
+
+Interrupted notes labeled most Distinct kernel behavior as Remaining.
+Classification against committed source:
+
+- **Shipped:** the Verified list and the Distinct notes below. Not a
+  production certification.
+- **Unfinished:** [TODO.md](../TODO.md) and the
+  [leadership plan](ROADMAP.md). First-slice GR-01 and remaining GR-02
+  CI/release gates are still open. No arena views, Edition 2024, xDS,
+  application retries, hedging, channelz, binary logging, or grpc.stats /
+  OpenTelemetry. `name_80` leftover remains. Field-wise WKT JSON/text is
+  not closed.
+- **Discarded:** [closed inventory](inventory/README.md). Do not merge
+  those diffs. `#34` already landed; `#39` flatten and `#57` heap-copy
+  did not.
+- **Missing evidence:** recorded CI/conformance/interop numbers are
+  historical results, not GR-03+ qualification. Linux CI did not cover
+  macOS source bind.
+
+The macOS `127.0.0.2` source-bind failure (OS error 49 /
+`AddrNotAvailable` at
+[fa48d599](https://github.com/mingley/pure-protobuf/commit/fa48d599b3fdd797d53fff98647dea25a601aae3))
+is fixed in this slice: TCP tests listen on `127.0.0.1`, dial with the
+shipped `connect(..., Some(bind))`, and assert the accepted peer IP
+equals the bound source IP. `127.0.0.2` is used when that alias is
+bindable; otherwise a distinct non-loopback IPv4 that survives the same
+listen+accept proof. Bind failure is not treated as success.
+
 ## Verified
 
 - `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
@@ -92,9 +121,10 @@
   Not a
   latency or QPS win. `protobuf-tonic` stays the tonic adapter.
 
-## Remaining
+## Shipped Distinct notes
 
-See `docs/upb.md`. Short list:
+These notes are implemented kernel behavior and explicit omissions, not
+an open work queue. See `docs/upb.md`. Short list:
 
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
   (`empty_unary` … `unimplemented_service`, plus the four gzip cases,
@@ -1152,6 +1182,16 @@ See `docs/upb.md`. Short list:
   `docs/inventory/`.
   [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
   errors is superseded by #42.
+
+## Unfinished
+
+Tracked in [TODO.md](../TODO.md) / [ROADMAP.md](ROADMAP.md). The Distinct
+notes above document shipped behavior and explicit omissions; they are
+not an open work queue. Still not done: arena views, Edition 2024,
+`name_80` leftover, xDS, application retries, hedging, channelz, binary
+logging, grpc.stats / OpenTelemetry, remaining WKT field-wise JSON/text,
+and GR-01 / remaining GR-02 gates. Do not treat a clean checkout as
+production certification.
 
 ## Skipped rust/test/shared files
 
