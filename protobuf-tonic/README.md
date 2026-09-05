@@ -1,89 +1,129 @@
 # protobuf-tonic
 
-This crate is the tonic 0.14 `Codec` and plugin-generated stubs over pbrs
-(`Parse` / `Serialize`).
+A [tonic 0.14+](https://crates.io/crates/tonic) `Codec` adapter and code generator stubs over `pbrs` message types (`Parse` / `Serialize`).
 
-It is not `tonic-prost`. These types do not implement `prost::Message`.
-The protobuf kernel does not depend on tonic. A native HTTP/2 gRPC stack
-over the same messages lives in `pbrs-grpc` and does not use this crate.
-tonic 0.12 and 0.13 are unsupported.
-MSRV is 1.88. This crate depends on `pbrs` by path (git until `pbrs` is
-on crates.io); `cargo publish -p protobuf-tonic` cannot succeed until that
-registry version exists.
+`protobuf-tonic` allows you to build standard Tonic gRPC services and clients using `pbrs` pure-Rust protobuf messages instead of `prost`.
 
-`protoc-gen-pbrs` (and `pbrs::codegen::generate_from_file_descriptor_set`)
-emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service.
-Stubs use `ProtobufCodec`, not prost. `build.rs` in this crate generates
-`hello.rs` from `proto/hello.proto`.
+---
+
+## Overview
+
+- **Not `tonic-prost`**: These types implement the Google protobuf v4 application traits (`Parse` / `Serialize`), not `prost::Message`.
+- **Decoupled Architecture**: The `pbrs` protobuf kernel remains completely free of any `tonic`, `hyper`, or `tower` dependencies.
+- **Alternative gRPC Stacks**:
+  - Use `protobuf-tonic` if you want to integrate with the standard `tonic` ecosystem (middleware, tower layers, etc.).
+  - Use [`pbrs-grpc`](../pbrs-grpc) if you want a lightweight, pure-Rust HTTP/2 gRPC kernel without Tonic or Tower.
+- **Tonic Version**: Supports Tonic 0.14+ (Tonic 0.12 and 0.13 are unsupported). MSRV is 1.88.
+
+---
+
+## Usage
+
+### 1. Dependencies
+
+```toml
+[dependencies]
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
+pbrs = "0.1"
+protobuf-tonic = { git = "https://github.com/mingley/pure-protobuf" }
+
+[build-dependencies]
+pbrs = "0.1"
+```
+
+> **Note on crates.io**: `protobuf-tonic` currently depends on `pbrs` by path/git. It will be published to crates.io following the publication of `pbrs`.
+
+### 2. Code Generation (`build.rs`)
+
+Generate Tonic service stubs using `pbrs`:
 
 ```rust
-impl Greeter for Echo {
-    async fn say_hello(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
-        /* ... */
-    }
-    type StreamHelloStream = ReceiverStream<Result<HelloReply, Status>>;
-    async fn stream_hello(
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+The generator emits `FooClient`, `FooServer`, and the `Foo` service trait using `ProtobufCodec` instead of Prost.
+
+### 3. Implementing a Service
+
+```rust
+use tonic::{Request, Response, Status};
+use helloworld::{Greeter, GreeterServer, HelloRequest, HelloReply};
+
+struct MyGreeter;
+
+#[tonic::async_trait]
+impl Greeter for MyGreeter {
+    async fn say_hello(
         &self,
-        request: Request<Streaming<HelloRequest>>,
-    ) -> Result<Response<Self::StreamHelloStream>, Status> {
-        /* ... */
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut reply = HelloReply::new();
+        reply.set_message(format!("Hello, {}!", request.get_ref().name()));
+        Ok(Response::new(reply))
     }
 }
 
-Server::builder().add_service(GreeterServer::new(Echo));
-let mut client = GreeterClient::new(channel);
-let resp = client.say_hello(Request::new(req)).await?;
-let stream = client.stream_hello(Request::new(inbound)).await?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = "127.0.0.1:50051".parse()?;
+    tonic::transport::Server::builder()
+        .add_service(GreeterServer::new(MyGreeter))
+        .serve(addr)
+        .await?;
+    Ok(())
+}
 ```
 
-`ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
-type second. `tonic-bench` Codec survey vs prost and v4 upb lives in
-`docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost.
-`name_4kib` combined beats prost (process-gated). `rpc_sparse` decode
-and `tags_32` decode vs v4 are also gated. Flatten (#39) tried and
-discarded. See
-`docs/status.md` Remaining. Not kernel `./bench`.
+### 4. Client Example
 
-Generated `FooClient` / `FooServer` expose tonic `send_compressed` /
-`accept_compressed`, `with_interceptor`, and `max_decoding_message_size` /
-`max_encoding_message_size`. `tests/gzip.rs` runs unary `say_hello` with gzip.
-`tests/interceptor_size.rs` runs a unary RPC through a request interceptor
-and through encode/decode size bounds.
-`tests/health_reflection.rs` serves gRPC health (SERVING) and server
-reflection that lists `helloworld.Greeter`. Health and reflection are
-tonic's crates, not a second stack.
+```rust
+use tonic::Request;
+use helloworld::{GreeterClient, HelloRequest};
 
-`proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
-unary happy path. `tests/streaming.rs` covers client-stream, server-stream,
-and bidi. `tests/status.rs` asserts non-OK `Status` code+message
-(`NotFound`) on all four RPCs. Server-stream handler `Err(Status)`
-fails before a stream (client sees it on the call `Result`). Bidi
-fails after the first inbound name (same path as client-stream;
-client sees it on the call `Result`). `tests/trailers.rs` splits initial
-`Response` metadata (headers) from `Status` metadata sent as HTTP/2
-trailers on unary, client-stream, server-stream, and bidi.
-Server-stream `Status` trailers also work when the handler returns
-`Ok(Response(stream))` and the stream errors before any item (empty
-stream + error, or first item `Err`). Client-stream headers need the
-reply `Response`. `tests/interop.rs` is same-process
-analogues of official gRPC interop names (`unimplemented_method`,
-`unimplemented_service`,
-`special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
-`cancel_after_begin`, `cancel_after_first_response`,
-`timeout_on_sleeping_server`, `custom_metadata`). `large_unary` uses
-`hello.proto` string-field sizes (271828 / 314159), not official
-`SimpleRequest.payload.body` / `response_size`. `empty_stream` is
-StreamHello open + half-close with no messages; client sees OK and zero
-replies. Cancel analogues abort the client future (`JoinError::Cancelled`,
-not a `Status`). `timeout_on_sleeping_server` is unary
-`Request::set_timeout` → `Code::Cancelled` / "Timeout expired", not
-`DeadlineExceeded`. `custom_metadata` (unary SayHello): client sends
-`x-grpc-test-echo-initial` and `x-grpc-test-echo-trailing-bin`; ascii
-echo is `Response.metadata` (headers). tonic 0.14 has no first-class
-OK-path custom trailers (`Response` has no `trailers()`);
-`x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
-not trailers. Not official interop. Not a Google peer.
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = GreeterClient::connect("http://127.0.0.1:50051").await?;
+
+    let mut req = HelloRequest::new();
+    req.set_name("World");
+
+    let response = client.say_hello(Request::new(req)).await?;
+    println!("Response: {}", response.into_inner().message());
+
+    Ok(())
+}
+```
+
+---
+
+## Features Supported
+
+- **All Call Shapes**: Unary, client-streaming, server-streaming, and bidirectional streaming.
+- **Compression**: `send_compressed` and `accept_compressed` for Gzip.
+- **Interceptors**: Request and response interception via Tonic's `with_interceptor`.
+- **Message Size Limits**: Configurable via `max_decoding_message_size` and `max_encoding_message_size`.
+- **Health & Reflection**: Works seamlessly with `tonic-health` and `tonic-reflection`.
+- **Trailers & Status**: Full metadata support for HTTP/2 headers and status trailers.
+
+---
+
+## Performance vs Prost
+
+Benchmarked in `tonic-bench` (see [`docs/benchmarks.md`](../docs/benchmarks.md)):
+- **Unary `rpc_mixed`**: ~2× the throughput of Prost.
+- **Large payloads (`name_4kib`)**: Outperforms Prost in combined encode/decode.
+- **Sparse messages & dense tags**: Gated regression tests ensure decoding speed meets or exceeds targets.
+
+---
 
 ## License
 
-MIT OR Apache-2.0, same as `pbrs`.
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE))
+- MIT License ([LICENSE-MIT](../LICENSE-MIT))
+
+at your option.

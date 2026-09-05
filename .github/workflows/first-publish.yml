@@ -1,0 +1,113 @@
+# First crates.io publish for the root crate (owner-only).
+#
+# Use when CARGO_REGISTRY_TOKEN is available as a GitHub Actions secret.
+#
+# Required:
+#   - confirm input must be exactly "publish"
+#   - repository secret CARGO_REGISTRY_TOKEN (crates.io API token with publish-new + publish-update;
+#     publish-update alone cannot create a new crate)
+#
+# After a green publish:
+#   1. Confirm https://crates.io/crates/<crate_name>/<version>
+#   2. Configure Trusted Publishing on crates.io (Settings -> Trusted Publishing -> release.yml)
+
+name: First publish (crates.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type publish to confirm crates.io upload'
+        required: true
+        type: string
+      ref:
+        description: 'Git ref to package (branch, tag, or SHA). Defaults to main.'
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: first-publish-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: cargo publish first release
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'publish'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Preflight — package verification
+        run: |
+          set -euo pipefail
+          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          echo "Discovered package: ${name} ${ver}"
+          cargo package -p "${name}"
+          echo "Package preflight OK for ${name} ${ver}"
+
+      - name: crates.io already published?
+        id: exists
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::error::CARGO_REGISTRY_TOKEN secret is missing"
+            exit 1
+          fi
+          # Soft probe: if version is already on the index, succeed without re-publish.
+          if curl -fsSA 'pure-protobuf-first-publish/1' \
+              "https://crates.io/api/v1/crates/${name}/${ver}" >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "${name} ${ver} already on crates.io — skipping publish"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: cargo publish
+        if: steps.exists.outputs.already != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          # --no-verify: package step already verified in preflight
+          cargo publish -p "${name}" --no-verify
+          echo "Published ${name} to crates.io"
+
+      - name: Post-publish probe
+        run: |
+          set -euo pipefail
+          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fsSA 'pure-protobuf-first-publish/1' \
+                "https://crates.io/api/v1/crates/${name}/${ver}" >/tmp/crate-first-publish.json; then
+              ok=1
+              break
+            fi
+            echo "Waiting for crates.io index (${i}/30)..."
+            sleep 10
+          done
+          if [[ "$ok" -ne 1 ]]; then
+            echo "::error::crates.io API does not yet show ${name} ${ver}"
+            exit 1
+          fi
+          echo "crates.io API confirms ${name} ${ver}"
