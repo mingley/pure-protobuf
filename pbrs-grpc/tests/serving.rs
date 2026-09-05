@@ -36,9 +36,9 @@ use pbrs_grpc::{
     StreamingOutputCallResponse, TestService, TestServiceClient, TestServiceServer,
 };
 use std::collections::HashSet;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
@@ -232,7 +232,69 @@ async fn bind() -> (SocketAddr, TcpListener) {
 }
 
 fn source_bind() -> SocketAddr {
-    SocketAddr::from(([127, 0, 0, 2], 0))
+    SocketAddr::new(proven_source_bind_ip(), 0)
+}
+
+/// macOS `lo0` has only `127.0.0.1`; `127.0.0.2` is `AddrNotAvailable`.
+fn loopback_alias() -> IpAddr {
+    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2))
+}
+
+/// Kernel-chosen IPv4 toward a public address is a candidate, not a proof.
+fn udp_route_ipv4() -> Option<Ipv4Addr> {
+    let socket = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;
+    socket.connect((Ipv4Addr::new(8, 8, 8, 8), 443)).ok()?;
+    match socket.local_addr().ok()?.ip() {
+        IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_unspecified() => Some(ip),
+        _ => None,
+    }
+}
+
+fn source_bind_candidates() -> impl Iterator<Item = IpAddr> {
+    let alias = loopback_alias();
+    let routed = udp_route_ipv4()
+        .map(IpAddr::V4)
+        .filter(move |ip| *ip != alias);
+    std::iter::once(alias).chain(routed)
+}
+
+fn prove_source_bind(source: IpAddr) -> std::io::Result<bool> {
+    let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let dest = listener.local_addr()?;
+    let socket = socket2::Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::STREAM,
+        Some(socket2::Protocol::TCP),
+    )?;
+    socket.bind(&socket2::SockAddr::from(SocketAddr::new(source, 0)))?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _acceptor = std::thread::spawn(move || {
+        let _ = tx.send(listener.accept());
+    });
+    socket.connect_timeout(&socket2::SockAddr::from(dest), Duration::from_secs(2))?;
+    match rx.recv_timeout(Duration::from_secs(2)) {
+        Ok(Ok((_, peer))) => Ok(peer.ip() == source),
+        Ok(Err(err)) => Err(err),
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "accept timed out",
+        )),
+    }
+}
+
+fn proven_source_bind_ip() -> IpAddr {
+    static IP: OnceLock<IpAddr> = OnceLock::new();
+    *IP.get_or_init(|| {
+        let mut last = None;
+        for source in source_bind_candidates() {
+            match prove_source_bind(source) {
+                Ok(true) => return source,
+                Ok(false) => last = Some(format!("{source}: peer IP mismatch")),
+                Err(err) => last = Some(format!("{source}: {err}")),
+            }
+        }
+        panic!("no candidate proves source bind ({last:?}); AddrNotAvailable is not success");
+    })
 }
 
 fn origin_name() -> &'static str {

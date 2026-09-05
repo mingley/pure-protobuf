@@ -190,6 +190,66 @@ mod tests {
     use std::time::Duration;
     use tokio::net::{TcpListener, TcpStream};
 
+    const PROVE_TIMEOUT: Duration = Duration::from_secs(2);
+
+    /// macOS `lo0` has only `127.0.0.1`; `127.0.0.2` is `AddrNotAvailable`.
+    fn loopback_alias() -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2))
+    }
+
+    /// Kernel-chosen IPv4 toward a public address is a candidate, not a proof.
+    fn udp_route_ipv4() -> Option<Ipv4Addr> {
+        let socket = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;
+        socket.connect((Ipv4Addr::new(8, 8, 8, 8), 443)).ok()?;
+        match socket.local_addr().ok()?.ip() {
+            IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_unspecified() => Some(ip),
+            _ => None,
+        }
+    }
+
+    fn source_bind_candidates() -> impl Iterator<Item = IpAddr> {
+        let alias = loopback_alias();
+        let routed = udp_route_ipv4()
+            .map(IpAddr::V4)
+            .filter(move |ip| *ip != alias);
+        std::iter::once(alias).chain(routed)
+    }
+
+    async fn prove_bound_source(source: IpAddr) -> bool {
+        let Ok(listener) = TcpListener::bind("127.0.0.1:0").await else {
+            return false;
+        };
+        let Ok(addr) = listener.local_addr() else {
+            return false;
+        };
+        let bind = SocketAddr::new(source, 0);
+        let client =
+            match tokio::time::timeout(PROVE_TIMEOUT, connect(&addr.to_string(), Some(bind))).await
+            {
+                Ok(Ok(stream)) => stream,
+                Ok(Err(_)) | Err(_) => return false,
+            };
+        let peer = match tokio::time::timeout(PROVE_TIMEOUT, listener.accept()).await {
+            Ok(Ok((_, peer))) => peer,
+            Ok(Err(_)) | Err(_) => return false,
+        };
+        peer.ip() == source
+            && client
+                .local_addr()
+                .is_ok_and(|local| local.ip() == peer.ip())
+    }
+
+    async fn proven_bound_source_ip() -> IpAddr {
+        let mut last = None;
+        for source in source_bind_candidates() {
+            if prove_bound_source(source).await {
+                return source;
+            }
+            last = Some(source);
+        }
+        panic!("no candidate proves source bind (last {last:?}); AddrNotAvailable is not success");
+    }
+
     #[tokio::test]
     async fn tune_sets_nodelay_and_optional_keepalive() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -213,13 +273,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn connect_bound_source_is_the_loopback_alias() {
+    async fn connect_bound_source_is_the_peer_ip() {
+        let bound_source = SocketAddr::new(proven_bound_source_ip().await, 0);
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let bind = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 0);
-        let client = connect(&addr.to_string(), Some(bind)).await.unwrap();
+        let client = tokio::time::timeout(
+            PROVE_TIMEOUT,
+            connect(&addr.to_string(), Some(bound_source)),
+        )
+        .await
+        .expect("bound connect timed out")
+        .unwrap();
         let (_server, peer) = listener.accept().await.unwrap();
-        assert_eq!(peer.ip(), IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)));
+        assert_eq!(peer.ip(), bound_source.ip());
         assert_eq!(client.local_addr().unwrap().ip(), peer.ip());
     }
 
