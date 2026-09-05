@@ -1,6 +1,6 @@
 [package]
 name = "pbrs-grpc"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2021"
 rust-version = "1.85"
@@ -13,7 +13,7 @@ keywords = ["grpc", "http2", "protobuf", "pbrs", "pure-rust"]
 categories = ["network-programming", "asynchronous"]
 
 [build-dependencies]
-pbrs = { version = "0.1.0", path = ".." }
+pbrs = { version = "0.1.1", path = ".." }
 
 [dependencies]
 base64 = "0.22"
@@ -25,7 +25,7 @@ futures-core = { version = "0.3", default-features = false }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 h2 = "0.4.18"
 http = "1"
-pbrs = { version = "0.1.0", path = ".." }
+pbrs = { version = "0.1.1", path = ".." }
 # rustls default features pull in aws-lc-rs, which compiles C. We disable
 # them and supply Graviola, which builds with rustc only.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
