@@ -199,6 +199,8 @@ Run the conformance suite locally:
 - [Native gRPC Kernel Guide](docs/grpc.md) — In-depth guide to building microservices with `pbrs-grpc`.
 - [Tonic Adapter Guide](protobuf-tonic/README.md) — Using `pbrs` with tonic 0.14+.
 - [Release Policy & Publishing](docs/RELEASE.md) — Automated crates.io publication workflows and tag conventions.
+- [Production Readiness Roadmap](docs/ROADMAP.md) — Phased ramp to production GA (1.0.0).
+- [TODO & Task Tracker](TODO.md) — Prioritized feature gap checklist.
 
 ---
 
