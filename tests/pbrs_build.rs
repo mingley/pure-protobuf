@@ -15,14 +15,86 @@
     unreachable_pub,
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
-use std::path::PathBuf;
-use std::process::Command;
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+fn apply_cargo_home(cmd: &mut Command) {
+    if let Some(h) = std::env::var_os("CARGO_HOME") {
+        cmd.env("CARGO_HOME", h);
+    }
+}
+
+/// Drop PATH entries that contain a `protoc` binary. Keep cargo/rustc dirs.
+fn path_without_protoc() -> OsString {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    std::env::join_paths(
+        std::env::split_paths(&path)
+            .filter(|dir| !dir.join("protoc").exists() && !dir.join("protoc.exe").exists()),
+    )
+    .expect("join PATH")
+}
+
+fn path_has_protoc(path: &OsStr) -> bool {
+    std::env::split_paths(path)
+        .any(|dir| dir.join("protoc").exists() || dir.join("protoc.exe").exists())
+}
+
+fn env_protoc_runs(path: &OsStr) -> bool {
+    Command::new("/usr/bin/env")
+        .arg("protoc")
+        .arg("--version")
+        .env("PATH", path)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn dump(out: &Output) -> String {
+    format!(
+        "status={}\nstdout:\n{}\nstderr:\n{}",
+        out.status,
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    )
+}
+
+fn cargo_run(dir: &Path, path: Option<&OsStr>, quiet: bool) -> Output {
+    let mut cmd = Command::new("cargo");
+    cmd.arg("run").arg("--offline");
+    if quiet {
+        cmd.arg("--quiet");
+    }
+    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    apply_cargo_home(&mut cmd);
+    if let Some(p) = path {
+        cmd.env("PATH", p);
+    }
+    cmd.output().expect("cargo run")
+}
+
+fn assert_build_failed_without_protoc(out: &Output) {
+    let text = dump(out);
+    assert!(
+        !out.status.success(),
+        "consumer must fail without protoc:\n{text}"
+    );
+    assert!(
+        text.contains("failed to run custom build command")
+            || text.contains("compile_protos")
+            || text.contains("codegen")
+            || text.contains("parse error"),
+        "failure should be the build script / protoc path, not a skipped test:\n{text}"
+    );
+}
 
 #[test]
 fn compile_protos_consumer_parses_ada() {
-    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("target")
-        .join("pbrs-build-test");
+    let tmp = repo_root().join("target").join("pbrs-build-test");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(tmp.join("src")).unwrap();
     std::fs::write(
@@ -30,15 +102,20 @@ fn compile_protos_consumer_parses_ada() {
         "syntax = \"proto3\";\npackage pbrsbuild;\nmessage Name { string name = 1; }\n",
     )
     .unwrap();
+    // Messages-only: no service, and stubs explicitly off so a later service
+    // addition cannot silently emit kernel/tonic RPC types.
     std::fs::write(
         tmp.join("build.rs"),
         r#"fn main() {
-    pbrs::codegen::compile_protos(&["name.proto"], &["."]).expect("compile_protos");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(&["name.proto"], &["."])
+        .expect("compile_protos");
 }
 "#,
     )
     .unwrap();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = repo_root();
     std::fs::write(
         tmp.join("Cargo.toml"),
         format!(
@@ -61,22 +138,27 @@ fn main() {
 "#,
     )
     .unwrap();
-    let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
-    build
-        .arg("run")
-        .arg("--offline")
-        .arg("--quiet")
-        .current_dir(&tmp);
-    if let Some(h) = cargo_home {
-        build.env("CARGO_HOME", h);
-    }
-    let run = build.output().expect("cargo run pbrs-build consumer");
+
+    let no_protoc = path_without_protoc();
+    assert!(
+        std::env::split_paths(&no_protoc).any(|d| d.join("cargo").exists()),
+        "PATH filter dropped cargo"
+    );
+    assert!(
+        !path_has_protoc(&no_protoc),
+        "filtered PATH still has protoc"
+    );
+    assert!(
+        !env_protoc_runs(&no_protoc),
+        "protoc still runs on the filtered PATH"
+    );
+    assert_build_failed_without_protoc(&cargo_run(&tmp, Some(&no_protoc), false));
+
+    let run = cargo_run(&tmp, None, true);
     assert!(
         run.status.success(),
-        "pbrs-build consumer failed:\n{}\n{}",
-        String::from_utf8_lossy(&run.stdout),
-        String::from_utf8_lossy(&run.stderr)
+        "pbrs-build consumer failed:\n{}",
+        dump(&run)
     );
     let out = String::from_utf8_lossy(&run.stdout);
     assert_eq!(out.trim(), "ada");
