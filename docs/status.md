@@ -8,8 +8,8 @@ Classification against committed source:
 - **Shipped:** the Verified list and the Distinct notes below. Not a
   production certification.
 - **Unfinished:** [TODO.md](../TODO.md) and the
-  [leadership plan](ROADMAP.md). Remaining GR-02 CI/release gates are
-  still open. No arena views, Edition 2024, xDS,
+  [leadership plan](ROADMAP.md). GR-01 and GR-02 are checked off there.
+  No arena views, Edition 2024, xDS,
   application retries, hedging, channelz, binary logging, or grpc.stats /
   OpenTelemetry. `name_80` leftover remains. Field-wise WKT JSON/text is
   not closed.
@@ -17,8 +17,8 @@ Classification against committed source:
   those diffs. `#34` already landed; `#39` flatten and `#57` heap-copy
   did not.
 - **Missing evidence:** recorded CI/conformance/interop numbers are
-  historical results, not GR-03+ qualification. Linux CI did not cover
-  macOS source bind.
+  historical results, not GR-03+ qualification. macOS source-bind is in
+  the required `macos` job; that does not qualify GR-03+.
 
 The macOS `127.0.0.2` source-bind failure (OS error 49 /
 `AddrNotAvailable` at
@@ -33,11 +33,13 @@ listen+accept proof. Bind failure is not treated as success.
 
 - `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
   and `cargo test --workspace` pass.
-- CI on `main` runs fmt, clippy, tests, and official conformance
-  (`./scripts/conformance.sh`: required ×2 and recommended, v35.1, cmake
-  protoc from the pin, not system, no skip list). The `test` job still
-  apt-installs `protobuf-compiler` for the plugin and protobuf-tonic
-  `build.rs`.
+- CI on `main` / PRs (and on the release SHA via `workflow_call`) runs
+  fmt, clippy, tests, docs `-D warnings`, official conformance, grpc-interop,
+  `msrv-core` (rustc 1.85 `--lib` for `pbrs` and `pbrs-grpc`), `msrv-tonic`
+  (rustc 1.88 `protobuf-tonic`), macOS `tcp::tests` + onboarding,
+  isolated `package_consumer` unpacks, and generated-output drift. The
+  `test` job still apt-installs `protobuf-compiler` for the plugin and
+  adapter `build.rs`.
 - Conformance v35.1 (`--maximum_edition 2023`, `protoc` hidden / vendored
   FDS): required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
   `--enforce_recommended`: same. No skip list. Empty-FDS hole was closed
@@ -1190,8 +1192,7 @@ notes above document shipped behavior and explicit omissions; they are
 not an open work queue. Still not done: arena views, Edition 2024,
 `name_80` leftover, xDS, application retries, hedging, channelz, binary
 logging, grpc.stats / OpenTelemetry, remaining WKT field-wise JSON/text,
-and GR-01 / remaining GR-02 gates. Do not treat a clean checkout as
-production certification.
+and GR-03+. Do not treat a clean checkout as production certification.
 
 ## Skipped rust/test/shared files
 
@@ -1205,9 +1206,9 @@ production certification.
 
 ## Publish
 
-`pbrs` is registry-ready (`cargo publish -p pbrs --dry-run` on
-crates.io). Live upload is not done from this tree. Do not publish as
-`protobuf`. Nearby name `pb-rs` is quick-protobuf. `protobuf-tonic`
-keeps a path (git until a registry version exists) dependency on `pbrs`;
-`cargo publish -p protobuf-tonic` cannot succeed until that version
-exists.
+The only publisher is [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+(`v*` tags or confirmed dispatch after required CI on that SHA). `main`
+pushes do not publish. Credential: repository secret `CRATES_IO_TOKEN`
+(`CARGO_REGISTRY_TOKEN`). Not Trusted Publishing (`id-token: write` is
+not set). See [RELEASE.md](RELEASE.md). Do not publish as `protobuf`.
+Nearby name `pb-rs` is quick-protobuf.
