@@ -42,11 +42,15 @@ pbrs = "0.1"
 
 ### 2. Code Generation (`build.rs`)
 
-Generate Tonic service stubs using `pbrs`:
+Generate Tonic service stubs using `pbrs`. Default `compile_protos` emits
+native `pbrs-grpc` kernel stubs; tonic users must opt in. Generated messages
+implement `Parse` / `Serialize`, not `prost::Message`.
 
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])?;
+    pbrs::codegen::Config::new()
+        .emit_tonic_stubs(true)
+        .compile_protos(&["proto/hello.proto"], &["proto"])?;
     Ok(())
 }
 ```

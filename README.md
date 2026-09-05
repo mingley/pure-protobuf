@@ -51,9 +51,8 @@ pbrs = "0.1"
 Generating code from `.proto` files requires `protoc` on your `PATH`.
 Building the core crate alone uses a bundled descriptor set and does not
 require it. The gRPC crates currently run code generation in their own build
-scripts, so their builds also require `protoc`. A tested minimum-version
-matrix is [planned](docs/ROADMAP.md#gr-01-make-the-supported-contract-and-onboarding-executable);
-there is no enforced universal `protoc` version check today.
+scripts, so their builds also require `protoc`. There is no enforced
+universal `protoc` version; see the [support matrix](#support-matrix).
 
 ### Option A: Using `build.rs` (Recommended)
 
@@ -163,6 +162,27 @@ For a complete end-to-end example with service stubs, gRPC health checking (`grp
 
 ---
 
+## Support matrix
+
+Recorded against this repository on stable `rustc` 1.98. Declared
+`rust-version` is not the same as a tested toolchain. There is no claimed
+universal minimum `protoc`.
+
+| Crate | Declared MSRV | Tested here | `protoc` | Stub default |
+|---|---|---|---|---|
+| [`pbrs`](.) | 1.85 | rustc 1.98 (stable) | Not required to **build** the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (stable) | Required (`build.rs` calls `compile_protos`) | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (stable) | Required (`build.rs` calls `compile_protos`) | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`examples/greeter`](examples/greeter) | 1.85 | rustc 1.98 (stable) | Required | Native kernel default |
+
+**Untested / unsupported** (not a support commitment):
+
+- Declared MSRVs (Rust 1.85 core/native, 1.88 tonic) are not executed in this environment.
+- tonic 0.12 and 0.13 are **unsupported**.
+- Edition 2024 is **untested**.
+- Windows CI is **untested**.
+- Linux/macOS coverage beyond this host is a remaining [GR-02](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract) gate.
+
 ## Choosing a Stack
 
 Use the [upb comparison](docs/upb.md) for API and representation differences,
@@ -201,7 +221,8 @@ Run the conformance suite locally:
 - [Benchmarks & Performance](docs/benchmarks.md) — Unary, streaming, and throughput measurements.
 - [Implementation Status](docs/status.md) — Supported features, conformance breakdown, and roadmap.
 - [Native gRPC Kernel Guide](docs/grpc.md) — In-depth guide to building microservices with `pbrs-grpc`.
-- [Tonic Adapter Guide](protobuf-tonic/README.md) — Using `pbrs` with tonic 0.14+.
+- [Tonic Adapter Guide](protobuf-tonic/README.md) — Using `pbrs` with tonic 0.14+ (`emit_tonic_stubs(true)`).
+- [Support matrix](#support-matrix) — Declared MSRV vs tested toolchain, `protoc` requirements, stub defaults, untested/unsupported cases.
 - [Release Policy & Publishing](docs/RELEASE.md) — Automated crates.io publication workflows and tag conventions.
 - [Implementation Plan & Scorecard](docs/ROADMAP.md) — Ordered work packages for compatibility, reliability, operational readiness and measurable performance leadership.
 - [Execution Queue](TODO.md) — First PRs, dependencies and evidence required to close each item.

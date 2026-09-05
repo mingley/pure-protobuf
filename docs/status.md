@@ -8,8 +8,8 @@ Classification against committed source:
 - **Shipped:** the Verified list and the Distinct notes below. Not a
   production certification.
 - **Unfinished:** [TODO.md](../TODO.md) and the
-  [leadership plan](ROADMAP.md). First-slice GR-01 and remaining GR-02
-  CI/release gates are still open. No arena views, Edition 2024, xDS,
+  [leadership plan](ROADMAP.md). Remaining GR-02 CI/release gates are
+  still open. No arena views, Edition 2024, xDS,
   application retries, hedging, channelz, binary logging, or grpc.stats /
   OpenTelemetry. `name_80` leftover remains. Field-wise WKT JSON/text is
   not closed.
