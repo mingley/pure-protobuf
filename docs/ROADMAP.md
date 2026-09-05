@@ -28,6 +28,28 @@ planning pass, and source coverage is not evidence of a successful deployment.
 | Performance | [Benchmarks](benchmarks.md) include codec and transport harnesses, scoped wins, losses, and host-specific results. | Loopback/shared-runtime tests and best-of-short-window rates do not establish network, multicore or production tail-latency leadership. |
 | Releases | [Release-plz](../.github/workflows/release-plz.yml) and [manual/tag release](../.github/workflows/release.yml) can publish independently. | Release-plz is not ordered after the separate CI workflow; manual publication hardcodes the core index probe. [Release guide](RELEASE.md) is stale. |
 
+### Resume from the frozen work, not from assumed completion
+
+Earlier implementation work and notes were interrupted. Reconcile
+[status notes](status.md) and [experiment inventories](inventory/README.md)
+with committed code before reopening an item: distinguish shipped behavior,
+unfinished experiments, discarded approaches and missing evidence. Assign each
+remaining item explicitly. An interrupted handoff does not mean every feature
+is broken, and an old "done" note is not a current qualification result.
+
+One concrete recovery item is already reproducible. On 2026-09-04, at
+documentation commit
+[fa48d599](https://github.com/mingley/pure-protobuf/commit/fa48d599b3fdd797d53fff98647dea25a601aae3),
+`cargo test -p pbrs-grpc --lib tcp::tests -- --nocapture` on macOS produced two
+passes and one failure: `connect_bound_source_is_the_loopback_alias` returned
+OS error 49, `AddrNotAvailable`, while binding `127.0.0.2`. The
+[Linux CI run](https://github.com/mingley/pure-protobuf/actions/runs/33938031483)
+on the audited baseline passed; it does not cover that macOS failure.
+
+Start GR-02 with this platform proof and an inventory of any other required-lane
+failures. Preserve the source-binding assertion, and do not infer readiness
+from a clean checkout or successful release automation.
+
 ## Product scope and promotion
 
 | Profile | Intended adoption boundary | Promotion requirements |
@@ -89,7 +111,8 @@ current `protoc` requirement are independently exercised.
 
 ### GR-02: Make CI and releases enforce the contract
 
-**Priority:** P0. **Depends on:** GR-01's initial matrix.
+**Priority:** P0, recovery first. **Depends on:** none for baseline recovery;
+GR-01's initial matrix for the remaining support and package gates.
 
 1. Test declared Rust 1.85 core/native and Rust 1.88 tonic minimums separately,
    stable Rust, Linux and macOS; add other targets only with a named support
@@ -330,10 +353,12 @@ maintainer capacity and a proof plan; not universal production blockers.
 
 ## Execution and proof discipline
 
-Start with three small PRs: **GR-01** executable quickstarts/support matrix,
-**GR-02** release/package/platform gates, then **GR-03** pinned, fail-closed
-interop. GR-04/05/08 and GR-09 can follow in parallel once contracts are stable.
-Only then expand discovery/retries or tune performance against the baseline.
+Start with three small PRs: the **GR-02 recovery slice** for frozen-work
+reconciliation and failing baseline tests, **GR-01** executable
+quickstarts/support matrix, then the remaining **GR-02** release/package/platform
+gates. Next make **GR-03** interop pinned and fail-closed. GR-04/05/08 and GR-09
+can follow in parallel once contracts are stable. Only then expand
+discovery/retries or tune performance against the baseline.
 
 Existing entry points below are useful building blocks, **not commands that
 already prove this entire plan**. Run from the repo root; conformance and interop

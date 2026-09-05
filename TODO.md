@@ -11,14 +11,15 @@ starting points, not completion of the larger qualification packages.
 
 ## First three PRs
 
+- [ ] [GR-02 recovery slice](docs/ROADMAP.md#resume-from-the-frozen-work-not-from-assumed-completion). Reconcile interrupted experiments and status notes with committed source, assign unfinished work, and repair the reproduced macOS source-bind test without weakening its assertion.
 - [ ] [GR-01: Executable onboarding and support matrix](docs/ROADMAP.md#gr-01-make-the-supported-contract-and-onboarding-executable). Compile messages/native/tonic examples as external consumers, fix tonic stub selection and document actual build dependencies. Record supported versus untested versions.
-- [ ] [GR-02: CI and release gates](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract). Test declared MSRVs and Linux/macOS, preserve the source-bind assertion, isolate package consumers, select one CI-gated publisher and reconcile the release guide.
-- [ ] [GR-03: Required cross-peer evidence](docs/ROADMAP.md#gr-03-extend-compatibility-evidence-instead-of-counting-self-tests). Pin grpc-go, fail missing required passes, preserve failure logs and add the next independent peer.
+- [ ] [GR-02 remaining CI and release gates](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract). Test declared MSRVs and Linux/macOS, isolate package consumers, select one CI-gated publisher and reconcile the release guide.
 
 ## Qualify a bounded production profile
 
 | Done | Work package | Depends on | Completion evidence |
 |---|---|---|---|
+| [ ] | [GR-03: Required cross-peer evidence](docs/ROADMAP.md#gr-03-extend-compatibility-evidence-instead-of-counting-self-tests) | GR-01 | Pinned grpc-go, no missing required passes, retained failure logs and the next independent peer. |
 | [ ] | [GR-04: Parser/codegen hardening](docs/ROADMAP.md#gr-04-harden-protobuf-parsing-and-generated-code-evolution) | GR-01, reference pins from GR-03 | Differential fixtures, sustained fuzz results, unsafe-invariant review and generated/runtime compatibility matrix. |
 | [ ] | [GR-05: Failure and overload](docs/ROADMAP.md#gr-05-prove-transport-behavior-under-failure-and-overload) | GR-01, GR-03 | Seeded call histories, transport failure matrix, bounded resource model and cancellation/drain cleanup. |
 | [ ] | [GR-08: Operations and maintenance](docs/ROADMAP.md#gr-08-make-the-stack-operable-and-maintainable) | GR-01 | Telemetry/redaction tests, TLS/shutdown recipes, dependency policy and incident exercise. |
