@@ -1,19 +1,24 @@
 [package]
 name = "protobuf-tonic"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2021"
 rust-version = "1.88"
-publish = false
 license = "MIT OR Apache-2.0"
-description = "tonic 0.14+ Codec over pbrs (not tonic-prost; kernel stays tonic-free)"
+description = "tonic 0.14+ Codec and code generator stubs over pbrs (preview / pre-release)"
+repository = "https://github.com/mingley/pure-protobuf"
+documentation = "https://docs.rs/protobuf-tonic/"
+readme = "README.md"
+keywords = ["tonic", "grpc", "protobuf", "pbrs", "codec"]
+categories = ["network-programming", "asynchronous"]
 
 [build-dependencies]
-pbrs = { path = ".." }
+pbrs = { version = "0.1.0", path = ".." }
 
 [dependencies]
 bytes = "1"
 http = "1"
-pbrs = { path = ".." }
+pbrs = { version = "0.1.0", path = ".." }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router", "gzip"] }

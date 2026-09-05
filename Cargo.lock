@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "pbrs-grpc"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 dependencies = [
  "base64",
  "bytes",
@@ -551,7 +551,7 @@ dependencies = [
 
 [[package]]
 name = "protobuf-tonic"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 dependencies = [
  "bytes",
  "futures-util",

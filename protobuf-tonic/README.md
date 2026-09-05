@@ -1,5 +1,12 @@
 # protobuf-tonic
 
+> ⚠️ **Pre-Release Notice**: `protobuf-tonic` is currently in **preview / pre-release (`0.1.0-alpha.1`)** and is **not yet production ready**.
+>
+> ### Known Gaps & Roadmap (TBD)
+> - **OK-Path Custom Trailers**: Tonic 0.14 does not expose custom trailers on successful responses (`Response` lacks a `trailers()` accessor); custom trailing metadata is only delivered on error statuses.
+> - **Tonic Ecosystem Trait Boundaries**: `pbrs` message types implement Google protobuf v4 application traits (`Parse` / `Serialize`), not `prost::Message`. Existing middleware or tower layers expecting `prost::Message` are incompatible.
+> - **Version Support**: Strictly targets Tonic 0.14+. Older versions (0.12, 0.13) are unsupported.
+
 A [tonic 0.14+](https://crates.io/crates/tonic) `Codec` adapter and code generator stubs over `pbrs` message types (`Parse` / `Serialize`).
 
 `protobuf-tonic` allows you to build standard Tonic gRPC services and clients using `pbrs` pure-Rust protobuf messages instead of `prost`.

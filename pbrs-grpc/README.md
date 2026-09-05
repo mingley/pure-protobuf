@@ -1,5 +1,13 @@
 # pbrs-grpc
 
+> ⚠️ **Pre-Release Notice**: `pbrs-grpc` is currently in **preview / pre-release (`0.1.0-alpha.1`)** and is **not yet production ready**.
+>
+> ### Known Gaps & Roadmap (TBD)
+> - **Client-Side Name Resolution & Load Balancing**: No DNS resolver or xDS integration; dials single authorities directly (`host:port`).
+> - **Application-Level Retries & Hedging**: Connection loss transparently redials once for unary and server-streaming, but configurable retry policies and hedging are TBD.
+> - **HTTP CONNECT Proxy**: Dials TCP directly; HTTP proxy traversal is not supported.
+> - **Platform Loopback Configuration**: macOS and BSD require explicit interface configuration for loopback aliases (e.g., `127.0.0.2`).
+
 A pure-Rust gRPC kernel over [pbrs](../README.md). No `unsafe` in the kernel,
 no C or C++ compiled into the build, no tonic. TLS uses rustls with Graviola
 (rustc only; no `aws-lc-rs` or `ring`).

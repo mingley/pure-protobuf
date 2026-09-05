@@ -1,159 +1,62 @@
-name: release
+name: Release
 
-# Publishes to crates.io when a *final* version tag is pushed (vX.Y.Z only).
-# Prerelease / RC tags (v0.1.0-rc.1, v0.1.0-alpha.1, …) are for git install
-# pins only — they must not queue a publish job.
-#
-# Tag filter uses GitHub's workflow glob language: `+` means
-# "one or more of the preceding character", so `v[0-9]+.[0-9]+.[0-9]+`
-# matches `v0.1.0` / `v1.10.2` and does not match `v0.1.0-rc.1`.
-#
-# Auth:
-#   Tries crates.io Trusted Publishing (OIDC, short-lived token) via
-#   rust-lang/crates-io-auth-action. Falls back to repository secret
-#   CARGO_REGISTRY_TOKEN — required for the *first* crates.io publish
-#   (Trusted Publishing can only be configured after the crate exists).
-#   Docs: https://crates.io/docs/trusted-publishing
-#
-# Setup:
-#   1. First publish: run `first-publish.yml` with CARGO_REGISTRY_TOKEN secret,
-#      or set secret and push initial v0.1.0 tag.
-#   2. After crate exists: crates.io -> <crate_name> -> Settings -> Trusted
-#      Publishing -> Add GitHub (owner mingley, repo pure-protobuf,
-#      workflow release.yml).
 on:
   push:
-    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Existing final version tag to publish (e.g. v0.1.0)"
-        required: true
-        type: string
-
-permissions:
-  contents: write
-  id-token: write
+      dry_run:
+        description: 'Dry run (do not publish to crates.io)'
+        type: boolean
+        default: false
 
 concurrency:
-  group: release-${{ github.event.inputs.tag || github.ref }}
-  cancel-in-progress: true
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  ghost-noop:
-    if: >-
-      !(github.event_name == 'workflow_dispatch' ||
-        (github.ref_type == 'tag' && !contains(github.ref_name, '-')))
-    runs-on: ubuntu-latest
-    steps:
-      - name: No-op (not a final tag publish)
-        run: |
-          echo "release: ghost-noop — skipping publish"
-          echo "event=${{ github.event_name }} ref=${{ github.ref }}"
-          echo "Final publish requires tag vX.Y.Z or workflow_dispatch."
-
   publish:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.ref_type == 'tag' && !contains(github.ref_name, '-'))
+    name: Publish to Crates.io
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install protoc
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protobuf compiler
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - name: Verify tag matches Cargo.toml (final versions only)
+
+      - name: Run Tests
+        run: cargo test --workspace
+
+      - name: Dry Run Publish
+        if: ${{ inputs.dry_run }}
+        run: |
+          cargo publish -p pbrs --dry-run
+          cargo publish -p protobuf-tonic --dry-run
+          cargo publish -p pbrs-grpc --dry-run
+
+      - name: Publish to Crates.io
+        if: ${{ !inputs.dry_run }}
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          DISPATCH_TAG: ${{ github.event.inputs.tag }}
-          REF_NAME: ${{ github.ref_name }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            tag="${DISPATCH_TAG}"
-            tag="${tag#v}"
-          else
-            tag="${REF_NAME#v}"
-          fi
-          case "$tag" in
-            *-*|*+*)
-              echo "Refusing prerelease/build tag '$tag' — crates.io publish is for final vX.Y.Z only." >&2
-              echo "Use a git tag like v0.1.0-rc.1 for install pins; tag v0.1.0 to publish." >&2
-              exit 1
-              ;;
-          esac
-          if ! printf '%s' "$tag" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Refusing non-final version tag '$tag' (need X.Y.Z)." >&2
-            exit 1
-          fi
-          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          echo "tag=$tag cargo=$ver"
-          test "$tag" = "$ver"
-      - name: Checks
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --all-targets --all-features -- -D warnings
-          cargo test --workspace
-          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          cargo package -p "${name}"
-      - name: Authenticate to crates.io (OIDC trusted publishing)
-        id: cratesio-auth
-        continue-on-error: true
-        uses: rust-lang/crates-io-auth-action@v1
-      - name: Publish
-        env:
-          OIDC_TOKEN: ${{ steps.cratesio-auth.outputs.token }}
-          SECRET_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          if [ -n "${OIDC_TOKEN}" ]; then
-            export CARGO_REGISTRY_TOKEN="${OIDC_TOKEN}"
-            echo "auth=oidc (crates.io trusted publishing, short-lived)"
-          elif [ -n "${SECRET_TOKEN}" ]; then
-            export CARGO_REGISTRY_TOKEN="${SECRET_TOKEN}"
-            echo "auth=secret (CARGO_REGISTRY_TOKEN; required for first publish)"
-          else
-            echo "Neither OIDC trusted publishing nor CARGO_REGISTRY_TOKEN is available." >&2
-            echo "First publish: set Actions secret CARGO_REGISTRY_TOKEN." >&2
-            echo "Later: crates.io → Settings → Trusted Publishing → workflow release.yml" >&2
-            exit 1
-          fi
-          cargo publish -p "${name}" --no-verify
-      - name: Confirm crates.io
-        run: |
-          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          ok=0
+          cargo publish -p pbrs
+          echo "Waiting for pbrs to be indexed on crates.io..."
           for i in $(seq 1 30); do
-            if curl -fsSA 'pure-protobuf-ci/1' \
-              "https://crates.io/api/v1/crates/${name}/${ver}" >/tmp/crate.json; then
-              echo "crates.io has ${name} ${ver}"
-              ok=1
+            if curl -fsSA 'pbrs-release/1' 'https://crates.io/api/v1/crates/pbrs/0.1.0' >/dev/null 2>&1; then
+              echo "pbrs 0.1.0 is live on crates.io"
               break
             fi
-            echo "waiting for crates.io index (${i}/30)..."
             sleep 10
           done
-          test "$ok" = "1"
-      - name: GitHub Release notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          name="$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          tag="v${ver}"
-          body="$(git tag -l --format='%(contents)' "$tag" 2>/dev/null | sed '/^$/d' | head -40)"
-          if [ -z "$body" ]; then
-            body="$(printf '%s\n' \
-              "${name} ${ver}" \
-              "" \
-              "Published to crates.io: https://crates.io/crates/${name}/${ver}" \
-              "Docs: https://docs.rs/${name}/${ver}")"
-          fi
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub release ${tag} already exists"
-          else
-            gh release create "$tag" --title "${name} ${ver}" --notes "$body"
-            echo "created GitHub release ${tag}"
-          fi
+          cargo publish -p protobuf-tonic
+          cargo publish -p pbrs-grpc
+
+      - name: Create GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

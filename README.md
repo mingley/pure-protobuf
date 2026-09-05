@@ -24,9 +24,9 @@ A high-performance, pure-Rust Protocol Buffers kernel with the Google protobuf v
 
 | Crate | Description | crates.io Status |
 |---|---|---|
-| [`pbrs`](.) | The core Protocol Buffers kernel: parser, serializer, codegen (`protoc-gen-pbrs`), dynamic messages, WKT, and JSON/text format. | **Ready for publication** |
-| [`pbrs-grpc`](pbrs-grpc) | A standalone, pure-Rust HTTP/2 gRPC client and server kernel (no C, no tonic). Built on `rustls` + `Graviola`. | Internal / Path-dependent |
-| [`protobuf-tonic`](protobuf-tonic) | A tonic 0.14+ `Codec` adapter allowing tonic servers and clients to use `pbrs` message types. | Internal / Path-dependent |
+| [`pbrs`](.) | The core Protocol Buffers kernel: parser, serializer, codegen (`protoc-gen-pbrs`), dynamic messages, WKT, and JSON/text format. | `0.1.0` (Production Ready) |
+| [`pbrs-grpc`](pbrs-grpc) | A standalone, pure-Rust HTTP/2 gRPC client and server kernel (no C, no tonic). Built on `rustls` + `Graviola`. | `0.1.0-alpha.1` (Pre-release / Preview) |
+| [`protobuf-tonic`](protobuf-tonic) | A tonic 0.14+ `Codec` adapter allowing tonic servers and clients to use `pbrs` message types. | `0.1.0-alpha.1` (Pre-release / Preview) |
 | [`examples/greeter`](examples/greeter) | A complete working example showing generated stubs, health checks, and server reflection. | Example only (`publish = false`) |
 
 ---
