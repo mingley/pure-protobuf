@@ -1,46 +1,20 @@
+# WHY: a main-push job with CRATES_IO_TOKEN ran release-plz/action@v0.5
+# without `command: release-pr`, which publishes crates. Incremental main
+# pushes must not publish. The only publisher is release.yml (v* tags or
+# confirmed workflow_dispatch). This workflow is kept as a disabled stub so
+# the old name cannot be re-enabled with a token by accident.
 name: Release-plz
 
 on:
-  push:
-    branches:
-      - main
-
-concurrency:
-  group: release-plz-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_dispatch:
 
 jobs:
   release-plz:
-    name: Release-plz
+    name: Disabled — does not publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install protobuf compiler
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
-
-      - name: Run release-plz (release PR only if token is not set)
-        if: env.CARGO_REGISTRY_TOKEN == ''
-        uses: release-plz/action@v0.5
-        with:
-          command: release-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run release-plz (release and publish when token is set)
-        if: env.CARGO_REGISTRY_TOKEN != ''
-        uses: release-plz/action@v0.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Refuse to publish
+        run: |
+          echo "::error::release-plz is disabled. It published on every main push when CRATES_IO_TOKEN was set."
+          echo "Use .github/workflows/release.yml after required CI (v* tag or confirmed dispatch)."
+          exit 1
