@@ -1,33 +1,48 @@
-# TODO: Production Readiness Ramp
+# Execution queue
 
-Prioritized task tracker for production readiness across the `pure-protobuf` workspace.
+The [protobuf and gRPC leadership plan](docs/ROADMAP.md) defines scope,
+dependencies and acceptance evidence. This checklist schedules that work; it
+does not repeat a feature-parity inventory or claim the current crates are
+production-certified.
 
----
+**Coordinator:** Michael Ingley. **Implementers/reviewers:** unassigned until
+claimed. All items are open; existing code and historical test results are
+starting points, not completion of the larger qualification packages.
 
-## High Priority (P0: Required for Beta / Initial Production)
+## First three PRs
 
-- [ ] **`pbrs-grpc`**: Implement asynchronous DNS name resolution for client channels (`dns:///` resolver).
-- [ ] **`pbrs-grpc`**: Implement basic client-side load balancing (`pick_first` and `round_robin` across resolved addresses).
-- [ ] **`pbrs-grpc`**: Fix platform-specific loopback test (`127.0.0.2` on macOS/BSD) by binding to ephemeral ports on `127.0.0.1`.
-- [ ] **`pbrs`**: Add derive option for `serde::Serialize` / `serde::Deserialize` in `pbrs::codegen`.
-- [ ] **`protobuf-tonic`**: Provide prost migration guide and compatibility shim for hybrid services.
+- [ ] [GR-01: Executable onboarding and support matrix](docs/ROADMAP.md#gr-01-make-the-supported-contract-and-onboarding-executable). Compile messages/native/tonic examples as external consumers, fix tonic stub selection and document actual build dependencies. Record supported versus untested versions.
+- [ ] [GR-02: CI and release gates](docs/ROADMAP.md#gr-02-make-ci-and-releases-enforce-the-contract). Test declared MSRVs and Linux/macOS, preserve the source-bind assertion, isolate package consumers, select one CI-gated publisher and reconcile the release guide.
+- [ ] [GR-03: Required cross-peer evidence](docs/ROADMAP.md#gr-03-extend-compatibility-evidence-instead-of-counting-self-tests). Pin grpc-go, fail missing required passes, preserve failure logs and add the next independent peer.
 
----
+## Qualify a bounded production profile
 
-## Medium Priority (P1: Robustness & Scale)
+| Done | Work package | Depends on | Completion evidence |
+|---|---|---|---|
+| [ ] | [GR-04: Parser/codegen hardening](docs/ROADMAP.md#gr-04-harden-protobuf-parsing-and-generated-code-evolution) | GR-01, reference pins from GR-03 | Differential fixtures, sustained fuzz results, unsafe-invariant review and generated/runtime compatibility matrix. |
+| [ ] | [GR-05: Failure and overload](docs/ROADMAP.md#gr-05-prove-transport-behavior-under-failure-and-overload) | GR-01, GR-03 | Seeded call histories, transport failure matrix, bounded resource model and cancellation/drain cleanup. |
+| [ ] | [GR-08: Operations and maintenance](docs/ROADMAP.md#gr-08-make-the-stack-operable-and-maintainable) | GR-01 | Telemetry/redaction tests, TLS/shutdown recipes, dependency policy and incident exercise. |
+| [ ] | [GR-09: Comparable benchmarks](docs/ROADMAP.md#gr-09-build-a-credible-comparative-benchmark-system) | GR-01 | Reproducible codec/transport/end-to-end baseline with equivalent semantics, offered load, tail latency, CPU and memory. |
+| [ ] | [GR-11: Adoption and API stability](docs/ROADMAP.md#gr-11-promote-narrowly-then-stabilize-the-public-api) | Applicable profile gates | Two adopter records, 24-hour and 7-day exercises, rollback proof, supported-version policy and per-crate signoff. |
 
-- [ ] **`pbrs-grpc`**: Implement gRPC Service Config retries (`retryPolicy` with backoff and jitter).
-- [ ] **`pbrs-grpc`**: Add outbound HTTP `CONNECT` proxy support (`HTTP_PROXY` / `HTTPS_PROXY`).
-- [ ] **`pbrs-grpc`**: Add OpenTelemetry tracing instrumentation to `Server` and `Channel`.
-- [ ] **`pbrs`**: Implement Protobuf Edition 2024 features and syntax extensions.
-- [ ] **`pbrs`**: Optimize field-wise JSON/Text formatters for `Any`, `Struct`, and `Value`.
-- [ ] **CI**: Add automated cross-language interop matrix running continuously against Go and C++ gRPC reference implementations in GitHub Actions.
+Core protobuf and the tonic adapter do not depend on native discovery/retry
+features. A benchmark win is not required for a narrow production profile;
+correctness, bounded behavior and usable evidence are.
 
----
+## Expand and compete
 
-## Low Priority (P2: Enhancements & Extensions)
+- [ ] [GR-06: Dynamic endpoint management](docs/ROADMAP.md#gr-06-add-dynamic-endpoint-management-as-a-distinct-capability), after GR-05: resolver lifecycle, `pick_first` then `round_robin`, TLS identity and churn/recovery proof.
+- [ ] [GR-07: Explicit retry policy](docs/ROADMAP.md#gr-07-make-resilience-policy-safe-and-explicit), after GR-05 (and GR-06 for cross-endpoint retry): commitment/replay rules, bounded attempts, pushback, cancellation and no arbitrary stream replay.
+- [ ] [GR-10: Profile-driven optimization](docs/ROADMAP.md#gr-10-optimize-the-measured-limiting-path), after GR-04/05/09: one explained change per PR, multi-host reruns, no hidden correctness or p99 regression.
+- [ ] [GR-12: Demand-led scope decisions](docs/ROADMAP.md#gr-12-expand-scope-only-with-a-demonstrated-need): Edition 2024, WKT/Serde, views/no_std, xDS, proxies, gRPC-Web and hedging each need an adopter, boundary and proof plan.
 
-- [ ] **`pbrs`**: Support `no_std` + `alloc` for embedded and WebAssembly targets.
-- [ ] **`pbrs-grpc`**: Support gRPC-Web protocol framing for browser clients.
-- [ ] **`pbrs-grpc`**: Add request hedging for p99 latency reduction.
-- [ ] **Docs**: Create complete microservice tutorials featuring authentication, TLS, reflection, and health checking.
+## How to close an item
+
+Add the implementing PR and evidence link alongside the checkbox. Record
+implementer, reviewer, exact source/toolchain/peer versions, commands, artifact
+location, observed metrics and remaining exclusions. Split partial work into
+sub-PRs but leave the parent open until its acceptance criteria hold.
+
+At each milestone, review the plan's proposed targets before starting the next
+exercise. Do not silently move thresholds, infer production readiness from a
+crates.io upload, or schedule a version/date before the applicable gates close.
