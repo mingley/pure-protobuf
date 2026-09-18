@@ -224,7 +224,9 @@ Run the conformance suite locally:
 - [Support matrix](#support-matrix) — Declared MSRV vs tested toolchain, `protoc` requirements, stub defaults, untested/unsupported cases.
 - [Release Policy & Publishing](docs/RELEASE.md) — Tag/dispatch crates.io publisher, required CI, `CRATES_IO_TOKEN` (not Trusted Publishing).
 - [Implementation Plan & Scorecard](docs/ROADMAP.md) — Ordered work packages for compatibility, reliability, operational readiness and measurable performance leadership.
-- [Execution Queue](TODO.md) — First PRs, dependencies and evidence required to close each item.
+- [Granular Execution Plan](docs/plan/README.md) — Current gaps, official-suite pins, Rust-only boundaries, separate client/server performance goals, and bounded task assignments.
+- [Task Cards](docs/plan/tasks.json) — Dependency-linked implementation, design and qualification work with file scopes, acceptance criteria and check references.
+- [Execution Queue](TODO.md) — Delivered foundations, next assignments and milestone exit gates.
 
 ---
 

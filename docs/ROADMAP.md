@@ -6,14 +6,20 @@ resource use, low tail latency, and a straightforward development experience.
 current release. A faster codec does not by itself make a better RPC system.
 
 This is an implementation plan, not a production certification or a promise of
-release dates. [TODO.md](../TODO.md) is the execution queue. All work packages
-below remain open until their acceptance evidence is linked there.
+release dates. [TODO.md](../TODO.md) is the milestone queue. The
+[granular execution plan](plan/README.md) contains the current gap assessment,
+official-suite source map and small-executor contract;
+[task cards](plan/tasks.json) are authoritative for dependencies and leaf-task
+status. Completed foundation slices stay done; larger qualification claims
+still require their own evidence.
 
 ## Starting point and evidence
 
-Source review baseline: [9d6f211a](https://github.com/mingley/pure-protobuf/tree/9d6f211ac258e2791e252c27acb3a848b2826f5c),
-2026-09-04. File links below follow the current checkout; use that revision to
-reproduce the baseline. Recorded measurements are not new results from this
+Source review baseline: [139af0c2](https://github.com/mingley/pure-protobuf/tree/139af0c2559ebc36ecae86c647482a758dff4d64),
+reviewed 2026-09-18. File links below follow the current checkout; use that
+revision to reproduce the baseline. Its
+[2026-09-05 CI run](https://github.com/mingley/pure-protobuf/actions/runs/33948308400)
+passed all eight jobs. Recorded measurements are not new results from this
 planning pass, and source coverage is not evidence of a successful deployment.
 
 | Area | What exists | What still needs proof or work |
@@ -24,9 +30,11 @@ planning pass, and source coverage is not evidence of a successful deployment.
 | Discovery | [TCP dialing](../pbrs-grpc/src/tcp.rs) resolves hostnames. `Target` takes `host:port`; connection pools serve one authority. | Resolver URI support, endpoint refresh and multi-endpoint balancing are different capabilities and are not implemented. |
 | Cross-language tests | [Interop script](../scripts/grpc-interop.sh) runs self and grpc-go passes; compression cases run against self. | Go is fetched without a version pin, and unavailable Go/fetch/build paths exit successfully after a skip. Required CI must distinguish missing evidence from a pass. |
 | Parser safety tests | [fuzz_parse.rs](../tests/fuzz_parse.rs) feeds four fixed inputs to two parsers. | This is a corpus smoke test, not a coverage-guided fuzz campaign or memory-safety proof. |
-| Build and onboarding | [Codegen](../src/codegen.rs) defaults to native stubs and invokes `protoc`; core [build.rs](../build.rs) has a bundled descriptor fallback. | Test explicit messages/native/tonic modes, real minimum `protoc` versions, MSRV and fresh package consumers. Both adapter build scripts currently run codegen and need `protoc`. |
+| Build and onboarding | [Fresh consumers](../tests/onboarding.rs), declared-MSRV jobs, unpacked-package tests and explicit stub modes are implemented. Core [build.rs](../build.rs) has a bundled descriptor fallback. | Codegen diagnostics, canonical multi-file identity, transitive rebuild inputs, comments, compatibility/cost matrices and Rust-only generation remain in the CG lane. Both adapter builds still need `protoc`. |
 | Performance | [Benchmarks](benchmarks.md) include codec and transport harnesses, scoped wins, losses, and host-specific results. | Loopback/shared-runtime tests and best-of-short-window rates do not establish network, multicore or production tail-latency leadership. |
-| Releases | [Release-plz](../.github/workflows/release-plz.yml) and [manual/tag release](../.github/workflows/release.yml) can publish independently. | Release-plz is not ordered after the separate CI workflow; manual publication hardcodes the core index probe. [Release guide](RELEASE.md) is stale. |
+| Releases | [release.yml](../.github/workflows/release.yml) is the sole publisher after reusable CI on the exact SHA; release-plz and first-publish are disabled. The [guide](RELEASE.md) is reconciled. | Preserve these delivered gates while GT strengthens fail-closed official evidence. A publishing workflow is not production or performance qualification. |
+| Documentation | Quickstarts and support boundaries exist, but long guides/status pages repeat extensive comparisons and some publication wording is stale. | DX turns these into task-oriented, compiled, linked and user-tested documentation without weakening behavioral tests. |
+| Rust implementation boundary | Shipping TLS/compression select Rust providers; generation invokes `protoc`, and [JSON number parsing](../src/json.rs) calls libc `strtod`. | PB-01 and CG-15 through CG-18 establish an explicit Rust-only runtime/generation profile. External reference tools remain separate test dependencies. |
 
 ### Resume from the frozen work, not from assumed completion
 
@@ -37,18 +45,20 @@ unfinished experiments, discarded approaches and missing evidence. Assign each
 remaining item explicitly. An interrupted handoff does not mean every feature
 is broken, and an old "done" note is not a current qualification result.
 
-One concrete recovery item is already reproducible. On 2026-09-04, at
+One concrete recovery item was reproduced on 2026-09-04, at
 documentation commit
 [fa48d599](https://github.com/mingley/pure-protobuf/commit/fa48d599b3fdd797d53fff98647dea25a601aae3),
 `cargo test -p pbrs-grpc --lib tcp::tests -- --nocapture` on macOS produced two
 passes and one failure: `connect_bound_source_is_the_loopback_alias` returned
 OS error 49, `AddrNotAvailable`, while binding `127.0.0.2`. The
 [Linux CI run](https://github.com/mingley/pure-protobuf/actions/runs/33938031483)
-on the audited baseline passed; it does not cover that macOS failure.
+on that earlier baseline passed; it did not cover the macOS failure.
 
-Start GR-02 with this platform proof and an inventory of any other required-lane
-failures. Preserve the source-binding assertion, and do not infer readiness
-from a clean checkout or successful release automation.
+This recovery slice is now delivered by
+[4e8f3cad](https://github.com/mingley/pure-protobuf/commit/4e8f3cad):
+the accepted peer IP proves source binding without requiring a loopback alias.
+The current required macOS job covers it. Do not reopen the repaired problem
+from stale notes, or infer broader readiness from that repair.
 
 ## Product scope and promotion
 
@@ -66,7 +76,8 @@ rename the crates or force their versions to advance together.
 
 ## Scorecard
 
-These are **proposed planning targets**, not achieved SLOs. GR-01 records a
+These are **proposed planning targets**, not achieved SLOs. BM-01 in the
+[execution plan](plan/README.md#measurable-leadership) records the
 maintainer-approved workload, host budget and target before execution; any
 target change needs a rationale, not a retrospective adjustment to get green.
 
@@ -83,12 +94,17 @@ target change needs a rationale, not a retrospective adjustment to get green.
 
 Michael Ingley is the coordinating maintainer and scope/signoff DRI. Package
 implementers and independent reviewers are **unassigned** until claimed in
-TODO.md. Split each package into reviewable PRs; do not wait for a large rewrite.
-The package IDs are stable even if scheduling changes.
+the [task register](plan/tasks.json). The GR IDs remain stable program-level
+requirements; use their mapped leaf cards rather than handing an entire package
+to a small executor. Do not wait for a large rewrite.
 
 ### GR-01: Make the supported contract and onboarding executable
 
 **Priority:** P0. **Depends on:** none.
+
+**Delivered slice:** executable messages/native/tonic onboarding and the support
+matrix. Documentation consolidation and expanded codegen contracts continue in
+DX and CG; the initial slice is not a claim that all documentation is finished.
 
 1. Inventory supported APIs, proto features, OS/architectures, tonic versions,
    and codegen modes in a compact matrix. Separate a tested version from a
@@ -113,6 +129,10 @@ current `protoc` requirement are independently exercised.
 
 **Priority:** P0, recovery first. **Depends on:** none for baseline recovery;
 GR-01's initial matrix for the remaining support and package gates.
+
+**Delivered slice:** source-bind recovery, MSRV/macOS/package/generated-output
+jobs and the sole CI-gated publisher. Preserve the requirements below; GT adds
+stronger upstream pin/result handling rather than recreating the publisher.
 
 1. Test declared Rust 1.85 core/native and Rust 1.88 tonic minimums separately,
    stable Rust, Linux and macOS; add other targets only with a named support
@@ -342,6 +362,12 @@ bump or production rollout is authorized by this plan.
 **Priority:** P2, separate design decisions. **Depends on:** a named adopter,
 maintainer capacity and a proof plan; not universal production blockers.
 
+The 2026-09-18 goal explicitly adds Rust-only generation and a complete
+applicable official gRPC profile. CG and EX now track the necessary frontend,
+edition and extended-interoperability decisions. Their missing evidence cannot
+be waived to claim the full goal, although bounded production profiles may
+still qualify earlier. Other candidates below remain demand-led.
+
 | Candidate | Decision and acceptance requirement |
 |---|---|
 | Edition 2024 and broader descriptor options | Pin the upstream feature contract and add differential/codegen fixtures before advertising it; not a blind generator maximum-edition bump. |
@@ -353,12 +379,18 @@ maintainer capacity and a proof plan; not universal production blockers.
 
 ## Execution and proof discipline
 
-Start with three small PRs: the **GR-02 recovery slice** for frozen-work
-reconciliation and failing baseline tests, **GR-01** executable
-quickstarts/support matrix, then the remaining **GR-02** release/package/platform
-gates. Next make **GR-03** interop pinned and fail-closed. GR-04/05/08 and GR-09
-can follow in parallel once contracts are stable. Only then expand
-discovery/retries or tune performance against the baseline.
+The first three foundation slices are delivered. Start the remaining work with
+GT-01 (official case registry), CG-01 (diagnostics), RT-01 (retry contract and
+reproducer), BM-01 (fair benchmark contract), DX-01 (docs navigation), and PB-01
+(Rust numeric parsing). Follow the [dependency graph](plan/tasks.json), including
+design approvals and shared-file ownership. Only then optimize measured paths
+or expand discovery/policy retries.
+
+The detailed plan separates codec, codegen, client, server and end-to-end
+performance; a win in one cannot close another. It also distinguishes protobuf
+conformance, standard gRPC cases, negative HTTP/2/backoff, cloud/xDS/ALTS and
+official performance tooling. No missing peer or externally blocked case counts
+as a pass, and no finite benchmark matrix establishes universal superiority.
 
 Existing entry points below are useful building blocks, **not commands that
 already prove this entire plan**. Run from the repo root; conformance and interop
