@@ -1,10 +1,10 @@
 //! Field-wise JSON and text for generated Timestamp / Duration / Empty /
-//! proto3 wrappers.
+//! proto3 wrappers / FieldMask.
 //!
-//! These checks fail on current main: generated `Empty` / wrapper
-//! `to_json` / `to_text` still serialize then `DynamicMessage`. After the
-//! cut they must not. Struct / Value / ListValue / Any / FieldMask and
-//! TAT stay on `DynamicMessage`. Remaining is not closed.
+//! These checks fail on current main: generated `FieldMask` `to_json` /
+//! `to_text` still serialize then `DynamicMessage`. After the cut they
+//! must not. Struct / Value / ListValue / Any and TAT stay on
+//! `DynamicMessage`. Remaining is not closed.
 
 #![allow(
     clippy::disallowed_methods,
@@ -23,9 +23,10 @@
 )]
 use pbrs::gencode::{
     BoolValue as GenBoolValue, BytesValue as GenBytesValue, DoubleValue as GenDoubleValue,
-    Duration as GenDuration, Empty as GenEmpty, FloatValue as GenFloatValue,
-    Int32Value as GenInt32Value, Int64Value as GenInt64Value, StringValue as GenStringValue,
-    Timestamp as GenTimestamp, UInt32Value as GenUInt32Value, UInt64Value as GenUInt64Value,
+    Duration as GenDuration, Empty as GenEmpty, FieldMask as GenFieldMask,
+    FloatValue as GenFloatValue, Int32Value as GenInt32Value, Int64Value as GenInt64Value,
+    StringValue as GenStringValue, Timestamp as GenTimestamp, UInt32Value as GenUInt32Value,
+    UInt64Value as GenUInt64Value,
 };
 use pbrs::{DynamicMessage, Value};
 use std::path::{Path, PathBuf};
@@ -80,6 +81,14 @@ fn dm_wrapper(name: &str, value: Option<Value>) -> DynamicMessage {
     let mut msg = DynamicMessage::new(wkt_desc(name));
     if let Some(v) = value {
         msg.set(1, v);
+    }
+    msg
+}
+
+fn dm_field_mask(paths: &[&str]) -> DynamicMessage {
+    let mut msg = DynamicMessage::new(wkt_desc("google.protobuf.FieldMask"));
+    for p in paths {
+        msg.push(1, Value::String(pbrs::ProtoString::from(*p)));
     }
     msg
 }
@@ -223,8 +232,6 @@ fn checked_in(name: &str) -> String {
     .expect("checked-in generated WKT")
 }
 
-/// Fails on current main: checked-in Timestamp `to_json` still mentions
-/// `DynamicMessage`.
 #[test]
 fn checked_in_timestamp_json_text_is_field_wise() {
     let src = checked_in("timestamp.rs");
@@ -232,8 +239,6 @@ fn checked_in_timestamp_json_text_is_field_wise() {
     assert_wkt_text_field_wise(&src, "Timestamp");
 }
 
-/// Fails on current main: checked-in Duration `to_json` still mentions
-/// `DynamicMessage`.
 #[test]
 fn checked_in_duration_json_text_is_field_wise() {
     let src = checked_in("duration.rs");
@@ -241,8 +246,6 @@ fn checked_in_duration_json_text_is_field_wise() {
     assert_wkt_text_field_wise(&src, "Duration");
 }
 
-/// Fails on current main: checked-in Empty `to_json` still mentions
-/// `DynamicMessage`.
 #[test]
 fn checked_in_empty_json_text_is_field_wise() {
     let src = checked_in("empty.rs");
@@ -250,8 +253,6 @@ fn checked_in_empty_json_text_is_field_wise() {
     assert_wkt_text_field_wise(&src, "Empty");
 }
 
-/// Fails on current main: checked-in wrapper `to_json` still mentions
-/// `DynamicMessage`.
 #[test]
 fn checked_in_wrappers_json_text_is_field_wise() {
     let src = checked_in("wrappers.rs");
@@ -1007,5 +1008,232 @@ fn gencode_empty_wrappers_match_dynamic_message() {
         dm_wrapper("google.protobuf.BoolValue", None)
             .to_json()
             .unwrap()
+    );
+}
+
+/// Fails on current main: checked-in FieldMask `to_json` still mentions
+/// `DynamicMessage`.
+#[test]
+fn checked_in_field_mask_json_text_is_field_wise() {
+    let src = checked_in("field_mask.rs");
+    assert_wkt_json_field_wise(&src, "FieldMask", "field_mask");
+    assert_wkt_text_field_wise(&src, "FieldMask");
+}
+
+#[test]
+fn generated_field_mask_json_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-json-field-mask");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/field_mask.proto", &tmp);
+    assert_wkt_json_field_wise(&generated, "FieldMask", "field_mask");
+
+    let official_empty = dm_field_mask(&[]).to_json().unwrap();
+    let official = dm_field_mask(&["a", "b.c"]).to_json().unwrap();
+    let official_camel = dm_field_mask(&["foo_bar"]).to_json().unwrap();
+    assert_eq!(official_empty, "\"\"");
+    assert_eq!(official, "\"a,b.c\"");
+    assert_eq!(official_camel, "\"fooBar\"");
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    let official_empty = {official_empty:?};
+    let official = {official:?};
+    let official_camel = {official_camel:?};
+
+    assert_eq!(FieldMask::new().to_json().unwrap(), official_empty);
+    let z = FieldMask::from_json(&official_empty).unwrap();
+    assert_eq!(z.paths().len(), 0);
+
+    let mut m = FieldMask::new();
+    m.paths_mut().push("a");
+    m.paths_mut().push("b.c");
+    let json = m.to_json().expect("to_json");
+    assert_eq!(json, official, "generated to_json must match DynamicMessage");
+    assert!(!json.contains("DynamicMessage"), "{{json}}");
+    assert!(!json.contains("{{"), "FieldMask JSON must be a string, not an object: {{json}}");
+    let q = FieldMask::from_json(&json).expect("from_json");
+    assert_eq!(q.paths().len(), 2);
+    assert_eq!(q.paths().get(0).unwrap(), "a");
+    assert_eq!(q.paths().get(1).unwrap(), "b.c");
+
+    let mut camel = FieldMask::new();
+    camel.paths_mut().push("foo_bar");
+    assert_eq!(camel.to_json().unwrap(), official_camel);
+    let parsed = FieldMask::from_json("\"fooBar\"").unwrap();
+    assert_eq!(parsed.paths().get(0).unwrap(), "foo_bar");
+
+    assert!(FieldMask::from_json("{{}}").is_err());
+    assert!(FieldMask::from_json("\"foo_bar\"").is_err());
+    assert!(FieldMask::from_json("[]").is_err());
+    println!("ok field mask json");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok field mask json");
+}
+
+#[test]
+fn generated_field_mask_text_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-text-field-mask");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/field_mask.proto", &tmp);
+    assert_wkt_text_field_wise(&generated, "FieldMask");
+
+    let official_empty = dm_field_mask(&[]).to_text().unwrap();
+    let official = dm_field_mask(&["a", "b.c"]).to_text().unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    let official_empty = {official_empty:?};
+    let official = {official:?};
+
+    assert_eq!(FieldMask::new().to_text().unwrap(), official_empty);
+    let parsed = FieldMask::from_text("").unwrap();
+    assert_eq!(parsed.paths().len(), 0);
+
+    let mut m = FieldMask::new();
+    m.paths_mut().push("a");
+    m.paths_mut().push("b.c");
+    let text = m.to_text().expect("to_text");
+    assert_eq!(text, official, "generated to_text must match DynamicMessage");
+    assert!(!text.contains("DynamicMessage"), "{{text}}");
+    let q = FieldMask::from_text(&text).expect("from_text");
+    assert_eq!(q.paths().len(), 2);
+    assert_eq!(q.paths().get(0).unwrap(), "a");
+    assert_eq!(q.paths().get(1).unwrap(), "b.c");
+
+    let listed = FieldMask::from_text("paths: [\"a\", \"b.c\"]").unwrap();
+    assert_eq!(listed.paths().len(), 2);
+    assert_eq!(listed.paths().get(0).unwrap(), "a");
+    println!("ok field mask text");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok field mask text");
+}
+
+#[test]
+fn generated_has_field_mask_parent_is_field_wise() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-json-has-field-mask");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/wkt.proto", &tmp);
+    assert_wkt_json_field_wise(&generated, "FieldMask", "field_mask");
+    let has = json_method_block(&generated, "HasFieldMask");
+    assert!(
+        has.contains("to_json_value"),
+        "HasFieldMask JSON must be field-wise:\n{has}"
+    );
+    assert!(
+        !has.contains("DynamicMessage"),
+        "HasFieldMask JSON must not allocate DynamicMessage:\n{has}"
+    );
+    let official = dm_field_mask(&["a", "b.c"]).to_json().unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    assert_eq!(HasFieldMask::new().to_json().unwrap(), "{{}}");
+
+    let mut h = HasFieldMask::new();
+    let mut mask = FieldMask::new();
+    mask.paths_mut().push("a");
+    mask.paths_mut().push("b.c");
+    h.set_mask(mask);
+
+    let json = h.to_json().unwrap();
+    assert!(!json.contains("DynamicMessage"), "{{json}}");
+    assert!(json.contains({official:?}), "{{json}}");
+
+    let q = HasFieldMask::from_json(&json).unwrap();
+    assert_eq!(q.mask().paths().len(), 2);
+    assert_eq!(q.mask().paths().get(0).unwrap(), "a");
+    assert_eq!(q.mask().paths().get(1).unwrap(), "b.c");
+    println!("ok has field mask");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok has field mask");
+}
+
+#[test]
+fn gencode_field_mask_match_dynamic_message() {
+    let official_empty = dm_field_mask(&[]).to_json().unwrap();
+    let official = dm_field_mask(&["a", "b.c"]).to_json().unwrap();
+    let official_camel = dm_field_mask(&["foo_bar"]).to_json().unwrap();
+    let official_empty_text = dm_field_mask(&[]).to_text().unwrap();
+    let official_text = dm_field_mask(&["a", "b.c"]).to_text().unwrap();
+
+    assert_eq!(GenFieldMask::new().to_json().unwrap(), official_empty);
+    assert_eq!(GenFieldMask::new().to_text().unwrap(), official_empty_text);
+    assert_eq!(
+        GenFieldMask::from_json(&official_empty).unwrap(),
+        GenFieldMask::new()
+    );
+    assert_eq!(GenFieldMask::from_text("").unwrap(), GenFieldMask::new());
+
+    let mut m = GenFieldMask::new();
+    m.paths_mut().push("a");
+    m.paths_mut().push("b.c");
+    let json = m.to_json().unwrap();
+    assert_eq!(json, official);
+    assert!(!json.contains("DynamicMessage"));
+    assert!(!json.contains('{'));
+    let q = GenFieldMask::from_json(&json).unwrap();
+    assert_eq!(q.paths().len(), 2);
+    assert_eq!(q.paths().get(0).unwrap(), "a");
+    assert_eq!(q.paths().get(1).unwrap(), "b.c");
+    assert_eq!(m.to_text().unwrap(), official_text);
+    let qt = GenFieldMask::from_text(&official_text).unwrap();
+    assert_eq!(qt.paths().len(), 2);
+    assert_eq!(qt.paths().get(0).unwrap(), "a");
+
+    let mut camel = GenFieldMask::new();
+    camel.paths_mut().push("foo_bar");
+    assert_eq!(camel.to_json().unwrap(), official_camel);
+    assert_eq!(
+        GenFieldMask::from_json("\"fooBar\"")
+            .unwrap()
+            .paths()
+            .get(0)
+            .unwrap(),
+        "foo_bar"
+    );
+
+    assert!(GenFieldMask::from_json("{}").is_err());
+    assert!(GenFieldMask::from_json("\"foo_bar\"").is_err());
+}
+
+/// TAT still has Struct / Value / ListValue / Any, so it stays on
+/// `DynamicMessage`. Remaining is not closed.
+#[test]
+fn tat_json_still_uses_dynamic_message() {
+    let src = checked_in("test_messages_proto3.rs");
+    let block = json_method_block(&src, "TestAllTypesProto3");
+    assert!(
+        block.contains("DynamicMessage"),
+        "TAT must stay on DynamicMessage until Struct / Value / ListValue / Any are field-wise:\n{block}"
     );
 }

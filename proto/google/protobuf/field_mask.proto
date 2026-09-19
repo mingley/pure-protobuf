@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+// Official proto3 FieldMask. JSON is a comma-separated path string, not an object.
+message FieldMask {
+  repeated string paths = 1;
+}

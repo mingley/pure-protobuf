@@ -4,6 +4,7 @@ package example;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -19,4 +20,9 @@ message HasEmptyWrappers {
   google.protobuf.BoolValue flag = 2;
   google.protobuf.Int32Value num = 3;
   google.protobuf.StringValue name = 4;
+}
+
+// Parent whose only WKT field is the field-wise FieldMask.
+message HasFieldMask {
+  google.protobuf.FieldMask mask = 1;
 }
