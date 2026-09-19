@@ -33,6 +33,7 @@ use tokio::task::JoinHandle;
 /// `drop(listener)` while wait-for-ready is still connecting. Connects get
 /// `ECONNREFUSED` until [`Self::listen`].
 pub struct ReservedLoopback {
+    #[cfg(not(target_os = "macos"))]
     socket: socket2::Socket,
     addr: SocketAddr,
 }
@@ -57,6 +58,16 @@ pub fn reserve_loopback() -> ReservedLoopback {
         .expect("local_addr")
         .as_socket()
         .expect("tcp");
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS (Darwin BSD socket stack), a socket in BOUND state without LISTEN
+        // does not send RST on incoming SYN; instead it hangs SYN packets in limbo,
+        // causing connects to hang for 75s rather than failing fast with ECONNREFUSED.
+        // Dropping the socket closes it, producing immediate ECONNREFUSED until listen().
+        drop(socket);
+        ReservedLoopback { addr }
+    }
+    #[cfg(not(target_os = "macos"))]
     ReservedLoopback { socket, addr }
 }
 
@@ -68,8 +79,17 @@ impl ReservedLoopback {
 
     /// Start accepting so the wait-for-ready client can complete.
     pub fn listen(self) -> TcpListener {
-        self.socket.listen(1024).expect("listen");
-        TcpListener::from_std(self.socket.into()).expect("tokio listener")
+        #[cfg(target_os = "macos")]
+        {
+            let std_listener = std::net::TcpListener::bind(self.addr).expect("listen");
+            std_listener.set_nonblocking(true).expect("nonblocking");
+            TcpListener::from_std(std_listener).expect("tokio listener")
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            self.socket.listen(1024).expect("listen");
+            TcpListener::from_std(self.socket.into()).expect("tokio listener")
+        }
     }
 }
 
@@ -277,4 +297,1233 @@ impl Greeter for Echo {
 
 pub fn name_of_request(request: &HelloRequest) -> String {
     request.name().to_str().unwrap_or("").to_string()
+}
+
+pub mod lifecycle {
+    use super::{greeter_client, name_of, name_of_request, reply, req};
+    use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+    use pbrs_grpc::{
+        CallHandle, Channel, ChannelConfig, ClientTls, Code, Identity, Request, Response,
+        ResponseParts, ServerConfig, ServerTls, Status, Streaming,
+    };
+    use std::io;
+    use std::net::SocketAddr;
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll};
+    use std::time::Duration;
+    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio::sync::oneshot;
+
+    const CA: &str = include_str!("../tls_data/ca.crt");
+    const SERVER_CERT: &str = include_str!("../tls_data/server.crt");
+    const SERVER_KEY: &str = include_str!("../tls_data/server.key");
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum CallShape {
+        Unary,
+        ClientStreaming,
+        ServerStreaming,
+        Bidi,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum TransportKind {
+        FromIo,
+        Tcp,
+        Tls,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum LifecycleBoundary {
+        Queued,
+        HeadersSent,
+        BodyStarted,
+        ResponseHeadersReceived,
+        ResponseBodyReceived,
+        TrailersReceived,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum RstReason {
+        RefusedStream,
+        Cancel,
+        InternalError,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum FaultKind {
+        TcpReset,
+        TcpDisconnect,
+        RstStream(RstReason),
+        Goaway,
+        FutureDropClient,
+        FutureDropServer,
+        StreamHalfClose,
+        Cancel,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct LifecycleScenario {
+        pub shape: CallShape,
+        pub transport: TransportKind,
+        pub boundary: LifecycleBoundary,
+        pub fault: FaultKind,
+        pub seed: u64,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct SeededRng {
+        state: u64,
+    }
+
+    impl SeededRng {
+        pub fn new(seed: u64) -> Self {
+            Self {
+                state: if seed == 0 {
+                    0x517c_c1b7_2722_0a95
+                } else {
+                    seed
+                },
+            }
+        }
+
+        pub fn next_u64(&mut self) -> u64 {
+            let mut x = self.state;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.state = x;
+            x
+        }
+
+        pub fn next_range(&mut self, max: usize) -> usize {
+            (self.next_u64() % (max as u64)) as usize
+        }
+    }
+
+    impl LifecycleScenario {
+        pub fn from_seed(seed: u64) -> Self {
+            let mut rng = SeededRng::new(seed);
+            let shapes = [
+                CallShape::Unary,
+                CallShape::ClientStreaming,
+                CallShape::ServerStreaming,
+                CallShape::Bidi,
+            ];
+            let shape = shapes[rng.next_range(shapes.len())];
+
+            let transports = [
+                TransportKind::FromIo,
+                TransportKind::Tcp,
+                TransportKind::Tls,
+            ];
+            let transport = transports[rng.next_range(transports.len())];
+
+            let boundaries = [
+                LifecycleBoundary::Queued,
+                LifecycleBoundary::HeadersSent,
+                LifecycleBoundary::BodyStarted,
+                LifecycleBoundary::ResponseHeadersReceived,
+                LifecycleBoundary::ResponseBodyReceived,
+                LifecycleBoundary::TrailersReceived,
+            ];
+            let boundary = boundaries[rng.next_range(boundaries.len())];
+
+            let faults = [
+                FaultKind::TcpReset,
+                FaultKind::TcpDisconnect,
+                FaultKind::RstStream(RstReason::RefusedStream),
+                FaultKind::RstStream(RstReason::Cancel),
+                FaultKind::RstStream(RstReason::InternalError),
+                FaultKind::Goaway,
+                FaultKind::FutureDropClient,
+                FaultKind::FutureDropServer,
+                FaultKind::StreamHalfClose,
+                FaultKind::Cancel,
+            ];
+            let fault = faults[rng.next_range(faults.len())];
+
+            Self {
+                shape,
+                transport,
+                boundary,
+                fault,
+                seed,
+            }
+        }
+    }
+
+    pub struct TaskGuard {
+        counter: Arc<AtomicUsize>,
+    }
+
+    impl TaskGuard {
+        pub fn new(counter: &Arc<AtomicUsize>) -> Self {
+            counter.fetch_add(1, Ordering::SeqCst);
+            Self {
+                counter: counter.clone(),
+            }
+        }
+    }
+
+    impl Drop for TaskGuard {
+        fn drop(&mut self) {
+            self.counter.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+
+    #[derive(Default)]
+    pub struct ProxyState {
+        pub is_reset: bool,
+        pub is_disconnected: bool,
+        pub active_stream_id: u32,
+        pub pending_client_injections: Vec<u8>,
+        pub pending_server_injections: Vec<u8>,
+        pub client_read_waker: Option<std::task::Waker>,
+        pub server_read_waker: Option<std::task::Waker>,
+    }
+
+    impl ProxyState {
+        pub fn new() -> Self {
+            Self {
+                is_reset: false,
+                is_disconnected: false,
+                active_stream_id: 1,
+                pending_client_injections: Vec::new(),
+                pending_server_injections: Vec::new(),
+                client_read_waker: None,
+                server_read_waker: None,
+            }
+        }
+
+        pub fn inject_rst(&mut self, stream_id: u32, reason: u32) {
+            let mut frame = Vec::with_capacity(13);
+            frame.extend_from_slice(&[0x00, 0x00, 0x04]);
+            frame.push(0x03);
+            frame.push(0x00);
+            frame.extend_from_slice(&(stream_id & 0x7FFFFFFF).to_be_bytes());
+            frame.extend_from_slice(&reason.to_be_bytes());
+            self.pending_client_injections.extend_from_slice(&frame);
+            self.pending_server_injections.extend_from_slice(&frame);
+            if let Some(waker) = self.client_read_waker.take() {
+                waker.wake();
+            }
+            if let Some(waker) = self.server_read_waker.take() {
+                waker.wake();
+            }
+        }
+
+        pub fn inject_goaway(&mut self, last_stream_id: u32, error_code: u32) {
+            let mut frame = Vec::with_capacity(17);
+            frame.extend_from_slice(&[0x00, 0x00, 0x08]);
+            frame.push(0x07);
+            frame.push(0x00);
+            frame.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+            frame.extend_from_slice(&(last_stream_id & 0x7FFFFFFF).to_be_bytes());
+            frame.extend_from_slice(&error_code.to_be_bytes());
+            self.pending_client_injections.extend_from_slice(&frame);
+            self.pending_server_injections.extend_from_slice(&frame);
+            if let Some(waker) = self.client_read_waker.take() {
+                waker.wake();
+            }
+            if let Some(waker) = self.server_read_waker.take() {
+                waker.wake();
+            }
+        }
+
+        pub fn trigger_reset(&mut self) {
+            self.is_reset = true;
+            if let Some(waker) = self.client_read_waker.take() {
+                waker.wake();
+            }
+            if let Some(waker) = self.server_read_waker.take() {
+                waker.wake();
+            }
+        }
+
+        pub fn trigger_disconnect(&mut self) {
+            self.is_disconnected = true;
+            if let Some(waker) = self.client_read_waker.take() {
+                waker.wake();
+            }
+            if let Some(waker) = self.server_read_waker.take() {
+                waker.wake();
+            }
+        }
+    }
+
+    pub struct FaultInjectingStream<S> {
+        inner: S,
+        state: Arc<Mutex<ProxyState>>,
+        injected_cursor: usize,
+        injected_buf: Vec<u8>,
+        is_client_side: bool,
+    }
+
+    impl<S> FaultInjectingStream<S> {
+        pub fn new(inner: S, state: Arc<Mutex<ProxyState>>, is_client_side: bool) -> Self {
+            Self {
+                inner,
+                state,
+                injected_cursor: 0,
+                injected_buf: Vec::new(),
+                is_client_side,
+            }
+        }
+    }
+
+    impl<S: Unpin> Unpin for FaultInjectingStream<S> {}
+
+    impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for FaultInjectingStream<S> {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            let this = self.get_mut();
+            let mut pending = Vec::new();
+            {
+                let mut st = this.state.lock().unwrap();
+                if st.is_reset {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::ConnectionReset,
+                        "connection reset by peer",
+                    )));
+                }
+                if st.is_disconnected {
+                    return Poll::Ready(Ok(()));
+                }
+
+                if this.is_client_side {
+                    if !st.pending_client_injections.is_empty() {
+                        pending = std::mem::take(&mut st.pending_client_injections);
+                    }
+                    st.client_read_waker = Some(cx.waker().clone());
+                } else {
+                    if !st.pending_server_injections.is_empty() {
+                        pending = std::mem::take(&mut st.pending_server_injections);
+                    }
+                    st.server_read_waker = Some(cx.waker().clone());
+                }
+            }
+
+            if !pending.is_empty() {
+                this.injected_buf.extend_from_slice(&pending);
+            }
+
+            if this.injected_cursor < this.injected_buf.len() {
+                let remaining = &this.injected_buf[this.injected_cursor..];
+                let to_write = std::cmp::min(remaining.len(), buf.remaining());
+                buf.put_slice(&remaining[..to_write]);
+                this.injected_cursor += to_write;
+                if this.injected_cursor >= this.injected_buf.len() {
+                    this.injected_buf.clear();
+                    this.injected_cursor = 0;
+                }
+                return Poll::Ready(Ok(()));
+            }
+
+            Pin::new(&mut this.inner).poll_read(cx, buf)
+        }
+    }
+
+    impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for FaultInjectingStream<S> {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            let this = self.get_mut();
+            {
+                let mut st = this.state.lock().unwrap();
+                if st.is_reset {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::ConnectionReset,
+                        "connection reset by peer",
+                    )));
+                }
+                if st.is_disconnected {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::BrokenPipe,
+                        "broken pipe",
+                    )));
+                }
+
+                if this.is_client_side && buf.len() >= 9 {
+                    let frame_type = buf[3];
+                    if frame_type == 0x01 {
+                        let stream_id = u32::from_be_bytes([buf[5] & 0x7f, buf[6], buf[7], buf[8]]);
+                        if stream_id > 0 {
+                            st.active_stream_id = stream_id;
+                        }
+                    }
+                }
+            }
+
+            Pin::new(&mut this.inner).poll_write(cx, buf)
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.get_mut().inner).poll_flush(cx)
+        }
+
+        fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+        }
+    }
+
+    pub struct LifecycleCoordinator {
+        pub scenario: LifecycleScenario,
+        pub has_faulted: Arc<AtomicBool>,
+        pub reached_boundaries: Arc<Mutex<Vec<LifecycleBoundary>>>,
+        pub proxy_state: Arc<Mutex<ProxyState>>,
+        pub cancel_handle: Arc<Mutex<Option<CallHandle>>>,
+        pub client_drop_trigger: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+        pub server_abort_trigger: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+        pub stream_close_trigger: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+        pub server_shutdown_trigger: Arc<Mutex<Option<oneshot::Sender<()>>>>,
+        pub client_active_tasks: Arc<AtomicUsize>,
+        pub server_active_tasks: Arc<AtomicUsize>,
+        pub client_sent: Arc<Mutex<Vec<String>>>,
+        pub server_received: Arc<Mutex<Vec<String>>>,
+        pub server_sent: Arc<Mutex<Vec<String>>>,
+        pub client_received: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl LifecycleCoordinator {
+        pub fn new(scenario: LifecycleScenario, proxy_state: Arc<Mutex<ProxyState>>) -> Self {
+            Self {
+                scenario,
+                has_faulted: Arc::new(AtomicBool::new(false)),
+                reached_boundaries: Arc::new(Mutex::new(Vec::new())),
+                proxy_state,
+                cancel_handle: Arc::new(Mutex::new(None)),
+                client_drop_trigger: Arc::new(Mutex::new(None)),
+                server_abort_trigger: Arc::new(Mutex::new(None)),
+                stream_close_trigger: Arc::new(Mutex::new(None)),
+                server_shutdown_trigger: Arc::new(Mutex::new(None)),
+                client_active_tasks: Arc::new(AtomicUsize::new(0)),
+                server_active_tasks: Arc::new(AtomicUsize::new(0)),
+                client_sent: Arc::new(Mutex::new(Vec::new())),
+                server_received: Arc::new(Mutex::new(Vec::new())),
+                server_sent: Arc::new(Mutex::new(Vec::new())),
+                client_received: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        pub fn record_client_sent(&self, msg: &str) {
+            self.client_sent.lock().unwrap().push(msg.to_string());
+        }
+
+        pub fn record_server_received(&self, msg: &str) {
+            self.server_received.lock().unwrap().push(msg.to_string());
+        }
+
+        pub fn record_server_sent(&self, msg: &str) {
+            self.server_sent.lock().unwrap().push(msg.to_string());
+        }
+
+        pub fn record_client_received(&self, msg: &str) {
+            self.client_received.lock().unwrap().push(msg.to_string());
+        }
+
+        pub fn set_cancel_handle(&self, handle: CallHandle) {
+            *self.cancel_handle.lock().unwrap() = Some(handle);
+        }
+
+        pub fn reach_sync(&self, boundary: LifecycleBoundary) {
+            self.reached_boundaries.lock().unwrap().push(boundary);
+            if boundary == self.scenario.boundary && !self.has_faulted.swap(true, Ordering::SeqCst)
+            {
+                self.fire_fault();
+            }
+        }
+
+        pub async fn reach(&self, boundary: LifecycleBoundary) {
+            self.reach_sync(boundary);
+            tokio::task::yield_now().await;
+        }
+
+        pub async fn check_server_abort(&self) -> bool {
+            self.scenario.fault == FaultKind::FutureDropServer
+                && self.has_faulted.load(Ordering::SeqCst)
+        }
+
+        fn fire_fault(&self) {
+            match self.scenario.fault {
+                FaultKind::Cancel => {
+                    if let Some(handle) = self.cancel_handle.lock().unwrap().as_ref() {
+                        handle.cancel();
+                    }
+                }
+                FaultKind::FutureDropClient => {
+                    if let Some(tx) = self.client_drop_trigger.lock().unwrap().take() {
+                        let _ = tx.send(());
+                    }
+                }
+                FaultKind::FutureDropServer => {
+                    if let Some(tx) = self.server_abort_trigger.lock().unwrap().take() {
+                        let _ = tx.send(());
+                    }
+                }
+                FaultKind::StreamHalfClose => {
+                    if let Some(tx) = self.stream_close_trigger.lock().unwrap().take() {
+                        let _ = tx.send(());
+                    }
+                }
+                FaultKind::TcpReset => {
+                    self.proxy_state.lock().unwrap().trigger_reset();
+                }
+                FaultKind::TcpDisconnect => {
+                    self.proxy_state.lock().unwrap().trigger_disconnect();
+                }
+                FaultKind::RstStream(reason) => {
+                    if self.scenario.transport == TransportKind::Tls {
+                        if let Some(handle) = self.cancel_handle.lock().unwrap().as_ref() {
+                            handle.cancel();
+                        }
+                    } else {
+                        let code = match reason {
+                            RstReason::RefusedStream => 7,
+                            RstReason::Cancel => 8,
+                            RstReason::InternalError => 2,
+                        };
+                        let stream_id = self.proxy_state.lock().unwrap().active_stream_id;
+                        self.proxy_state.lock().unwrap().inject_rst(stream_id, code);
+                    }
+                }
+                FaultKind::Goaway => {
+                    if self.scenario.transport == TransportKind::Tls {
+                        if let Some(tx) = self.server_shutdown_trigger.lock().unwrap().take() {
+                            let _ = tx.send(());
+                        }
+                    } else {
+                        self.proxy_state.lock().unwrap().inject_goaway(0, 0);
+                        if let Some(tx) = self.server_shutdown_trigger.lock().unwrap().take() {
+                            let _ = tx.send(());
+                        }
+                    }
+                }
+            }
+        }
+
+        pub fn assert_message_ordering(&self) {
+            let s_rec = self.server_received.lock().unwrap();
+            if self.scenario.shape == CallShape::Unary
+                || self.scenario.shape == CallShape::ServerStreaming
+            {
+                for (i, msg) in s_rec.iter().enumerate() {
+                    assert_eq!(
+                        msg, "msg-0",
+                        "Server received unexpected message at index {i}"
+                    );
+                }
+            } else {
+                for (i, msg) in s_rec.iter().enumerate() {
+                    assert_eq!(
+                        msg,
+                        &format!("msg-{i}"),
+                        "Server received message out of order at index {i}"
+                    );
+                }
+            }
+            let c_rec = self.client_received.lock().unwrap();
+            if self.scenario.shape == CallShape::Unary
+                || self.scenario.shape == CallShape::ClientStreaming
+            {
+                for (i, msg) in c_rec.iter().enumerate() {
+                    assert_eq!(
+                        msg, "reply-0",
+                        "Client received unexpected reply at index {i}"
+                    );
+                }
+            } else {
+                for (i, msg) in c_rec.iter().enumerate() {
+                    assert_eq!(
+                        msg,
+                        &format!("reply-{i}"),
+                        "Client received message out of order at index {i}"
+                    );
+                }
+            }
+        }
+
+        pub fn assert_status(&self, result: &Result<(), Status>) {
+            if !self.has_faulted.load(Ordering::SeqCst) {
+                assert!(
+                    result.is_ok(),
+                    "Call failed unexpectedly without fault: {result:?}"
+                );
+                return;
+            }
+            match self.scenario.fault {
+                FaultKind::Cancel => {
+                    assert!(
+                        result.as_ref().is_err_and(|s| s.code() == Code::Cancelled),
+                        "Expected CANCELLED status, got {result:?}"
+                    );
+                }
+                FaultKind::FutureDropClient => {
+                    assert!(
+                        result.as_ref().is_err_and(|s| s.code() == Code::Cancelled),
+                        "Expected CANCELLED status on client drop, got {result:?}"
+                    );
+                }
+                FaultKind::FutureDropServer => {
+                    assert!(
+                        result.as_ref().is_err_and(|s| matches!(s.code(), Code::Unavailable | Code::Internal | Code::Cancelled)),
+                        "Expected UNAVAILABLE, INTERNAL, or CANCELLED on server drop, got {result:?}"
+                    );
+                }
+                FaultKind::StreamHalfClose => {
+                    assert!(
+                        result.is_ok(),
+                        "Expected OK status on stream half-close, got {result:?}"
+                    );
+                }
+                FaultKind::RstStream(RstReason::RefusedStream) => {
+                    assert!(
+                        result.is_ok() || result.as_ref().is_err_and(|s| matches!(s.code(), Code::Unavailable | Code::Cancelled)),
+                        "Expected OK (transparent retry), UNAVAILABLE or CANCELLED on REFUSED_STREAM, got {result:?}"
+                    );
+                }
+                FaultKind::RstStream(RstReason::Cancel) => {
+                    assert!(
+                        result.as_ref().is_err_and(|s| matches!(
+                            s.code(),
+                            Code::Cancelled | Code::Unavailable
+                        )),
+                        "Expected CANCELLED or UNAVAILABLE on RST CANCEL, got {result:?}"
+                    );
+                }
+                FaultKind::RstStream(RstReason::InternalError) => {
+                    assert!(
+                        result.as_ref().is_err_and(|s| matches!(s.code(), Code::Internal | Code::Unavailable | Code::Cancelled)),
+                        "Expected INTERNAL, UNAVAILABLE, or CANCELLED on RST INTERNAL_ERROR, got {result:?}"
+                    );
+                }
+                FaultKind::Goaway => {
+                    assert!(
+                        result.is_ok()
+                            || result
+                                .as_ref()
+                                .is_err_and(|s| s.code() == Code::Unavailable),
+                        "Expected UNAVAILABLE or OK on GOAWAY, got {result:?}"
+                    );
+                }
+                FaultKind::TcpReset | FaultKind::TcpDisconnect => {
+                    assert!(
+                        result
+                            .as_ref()
+                            .is_err_and(|s| s.code() == Code::Unavailable),
+                        "Expected UNAVAILABLE on TCP reset/disconnect, got {result:?}"
+                    );
+                }
+            }
+        }
+
+        pub async fn assert_quiescent(&self) {
+            let deadline = tokio::time::Instant::now() + Duration::from_millis(300);
+            while tokio::time::Instant::now() < deadline {
+                if self.client_active_tasks.load(Ordering::SeqCst) == 0
+                    && self.server_active_tasks.load(Ordering::SeqCst) == 0
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+            let c = self.client_active_tasks.load(Ordering::SeqCst);
+            let s = self.server_active_tasks.load(Ordering::SeqCst);
+            assert_eq!(c, 0, "Leaked client tasks: {c}");
+            assert_eq!(s, 0, "Leaked server tasks: {s}");
+        }
+
+        pub async fn assert_permit_release(&self, probe_client: &GreeterClient) {
+            let probe_res = probe_client.say_hello(Request::new(req("probe"))).await;
+            if let Err(status) = &probe_res {
+                assert_ne!(
+                    status.code(),
+                    Code::ResourceExhausted,
+                    "Permit leak detected! Probe failed with RESOURCE_EXHAUSTED: {status}"
+                );
+            }
+        }
+    }
+
+    pub struct LifecycleGreeter {
+        coordinator: Arc<LifecycleCoordinator>,
+    }
+
+    impl LifecycleGreeter {
+        pub fn new(coordinator: Arc<LifecycleCoordinator>) -> Self {
+            Self { coordinator }
+        }
+    }
+
+    impl Greeter for LifecycleGreeter {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let _guard = TaskGuard::new(&self.coordinator.server_active_tasks);
+            self.coordinator.reach(LifecycleBoundary::HeadersSent).await;
+            let name = name_of_request(request.get_ref());
+            self.coordinator.record_server_received(&name);
+            self.coordinator.reach(LifecycleBoundary::BodyStarted).await;
+
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+
+            let reply_msg = "reply-0".to_string();
+            self.coordinator.record_server_sent(&reply_msg);
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseHeadersReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseBodyReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            self.coordinator
+                .reach(LifecycleBoundary::TrailersReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            Ok(Response::new(reply(reply_msg)))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let _guard = TaskGuard::new(&self.coordinator.server_active_tasks);
+            self.coordinator.reach(LifecycleBoundary::HeadersSent).await;
+
+            let mut stream = request.into_inner();
+            let mut names = Vec::new();
+            let mut first = true;
+            while let Some(msg) = stream.message().await? {
+                let name = name_of_request(&msg);
+                self.coordinator.record_server_received(&name);
+                names.push(name);
+                if first {
+                    first = false;
+                    self.coordinator.reach(LifecycleBoundary::BodyStarted).await;
+                }
+                if self.coordinator.check_server_abort().await {
+                    return Err(Status::internal("server handler aborted"));
+                }
+            }
+
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+
+            let reply_msg = "reply-0".to_string();
+            self.coordinator.record_server_sent(&reply_msg);
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseHeadersReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseBodyReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            self.coordinator
+                .reach(LifecycleBoundary::TrailersReceived)
+                .await;
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+            Ok(Response::new(reply(reply_msg)))
+        }
+
+        async fn server_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            let _guard = TaskGuard::new(&self.coordinator.server_active_tasks);
+            self.coordinator.reach(LifecycleBoundary::HeadersSent).await;
+            let name = name_of_request(request.get_ref());
+            self.coordinator.record_server_received(&name);
+            self.coordinator.reach(LifecycleBoundary::BodyStarted).await;
+
+            if self.coordinator.check_server_abort().await {
+                return Err(Status::internal("server handler aborted"));
+            }
+
+            let (tx, stream) = Streaming::channel(4);
+            let coord = self.coordinator.clone();
+            tokio::spawn(async move {
+                let _guard = TaskGuard::new(&coord.server_active_tasks);
+                for i in 0..3 {
+                    if coord.has_faulted.load(Ordering::SeqCst)
+                        && coord.scenario.fault != FaultKind::StreamHalfClose
+                    {
+                        break;
+                    }
+                    if coord.check_server_abort().await {
+                        tx.fail(Status::internal("server handler aborted")).await;
+                        return;
+                    }
+                    let reply_msg = format!("reply-{i}");
+                    coord.record_server_sent(&reply_msg);
+                    if tx.send(reply(reply_msg)).await.is_err() {
+                        return;
+                    }
+                    if i == 0 {
+                        coord.reach(LifecycleBoundary::ResponseBodyReceived).await;
+                        if coord.check_server_abort().await {
+                            tx.fail(Status::internal("server handler aborted")).await;
+                            return;
+                        }
+                    }
+                    tokio::task::yield_now().await;
+                }
+                coord.reach(LifecycleBoundary::TrailersReceived).await;
+                if coord.check_server_abort().await {
+                    tx.fail(Status::internal("server handler aborted")).await;
+                }
+            });
+            Ok(Response::new(stream))
+        }
+
+        async fn stream_hello(
+            &self,
+            request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            let _guard = TaskGuard::new(&self.coordinator.server_active_tasks);
+            self.coordinator.reach(LifecycleBoundary::HeadersSent).await;
+
+            let mut inbound = request.into_inner();
+            let (tx, stream) = Streaming::channel(4);
+            let coord = self.coordinator.clone();
+            tokio::spawn(async move {
+                let _guard = TaskGuard::new(&coord.server_active_tasks);
+                let mut idx = 0;
+                loop {
+                    if coord.has_faulted.load(Ordering::SeqCst)
+                        && coord.scenario.fault != FaultKind::StreamHalfClose
+                    {
+                        break;
+                    }
+                    if coord.check_server_abort().await {
+                        tx.fail(Status::internal("server handler aborted")).await;
+                        return;
+                    }
+                    match inbound.message().await {
+                        Ok(Some(msg)) => {
+                            let name = name_of_request(&msg);
+                            coord.record_server_received(&name);
+                            if idx == 0 {
+                                coord.reach(LifecycleBoundary::BodyStarted).await;
+                            }
+                            if coord.check_server_abort().await {
+                                tx.fail(Status::internal("server handler aborted")).await;
+                                return;
+                            }
+                            let reply_msg = format!("reply-{idx}");
+                            coord.record_server_sent(&reply_msg);
+                            if tx.send(reply(reply_msg)).await.is_err() {
+                                return;
+                            }
+                            if idx == 0 {
+                                coord.reach(LifecycleBoundary::ResponseBodyReceived).await;
+                            }
+                            if coord.check_server_abort().await {
+                                tx.fail(Status::internal("server handler aborted")).await;
+                                return;
+                            }
+                            idx += 1;
+                            tokio::task::yield_now().await;
+                        }
+                        Ok(None) => break,
+                        Err(status) => {
+                            tx.fail(status).await;
+                            return;
+                        }
+                    }
+                }
+                coord.reach(LifecycleBoundary::TrailersReceived).await;
+                if coord.check_server_abort().await {
+                    tx.fail(Status::internal("server handler aborted")).await;
+                }
+            });
+            Ok(Response::new(stream))
+        }
+    }
+
+    pub struct LifecycleRunner;
+
+    impl LifecycleRunner {
+        pub async fn run_scenario(scenario: LifecycleScenario) {
+            let proxy_state = Arc::new(Mutex::new(ProxyState::new()));
+            let coord = Arc::new(LifecycleCoordinator::new(scenario, proxy_state.clone()));
+
+            match scenario.transport {
+                TransportKind::FromIo => {
+                    let (client_raw, server_raw) = tokio::io::duplex(64 * 1024);
+                    let client_stream =
+                        FaultInjectingStream::new(client_raw, proxy_state.clone(), true);
+                    let server_stream =
+                        FaultInjectingStream::new(server_raw, proxy_state.clone(), false);
+
+                    let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
+                        .config(ServerConfig::new().max_concurrent_rpcs(1));
+                    let server_task = tokio::spawn(async move {
+                        server.serve_connection(server_stream).await.ok();
+                    });
+
+                    let channel = Channel::from_io_with(
+                        client_stream,
+                        "localhost",
+                        ChannelConfig::default().max_concurrent_rpcs(1),
+                    )
+                    .await
+                    .expect("channel from_io");
+                    let client = GreeterClient::new(channel);
+
+                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    server_task.abort();
+                }
+                TransportKind::Tcp => {
+                    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind server");
+                    let server_addr = listener.local_addr().expect("server addr");
+                    let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
+                        .config(ServerConfig::new().max_concurrent_rpcs(1));
+                    let server_task = tokio::spawn(async move {
+                        server.serve_listener(listener).await.ok();
+                    });
+
+                    let proxy_listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind proxy");
+                    let proxy_addr = proxy_listener.local_addr().expect("proxy addr");
+                    let p_state = proxy_state.clone();
+
+                    let proxy_task = tokio::spawn(async move {
+                        while let Ok((client_tcp, _)) = proxy_listener.accept().await {
+                            let p_state_clone = p_state.clone();
+                            tokio::spawn(async move {
+                                if let Ok(server_tcp) = TcpStream::connect(server_addr).await {
+                                    let wrapped_server = FaultInjectingStream::new(
+                                        server_tcp,
+                                        p_state_clone.clone(),
+                                        true,
+                                    );
+                                    let wrapped_client =
+                                        FaultInjectingStream::new(client_tcp, p_state_clone, false);
+                                    let (mut cr, mut cw) = tokio::io::split(wrapped_client);
+                                    let (mut sr, mut sw) = tokio::io::split(wrapped_server);
+                                    tokio::select! {
+                                        _ = tokio::io::copy(&mut cr, &mut sw) => {}
+                                        _ = tokio::io::copy(&mut sr, &mut cw) => {}
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    let client = greeter_client(proxy_addr).await.max_concurrent_rpcs(1);
+
+                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    proxy_task.abort();
+                    server_task.abort();
+                }
+                TransportKind::Tls => {
+                    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind server");
+                    let server_addr = listener.local_addr().expect("server addr");
+                    let server_tls = ServerTls::new(
+                        Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity"),
+                    )
+                    .expect("server tls");
+
+                    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+                    *coord.server_shutdown_trigger.lock().unwrap() = Some(shutdown_tx);
+
+                    let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
+                        .config(ServerConfig::new().max_concurrent_rpcs(1));
+                    let server_task = tokio::spawn(async move {
+                        server
+                            .serve_tls_with_shutdown(
+                                listener,
+                                async move {
+                                    let _ = shutdown_rx.await;
+                                },
+                                server_tls,
+                            )
+                            .await
+                            .ok();
+                    });
+
+                    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+                    let mut last = Status::unavailable("connect");
+                    let mut client_opt = None;
+                    for _ in 0..80 {
+                        match GreeterClient::connect_tls(server_addr, client_tls.clone()).await {
+                            Ok(c) => {
+                                client_opt = Some(c.max_concurrent_rpcs(1));
+                                break;
+                            }
+                            Err(e) => {
+                                last = e;
+                                tokio::time::sleep(Duration::from_millis(5)).await;
+                            }
+                        }
+                    }
+                    let client = client_opt.unwrap_or_else(|| {
+                        panic!("could not connect tls to {server_addr}: {last}")
+                    });
+
+                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    server_task.abort();
+                }
+            }
+        }
+
+        async fn execute_and_verify(
+            client: GreeterClient,
+            coord: Arc<LifecycleCoordinator>,
+            scenario: LifecycleScenario,
+        ) {
+            let (drop_tx, drop_rx) = oneshot::channel();
+            *coord.client_drop_trigger.lock().unwrap() = Some(drop_tx);
+
+            let (close_tx, close_rx) = oneshot::channel();
+            *coord.stream_close_trigger.lock().unwrap() = Some(close_tx);
+
+            let coord_on_resp = coord.clone();
+            let client = client.on_response(move |_parts: &mut ResponseParts| {
+                coord_on_resp.reach_sync(LifecycleBoundary::ResponseHeadersReceived);
+                Ok(())
+            });
+
+            let probe_client = client.clone();
+
+            let call_res = match scenario.shape {
+                CallShape::Unary => Self::run_unary(&client, &coord, drop_rx).await,
+                CallShape::ClientStreaming => {
+                    Self::run_client_streaming(&client, &coord, drop_rx, close_rx).await
+                }
+                CallShape::ServerStreaming => {
+                    Self::run_server_streaming(&client, &coord, drop_rx).await
+                }
+                CallShape::Bidi => Self::run_bidi(&client, &coord, drop_rx, close_rx).await,
+            };
+
+            coord.assert_message_ordering();
+            coord.assert_status(&call_res);
+            coord.assert_quiescent().await;
+            coord.assert_permit_release(&probe_client).await;
+        }
+
+        async fn run_unary(
+            client: &GreeterClient,
+            coord: &Arc<LifecycleCoordinator>,
+            mut drop_rx: oneshot::Receiver<()>,
+        ) -> Result<(), Status> {
+            let _guard = TaskGuard::new(&coord.client_active_tasks);
+            coord.record_client_sent("msg-0");
+            let mut call = client.say_hello(Request::new(req("msg-0")));
+            coord.set_cancel_handle(call.handle());
+            coord.reach(LifecycleBoundary::Queued).await;
+
+            let res = tokio::select! {
+                biased;
+                _ = &mut drop_rx => {
+                    return Err(Status::cancelled());
+                }
+                r = &mut call => r,
+            };
+            match res {
+                Ok(reply) => {
+                    coord.record_client_received(&name_of(reply.get_ref()));
+                    Ok(())
+                }
+                Err(status) => Err(status),
+            }
+        }
+
+        async fn run_client_streaming(
+            client: &GreeterClient,
+            coord: &Arc<LifecycleCoordinator>,
+            mut drop_rx: oneshot::Receiver<()>,
+            mut close_rx: oneshot::Receiver<()>,
+        ) -> Result<(), Status> {
+            let _guard = TaskGuard::new(&coord.client_active_tasks);
+            let (tx, mut call) = client.client_hello(Request::new(()));
+            coord.set_cancel_handle(call.handle());
+            coord.reach(LifecycleBoundary::Queued).await;
+
+            let coord_sender = coord.clone();
+            let send_task = tokio::spawn(async move {
+                let _guard = TaskGuard::new(&coord_sender.client_active_tasks);
+                for i in 0..3 {
+                    let msg = format!("msg-{i}");
+                    coord_sender.record_client_sent(&msg);
+                    tokio::select! {
+                        biased;
+                        _ = &mut close_rx => {
+                            tx.close();
+                            return;
+                        }
+                        send_res = tx.send(req(&msg)) => {
+                            if send_res.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                }
+                tx.close();
+            });
+
+            let res = tokio::select! {
+                biased;
+                _ = &mut drop_rx => {
+                    let _ = send_task.await;
+                    return Err(Status::cancelled());
+                }
+                r = &mut call => r,
+            };
+            let _ = send_task.await;
+            match res {
+                Ok(reply) => {
+                    coord.record_client_received(&name_of(reply.get_ref()));
+                    Ok(())
+                }
+                Err(status) => Err(status),
+            }
+        }
+
+        async fn run_server_streaming(
+            client: &GreeterClient,
+            coord: &Arc<LifecycleCoordinator>,
+            mut drop_rx: oneshot::Receiver<()>,
+        ) -> Result<(), Status> {
+            let _guard = TaskGuard::new(&coord.client_active_tasks);
+            coord.record_client_sent("msg-0");
+            let mut call = client.server_hello(Request::new(req("msg-0")));
+            coord.set_cancel_handle(call.handle());
+            coord.reach(LifecycleBoundary::Queued).await;
+
+            let res = tokio::select! {
+                biased;
+                _ = &mut drop_rx => {
+                    return Err(Status::cancelled());
+                }
+                r = &mut call => r,
+            };
+            match res {
+                Ok(reply_stream) => {
+                    let mut stream = reply_stream.into_inner();
+                    loop {
+                        tokio::select! {
+                            biased;
+                            _ = &mut drop_rx => {
+                                return Err(Status::cancelled());
+                            }
+                            next = stream.message() => {
+                                match next {
+                                    Ok(Some(msg)) => {
+                                        coord.record_client_received(&name_of(&msg));
+                                    }
+                                    Ok(None) => return Ok(()),
+                                    Err(status) => return Err(status),
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(status) => Err(status),
+            }
+        }
+
+        async fn run_bidi(
+            client: &GreeterClient,
+            coord: &Arc<LifecycleCoordinator>,
+            mut drop_rx: oneshot::Receiver<()>,
+            mut close_rx: oneshot::Receiver<()>,
+        ) -> Result<(), Status> {
+            let _guard = TaskGuard::new(&coord.client_active_tasks);
+            let (tx, mut call) = client.stream_hello(Request::new(()));
+            coord.set_cancel_handle(call.handle());
+            coord.reach(LifecycleBoundary::Queued).await;
+
+            let coord_sender = coord.clone();
+            let send_task = tokio::spawn(async move {
+                let _guard = TaskGuard::new(&coord_sender.client_active_tasks);
+                for i in 0..3 {
+                    let msg = format!("msg-{i}");
+                    coord_sender.record_client_sent(&msg);
+                    tokio::select! {
+                        biased;
+                        _ = &mut close_rx => {
+                            tx.close();
+                            return;
+                        }
+                        send_res = tx.send(req(&msg)) => {
+                            if send_res.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                }
+                tx.close();
+            });
+
+            let res = tokio::select! {
+                biased;
+                _ = &mut drop_rx => {
+                    let _ = send_task.await;
+                    return Err(Status::cancelled());
+                }
+                r = &mut call => r,
+            };
+
+            let result = match res {
+                Ok(reply_stream) => {
+                    let mut stream = reply_stream.into_inner();
+                    loop {
+                        tokio::select! {
+                            biased;
+                            _ = &mut drop_rx => {
+                                drop(stream);
+                                break Err(Status::cancelled());
+                            }
+                            next = stream.message() => {
+                                match next {
+                                    Ok(Some(msg)) => {
+                                        coord.record_client_received(&name_of(&msg));
+                                    }
+                                    Ok(None) => break Ok(()),
+                                    Err(status) => break Err(status),
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(status) => Err(status),
+            };
+            let _ = send_task.await;
+            result
+        }
+    }
 }

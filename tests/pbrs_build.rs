@@ -15,9 +15,12 @@
     unreachable_pub,
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
+use std::error::Error;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+
+static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -215,5 +218,1062 @@ fn compile_protos_defaults_to_kernel_stubs() {
     assert_eq!(
         pbrs::codegen::Stubs::default(),
         pbrs::codegen::Stubs::Kernel
+    );
+}
+
+fn test_temp_dir(name: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static TEST_SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = TEST_SEQ.fetch_add(1, Ordering::Relaxed);
+    let dir = repo_root()
+        .join("target")
+        .join(format!("{name}-{}-{}", std::process::id(), n));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn plugin_bin() -> PathBuf {
+    if let Ok(p) = std::env::var("CARGO_BIN_EXE_protoc-gen-pbrs") {
+        return PathBuf::from(p);
+    }
+    repo_root().join("target/debug/protoc-gen-pbrs")
+}
+
+#[test]
+fn error_missing_import_identifies_cause_and_path() {
+    let tmp = test_temp_dir("missing-import-test");
+    let proto_path = tmp.join("failing_import.proto");
+    std::fs::write(
+        &proto_path,
+        "syntax = \"proto3\";\npackage test;\nimport \"nonexistent_dependency.proto\";\nmessage Foo { string s = 1; }\n",
+    )
+    .unwrap();
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .unwrap_err();
+
+    match &err {
+        pbrs::codegen::CodegenError::MissingImport {
+            import,
+            proto,
+            detail,
+        } => {
+            assert!(
+                import.contains("nonexistent_dependency.proto"),
+                "expected import name in error, got: {import}"
+            );
+            assert!(
+                proto.display().to_string().contains("failing_import.proto"),
+                "expected importing proto in error, got: {}",
+                proto.display()
+            );
+            assert!(
+                detail.contains("nonexistent_dependency.proto"),
+                "expected protoc stderr in detail, got: {detail}"
+            );
+        }
+        other => panic!("expected MissingImport error variant, got: {other:?}"),
+    }
+
+    let msg = err.to_string();
+    assert!(msg.contains("nonexistent_dependency.proto"));
+    assert!(msg.contains("failing_import.proto"));
+    assert!(!msg.contains("parse error"));
+    assert_eq!(err.path(), Some(proto_path.as_path()));
+}
+
+#[test]
+fn error_syntax_error_identifies_cause_and_path() {
+    let tmp = test_temp_dir("syntax-error-test");
+    let proto_path = tmp.join("syntax_error.proto");
+    std::fs::write(
+        &proto_path,
+        "syntax = \"proto3\";\nthis is invalid protobuf content;\n",
+    )
+    .unwrap();
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .unwrap_err();
+
+    match &err {
+        pbrs::codegen::CodegenError::ProtocExecution {
+            status,
+            stderr,
+            protos,
+        } => {
+            assert!(!status.success());
+            assert!(
+                stderr.contains("syntax_error.proto"),
+                "expected stderr to mention failing proto, got: {stderr}"
+            );
+            assert_eq!(protos.as_slice(), std::slice::from_ref(&proto_path));
+        }
+        other => panic!("expected ProtocExecution error variant, got: {other:?}"),
+    }
+
+    let msg = err.to_string();
+    assert!(msg.contains("syntax_error.proto"));
+    assert!(msg.contains("protoc failed with"));
+    assert_eq!(err.path(), Some(proto_path.as_path()));
+    assert!(err.stderr().unwrap().contains("syntax_error.proto"));
+}
+
+#[test]
+fn error_malformed_descriptor_identifies_cause() {
+    let err = pbrs::codegen::generate_from_code_generator_request(&[0xff, 0xff]).unwrap_err();
+    match &err {
+        pbrs::codegen::CodegenError::MalformedDescriptor { detail, .. } => {
+            assert!(detail.contains("CodeGeneratorRequest"));
+        }
+        other => panic!("expected MalformedDescriptor, got: {other:?}"),
+    }
+    assert!(err.to_string().contains("malformed protobuf descriptor"));
+
+    let err_fds = pbrs::codegen::generate_from_file_descriptor_set(
+        &[0x0a, 0x05, 0xff],
+        &["test.proto".to_string()],
+    )
+    .unwrap_err();
+    assert!(matches!(
+        err_fds,
+        pbrs::codegen::CodegenError::MalformedDescriptor { .. }
+    ));
+}
+
+#[test]
+fn error_unwritable_output_identifies_cause_and_path() {
+    let tmp = test_temp_dir("unwritable-test");
+    let proto_path = tmp.join("name.proto");
+    std::fs::write(
+        &proto_path,
+        "syntax = \"proto3\";\npackage test;\nmessage Name { string s = 1; }\n",
+    )
+    .unwrap();
+
+    // Create a regular file where the out directory is supposed to be.
+    let blocking_file = tmp.join("blocking_file");
+    std::fs::write(&blocking_file, "blocking").unwrap();
+    let unwritable_dir = blocking_file.join("sub");
+
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&unwritable_dir)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .unwrap_err();
+
+    match &err {
+        pbrs::codegen::CodegenError::UnwritableOutput { path, source: _ } => {
+            assert_eq!(path, &unwritable_dir);
+        }
+        other => panic!("expected UnwritableOutput error variant, got: {other:?}"),
+    }
+
+    let msg = err.to_string();
+    assert!(msg.contains("failed to write codegen output"));
+    assert!(msg.contains(&unwritable_dir.display().to_string()));
+    assert_eq!(err.path(), Some(unwritable_dir.as_path()));
+}
+
+#[test]
+fn error_missing_out_dir_identifies_cause() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // When out_dir is not specified and OUT_DIR is not set.
+    let tmp = test_temp_dir("missing-out-dir-test");
+    let proto_path = tmp.join("test.proto");
+    std::fs::write(&proto_path, "syntax = \"proto3\";\n").unwrap();
+
+    let prev = std::env::var("OUT_DIR").ok();
+    std::env::remove_var("OUT_DIR");
+    let res = pbrs::codegen::Config::new().compile_protos(&[&proto_path], &[&tmp]);
+    if let Some(v) = prev {
+        std::env::set_var("OUT_DIR", v);
+    }
+    let err = res.unwrap_err();
+    assert!(matches!(err, pbrs::codegen::CodegenError::MissingOutDir));
+    assert!(err.to_string().contains("OUT_DIR"));
+}
+
+#[test]
+fn codegen_error_converts_to_parse_error() {
+    let err = pbrs::codegen::CodegenError::MissingOutDir;
+    let parse_err: pbrs::ParseError = err.into();
+    assert_eq!(parse_err, pbrs::ParseError);
+}
+
+#[test]
+fn encode_code_generator_response_error_wire_format() {
+    let msg = "failed to parse descriptor";
+    let encoded = pbrs::codegen::encode_code_generator_response_error(msg);
+    // CodeGeneratorResponse field 1 is string error: tag (1 << 3) | 2 = 10 (0x0a)
+    assert_eq!(encoded[0], 0x0a);
+    let len = encoded[1] as usize;
+    let s = std::str::from_utf8(&encoded[2..2 + len]).unwrap();
+    assert_eq!(s, msg);
+}
+
+#[test]
+fn protoc_plugin_binary_outputs_error_response_on_invalid_stdin() {
+    use std::io::Write;
+    let mut child = Command::new(plugin_bin())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn protoc-gen-pbrs");
+
+    let stdin = child.stdin.as_mut().expect("stdin");
+    // Send invalid protobuf bytes to trigger MalformedDescriptor
+    stdin.write_all(&[0xff, 0xff]).expect("write stdin");
+    drop(child.stdin.take());
+
+    let output = child.wait_with_output().expect("wait on plugin");
+    // Plugin must write CodeGeneratorResponse with error to stdout without corrupting stdout
+    assert!(!output.stdout.is_empty(), "stdout must have response");
+    assert_eq!(output.stdout[0], 0x0a, "first tag must be field 1 (error)");
+    let len = output.stdout[1] as usize;
+    let err_str = std::str::from_utf8(&output.stdout[2..2 + len]).unwrap();
+    assert!(
+        err_str.contains("malformed protobuf descriptor"),
+        "error must identify malformed descriptor, got: {err_str}"
+    );
+}
+
+#[test]
+fn compile_protos_multi_file_stem_collision_and_cross_package_references() {
+    let tmp = test_temp_dir("multi-file-collision-test");
+    let root = repo_root();
+
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        format!(
+            r#"fn main() {{
+    let root = std::path::PathBuf::from(r"{root}");
+    let fixture = root.join("tests/fixtures/codegen-layout/proto");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(
+            &[
+                fixture.join("pkg_a/common.proto"),
+                fixture.join("pkg_b/common.proto"),
+                fixture.join("pkg_b/service.proto"),
+            ],
+            &[&fixture],
+        )
+        .expect("compile_protos");
+}}
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-build-multi-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+use pkg::a::CommonMsg as ACommonMsg;
+use pkg::a::CommonEnum as ACommonEnum;
+use pkg::b::CommonMsg as BCommonMsg;
+use pkg::b::CommonEnum as BCommonEnum;
+use pkg::b::ServiceRequest;
+
+fn main() {
+    let mut a = ACommonMsg::new();
+    a.set_a_name("alice");
+    a.set_a_code(42);
+    a.set_status_a(ACommonEnum::AActive);
+
+    let mut b = BCommonMsg::new();
+    b.set_b_id(100);
+    b.set_status_b(BCommonEnum::BInitialized);
+
+    let mut req = ServiceRequest::new();
+    req.set_a_msg(a);
+    req.set_b_msg(b);
+    req.set_a_status(ACommonEnum::AActive);
+    req.set_b_status(BCommonEnum::BInitialized);
+
+    assert_eq!(req.a_msg().a_name(), "alice");
+    assert_eq!(req.a_msg().a_code(), 42);
+    assert_eq!(req.b_msg().b_id(), 100);
+    assert_eq!(req.a_status(), ACommonEnum::AActive);
+    assert_eq!(req.b_status(), BCommonEnum::BInitialized);
+
+    let mut nested_a = pkg::a::common_msg::NestedA::new();
+    nested_a.set_note_a("note_from_a");
+    req.set_nested_a(nested_a);
+    assert_eq!(req.nested_a().note_a(), "note_from_a");
+
+    let mut nested_b = pkg::b::common_msg::NestedB::new();
+    nested_b.set_count_b(888);
+    req.set_nested_b(nested_b);
+    assert_eq!(req.nested_b().count_b(), 888);
+
+    println!("build multi-file collision-safe ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let run = cargo_run(&tmp, None, true);
+    assert!(
+        run.status.success(),
+        "pbrs-build multi-file consumer failed:\n{}",
+        dump(&run)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "build multi-file collision-safe ok"
+    );
+}
+
+#[test]
+fn ambiguous_stem_request_fails_with_diagnostic() {
+    let tmp = test_temp_dir("ambiguous-stem-test");
+    let root = repo_root();
+    let fixture_proto = root.join("tests/fixtures/codegen-layout/proto");
+
+    let fds_path = tmp.join("test.fds");
+    let status = Command::new("protoc")
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", fds_path.display()))
+        .arg("-I")
+        .arg(&fixture_proto)
+        .arg(fixture_proto.join("pkg_a/common.proto"))
+        .arg(fixture_proto.join("pkg_b/common.proto"))
+        .status()
+        .expect("run protoc");
+    assert!(status.success());
+    let bytes = std::fs::read(&fds_path).expect("read fds");
+
+    // Test with "common.proto"
+    let res =
+        pbrs::codegen::generate_from_file_descriptor_set(&bytes, &["common.proto".to_string()]);
+    let err = res.expect_err("ambiguous common.proto must fail");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("ambiguous proto stem 'common' across multiple files:"),
+        "error message should contain stem diagnostic:\n{msg}"
+    );
+    assert!(
+        msg.contains("pkg_a/common.proto (package pkg.a)"),
+        "error message should detail pkg.a:\n{msg}"
+    );
+    assert!(
+        msg.contains("pkg_b/common.proto (package pkg.b)"),
+        "error message should detail pkg.b:\n{msg}"
+    );
+    assert!(
+        msg.contains("Use the hierarchical path or include the root mod.rs instead."),
+        "error message should suggest solution:\n{msg}"
+    );
+
+    // Test with "common.rs"
+    let res_rs =
+        pbrs::codegen::generate_from_file_descriptor_set(&bytes, &["common.rs".to_string()]);
+    let err_rs = res_rs.expect_err("ambiguous common.rs must fail");
+    let msg_rs = err_rs.to_string();
+    assert!(
+        msg_rs.contains("ambiguous proto stem 'common' across multiple files:"),
+        "error message should contain stem diagnostic:\n{msg_rs}"
+    );
+}
+
+#[test]
+fn transitive_public_import_chain_compiles() {
+    let tmp = test_temp_dir("transitive-reexport-test");
+    let root = repo_root();
+
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        format!(
+            r#"fn main() {{
+    let root = std::path::PathBuf::from(r"{root}");
+    let fixture = root.join("tests/fixtures/codegen-layout/proto");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(
+            &[
+                fixture.join("reexport/grandparent.proto"),
+                fixture.join("reexport/parent.proto"),
+                fixture.join("reexport/child.proto"),
+            ],
+            &[&fixture],
+        )
+        .expect("compile_protos reexport");
+}}
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-build-reexport-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+use reexport::child::{ChildData, GrandparentData, GrandparentLevel, ParentData};
+
+fn main() {
+    let mut gp = GrandparentData::new();
+    gp.set_origin("earth");
+    gp.set_level(GrandparentLevel::Root);
+
+    let mut p = ParentData::new();
+    p.set_lineage("family");
+    p.set_direct_ref(gp);
+
+    let mut c = ChildData::new();
+    c.set_tag("child_tag");
+    c.set_parent_data(p);
+
+    assert_eq!(c.tag(), "child_tag");
+    assert_eq!(c.parent_data().lineage(), "family");
+    assert_eq!(c.parent_data().direct_ref().origin(), "earth");
+    assert_eq!(c.parent_data().direct_ref().level(), GrandparentLevel::Root);
+
+    println!("reexport ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let run = cargo_run(&tmp, None, true);
+    assert!(
+        run.status.success(),
+        "pbrs-build reexport consumer failed:\n{}",
+        dump(&run)
+    );
+    assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "reexport ok");
+}
+
+fn find_real_protoc() -> PathBuf {
+    if let Some(p) = std::env::var_os("PROTOC").filter(|s| !s.is_empty()) {
+        let pb = PathBuf::from(p);
+        if pb.exists() {
+            return pb;
+        }
+    }
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    for dir in std::env::split_paths(&path) {
+        let candidate = dir.join("protoc");
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+    PathBuf::from("protoc")
+}
+
+fn cargo_build_verbose(dir: &Path) -> Output {
+    let mut cmd = Command::new("cargo");
+    cmd.arg("build").arg("--offline").arg("-vv");
+    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    apply_cargo_home(&mut cmd);
+    cmd.output().expect("cargo build -vv")
+}
+
+#[test]
+fn custom_protoc_path_configuration() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let tmp = test_temp_dir("custom-protoc-test");
+    let real_protoc = find_real_protoc();
+    assert!(
+        real_protoc.exists(),
+        "real protoc must exist on test machine"
+    );
+
+    let custom_bin = tmp.join("my-custom-protoc");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&real_protoc, &custom_bin).expect("symlink protoc");
+    #[cfg(not(unix))]
+    std::fs::copy(&real_protoc, &custom_bin).expect("copy protoc");
+
+    let proto_path = tmp.join("test.proto");
+    std::fs::write(
+        &proto_path,
+        "syntax = \"proto3\";\npackage test;\nmessage CustomMsg { string val = 1; }\n",
+    )
+    .unwrap();
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    let mut config = pbrs::codegen::Config::new();
+    config.protoc_path(&custom_bin);
+
+    assert_eq!(config.get_protoc_path(), Some(custom_bin.as_path()));
+    assert_eq!(config.selected_protoc_path(), custom_bin);
+
+    let version = config.protoc_version().expect("protoc_version query");
+    assert!(
+        version.contains("libprotoc") || version.contains("protoc"),
+        "expected protoc version, got: {version}"
+    );
+
+    let no_protoc_path = path_without_protoc();
+    let prev_path = std::env::var_os("PATH");
+    std::env::set_var("PATH", &no_protoc_path);
+
+    let res = config
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .compile_protos(&[&proto_path], &[&tmp]);
+
+    if let Some(p) = prev_path {
+        std::env::set_var("PATH", p);
+    } else {
+        std::env::remove_var("PATH");
+    }
+
+    assert!(
+        res.is_ok(),
+        "compile with custom protoc_path must succeed: {:?}",
+        res.err()
+    );
+    assert!(out_dir.join("test.rs").exists());
+}
+
+#[test]
+fn error_invalid_protoc_path_diagnostics() {
+    let tmp = test_temp_dir("invalid-protoc-test");
+    let proto_path = tmp.join("test.proto");
+    std::fs::write(&proto_path, "syntax = \"proto3\";\nmessage Dummy {}\n").unwrap();
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    // 1. Non-existent protoc executable path.
+    let nonexistent = tmp.join("nonexistent_protoc_binary");
+    let err = pbrs::codegen::Config::new()
+        .protoc_path(&nonexistent)
+        .out_dir(&out_dir)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .unwrap_err();
+
+    match &err {
+        pbrs::codegen::CodegenError::MissingProtoc { path, source } => {
+            assert_eq!(path, &nonexistent);
+            let s = source.to_string();
+            assert!(
+                s.contains("No such file") || s.contains("not found"),
+                "expected not found in source error, got: {s}"
+            );
+        }
+        other => panic!("expected MissingProtoc, got: {other:?}"),
+    }
+    let msg = err.to_string();
+    assert!(msg.contains("protoc executable not found or failed to execute at"));
+    assert!(msg.contains(&nonexistent.display().to_string()));
+    assert_eq!(err.path(), Some(nonexistent.as_path()));
+    assert!(err.source().is_some());
+
+    // 2. protoc_version on nonexistent path.
+    let ver_err = pbrs::codegen::Config::new()
+        .protoc_path(&nonexistent)
+        .protoc_version()
+        .unwrap_err();
+    assert!(matches!(
+        ver_err,
+        pbrs::codegen::CodegenError::MissingProtoc { .. }
+    ));
+
+    // 3. Failing protoc script exiting with 127.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let failing_shim = tmp.join("failing_shim_127");
+        std::fs::write(&failing_shim, "#!/bin/sh\nexit 127\n").unwrap();
+        let mut perms = std::fs::metadata(&failing_shim).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&failing_shim, perms).unwrap();
+
+        let shim_err = pbrs::codegen::Config::new()
+            .protoc_path(&failing_shim)
+            .out_dir(&out_dir)
+            .compile_protos(&[&proto_path], &[&tmp])
+            .unwrap_err();
+
+        match &shim_err {
+            pbrs::codegen::CodegenError::MissingProtoc { path, source } => {
+                assert_eq!(path, &failing_shim);
+                assert!(source.to_string().contains("127"));
+            }
+            other => panic!("expected MissingProtoc for exit 127 shim, got: {other:?}"),
+        }
+        assert!(shim_err
+            .to_string()
+            .contains(&failing_shim.display().to_string()));
+    }
+}
+
+#[test]
+fn transitive_proto_rebuild_directives_emitted() {
+    let tmp = test_temp_dir("transitive-rebuild-test");
+    let root = repo_root();
+
+    // Create three separate include roots containing spaces!
+    let inc1 = tmp.join("include search root 1");
+    let inc2 = tmp.join("include search root 2");
+    let inc3 = tmp.join("include search root 3");
+    std::fs::create_dir_all(inc1.join("pkg_root")).unwrap();
+    std::fs::create_dir_all(inc2.join("dep_mid")).unwrap();
+    std::fs::create_dir_all(inc3.join("sub_leaf")).unwrap();
+
+    let leaf_proto = inc3.join("sub_leaf/leaf.proto");
+    std::fs::write(
+        &leaf_proto,
+        r#"syntax = "proto3";
+package test.rebuild;
+message LeafMsg {
+    string leaf_name = 1;
+}
+"#,
+    )
+    .unwrap();
+
+    let mid_proto = inc2.join("dep_mid/middle.proto");
+    std::fs::write(
+        &mid_proto,
+        r#"syntax = "proto3";
+package test.rebuild;
+import public "sub_leaf/leaf.proto";
+message MiddleMsg {
+    int32 count = 1;
+    LeafMsg leaf = 2;
+}
+"#,
+    )
+    .unwrap();
+
+    let main_proto = inc1.join("pkg_root/main.proto");
+    std::fs::write(
+        &main_proto,
+        r#"syntax = "proto3";
+package test.rebuild;
+import public "dep_mid/middle.proto";
+message MainMsg {
+    string title = 1;
+    MiddleMsg middle = 2;
+}
+"#,
+    )
+    .unwrap();
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "pbrs-rebuild-consumer"
+version = "0.0.1"
+edition = "2021"
+[workspace]
+[dependencies]
+pbrs = {{ path = "{root}" }}
+[build-dependencies]
+pbrs = {{ path = "{root}" }}
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        consumer.join("build.rs"),
+        format!(
+            r#"fn main() {{
+    let main_proto = std::path::PathBuf::from(r"{main_proto}");
+    let inc1 = std::path::PathBuf::from(r"{inc1}");
+    let inc2 = std::path::PathBuf::from(r"{inc2}");
+    let inc3 = std::path::PathBuf::from(r"{inc3}");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(&[&main_proto], &[&inc1, &inc2, &inc3])
+        .expect("compile_protos with transitive imports");
+}}
+"#,
+            main_proto = main_proto.display(),
+            inc1 = inc1.display(),
+            inc2 = inc2.display(),
+            inc3 = inc3.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+use test::rebuild::{LeafMsg, MiddleMsg, MainMsg};
+
+fn main() {
+    let mut leaf = LeafMsg::new();
+    leaf.set_leaf_name("autumn");
+    let mut mid = MiddleMsg::new();
+    mid.set_count(7);
+    mid.set_leaf(leaf);
+    let mut m = MainMsg::new();
+    m.set_title("tree");
+    m.set_middle(mid);
+
+    assert_eq!(m.title(), "tree");
+    assert_eq!(m.middle().count(), 7);
+    assert_eq!(m.middle().leaf().leaf_name(), "autumn");
+    println!("initial run ok");
+}
+"#,
+    )
+    .unwrap();
+
+    // 1. Initial build: build with verbose output to inspect cargo rerun directives.
+    let build_out = cargo_build_verbose(&consumer);
+    assert!(
+        build_out.status.success(),
+        "consumer initial build failed:\n{}",
+        dump(&build_out)
+    );
+    let build_text = dump(&build_out);
+
+    // Verify directives are emitted for main proto and ALL transitive imported proto files!
+    assert!(
+        build_text.contains("cargo:rerun-if-changed="),
+        "missing rerun-if-changed in build output:\n{build_text}"
+    );
+    assert!(
+        build_text.contains(&main_proto.display().to_string()),
+        "missing rerun-if-changed for main proto in build output:\n{build_text}"
+    );
+    assert!(
+        build_text.contains(&mid_proto.display().to_string()),
+        "missing rerun-if-changed for middle proto in build output:\n{build_text}"
+    );
+    assert!(
+        build_text.contains(&leaf_proto.display().to_string()),
+        "missing rerun-if-changed for transitive leaf proto in build output:\n{build_text}"
+    );
+    assert!(
+        build_text.contains("cargo:rerun-if-env-changed=PROTOC"),
+        "missing rerun-if-env-changed=PROTOC in build output:\n{build_text}"
+    );
+    assert!(
+        build_text.contains("cargo:rerun-if-env-changed=PURE_PROTOBUF_"),
+        "missing rerun-if-env-changed=PURE_PROTOBUF_ in build output:\n{build_text}"
+    );
+
+    // 2. Initial run verifies generated types work end-to-end.
+    let run1 = cargo_run(&consumer, None, false);
+    assert!(
+        run1.status.success(),
+        "consumer initial run failed:\n{}",
+        dump(&run1)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run1.stdout).trim(),
+        "initial run ok"
+    );
+
+    // 3. Update ONLY the transitive dependency leaf.proto (second-level dependency).
+    // Ensure mtime advances so Cargo detects the change.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    std::fs::write(
+        &leaf_proto,
+        r#"syntax = "proto3";
+package test.rebuild;
+message LeafMsg {
+    string leaf_name = 1;
+    int64 version_id = 2;
+}
+"#,
+    )
+    .unwrap();
+
+    // Update src/main.rs to assert the new field added to leaf.proto.
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+use test::rebuild::{LeafMsg, MiddleMsg, MainMsg};
+
+fn main() {
+    let mut leaf = LeafMsg::new();
+    leaf.set_leaf_name("autumn");
+    leaf.set_version_id(4242);
+    let mut mid = MiddleMsg::new();
+    mid.set_count(7);
+    mid.set_leaf(leaf);
+    let mut m = MainMsg::new();
+    m.set_title("tree");
+    m.set_middle(mid);
+
+    assert_eq!(m.middle().leaf().version_id(), 4242);
+    println!("regenerated after leaf change ok");
+}
+"#,
+    )
+    .unwrap();
+
+    // 4. Re-run cargo: Cargo must detect leaf.proto changed and re-run build.rs!
+    let run2 = cargo_run(&consumer, None, false);
+    assert!(
+        run2.status.success(),
+        "consumer rebuild after transitive change failed:\n{}",
+        dump(&run2)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run2.stdout).trim(),
+        "regenerated after leaf change ok"
+    );
+}
+
+#[test]
+fn mtime_preservation_for_identical_content() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let tmp = test_temp_dir("mtime-preservation");
+    let proto_path = tmp.join("test.proto");
+    std::fs::write(
+        &proto_path,
+        r#"syntax = "proto3";
+package test.mtime;
+message StableMsg {
+    string name = 1;
+    int32 count = 2;
+}
+"#,
+    )
+    .unwrap();
+
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    // 1. Initial compilation
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .expect("initial compile_protos");
+
+    let test_rs = out_dir.join("test.rs");
+    let mod_rs = out_dir.join("mod.rs");
+    assert!(test_rs.exists(), "test.rs must exist");
+    assert!(mod_rs.exists(), "mod.rs must exist");
+
+    let mtime_test_1 = std::fs::metadata(&test_rs).unwrap().modified().unwrap();
+    let mtime_mod_1 = std::fs::metadata(&mod_rs).unwrap().modified().unwrap();
+
+    // Small delay to ensure timestamp resolution can advance if written
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // 2. Re-compilation with IDENTICAL inputs
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .expect("second compile_protos with identical inputs");
+
+    let mtime_test_2 = std::fs::metadata(&test_rs).unwrap().modified().unwrap();
+    let mtime_mod_2 = std::fs::metadata(&mod_rs).unwrap().modified().unwrap();
+
+    assert_eq!(
+        mtime_test_1, mtime_test_2,
+        "mtime of test.rs must be preserved when content is unchanged"
+    );
+    assert_eq!(
+        mtime_mod_1, mtime_mod_2,
+        "mtime of mod.rs must be preserved when content is unchanged"
+    );
+
+    // 3. Update proto input so content actually changes
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    std::fs::write(
+        &proto_path,
+        r#"syntax = "proto3";
+package test.mtime;
+message StableMsg {
+    string name = 1;
+    int32 count = 2;
+    string updated_field = 3;
+}
+"#,
+    )
+    .unwrap();
+
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .compile_protos(&[&proto_path], &[&tmp])
+        .expect("compile_protos with changed inputs");
+
+    let mtime_test_3 = std::fs::metadata(&test_rs).unwrap().modified().unwrap();
+    assert!(
+        mtime_test_3 > mtime_test_1,
+        "mtime of test.rs must be updated when content changed"
+    );
+}
+
+#[test]
+fn atomic_write_on_failure_preserves_prior_output() {
+    let tmp = test_temp_dir("atomic-failure-test");
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+
+    let prior_file = out_dir.join("existing.rs");
+    let prior_content = "// prior complete successful output\npub struct Existing;\n";
+    std::fs::write(&prior_file, prior_content).unwrap();
+
+    // Attempt compilation of invalid proto (syntax error)
+    let bad_proto = tmp.join("syntax_error.proto");
+    std::fs::write(&bad_proto, "this is not valid proto syntax;;;;\n").unwrap();
+
+    let res = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_protos(&[&bad_proto], &[&tmp]);
+
+    assert!(res.is_err(), "compile of invalid proto must fail");
+
+    // Verify prior complete output is completely intact
+    assert!(prior_file.exists(), "prior output must still exist");
+    let current_content = std::fs::read_to_string(&prior_file).unwrap();
+    assert_eq!(
+        current_content, prior_content,
+        "prior output must not be modified or truncated on failure"
+    );
+
+    // Verify no temporary .tmp files left in out_dir
+    let entries = std::fs::read_dir(&out_dir).unwrap();
+    for entry in entries {
+        let entry = entry.unwrap();
+        let name = entry.file_name().to_string_lossy().to_string();
+        assert!(
+            !name.contains(".tmp"),
+            "temporary file left behind in output directory: {name}"
+        );
+    }
+}
+
+#[test]
+fn byte_stability_across_input_permutations_and_no_host_paths() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let tmp = test_temp_dir("byte-stability-permutations");
+    let alpha_proto = tmp.join("alpha.proto");
+    let beta_proto = tmp.join("beta.proto");
+
+    std::fs::write(
+        &alpha_proto,
+        r#"syntax = "proto3";
+package test.stability;
+
+message AlphaMsg {
+    string a_name = 1;
+    int32 a_id = 2;
+    oneof payload {
+        string text = 3;
+        int64 num = 4;
+    }
+}
+
+enum AlphaEnum {
+    ALPHA_UNKNOWN = 0;
+    ALPHA_ACTIVE = 1;
+}
+
+service AlphaService {
+    rpc ZMethod (AlphaMsg) returns (AlphaMsg);
+    rpc AMethod (AlphaMsg) returns (AlphaMsg);
+}
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        &beta_proto,
+        r#"syntax = "proto3";
+package test.stability;
+
+message BetaMsg {
+    string b_name = 1;
+}
+
+enum BetaEnum {
+    BETA_UNKNOWN = 0;
+    BETA_READY = 1;
+}
+"#,
+    )
+    .unwrap();
+
+    let out1 = tmp.join("out1");
+    let out2 = tmp.join("out2");
+    std::fs::create_dir_all(&out1).unwrap();
+    std::fs::create_dir_all(&out2).unwrap();
+
+    // Order 1: alpha then beta
+    pbrs::codegen::Config::new()
+        .out_dir(&out1)
+        .emit_kernel_stubs(true)
+        .compile_protos(&[&alpha_proto, &beta_proto], &[&tmp])
+        .expect("compile order 1");
+
+    // Order 2: beta then alpha (permuted input order!)
+    pbrs::codegen::Config::new()
+        .out_dir(&out2)
+        .emit_kernel_stubs(true)
+        .compile_protos(&[&beta_proto, &alpha_proto], &[&tmp])
+        .expect("compile order 2");
+
+    // Read generated files
+    let alpha1 = std::fs::read(&out1.join("alpha.rs")).expect("read alpha1");
+    let alpha2 = std::fs::read(&out2.join("alpha.rs")).expect("read alpha2");
+    assert_eq!(alpha1, alpha2, "alpha.rs must be byte-for-byte identical across input permutations");
+
+    let beta1 = std::fs::read(&out1.join("beta.rs")).expect("read beta1");
+    let beta2 = std::fs::read(&out2.join("beta.rs")).expect("read beta2");
+    assert_eq!(beta1, beta2, "beta.rs must be byte-for-byte identical across input permutations");
+
+    let mod1 = std::fs::read(&out1.join("mod.rs")).expect("read mod1");
+    let mod2 = std::fs::read(&out2.join("mod.rs")).expect("read mod2");
+    assert_eq!(mod1, mod2, "mod.rs must be byte-for-byte identical across input permutations");
+
+    // Verify no absolute host paths in output
+    let alpha_str = String::from_utf8(alpha1).unwrap();
+    assert!(
+        !alpha_str.contains(&tmp.display().to_string()),
+        "generated code must not contain absolute host path: {}",
+        tmp.display()
+    );
+    assert!(
+        !alpha_str.contains("/Users/") && !alpha_str.contains("/home/"),
+        "generated code must not contain host paths"
+    );
+
+    // Verify method sorting in service
+    let pos_a = alpha_str.find("fn a_method").expect("must contain a_method");
+    let pos_z = alpha_str.find("fn z_method").expect("must contain z_method");
+    assert!(
+        pos_a < pos_z,
+        "service methods must be emitted in deterministic sorted order"
     );
 }

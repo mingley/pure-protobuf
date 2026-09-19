@@ -1,0 +1,10 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+// Fails: weak imports are removed in edition 2024
+import weak "dep.proto";
+
+message WeakConsumer {
+  int32 id = 1;
+}

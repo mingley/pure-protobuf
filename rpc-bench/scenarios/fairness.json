@@ -1,0 +1,313 @@
+{
+  "version": "1.0.0",
+  "contract": "docs/benchmark-contract.md",
+  "resource_budgets": "docs/resource-budgets.md",
+  "description": "Machine-readable scenario definitions for gRPC overload fairness, slow-peer isolation, and resource bounds verification (RT-07)",
+  "defaults": {
+    "duration_seconds": 30,
+    "warmup_seconds": 5,
+    "min_paired_runs": 5,
+    "confidence_interval_pct": 95.0,
+    "open_loop_distribution": "poisson",
+    "matching_configuration": {
+      "tcp_nodelay": true,
+      "tls_cipher": "none",
+      "connections": 4,
+      "concurrency": 16
+    },
+    "resource_limits": {
+      "profile": "Profile 2: Internal Microservice Profile",
+      "max_concurrent_connections": 200,
+      "max_concurrent_rpcs": 2000,
+      "initial_connection_window_size": 4194304,
+      "initial_stream_window_size": 1048576,
+      "max_send_buffer_size": 1048576,
+      "max_decoding_message_size": 4194304,
+      "max_encoding_message_size": 4194304,
+      "header_table_size": 4096,
+      "max_header_list_size": 16384,
+      "max_pending_accept_reset_streams": 64,
+      "max_concurrent_reset_streams": 128
+    },
+    "fairness_contract": {
+      "explicit_rejection_status": "RESOURCE_EXHAUSTED",
+      "no_silent_buffering": true,
+      "tracked_metrics": [
+        "queue_delay_nanos",
+        "p99_latency_nanos",
+        "rejected_calls",
+        "peak_rss_mib",
+        "active_permits",
+        "byte_budget_allocated",
+        "scheduling_lag_p99_nanos"
+      ]
+    },
+    "peer_combinations": [
+      {
+        "client": "native",
+        "server": "native",
+        "role": "native_pair",
+        "purpose": "full_stack_native"
+      },
+      {
+        "client": "native",
+        "server": "tonic",
+        "role": "client_vs_reference",
+        "purpose": "server_efficiency"
+      },
+      {
+        "client": "tonic",
+        "server": "native",
+        "role": "reference_vs_native",
+        "purpose": "client_efficiency"
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "bulk_vs_small_streams",
+      "name": "Bulk Streaming vs Small Unary RPCs",
+      "description": "Mixes high-throughput bulk streaming downloads (multi-megabyte aggregate streams) with concurrent latency-sensitive 128-byte unary calls. Evaluates stream multiplexing fairness, bounded send buffer queuing, and verifies small RPCs do not experience scheduling starvation.",
+      "category": "fairness",
+      "workload_mix": {
+        "bulk_streams": {
+          "rpc_type": "server_streaming",
+          "request_size": 64,
+          "response_message_size": 65536,
+          "messages_per_stream": 64,
+          "concurrency": 4,
+          "connections": 2
+        },
+        "competing_small_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 128,
+          "response_size": 128,
+          "offered_qps": 2000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_connections": 200,
+        "max_concurrent_rpcs": 2000,
+        "max_send_buffer_size": 1048576,
+        "initial_connection_window_size": 4194304,
+        "initial_stream_window_size": 1048576,
+        "byte_budget_bytes": 16777216
+      },
+      "target_thresholds": {
+        "max_small_rpc_p99_latency_us": 5000.0,
+        "max_small_rpc_queue_delay_us": 1000.0,
+        "min_competing_success_pct": 99.9,
+        "max_rss_growth_mib": 64.0,
+        "zero_starvation_guarantee": true
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 12
+      }
+    },
+    {
+      "id": "slow_reader_isolation",
+      "name": "Slow Reader Flow-Control Isolation",
+      "description": "Stalls consumption on a subset of streaming connections by withholding HTTP/2 WINDOW_UPDATE frames and delaying TCP reads. Verifies bounded send buffers prevent transport buffer ballooning and competing fast connections maintain unhindered throughput without head-of-line blocking.",
+      "category": "isolation",
+      "workload_mix": {
+        "slow_readers": {
+          "rpc_type": "server_streaming",
+          "request_size": 64,
+          "response_message_size": 32768,
+          "read_delay_ms": 200,
+          "concurrency": 2,
+          "connections": 2
+        },
+        "competing_fast_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 256,
+          "response_size": 256,
+          "offered_qps": 1500,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_send_buffer_size": 524288,
+        "initial_connection_window_size": 1048576,
+        "initial_stream_window_size": 262144,
+        "byte_budget_bytes": 8388608
+      },
+      "target_thresholds": {
+        "max_fast_rpc_p99_latency_us": 2500.0,
+        "max_fast_rpc_queue_delay_us": 500.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 32.0,
+        "slow_peer_impact_ratio": 1.05
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 10
+      }
+    },
+    {
+      "id": "slow_writer_isolation",
+      "name": "Slow Writer Inbound Drip Isolation",
+      "description": "Slow writer clients stream message fragments at high inter-arrival delays across long-lived client streaming calls. Verifies server task scheduler and permit tracking isolate the drip streams, preventing dispatch slot monopolization for active unary calls.",
+      "category": "isolation",
+      "workload_mix": {
+        "slow_writers": {
+          "rpc_type": "client_streaming",
+          "message_size": 1024,
+          "inter_message_delay_ms": 150,
+          "concurrency": 4,
+          "connections": 2
+        },
+        "competing_fast_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 512,
+          "response_size": 512,
+          "offered_qps": 2000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_rpcs": 2000,
+        "max_decoding_message_size": 4194304,
+        "byte_budget_bytes": 8388608
+      },
+      "target_thresholds": {
+        "max_fast_rpc_p99_latency_us": 2000.0,
+        "max_fast_rpc_queue_delay_us": 500.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 32.0,
+        "permit_leak_count": 0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 12
+      }
+    },
+    {
+      "id": "idle_peers_contention",
+      "name": "Idle Connection Fleet Contention",
+      "description": "Maintains a fleet of 100 idle HTTP/2 connections with zero active traffic while bursting competing calls across active channels under max_concurrent_connections limits. Proves static connection overhead matches the documented model without degrading active call latency.",
+      "category": "isolation",
+      "workload_mix": {
+        "idle_connections": {
+          "connection_count": 100,
+          "idle_duration_seconds": 30,
+          "active_streams": 0
+        },
+        "active_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 256,
+          "response_size": 256,
+          "offered_qps": 3000,
+          "concurrency": 16,
+          "connections": 4
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_connections": 200,
+        "max_concurrent_rpcs": 2000,
+        "max_connection_idle": "60s"
+      },
+      "target_thresholds": {
+        "max_active_rpc_p99_latency_us": 1500.0,
+        "max_queue_delay_us": 300.0,
+        "max_idle_connection_overhead_kib": 350.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 40.0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 104,
+        "concurrency": 16
+      }
+    },
+    {
+      "id": "reset_storm_recovery",
+      "name": "HTTP/2 Rapid Reset Storm Isolation",
+      "description": "Subject the server to a high-frequency stream reset attack (RST_STREAM spam across multiple connections) while valid competing unary calls execute. Verifies reset stream tracking limits trip rapidly, rejecting malicious streams with zero permit/buffer leaks and preserving low p99 latency for legitimate callers.",
+      "category": "fairness",
+      "workload_mix": {
+        "reset_attackers": {
+          "connections": 2,
+          "rst_storm_rate_per_sec": 10000,
+          "reset_reason": "CANCEL"
+        },
+        "legitimate_calls": {
+          "rpc_type": "unary",
+          "request_size": 128,
+          "response_size": 128,
+          "offered_qps": 1000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_pending_accept_reset_streams": 64,
+        "max_concurrent_reset_streams": 128,
+        "max_local_error_reset_streams": 64,
+        "max_concurrent_rpcs": 500,
+        "byte_budget_bytes": 4194304
+      },
+      "target_thresholds": {
+        "max_legitimate_p99_latency_us": 3000.0,
+        "max_legitimate_queue_delay_us": 800.0,
+        "min_competing_success_pct": 99.5,
+        "max_rss_growth_mib": 20.0,
+        "connection_drop_on_flood": true
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 10
+      }
+    },
+    {
+      "id": "overload_budget_exhaustion",
+      "name": "Overload Budget Rejection Without Silent Buffering",
+      "description": "Floods the server beyond max_concurrent_rpcs and byte_budget thresholds. Verifies that every budget violation produces an immediate, explicit RESOURCE_EXHAUSTED status (code 8) with zero payload buffering, and that all admitted calls complete within fairness bounds without unbounded queueing or memory growth.",
+      "category": "overload",
+      "workload_mix": {
+        "offered_overload_burst": {
+          "rpc_type": "unary",
+          "request_size": 1024,
+          "response_size": 1024,
+          "concurrency": 64,
+          "connections": 4,
+          "burst_factor": 4.0
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_rpcs": 16,
+        "byte_budget_bytes": 65536,
+        "max_send_buffer_size": 65536
+      },
+      "target_thresholds": {
+        "expected_rejection_code": "RESOURCE_EXHAUSTED",
+        "silent_buffering_permitted": false,
+        "max_admitted_p99_latency_us": 5000.0,
+        "max_queue_delay_us": 2000.0,
+        "max_rss_growth_mib": 10.0,
+        "post_drain_quiescence": true,
+        "post_drain_allocated_bytes": 0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 64
+      }
+    }
+  ]
+}

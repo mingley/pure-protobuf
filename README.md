@@ -220,6 +220,7 @@ Run the conformance suite locally:
 - [Benchmarks & Performance](docs/benchmarks.md) — Unary, streaming, and throughput measurements.
 - [Implementation Status](docs/status.md) — Supported features, conformance breakdown, and roadmap.
 - [Native gRPC Kernel Guide](docs/grpc.md) — In-depth guide to building microservices with `pbrs-grpc`.
+- [Task Guides & Recipes](docs/guides/rpc-shapes.md) — Specialized how-to guides for RPC call shapes, production services, code generation, interceptors, and operations.
 - [Tonic Adapter Guide](protobuf-tonic/README.md) — Using `pbrs` with tonic 0.14+ (`emit_tonic_stubs(true)`).
 - [Support matrix](#support-matrix) — Declared MSRV vs tested toolchain, `protoc` requirements, stub defaults, untested/unsupported cases.
 - [Release Policy & Publishing](docs/RELEASE.md) — Tag/dispatch crates.io publisher, required CI, `CRATES_IO_TOKEN` (not Trusted Publishing).

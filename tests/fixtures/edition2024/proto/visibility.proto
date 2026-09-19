@@ -1,0 +1,52 @@
+// Protocol Buffers - Google's data interchange format
+// Pinned Edition 2024 Fixture: Symbol Visibility Semantics
+//
+// Demonstrates symbol visibility keywords and defaults in Edition 2024:
+// - Top-level messages/enums default to EXPORT under default_symbol_visibility = EXPORT_TOP_LEVEL
+// - Nested messages/enums default to LOCAL under default_symbol_visibility = EXPORT_TOP_LEVEL
+// - Explicit `export` keyword sets visibility = VISIBILITY_EXPORT (2)
+// - Explicit `local` keyword sets visibility = VISIBILITY_LOCAL (1)
+// - Unadorned symbols have visibility = VISIBILITY_UNSET (0) on descriptor proto
+
+edition = "2024";
+
+package edition2024.visibility;
+
+export message ExportedTopLevelMessage {
+  int32 id = 1;
+}
+
+local message LocalTopLevelMessage {
+  int32 id = 1;
+}
+
+message DefaultTopLevelMessage {
+  int32 id = 1;
+
+  message DefaultNestedLocalMessage {
+    string info = 1;
+  }
+
+  export message ExportedNestedMessage {
+    string info = 1;
+  }
+
+  local message ExplicitLocalNestedMessage {
+    string info = 1;
+  }
+}
+
+export enum ExportedTopLevelEnum {
+  EXP_ZERO = 0;
+  EXP_ONE = 1;
+}
+
+local enum LocalTopLevelEnum {
+  LOC_ZERO = 0;
+  LOC_ONE = 1;
+}
+
+enum DefaultTopLevelEnum {
+  DEF_ZERO = 0;
+  DEF_ONE = 1;
+}

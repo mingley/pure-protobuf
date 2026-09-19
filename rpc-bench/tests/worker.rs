@@ -1,0 +1,803 @@
+//! Integration tests for WorkerService server lifecycle, marks, and core count.
+
+#[path = "../src/resources.rs"]
+pub mod resources;
+#[path = "../src/benchmark_service.rs"]
+pub mod benchmark_service;
+#[path = "../src/worker_server.rs"]
+pub mod worker_server;
+#[path = "../src/load.rs"]
+pub mod load;
+#[path = "../src/report.rs"]
+pub mod report;
+#[path = "../src/worker_client.rs"]
+pub mod worker_client;
+
+use std::time::Duration;
+use tokio::net::TcpListener;
+use pbrs_grpc::Request;
+
+use worker_client::{
+    ClientArgs, ClientConfig, ClientType, ClosedLoopParams, CoreRequest, Histogram,
+    HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType,
+    ServerArgs, ServerConfig, SimpleProtoParams, Void, WorkerServiceClient, WorkerServiceImpl,
+    WorkerServiceServer,
+};
+
+fn lazy_targets(targets: &[&str]) -> Vec<pbrs::rt::LazyStr> {
+    targets
+        .iter()
+        .map(|s| pbrs::rt::LazyStr::from_bytes(s.as_bytes()))
+        .collect()
+}
+
+async fn spawn_worker_service() -> (std::net::SocketAddr, tokio::sync::watch::Sender<bool>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (quit_tx, mut quit_rx) = tokio::sync::watch::channel(false);
+    let worker_impl = WorkerServiceImpl::with_shutdown(quit_tx.clone());
+
+    let shutdown = async move {
+        while !*quit_rx.borrow() {
+            if quit_rx.changed().await.is_err() {
+                break;
+            }
+        }
+    };
+
+    tokio::spawn(async move {
+        WorkerServiceServer::new(worker_impl)
+            .serve_with_shutdown(listener, shutdown)
+            .await
+            .ok();
+    });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    (addr, quit_tx)
+}
+
+#[tokio::test]
+async fn test_core_count() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    let resp = client
+        .core_count(Request::new(CoreRequest::new()))
+        .await
+        .unwrap();
+    let core_count = resp.into_inner().cores();
+    assert!(core_count > 0, "core count must be strictly positive");
+
+    let expected = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1) as i32;
+    assert_eq!(core_count, expected, "core count should match host parallelism");
+}
+
+#[tokio::test]
+async fn test_quit_worker() {
+    let (addr, quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    let resp = client.quit_worker(Request::new(Void::new())).await;
+    assert!(resp.is_ok(), "QuitWorker should return OK");
+    assert!(*quit_tx.borrow(), "QuitWorker should set shutdown signal");
+}
+
+#[tokio::test]
+async fn test_run_server_lifecycle_marks_and_shutdown() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // 1. Open bidirectional RunServer stream
+    let (tx, call) = client.run_server(Request::new(()));
+    let mut out_stream = call.await.unwrap().into_inner();
+
+    // 2. Send initial setup specifying ephemeral port 0
+    let mut setup_args = ServerArgs::new();
+    let mut config = ServerConfig::new();
+    config.set_port(0);
+    setup_args.set_setup(config);
+    tx.send(setup_args).await.unwrap();
+
+    // 3. Receive initial ServerStatus with bound port and cores
+    let init_status = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive initial ServerStatus");
+    let server_port = init_status.port();
+    assert!(server_port > 0, "bound port must be > 0");
+    assert!(init_status.cores() > 0, "cores must be > 0");
+
+    // 4. Connect to the spawned benchmark server and perform work
+    let bench_addr: std::net::SocketAddr = format!("127.0.0.1:{server_port}").parse().unwrap();
+    let bench_channel = pbrs_grpc::Channel::connect(bench_addr).await.unwrap();
+    let bench_client = benchmark_service::BenchmarkServiceClient::new(bench_channel);
+
+    // Perform multiple unary calls to consume CPU and record elapsed time
+    for _ in 0..50 {
+        let mut req = benchmark_service::SimpleRequest::new();
+        req.set_response_size(4096);
+        let resp = bench_client
+            .unary_call(Request::new(req))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.payload().body().len(), 4096);
+    }
+
+    // Wait briefly so elapsed time accumulates
+    tokio::time::sleep(Duration::from_millis(60)).await;
+
+    // 5. Send Mark with reset = false
+    let mut mark_arg1 = ServerArgs::new();
+    let mut mark1 = Mark::new();
+    mark1.set_reset(false);
+    mark_arg1.set_mark(mark1);
+    tx.send(mark_arg1).await.unwrap();
+
+    let status1 = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive mark 1 ServerStatus");
+    assert!(status1.has_stats(), "status1 must have stats");
+    let stats1 = status1.stats();
+    let elapsed1 = stats1.time_elapsed();
+    let user1 = stats1.time_user();
+    let sys1 = stats1.time_system();
+    assert!(elapsed1 > 0.0, "time_elapsed must be positive: {elapsed1}");
+    assert!(user1 >= 0.0, "time_user must be non-negative: {user1}");
+    assert!(sys1 >= 0.0, "time_system must be non-negative: {sys1}");
+
+    // Do more work and sleep
+    for _ in 0..50 {
+        let mut req = benchmark_service::SimpleRequest::new();
+        req.set_response_size(4096);
+        let _ = bench_client.unary_call(Request::new(req)).await.unwrap();
+    }
+    tokio::time::sleep(Duration::from_millis(60)).await;
+
+    // 6. Send second Mark with reset = false (accumulating)
+    let mut mark_arg2 = ServerArgs::new();
+    let mut mark2 = Mark::new();
+    mark2.set_reset(false);
+    mark_arg2.set_mark(mark2);
+    tx.send(mark_arg2).await.unwrap();
+
+    let status2 = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive mark 2 ServerStatus");
+    let stats2 = status2.stats();
+    let elapsed2 = stats2.time_elapsed();
+    let user2 = stats2.time_user();
+    let sys2 = stats2.time_system();
+    assert!(
+        elapsed2 >= elapsed1,
+        "elapsed2 ({elapsed2}) should be >= elapsed1 ({elapsed1}) when reset=false"
+    );
+    assert!(
+        user2 >= user1,
+        "user2 ({user2}) should be >= user1 ({user1}) when reset=false"
+    );
+    assert!(
+        sys2 >= sys1,
+        "sys2 ({sys2}) should be >= sys1 ({sys1}) when reset=false"
+    );
+
+    // 7. Send third Mark with reset = true
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    let mut mark_arg3 = ServerArgs::new();
+    let mut mark3 = Mark::new();
+    mark3.set_reset(true);
+    mark_arg3.set_mark(mark3);
+    tx.send(mark_arg3).await.unwrap();
+
+    let status3 = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive mark 3 ServerStatus");
+    let stats3 = status3.stats();
+    let elapsed3 = stats3.time_elapsed();
+    assert!(
+        elapsed3 >= elapsed2,
+        "elapsed3 ({elapsed3}) must still capture up to current before reset"
+    );
+
+    // 8. Send fourth Mark with reset = false shortly after reset
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    let mut mark_arg4 = ServerArgs::new();
+    let mut mark4 = Mark::new();
+    mark4.set_reset(false);
+    mark_arg4.set_mark(mark4);
+    tx.send(mark_arg4).await.unwrap();
+
+    let status4 = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive mark 4 ServerStatus");
+    let stats4 = status4.stats();
+    let elapsed4 = stats4.time_elapsed();
+    assert!(
+        elapsed4 < elapsed3,
+        "elapsed4 ({elapsed4}) after reset must be strictly less than elapsed3 ({elapsed3})"
+    );
+
+    // 9. Close inbound stream -> triggers graceful shutdown of benchmark server
+    drop(tx);
+
+    // out_stream should see EOF with OK status
+    let end = out_stream.message().await.unwrap();
+    assert!(end.is_none(), "stream must terminate with None / OK status");
+
+    // 10. Verify benchmark server on server_port is shut down
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let probe_conn = pbrs_grpc::Channel::connect(bench_addr).await;
+    if let Ok(ch) = probe_conn {
+        let probe_client = benchmark_service::BenchmarkServiceClient::new(ch);
+        let mut req = benchmark_service::SimpleRequest::new();
+        req.set_response_size(10);
+        let call_res = probe_client.unary_call(Request::new(req)).await;
+        assert!(
+            call_res.is_err(),
+            "calls to benchmark server should fail after shutdown"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_duplicate_setup_rejected() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    let (tx, call) = client.run_server(Request::new(()));
+    let mut out_stream = call.await.unwrap().into_inner();
+
+    // First setup
+    let mut setup1 = ServerArgs::new();
+    let mut config1 = ServerConfig::new();
+    config1.set_port(0);
+    setup1.set_setup(config1);
+    tx.send(setup1).await.unwrap();
+
+    let init_status = out_stream.message().await.unwrap().unwrap();
+    assert!(init_status.port() > 0);
+
+    // Duplicate setup
+    let mut setup2 = ServerArgs::new();
+    let mut config2 = ServerConfig::new();
+    config2.set_port(0);
+    setup2.set_setup(config2);
+    tx.send(setup2).await.unwrap();
+
+    // Stream should return gRPC error status (InvalidArgument)
+    let next_msg = out_stream.message().await;
+    assert!(next_msg.is_err(), "duplicate setup must return gRPC error status");
+    let status = next_msg.unwrap_err();
+    assert_eq!(status.code(), pbrs_grpc::Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn test_invalid_config_rejected() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // Invalid port (-1)
+    let (tx, call) = client.run_server(Request::new(()));
+    let mut out_stream = call.await.unwrap().into_inner();
+    let mut setup_invalid = ServerArgs::new();
+    let mut config_invalid = ServerConfig::new();
+    config_invalid.set_port(-1);
+    setup_invalid.set_setup(config_invalid);
+    tx.send(setup_invalid).await.unwrap();
+
+    let res = out_stream.message().await;
+    assert!(res.is_err(), "invalid port must be rejected");
+    assert_eq!(res.unwrap_err().code(), pbrs_grpc::Code::InvalidArgument);
+
+    // Invalid core limit (-5)
+    let (tx2, call2) = client.run_server(Request::new(()));
+    let mut out_stream2 = call2.await.unwrap().into_inner();
+    let mut setup_invalid2 = ServerArgs::new();
+    let mut config_invalid2 = ServerConfig::new();
+    config_invalid2.set_port(0);
+    config_invalid2.set_core_limit(-5);
+    setup_invalid2.set_setup(config_invalid2);
+    tx2.send(setup_invalid2).await.unwrap();
+
+    let res2 = out_stream2.message().await;
+    assert!(res2.is_err(), "negative core_limit must be rejected");
+    assert_eq!(res2.unwrap_err().code(), pbrs_grpc::Code::InvalidArgument);
+
+    // First message is Mark instead of setup
+    let (tx3, call3) = client.run_server(Request::new(()));
+    let mut out_stream3 = call3.await.unwrap().into_inner();
+    let mut mark_as_first = ServerArgs::new();
+    let mut mark = Mark::new();
+    mark.set_reset(false);
+    mark_as_first.set_mark(mark);
+    tx3.send(mark_as_first).await.unwrap();
+
+    let res3 = out_stream3.message().await;
+    assert!(res3.is_err(), "first message as Mark must be rejected");
+    assert_eq!(res3.unwrap_err().code(), pbrs_grpc::Code::InvalidArgument);
+}
+
+#[test]
+fn test_histogram_known_synthetic_latencies() {
+    let mut h = Histogram::new(0.01, 60_000_000_000.0).unwrap();
+    assert_eq!(h.num_buckets(), 2495);
+
+    // Verify boundaries
+    assert_eq!(h.bucket_for(0.0), 0);
+    assert_eq!(h.bucket_for(0.5), 0);
+    assert_eq!(h.bucket_for(1.0), 0);
+    assert_eq!(h.bucket_for(1.009), 0);
+    assert_eq!(h.bucket_for(1.01), 1);
+
+    // 100 us = 100,000 ns
+    let b_100k = (100_000.0_f64.ln() / 1.01_f64.ln()) as usize;
+    assert_eq!(h.bucket_for(100_000.0), b_100k);
+    h.add(100_000.0);
+
+    let d1 = h.to_data();
+    assert_eq!(d1.count(), 1.0);
+    assert_eq!(d1.sum(), 100_000.0);
+    assert_eq!(d1.min_seen(), 100_000.0);
+    assert_eq!(d1.max_seen(), 100_000.0);
+    assert_eq!(d1.sum_of_squares(), 10_000_000_000.0);
+    assert_eq!(d1.bucket().get(b_100k), Some(1));
+
+    // 500 us = 500,000 ns
+    let b_500k = (500_000.0_f64.ln() / 1.01_f64.ln()) as usize;
+    h.add(500_000.0);
+    let d2 = h.to_data();
+    assert_eq!(d2.count(), 2.0);
+    assert_eq!(d2.sum(), 600_000.0);
+    assert_eq!(d2.min_seen(), 100_000.0);
+    assert_eq!(d2.max_seen(), 500_000.0);
+    assert_eq!(
+        d2.sum_of_squares(),
+        100_000.0 * 100_000.0 + 500_000.0 * 500_000.0
+    );
+    assert_eq!(d2.bucket().get(b_500k), Some(1));
+
+    // Value exceeding max_possible clamped to last bucket
+    let max_p = 60_000_000_000.0;
+    let last_bucket = h.num_buckets() - 1;
+    assert_eq!(h.bucket_for(max_p * 2.0), last_bucket);
+    h.add(max_p * 2.0);
+    let d3 = h.to_data();
+    assert_eq!(d3.count(), 3.0);
+    assert_eq!(d3.max_seen(), max_p * 2.0);
+    assert_eq!(d3.bucket().get(last_bucket), Some(1));
+
+    // Reset
+    h.reset();
+    let d_reset = h.to_data();
+    assert_eq!(d_reset.count(), 0.0);
+    assert_eq!(d_reset.sum(), 0.0);
+    assert_eq!(d_reset.min_seen(), 0.0);
+    assert_eq!(d_reset.max_seen(), 0.0);
+    assert_eq!(d_reset.bucket().get(b_100k), Some(0));
+}
+
+#[tokio::test]
+async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // 1. Start benchmark server via RunServer
+    let (server_tx, server_call) = client.run_server(Request::new(()));
+    let mut server_out = server_call.await.unwrap().into_inner();
+
+    let mut setup_args = ServerArgs::new();
+    let mut server_config = ServerConfig::new();
+    server_config.set_port(0);
+    setup_args.set_setup(server_config);
+    server_tx.send(setup_args).await.unwrap();
+
+    let server_status = server_out
+        .message()
+        .await
+        .unwrap()
+        .expect("server init status");
+    let server_port = server_status.port();
+    assert!(server_port > 0);
+
+    // 2. Start client via RunClient
+    let (client_tx, client_call) = client.run_client(Request::new(()));
+    let mut client_out = client_call.await.unwrap().into_inner();
+
+    // 3. Send ClientConfig setup
+    let mut client_args = ClientArgs::new();
+    let mut client_config = ClientConfig::new();
+    let server_target = format!("127.0.0.1:{server_port}");
+    client_config.set_server_targets(lazy_targets(&[&server_target]));
+    client_config.set_client_channels(2);
+    client_config.set_outstanding_rpcs_per_channel(2);
+    client_config.set_client_type(ClientType::AsyncClient);
+    client_config.set_rpc_type(RpcType::Unary);
+
+    let mut load_params = LoadParams::new();
+    load_params.set_closed_loop(ClosedLoopParams::new());
+    client_config.set_load_params(load_params);
+
+    let mut payload_config = PayloadConfig::new();
+    let mut simple_params = SimpleProtoParams::new();
+    simple_params.set_req_size(64);
+    simple_params.set_resp_size(64);
+    payload_config.set_simple_params(simple_params);
+    client_config.set_payload_config(payload_config);
+
+    let mut hist_params = HistogramParams::new();
+    hist_params.set_resolution(0.01);
+    hist_params.set_max_possible(60_000_000_000.0);
+    client_config.set_histogram_params(hist_params);
+
+    client_args.set_setup(client_config);
+    client_tx.send(client_args).await.unwrap();
+
+    // 4. Initial ClientStatus
+    let init_status = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("client init status");
+    assert!(init_status.has_stats());
+    let init_stats = init_status.stats();
+    assert_eq!(init_stats.time_elapsed(), 0.0);
+    assert_eq!(init_stats.latencies().count(), 0.0);
+
+    // Allow client workers to run and complete calls
+    tokio::time::sleep(Duration::from_millis(80)).await;
+
+    // 5. Send first Mark (reset = false)
+    let mut mark_arg1 = ClientArgs::new();
+    let mut mark1 = Mark::new();
+    mark1.set_reset(false);
+    mark_arg1.set_mark(mark1);
+    client_tx.send(mark_arg1).await.unwrap();
+
+    let status1 = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("mark 1 status");
+    assert!(status1.has_stats());
+    let stats1 = status1.stats();
+    let count1 = stats1.latencies().count();
+    let elapsed1 = stats1.time_elapsed();
+    assert!(count1 > 0.0, "latency count must be > 0: got {count1}");
+    assert!(stats1.latencies().sum() > 0.0, "latency sum must be > 0");
+    assert!(
+        stats1.latencies().min_seen() > 0.0,
+        "min_seen must be positive"
+    );
+    assert!(stats1.latencies().max_seen() >= stats1.latencies().min_seen());
+    assert!(elapsed1 > 0.0, "elapsed time must be positive: got {elapsed1}");
+    assert!(stats1.time_user() >= 0.0);
+    assert!(stats1.time_system() >= 0.0);
+    assert!(
+        stats1.latencies().bucket().iter().any(|b| b > 0),
+        "at least one histogram bucket must be non-empty"
+    );
+
+    // Do more work
+    tokio::time::sleep(Duration::from_millis(80)).await;
+
+    // 6. Send second Mark (reset = false, accumulating)
+    let mut mark_arg2 = ClientArgs::new();
+    let mut mark2 = Mark::new();
+    mark2.set_reset(false);
+    mark_arg2.set_mark(mark2);
+    client_tx.send(mark_arg2).await.unwrap();
+
+    let status2 = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("mark 2 status");
+    let stats2 = status2.stats();
+    let count2 = stats2.latencies().count();
+    let elapsed2 = stats2.time_elapsed();
+    assert!(
+        count2 >= count1,
+        "count2 ({count2}) should be >= count1 ({count1})"
+    );
+    assert!(
+        elapsed2 >= elapsed1,
+        "elapsed2 ({elapsed2}) should be >= elapsed1 ({elapsed1})"
+    );
+
+    // 7. Send third Mark (reset = true)
+    let mut mark_arg3 = ClientArgs::new();
+    let mut mark3 = Mark::new();
+    mark3.set_reset(true);
+    mark_arg3.set_mark(mark3);
+    client_tx.send(mark_arg3).await.unwrap();
+
+    let status3 = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("mark 3 status");
+    let stats3 = status3.stats();
+    let count3 = stats3.latencies().count();
+    assert!(count3 >= count2);
+
+    // 8. Sleep and send fourth Mark (reset = false, fresh interval)
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    let mut mark_arg4 = ClientArgs::new();
+    let mut mark4 = Mark::new();
+    mark4.set_reset(false);
+    mark_arg4.set_mark(mark4);
+    client_tx.send(mark_arg4).await.unwrap();
+
+    let status4 = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("mark 4 status");
+    let stats4 = status4.stats();
+    let count4 = stats4.latencies().count();
+    assert!(
+        count4 < count3,
+        "count4 ({count4}) after reset must be strictly less than accumulated count3 ({count3})"
+    );
+
+    // 9. Close client stream: clean cancellation and shutdown
+    drop(client_tx);
+    let end_client = client_out.message().await.unwrap();
+    assert!(
+        end_client.is_none(),
+        "client out_stream should close with OK status"
+    );
+
+    // Clean up server
+    drop(server_tx);
+    let _ = server_out.message().await;
+}
+
+#[tokio::test]
+async fn test_run_client_poisson_load_lifecycle() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // Start benchmark server
+    let (server_tx, server_call) = client.run_server(Request::new(()));
+    let mut server_out = server_call.await.unwrap().into_inner();
+    let mut setup_args = ServerArgs::new();
+    let mut server_config = ServerConfig::new();
+    server_config.set_port(0);
+    setup_args.set_setup(server_config);
+    server_tx.send(setup_args).await.unwrap();
+    let server_status = server_out.message().await.unwrap().expect("server status");
+    let server_port = server_status.port();
+
+    // Start client with Poisson arrival schedule
+    let (client_tx, client_call) = client.run_client(Request::new(()));
+    let mut client_out = client_call.await.unwrap().into_inner();
+
+    let mut client_args = ClientArgs::new();
+    let mut client_config = ClientConfig::new();
+    let server_target = format!("127.0.0.1:{server_port}");
+    client_config.set_server_targets(lazy_targets(&[&server_target]));
+    client_config.set_client_channels(1);
+    client_config.set_outstanding_rpcs_per_channel(4);
+    client_config.set_client_type(ClientType::AsyncClient);
+    client_config.set_rpc_type(RpcType::Unary);
+
+    let mut load_params = LoadParams::new();
+    let mut poisson = PoissonParams::new();
+    poisson.set_offered_load(200.0);
+    load_params.set_poisson(poisson);
+    client_config.set_load_params(load_params);
+
+    client_args.set_setup(client_config);
+    client_tx.send(client_args).await.unwrap();
+
+    let init = client_out.message().await.unwrap().expect("init");
+    assert_eq!(init.stats().latencies().count(), 0.0);
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let mut mark_arg = ClientArgs::new();
+    let mut mark = Mark::new();
+    mark.set_reset(false);
+    mark_arg.set_mark(mark);
+    client_tx.send(mark_arg).await.unwrap();
+
+    let status = client_out.message().await.unwrap().expect("mark status");
+    assert!(status.stats().latencies().count() > 0.0);
+    assert!(status.stats().latencies().bucket().iter().any(|b| b > 0));
+
+    drop(client_tx);
+    let end = client_out.message().await.unwrap();
+    assert!(end.is_none());
+
+    drop(server_tx);
+    let _ = server_out.message().await;
+}
+
+#[tokio::test]
+async fn test_run_client_unsupported_options_fail_clearly() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // 1. Unsupported client_type (OtherClient)
+    let (tx1, call1) = client.run_client(Request::new(()));
+    let mut out1 = call1.await.unwrap().into_inner();
+    let mut args1 = ClientArgs::new();
+    let mut cfg1 = ClientConfig::new();
+    cfg1.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
+    cfg1.set_client_channels(1);
+    cfg1.set_outstanding_rpcs_per_channel(1);
+    cfg1.set_client_type(ClientType::OtherClient);
+    let mut lp1 = LoadParams::new();
+    lp1.set_closed_loop(ClosedLoopParams::new());
+    cfg1.set_load_params(lp1);
+    args1.set_setup(cfg1);
+    tx1.send(args1).await.unwrap();
+    let err1 = out1.message().await.unwrap_err();
+    assert_eq!(err1.code(), pbrs_grpc::Code::InvalidArgument);
+
+    // 2. Empty server_targets
+    let (tx2, call2) = client.run_client(Request::new(()));
+    let mut out2 = call2.await.unwrap().into_inner();
+    let mut args2 = ClientArgs::new();
+    let mut cfg2 = ClientConfig::new();
+    cfg2.set_client_channels(1);
+    cfg2.set_outstanding_rpcs_per_channel(1);
+    let mut lp2 = LoadParams::new();
+    lp2.set_closed_loop(ClosedLoopParams::new());
+    cfg2.set_load_params(lp2);
+    args2.set_setup(cfg2);
+    tx2.send(args2).await.unwrap();
+    let err2 = out2.message().await.unwrap_err();
+    assert_eq!(err2.code(), pbrs_grpc::Code::InvalidArgument);
+
+    // 3. First message is Mark instead of setup
+    let (tx3, call3) = client.run_client(Request::new(()));
+    let mut out3 = call3.await.unwrap().into_inner();
+    let mut args3 = ClientArgs::new();
+    let mut mark3 = Mark::new();
+    mark3.set_reset(false);
+    args3.set_mark(mark3);
+    tx3.send(args3).await.unwrap();
+    let err3 = out3.message().await.unwrap_err();
+    assert_eq!(err3.code(), pbrs_grpc::Code::InvalidArgument);
+
+    // 4. Invalid histogram params (negative resolution)
+    let (tx4, call4) = client.run_client(Request::new(()));
+    let mut out4 = call4.await.unwrap().into_inner();
+    let mut args4 = ClientArgs::new();
+    let mut cfg4 = ClientConfig::new();
+    cfg4.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
+    cfg4.set_client_channels(1);
+    cfg4.set_outstanding_rpcs_per_channel(1);
+    let mut lp4 = LoadParams::new();
+    lp4.set_closed_loop(ClosedLoopParams::new());
+    cfg4.set_load_params(lp4);
+    let mut hp = HistogramParams::new();
+    hp.set_resolution(-0.5);
+    cfg4.set_histogram_params(hp);
+    args4.set_setup(cfg4);
+    tx4.send(args4).await.unwrap();
+    let err4 = out4.message().await.unwrap_err();
+    assert_eq!(err4.code(), pbrs_grpc::Code::InvalidArgument);
+
+    // 5. Unsupported protocol (ChaoticGood)
+    let (tx5, call5) = client.run_client(Request::new(()));
+    let mut out5 = call5.await.unwrap().into_inner();
+    let mut args5 = ClientArgs::new();
+    let mut cfg5 = ClientConfig::new();
+    cfg5.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
+    cfg5.set_client_channels(1);
+    cfg5.set_outstanding_rpcs_per_channel(1);
+    let mut lp5 = LoadParams::new();
+    lp5.set_closed_loop(ClosedLoopParams::new());
+    cfg5.set_load_params(lp5);
+    cfg5.set_protocol(Protocol::ChaoticGood);
+    args5.set_setup(cfg5);
+    tx5.send(args5).await.unwrap();
+    let err5 = out5.message().await.unwrap_err();
+    assert_eq!(err5.code(), pbrs_grpc::Code::InvalidArgument);
+
+    // 6. Duplicate setup
+    let (server_tx, server_call) = client.run_server(Request::new(()));
+    let mut server_out = server_call.await.unwrap().into_inner();
+    let mut setup_args = ServerArgs::new();
+    let mut server_config = ServerConfig::new();
+    server_config.set_port(0);
+    setup_args.set_setup(server_config);
+    server_tx.send(setup_args).await.unwrap();
+    let server_port = server_out.message().await.unwrap().expect("server").port();
+
+    let (tx6, call6) = client.run_client(Request::new(()));
+    let mut out6 = call6.await.unwrap().into_inner();
+    let mut args6 = ClientArgs::new();
+    let mut cfg6 = ClientConfig::new();
+    let server_target6 = format!("127.0.0.1:{server_port}");
+    cfg6.set_server_targets(lazy_targets(&[&server_target6]));
+    cfg6.set_client_channels(1);
+    cfg6.set_outstanding_rpcs_per_channel(1);
+    let mut lp6 = LoadParams::new();
+    lp6.set_closed_loop(ClosedLoopParams::new());
+    cfg6.set_load_params(lp6);
+    args6.set_setup(cfg6.clone());
+    tx6.send(args6).await.unwrap();
+    let init6 = out6.message().await.unwrap().expect("init");
+    assert_eq!(init6.stats().time_elapsed(), 0.0);
+
+    // Send duplicate setup
+    let mut dup_args = ClientArgs::new();
+    dup_args.set_setup(cfg6);
+    tx6.send(dup_args).await.unwrap();
+    let err6 = out6.message().await.unwrap_err();
+    assert_eq!(err6.code(), pbrs_grpc::Code::InvalidArgument);
+
+    drop(server_tx);
+    let _ = server_out.message().await;
+}
+
+#[tokio::test]
+async fn test_run_client_control_disconnect_cancels_work_without_hangs() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    let (server_tx, server_call) = client.run_server(Request::new(()));
+    let mut server_out = server_call.await.unwrap().into_inner();
+    let mut setup_args = ServerArgs::new();
+    let mut server_config = ServerConfig::new();
+    server_config.set_port(0);
+    setup_args.set_setup(server_config);
+    server_tx.send(setup_args).await.unwrap();
+    let server_port = server_out.message().await.unwrap().expect("server").port();
+
+    let (client_tx, client_call) = client.run_client(Request::new(()));
+    let mut client_out = client_call.await.unwrap().into_inner();
+
+    let mut client_args = ClientArgs::new();
+    let mut client_config = ClientConfig::new();
+    let server_target = format!("127.0.0.1:{server_port}");
+    client_config.set_server_targets(lazy_targets(&[&server_target]));
+    client_config.set_client_channels(4);
+    client_config.set_outstanding_rpcs_per_channel(4);
+    let mut lp = LoadParams::new();
+    lp.set_closed_loop(ClosedLoopParams::new());
+    client_config.set_load_params(lp);
+    client_args.set_setup(client_config);
+    client_tx.send(client_args).await.unwrap();
+
+    let _init = client_out.message().await.unwrap().expect("init");
+
+    // Immediately drop tx (disconnect while in-flight)
+    drop(client_tx);
+
+    // Must resolve cleanly within 2 seconds without hanging
+    let close_fut = async {
+        let msg = client_out.message().await.unwrap();
+        assert!(msg.is_none());
+    };
+    tokio::time::timeout(Duration::from_secs(2), close_fut)
+        .await
+        .expect("stream close must terminate client tasks promptly without hangs");
+
+    drop(server_tx);
+    let _ = server_out.message().await;
+}

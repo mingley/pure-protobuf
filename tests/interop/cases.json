@@ -1,0 +1,1418 @@
+{
+  "$schema": "./cases.schema.json",
+  "version": "1.0.0",
+  "updated_at": "2026-09-18",
+  "title": "Official gRPC and Protobuf Interoperability Case Registry",
+  "description": "Versioned case registry pinning official test suites, procedure sources, peer directions, transports, profiles, owners, and present coverage across pure-protobuf and pbrs-grpc.",
+  "upstream_pins": {
+    "protobuf": {
+      "repository": "protocolbuffers/protobuf",
+      "version": "v35.1",
+      "commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+      "conformance_doc": "conformance/README.md",
+      "rust_shared_doc": "rust/test/shared"
+    },
+    "grpc": {
+      "repository": "grpc/grpc",
+      "commit": "d1487957db6658bc532b72871775148229836627",
+      "interop_doc": "doc/interop-test-descriptions.md",
+      "http2_negative_doc": "doc/http2-interop-test-descriptions.md",
+      "backoff_doc": "doc/connection-backoff-interop-test-description.md",
+      "xds_doc": "doc/xds-test-descriptions.md",
+      "runner": "tools/run_tests/run_interop_tests.py",
+      "performance_doc": "tools/run_tests/performance/README.md",
+      "worker_service_proto": "src/proto/grpc/testing/worker_service.proto",
+      "benchmark_service_proto": "src/proto/grpc/testing/benchmark_service.proto"
+    },
+    "grpc_go": {
+      "repository": "grpc/grpc-go",
+      "commit": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef",
+      "interop_client": "interop/client/client.go",
+      "interop_server": "interop/server/server.go"
+    },
+    "grpc_proposal": {
+      "repository": "grpc/proposal",
+      "commit": "6342be729b96478a2897ceb208a8cddcd832a17b",
+      "retry_a6": "A6-client-retries.md"
+    }
+  },
+  "disposition_definitions": {
+    "passed": "Verified passing in official test scripts, peer passes, or conformance harness.",
+    "not_run": "Active upstream test case or procedure scheduled for execution, not yet run in official harness.",
+    "unsupported": "Protocol feature, RPC pattern, or service not yet implemented in target profile.",
+    "blocked_external": "Blocked by external dependencies (e.g. cloud provider credentials, GCP metadata service, network authority). Never marked not_applicable.",
+    "not_applicable": "Explicitly excluded with approved, documented technical justification (e.g. C/upb internal arena layouts)."
+  },
+  "suites": {
+    "standard_interop": "Base gRPC interop test cases from doc/interop-test-descriptions.md",
+    "compression_interop": "gRPC message-compression interop cases from doc/interop-test-descriptions.md",
+    "http2_negative": "Negative HTTP/2 framing and RST/GOAWAY cases from doc/http2-interop-test-descriptions.md",
+    "server_probe": "Server-side TLS and HTTP/2 framing probes from run_interop_tests.py",
+    "connection_backoff": "Connection backoff interop against ReconnectService from doc/connection-backoff-interop-test-description.md",
+    "soak": "Long-running RPC and channel soak procedures from run_interop_tests.py",
+    "scaling": "Connection scaling under MAX_CONCURRENT_STREAMS from run_interop_tests.py",
+    "auth": "Cloud authentication and credential test cases from run_interop_tests.py",
+    "orca": "Open Request Cost Aggregation backend load reporting (A51) from run_interop_tests.py",
+    "xds_lb": "xDS and client-side load balancing procedures from doc/xds-test-descriptions.md",
+    "protobuf_conformance": "Protobuf v35.1 binary/JSON/text conformance and shared application tests",
+    "performance": "Official gRPC WorkerService and BenchmarkService benchmarking framework"
+  },
+  "summary": {
+    "total_cases": 69,
+    "by_disposition": {
+      "passed": 31,
+      "not_run": 6,
+      "unsupported": 24,
+      "blocked_external": 6,
+      "not_applicable": 2
+    },
+    "by_suite": {
+      "standard_interop": 16,
+      "compression_interop": 4,
+      "http2_negative": 8,
+      "server_probe": 2,
+      "connection_backoff": 1,
+      "soak": 2,
+      "scaling": 1,
+      "auth": 7,
+      "orca": 2,
+      "xds_lb": 12,
+      "protobuf_conformance": 6,
+      "performance": 8
+    }
+  },
+  "cases": [
+    {
+      "case": "empty_unary",
+      "name": "Empty Unary Call",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Verified in scripts/grpc-interop.sh across self and Go reference peers in both directions."
+      }
+    },
+    {
+      "case": "large_unary",
+      "name": "Large Unary Call",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Sends 271,828 bytes request and receives 314,159 bytes response; verifies zero-payload bytes and length in all 3 passes."
+      }
+    },
+    {
+      "case": "client_streaming",
+      "name": "Client Streaming Call",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Streams 4 request payloads totaling 74,922 bytes and verifies aggregated response size."
+      }
+    },
+    {
+      "case": "server_streaming",
+      "name": "Server Streaming Call",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Server streams requested payload sequence [31415, 9, 2653, 58979] bytes."
+      }
+    },
+    {
+      "case": "ping_pong",
+      "name": "Bidirectional Streaming (Ping-Pong)",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Full-duplex call with sequential ping-pong message exchanges."
+      }
+    },
+    {
+      "case": "empty_stream",
+      "name": "Empty Stream",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Opens full-duplex stream and immediately half-closes; verifies no messages received."
+      }
+    },
+    {
+      "case": "cancel_after_begin",
+      "name": "Cancel After Begin",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Cancels stream immediately after creation. Retries on transient 1ms startup race."
+      }
+    },
+    {
+      "case": "cancel_after_first_response",
+      "name": "Cancel After First Response",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Cancels bidi stream after receiving first response; enforces exact terminal CANCELLED code assertion."
+      }
+    },
+    {
+      "case": "timeout_on_sleeping_server",
+      "name": "Timeout On Sleeping Server",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-04",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "1ms deadline against sleeping server; verifies client observes DEADLINE_EXCEEDED."
+      }
+    },
+    {
+      "case": "custom_metadata",
+      "name": "Custom Metadata",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Echoes initial text metadata and trailing binary metadata (-bin suffix); asserts trailing metadata does not leak into initial headers."
+      }
+    },
+    {
+      "case": "status_code_and_message",
+      "name": "Status Code And Message",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Requests explicit error status code 2 (UNKNOWN) and custom error message; verifies client receives matching Status."
+      }
+    },
+    {
+      "case": "special_status_message",
+      "name": "Special Status Message",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Verifies status message containing Unicode and percent-encoded characters ('\\t\\ntest\\r-', emoji, etc.)."
+      }
+    },
+    {
+      "case": "unimplemented_method",
+      "name": "Unimplemented Method",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Invokes /grpc.testing.TestService/UnimplementedCall; verifies server returns UNIMPLEMENTED."
+      }
+    },
+    {
+      "case": "unimplemented_service",
+      "name": "Unimplemented Service",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "GT-03",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_go_server",
+          "go_client_to_kernel_server"
+        ],
+        "notes": "Invokes method on non-existent service /grpc.testing.UnimplementedService; verifies UNIMPLEMENTED status."
+      }
+    },
+    {
+      "case": "pick_first_unary",
+      "name": "Pick First Unary",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "FL-03",
+      "disposition": "not_run",
+      "justification": "Active upstream runner case for pick_first load balancing. Scheduled for integration in FL-03.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Upstream runner case testing subchannel connection and pick_first selection; pending FL-03."
+      }
+    },
+    {
+      "case": "cacheable_unary",
+      "name": "Cacheable Unary Call",
+      "suite": "standard_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-20",
+      "disposition": "not_applicable",
+      "justification": "Unratified experimental procedure not included in gRPC over HTTP/2 specification (doc/PROTOCOL-HTTP2.md mandates :method POST). Omitted from active upstream test runner (run_interop_tests.py), rejected in C++ core (HttpServerFilter), broken in grpc-java, and unimplemented in grpc-go. Excluded with maintainer approval due to CSRF and query-string credential disclosure hazards (see docs/cacheable-rpc.md).",
+      "present_coverage": {
+        "status": "not_applicable",
+        "evidence_file": "docs/cacheable-rpc.md",
+        "passing_directions": [],
+        "notes": "Resolved as not_applicable in EX-20. The baseline native gRPC kernel strictly enforces POST. See docs/cacheable-rpc.md."
+      }
+    },
+    {
+      "case": "client_compressed_unary",
+      "name": "Client Compressed Unary",
+      "suite": "compression_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server"
+        ],
+        "notes": "Passes in self-interop pass (18-case run). Cross-peer with grpc-go skipped because grpc-go does not implement expect_compressed / response_compressed flags; IO-05 adds C++ reference peer."
+      }
+    },
+    {
+      "case": "server_compressed_unary",
+      "name": "Server Compressed Unary",
+      "suite": "compression_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server"
+        ],
+        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+      }
+    },
+    {
+      "case": "client_compressed_streaming",
+      "name": "Client Compressed Streaming",
+      "suite": "compression_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server"
+        ],
+        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+      }
+    },
+    {
+      "case": "server_compressed_streaming",
+      "name": "Server Compressed Streaming",
+      "suite": "compression_interop",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-interop.sh",
+        "passing_directions": [
+          "kernel_client_to_kernel_server"
+        ],
+        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+      }
+    },
+    {
+      "case": "rst_after_header",
+      "name": "RST Stream After Header",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-07",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies client fails correctly when RST_STREAM is received immediately after HEADERS."
+      }
+    },
+    {
+      "case": "rst_after_data",
+      "name": "RST Stream After Data",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-07",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies client fails correctly when RST_STREAM is received after all DATA without trailers."
+      }
+    },
+    {
+      "case": "rst_during_data",
+      "name": "RST Stream During Data",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-07",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies client fails correctly when RST_STREAM is received in the middle of receiving streaming DATA frames."
+      }
+    },
+    {
+      "case": "goaway",
+      "name": "Server GOAWAY Handling",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-07",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies graceful connection shutdown and transparent migration to new connection."
+      }
+    },
+    {
+      "case": "ping",
+      "name": "HTTP/2 Ping Handling",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-08",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies HTTP/2 PING roundtrip and client ACK observation."
+      }
+    },
+    {
+      "case": "max_streams",
+      "name": "Max Concurrent Streams Enforcement",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-08",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies SETTINGS_MAX_CONCURRENT_STREAMS limit is enforced under 10 concurrent requests without deadlock."
+      }
+    },
+    {
+      "case": "data_frame_padding",
+      "name": "DATA Frame Padding",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-08",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies padded DATA frames (255 bytes padding per 5-byte payload chunk) decode correctly without flow-control deadlock."
+      }
+    },
+    {
+      "case": "no_df_padding_sanity_test",
+      "name": "No DATA Frame Padding Sanity Test",
+      "suite": "http2_negative",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/http2-interop-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-08",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; baseline sanity test receiving series of small unpadded DATA frames."
+      }
+    },
+    {
+      "case": "server_tls_probe",
+      "name": "Server TLS Negotiation Probe",
+      "suite": "server_probe",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "native",
+      "owner": "IO-09",
+      "disposition": "not_run",
+      "justification": "Active upstream runner probe. Validates server ALPN, TLS 1.2/1.3 ciphers, and certificate presentation. Scheduled in IO-09.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": "pbrs-grpc/tests/tls.rs",
+        "passing_directions": [],
+        "notes": "In-tree rustls integration tests exist; official upstream runner probe execution scheduled in IO-09."
+      }
+    },
+    {
+      "case": "server_framing_probe",
+      "name": "Server Framing Probe",
+      "suite": "server_probe",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-09",
+      "disposition": "not_run",
+      "justification": "Active upstream runner probe. Probes server HTTP/2 connection preface, settings ACK, and frame boundary parsing. Scheduled in IO-09.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": "pbrs-grpc/tests/hostile.rs",
+        "passing_directions": [],
+        "notes": "In-tree hostile framing tests exist; official runner execution scheduled in IO-09."
+      }
+    },
+    {
+      "case": "connection_backoff",
+      "name": "Connection Reconnect Backoff Interop",
+      "suite": "connection_backoff",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/connection-backoff-interop-test-description.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "FL-05",
+      "disposition": "not_run",
+      "justification": "Active official ~540-second C++ ReconnectService test. Measures retry intervals, jitter, and backoff caps. Scheduled in FL-05.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Full C++ ReconnectService ~540-second run scheduled in FL-05."
+      }
+    },
+    {
+      "case": "rpc_soak",
+      "name": "RPC Soak Test",
+      "suite": "soak",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-10",
+      "disposition": "not_run",
+      "justification": "Active upstream runner procedure. Sustained high-iteration RPC loop measuring latency and error budget over a long window. Scheduled in IO-10.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in IO-10."
+      }
+    },
+    {
+      "case": "channel_soak",
+      "name": "Channel Soak Test",
+      "suite": "soak",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "native",
+      "owner": "IO-10",
+      "disposition": "not_run",
+      "justification": "Active upstream runner procedure. Repeated channel creation, connection churn, and teardown under load. Scheduled in IO-10.",
+      "present_coverage": {
+        "status": "not_run",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in IO-10."
+      }
+    },
+    {
+      "case": "max_concurrent_streams_connection_scaling",
+      "name": "Max Concurrent Streams Connection Scaling",
+      "suite": "scaling",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-21",
+      "disposition": "unsupported",
+      "justification": "Active upstream runner case. Exercises client subchannel connection scaling when server stream concurrency limits are reached. Scheduled in EX-21.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Subchannel dynamic connection scaling under stream limit pressure scheduled in EX-21."
+      }
+    },
+    {
+      "case": "compute_engine_creds",
+      "name": "Compute Engine Credentials",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires Google Compute Engine VM metadata service and IAM token acquisition. Blocked externally until GCP environment is available.",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; credentials/environment cannot be faked for official pass."
+      }
+    },
+    {
+      "case": "jwt_token_creds",
+      "name": "JWT Token Credentials",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires valid service account private key and signed JWT token exchange with Google OAuth2 endpoints.",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; pending approved service account key."
+      }
+    },
+    {
+      "case": "oauth2_auth_token",
+      "name": "OAuth2 Auth Token",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires valid OAuth2 access token with required Google API scopes.",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; pending OAuth2 token."
+      }
+    },
+    {
+      "case": "per_rpc_creds",
+      "name": "Per-RPC Credentials",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires per-call credential metadata attachment verified against Google auth endpoints.",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; pending test credentials."
+      }
+    },
+    {
+      "case": "google_default_credentials",
+      "name": "Google Default Credentials (ADC)",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires Application Default Credentials (ADC) environment configuration (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth).",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; pending ADC environment."
+      }
+    },
+    {
+      "case": "compute_engine_channel_credentials",
+      "name": "Compute Engine Channel Credentials",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "client_to_server",
+      "transport": "http2_tls",
+      "profile": "full",
+      "owner": "EX-17",
+      "disposition": "blocked_external",
+      "justification": "Requires GCE channel credentials and VM metadata service integration.",
+      "present_coverage": {
+        "status": "blocked_external",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Blocked external; pending GCE environment."
+      }
+    },
+    {
+      "case": "alts_credentials",
+      "name": "ALTS Transport Security",
+      "suite": "auth",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "both",
+      "transport": "alts",
+      "profile": "extended",
+      "owner": "EX-18",
+      "disposition": "unsupported",
+      "justification": "ALTS (Application Layer Transport Security) requires local handshaker daemon communication and pure-Rust record layer. Evaluation scheduled in EX-18 / EX-19.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled for provider review in EX-18."
+      }
+    },
+    {
+      "case": "orca_per_rpc",
+      "name": "ORCA Per-RPC Load Reports",
+      "suite": "orca",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-01",
+      "disposition": "unsupported",
+      "justification": "Open Request Cost Aggregation (ORCA) backend load metrics encoded in trailing metadata. Scheduled in EX-01.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-01."
+      }
+    },
+    {
+      "case": "orca_oob",
+      "name": "ORCA Out-Of-Band Reporting",
+      "suite": "orca",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-02",
+      "disposition": "unsupported",
+      "justification": "Out-of-band streaming of backend load metrics over OpenRcaService. Scheduled in EX-02.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-02."
+      }
+    },
+    {
+      "case": "round_robin",
+      "name": "xDS Round Robin Load Balancing",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "FL-04",
+      "disposition": "unsupported",
+      "justification": "Client-side round_robin load balancing across ready subchannels. Scheduled in FL-04.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in FL-04."
+      }
+    },
+    {
+      "case": "backends_restart",
+      "name": "xDS Backends Restart",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "Recovers and updates endpoint state when backend servers restart under xDS control plane. Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "circuit_breaking",
+      "name": "xDS Circuit Breaking",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-13",
+      "disposition": "unsupported",
+      "justification": "Cluster-level max_requests and connection circuit breaking. Scheduled in EX-13.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-13."
+      }
+    },
+    {
+      "case": "outlier_detection",
+      "name": "xDS Outlier Detection",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-14",
+      "disposition": "unsupported",
+      "justification": "Consecutive 5xx and success-rate outlier ejection. Scheduled in EX-14.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-14."
+      }
+    },
+    {
+      "case": "xds_ping_pong",
+      "name": "xDS Ping-Pong Baseline",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "Baseline data-plane traffic through xDS resolver and cluster manager. Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "traffic_splitting",
+      "name": "xDS Weighted Cluster Traffic Splitting",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "Weighted route action distribution across multiple clusters. Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "path_matching",
+      "name": "xDS Route Path Matching",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-10",
+      "disposition": "unsupported",
+      "justification": "Prefix, exact, and regex route path matching rules. Scheduled in EX-10.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-10."
+      }
+    },
+    {
+      "case": "header_matching",
+      "name": "xDS Route Header Matching",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-10",
+      "disposition": "unsupported",
+      "justification": "Header presence, exact, prefix, invert, and range matching. Scheduled in EX-10.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-10."
+      }
+    },
+    {
+      "case": "fault_injection",
+      "name": "xDS HTTP Fault Injection",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "HTTP fault injection filter (abort status and delay). Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "timeout",
+      "name": "xDS Route Timeout",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "client_to_server",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "Route-level max_stream_duration and timeout enforcement. Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "metadata_exchange",
+      "name": "xDS Peer Metadata Exchange",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "EX-16",
+      "disposition": "unsupported",
+      "justification": "Peer metadata exchange via header/trailer attributes. Scheduled in EX-16.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-16."
+      }
+    },
+    {
+      "case": "app_net_security",
+      "name": "xDS Transport Security (mTLS)",
+      "suite": "xds_lb",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/xds-test-descriptions.md",
+      "peer_direction": "both",
+      "transport": "http2_mtls",
+      "profile": "full",
+      "owner": "EX-12",
+      "disposition": "unsupported",
+      "justification": "Dynamic TLS/mTLS certificate updates via SDS. Scheduled in EX-12.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in EX-12."
+      }
+    },
+    {
+      "case": "protobuf_binary_conformance",
+      "name": "Protobuf Binary Wire Conformance (v35.1)",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:conformance/README.md",
+      "peer_direction": "runner_to_binary",
+      "transport": "pipe",
+      "profile": "core",
+      "owner": "GT-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/conformance.sh",
+        "passing_directions": [
+          "runner_to_binary"
+        ],
+        "notes": "Passes required runs 1 & 2 of official conformance_test_runner v35.1 (35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03) up to edition 2023."
+      }
+    },
+    {
+      "case": "protobuf_json_conformance",
+      "name": "Protobuf JSON Mapping Conformance (v35.1)",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:conformance/README.md",
+      "peer_direction": "runner_to_binary",
+      "transport": "pipe",
+      "profile": "core",
+      "owner": "GT-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/conformance.sh",
+        "passing_directions": [
+          "runner_to_binary"
+        ],
+        "notes": "Passes official conformance JSON serialization and parsing test suite."
+      }
+    },
+    {
+      "case": "protobuf_text_conformance",
+      "name": "Protobuf Text Format Conformance (v35.1)",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:conformance/README.md",
+      "peer_direction": "runner_to_binary",
+      "transport": "pipe",
+      "profile": "core",
+      "owner": "GT-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/conformance.sh",
+        "passing_directions": [
+          "runner_to_binary"
+        ],
+        "notes": "Passes 909 text format test cases in conformance_test_runner."
+      }
+    },
+    {
+      "case": "protobuf_enforce_recommended",
+      "name": "Protobuf Recommended Conformance Suite",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:conformance/README.md",
+      "peer_direction": "runner_to_binary",
+      "transport": "pipe",
+      "profile": "core",
+      "owner": "GT-05",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "scripts/conformance.sh",
+        "passing_directions": [
+          "runner_to_binary"
+        ],
+        "notes": "Passes conformance_test_runner with --enforce_recommended without needing failure_list_rust_upb.txt skips."
+      }
+    },
+    {
+      "case": "rust_shared_application_tests",
+      "name": "Protobuf Rust Shared Application Tests",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:rust/test/shared",
+      "peer_direction": "internal",
+      "transport": "none",
+      "profile": "core",
+      "owner": "PB-02",
+      "disposition": "passed",
+      "justification": null,
+      "present_coverage": {
+        "status": "passed",
+        "evidence_file": "tests/google_shared.rs",
+        "passing_directions": [
+          "internal"
+        ],
+        "notes": "Proto3 accessors, merge, serialize, and UTF-8 verification ported in tests/google_shared.rs. Standalone external run of original rust/test/shared scheduled in PB-02."
+      }
+    },
+    {
+      "case": "upb_kernel_internals",
+      "name": "Google upb C Kernel Layout and Arena Internals",
+      "suite": "protobuf_conformance",
+      "procedure_source": "protocolbuffers/protobuf@35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03:upb/test",
+      "peer_direction": "internal",
+      "transport": "none",
+      "profile": "core",
+      "owner": "PB-02",
+      "disposition": "not_applicable",
+      "justification": "C/upb minitables and arena memory layout tests (upb/test/*.cc, rust/test/upb/) test C memory management internals of Google's upb engine. Pure-protobuf is a safe, idiomatic pure-Rust implementation; C arena internals do not apply.",
+      "present_coverage": {
+        "status": "not_applicable",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Documented in vendor/google/README.md; excluded from portable pure-Rust contract."
+      }
+    },
+    {
+      "case": "worker_service_run_server",
+      "name": "WorkerService.RunServer Lifecycle",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/worker_service.proto",
+      "peer_direction": "driver_to_worker",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-09",
+      "disposition": "unsupported",
+      "justification": "Official gRPC WorkerService server control stream lifecycle and stats marks. Scheduled in BM-09.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-09."
+      }
+    },
+    {
+      "case": "worker_service_run_client",
+      "name": "WorkerService.RunClient Lifecycle",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/worker_service.proto",
+      "peer_direction": "driver_to_worker",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-10",
+      "disposition": "unsupported",
+      "justification": "Official gRPC WorkerService client load generation and histogram statistics. Scheduled in BM-10.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-10."
+      }
+    },
+    {
+      "case": "worker_service_core_count",
+      "name": "WorkerService.CoreCount",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/worker_service.proto",
+      "peer_direction": "driver_to_worker",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-09",
+      "disposition": "unsupported",
+      "justification": "WorkerService reporting of available CPU cores. Scheduled in BM-09.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-09."
+      }
+    },
+    {
+      "case": "worker_service_quit_worker",
+      "name": "WorkerService.QuitWorker",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/worker_service.proto",
+      "peer_direction": "driver_to_worker",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-09",
+      "disposition": "unsupported",
+      "justification": "WorkerService graceful termination RPC. Scheduled in BM-09.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-09."
+      }
+    },
+    {
+      "case": "benchmark_service_unary",
+      "name": "BenchmarkService.UnaryCall",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/benchmark_service.proto",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-08",
+      "disposition": "unsupported",
+      "justification": "High-throughput unary call benchmark procedure. Scheduled in BM-08.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-08."
+      }
+    },
+    {
+      "case": "benchmark_service_streaming",
+      "name": "BenchmarkService.StreamingCall",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/benchmark_service.proto",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-08",
+      "disposition": "unsupported",
+      "justification": "High-throughput bidi streaming benchmark procedure. Scheduled in BM-08.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-08."
+      }
+    },
+    {
+      "case": "benchmark_service_streaming_from_client",
+      "name": "BenchmarkService.StreamingFromClient",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/benchmark_service.proto",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-08",
+      "disposition": "unsupported",
+      "justification": "High-throughput client-streaming upload benchmark procedure. Scheduled in BM-08.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-08."
+      }
+    },
+    {
+      "case": "benchmark_service_streaming_from_server",
+      "name": "BenchmarkService.StreamingFromServer",
+      "suite": "performance",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:src/proto/grpc/testing/benchmark_service.proto",
+      "peer_direction": "both",
+      "transport": "http2_cleartext",
+      "profile": "full",
+      "owner": "BM-08",
+      "disposition": "unsupported",
+      "justification": "High-throughput server-streaming download benchmark procedure. Scheduled in BM-08.",
+      "present_coverage": {
+        "status": "unsupported",
+        "evidence_file": null,
+        "passing_directions": [],
+        "notes": "Scheduled in BM-08."
+      }
+    }
+  ]
+}

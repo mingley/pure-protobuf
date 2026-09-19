@@ -9,12 +9,215 @@ use crate::dynamic::{
     Cardinality, DescriptorPool, FieldDescriptor, FieldType, MessageDescriptor, MethodDescriptor,
     Presence, ServiceDescriptor,
 };
+pub use crate::dynamic::{Comments, SourceCodeInfo, SourceLocation};
 use crate::error::ParseError;
 use crate::wire::{self, decode_tag, encode_len_field, encode_varint, read_len_bytes, WIRE_LEN};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// An error that occurred during protobuf code generation.
+#[derive(Debug)]
+pub enum CodegenError {
+    /// The `protoc` executable was not found in PATH or failed to execute.
+    MissingProtoc {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// Execution of `protoc` failed with a non-zero exit status.
+    ProtocExecution {
+        status: std::process::ExitStatus,
+        stderr: String,
+        protos: Vec<PathBuf>,
+    },
+    /// An imported proto file could not be found.
+    MissingImport {
+        import: String,
+        proto: PathBuf,
+        detail: String,
+    },
+    /// A protobuf descriptor or CodeGeneratorRequest is malformed or invalid.
+    MalformedDescriptor {
+        detail: String,
+        path: Option<PathBuf>,
+    },
+    /// The output directory or file could not be created or written.
+    UnwritableOutput {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// The `OUT_DIR` environment variable was not set and no output directory was specified.
+    MissingOutDir,
+    /// An I/O error occurred on a specific file path.
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// An unknown plugin parameter key was encountered.
+    UnknownParameter { key: String, detail: String },
+    /// An invalid value was supplied for a recognized plugin parameter.
+    InvalidParameter { key: String, detail: String },
+    /// Multiple proto files share the same stem in an ambiguous single-file request.
+    AmbiguousStem {
+        stem: String,
+        matches: Vec<(String, String)>,
+    },
+}
+
+impl CodegenError {
+    /// The primary path associated with this error, if any.
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::MissingProtoc { path, .. }
+            | Self::UnwritableOutput { path, .. }
+            | Self::Io { path, .. } => Some(path),
+            Self::MissingImport { proto, .. } => Some(proto),
+            Self::MalformedDescriptor { path, .. } => path.as_deref(),
+            Self::ProtocExecution { protos, .. } => protos.first().map(PathBuf::as_path),
+            Self::MissingOutDir
+            | Self::UnknownParameter { .. }
+            | Self::InvalidParameter { .. }
+            | Self::AmbiguousStem { .. } => None,
+        }
+    }
+
+    /// The protoc stderr output, if this error was caused by a protoc failure.
+    pub fn stderr(&self) -> Option<&str> {
+        match self {
+            Self::ProtocExecution { stderr, .. } => Some(stderr.as_str()),
+            Self::MissingImport { detail, .. } => Some(detail.as_str()),
+            _ => None,
+        }
+    }
+
+    /// The parameter key associated with this error, if any.
+    pub fn parameter_key(&self) -> Option<&str> {
+        match self {
+            Self::UnknownParameter { key, .. } | Self::InvalidParameter { key, .. } => {
+                Some(key.as_str())
+            }
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for CodegenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingProtoc { path, source } => {
+                write!(
+                    f,
+                    "protoc executable not found or failed to execute at '{}': {}",
+                    path.display(),
+                    source
+                )
+            }
+            Self::ProtocExecution {
+                status,
+                stderr,
+                protos,
+            } => {
+                let proto_list = protos
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if stderr.is_empty() {
+                    write!(
+                        f,
+                        "protoc failed with {status} while compiling [{proto_list}]"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "protoc failed with {status} while compiling [{proto_list}]:\n{stderr}"
+                    )
+                }
+            }
+            Self::MissingImport {
+                import,
+                proto,
+                detail,
+            } => {
+                write!(
+                    f,
+                    "missing import '{}' required by '{}':\n{}",
+                    import,
+                    proto.display(),
+                    detail
+                )
+            }
+            Self::MalformedDescriptor { detail, path } => {
+                if let Some(p) = path {
+                    write!(
+                        f,
+                        "malformed protobuf descriptor at '{}': {}",
+                        p.display(),
+                        detail
+                    )
+                } else {
+                    write!(f, "malformed protobuf descriptor: {}", detail)
+                }
+            }
+            Self::UnwritableOutput { path, source } => {
+                write!(
+                    f,
+                    "failed to write codegen output to '{}': {}",
+                    path.display(),
+                    source
+                )
+            }
+            Self::MissingOutDir => {
+                f.write_str("OUT_DIR environment variable is not set and no out_dir was configured")
+            }
+            Self::Io { path, source } => {
+                write!(f, "IO error at '{}': {}", path.display(), source)
+            }
+            Self::UnknownParameter { key, detail } => {
+                if detail.is_empty() {
+                    write!(f, "unknown codegen parameter: {key}")
+                } else {
+                    write!(f, "unknown codegen parameter '{key}': {detail}")
+                }
+            }
+            Self::InvalidParameter { key, detail } => {
+                if detail.is_empty() {
+                    write!(f, "invalid codegen parameter: {key}")
+                } else {
+                    write!(f, "invalid codegen parameter '{key}': {detail}")
+                }
+            }
+            Self::AmbiguousStem { stem, matches } => {
+                write!(f, "ambiguous proto stem '{stem}' across multiple files:")?;
+                for (path, pkg) in matches {
+                    write!(f, "\n  - {path} (package {pkg})")?;
+                }
+                write!(
+                    f,
+                    "\nUse the hierarchical path or include the root mod.rs instead."
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CodegenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::MissingProtoc { source, .. }
+            | Self::UnwritableOutput { source, .. }
+            | Self::Io { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
+
+impl From<CodegenError> for ParseError {
+    fn from(_: CodegenError) -> Self {
+        ParseError
+    }
+}
 
 thread_local! {
     static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =
@@ -25,6 +228,52 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     static STUBS: Cell<Stubs> = const { Cell::new(Stubs::Kernel) };
     static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
+    static NO_WKT: Cell<bool> = const { Cell::new(false) };
+    static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
+    static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
+    static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
+    static TYPE_FILES: RefCell<std::collections::BTreeMap<String, (String, String)>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
+    static EXTERN_PATHS: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    static RUNTIME_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static GRPC_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    static TONIC_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+}
+
+struct CodegenStateGuard;
+
+impl CodegenStateGuard {
+    fn new() -> Self {
+        Self::reset();
+        Self
+    }
+
+    fn reset() {
+        IDENTS.with(|c| c.borrow_mut().clear());
+        FIELD_IDENTS.with(|c| c.borrow_mut().clear());
+        FIELD_RAWS.with(|c| c.borrow_mut().clear());
+        STUBS.with(|c| c.set(Stubs::Kernel));
+        EMIT_DEPS.with(|c| c.set(false));
+        NO_WKT.with(|c| c.set(false));
+        SHARED_POOL.with(|c| c.set(false));
+        NO_REFLECT.with(|c| c.set(false));
+        CURRENT_TARGET.with(|c| c.borrow_mut().clear());
+        TYPE_FILES.with(|c| c.borrow_mut().clear());
+        EXTERN_PATHS.with(|c| c.borrow_mut().clear());
+        RUNTIME_CRATE.with(|c| *c.borrow_mut() = None);
+        GRPC_CRATE.with(|c| *c.borrow_mut() = None);
+        TONIC_CRATE.with(|c| *c.borrow_mut() = None);
+    }
+}
+
+impl Drop for CodegenStateGuard {
+    fn drop(&mut self) {
+        Self::reset();
+    }
 }
 
 /// Which gRPC service stubs to emit alongside generated messages.
@@ -49,62 +298,552 @@ pub enum Stubs {
     Kernel,
 }
 
-/// Resolve the stub flavour from the thread-local config, then the plugin
-/// environment.
+/// Resolve the stub flavour from the active thread-local config.
+#[allow(dead_code, reason = "helper for inspecting current stub flavour")]
 fn stubs_setting() -> Stubs {
-    match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
-        Ok("kernel") => Stubs::Kernel,
-        Ok("tonic") => Stubs::Tonic,
-        Ok("none") => Stubs::None,
-        _ => STUBS.with(Cell::get),
+    STUBS.with(Cell::get)
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct ExplicitOptions {
+    stubs: Option<Stubs>,
+    emit_deps: Option<bool>,
+    no_wkt: Option<bool>,
+    shared_pool: Option<bool>,
+    no_reflect: Option<bool>,
+    extern_paths: Vec<(String, String)>,
+    runtime_crate: Option<String>,
+    grpc_crate: Option<String>,
+    tonic_crate: Option<String>,
+    include_source_info: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ResolvedConfig {
+    stubs: Stubs,
+    emit_deps: bool,
+    no_wkt: bool,
+    shared_pool: bool,
+    no_reflect: bool,
+    extern_paths: Vec<(String, String)>,
+    runtime_crate: Option<String>,
+    grpc_crate: Option<String>,
+    tonic_crate: Option<String>,
+    include_source_info: bool,
+}
+
+fn parse_bool_param(key: &str, val: Option<&str>) -> Result<bool, CodegenError> {
+    match val {
+        None | Some("true") | Some("1") => Ok(true),
+        Some("false") | Some("0") => Ok(false),
+        Some(other) => Err(CodegenError::InvalidParameter {
+            key: key.to_string(),
+            detail: format!("expected 'true' or 'false' for '{key}', got '{other}'"),
+        }),
+    }
+}
+
+fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions, CodegenError> {
+    let mut explicit = ExplicitOptions::default();
+    for item in parameter.split(',') {
+        let item = item.trim();
+        if item.is_empty() {
+            continue;
+        }
+        let (key, val) = match item.split_once('=') {
+            Some((k, v)) => (k.trim(), Some(v.trim())),
+            None => (item, None),
+        };
+        match key {
+            "stubs" => {
+                let s = match val {
+                    Some("kernel") => Stubs::Kernel,
+                    Some("tonic") => Stubs::Tonic,
+                    Some("none") => Stubs::None,
+                    Some(other) => {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "stubs".to_string(),
+                            detail: format!(
+                                "expected 'kernel', 'tonic', or 'none' for 'stubs', got '{other}'"
+                            ),
+                        });
+                    }
+                    None => {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "stubs".to_string(),
+                            detail: "expected value for 'stubs' parameter ('kernel', 'tonic', or 'none')"
+                                .to_string(),
+                        });
+                    }
+                };
+                explicit.stubs = Some(s);
+            }
+            "emit_deps" => {
+                explicit.emit_deps = Some(parse_bool_param("emit_deps", val)?);
+            }
+            "no_wkt" => {
+                explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
+            }
+            "shared_pool" => {
+                explicit.shared_pool = Some(parse_bool_param("shared_pool", val)?);
+            }
+            "no_reflect" => {
+                explicit.no_reflect = Some(parse_bool_param("no_reflect", val)?);
+            }
+            "extern_path" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "extern_path".to_string(),
+                    detail: "expected 'proto_path=rust_path' for 'extern_path'".to_string(),
+                })?;
+                let (proto_path, rust_path) =
+                    val_str
+                        .split_once('=')
+                        .ok_or_else(|| CodegenError::InvalidParameter {
+                            key: "extern_path".to_string(),
+                            detail: format!(
+                            "expected 'proto_path=rust_path' for 'extern_path', got '{val_str}'"
+                        ),
+                        })?;
+                let proto_path = proto_path.trim();
+                let rust_path = rust_path.trim();
+                if proto_path.is_empty() || rust_path.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "extern_path".to_string(),
+                        detail: format!(
+                            "invalid empty proto_path or rust_path in 'extern_path={val_str}'"
+                        ),
+                    });
+                }
+                let norm_proto = proto_path.trim_start_matches('.');
+                if let Some((_, existing_rust)) = explicit
+                    .extern_paths
+                    .iter()
+                    .find(|(p, _)| p.trim_start_matches('.') == norm_proto)
+                {
+                    if existing_rust != rust_path {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "extern_path".to_string(),
+                            detail: format!(
+                                "conflicting mapping for '{proto_path}': already mapped to '{existing_rust}', cannot remap to '{rust_path}'"
+                            ),
+                        });
+                    }
+                } else {
+                    explicit
+                        .extern_paths
+                        .push((proto_path.to_string(), rust_path.to_string()));
+                }
+            }
+            "runtime_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "runtime_crate".to_string(),
+                    detail: "expected value for 'runtime_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "runtime_crate".to_string(),
+                        detail: "empty crate alias for 'runtime_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.runtime_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "runtime_crate".to_string(),
+                            detail: format!(
+                                "conflicting runtime_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.runtime_crate = Some(val_str.to_string());
+            }
+            "grpc_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "grpc_crate".to_string(),
+                    detail: "expected value for 'grpc_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "grpc_crate".to_string(),
+                        detail: "empty crate alias for 'grpc_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.grpc_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "grpc_crate".to_string(),
+                            detail: format!(
+                                "conflicting grpc_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.grpc_crate = Some(val_str.to_string());
+            }
+            "tonic_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "tonic_crate".to_string(),
+                    detail: "expected value for 'tonic_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "tonic_crate".to_string(),
+                        detail: "empty crate alias for 'tonic_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.tonic_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "tonic_crate".to_string(),
+                            detail: format!(
+                                "conflicting tonic_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.tonic_crate = Some(val_str.to_string());
+            }
+            "include_source_info" | "source_info" | "preserve_comments" => {
+                explicit.include_source_info = Some(parse_bool_param(key, val)?);
+            }
+            other => {
+                return Err(CodegenError::UnknownParameter {
+                    key: other.to_string(),
+                    detail: format!("unrecognized plugin parameter key: '{other}'"),
+                });
+            }
+        }
+    }
+    Ok(explicit)
+}
+
+fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
+    let stubs = if let Some(s) = explicit.stubs {
+        s
+    } else {
+        match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
+            Ok("kernel") => Stubs::Kernel,
+            Ok("tonic") => Stubs::Tonic,
+            Ok("none") => Stubs::None,
+            _ => Stubs::Kernel,
+        }
+    };
+    let emit_deps = if let Some(d) = explicit.emit_deps {
+        d
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_EMIT_DEPS").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let no_wkt = if let Some(w) = explicit.no_wkt {
+        w
+    } else {
+        match std::env::var("PURE_PROTOBUF_NO_WKT") {
+            Ok(v) => !v.is_empty() && v != "0" && v != "false",
+            Err(_) => false,
+        }
+    };
+    let shared_pool = if let Some(p) = explicit.shared_pool {
+        p
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_SHARED_POOL").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let no_reflect = if let Some(r) = explicit.no_reflect {
+        r
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let runtime_crate = explicit.runtime_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_RUNTIME_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let grpc_crate = explicit.grpc_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_GRPC_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let tonic_crate = explicit.tonic_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_TONIC_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let include_source_info = if let Some(si) = explicit.include_source_info {
+        si
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_INCLUDE_SOURCE_INFO").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    ResolvedConfig {
+        stubs,
+        emit_deps,
+        no_wkt,
+        shared_pool,
+        no_reflect,
+        extern_paths: explicit.extern_paths.clone(),
+        runtime_crate,
+        grpc_crate,
+        tonic_crate,
+        include_source_info,
     }
 }
 
 pub fn generate_from_code_generator_request(
     bytes: &[u8],
-) -> Result<Vec<(String, String)>, ParseError> {
+) -> Result<Vec<(String, String)>, CodegenError> {
+    let _guard = CodegenStateGuard::new();
     let mut files_to_generate = Vec::new();
     let mut proto_files = Vec::new();
+    let mut parameter = None;
     let mut pos = 0;
     while pos < bytes.len() {
-        let (n, w) = decode_tag(bytes, &mut pos)?;
+        let (n, w) =
+            decode_tag(bytes, &mut pos).map_err(|_| CodegenError::MalformedDescriptor {
+                detail: "failed to decode CodeGeneratorRequest wire tag".to_string(),
+                path: None,
+            })?;
         match (n, w) {
             (1, WIRE_LEN) => {
-                let s = read_len_bytes(bytes, &mut pos)?;
+                let s = read_len_bytes(bytes, &mut pos).map_err(|_| {
+                    CodegenError::MalformedDescriptor {
+                        detail: "failed to read file_to_generate in CodeGeneratorRequest"
+                            .to_string(),
+                        path: None,
+                    }
+                })?;
                 files_to_generate.push(String::from_utf8_lossy(s).into_owned());
             }
+            (2, WIRE_LEN) => {
+                let s = read_len_bytes(bytes, &mut pos).map_err(|_| {
+                    CodegenError::MalformedDescriptor {
+                        detail: "failed to read parameter in CodeGeneratorRequest".to_string(),
+                        path: None,
+                    }
+                })?;
+                parameter = Some(String::from_utf8_lossy(s).into_owned());
+            }
             (15, WIRE_LEN) => {
-                let blob = read_len_bytes(bytes, &mut pos)?.to_vec();
+                let blob = read_len_bytes(bytes, &mut pos)
+                    .map_err(|_| CodegenError::MalformedDescriptor {
+                        detail: "failed to read proto_file in CodeGeneratorRequest".to_string(),
+                        path: None,
+                    })?
+                    .to_vec();
                 proto_files.push(blob);
             }
-            _ => wire::skip_field(bytes, &mut pos, w)?,
+            _ => wire::skip_field(bytes, &mut pos, w).map_err(|_| {
+                CodegenError::MalformedDescriptor {
+                    detail: "failed to skip unrecognized field in CodeGeneratorRequest".to_string(),
+                    path: None,
+                }
+            })?,
         }
     }
+    let explicit = match parameter.as_deref() {
+        Some(p) => parse_plugin_parameter(p)?,
+        None => ExplicitOptions::default(),
+    };
+    let resolved = resolve_options(&explicit);
+    STUBS.with(|c| c.set(resolved.stubs));
+    EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
+    NO_WKT.with(|c| c.set(resolved.no_wkt));
+    SHARED_POOL.with(|c| c.set(resolved.shared_pool));
+    NO_REFLECT.with(|c| c.set(resolved.no_reflect));
+    EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
+    RUNTIME_CRATE.with(|c| *c.borrow_mut() = resolved.runtime_crate.clone());
+    GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
+    TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
+
     let mut fds = Vec::new();
+    // Stabilize proto_files ordering by file name so fds is byte-identical across input order permutations
+    proto_files.sort_by_cached_key(|blob| extract_proto_file_name_from_blob(blob));
     for blob in &proto_files {
         encode_len_field(&mut fds, 1, blob);
     }
-    let pool = DescriptorPool::from_file_descriptor_set(&fds)?;
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).map_err(|_| {
+        CodegenError::MalformedDescriptor {
+            detail: "failed to parse FileDescriptorSet in CodeGeneratorRequest".to_string(),
+            path: files_to_generate.first().map(PathBuf::from),
+        }
+    })?;
     let names: Vec<String> = pool.collect_names();
-    let targets = if files_to_generate.is_empty() {
+    let mut file_packages: std::collections::BTreeMap<String, String> =
+        std::collections::BTreeMap::new();
+    for blob in &proto_files {
+        let mut pos = 0;
+        let mut name = String::new();
+        let mut package = String::new();
+        while pos < blob.len() {
+            if let Ok((n, w)) = decode_tag(blob, &mut pos) {
+                if n == 1 && w == WIRE_LEN {
+                    if let Ok(b) = read_len_bytes(blob, &mut pos) {
+                        name = String::from_utf8_lossy(b).into_owned();
+                    }
+                } else if n == 2 && w == WIRE_LEN {
+                    if let Ok(b) = read_len_bytes(blob, &mut pos) {
+                        package = String::from_utf8_lossy(b).into_owned();
+                    }
+                } else {
+                    let _ = wire::skip_field(blob, &mut pos, w);
+                }
+            } else {
+                break;
+            }
+        }
+        if !name.is_empty() {
+            file_packages.insert(name, package);
+        }
+    }
+
+    let mut targets: Vec<String> = if files_to_generate.is_empty() {
         vec!["generated.proto".into()]
     } else {
-        files_to_generate.clone()
+        files_to_generate
+            .iter()
+            .map(|t| clean_proto_target_name(t))
+            .collect()
     };
+    targets.sort();
+    targets.dedup();
+
+    for target in &targets {
+        let norm_target = normalize_proto_path_str(target);
+        if norm_target != "generated.proto"
+            && norm_target != "generated"
+            && !norm_target.contains('/')
+        {
+            let stem = Path::new(&norm_target)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&norm_target);
+            let exact = file_packages.contains_key(&norm_target)
+                || file_packages.contains_key(&format!("{norm_target}.proto"))
+                || file_packages.contains_key(&format!("{stem}.proto"));
+            if !exact {
+                let matches: Vec<(String, String)> = file_packages
+                    .iter()
+                    .filter(|(file_name, _)| {
+                        let f_stem = Path::new(file_name)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("");
+                        f_stem == stem
+                    })
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                if matches.len() > 1 {
+                    return Err(CodegenError::AmbiguousStem {
+                        stem: stem.to_string(),
+                        matches,
+                    });
+                }
+            }
+        }
+    }
+
+    let mut stem_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for target in &targets {
+        let norm = normalize_proto_path_str(target);
+        let stem = Path::new(&norm)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("generated");
+        *stem_counts.entry(stem.to_string()).or_default() += 1;
+    }
+
+    let mut type_files = std::collections::BTreeMap::new();
+    for name in pool.collect_names() {
+        if let Some(desc) = pool.get_message(&name) {
+            let pkg = file_packages
+                .get(&desc.file_name)
+                .cloned()
+                .unwrap_or_else(|| {
+                    pool.get_file(&desc.file_name)
+                        .map(|f| f.package.clone())
+                        .unwrap_or_default()
+                });
+            type_files.insert(name, (desc.file_name.clone(), pkg));
+        }
+    }
+    for name in pool.collect_enum_names() {
+        if let Some(ed) = pool.get_enum(&name) {
+            let pkg = file_packages
+                .get(&ed.file_name)
+                .cloned()
+                .unwrap_or_else(|| {
+                    pool.get_file(&ed.file_name)
+                        .map(|f| f.package.clone())
+                        .unwrap_or_default()
+                });
+            type_files.insert(name, (ed.file_name.clone(), pkg));
+        }
+    }
+    TYPE_FILES.with(|c| *c.borrow_mut() = type_files);
+
     let mut out_files = Vec::new();
     for target in &targets {
+        let norm_target = normalize_proto_path_str(target);
+        CURRENT_TARGET.with(|c| *c.borrow_mut() = norm_target.clone());
+        let safe_target = norm_target
+            .replace('/', "_")
+            .replace('.', "_")
+            .replace('-', "_");
+        let gen_mod = format!("__gen_{safe_target}");
         let wanted: std::collections::BTreeSet<String> = std::iter::once(target.clone()).collect();
         let target_is_wkt = wanted.iter().any(|w| {
             let s = w.replace('\\', "/");
             s.contains("google/protobuf/") && !s.contains("test_messages")
         });
-        let mut src = String::from(
-            "// @generated by protoc-gen-pbrs\n#[allow(unused, non_snake_case, non_camel_case_types, clippy::all, clippy::restriction, clippy::indexing_slicing, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::let_underscore_must_use, unreachable_pub, reason = \"generated by protoc-gen-pbrs\")]\nmod __gen {\n#![allow(unused, non_snake_case, non_camel_case_types, clippy::all, clippy::restriction, clippy::indexing_slicing, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::let_underscore_must_use, unsafe_code, unreachable_pub, reason = \"generated by protoc-gen-pbrs\")]\nuse pbrs::prelude::*;\nuse pbrs::{Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError, UnknownEnumValue};\nuse pbrs::UnknownFields;\n\n",
+        let mut src = format!(
+            "// @generated by protoc-gen-pbrs\n\
+#[allow(unused, reason = \"generated protobuf code may not exercise all fields, methods, or imports\")]\n\
+#[allow(non_snake_case, reason = \"protobuf field and method names follow schema conventions\")]\n\
+#[allow(non_camel_case_types, reason = \"protobuf message and enum names follow schema conventions\")]\n\
+#[allow(non_upper_case_globals, reason = \"protobuf enum value names follow schema conventions\")]\n\
+#[allow(unreachable_pub, reason = \"generated items are re-exported at module level\")]\n\
+#[allow(clippy::all, reason = \"generated protobuf code does not adhere to hand-written clippy style\")]\n\
+#[allow(clippy::pedantic, reason = \"generated protobuf code does not adhere to clippy pedantic rules\")]\n\
+#[allow(clippy::nursery, reason = \"generated protobuf code does not adhere to clippy nursery rules\")]\n\
+#[allow(clippy::indexing_slicing, reason = \"bounds-checked wire decoding and reflection tables\")]\n\
+#[allow(clippy::cast_possible_truncation, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#[allow(clippy::cast_possible_wrap, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#[allow(clippy::cast_sign_loss, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#[allow(clippy::let_underscore_must_use, reason = \"ignoring results in generated wire helpers\")]\n\
+mod {gen_mod} {{\n\
+#![allow(unused, reason = \"generated protobuf code may not exercise all fields, methods, or imports\")]\n\
+#![allow(non_snake_case, reason = \"protobuf field and method names follow schema conventions\")]\n\
+#![allow(non_camel_case_types, reason = \"protobuf message and enum names follow schema conventions\")]\n\
+#![allow(non_upper_case_globals, reason = \"protobuf enum value names follow schema conventions\")]\n\
+#![allow(unreachable_pub, reason = \"generated items are re-exported at module level\")]\n\
+#![allow(unsafe_code, reason = \"generated deserialization and transmutes use unsafe for performance\")]\n\
+#![allow(clippy::all, reason = \"generated protobuf code does not adhere to hand-written clippy style\")]\n\
+#![allow(clippy::pedantic, reason = \"generated protobuf code does not adhere to clippy pedantic rules\")]\n\
+#![allow(clippy::nursery, reason = \"generated protobuf code does not adhere to clippy nursery rules\")]\n\
+#![allow(clippy::indexing_slicing, reason = \"bounds-checked wire decoding and reflection tables\")]\n\
+#![allow(clippy::cast_possible_truncation, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#![allow(clippy::cast_possible_wrap, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#![allow(clippy::cast_sign_loss, reason = \"protobuf wire format varint and field number conversions\")]\n\
+#![allow(clippy::let_underscore_must_use, reason = \"ignoring results in generated wire helpers\")]\n\
+use pbrs::prelude::*;\n\
+use pbrs::{{Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError, UnknownEnumValue}};\n\
+use pbrs::UnknownFields;\n\n"
         );
-        let no_reflect = std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref() == Ok("1");
-        if no_reflect {
+        if resolved.no_reflect {
             // Accessor/binary tests: skip FileDescriptorSet hex and JSON/text.
-        } else if std::env::var("PURE_PROTOBUF_SHARED_POOL").as_deref() == Ok("1") {
+        } else if resolved.shared_pool {
             src.push_str(
                 "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    pbrs::gencode::conformance_pool()\n}\n\n",
             );
@@ -114,6 +853,8 @@ pub fn generate_from_code_generator_request(
                 "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    static P: std::sync::OnceLock<std::sync::Arc<pbrs::DescriptorPool>> = std::sync::OnceLock::new();\n    P.get_or_init(|| {\n        std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }).clone()\n}\n\n",
             );
         }
+        let direct_pub_files = pool.public_import_files(&[target.clone()]);
+        let transitive_pub_files = transitive_public_imports(&pool, target);
         let mut emit_names = Vec::new();
         for name in &names {
             let Some(desc) = pool.get_message(name) else {
@@ -122,50 +863,127 @@ pub fn generate_from_code_generator_request(
             if desc.is_map_entry {
                 continue;
             }
+            if is_extern_type(&desc.full_name) {
+                continue;
+            }
             let wkt = desc.full_name.starts_with("google.protobuf.");
-            let emit_wkt = wkt && !target_is_wkt && std::env::var("PURE_PROTOBUF_NO_WKT").is_err();
-            let emit_deps = EMIT_DEPS.with(Cell::get)
-                || std::env::var("PURE_PROTOBUF_EMIT_DEPS").as_deref() == Ok("1");
-            if !file_matches(&wanted, &desc.file_name) && !emit_wkt && !(emit_deps && !wkt) {
+            let emit_wkt = wkt && !target_is_wkt && !resolved.no_wkt;
+            let emit_deps = resolved.emit_deps;
+            let is_target_file = file_matches(&wanted, &desc.file_name);
+            let is_pub_import = transitive_pub_files
+                .iter()
+                .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &desc.file_name));
+            let is_same_stem_non_target = {
+                let f_stem = std::path::Path::new(&desc.file_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                let w_stem = std::path::Path::new(target)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                f_stem == w_stem
+                    && !targets.iter().any(|t| {
+                        file_matches(&std::iter::once(t.clone()).collect(), &desc.file_name)
+                    })
+            };
+            if !is_target_file
+                && !emit_wkt
+                && !(emit_deps && !wkt)
+                && !is_pub_import
+                && !is_same_stem_non_target
+            {
                 continue;
             }
             emit_names.push(name.clone());
         }
-        let pub_files = pool.public_import_files(&targets);
-        emit_names.retain(|n| {
-            pool.get_message(n).is_none_or(|d| {
-                !pub_files
+        if !resolved.emit_deps {
+            emit_names.retain(|n| {
+                let Some(d) = pool.get_message(n) else {
+                    return true;
+                };
+                let wkt = d.full_name.starts_with("google.protobuf.");
+                if wkt && !target_is_wkt && !resolved.no_wkt {
+                    return true;
+                }
+                let is_pub = transitive_pub_files
                     .iter()
-                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name))
-            })
-        });
+                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name));
+                let pub_file_in_targets = targets
+                    .iter()
+                    .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &d.file_name));
+                !(is_pub && pub_file_in_targets)
+            });
+        }
+        emit_names.sort();
+        emit_names.dedup();
         let mut emit_enums = Vec::new();
         for name in pool.collect_enum_names() {
             let Some(ed) = pool.get_enum(&name) else {
                 continue;
             };
+            if is_extern_type(&ed.full_name) {
+                continue;
+            }
             let wkt = ed.full_name.starts_with("google.protobuf.");
-            let emit_wkt = wkt && !target_is_wkt && std::env::var("PURE_PROTOBUF_NO_WKT").is_err();
-            let emit_deps = EMIT_DEPS.with(Cell::get)
-                || std::env::var("PURE_PROTOBUF_EMIT_DEPS").as_deref() == Ok("1");
-            if !file_matches(&wanted, &ed.file_name) && !emit_wkt && !(emit_deps && !wkt) {
+            let emit_wkt = wkt && !target_is_wkt && !resolved.no_wkt;
+            let emit_deps = resolved.emit_deps;
+            let is_target_file = file_matches(&wanted, &ed.file_name);
+            let is_pub_import = transitive_pub_files
+                .iter()
+                .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &ed.file_name));
+            let is_same_stem_non_target = {
+                let f_stem = std::path::Path::new(&ed.file_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                let w_stem = std::path::Path::new(target)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                f_stem == w_stem
+                    && !targets
+                        .iter()
+                        .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &ed.file_name))
+            };
+            if !is_target_file
+                && !emit_wkt
+                && !(emit_deps && !wkt)
+                && !is_pub_import
+                && !is_same_stem_non_target
+            {
                 continue;
             }
             emit_enums.push(name);
         }
-        emit_enums.retain(|n| {
-            pool.get_enum(n).is_none_or(|d| {
-                !pub_files
+        if !resolved.emit_deps {
+            emit_enums.retain(|n| {
+                let Some(ed) = pool.get_enum(n) else {
+                    return true;
+                };
+                let wkt = ed.full_name.starts_with("google.protobuf.");
+                if wkt && !target_is_wkt && !resolved.no_wkt {
+                    return true;
+                }
+                let is_pub = transitive_pub_files
                     .iter()
-                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name))
-            })
-        });
+                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &ed.file_name));
+                let pub_file_in_targets = targets
+                    .iter()
+                    .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &ed.file_name));
+                !(is_pub && pub_file_in_targets)
+            });
+        }
+        emit_enums.sort();
+        emit_enums.dedup();
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
         let msg_set: std::collections::BTreeSet<String> =
             pool.collect_names().into_iter().collect();
         IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
-        emit_public_uses(&mut src, &pool, &pub_files);
+        if !resolved.emit_deps {
+            emit_public_uses(&mut src, &pool, &direct_pub_files, &targets);
+        }
         for name in &emit_enums {
             let ed = pool.get_enum(name).expect("emit enum");
             emit_enum(&mut src, &ed);
@@ -176,12 +994,35 @@ pub fn generate_from_code_generator_request(
             emit_map_decoders(&mut src, &desc);
         }
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
-        let services: Vec<_> = pool
+        let mut services: Vec<_> = pool
             .collect_services()
             .into_iter()
-            .filter(|s| file_matches(&wanted, &s.file_name))
+            .filter(|s| {
+                if is_extern_type(&s.full_name) {
+                    return false;
+                }
+                file_matches(&wanted, &s.file_name)
+                    || transitive_pub_files
+                        .iter()
+                        .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &s.file_name))
+                    || {
+                        let f_stem = std::path::Path::new(&s.file_name)
+                            .file_stem()
+                            .and_then(|st| st.to_str())
+                            .unwrap_or("");
+                        let w_stem = std::path::Path::new(target)
+                            .file_stem()
+                            .and_then(|st| st.to_str())
+                            .unwrap_or("");
+                        f_stem == w_stem
+                            && !targets.iter().any(|t| {
+                                file_matches(&std::iter::once(t.clone()).collect(), &s.file_name)
+                            })
+                    }
+            })
             .collect();
-        match stubs_setting() {
+        services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
+        match resolved.stubs {
             Stubs::None => {}
             Stubs::Tonic if !services.is_empty() => {
                 src.push_str("\n// --- gRPC stubs (protobuf-tonic, not tonic-prost) ---\n");
@@ -203,13 +1044,44 @@ pub fn generate_from_code_generator_request(
             }
             Stubs::Tonic | Stubs::Kernel => {}
         }
-        src.push_str("}\n#[allow(unused_imports, reason = \"generated by protoc-gen-pbrs\")]\npub use __gen::*;\n");
-        let stem = std::path::Path::new(target)
+        src.push_str(&format!(
+            "}}\n#[allow(unused_imports, reason = \"generated re-exports may not all be used\")]\npub use {gen_mod}::*;\n"
+        ));
+        if let Some(gc) = &resolved.grpc_crate {
+            if gc != "::pbrs_grpc" {
+                src = src.replace("::pbrs_grpc", gc);
+            }
+        }
+        if let Some(tc) = &resolved.tonic_crate {
+            if tc != "protobuf_tonic" {
+                src = src.replace("protobuf_tonic", tc);
+            }
+        }
+        if let Some(rc) = &resolved.runtime_crate {
+            if rc != "pbrs" {
+                src = src.replace("pbrs::", &format!("{rc}::"));
+            }
+        }
+        let rel_rs = if let Some(stripped) = norm_target.strip_suffix(".proto") {
+            format!("{stripped}.rs")
+        } else {
+            format!("{norm_target}.rs")
+        };
+        out_files.push((rel_rs.clone(), src.clone()));
+
+        let stem = std::path::Path::new(&norm_target)
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("generated");
-        out_files.push((format!("{stem}.rs"), src));
+        let root_rs = format!("{stem}.rs");
+        if stem_counts.get(stem) == Some(&1) && root_rs != rel_rs {
+            out_files.push((root_rs, src));
+        }
     }
+    let mod_rs = emit_root_mod_rs(&targets, &file_packages, &pool);
+    out_files.push(("mod.rs".to_string(), mod_rs));
+    out_files.sort_by(|a, b| a.0.cmp(&b.0));
+    out_files.dedup_by(|a, b| a.0 == b.0);
     Ok(out_files)
 }
 
@@ -217,22 +1089,92 @@ pub fn generate_from_code_generator_request(
 pub fn generate_from_file_descriptor_set(
     fds: &[u8],
     files_to_generate: &[String],
-) -> Result<Vec<(String, String)>, ParseError> {
+) -> Result<Vec<(String, String)>, CodegenError> {
+    generate_from_file_descriptor_set_with_parameter(fds, files_to_generate, None)
+}
+
+fn generate_from_file_descriptor_set_with_parameter(
+    fds: &[u8],
+    files_to_generate: &[String],
+    parameter: Option<&str>,
+) -> Result<Vec<(String, String)>, CodegenError> {
     let mut req = Vec::new();
     for f in files_to_generate {
         encode_string_field(&mut req, 1, f);
     }
+    if let Some(param) = parameter {
+        if !param.is_empty() {
+            encode_string_field(&mut req, 2, param);
+        }
+    }
     let mut pos = 0;
     while pos < fds.len() {
-        let (n, w) = decode_tag(fds, &mut pos)?;
+        let (n, w) = decode_tag(fds, &mut pos).map_err(|_| CodegenError::MalformedDescriptor {
+            detail: "failed to decode FileDescriptorSet wire tag".to_string(),
+            path: None,
+        })?;
         if n == 1 && w == WIRE_LEN {
-            let blob = read_len_bytes(fds, &mut pos)?;
+            let blob =
+                read_len_bytes(fds, &mut pos).map_err(|_| CodegenError::MalformedDescriptor {
+                    detail: "failed to read FileDescriptorProto in FileDescriptorSet".to_string(),
+                    path: None,
+                })?;
             encode_len_field(&mut req, 15, blob);
         } else {
-            wire::skip_field(fds, &mut pos, w)?;
+            wire::skip_field(fds, &mut pos, w).map_err(|_| CodegenError::MalformedDescriptor {
+                detail: "failed to skip field in FileDescriptorSet".to_string(),
+                path: None,
+            })?;
         }
     }
     generate_from_code_generator_request(&req)
+}
+
+fn extract_fds_file_names(bytes: &[u8]) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        if let Ok((n, w)) = decode_tag(bytes, &mut pos) {
+            if n == 1 && w == WIRE_LEN {
+                if let Ok(blob) = read_len_bytes(bytes, &mut pos) {
+                    let mut file_pos = 0;
+                    let mut file_name = None;
+                    while file_pos < blob.len() {
+                        if let Ok((fn_num, fn_w)) = decode_tag(blob, &mut file_pos) {
+                            match (fn_num, fn_w) {
+                                (1, WIRE_LEN) => {
+                                    if let Ok(name_bytes) = read_len_bytes(blob, &mut file_pos) {
+                                        file_name =
+                                            Some(String::from_utf8_lossy(name_bytes).into_owned());
+                                    }
+                                }
+                                (3, WIRE_LEN) => {
+                                    if let Ok(dep_bytes) = read_len_bytes(blob, &mut file_pos) {
+                                        names.push(String::from_utf8_lossy(dep_bytes).into_owned());
+                                    }
+                                }
+                                (_, w) => {
+                                    let _ = wire::skip_field(blob, &mut file_pos, w);
+                                }
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    if let Some(name) = file_name {
+                        names.push(name);
+                    }
+                }
+            } else {
+                let _ = wire::skip_field(bytes, &mut pos, w);
+            }
+        } else {
+            break;
+        }
+    }
+    names.sort();
+    names.dedup();
+    names
 }
 
 /// prost-build-shaped compile: `protoc` FileDescriptorSet, then gencode into
@@ -240,21 +1182,142 @@ pub fn generate_from_file_descriptor_set(
 pub fn compile_protos(
     protos: &[impl AsRef<Path>],
     includes: &[impl AsRef<Path>],
-) -> Result<(), ParseError> {
+) -> Result<(), CodegenError> {
     Config::new().compile_protos(protos, includes)
 }
 
+fn parse_missing_import(stderr: &str) -> Option<(String, PathBuf)> {
+    for line in stderr.lines() {
+        let trimmed = line.trim();
+        if let Some(import_idx) = trimmed.find("Import \"") {
+            let rest = &trimmed[import_idx + 8..];
+            if let Some(end_quote) = rest.find('"') {
+                let import_name = &rest[..end_quote];
+                let proto_file = if let Some(colon_idx) = trimmed.find(':') {
+                    trimmed[..colon_idx].trim()
+                } else {
+                    ""
+                };
+                return Some((import_name.to_string(), PathBuf::from(proto_file)));
+            }
+        }
+    }
+    for line in stderr.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_suffix(": File not found.") {
+            let missing_file = rest.trim();
+            if missing_file.ends_with(".proto") {
+                return Some((missing_file.to_string(), PathBuf::new()));
+            }
+        }
+    }
+    None
+}
+
 /// Options for [`compile_protos`].
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Config {
+    protoc_path: Option<PathBuf>,
     out_dir: Option<PathBuf>,
-    stubs: Stubs,
-    emit_deps: bool,
+    stubs: Option<Stubs>,
+    emit_deps: Option<bool>,
+    no_wkt: Option<bool>,
+    shared_pool: Option<bool>,
+    no_reflect: Option<bool>,
+    extern_paths: Vec<(String, String)>,
+    runtime_crate: Option<String>,
+    grpc_crate: Option<String>,
+    tonic_crate: Option<String>,
+    include_source_info: Option<bool>,
 }
 
 impl Config {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Explicitly configure the path to the `protoc` compiler executable.
+    ///
+    /// If unset, defaults to the `PROTOC` environment variable, or searches `PATH` for `protoc`.
+    pub fn protoc_path(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+        self.protoc_path = Some(path.into());
+        self
+    }
+
+    /// Returns the explicit `protoc` path configured, if any.
+    #[must_use]
+    pub fn get_protoc_path(&self) -> Option<&Path> {
+        self.protoc_path.as_deref()
+    }
+
+    /// Resolve the `protoc` executable to use: either the explicit configured path,
+    /// or the path from the `PROTOC` environment variable, or `"protoc"` (searching `PATH`).
+    #[must_use]
+    pub fn resolve_protoc_path(&self) -> PathBuf {
+        self.protoc_path
+            .clone()
+            .or_else(|| {
+                std::env::var_os("PROTOC")
+                    .filter(|s| !s.is_empty())
+                    .map(PathBuf::from)
+            })
+            .unwrap_or_else(|| PathBuf::from("protoc"))
+    }
+
+    /// Returns the resolved `protoc` executable path.
+    #[must_use]
+    pub fn selected_protoc_path(&self) -> PathBuf {
+        self.resolve_protoc_path()
+    }
+
+    /// Query the configured or discovered `protoc` compiler version string (e.g. `libprotoc 29.3`).
+    pub fn protoc_version(&self) -> Result<String, CodegenError> {
+        let protoc_bin = self.resolve_protoc_path();
+        let output = match Command::new(&protoc_bin).arg("--version").output() {
+            Ok(o) => o,
+            Err(e) => {
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: e,
+                });
+            }
+        };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if output.status.code() == Some(127)
+                && (stderr.is_empty() || stderr.contains("not found"))
+            {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 127 (not found or executable failed)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, msg),
+                });
+            }
+            if output.status.code() == Some(126) {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 126 (permission denied or not executable)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, msg),
+                });
+            }
+            return Err(CodegenError::ProtocExecution {
+                status: output.status,
+                stderr,
+                protos: Vec::new(),
+            });
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(stdout)
     }
 
     pub fn out_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
@@ -264,7 +1327,7 @@ impl Config {
 
     /// Choose which gRPC stub flavour to emit. Default [`Stubs::Kernel`].
     pub fn stubs(&mut self, stubs: Stubs) -> &mut Self {
-        self.stubs = stubs;
+        self.stubs = Some(stubs);
         self
     }
 
@@ -274,7 +1337,7 @@ impl Config {
     /// messages only. Mutually exclusive with [`Self::emit_kernel_stubs`];
     /// the last call wins.
     pub fn emit_tonic_stubs(&mut self, enable: bool) -> &mut Self {
-        self.stubs = if enable { Stubs::Tonic } else { Stubs::None };
+        self.stubs = Some(if enable { Stubs::Tonic } else { Stubs::None });
         self
     }
 
@@ -299,7 +1362,7 @@ impl Config {
     ///     .expect("codegen");
     /// ```
     pub fn emit_kernel_stubs(&mut self, enable: bool) -> &mut Self {
-        self.stubs = if enable { Stubs::Kernel } else { Stubs::None };
+        self.stubs = Some(if enable { Stubs::Kernel } else { Stubs::None });
         self
     }
 
@@ -309,61 +1372,353 @@ impl Config {
     /// `messages.proto` / `empty.proto`. `PURE_PROTOBUF_EMIT_DEPS=1`
     /// remains the plugin/env equivalent.
     pub fn emit_deps(&mut self, enable: bool) -> &mut Self {
-        self.emit_deps = enable;
+        self.emit_deps = Some(enable);
         self
+    }
+
+    /// Disable emission of Well-Known Types (WKTs).
+    pub fn no_wkt(&mut self, enable: bool) -> &mut Self {
+        self.no_wkt = Some(enable);
+        self
+    }
+
+    /// Use a shared DescriptorPool instead of embedding the FileDescriptorSet.
+    pub fn shared_pool(&mut self, enable: bool) -> &mut Self {
+        self.shared_pool = Some(enable);
+        self
+    }
+
+    /// Skip embedding FileDescriptorSet and JSON/text methods for lightweight accessors.
+    pub fn no_reflect(&mut self, enable: bool) -> &mut Self {
+        self.no_reflect = Some(enable);
+        self
+    }
+
+    /// Map a protobuf package or message path to an external Rust type or module path.
+    pub fn extern_path(
+        &mut self,
+        proto_path: impl Into<String>,
+        rust_path: impl Into<String>,
+    ) -> &mut Self {
+        self.extern_paths
+            .push((proto_path.into(), rust_path.into()));
+        self
+    }
+
+    /// Override the runtime crate path (default: "pbrs").
+    pub fn runtime_crate(&mut self, crate_name: impl Into<String>) -> &mut Self {
+        self.runtime_crate = Some(crate_name.into());
+        self
+    }
+
+    /// Override the native pbrs-grpc crate path (default: "::pbrs_grpc").
+    pub fn grpc_crate(&mut self, rust_path: impl Into<String>) -> &mut Self {
+        self.grpc_crate = Some(rust_path.into());
+        self
+    }
+
+    /// Override the protobuf-tonic crate path (default: "protobuf_tonic").
+    pub fn tonic_crate(&mut self, rust_path: impl Into<String>) -> &mut Self {
+        self.tonic_crate = Some(rust_path.into());
+        self
+    }
+
+    /// Include source code info (locations and comments) in generated descriptors and code.
+    pub fn include_source_info(&mut self, enable: bool) -> &mut Self {
+        self.include_source_info = Some(enable);
+        self
+    }
+
+    /// Alias for [`Self::include_source_info`].
+    pub fn preserve_comments(&mut self, enable: bool) -> &mut Self {
+        self.include_source_info(enable)
+    }
+
+    fn to_parameter_string(&self) -> String {
+        let mut opts = Vec::new();
+        if let Some(stubs) = self.stubs {
+            match stubs {
+                Stubs::Kernel => opts.push("stubs=kernel".to_string()),
+                Stubs::Tonic => opts.push("stubs=tonic".to_string()),
+                Stubs::None => opts.push("stubs=none".to_string()),
+            }
+        }
+        if let Some(emit_deps) = self.emit_deps {
+            opts.push(format!("emit_deps={emit_deps}"));
+        }
+        if let Some(no_wkt) = self.no_wkt {
+            opts.push(format!("no_wkt={no_wkt}"));
+        }
+        if let Some(shared_pool) = self.shared_pool {
+            opts.push(format!("shared_pool={shared_pool}"));
+        }
+        if let Some(no_reflect) = self.no_reflect {
+            opts.push(format!("no_reflect={no_reflect}"));
+        }
+        for (proto, rust) in &self.extern_paths {
+            opts.push(format!("extern_path={proto}={rust}"));
+        }
+        if let Some(rc) = &self.runtime_crate {
+            opts.push(format!("runtime_crate={rc}"));
+        }
+        if let Some(gc) = &self.grpc_crate {
+            opts.push(format!("grpc_crate={gc}"));
+        }
+        if let Some(tc) = &self.tonic_crate {
+            opts.push(format!("tonic_crate={tc}"));
+        }
+        if let Some(si) = self.include_source_info {
+            opts.push(format!("include_source_info={si}"));
+        }
+        opts.join(",")
     }
 
     pub fn compile_protos(
         &self,
         protos: &[impl AsRef<Path>],
         includes: &[impl AsRef<Path>],
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), CodegenError> {
+        let param = self.to_parameter_string();
+        if !param.is_empty() {
+            parse_plugin_parameter(&param)?;
+        }
         let out = match &self.out_dir {
             Some(p) => p.clone(),
-            None => PathBuf::from(
-                std::env::var("OUT_DIR").map_err(|_| ParseError::new("missing OUT_DIR"))?,
-            ),
+            None => {
+                let var = std::env::var("OUT_DIR").map_err(|_| CodegenError::MissingOutDir)?;
+                PathBuf::from(var)
+            }
         };
-        std::fs::create_dir_all(&out).map_err(|e| ParseError::owned(e.to_string()))?;
-        for p in protos {
-            println!("cargo:rerun-if-changed={}", p.as_ref().display());
+        std::fs::create_dir_all(&out).map_err(|e| CodegenError::UnwritableOutput {
+            path: out.clone(),
+            source: e,
+        })?;
+
+        println!("cargo:rerun-if-env-changed=PROTOC");
+        println!("cargo:rerun-if-env-changed=PURE_PROTOBUF_*");
+        for var in &[
+            "PURE_PROTOBUF_STUBS",
+            "PURE_PROTOBUF_EMIT_DEPS",
+            "PURE_PROTOBUF_NO_WKT",
+            "PURE_PROTOBUF_SHARED_POOL",
+            "PURE_PROTOBUF_NO_REFLECT",
+            "PURE_PROTOBUF_RUNTIME_CRATE",
+            "PURE_PROTOBUF_GRPC_CRATE",
+            "PURE_PROTOBUF_TONIC_CRATE",
+            "PURE_PROTOBUF_INCLUDE_SOURCE_INFO",
+        ] {
+            println!("cargo:rerun-if-env-changed={var}");
         }
+
+        let mut seen_canonical = std::collections::BTreeSet::new();
+        let mut emit_rerun_if_changed = |path: &Path| {
+            let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+            if seen_canonical.insert(canon) {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        };
+
+        let mut sorted_protos: Vec<PathBuf> = protos
+            .iter()
+            .map(|p| p.as_ref().to_path_buf())
+            .collect();
+        sorted_protos.sort();
+        sorted_protos.dedup();
+
+        for p in &sorted_protos {
+            emit_rerun_if_changed(p);
+        }
+
+        let protoc_bin = self.resolve_protoc_path();
         let fds_path = out.join("pbrs.fds");
-        let mut cmd = Command::new("protoc");
-        cmd.arg("--include_imports")
-            .arg(format!("--descriptor_set_out={}", fds_path.display()));
+        let mut cmd = Command::new(&protoc_bin);
+        cmd.arg("--include_imports");
+        if self.include_source_info.unwrap_or(false)
+            || matches!(
+                std::env::var("PURE_PROTOBUF_INCLUDE_SOURCE_INFO").as_deref(),
+                Ok("1") | Ok("true")
+            )
+        {
+            cmd.arg("--include_source_info");
+        }
+        let mut fds_arg = std::ffi::OsString::from("--descriptor_set_out=");
+        fds_arg.push(fds_path.as_os_str());
+        cmd.arg(fds_arg);
         for inc in includes {
             cmd.arg("-I").arg(inc.as_ref());
         }
-        for p in protos {
-            cmd.arg(p.as_ref());
+        for p in &sorted_protos {
+            let rel = resolve_proto_rel_path(p, includes);
+            if !rel.is_empty() && !Path::new(&rel).is_absolute() {
+                cmd.arg(&rel);
+            } else {
+                cmd.arg(p);
+            }
         }
-        let status = cmd.status().map_err(|e| ParseError::owned(e.to_string()))?;
-        if !status.success() {
-            return Err(ParseError::owned(format!("protoc failed: {status}")));
+        let output = match cmd.output() {
+            Ok(o) => o,
+            Err(e) => {
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: e,
+                });
+            }
+        };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if output.status.code() == Some(127)
+                && (stderr.is_empty() || stderr.contains("not found"))
+            {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 127 (not found or executable failed)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, msg),
+                });
+            }
+            if output.status.code() == Some(126) {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 126 (permission denied or not executable)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, msg),
+                });
+            }
+            if let Some((import_name, proto_file)) = parse_missing_import(&stderr) {
+                let proto = if proto_file.as_os_str().is_empty() {
+                    protos
+                        .first()
+                        .map(|p| p.as_ref().to_path_buf())
+                        .unwrap_or_default()
+                } else {
+                    proto_file
+                };
+                return Err(CodegenError::MissingImport {
+                    import: import_name,
+                    proto,
+                    detail: stderr,
+                });
+            }
+            return Err(CodegenError::ProtocExecution {
+                status: output.status,
+                stderr,
+                protos: protos.iter().map(|p| p.as_ref().to_path_buf()).collect(),
+            });
         }
-        let bytes = std::fs::read(&fds_path).map_err(|e| ParseError::owned(e.to_string()))?;
-        let names: Vec<String> = protos
+        let bytes = std::fs::read(&fds_path).map_err(|e| CodegenError::Io {
+            path: fds_path.clone(),
+            source: e,
+        })?;
+
+        let fds_file_names = extract_fds_file_names(&bytes);
+        for name in &fds_file_names {
+            let clean_name = name.trim_start_matches('/').trim_start_matches("./");
+            let mut resolved = None;
+            if Path::new(name).is_absolute() && Path::new(name).exists() {
+                resolved = Some(PathBuf::from(name));
+            } else {
+                for inc in includes {
+                    let candidate = inc.as_ref().join(clean_name);
+                    if candidate.exists() {
+                        resolved = Some(candidate);
+                        break;
+                    }
+                }
+                if resolved.is_none() {
+                    let direct = Path::new(clean_name);
+                    if direct.exists() {
+                        resolved = Some(direct.to_path_buf());
+                    }
+                }
+            }
+            if let Some(r) = resolved {
+                emit_rerun_if_changed(&r);
+            }
+        }
+        let names: Vec<String> = sorted_protos
             .iter()
-            .map(|p| {
-                p.as_ref()
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("generated.proto")
-                    .to_string()
-            })
+            .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
             .collect();
-        STUBS.with(|c| c.set(self.stubs));
-        EMIT_DEPS.with(|c| c.set(self.emit_deps));
-        let files = generate_from_file_descriptor_set(&bytes, &names);
-        STUBS.with(|c| c.set(Stubs::default()));
-        EMIT_DEPS.with(|c| c.set(false));
-        let files = files?;
+        let param = self.to_parameter_string();
+        let files = generate_from_file_descriptor_set_with_parameter(
+            &bytes,
+            &names,
+            if param.is_empty() { None } else { Some(&param) },
+        );
+        let files = match files {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = std::fs::remove_file(&fds_path);
+                return Err(match e {
+                    CodegenError::MalformedDescriptor { detail, path: None } => {
+                        CodegenError::MalformedDescriptor {
+                            detail,
+                            path: Some(fds_path.clone()),
+                        }
+                    }
+                    other => other,
+                });
+            }
+        };
         for (name, src) in files {
-            std::fs::write(out.join(name), src).map_err(|e| ParseError::owned(e.to_string()))?;
+            let target_path = out.join(name);
+            write_file_atomic_if_changed(&target_path, &src)?;
         }
+        let _ = std::fs::remove_file(&fds_path);
         Ok(())
     }
+}
+
+fn write_file_atomic_if_changed(target_path: &Path, content: &str) -> Result<bool, CodegenError> {
+    if let Some(parent) = target_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| CodegenError::UnwritableOutput {
+            path: parent.to_path_buf(),
+            source: e,
+        })?;
+    }
+
+    if let Ok(existing) = std::fs::read(target_path) {
+        if existing == content.as_bytes() {
+            return Ok(false);
+        }
+    }
+
+    let parent = target_path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = target_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("output");
+
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let pid = std::process::id();
+    let tmp_path = parent.join(format!(".{file_name}.tmp.{pid}_{count}"));
+
+    if let Err(e) = std::fs::write(&tmp_path, content) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(CodegenError::UnwritableOutput {
+            path: target_path.to_path_buf(),
+            source: e,
+        });
+    }
+
+    if let Err(e) = std::fs::rename(&tmp_path, target_path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(CodegenError::UnwritableOutput {
+            path: target_path.to_path_buf(),
+            source: e,
+        });
+    }
+
+    Ok(true)
 }
 
 pub fn encode_code_generator_response(files: &[(String, String)]) -> Vec<u8> {
@@ -381,24 +1736,215 @@ pub fn encode_code_generator_response(files: &[(String, String)]) -> Vec<u8> {
     out
 }
 
+pub fn encode_code_generator_response_error(error: &str) -> Vec<u8> {
+    let mut out = Vec::new();
+    encode_string_field(&mut out, 1, error);
+    // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
+    encode_varint_field(&mut out, 2, 3);
+    encode_varint_field(&mut out, 3, 998); // EDITION_PROTO2
+    encode_varint_field(&mut out, 4, 1000); // EDITION_2023
+    out
+}
+
+fn normalize_proto_path_str(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let replaced = s.replace('\\', "/");
+    let mut prev_slash = false;
+    for c in replaced.chars() {
+        if c == '/' {
+            if !prev_slash {
+                out.push(c);
+                prev_slash = true;
+            }
+        } else {
+            out.push(c);
+            prev_slash = false;
+        }
+    }
+    let mut s = out.as_str();
+    while let Some(stripped) = s.strip_prefix("./") {
+        s = stripped;
+    }
+    s = s.trim_start_matches('/');
+    s.to_string()
+}
+
+fn clean_proto_target_name(target: &str) -> String {
+    let norm = normalize_proto_path_str(target);
+    if target.starts_with('/') || (target.len() > 2 && target.chars().nth(1) == Some(':')) {
+        if let Some(file_name) = Path::new(target).file_name().and_then(|n| n.to_str()) {
+            return file_name.to_string();
+        }
+    }
+    norm
+}
+
+fn extract_proto_file_name_from_blob(blob: &[u8]) -> String {
+    let mut pos = 0;
+    while pos < blob.len() {
+        if let Ok((n, w)) = decode_tag(blob, &mut pos) {
+            if n == 1 && w == WIRE_LEN {
+                if let Ok(b) = read_len_bytes(blob, &mut pos) {
+                    return String::from_utf8_lossy(b).into_owned();
+                }
+            } else {
+                let _ = wire::skip_field(blob, &mut pos, w);
+            }
+        } else {
+            break;
+        }
+    }
+    String::new()
+}
+
 fn file_matches(wanted: &std::collections::BTreeSet<String>, file_name: &str) -> bool {
     if file_name.is_empty() {
         return true;
     }
-    let file_stem = std::path::Path::new(file_name)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or(file_name);
+    let file_norm = normalize_proto_path_str(file_name);
+    let file_norm_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
     wanted.iter().any(|w| {
-        let w_stem = std::path::Path::new(w)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or(w);
-        w == file_name || w.ends_with(file_name) || file_name.ends_with(w) || w_stem == file_stem
+        let w_norm = normalize_proto_path_str(w);
+        if w_norm == "generated.proto" || w_norm == "generated" {
+            return true;
+        }
+        let w_norm_no_proto = w_norm.strip_suffix(".proto").unwrap_or(&w_norm);
+        if w_norm == file_norm || w_norm_no_proto == file_norm_no_proto {
+            return true;
+        }
+        let suff = format!("/{file_norm}");
+        let suff_no_proto = format!("/{file_norm_no_proto}");
+        if w_norm.ends_with(&suff) || w_norm_no_proto.ends_with(&suff_no_proto) {
+            return true;
+        }
+        let f_suff = format!("/{w_norm}");
+        let f_suff_no_proto = format!("/{w_norm_no_proto}");
+        if file_norm.ends_with(&f_suff) || file_norm_no_proto.ends_with(&f_suff_no_proto) {
+            return true;
+        }
+        false
     })
 }
 
+fn transitive_public_imports(pool: &DescriptorPool, target: &str) -> Vec<String> {
+    let mut all = Vec::new();
+    let mut frontier = pool.public_import_files(&[target.to_string()]);
+    for f in &frontier {
+        if !all.contains(f) {
+            all.push(f.clone());
+        }
+    }
+    while !frontier.is_empty() {
+        let next = pool.public_import_files(&frontier);
+        frontier.clear();
+        for f in next {
+            if !all.contains(&f) {
+                all.push(f.clone());
+                frontier.push(f);
+            }
+        }
+    }
+    all
+}
+
+fn resolve_proto_rel_path(proto: &Path, includes: &[impl AsRef<Path>]) -> String {
+    let norm_proto = normalize_proto_path_str(&proto.to_string_lossy());
+    for inc in includes {
+        let norm_inc = normalize_proto_path_str(&inc.as_ref().to_string_lossy());
+        if norm_inc == "." || norm_inc.is_empty() {
+            continue;
+        }
+        let prefix = format!("{norm_inc}/");
+        if let Some(stripped) = norm_proto.strip_prefix(&prefix) {
+            return stripped.to_string();
+        }
+    }
+    for inc in includes {
+        if let Ok(rel) = proto.strip_prefix(inc.as_ref()) {
+            let s = normalize_proto_path_str(&rel.to_string_lossy());
+            if !s.is_empty() && s != "." {
+                return s;
+            }
+        }
+        if let (Ok(p_canon), Ok(inc_canon)) = (proto.canonicalize(), inc.as_ref().canonicalize()) {
+            if let Ok(rel) = p_canon.strip_prefix(&inc_canon) {
+                let s = normalize_proto_path_str(&rel.to_string_lossy());
+                if !s.is_empty() && s != "." {
+                    return s;
+                }
+            }
+        }
+    }
+    if proto.is_absolute() {
+        if let Some(file_name) = proto.file_name().and_then(|n| n.to_str()) {
+            return file_name.to_string();
+        }
+    }
+    norm_proto
+}
+
+fn emit_root_mod_rs(
+    targets: &[String],
+    file_packages: &std::collections::BTreeMap<String, String>,
+    pool: &DescriptorPool,
+) -> String {
+    #[derive(Default)]
+    struct ModNode {
+        includes: Vec<String>,
+        submodules: std::collections::BTreeMap<String, ModNode>,
+    }
+    let mut root = ModNode::default();
+    let mut sorted_targets = targets.to_vec();
+    sorted_targets.sort();
+    sorted_targets.dedup();
+    for target in &sorted_targets {
+        let norm_target = normalize_proto_path_str(target);
+        let rel_rs = if let Some(stripped) = norm_target.strip_suffix(".proto") {
+            format!("{stripped}.rs")
+        } else {
+            format!("{norm_target}.rs")
+        };
+        let pkg = file_packages.get(&norm_target).cloned().unwrap_or_else(|| {
+            pool.get_file(&norm_target)
+                .map(|f| f.package.clone())
+                .unwrap_or_default()
+        });
+        if pkg.is_empty() {
+            if !root.includes.contains(&rel_rs) {
+                root.includes.push(rel_rs);
+            }
+        } else {
+            let parts: Vec<&str> = pkg.split('.').collect();
+            let mut cur = &mut root;
+            for part in parts {
+                cur = cur.submodules.entry(part.to_string()).or_default();
+            }
+            if !cur.includes.contains(&rel_rs) {
+                cur.includes.push(rel_rs);
+            }
+        }
+    }
+    fn emit_node(src: &mut String, node: &ModNode, indent: usize) {
+        let ind = "    ".repeat(indent);
+        let mut sorted_includes = node.includes.clone();
+        sorted_includes.sort();
+        sorted_includes.dedup();
+        for inc in &sorted_includes {
+            let _ = writeln!(src, "{ind}include!(\"{inc}\");");
+        }
+        for (name, sub) in &node.submodules {
+            let _ = writeln!(src, "{ind}pub mod {name} {{");
+            emit_node(src, sub, indent + 1);
+            let _ = writeln!(src, "{ind}}}");
+        }
+    }
+    let mut src = String::from("// @generated by protoc-gen-pbrs\n");
+    emit_node(&mut src, &root, 0);
+    src
+}
+
 fn emit_fds(src: &mut String, fds: &[u8]) {
+    src.push_str("/// FileDescriptorSet bytes for reflection and dynamic schema inspection.\n");
     src.push_str("pub const FILE_DESCRIPTOR_SET: &[u8] = &[\n");
     for (i, b) in fds.iter().enumerate() {
         if i % 16 == 0 {
@@ -454,12 +2000,100 @@ fn file_stem_ident(path: &str) -> String {
         .replace('-', "_")
 }
 
-fn emit_public_uses(src: &mut String, pool: &DescriptorPool, pub_files: &[String]) {
-    for p in pub_files {
-        let stem = file_stem_ident(p);
-        let _ = writeln!(src, "pub use crate::{stem}::*;");
+fn match_extern_type(s: &str) -> Option<String> {
+    let key = s.trim_start_matches('.');
+    EXTERN_PATHS.with(|paths| {
+        let paths = paths.borrow();
+        let mut best_match: Option<(usize, String)> = None;
+        for (proto_path, rust_path) in paths.iter() {
+            let prefix = proto_path.trim_start_matches('.');
+            if key == prefix {
+                let len = prefix.len();
+                if best_match
+                    .as_ref()
+                    .map_or(true, |(best_len, _)| len > *best_len)
+                {
+                    best_match = Some((len, rust_path.clone()));
+                }
+            } else if key.starts_with(prefix) && key[prefix.len()..].starts_with('.') {
+                let len = prefix.len();
+                let rel = &key[prefix.len() + 1..];
+                let resolved = format_extern_rel_path(prefix, rust_path, rel);
+                if best_match
+                    .as_ref()
+                    .map_or(true, |(best_len, _)| len > *best_len)
+                {
+                    best_match = Some((len, resolved));
+                }
+            }
+        }
+        best_match.map(|(_, r)| r)
+    })
+}
+
+fn is_extern_type(full_name: &str) -> bool {
+    match_extern_type(full_name).is_some()
+}
+
+fn format_extern_rel_path(prefix: &str, rust_path: &str, rel: &str) -> String {
+    let last_ident = ident_last(prefix);
+    let suff = format!("::{last_ident}");
+    if let Some(base) = rust_path.strip_suffix(&suff) {
+        let mod_name = to_snake(&last_ident);
+        let rel_fmt = format_rel_type(rel);
+        format!("{base}::{mod_name}::{rel_fmt}")
+    } else {
+        let rel_fmt = format_rel_type(rel);
+        format!("{rust_path}::{rel_fmt}")
     }
-    let _ = pool;
+}
+
+fn format_rel_type(rel: &str) -> String {
+    if rel.contains('.') {
+        let parts: Vec<&str> = rel.split('.').collect();
+        let mod_parts: Vec<String> = parts[..parts.len().saturating_sub(1)]
+            .iter()
+            .map(|p| to_snake(&ident_last(p)))
+            .collect();
+        let last = ident_last(parts.last().unwrap_or(&""));
+        format!("{}::{last}", mod_parts.join("::"))
+    } else {
+        ident_last(rel)
+    }
+}
+
+fn emit_public_uses(
+    src: &mut String,
+    pool: &DescriptorPool,
+    pub_files: &[String],
+    targets: &[String],
+) {
+    let mut sorted_pub = pub_files.to_vec();
+    sorted_pub.sort();
+    sorted_pub.dedup();
+    for p in &sorted_pub {
+        let in_targets = targets
+            .iter()
+            .any(|t| file_matches(&std::iter::once(t.clone()).collect(), p));
+        let pkg = pool
+            .get_file(p)
+            .map(|f| f.package.clone())
+            .unwrap_or_default();
+        if !in_targets && match_extern_type(p).is_none() && match_extern_type(&pkg).is_none() {
+            continue;
+        }
+        if !pkg.is_empty() {
+            if let Some(extern_rust) = match_extern_type(&pkg) {
+                let _ = writeln!(src, "pub use {extern_rust}::*;");
+            } else {
+                let pkg_path = format!("crate::{}", pkg.replace('.', "::"));
+                let _ = writeln!(src, "pub use {pkg_path}::*;");
+            }
+        } else {
+            let stem = file_stem_ident(p);
+            let _ = writeln!(src, "pub use crate::{stem}::*;");
+        }
+    }
 }
 
 fn field_raw(f: &FieldDescriptor) -> String {
@@ -498,6 +2132,47 @@ fn rust_ident(s: &str) -> String {
     let key = s.trim_start_matches('.');
     if let Some(id) = IDENTS.with(|c| c.borrow().get(key).cloned()) {
         return id;
+    }
+    ident_last(key)
+}
+
+fn rust_type_path(s: &str) -> String {
+    let key = s.trim_start_matches('.');
+    if let Some(extern_rust) = match_extern_type(key) {
+        return extern_rust;
+    }
+    if let Some(id) = IDENTS.with(|c| c.borrow().get(key).cloned()) {
+        return id;
+    }
+    if let Some((type_file, pkg)) = TYPE_FILES.with(|c| c.borrow().get(key).cloned()) {
+        let current_target = CURRENT_TARGET.with(|c| c.borrow().clone());
+        if !current_target.is_empty()
+            && file_matches(&std::iter::once(current_target).collect(), &type_file)
+        {
+            return ident_last(key);
+        }
+        if !pkg.is_empty() {
+            let pkg_path = format!("crate::{}", pkg.replace('.', "::"));
+            let rel = key
+                .strip_prefix(&pkg)
+                .unwrap_or(key)
+                .trim_start_matches('.');
+            if rel.contains('.') {
+                let parts: Vec<&str> = rel.split('.').collect();
+                let mod_parts: Vec<String> = parts[..parts.len().saturating_sub(1)]
+                    .iter()
+                    .map(|p| to_snake(&ident_last(p)))
+                    .collect();
+                let last = ident_last(parts.last().unwrap_or(&""));
+                return format!("{pkg_path}::{}::{last}", mod_parts.join("::"));
+            } else {
+                let last = ident_last(rel);
+                return format!("{pkg_path}::{last}");
+            }
+        } else {
+            let last = ident_last(key);
+            return format!("crate::{last}");
+        }
     }
     ident_last(key)
 }
@@ -683,7 +2358,7 @@ fn scalar_type(field: &FieldDescriptor) -> String {
         FieldType::Bool => "bool".into(),
         FieldType::String => "pbrs::rt::LazyStr".into(),
         FieldType::Bytes => "pbrs::rt::LazyBytes".into(),
-        FieldType::Message | FieldType::Group => rust_ident(
+        FieldType::Message | FieldType::Group => rust_type_path(
             field
                 .type_name
                 .as_deref()
@@ -917,6 +2592,393 @@ fn field_storage_ty(f: &FieldDescriptor) -> String {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct BacktickRun {
+    start: usize,
+    len: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CodeSpan {
+    start: usize,
+    end: usize,
+}
+
+fn sanitize_doc_line(line: &str) -> String {
+    let trimmed = line.trim_start_matches(' ');
+    let leading_spaces = line.len() - trimmed.len();
+    let prefix = if leading_spaces >= 4 {
+        "  "
+    } else {
+        &line[..leading_spaces]
+    };
+    let s = trimmed;
+    if s.is_empty() {
+        return prefix.to_string();
+    }
+
+    let b = s.as_bytes();
+    let mut runs = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'`' {
+            let mut bs_count = 0;
+            let mut k = i;
+            while k > 0 && b[k - 1] == b'\\' {
+                bs_count += 1;
+                k -= 1;
+            }
+            if bs_count % 2 == 0 {
+                let start = i;
+                while i < b.len() && b[i] == b'`' {
+                    i += 1;
+                }
+                runs.push(BacktickRun {
+                    start,
+                    len: i - start,
+                });
+                continue;
+            }
+        }
+        i += 1;
+    }
+
+    let mut code_spans = Vec::new();
+    let mut unclosed_backtick_starts = std::collections::BTreeSet::new();
+    let mut run_idx = 0;
+    while run_idx < runs.len() {
+        let open = runs[run_idx];
+        let mut matched = false;
+        for j in (run_idx + 1)..runs.len() {
+            if runs[j].len == open.len {
+                code_spans.push(CodeSpan {
+                    start: open.start,
+                    end: runs[j].start + runs[j].len,
+                });
+                run_idx = j + 1;
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            for offset in 0..open.len {
+                unclosed_backtick_starts.insert(open.start + offset);
+            }
+            run_idx += 1;
+        }
+    }
+
+    let mut out = String::with_capacity(s.len() + 16);
+    out.push_str(prefix);
+
+    let mut cur = 0;
+    let mut span_idx = 0;
+
+    while cur < s.len() {
+        if span_idx < code_spans.len() && cur == code_spans[span_idx].start {
+            let end = code_spans[span_idx].end;
+            out.push_str(&s[cur..end]);
+            cur = end;
+            span_idx += 1;
+        } else {
+            let seg_end = if span_idx < code_spans.len() {
+                code_spans[span_idx].start
+            } else {
+                s.len()
+            };
+
+            while cur < seg_end {
+                let rest = &s[cur..seg_end];
+
+                if unclosed_backtick_starts.contains(&cur) {
+                    out.push('\\');
+                    out.push('`');
+                    cur += 1;
+                    continue;
+                }
+
+                if rest.starts_with('\\') && rest.len() > 1 {
+                    let next_b = rest.as_bytes()[1];
+                    if matches!(next_b, b'[' | b']' | b'<' | b'>' | b'`' | b'\\') {
+                        out.push('\\');
+                        out.push(next_b as char);
+                        cur += 2;
+                        continue;
+                    }
+                }
+
+                if rest.starts_with('<') {
+                    if let Some(gt) = rest.find('>') {
+                        let inner = &rest[1..gt];
+                        if inner.starts_with("http://")
+                            || inner.starts_with("https://")
+                            || inner.starts_with("mailto:")
+                        {
+                            out.push_str(&rest[..=gt]);
+                            cur += gt + 1;
+                            continue;
+                        }
+                    }
+                    out.push_str("\\<");
+                    cur += 1;
+                    continue;
+                }
+
+                if rest.starts_with('>') {
+                    out.push_str("\\>");
+                    cur += 1;
+                    continue;
+                }
+
+                if rest.starts_with('[') {
+                    let mut is_link = false;
+                    if let Some(rb) = rest.find(']') {
+                        let after_rb = &rest[rb + 1..];
+                        if after_rb.starts_with('(') {
+                            if let Some(rp) = after_rb.find(')') {
+                                let url = &after_rb[1..rp];
+                                if url.starts_with("http://")
+                                    || url.starts_with("https://")
+                                    || url.starts_with("mailto:")
+                                {
+                                    let link_len = rb + 1 + rp + 1;
+                                    out.push_str(&rest[..link_len]);
+                                    cur += link_len;
+                                    is_link = true;
+                                }
+                            }
+                        }
+                    }
+                    if is_link {
+                        continue;
+                    }
+                    out.push_str("\\[");
+                    cur += 1;
+                    continue;
+                }
+
+                if rest.starts_with(']') {
+                    out.push_str("\\]");
+                    cur += 1;
+                    continue;
+                }
+
+                if rest.starts_with("http://") || rest.starts_with("https://") {
+                    let url_len = rest
+                        .find(|c: char| {
+                            c.is_whitespace()
+                                || matches!(c, '<' | '>' | '[' | ']' | '(' | ')' | '"' | '\'' | '`')
+                        })
+                        .unwrap_or(rest.len());
+                    let raw_url = &rest[..url_len];
+                    let trimmed_url = raw_url.trim_end_matches(['.', ',', ';', ':', '!', '?']);
+                    let trail = &raw_url[trimmed_url.len()..];
+
+                    if !trimmed_url.is_empty() {
+                        out.push('<');
+                        out.push_str(trimmed_url);
+                        out.push('>');
+                        out.push_str(trail);
+                        cur += raw_url.len();
+                        continue;
+                    }
+                }
+
+                if let Some(ch) = rest.chars().next() {
+                    out.push(ch);
+                    cur += ch.len_utf8();
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    out
+}
+
+fn emit_doc_line(src: &mut String, line: &str, indent: &str, in_code_fence: &mut bool) {
+    let trimmed_start = line.trim_start();
+    if trimmed_start.starts_with("```") || trimmed_start.starts_with("~~~") {
+        if !*in_code_fence {
+            *in_code_fence = true;
+            let _ = writeln!(src, "{indent}/// ```text");
+        } else {
+            *in_code_fence = false;
+            let _ = writeln!(src, "{indent}/// ```");
+        }
+        return;
+    }
+    if *in_code_fence {
+        if line.is_empty() {
+            let _ = writeln!(src, "{indent}///");
+        } else {
+            let _ = writeln!(src, "{indent}/// {line}");
+        }
+        return;
+    }
+    let sanitized = sanitize_doc_line(line);
+    if sanitized.is_empty() {
+        let _ = writeln!(src, "{indent}///");
+    } else {
+        let _ = writeln!(src, "{indent}/// {sanitized}");
+    }
+}
+
+fn emit_doc_comments(src: &mut String, comments: &Comments, indent: &str) {
+    let mut in_code_fence = false;
+    if let Some(leading) = comments.leading() {
+        for line in leading.lines() {
+            let trimmed = line.strip_prefix(' ').unwrap_or(line);
+            emit_doc_line(src, trimmed, indent, &mut in_code_fence);
+        }
+        if in_code_fence {
+            let _ = writeln!(src, "{indent}/// ```");
+            in_code_fence = false;
+        }
+    }
+    if let Some(trailing) = comments.trailing() {
+        for line in trailing.lines() {
+            let trimmed = line.strip_prefix(' ').unwrap_or(line);
+            emit_doc_line(src, trimmed, indent, &mut in_code_fence);
+        }
+        if in_code_fence {
+            let _ = writeln!(src, "{indent}/// ```");
+        }
+    }
+}
+
+fn emit_field_getter_doc(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+    emit_doc_comments(src, &f.comments, "    ");
+    if !f.comments.is_empty() {
+        let _ = writeln!(src, "    ///");
+    }
+    let _ = writeln!(src, "    /// Field `{}` (number {}).", f.name, f.number);
+    let _ = writeln!(src, "    ///");
+    if f.is_map {
+        let (k, v) = map_kv(f);
+        let _ = writeln!(
+            src,
+            "    /// Map field with key `{k}` and value `{v}`. Empty by default."
+        );
+    } else if f.cardinality == Cardinality::Repeated {
+        let t = scalar_type(f);
+        let packed_note = if is_packed_scalar(f) {
+            " (wire format: packed)"
+        } else {
+            ""
+        };
+        let _ = writeln!(
+            src,
+            "    /// Repeated field of `{t}`{packed_note}. Empty by default."
+        );
+    } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
+        let _ = writeln!(src, "    /// Message field with explicit presence. Returns a reference to the message, or the default instance if unset.");
+    } else if f.field_type == FieldType::String {
+        let def = f.default.as_deref().unwrap_or("");
+        if is_option(f) {
+            let _ = writeln!(src, "    /// Explicit optional string. Returns the string value, or the default (\"{}\") if unset.", def.escape_default());
+        } else {
+            let _ = writeln!(
+                src,
+                "    /// Implicit presence string (default: \"{}\").",
+                def.escape_default()
+            );
+        }
+    } else if f.field_type == FieldType::Bytes {
+        if is_option(f) {
+            let _ = writeln!(
+                src,
+                "    /// Explicit optional bytes. Returns the byte slice, or the default if unset."
+            );
+        } else {
+            let _ = writeln!(src, "    /// Implicit presence bytes (empty by default).");
+        }
+    } else {
+        let def = scalar_default_expr(f);
+        if is_option(f) {
+            if f.cardinality == Cardinality::Required {
+                let _ = writeln!(
+                    src,
+                    "    /// Required field. Returns the value of `{}`.",
+                    f.name
+                );
+            } else {
+                let _ = writeln!(src, "    /// Explicit optional field. Returns the value of `{}` or the default (`{def}`) if unset.", f.name);
+            }
+        } else {
+            let _ = writeln!(src, "    /// Implicit presence field (default: `{def}`).");
+        }
+    }
+    if is_real_oneof(desc, f) {
+        let _ = writeln!(
+            src,
+            "    /// Part of a oneof: setting this field clears other fields in the oneof."
+        );
+    }
+    if f.deprecated {
+        let _ = writeln!(src, "    ///");
+        let _ = writeln!(src, "    /// # Deprecated");
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_has_doc(src: &mut String, f: &FieldDescriptor) {
+    let _ = writeln!(src, "    /// Returns `true` if field `{}` is set.", f.name);
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_opt_doc(src: &mut String, f: &FieldDescriptor) {
+    let _ = writeln!(
+        src,
+        "    /// Returns `Some` if field `{}` is set, or `None` if unset.",
+        f.name
+    );
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_mut_doc(src: &mut String, f: &FieldDescriptor, is_msg: bool) {
+    if is_msg {
+        let _ = writeln!(src, "    /// Returns a mutable reference to `{}`, initializing it with default values if unset.", f.name);
+    } else {
+        let _ = writeln!(src, "    /// Returns a mutable view of field `{}`.", f.name);
+    }
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_view_doc(src: &mut String, f: &FieldDescriptor) {
+    let _ = writeln!(src, "    /// Returns a view of field `{}`.", f.name);
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_set_doc(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+    let _ = writeln!(src, "    /// Sets the value of `{}`.", f.name);
+    if is_real_oneof(desc, f) {
+        let _ = writeln!(
+            src,
+            "    /// Part of a oneof: clears any other set field in the oneof."
+        );
+    }
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
+fn emit_clear_doc(src: &mut String, f: &FieldDescriptor) {
+    let _ = writeln!(src, "    /// Clears field `{}`, marking it unset.", f.name);
+    if f.deprecated {
+        let _ = writeln!(src, "    #[deprecated]");
+    }
+}
+
 fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     bind_field_idents(desc);
     let name = rust_ident(&desc.full_name);
@@ -931,9 +2993,20 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
             desc.fields.values().filter(|f| stored_cold(desc, f)),
         );
     }
+    emit_doc_comments(src, &desc.comments, "");
+    if !desc.comments.is_empty() {
+        let _ = writeln!(src, "///");
+    }
+    let _ = writeln!(src, "/// The `{}` protobuf message.", desc.full_name);
+    if desc.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "#[derive(Clone, Debug)]");
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
+        emit_doc_comments(src, &f.comments, "    ");
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     if use_cold {
@@ -966,6 +3039,10 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "}}");
 
     let _ = writeln!(src, "impl {name} {{");
+    let _ = writeln!(
+        src,
+        "    /// Creates a new, default instance of [`{name}`]."
+    );
     let _ = writeln!(src, "    pub fn new() -> Self {{ Self::default() }}");
     if use_cold {
         let _ = writeln!(
@@ -977,7 +3054,15 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
         .fields
         .values()
         .any(|f| f.cardinality == Cardinality::Required);
+    let _ = writeln!(
+        src,
+        "    /// Whether an empty byte slice is a valid encoding of this message."
+    );
     let _ = writeln!(src, "    pub const EMPTY_PARSE_OK: bool = {empty_ok};");
+    let _ = writeln!(
+        src,
+        "    /// The fully-qualified protobuf name of this message."
+    );
     let _ = writeln!(
         src,
         "    pub const FULL_NAME: &'static str = \"{}\";",
@@ -1001,7 +3086,9 @@ fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescrip
     let Some(members) = desc.oneofs.get(idx as usize) else {
         return;
     };
-    for n in members {
+    let mut sorted_members = members.clone();
+    sorted_members.sort();
+    for n in &sorted_members {
         if *n == f.number {
             continue;
         }
@@ -1028,6 +3115,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     if f.is_map {
         let (k, v) = map_kv(f);
         let st = store_mut(desc, f);
+        emit_field_getter_doc(src, desc, f);
         if stored_cold(desc, f) {
             let _ = writeln!(
                 src,
@@ -1039,10 +3127,12 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
             );
         }
+        emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
             "    pub fn {id}_mut(&mut self) -> MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
+        emit_set_doc(src, desc, f);
         let _ = writeln!(
             src,
             "    pub fn set_{m}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
@@ -1052,6 +3142,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     if f.cardinality == Cardinality::Repeated {
         let t = scalar_type(f);
         let st = store_mut(desc, f);
+        emit_field_getter_doc(src, desc, f);
         if stored_cold(desc, f) {
             let _ = writeln!(
                 src,
@@ -1063,10 +3154,12 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.{id}.as_view() }}"
             );
         }
+        emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
             "    pub fn {id}_mut(&mut self) -> RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
+        emit_set_doc(src, desc, f);
         if is_packed_scalar(f) {
             let _ = writeln!(
                 src,
@@ -1084,36 +3177,44 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         let t = scalar_type(f);
         let st = store_mut(desc, f);
         if stored_cold(desc, f) {
+            emit_has_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn has_{m}(&self) -> bool {{ self.cold.as_ref().is_some_and(|c| c.{id}.is_some()) }}"
             );
+            emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> &{t} {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or(pbrs::gen_support::default_instance_of()) }}"
             );
+            emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()) }}"
             );
         } else {
+            emit_has_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
             );
+            emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> &{t} {{ self.{id}.as_deref().unwrap_or(pbrs::gen_support::default_instance_of()) }}"
             );
+            emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.{id}.as_deref() }}"
             );
         }
+        emit_view_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn {id}_view(&self) -> {t}View<'_> {{ {t}View(self.{id}()) }}"
         );
+        emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {t}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
@@ -1123,11 +3224,13 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             let _ = writeln!(src, "        {st} = Some(Box::new(v));");
         }
         let _ = writeln!(src, "    }}");
+        emit_mut_doc(src, f, true);
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
                 "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert() }}"
             );
+            emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st}.clear(); }}"
@@ -1137,6 +3240,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 src,
                 "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| Box::new({t}::default())).as_mut() }}"
             );
+            emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
@@ -1158,18 +3262,22 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             format!("Some(self.{id}.as_view())")
         };
         if is_option(f) {
+            emit_has_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn has_{m}(&self) -> bool {{ {read}.is_some() }}"
             );
+            emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read}.map(|s| s.as_view()).unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
             );
+            emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}_opt(&self) -> Option<&pbrs::ProtoStr> {{ {read}.map(|s| s.as_view()) }}"
             );
+            emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{"
@@ -1181,15 +3289,18 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "        {st} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
             );
             let _ = writeln!(src, "    }}");
+            emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
             );
         } else {
+            emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read_view}.unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
             );
+            emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private)); }}"
@@ -1211,31 +3322,38 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             format!("Some(self.{id}.as_bytes())")
         };
         if is_option(f) {
-            let _ = writeln!(
-                src,
-                "    pub fn {id}(&self) -> &[u8] {{ {read}.map(|b| b.as_bytes()).unwrap_or({fallback}) }}"
-            );
-            let _ = writeln!(
-                src,
-                "    pub fn {id}_opt(&self) -> Option<&[u8]> {{ {read}.map(|b| b.as_bytes()) }}"
-            );
+            emit_has_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn has_{m}(&self) -> bool {{ {read}.is_some() }}"
             );
+            emit_field_getter_doc(src, desc, f);
+            let _ = writeln!(
+                src,
+                "    pub fn {id}(&self) -> &[u8] {{ {read}.map(|b| b.as_bytes()).unwrap_or({fallback}) }}"
+            );
+            emit_opt_doc(src, f);
+            let _ = writeln!(
+                src,
+                "    pub fn {id}_opt(&self) -> Option<&[u8]> {{ {read}.map(|b| b.as_bytes()) }}"
+            );
+            emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)))); }}"
             );
+            emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
                 "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
             );
         } else {
+            emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> &[u8] {{ {read_bytes}.unwrap_or({fallback}) }}"
             );
+            emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
                 "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)); }}"
@@ -1259,54 +3377,66 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     };
     let set_val = if enum_ty.is_some() { "v.into()" } else { "v" };
     if is_option(f) && f.field_type == FieldType::Bool {
+        emit_has_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
         );
+        emit_field_getter_doc(src, desc, f);
         let _ = writeln!(
             src,
             "    pub fn {id}(&self) -> bool {{ self.{id}.unwrap_or({def}) }}"
         );
+        emit_opt_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn {id}_opt(&self) -> Option<bool> {{ self.{id}.get() }}"
         );
+        emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: bool) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(src, "        self.{id} = pbrs::rt::OptBool::some(v);");
         let _ = writeln!(src, "    }}");
+        emit_clear_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::OptBool::NONE; }}"
         );
     } else if is_option(f) {
+        emit_has_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
         );
+        emit_field_getter_doc(src, desc, f);
         let _ = writeln!(
             src,
             "    pub fn {id}(&self) -> {get_ty} {{ {wrap_open}self.{id}.unwrap_or({def}){wrap_close} }}"
         );
+        emit_opt_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn {id}_opt(&self) -> Option<{get_ty}> {{ self.{id}.map(|v| {wrap_open}v{wrap_close}) }}"
         );
+        emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {set_ty}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(src, "        self.{id} = Some({set_val});");
         let _ = writeln!(src, "    }}");
+        emit_clear_doc(src, f);
         let _ = writeln!(
             src,
             "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
         );
     } else {
+        emit_field_getter_doc(src, desc, f);
         let _ = writeln!(
             src,
             "    pub fn {id}(&self) -> {get_ty} {{ {wrap_open}self.{id}{wrap_close} }}"
         );
+        emit_set_doc(src, desc, f);
         let _ = writeln!(
             src,
             "    pub fn set_{m}(&mut self, v: {set_ty}) {{ self.cached_size.dirty(); self.{id} = {set_val}; }}"
@@ -1736,7 +3866,9 @@ fn emit_json_oneof_guard(src: &mut String, desc: &MessageDescriptor, f: &FieldDe
     let Some(members) = desc.oneofs.get(idx as usize) else {
         return;
     };
-    for n in members {
+    let mut sorted_members = members.clone();
+    sorted_members.sort();
+    for n in &sorted_members {
         if *n == f.number {
             continue;
         }
@@ -1809,7 +3941,7 @@ fn emit_wkt_string_json(src: &mut String, helper: &str) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
     );
     let _ = writeln!(
         src,
@@ -1818,7 +3950,7 @@ fn emit_wkt_string_json(src: &mut String, helper: &str) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
     );
     let _ = writeln!(
         src,
@@ -1852,13 +3984,13 @@ fn emit_wkt_empty_json(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
     );
     let _ = writeln!(src, "        Ok(pbrs::json::empty())");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
     );
     let _ = writeln!(src, "        pbrs::json::as_empty(v, ignore)?;");
     let _ = writeln!(src, "        Ok(Self::new())");
@@ -1886,13 +4018,13 @@ fn emit_wkt_wrapper_json(src: &mut String, encode: &str, decode: &str, value_exp
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
     );
     let _ = writeln!(src, "        Ok(pbrs::json::{encode}({value_expr}))");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        msg.set_value(pbrs::json::{decode}(v)?);");
@@ -1925,7 +4057,7 @@ fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {
 fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
     );
     let _ = writeln!(src, "        let mut map = pbrs::json::JsonMap::new();");
     for f in desc.fields.values() {
@@ -1990,7 +4122,7 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
 fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "    fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
     );
     let _ = writeln!(
         src,
@@ -2139,7 +4271,7 @@ fn emit_typed_text(src: &mut String, desc: &MessageDescriptor) {
 fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "    fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {{"
+        "    pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {{"
     );
     for f in desc.fields.values() {
         let id = field_id(f);
@@ -2230,7 +4362,7 @@ fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
 fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "    fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {{"
+        "    pub fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        for (key, val) in fields {{");
@@ -2449,7 +4581,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         .collect();
     let _ = writeln!(
         src,
-        "    #[inline(always)] fn check_required(&self) -> Result<(), ParseError> {{"
+        "    #[inline(always)] pub fn check_required(&self) -> Result<(), ParseError> {{"
     );
     for f in &required {
         let id = field_id(f);
@@ -2464,19 +4596,19 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
+        "    pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, false, None) }}"
+        "    pub fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, false, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, wire, pos, depth, false, Some(num)) }}"
+        "    pub fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, wire, pos, depth, false, Some(num)) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
+        "    pub fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
     );
     let _ = writeln!(
         src,
@@ -2576,11 +4708,11 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
 
     let _ = writeln!(
         src,
-        "    fn validate_inner(wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{ Self::validate_until(wire, pos, depth, None) }}"
+        "    pub fn validate_inner(wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{ Self::validate_until(wire, pos, depth, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn validate_until(wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32, until: Option<u32>) -> Result<(), ParseError> {{"
+        "    pub fn validate_until(wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32, until: Option<u32>) -> Result<(), ParseError> {{"
     );
     let _ = writeln!(
         src,
@@ -2627,7 +4759,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
 
-    let _ = writeln!(src, "    fn compute_size(&self) -> u64 {{");
+    let _ = writeln!(src, "    pub fn compute_size(&self) -> u64 {{");
     let _ = writeln!(
         src,
         "        if let Some(n) = self.cached_size.get() {{ return n; }}"
@@ -2653,7 +4785,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
 
     let _ = writeln!(
         src,
-        "    fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {{"
+        "    pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {{"
     );
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
@@ -2849,7 +4981,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         let _ = writeln!(
             src,
             "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;",
-            rust_ident(&desc.full_name),
+            rust_ident(&desc.full_name).replace("r#", ""),
             field_id(f).replace("r#", "")
         );
         let _ = writeln!(src, "                    {st}.push_entry(kk, vv);");
@@ -3291,7 +5423,7 @@ fn emit_map_scalar_write(src: &mut String, n: u32, var: &str, ty: FieldType) {
 
 fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
     bind_field_idents(desc);
-    let msg = rust_ident(&desc.full_name);
+    let msg = rust_ident(&desc.full_name).replace("r#", "");
     for f in desc.fields.values() {
         if !f.is_map {
             continue;
@@ -3386,7 +5518,7 @@ fn enum_api_ty(f: &FieldDescriptor) -> Option<String> {
         .map(|e| e.full_name.as_str())
         .or(f.type_name.as_deref())
         .unwrap_or("UnknownEnum");
-    Some(rust_ident(name))
+    Some(rust_type_path(name))
 }
 
 fn enum_first_number(f: &FieldDescriptor) -> i32 {
@@ -3626,18 +5758,38 @@ fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         .map(|v| v.number.to_string())
         .collect::<Vec<_>>()
         .join(" | ");
+    emit_doc_comments(src, &ed.comments, "");
+    if !ed.comments.is_empty() {
+        let _ = writeln!(src, "///");
+    }
+    let _ = writeln!(src, "/// The `{}` enum.", ed.full_name);
+    if ed.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "#[repr(transparent)]");
     let _ = writeln!(
         src,
         "#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]"
     );
-    let _ = writeln!(src, "pub struct {name}(i32);");
+    let _ = writeln!(src, "pub struct {name}(pub i32);");
     let _ = writeln!(
         src,
         "    #[allow(non_upper_case_globals, reason = \"protobuf enum names\")]"
     );
     let _ = writeln!(src, "impl {name} {{");
     for v in &values {
+        if let Some(c) = ed.value_comments(v.number) {
+            emit_doc_comments(src, c, "    ");
+            let _ = writeln!(src, "    ///");
+        }
+        let _ = writeln!(src, "    /// Enum value `{}` ({}).", v.name, v.number);
+        if ed.is_value_deprecated(v.number) {
+            let _ = writeln!(src, "    ///");
+            let _ = writeln!(src, "    /// # Deprecated");
+            let _ = writeln!(src, "    #[deprecated]");
+        }
         let _ = writeln!(
             src,
             "    pub const {}: {name} = {name}({});",
@@ -3731,7 +5883,7 @@ fn emit_nested_mods(src: &mut String, messages: &[String], enums: &[String]) {
         items: Vec<(String, String)>,
     }
     let mut root = Node::default();
-    let mut add = |full: &str| {
+    let mut add = |full: &str, is_msg: bool| {
         let ident = rust_ident(full);
         let last = ident_last(full);
         let mut cur = full;
@@ -3751,18 +5903,26 @@ fn emit_nested_mods(src: &mut String, messages: &[String], enums: &[String]) {
         for p in &path {
             node = node.children.entry(p.clone()).or_default();
         }
-        node.items.push((last, ident));
+        node.items.push((last.clone(), ident.clone()));
+        if is_msg {
+            node.items
+                .push((format!("{last}View"), format!("{ident}View")));
+            node.items
+                .push((format!("{last}Mut"), format!("{ident}Mut")));
+        }
     };
     for m in messages {
-        add(m);
+        add(m, true);
     }
     for e in enums {
-        add(e);
+        add(e, false);
     }
     fn emit_node(src: &mut String, name: &str, node: &Node, depth: usize) {
         let _ = writeln!(src, "pub mod {name} {{");
         let prefix = "super::".repeat(depth);
-        for (export, ident) in &node.items {
+        let mut sorted_items = node.items.clone();
+        sorted_items.sort();
+        for (export, ident) in &sorted_items {
             if export == ident {
                 let _ = writeln!(src, "    pub use {prefix}{ident};");
             } else {
@@ -3791,7 +5951,12 @@ fn to_snake(s: &str) -> String {
             out.push(c);
         }
     }
-    if is_rust_keyword(&out) {
+    if matches!(
+        out.as_str(),
+        "crate" | "self" | "Self" | "super" | "_"
+    ) {
+        format!("{out}_")
+    } else if is_rust_keyword(&out) {
         format!("r#{out}")
     } else {
         out
@@ -3819,8 +5984,8 @@ struct Shape {
 }
 
 fn shape_of(m: &MethodDescriptor) -> Shape {
-    let req = rust_ident(&m.input_type);
-    let resp = rust_ident(&m.output_type);
+    let req = rust_type_path(&m.input_type);
+    let resp = rust_type_path(&m.output_type);
     match (m.client_streaming, m.server_streaming) {
         (false, false) => Shape {
             trait_request: req.clone(),
@@ -3866,6 +6031,9 @@ fn shape_of(m: &MethodDescriptor) -> Shape {
 /// Emit `pbrs-grpc` stubs for one service: the handler trait, a server that
 /// implements [`Service`](../../pbrs_grpc/trait.Service.html), and a client.
 fn emit_kernel_service(src: &mut String, svc: &ServiceDescriptor) {
+    let mut svc_clone = (*svc).clone();
+    svc_clone.methods.sort_by(|a, b| a.name.cmp(&b.name));
+    let svc = &svc_clone;
     let svc_ty = rust_ident(&svc.full_name);
     let trait_name = svc_ty.clone();
     let server = format!("{svc_ty}Server");
@@ -3878,6 +6046,10 @@ fn emit_kernel_service(src: &mut String, svc: &ServiceDescriptor) {
 }
 
 fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
+    if !svc.comments.is_empty() {
+        emit_doc_comments(src, &svc.comments, "");
+        let _ = writeln!(src, "///");
+    }
     let _ = writeln!(src, "/// The `{}` service.", svc.full_name);
     let _ = writeln!(src, "///");
     let _ = writeln!(
@@ -3889,11 +6061,45 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         src,
         "/// Methods you omit return [`{G}::Status::unimplemented`]."
     );
+    if svc.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "pub trait {trait_name}: Send + Sync + 'static {{");
     for m in &svc.methods {
         let shape = shape_of(m);
         let fn_name = to_snake(&m.name);
-        let _ = writeln!(src, "    /// {} `{}`.", shape.description, m.name);
+        if !m.comments.is_empty() {
+            emit_doc_comments(src, &m.comments, "    ");
+            let _ = writeln!(src, "    ///");
+        }
+        let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
+        let req = rust_type_path(&m.input_type);
+        let resp = rust_type_path(&m.output_type);
+        match (m.client_streaming, m.server_streaming) {
+            (false, false) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Unary `{req}` -> `{resp}`."
+                );
+            }
+            (true, false) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Client-streaming stream of `{req}` -> `{resp}`."
+                );
+            }
+            (false, true) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Server-streaming `{req}` -> stream of `{resp}`."
+                );
+            }
+            (true, true) => {
+                let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+            }
+        }
         let _ = writeln!(src, "    ///");
         let _ = writeln!(
             src,
@@ -3971,6 +6177,11 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 "    /// That signal still fires after the client half-closes the request stream."
             );
         }
+        if m.deprecated {
+            let _ = writeln!(src, "    ///");
+            let _ = writeln!(src, "    /// # Deprecated");
+            let _ = writeln!(src, "    #[deprecated]");
+        }
         let _ = writeln!(src, "    fn {fn_name}(");
         let _ = writeln!(src, "        &self,");
         let _ = writeln!(
@@ -4004,12 +6215,21 @@ fn emit_kernel_server(
     full_name: &str,
     svc: &ServiceDescriptor,
 ) {
+    if !svc.comments.is_empty() {
+        emit_doc_comments(src, &svc.comments, "");
+        let _ = writeln!(src, "///");
+    }
     let _ = writeln!(src, "/// Serves an implementation of [`{trait_name}`].");
     let _ = writeln!(src, "///");
     let _ = writeln!(
         src,
         "/// [`Self::rpc_timeout`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::send_buffer_size`], and [`Self::limits`] read the server overlay without colliding with the setters. Same getters as [`{G}::Server`] / [`{G}::Router`]."
     );
+    if svc.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "pub struct {server}<T> {{");
     let _ = writeln!(src, "    inner: ::std::sync::Arc<T>,");
     let _ = writeln!(src, "    config: {G}::ServerConfig,");
@@ -5173,6 +7393,10 @@ fn emit_kernel_client(
     full_name: &str,
     svc: &ServiceDescriptor,
 ) {
+    if !svc.comments.is_empty() {
+        emit_doc_comments(src, &svc.comments, "");
+        let _ = writeln!(src, "///");
+    }
     let _ = writeln!(src, "/// Client for `{full_name}`.");
     let _ = writeln!(src, "///");
     let _ = writeln!(
@@ -5195,6 +7419,11 @@ fn emit_kernel_client(
         src,
         "/// [`Self::connected`] is the live-socket snapshot. Distinct from [`Self::waits_for_ready`]. Same snapshot as [`{G}::Channel::connected`]."
     );
+    if svc.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
     let _ = writeln!(src, "    channel: {G}::Channel,");
@@ -5578,6 +7807,41 @@ fn emit_kernel_client(
                 "    #[must_use = \"dropping a streaming Call resets the stream\"]"
             );
         }
+        if !m.comments.is_empty() {
+            emit_doc_comments(src, &m.comments, "    ");
+            let _ = writeln!(src, "    ///");
+        }
+        let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
+        let req = rust_type_path(&m.input_type);
+        let resp = rust_type_path(&m.output_type);
+        match (m.client_streaming, m.server_streaming) {
+            (false, false) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Unary `{req}` -> `{resp}`."
+                );
+            }
+            (true, false) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Client-streaming stream of `{req}` -> `{resp}`."
+                );
+            }
+            (false, true) => {
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Server-streaming `{req}` -> stream of `{resp}`."
+                );
+            }
+            (true, true) => {
+                let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+            }
+        }
+        if m.deprecated {
+            let _ = writeln!(src, "    ///");
+            let _ = writeln!(src, "    /// # Deprecated");
+            let _ = writeln!(src, "    #[deprecated]");
+        }
         let _ = writeln!(
             src,
             "    pub fn {fn_name}(&self, request: {}) -> {} {{",
@@ -5604,10 +7868,23 @@ fn emit_kernel_client(
 }
 
 fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
+    let mut svc_clone = (*svc).clone();
+    svc_clone.methods.sort_by(|a, b| a.name.cmp(&b.name));
+    let svc = &svc_clone;
     let svc_ty = rust_ident(&svc.full_name);
     let client = format!("{svc_ty}Client");
     let server = format!("{svc_ty}Server");
     let path_prefix = format!("/{}", svc.full_name);
+    emit_doc_comments(src, &svc.comments, "");
+    if !svc.comments.is_empty() {
+        let _ = writeln!(src, "///");
+    }
+    let _ = writeln!(src, "/// The `{}` service.", svc.full_name);
+    if svc.deprecated {
+        let _ = writeln!(src, "///");
+        let _ = writeln!(src, "/// # Deprecated");
+        let _ = writeln!(src, "#[deprecated]");
+    }
     let _ = writeln!(src, "pub trait {svc_ty}: Send + Sync + 'static {{");
     for m in &svc.methods {
         emit_service_trait_method(src, m);
@@ -5814,9 +8091,43 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
 
 fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) {
     let fn_name = to_snake(&m.name);
-    let req = rust_ident(&m.input_type);
-    let resp = rust_ident(&m.output_type);
+    let req = rust_type_path(&m.input_type);
+    let resp = rust_type_path(&m.output_type);
     let assoc = format!("{}Stream", m.name);
+    emit_doc_comments(src, &m.comments, "    ");
+    if !m.comments.is_empty() {
+        let _ = writeln!(src, "    ///");
+    }
+    let shape = shape_of(m);
+    let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
+    match (m.client_streaming, m.server_streaming) {
+        (false, false) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Unary `{req}` -> `{resp}`."
+            );
+        }
+        (true, false) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Client-streaming stream of `{req}` -> `{resp}`."
+            );
+        }
+        (false, true) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Server-streaming `{req}` -> stream of `{resp}`."
+            );
+        }
+        (true, true) => {
+            let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+        }
+    }
+    if m.deprecated {
+        let _ = writeln!(src, "    ///");
+        let _ = writeln!(src, "    /// # Deprecated");
+        let _ = writeln!(src, "    #[deprecated]");
+    }
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
             let _ = writeln!(src, "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;");
@@ -5837,9 +8148,43 @@ fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) {
 
 fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
     let fn_name = to_snake(&m.name);
-    let req = rust_ident(&m.input_type);
-    let resp = rust_ident(&m.output_type);
+    let req = rust_type_path(&m.input_type);
+    let resp = rust_type_path(&m.output_type);
     let path = format!("{prefix}/{}", m.name);
+    emit_doc_comments(src, &m.comments, "    ");
+    if !m.comments.is_empty() {
+        let _ = writeln!(src, "    ///");
+    }
+    let shape = shape_of(m);
+    let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
+    match (m.client_streaming, m.server_streaming) {
+        (false, false) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Unary `{req}` -> `{resp}`."
+            );
+        }
+        (true, false) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Client-streaming stream of `{req}` -> `{resp}`."
+            );
+        }
+        (false, true) => {
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Server-streaming `{req}` -> stream of `{resp}`."
+            );
+        }
+        (true, true) => {
+            let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+        }
+    }
+    if m.deprecated {
+        let _ = writeln!(src, "    ///");
+        let _ = writeln!(src, "    /// # Deprecated");
+        let _ = writeln!(src, "    #[deprecated]");
+    }
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
             let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{");
@@ -5878,8 +8223,8 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
 
 fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_ty: &str) {
     let fn_name = to_snake(&m.name);
-    let req = rust_ident(&m.input_type);
-    let resp = rust_ident(&m.output_type);
+    let req = rust_type_path(&m.input_type);
+    let resp = rust_type_path(&m.output_type);
     let path = format!("{prefix}/{}", m.name);
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
@@ -5976,5 +8321,80 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             );
             let _ = writeln!(src, "                }}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_doc_line_backticks() {
+        assert_eq!(sanitize_doc_line("`single"), "\\`single");
+        assert_eq!(sanitize_doc_line("`foo` and `bar"), "`foo` and \\`bar");
+        assert_eq!(sanitize_doc_line("``code`inside``"), "``code`inside``");
+        assert_eq!(
+            sanitize_doc_line("already \\`escaped"),
+            "already \\`escaped"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_doc_line_links_and_urls() {
+        assert_eq!(sanitize_doc_line("[BrokenLink]"), "\\[BrokenLink\\]");
+        assert_eq!(
+            sanitize_doc_line("[BrokenLink][ref]"),
+            "\\[BrokenLink\\]\\[ref\\]"
+        );
+        assert_eq!(sanitize_doc_line("[unclosed"), "\\[unclosed");
+        assert_eq!(
+            sanitize_doc_line("[Valid](https://example.com)"),
+            "[Valid](https://example.com)"
+        );
+        assert_eq!(
+            sanitize_doc_line("See https://example.com/path?a=1 for details."),
+            "See <https://example.com/path?a=1> for details."
+        );
+        assert_eq!(
+            sanitize_doc_line("<https://already.autolink.com>"),
+            "<https://already.autolink.com>"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_doc_line_html_and_inequalities() {
+        assert_eq!(sanitize_doc_line("<custom-tag>"), "\\<custom-tag\\>");
+        assert_eq!(sanitize_doc_line("<T>"), "\\<T\\>");
+        assert_eq!(
+            sanitize_doc_line("Map<string, int32>"),
+            "Map\\<string, int32\\>"
+        );
+        assert_eq!(sanitize_doc_line("1 < 2 && 5 > 3"), "1 \\< 2 && 5 \\> 3");
+    }
+
+    #[test]
+    fn test_sanitize_doc_line_indentation() {
+        assert_eq!(
+            sanitize_doc_line("    indented 4 spaces"),
+            "  indented 4 spaces"
+        );
+        assert_eq!(
+            sanitize_doc_line("  indented 2 spaces"),
+            "  indented 2 spaces"
+        );
+    }
+
+    #[test]
+    fn test_emit_doc_line_code_fences() {
+        let mut src = String::new();
+        let mut in_fence = false;
+        emit_doc_line(&mut src, "```", "", &mut in_fence);
+        assert!(in_fence);
+        assert_eq!(src, "/// ```text\n");
+        emit_doc_line(&mut src, "invalid rust syntax !@#$", "", &mut in_fence);
+        assert_eq!(src, "/// ```text\n/// invalid rust syntax !@#$\n");
+        emit_doc_line(&mut src, "```", "", &mut in_fence);
+        assert!(!in_fence);
+        assert_eq!(src, "/// ```text\n/// invalid rust syntax !@#$\n/// ```\n");
     }
 }

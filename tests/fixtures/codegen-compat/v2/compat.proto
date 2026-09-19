@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package compat;
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_PENDING = 2;
+  // Added enum values
+  STATUS_SUSPENDED = 3;
+  STATUS_ARCHIVED = 4;
+}
+
+message CompatMessage {
+  // Reordered fields (name declared before id)
+  string name = 2;
+  int32 id = 1;
+
+  // Reordered optional fields
+  optional int32 priority = 4;
+  optional string description = 3;
+
+  // Reordered repeated fields
+  repeated int32 scores = 6;
+  repeated string tags = 5;
+
+  map<string, string> properties = 7;
+  Status status = 8;
+
+  // Oneof with added alternative
+  oneof payload {
+    string text_payload = 9;
+    int32 number_payload = 10;
+    bool boolean_payload = 16;
+  }
+
+  // Reserved fields replacing retired v1 legacy_field (11) and future range
+  reserved 11, 20 to 25;
+  reserved "legacy_field", "obsolete_data";
+
+  // Added fields in v2
+  string extra_info = 12;
+  optional int64 timestamp = 13;
+  repeated string categories = 14;
+  map<string, int32> flags = 15;
+}
+
+message CompatRequest {
+  string query = 1;
+  int32 page = 2;
+  // Added optional field in v2
+  optional string client_id = 3;
+}
+
+message CompatResponse {
+  string result = 1;
+  int32 code = 2;
+  // Added repeated field in v2
+  repeated string details = 3;
+}
+
+service CompatService {
+  rpc UnaryCall (CompatRequest) returns (CompatResponse);
+  rpc ClientStreamCall (stream CompatRequest) returns (CompatResponse);
+  rpc ServerStreamCall (CompatRequest) returns (stream CompatResponse);
+  rpc BidiStreamCall (stream CompatRequest) returns (stream CompatResponse);
+
+  // New service methods added in v2
+  rpc NewUnaryCall (CompatRequest) returns (CompatResponse);
+  rpc NewServerStreamCall (CompatRequest) returns (stream CompatResponse);
+}

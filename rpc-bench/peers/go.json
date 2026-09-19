@@ -1,0 +1,74 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "go",
+  "name": "grpc-go",
+  "description": "Official Go reference gRPC implementation (google.golang.org/grpc)",
+  "role": ["client", "server"],
+  "language": "go",
+  "runtime": "go runtime + net/http2",
+  "codec": "google.golang.org/protobuf",
+  "upstream_pin": {
+    "repository": "grpc/grpc-go",
+    "version": "v1.85.0-dev",
+    "commit": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef",
+    "doc": "tests/interop/cases.json",
+    "notes": "Official Go reference peer pinned in tests/interop/cases.json"
+  },
+  "server": {
+    "description": "Official Go gRPC interop server (from tests/interop/go)",
+    "binary_name": "go-interop-server",
+    "candidates": [
+      "target/interop-go/go-interop-server",
+      "tests/interop/go/go-interop-server"
+    ],
+    "build_command": "cd tests/interop/go && go build -mod=readonly -o ../../../target/interop-go/go-interop-server google.golang.org/grpc/interop/server",
+    "args_template": [
+      "{binary}",
+      "-port={port}",
+      "-use_tls=false"
+    ],
+    "readiness": {
+      "type": "socket_connect"
+    }
+  },
+  "client": {
+    "description": "Official Go gRPC interop client (from tests/interop/go)",
+    "binary_name": "go-interop-client",
+    "candidates": [
+      "target/interop-go/go-interop-client",
+      "tests/interop/go/go-interop-client"
+    ],
+    "build_command": "cd tests/interop/go && go build -mod=readonly -o ../../../target/interop-go/go-interop-client google.golang.org/grpc/interop/client",
+    "args_template": [
+      "{binary}",
+      "-server_host={host}",
+      "-server_port={port}",
+      "-use_tls=false",
+      "-test_case={test_case}"
+    ],
+    "soak_args_template": [
+      "{binary}",
+      "-server_host={host}",
+      "-server_port={port}",
+      "-use_tls=false",
+      "-test_case=rpc_soak",
+      "-soak_iterations={iterations}",
+      "-soak_min_time_ms_between_rpcs=0",
+      "-soak_request_size={request_size}",
+      "-soak_response_size={response_size}"
+    ]
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  }
+}

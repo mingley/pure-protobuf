@@ -1,0 +1,64 @@
+// Protocol Buffers - Google's data interchange format
+// Pinned Edition 2024 Fixture: Inheritance Semantics
+//
+// Demonstrates feature inheritance down the descriptor hierarchy:
+// - File-level options set default behavior for the file
+// - Field-level options override file-level options
+// - Message-level options (json_format) override file-level options
+// - Nested message options override enclosing message options
+// - Enum-level options (enum_type = CLOSED) override file-level open enum default
+
+edition = "2024";
+
+package edition2024.inheritance;
+
+// File-level feature overrides
+option features.field_presence = IMPLICIT;
+option features.repeated_field_encoding = EXPANDED;
+option features.utf8_validation = NONE;
+
+message FileDefaultsConsumer {
+  int32 file_implicit_int = 1;
+  repeated int32 file_expanded_int = 2;
+  string file_unverified_string = 3;
+}
+
+message FieldLevelOverrides {
+  int32 explicit_int = 1 [features.field_presence = EXPLICIT];
+  repeated int32 packed_int = 2 [features.repeated_field_encoding = PACKED];
+  string verified_string = 3 [features.utf8_validation = VERIFY];
+}
+
+message MessageJsonConsumer {
+  option features.json_format = LEGACY_BEST_EFFORT;
+  string name = 1;
+
+  message NestedMessageJsonOverride {
+    option features.json_format = ALLOW;
+    string detail = 1;
+  }
+}
+
+enum TopLevelEnumDefault {
+  TL_ZERO = 0;
+  TL_ONE = 1;
+}
+
+enum TopLevelEnumClosed {
+  option features.enum_type = CLOSED;
+  TLC_ZERO = 0;
+  TLC_ONE = 1;
+}
+
+message MessageWithNestedEnums {
+  enum NestedDefaultEnum {
+    N_ZERO = 0;
+    N_ONE = 1;
+  }
+
+  enum NestedClosedEnum {
+    option features.enum_type = CLOSED;
+    NC_ZERO = 0;
+    NC_ONE = 1;
+  }
+}

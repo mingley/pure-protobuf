@@ -1,0 +1,148 @@
+{
+  "version": "1.0.0",
+  "edition": 2024,
+  "edition_number": 1001,
+  "task": "CG-12",
+  "description": "Master fixture expectation catalog and oracle for Edition 2024 semantics",
+  "artifacts": {
+    "fds_checksums": {
+      "defaults.fds": "cae3b50c6932891359daf2a51f0ab08821269e3172ec20c7328437b4dcfeac95",
+      "extensions.fds": "2cc2dad9794c49081b94b4f107bc3307f5ef2b0d68f8085d61d90ff6daf10a1a",
+      "inheritance.fds": "5aabe20250ed32c30e609743abb7c8dfbd63717248c25a6348c7cc61774c3ac6",
+      "overrides.fds": "58bef8e2444653841e2a9d532449d600e445c4d498ac85e6741da052ae9ec341",
+      "visibility.fds": "9a02ff6a1348dd963bc69a9167dc33e6096ee72c2a239f6721ed2c722514b87c"
+    },
+    "bin_checksums": {
+      "defaults_empty.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "defaults_populated.bin": "694cf8503e904cfa8c94990c9496d499c8e6d2c332b85734211552f533a2981e",
+      "defaults_zero_set.bin": "9749b532eb72e9ba19f8b0f4a58bfcf5d04eb9f3f7bd056d7f18d84aaee9c63b",
+      "extensions_populated.bin": "f96fe8e6a1b1fcc6b77e89bd6d01e17ba5e9513bd3e493dc4541086120cdcbcd",
+      "overrides_delimited_message.bin": "38de08eb89d185dccbb25c8dab6b0e8d9085a40c43fc837e417e886c8c60dfab",
+      "overrides_expanded_repeated.bin": "0450629df15ed63ddc4d730c0bc756b6df0c70b1bf3ae854fbaef152da1b99ea",
+      "overrides_implicit_set.bin": "2ed9501947094c9d2a680b28c39b612fa7fa1b19509667f1d24756c5b81fd513",
+      "overrides_implicit_zero.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "feature_defaults": {
+    "field_presence": {
+      "tag": 1,
+      "value": "EXPLICIT",
+      "enum_number": 1
+    },
+    "enum_type": {
+      "tag": 2,
+      "value": "OPEN",
+      "enum_number": 1
+    },
+    "repeated_field_encoding": {
+      "tag": 3,
+      "value": "PACKED",
+      "enum_number": 1
+    },
+    "utf8_validation": {
+      "tag": 4,
+      "value": "VERIFY",
+      "enum_number": 2
+    },
+    "message_encoding": {
+      "tag": 5,
+      "value": "LENGTH_PREFIXED",
+      "enum_number": 1
+    },
+    "json_format": {
+      "tag": 6,
+      "value": "ALLOW",
+      "enum_number": 1
+    },
+    "enforce_naming_style": {
+      "tag": 7,
+      "value": "STYLE2024",
+      "enum_number": 1
+    },
+    "default_symbol_visibility": {
+      "tag": 8,
+      "value": "EXPORT_TOP_LEVEL",
+      "enum_number": 2
+    }
+  },
+  "wire_vectors": {
+    "defaults_empty.bin": {
+      "description": "Empty DefaultMessage",
+      "bytes_length": 0
+    },
+    "defaults_zero_set.bin": {
+      "description": "Explicit presence emits zero-default scalar fields",
+      "bytes_length": 6,
+      "hex": "080028003200"
+    },
+    "defaults_populated.bin": {
+      "description": "Populated DefaultMessage with all default feature types",
+      "bytes_length": 96
+    },
+    "overrides_implicit_zero.bin": {
+      "description": "Implicit presence omits zero-valued scalar field",
+      "bytes_length": 0
+    },
+    "overrides_implicit_set.bin": {
+      "description": "Implicit presence emits non-zero scalar field",
+      "bytes_length": 2,
+      "hex": "082a"
+    },
+    "overrides_expanded_repeated.bin": {
+      "description": "Expanded repeated int32 encodes individual varint tags",
+      "bytes_length": 6,
+      "hex": "180a1814181e"
+    },
+    "overrides_delimited_message.bin": {
+      "description": "Delimited submessage encodes using wire type 3 start group and wire type 4 end group",
+      "bytes_length": 9,
+      "hex": "2b0a0568656c6c6f2c"
+    },
+    "extensions_populated.bin": {
+      "description": "ExtendableMessage with extensions 101-106 populated",
+      "bytes_length": 34
+    }
+  },
+  "rejected_cases": [
+    {
+      "file": "import_weak.proto",
+      "construct": "import weak",
+      "reason": "Weak imports removed in Edition 2024"
+    },
+    {
+      "file": "ctype_option.proto",
+      "construct": "ctype option",
+      "reason": "ctype option removed in Edition 2024 in favor of features.(pb.cpp).string_type"
+    },
+    {
+      "file": "java_multiple_files.proto",
+      "construct": "java_multiple_files option",
+      "reason": "java_multiple_files removed in Edition 2024 in favor of features.(pb.java).nest_in_file_class"
+    },
+    {
+      "file": "group_syntax.proto",
+      "construct": "group keyword",
+      "reason": "Group syntax removed; delimited encoding selected via features.message_encoding = DELIMITED"
+    },
+    {
+      "file": "optional_keyword.proto",
+      "construct": "optional keyword",
+      "reason": "optional label removed; presence is explicit by default"
+    },
+    {
+      "file": "required_keyword.proto",
+      "construct": "required keyword",
+      "reason": "required label removed; selected via features.field_presence = LEGACY_REQUIRED"
+    },
+    {
+      "file": "naming_style.proto",
+      "construct": "badName / BadField",
+      "reason": "enforce_naming_style = STYLE2024 rejects non-standard identifier casing"
+    },
+    {
+      "file": "visibility_import_local.proto",
+      "construct": "importing local symbol",
+      "reason": "Symbols marked local cannot be imported across proto source boundaries"
+    }
+  ]
+}

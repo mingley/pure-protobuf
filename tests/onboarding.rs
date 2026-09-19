@@ -355,6 +355,219 @@ fn write_tonic_consumer(dir: &Path) {
     std::fs::write(dir.join("src/main.rs"), TONIC_MAIN).unwrap();
 }
 
+const FOUR_SHAPES_MAIN: &str = r#"include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+use pbrs_grpc::{Request, Response, Router, Status, Streaming};
+use std::net::SocketAddr;
+use std::time::Duration;
+use tokio::net::TcpListener;
+
+struct MyGreeter;
+
+fn name_of(req: &HelloRequest) -> String {
+    req.name().to_str().unwrap_or_default().to_owned()
+}
+
+fn reply(msg: impl Into<String>) -> HelloReply {
+    let mut r = HelloReply::new();
+    r.set_message(msg.into());
+    r
+}
+
+impl Greeter for MyGreeter {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let name = name_of(request.get_ref());
+        Ok(Response::new(reply(format!("hello {name}"))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut stream = request.into_inner();
+        let mut names = Vec::new();
+        while let Some(req) = stream.message().await? {
+            names.push(name_of(&req));
+        }
+        Ok(Response::new(reply(format!("hello {}", names.join(", ")))))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let name = name_of(request.get_ref());
+        let (tx, stream) = Streaming::channel(4);
+        tokio::spawn(async move {
+            for i in 1..=3 {
+                if tx.send(reply(format!("hello {name} #{i}"))).await.is_err() {
+                    break;
+                }
+            }
+        });
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(4);
+        tokio::spawn(async move {
+            while let Ok(Some(req)) = inbound.message().await {
+                let name = name_of(&req);
+                if tx.send(reply(format!("hello {name}"))).await.is_err() {
+                    break;
+                }
+            }
+        });
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Status> {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await?;
+    let addr = listener.local_addr()?;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(MyGreeter))
+            .serve_with_shutdown(listener, async {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .ok();
+    });
+
+    let mut client = None;
+    for _ in 0..80 {
+        if let Ok(c) = GreeterClient::connect(addr).await {
+            client = Some(c);
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let client = client.ok_or_else(|| Status::unavailable("connect failed"))?;
+
+    // 1. Unary
+    let mut req1 = HelloRequest::new();
+    req1.set_name("ada");
+    let resp1 = client.say_hello(Request::new(req1)).await?;
+    println!("[unary] {}", resp1.get_ref().message().to_str().unwrap_or_default());
+
+    // 2. Client-streaming
+    let (tx2, call2) = client.client_hello(Request::new(()));
+    let mut req2a = HelloRequest::new();
+    req2a.set_name("grace");
+    tx2.send(req2a).await?;
+    let mut req2b = HelloRequest::new();
+    req2b.set_name("alan");
+    tx2.send(req2b).await?;
+    tx2.close();
+    let resp2 = call2.await?;
+    println!("[client_streaming] {}", resp2.get_ref().message().to_str().unwrap_or_default());
+
+    // 3. Server-streaming
+    let mut req3 = HelloRequest::new();
+    req3.set_name("edsger");
+    let mut stream3 = client.server_hello(Request::new(req3)).await?.into_inner();
+    let mut msgs3 = Vec::new();
+    while let Some(msg) = stream3.message().await? {
+        msgs3.push(msg.message().to_str().unwrap_or_default().to_owned());
+    }
+    println!("[server_streaming] {}", msgs3.join(", "));
+
+    // 4. Bidi-streaming
+    let (tx4, call4) = client.stream_hello(Request::new(()));
+    let mut stream4 = call4.await?.into_inner();
+    let mut req4 = HelloRequest::new();
+    req4.set_name("barbara");
+    tx4.send(req4).await?;
+    tx4.close();
+    let mut msgs4 = Vec::new();
+    while let Some(msg) = stream4.message().await? {
+        msgs4.push(msg.message().to_str().unwrap_or_default().to_owned());
+    }
+    println!("[bidi_streaming] {}", msgs4.join(", "));
+
+    // Clean server shutdown
+    let _ = shutdown_tx.send(());
+    let _ = server.await;
+    println!("[shutdown] clean shutdown complete");
+
+    Ok(())
+}
+"#;
+
+const PACKAGED_GREETER_CONSUMER_MAIN: &str = r#"
+use pbrs_grpc_example_greeter::{
+    greeter, say_hello, say_hello_bidi_stream, say_hello_server_stream, say_hello_stream, serve,
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let live = serve().await?;
+    let client = greeter(live.addr).await?;
+
+    let unary = say_hello(&client, "ada").await?;
+    println!("[unary] {unary}");
+
+    let upload = say_hello_stream(&client, ["grace", "alan"]).await?;
+    println!("[client_streaming] {upload}");
+
+    let download = say_hello_server_stream(&client, "edsger").await?;
+    println!("[server_streaming] {}", download.join(", "));
+
+    let bidi = say_hello_bidi_stream(&client, ["barbara"]).await?;
+    println!("[bidi_streaming] {}", bidi.join(", "));
+
+    live.shutdown().await;
+    println!("[shutdown] clean shutdown complete");
+    Ok(())
+}
+"#;
+
+fn write_four_shapes_consumer(dir: &Path) {
+    let root = repo_root();
+    let proto_content = std::fs::read_to_string(root.join("examples/greeter/proto/hello.proto"))
+        .expect("read greeter hello.proto");
+    std::fs::write(dir.join("hello.proto"), proto_content).unwrap();
+    std::fs::write(
+        dir.join("build.rs"),
+        r#"fn main() {
+    pbrs::codegen::compile_protos(&["hello.proto"], &["."]).expect("compile_protos");
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-onboarding-four-shapes\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\npbrs-grpc = {{ path = \"{root}/pbrs-grpc\" }}\ntokio = {{ version = \"1\", features = [\"rt-multi-thread\", \"macros\", \"net\", \"time\", \"sync\"] }}\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("src/main.rs"), FOUR_SHAPES_MAIN).unwrap();
+}
+
+fn write_packaged_greeter_consumer(dir: &Path) {
+    let root = repo_root();
+    std::fs::write(
+        dir.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-onboarding-packaged-greeter\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\npbrs-grpc = {{ path = \"{root}/pbrs-grpc\" }}\npbrs-grpc-example-greeter = {{ path = \"{root}/examples/greeter\" }}\ntokio = {{ version = \"1\", features = [\"rt-multi-thread\", \"macros\", \"net\", \"time\", \"sync\"] }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("src/main.rs"), PACKAGED_GREETER_CONSUMER_MAIN).unwrap();
+}
+
 fn generate_hello(out: &Path, mut cfg: pbrs::codegen::Config) -> String {
     std::fs::create_dir_all(out).unwrap();
     let proto_dir = out.join("proto");
@@ -520,4 +733,79 @@ fn tonic_readme_selects_stubs_explicitly() {
         readme.contains("prost::Message"),
         "tonic README must say these types are not prost::Message"
     );
+}
+
+#[test]
+fn native_grpc_consumer_exercises_all_four_rpc_shapes() {
+    let tmp = scratch("pbrs-onboarding-four-shapes");
+    write_four_shapes_consumer(&tmp);
+    let out = cargo_run(&tmp, None, true);
+    assert!(out.status.success(), "consumer failed:\n{}", dump(&out));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("[unary] hello ada"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[client_streaming] hello grace, alan"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[server_streaming] hello edsger #1, hello edsger #2, hello edsger #3"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[bidi_streaming] hello barbara"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[shutdown] clean shutdown complete"),
+        "got stdout:\n{stdout}"
+    );
+}
+
+#[test]
+fn packaged_greeter_example_consumer_runs_all_four_shapes() {
+    let tmp = scratch("pbrs-onboarding-packaged-greeter");
+    write_packaged_greeter_consumer(&tmp);
+    let out = cargo_run(&tmp, None, true);
+    assert!(
+        out.status.success(),
+        "packaged consumer failed:\n{}",
+        dump(&out)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("[unary] hello ada"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[client_streaming] hello grace, alan"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[server_streaming] hello edsger #1, hello edsger #2, hello edsger #3"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[bidi_streaming] hello barbara"),
+        "got stdout:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("[shutdown] clean shutdown complete"),
+        "got stdout:\n{stdout}"
+    );
+}
+
+#[test]
+fn greeter_example_binary_runs_and_prints_hello_world() {
+    let greeter_dir = repo_root().join("examples").join("greeter");
+    let out = cargo_run(&greeter_dir, None, true);
+    assert!(
+        out.status.success(),
+        "greeter binary failed:\n{}",
+        dump(&out)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(stdout.trim(), "hello world", "got stdout:\n{stdout}");
 }

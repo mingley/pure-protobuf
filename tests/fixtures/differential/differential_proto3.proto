@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package differential;
+
+enum OpenEnum {
+  OPEN_ZERO = 0;
+  OPEN_ONE = 1;
+  OPEN_TWO = 2;
+}
+
+message Proto3Presence {
+  int32 implicit_int32 = 1;
+  string implicit_string = 2;
+  optional int32 explicit_int32 = 3;
+}
+
+message OneofMessage {
+  oneof test_oneof {
+    string name = 1;
+    int32 count = 2;
+    bytes data = 3;
+  }
+}
+
+message UnknownFieldsHost {
+  int32 known_field = 1;
+}
+
+message OpenEnumMessage {
+  OpenEnum status = 1;
+}
+
+message MapMessage {
+  map<string, int32> entries = 1;
+}
+
+message PackedRepeated {
+  repeated int32 values = 1 [packed = true];
+}
+
+message RecursiveNode {
+  int32 value = 1;
+  RecursiveNode child = 2;
+}
+
+message NestedItem {
+  int32 item_id = 1;
+  string item_name = 2;
+}
+
+message MergeTarget {
+  int32 scalar_val = 1;
+  NestedItem nested = 2;
+  repeated int32 repeated_vals = 3;
+}

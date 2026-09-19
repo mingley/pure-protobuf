@@ -1,0 +1,13 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+import "tests/fixtures/edition2024/rejected/visibility_defs.proto";
+
+message CrossImportConsumer {
+  // Succeeds: ExportedMsg is exported
+  edition2024.rejected.defs.ExportedMsg ok = 1;
+
+  // Fails: LocalMsg is local to its file
+  edition2024.rejected.defs.LocalMsg forbidden = 2;
+}

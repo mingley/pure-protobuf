@@ -136,3 +136,183 @@ fn editions_explicit_presence_zero() {
     let json = msg.to_json().unwrap();
     assert!(json.contains("\"count\":0"), "{json}");
 }
+
+#[test]
+fn json_float_double_shipped_helpers_pure_rust() {
+    // Verify float/double encoding
+    assert_eq!(
+        pbrs::json::float(f32::NAN),
+        pbrs::json::Json::String("NaN".into())
+    );
+    assert_eq!(
+        pbrs::json::float(f32::INFINITY),
+        pbrs::json::Json::String("Infinity".into())
+    );
+    assert_eq!(
+        pbrs::json::float(f32::NEG_INFINITY),
+        pbrs::json::Json::String("-Infinity".into())
+    );
+    assert_eq!(
+        pbrs::json::double(f64::NAN),
+        pbrs::json::Json::String("NaN".into())
+    );
+    assert_eq!(
+        pbrs::json::double(f64::INFINITY),
+        pbrs::json::Json::String("Infinity".into())
+    );
+    assert_eq!(
+        pbrs::json::double(f64::NEG_INFINITY),
+        pbrs::json::Json::String("-Infinity".into())
+    );
+
+    // Verify signed zero
+    let neg_zero_json = pbrs::json::parse("-0.0").unwrap();
+    let val_f64 = pbrs::json::as_f64(&neg_zero_json).unwrap();
+    assert!(val_f64.is_sign_negative());
+    assert_eq!(val_f64.to_bits(), (-0.0f64).to_bits());
+
+    let val_f32 = pbrs::json::as_f32(&neg_zero_json).unwrap();
+    assert!(val_f32.is_sign_negative());
+    assert_eq!(val_f32.to_bits(), (-0.0f32).to_bits());
+
+    let neg_zero_str = pbrs::json::parse(r#""-0.0""#).unwrap();
+    assert!(pbrs::json::as_f64(&neg_zero_str)
+        .unwrap()
+        .is_sign_negative());
+    assert!(pbrs::json::as_f32(&neg_zero_str)
+        .unwrap()
+        .is_sign_negative());
+
+    // Valid special values
+    let nan_val = pbrs::json::as_f64(&pbrs::json::parse(r#""NaN""#).unwrap()).unwrap();
+    assert!(nan_val.is_nan());
+    let inf_val = pbrs::json::as_f64(&pbrs::json::parse(r#""Infinity""#).unwrap()).unwrap();
+    assert_eq!(inf_val, f64::INFINITY);
+    let neg_inf_val = pbrs::json::as_f64(&pbrs::json::parse(r#""-Infinity""#).unwrap()).unwrap();
+    assert_eq!(neg_inf_val, f64::NEG_INFINITY);
+
+    // Invalid NaN / Infinity spellings must be rejected
+    for invalid in [
+        "nan",
+        "NAN",
+        "Nan",
+        "+NaN",
+        "-NaN",
+        "inf",
+        "INF",
+        "-inf",
+        "+inf",
+        "+Infinity",
+        "infinity",
+        "-infinity",
+    ] {
+        let v = pbrs::json::parse(&format!(r#""{invalid}""#)).unwrap();
+        assert!(
+            pbrs::json::as_f64(&v).is_err(),
+            "should reject double {invalid}"
+        );
+        assert!(
+            pbrs::json::as_f32(&v).is_err(),
+            "should reject float {invalid}"
+        );
+    }
+
+    // Trailing/invalid data rejection
+    for invalid in [
+        "1.5foo",
+        "12abc",
+        "12 34",
+        "12,34",
+        "12谷歌34",
+        "0x1.0",
+        "0x10",
+        "",
+    ] {
+        let v = pbrs::json::parse(&format!(r#""{invalid}""#)).unwrap();
+        assert!(
+            pbrs::json::as_f64(&v).is_err(),
+            "should reject double {invalid:?}"
+        );
+        assert!(
+            pbrs::json::as_f32(&v).is_err(),
+            "should reject float {invalid:?}"
+        );
+    }
+
+    // Subnormals
+    let subnormal_f64 = pbrs::json::parse("4.9406564584124654e-324").unwrap();
+    assert_eq!(pbrs::json::as_f64(&subnormal_f64).unwrap().to_bits(), 1);
+
+    let subnormal_f32 = pbrs::json::parse("1.40129846e-45").unwrap();
+    assert_eq!(pbrs::json::as_f32(&subnormal_f32).unwrap().to_bits(), 1);
+
+    // Range checks
+    let float_too_large = pbrs::json::parse("3.502823e+38").unwrap();
+    assert!(pbrs::json::as_f32(&float_too_large).is_err());
+    let float_too_small = pbrs::json::parse("-3.502823e+38").unwrap();
+    assert!(pbrs::json::as_f32(&float_too_small).is_err());
+
+    let double_too_large = pbrs::json::parse("1.89769e+308").unwrap();
+    assert!(pbrs::json::as_f64(&double_too_large).is_err());
+    let double_str_overflow = pbrs::json::parse(r#""1e999""#).unwrap();
+    assert!(pbrs::json::as_f64(&double_str_overflow).is_err());
+}
+
+#[test]
+fn dynamic_message_float_double_json_roundtrip() {
+    let desc = Arc::new(
+        MessageDescriptor::builder("example.FloatDouble")
+            .field(FieldDescriptor::new(
+                "flt",
+                1,
+                FieldType::Float,
+                Cardinality::Optional,
+                Presence::Explicit,
+            ))
+            .field(FieldDescriptor::new(
+                "dbl",
+                2,
+                FieldType::Double,
+                Cardinality::Optional,
+                Presence::Explicit,
+            ))
+            .build(),
+    );
+
+    let mut msg = DynamicMessage::new(desc.clone());
+    msg.set(1, Value::Float(-0.0));
+    msg.set(2, Value::Double(-0.0));
+    let json = msg.to_json().unwrap();
+    let parsed = DynamicMessage::from_json(desc.clone(), &json).unwrap();
+    match parsed.get_singular(1) {
+        Some(Value::Float(f)) => {
+            assert!(f.is_sign_negative());
+            assert_eq!(f.to_bits(), (-0.0f32).to_bits());
+        }
+        other => panic!("expected float, got {other:?}"),
+    }
+    match parsed.get_singular(2) {
+        Some(Value::Double(d)) => {
+            assert!(d.is_sign_negative());
+            assert_eq!(d.to_bits(), (-0.0f64).to_bits());
+        }
+        other => panic!("expected double, got {other:?}"),
+    }
+
+    // Special floats roundtrip
+    let mut msg_spec = DynamicMessage::new(desc.clone());
+    msg_spec.set(1, Value::Float(f32::NAN));
+    msg_spec.set(2, Value::Double(f64::INFINITY));
+    let json_spec = msg_spec.to_json().unwrap();
+    assert!(json_spec.contains(r#""flt":"NaN""#));
+    assert!(json_spec.contains(r#""dbl":"Infinity""#));
+    let parsed_spec = DynamicMessage::from_json(desc.clone(), &json_spec).unwrap();
+    match parsed_spec.get_singular(1) {
+        Some(Value::Float(f)) => assert!(f.is_nan()),
+        other => panic!("expected NaN float, got {other:?}"),
+    }
+    match parsed_spec.get_singular(2) {
+        Some(Value::Double(d)) => assert_eq!(*d, f64::INFINITY),
+        other => panic!("expected Infinity double, got {other:?}"),
+    }
+}

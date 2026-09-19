@@ -1,0 +1,58 @@
+{
+  "file": "visibility.proto",
+  "edition": 1001,
+  "syntax": "editions",
+  "package": "edition2024.visibility",
+  "default_symbol_visibility": "EXPORT_TOP_LEVEL",
+  "messages": [
+    {
+      "name": "ExportedTopLevelMessage",
+      "declared_visibility": "EXPORT",
+      "effective_visibility": "EXPORT"
+    },
+    {
+      "name": "LocalTopLevelMessage",
+      "declared_visibility": "LOCAL",
+      "effective_visibility": "LOCAL"
+    },
+    {
+      "name": "DefaultTopLevelMessage",
+      "declared_visibility": "UNSET",
+      "effective_visibility": "EXPORT",
+      "nested_messages": [
+        {
+          "name": "DefaultNestedLocalMessage",
+          "declared_visibility": "UNSET",
+          "effective_visibility": "LOCAL"
+        },
+        {
+          "name": "ExportedNestedMessage",
+          "declared_visibility": "EXPORT",
+          "effective_visibility": "EXPORT"
+        },
+        {
+          "name": "ExplicitLocalNestedMessage",
+          "declared_visibility": "LOCAL",
+          "effective_visibility": "LOCAL"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "ExportedTopLevelEnum",
+      "declared_visibility": "EXPORT",
+      "effective_visibility": "EXPORT"
+    },
+    {
+      "name": "LocalTopLevelEnum",
+      "declared_visibility": "LOCAL",
+      "effective_visibility": "LOCAL"
+    },
+    {
+      "name": "DefaultTopLevelEnum",
+      "declared_visibility": "UNSET",
+      "effective_visibility": "EXPORT"
+    }
+  ]
+}

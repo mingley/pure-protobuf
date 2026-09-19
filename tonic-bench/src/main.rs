@@ -65,19 +65,35 @@ fn timer_budget(payload: usize) -> (u32, usize) {
 struct Row {
     name: &'static str,
     payload: usize,
-    pbrs_enc: f64,
-    pbrs_dec: f64,
+    pbrs_enc: f64,        // cached encode (pre-warmed length/canonical cache)
+    pbrs_fresh_enc: f64,  // fresh encode (first encode before canonical cache)
+    pbrs_dec: f64,        // parse only (message dropped)
+    pbrs_touch: f64,      // parse-and-touch (reading parsed fields)
     prost_enc: f64,
     prost_dec: f64,
+    prost_touch: f64,
     v4_enc: f64,
     v4_dec: f64,
+    v4_touch: f64,
 }
 
-fn run<P, R, V>(name: &'static str, pbrs: &P, prost: &R, v4: &V, check_wire: bool) -> Row
+fn run<P, R, V, TP, TR, TV>(
+    name: &'static str,
+    pbrs: &P,
+    prost: &R,
+    v4: &V,
+    check_wire: bool,
+    touch_pbrs: TP,
+    touch_prost: TR,
+    touch_v4: TV,
+) -> Row
 where
     P: Parse + Serialize,
     R: prost::Message + Default,
     V: V4Parse + V4Serialize,
+    TP: Fn(&P) -> usize,
+    TR: Fn(&R) -> usize,
+    TV: Fn(&V) -> usize,
 {
     let pbrs_wire = Serialize::serialize(pbrs).expect("pbrs wire");
     let mut prost_wire = Vec::new();
@@ -99,6 +115,17 @@ where
         dst.len()
     });
     let pbrs_dec = median_ns(samples, iters, || P::parse(&pbrs_wire).expect("pbrs parse"));
+    let parse_and_fresh_enc = median_ns(samples, iters, || {
+        let fresh = P::parse(&pbrs_wire).expect("pbrs parse");
+        dst.clear();
+        Serialize::encode(&fresh, &mut dst).expect("pbrs fresh encode");
+        dst.len()
+    });
+    let pbrs_fresh_enc = (parse_and_fresh_enc - pbrs_dec).max(pbrs_enc);
+    let pbrs_touch = median_ns(samples, iters, || {
+        let msg = P::parse(&pbrs_wire).expect("pbrs parse");
+        touch_pbrs(&msg)
+    });
     let prost_enc = median_ns(samples, iters, || {
         dst.clear();
         prost::Message::encode(prost, &mut dst).expect("prost encode");
@@ -107,19 +134,31 @@ where
     let prost_dec = median_ns(samples, iters, || {
         R::decode(pbrs_wire.as_slice()).expect("prost decode")
     });
+    let prost_touch = median_ns(samples, iters, || {
+        let msg = R::decode(pbrs_wire.as_slice()).expect("prost decode");
+        touch_prost(&msg)
+    });
     let v4_enc = median_ns(samples, iters, || {
         V4Serialize::serialize(v4).expect("v4 encode").len()
     });
     let v4_dec = median_ns(samples, iters, || V::parse(&pbrs_wire).expect("v4 parse"));
+    let v4_touch = median_ns(samples, iters, || {
+        let msg = V::parse(&pbrs_wire).expect("v4 parse");
+        touch_v4(&msg)
+    });
     Row {
         name,
         payload,
         pbrs_enc,
+        pbrs_fresh_enc,
         pbrs_dec,
+        pbrs_touch,
         prost_enc,
         prost_dec,
+        prost_touch,
         v4_enc,
         v4_dec,
+        v4_touch,
     }
 }
 
@@ -188,11 +227,44 @@ fn v4_node(depth: i32) -> v4_cases::Node {
     n
 }
 
+fn touch_node_pbrs(n: &pbrs_cases::Node) -> usize {
+    let mut count = n.n() as usize;
+    let mut cur = n;
+    while cur.has_child() {
+        cur = cur.child();
+        count += cur.n() as usize;
+    }
+    count
+}
+
+fn touch_node_prost(n: &prost_cases::Node) -> usize {
+    let mut count = n.n as usize;
+    let mut cur = n;
+    while let Some(c) = &cur.child {
+        cur = c;
+        count += cur.n as usize;
+    }
+    count
+}
+
+fn touch_node_v4(n: &v4_cases::Node) -> usize {
+    let mut count = n.n() as usize;
+    if n.has_child() {
+        let mut cur = n.child();
+        count += cur.n() as usize;
+        while cur.has_child() {
+            cur = cur.child();
+            count += cur.n() as usize;
+        }
+    }
+    count
+}
+
 fn print_table(title: &str, rows: &[Row]) {
     println!("{title}");
     println!();
-    println!("| case | payload | pbrs enc/dec | prost enc/dec | v4 enc/dec | vs prost | vs v4 |");
-    println!("|---|---:|---:|---:|---:|---|---|");
+    println!("| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |");
+    println!("|---|---:|---:|---:|---:|---:|---|---|");
     for r in rows {
         let vs_prost = if r.pbrs_enc + r.pbrs_dec < r.prost_enc + r.prost_dec {
             "win"
@@ -205,8 +277,19 @@ fn print_table(title: &str, rows: &[Row]) {
             "loss"
         };
         println!(
-            "| {} | {} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {vs_prost} | {vs_v4} |",
-            r.name, r.payload, r.pbrs_enc, r.pbrs_dec, r.prost_enc, r.prost_dec, r.v4_enc, r.v4_dec
+            "| {} | {} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} / {:.1} | {:.1} / {:.1} / {:.1} | {vs_prost} | {vs_v4} |",
+            r.name,
+            r.payload,
+            r.pbrs_fresh_enc,
+            r.pbrs_enc,
+            r.pbrs_dec,
+            r.pbrs_touch,
+            r.prost_enc,
+            r.prost_dec,
+            r.prost_touch,
+            r.v4_enc,
+            r.v4_dec,
+            r.v4_touch
         );
     }
     println!();
@@ -454,11 +537,32 @@ fn main() {
     v_sparse.set_id(99);
 
     // hello has no v4 twin in this crate; Name is the same 1-string shape.
-    let published = [run("hello", &p_hello, &r_hello, &v_name, true), {
-        let mut v = v4_cases::Name::new();
-        v.set_name(hello_4k.as_str());
-        run("hello_4kib", &p_hello4, &r_hello4, &v, true)
-    }];
+    let published = [
+        run(
+            "hello",
+            &p_hello,
+            &r_hello,
+            &v_name,
+            true,
+            |m| m.name().as_bytes().len(),
+            |m| m.name.len(),
+            |m| m.name().len(),
+        ),
+        {
+            let mut v = v4_cases::Name::new();
+            v.set_name(hello_4k.as_str());
+            run(
+                "hello_4kib",
+                &p_hello4,
+                &r_hello4,
+                &v,
+                true,
+                |m| m.name().as_bytes().len(),
+                |m| m.name.len(),
+                |m| m.name().len(),
+            )
+        },
+    ];
 
     let survey = [
         run(
@@ -467,25 +571,244 @@ fn main() {
             &prost_cases::Empty {},
             &v4_cases::Empty::new(),
             true,
+            |_| 0,
+            |_| 0,
+            |_| 0,
         ),
-        run("id", &p_id, &r_id, &v_id, true),
-        run("scalars", &p_sc, &r_sc, &v_sc, true),
-        run("name_short", &p_name, &r_name, &v_name, true),
-        run("name_80", &p_name80, &r_name80, &v_name80, true),
-        run("name_4kib", &p_name4k, &r_name4k, &v_name4k, true),
-        run("blob_32", &p_b32, &r_b32, &v_b32, true),
-        run("blob_4kib", &p_b4k, &r_b4k, &v_b4k, true),
-        run("blob_64kib", &p_b64, &r_b64, &v_b64, true),
-        run("envelope", &p_env, &r_env, &v_env, true),
-        run("nest_d4", &p_nest, &r_nest, &v_nest, true),
-        run("packed_16", &p_ids16, &r_ids16, &v_ids16, true),
-        run("packed_256", &p_ids256, &r_ids256, &v_ids256, true),
-        run("tags_4", &p_tags4, &r_tags4, &v_tags4, true),
-        run("tags_32", &p_tags32, &r_tags32, &v_tags32, true),
-        run("map_8", &p_map, &r_map, &v_map, false),
-        run("oneof_ok", &p_ok, &r_ok, &v_ok, true),
-        run("rpc_mixed", &p_rpc, &r_rpc, &v_rpc, false),
-        run("rpc_sparse", &p_sparse, &r_sparse, &v_sparse, true),
+        run(
+            "id",
+            &p_id,
+            &r_id,
+            &v_id,
+            true,
+            |m| m.id() as usize,
+            |m| m.id as usize,
+            |m| m.id() as usize,
+        ),
+        run(
+            "scalars",
+            &p_sc,
+            &r_sc,
+            &v_sc,
+            true,
+            |m| {
+                m.id() as usize
+                    + m.seq() as usize
+                    + (m.ok() as usize)
+                    + (i32::from(m.status()) as usize)
+                    + m.ts() as usize
+                    + m.lat() as usize
+            },
+            |m| {
+                m.id as usize
+                    + m.seq as usize
+                    + (m.ok as usize)
+                    + m.status as usize
+                    + m.ts as usize
+                    + m.lat as usize
+            },
+            |m| {
+                m.id() as usize
+                    + m.seq() as usize
+                    + (m.ok() as usize)
+                    + (i32::from(m.status()) as usize)
+                    + m.ts() as usize
+                    + m.lat() as usize
+            },
+        ),
+        run(
+            "name_short",
+            &p_name,
+            &r_name,
+            &v_name,
+            true,
+            |m| m.name().as_bytes().len(),
+            |m| m.name.len(),
+            |m| m.name().len(),
+        ),
+        run(
+            "name_80",
+            &p_name80,
+            &r_name80,
+            &v_name80,
+            true,
+            |m| m.name().as_bytes().len(),
+            |m| m.name.len(),
+            |m| m.name().len(),
+        ),
+        run(
+            "name_4kib",
+            &p_name4k,
+            &r_name4k,
+            &v_name4k,
+            true,
+            |m| m.name().as_bytes().len(),
+            |m| m.name.len(),
+            |m| m.name().len(),
+        ),
+        run(
+            "blob_32",
+            &p_b32,
+            &r_b32,
+            &v_b32,
+            true,
+            |m| m.payload().len(),
+            |m| m.payload.len(),
+            |m| m.payload().len(),
+        ),
+        run(
+            "blob_4kib",
+            &p_b4k,
+            &r_b4k,
+            &v_b4k,
+            true,
+            |m| m.payload().len(),
+            |m| m.payload.len(),
+            |m| m.payload().len(),
+        ),
+        run(
+            "blob_64kib",
+            &p_b64,
+            &r_b64,
+            &v_b64,
+            true,
+            |m| m.payload().len(),
+            |m| m.payload.len(),
+            |m| m.payload().len(),
+        ),
+        run(
+            "envelope",
+            &p_env,
+            &r_env,
+            &v_env,
+            true,
+            |m| m.meta().id() as usize + m.meta().trace().as_bytes().len() + m.body().as_bytes().len(),
+            |m| m.meta.as_ref().map(|x| x.id as usize + x.trace.len()).unwrap_or(0) + m.body.len(),
+            |m| m.meta().id() as usize + m.meta().trace().len() + m.body().len(),
+        ),
+        run(
+            "nest_d4",
+            &p_nest,
+            &r_nest,
+            &v_nest,
+            true,
+            touch_node_pbrs,
+            touch_node_prost,
+            touch_node_v4,
+        ),
+        run(
+            "packed_16",
+            &p_ids16,
+            &r_ids16,
+            &v_ids16,
+            true,
+            |m| m.ids().iter().sum::<i64>() as usize,
+            |m| m.ids.iter().sum::<i64>() as usize,
+            |m| m.ids().iter().sum::<i64>() as usize,
+        ),
+        run(
+            "packed_256",
+            &p_ids256,
+            &r_ids256,
+            &v_ids256,
+            true,
+            |m| m.ids().iter().sum::<i64>() as usize,
+            |m| m.ids.iter().sum::<i64>() as usize,
+            |m| m.ids().iter().sum::<i64>() as usize,
+        ),
+        run(
+            "tags_4",
+            &p_tags4,
+            &r_tags4,
+            &v_tags4,
+            true,
+            |m| m.tags().iter().map(|s| s.as_bytes().len()).sum(),
+            |m| m.tags.iter().map(|s| s.len()).sum(),
+            |m| m.tags().iter().map(|s| s.len()).sum(),
+        ),
+        run(
+            "tags_32",
+            &p_tags32,
+            &r_tags32,
+            &v_tags32,
+            true,
+            |m| m.tags().iter().map(|s| s.as_bytes().len()).sum(),
+            |m| m.tags.iter().map(|s| s.len()).sum(),
+            |m| m.tags().iter().map(|s| s.len()).sum(),
+        ),
+        run(
+            "map_8",
+            &p_map,
+            &r_map,
+            &v_map,
+            false,
+            |m| m.h().iter().map(|(k, v)| k.as_bytes().len() + v.as_bytes().len()).sum(),
+            |m| m.h.iter().map(|(k, v)| k.len() + v.len()).sum(),
+            |m| m.h().iter().map(|(k, v)| k.len() + v.len()).sum(),
+        ),
+        run(
+            "oneof_ok",
+            &p_ok,
+            &r_ok,
+            &v_ok,
+            true,
+            |m| m.ok_opt().map(|s| s.as_bytes().len()).unwrap_or(0),
+            |m| match &m.kind {
+                Some(prost_cases::result::Kind::Ok(s)) => s.len(),
+                _ => 0,
+            },
+            |m| if m.has_ok() { m.ok().len() } else { 0 },
+        ),
+        run(
+            "rpc_mixed",
+            &p_rpc,
+            &r_rpc,
+            &v_rpc,
+            false,
+            |m| {
+                m.id() as usize
+                    + m.method().as_bytes().len()
+                    + m.path().as_bytes().len()
+                    + m.user().as_bytes().len()
+                    + m.meta().id() as usize
+                    + m.ids().iter().sum::<i64>() as usize
+                    + m.tags().iter().map(|s| s.as_bytes().len()).sum::<usize>()
+                    + m.headers().iter().map(|(k, v)| k.as_bytes().len() + v.as_bytes().len()).sum::<usize>()
+                    + m.extra().len()
+            },
+            |m| {
+                m.id as usize
+                    + m.method.len()
+                    + m.path.len()
+                    + m.user.len()
+                    + m.meta.as_ref().map(|x| x.id as usize).unwrap_or(0)
+                    + m.ids.iter().sum::<i64>() as usize
+                    + m.tags.iter().map(|s| s.len()).sum::<usize>()
+                    + m.headers.iter().map(|(k, v)| k.len() + v.len()).sum::<usize>()
+                    + m.extra.len()
+            },
+            |m| {
+                m.id() as usize
+                    + m.method().len()
+                    + m.path().len()
+                    + m.user().len()
+                    + m.meta().id() as usize
+                    + m.ids().iter().sum::<i64>() as usize
+                    + m.tags().iter().map(|s| s.len()).sum::<usize>()
+                    + m.headers().iter().map(|(k, v)| k.len() + v.len()).sum::<usize>()
+                    + m.extra().len()
+            },
+        ),
+        run(
+            "rpc_sparse",
+            &p_sparse,
+            &r_sparse,
+            &v_sparse,
+            true,
+            |m| m.id() as usize,
+            |m| m.id as usize,
+            |m| m.id() as usize,
+        ),
     ];
 
     println!("# Codec survey (encode into BytesMut; v4 serialize is Arena+FFI)");

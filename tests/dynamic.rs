@@ -303,3 +303,422 @@ fn encode_varint_for_test(out: &mut Vec<u8>, mut value: u64) {
         }
     }
 }
+
+fn encode_location_for_test(
+    out: &mut Vec<u8>,
+    path: &[i32],
+    span: &[i32],
+    leading_comments: Option<&str>,
+    trailing_comments: Option<&str>,
+    leading_detached: &[&str],
+) {
+    let mut loc = Vec::new();
+    let mut path_bytes = Vec::new();
+    for &p in path {
+        encode_varint_for_test(&mut path_bytes, p as u64);
+    }
+    protobuf_test_encode_len(&mut loc, 1, &path_bytes);
+
+    let mut span_bytes = Vec::new();
+    for &s in span {
+        encode_varint_for_test(&mut span_bytes, s as u64);
+    }
+    protobuf_test_encode_len(&mut loc, 2, &span_bytes);
+
+    if let Some(lc) = leading_comments {
+        protobuf_test_encode_string(&mut loc, 3, lc);
+    }
+    if let Some(tc) = trailing_comments {
+        protobuf_test_encode_string(&mut loc, 4, tc);
+    }
+    for &ld in leading_detached {
+        protobuf_test_encode_string(&mut loc, 6, ld);
+    }
+
+    protobuf_test_encode_len(out, 1, &loc);
+}
+
+fn build_source_info_file_and_fds() -> (Vec<u8>, Vec<u8>) {
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "test_source.proto");
+    protobuf_test_encode_string(&mut file, 2, "pkg");
+    protobuf_test_encode_string(&mut file, 12, "proto3");
+
+    // FileOptions: field 8 (deprecated = 23, custom = 50001)
+    let mut file_opts = Vec::new();
+    protobuf_test_encode_varint(&mut file_opts, 23, 1);
+    protobuf_test_encode_len(&mut file_opts, 50001, b"fl");
+    protobuf_test_encode_len(&mut file, 8, &file_opts);
+
+    // Message Outer: field 4 of file
+    let mut outer = Vec::new();
+    protobuf_test_encode_string(&mut outer, 1, "Outer");
+
+    // MessageOptions: field 7 (deprecated = 3, custom = 51206)
+    let mut msg_opts = Vec::new();
+    protobuf_test_encode_varint(&mut msg_opts, 3, 1);
+    protobuf_test_encode_len(&mut msg_opts, 51206, b"abc");
+    protobuf_test_encode_len(&mut outer, 7, &msg_opts);
+
+    // outer_field: field 2 of Outer (index 0)
+    let mut f1 = Vec::new();
+    protobuf_test_encode_string(&mut f1, 1, "outer_field");
+    protobuf_test_encode_varint(&mut f1, 3, 1);
+    protobuf_test_encode_varint(&mut f1, 4, 1);
+    protobuf_test_encode_varint(&mut f1, 5, 9);
+    let mut f1_opts = Vec::new();
+    protobuf_test_encode_varint(&mut f1_opts, 3, 1);
+    protobuf_test_encode_len(&mut f1_opts, 9999, b"xyz");
+    protobuf_test_encode_len(&mut f1, 8, &f1_opts);
+    protobuf_test_encode_len(&mut outer, 2, &f1);
+
+    // Nested Message Inner: field 3 of Outer (index 0 in nested_type)
+    let mut inner = Vec::new();
+    protobuf_test_encode_string(&mut inner, 1, "Inner");
+    let mut inner_f = Vec::new();
+    protobuf_test_encode_string(&mut inner_f, 1, "inner_field");
+    protobuf_test_encode_varint(&mut inner_f, 3, 1);
+    protobuf_test_encode_varint(&mut inner_f, 4, 1);
+    protobuf_test_encode_varint(&mut inner_f, 5, 5);
+    protobuf_test_encode_len(&mut inner, 2, &inner_f);
+    protobuf_test_encode_len(&mut outer, 3, &inner);
+
+    // Nested Enum NestedEnum: field 4 of Outer (index 0 in enum_type)
+    let mut nested_enum = Vec::new();
+    protobuf_test_encode_string(&mut nested_enum, 1, "NestedEnum");
+    let mut ne_val = Vec::new();
+    protobuf_test_encode_string(&mut ne_val, 1, "NESTED_ZERO");
+    protobuf_test_encode_varint(&mut ne_val, 2, 0);
+    protobuf_test_encode_len(&mut nested_enum, 2, &ne_val);
+    protobuf_test_encode_len(&mut outer, 4, &nested_enum);
+
+    protobuf_test_encode_len(&mut file, 4, &outer);
+
+    // TopEnum: field 5 of file (index 0 in enum_type)
+    let mut top_enum = Vec::new();
+    protobuf_test_encode_string(&mut top_enum, 1, "TopEnum");
+    let mut enum_opts = Vec::new();
+    protobuf_test_encode_varint(&mut enum_opts, 2, 1);
+    protobuf_test_encode_len(&mut enum_opts, 50002, b"en");
+    protobuf_test_encode_len(&mut top_enum, 3, &enum_opts);
+    let mut ev0 = Vec::new();
+    protobuf_test_encode_string(&mut ev0, 1, "ZERO");
+    protobuf_test_encode_varint(&mut ev0, 2, 0);
+    let mut ev0_opts = Vec::new();
+    protobuf_test_encode_varint(&mut ev0_opts, 1, 1);
+    protobuf_test_encode_len(&mut ev0, 3, &ev0_opts);
+    protobuf_test_encode_len(&mut top_enum, 2, &ev0);
+    let mut ev1 = Vec::new();
+    protobuf_test_encode_string(&mut ev1, 1, "ONE");
+    protobuf_test_encode_varint(&mut ev1, 2, 1);
+    protobuf_test_encode_len(&mut top_enum, 2, &ev1);
+    protobuf_test_encode_len(&mut file, 5, &top_enum);
+
+    // Service: field 6 of file (index 0 in service)
+    let mut svc = Vec::new();
+    protobuf_test_encode_string(&mut svc, 1, "TestService");
+    let mut svc_opts = Vec::new();
+    protobuf_test_encode_varint(&mut svc_opts, 33, 1);
+    protobuf_test_encode_len(&mut svc, 3, &svc_opts);
+    let mut m = Vec::new();
+    protobuf_test_encode_string(&mut m, 1, "DoSomething");
+    protobuf_test_encode_string(&mut m, 2, ".pkg.Outer");
+    protobuf_test_encode_string(&mut m, 3, ".pkg.Outer");
+    let mut m_opts = Vec::new();
+    protobuf_test_encode_varint(&mut m_opts, 33, 1);
+    protobuf_test_encode_len(&mut m_opts, 50003, b"mn");
+    protobuf_test_encode_len(&mut m, 4, &m_opts);
+    protobuf_test_encode_len(&mut svc, 2, &m);
+    protobuf_test_encode_len(&mut file, 6, &svc);
+
+    // SourceCodeInfo: field 9 of file
+    let mut sci = Vec::new();
+    encode_location_for_test(
+        &mut sci,
+        &[],
+        &[1, 0, 50, 0],
+        Some(" File leading comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0],
+        &[5, 0, 20, 1],
+        Some(" Outer message comment\n"),
+        Some(" Outer trailing comment"),
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0, 2, 0],
+        &[7, 2, 7, 30],
+        Some(" outer_field comment\n"),
+        Some(" field trailing"),
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0, 3, 0],
+        &[10, 2, 15, 2],
+        Some(" Inner message comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0, 3, 0, 2, 0],
+        &[12, 4, 12, 25],
+        Some(" inner_field comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0, 4, 0],
+        &[17, 2, 19, 2],
+        Some(" NestedEnum comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[4, 0, 4, 0, 2, 0],
+        &[18, 4, 18, 20],
+        Some(" NESTED_ZERO comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[5, 0],
+        &[22, 0, 26, 1],
+        Some(" TopEnum comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[5, 0, 2, 0],
+        &[23, 2, 23, 15],
+        Some(" ZERO comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[5, 0, 2, 1],
+        &[24, 2, 24, 15],
+        Some(" ONE comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[6, 0],
+        &[28, 0, 32, 1],
+        Some(" TestService comment\n"),
+        None,
+        &[],
+    );
+    encode_location_for_test(
+        &mut sci,
+        &[6, 0, 2, 0],
+        &[30, 2, 30, 45],
+        Some(" DoSomething comment\n"),
+        Some(" method trailing"),
+        &[],
+    );
+
+    protobuf_test_encode_len(&mut file, 9, &sci);
+
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    (file, fds)
+}
+
+#[test]
+fn source_code_info_and_deprecation_preserved() {
+    let (_file, fds) = build_source_info_file_and_fds();
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("fds");
+
+    // 1. FileDescriptor
+    let file = pool.get_file("test_source.proto").expect("file");
+    assert!(file.is_deprecated());
+    assert_eq!(file.custom_option(50001), Some(b"fl".as_slice()));
+    assert_eq!(file.leading_comments(), Some(" File leading comment\n"));
+    assert!(file.source_code_info().is_some());
+    let sci = file.source_code_info().unwrap();
+    assert!(sci.find_location(&[4, 0]).is_some());
+    assert_eq!(sci.find_location(&[4, 0]).unwrap().span, vec![5, 0, 20, 1]);
+
+    // 2. Top-level message and field
+    let outer = pool.get_message("pkg.Outer").expect("pkg.Outer");
+    assert!(outer.is_deprecated());
+    assert_eq!(outer.custom_option(51206), Some(b"abc".as_slice()));
+    assert_eq!(outer.leading_comments(), Some(" Outer message comment\n"));
+    assert_eq!(outer.trailing_comments(), Some(" Outer trailing comment"));
+    assert_eq!(outer.span(), &[5, 0, 20, 1]);
+
+    let f1 = outer.field(1).expect("outer_field");
+    assert!(f1.is_deprecated());
+    assert_eq!(f1.custom_option(9999), Some(b"xyz".as_slice()));
+    assert_eq!(f1.leading_comments(), Some(" outer_field comment\n"));
+    assert_eq!(f1.trailing_comments(), Some(" field trailing"));
+    assert_eq!(f1.span(), &[7, 2, 7, 30]);
+
+    // 3. Nested message and field
+    let inner = pool
+        .get_message("pkg.Outer.Inner")
+        .expect("pkg.Outer.Inner");
+    assert!(!inner.is_deprecated());
+    assert_eq!(inner.leading_comments(), Some(" Inner message comment\n"));
+    assert_eq!(inner.span(), &[10, 2, 15, 2]);
+
+    let inner_f = inner.field(1).expect("inner_field");
+    assert_eq!(inner_f.leading_comments(), Some(" inner_field comment\n"));
+    assert_eq!(inner_f.span(), &[12, 4, 12, 25]);
+
+    // 4. Nested enum and value
+    let ne = pool.get_enum("pkg.Outer.NestedEnum").expect("NestedEnum");
+    assert_eq!(ne.leading_comments(), Some(" NestedEnum comment\n"));
+    assert_eq!(ne.span(), &[17, 2, 19, 2]);
+    let ne_v0 = ne.value_comments(0).expect("NESTED_ZERO comments");
+    assert_eq!(ne_v0.leading(), Some(" NESTED_ZERO comment\n"));
+
+    // 5. Top-level enum and values
+    let te = pool.get_enum("pkg.TopEnum").expect("TopEnum");
+    assert!(te.is_deprecated());
+    assert_eq!(te.custom_option(50002), Some(b"en".as_slice()));
+    assert_eq!(te.leading_comments(), Some(" TopEnum comment\n"));
+    assert_eq!(te.span(), &[22, 0, 26, 1]);
+    assert!(te.is_value_deprecated(0));
+    assert!(!te.is_value_deprecated(1));
+    let te_v0 = te.value_comments(0).expect("ZERO comments");
+    assert_eq!(te_v0.leading(), Some(" ZERO comment\n"));
+    let te_v1 = te.value_comments(1).expect("ONE comments");
+    assert_eq!(te_v1.leading(), Some(" ONE comment\n"));
+
+    // 6. Service and method
+    let svc = pool.get_service("pkg.TestService").expect("TestService");
+    assert!(svc.is_deprecated());
+    assert_eq!(svc.leading_comments(), Some(" TestService comment\n"));
+    assert_eq!(svc.span(), &[28, 0, 32, 1]);
+    assert_eq!(svc.methods.len(), 1);
+
+    let m = &svc.methods[0];
+    assert!(m.is_deprecated());
+    assert_eq!(m.custom_option(50003), Some(b"mn".as_slice()));
+    assert_eq!(m.leading_comments(), Some(" DoSomething comment\n"));
+    assert_eq!(m.trailing_comments(), Some(" method trailing"));
+    assert_eq!(m.span(), &[30, 2, 30, 45]);
+}
+
+#[test]
+fn source_code_info_codegen_doc_comments() {
+    let (file, _fds) = build_source_info_file_and_fds();
+
+    let mut req = Vec::new();
+    protobuf_test_encode_string(&mut req, 1, "test_source.proto");
+    protobuf_test_encode_len(&mut req, 15, &file);
+
+    let files = pbrs::codegen::generate_from_code_generator_request(&req)
+        .expect("generate_from_code_generator_request");
+    assert!(!files.is_empty());
+    let (_filename, content) = files
+        .iter()
+        .find(|(name, _)| name.ends_with("test_source.rs"))
+        .or_else(|| files.first())
+        .expect("generated file content");
+
+    // Message Outer doc comments and deprecation
+    assert!(
+        content.contains("/// Outer message comment"),
+        "missing Outer doc comment: {content}"
+    );
+    assert!(
+        content.contains("/// Outer trailing comment"),
+        "missing Outer trailing doc: {content}"
+    );
+    assert!(
+        content.contains("#[deprecated]\n#[derive(Clone, Debug)]\npub struct Outer"),
+        "missing Outer #[deprecated]: {content}"
+    );
+
+    // Field outer_field doc comments and deprecation
+    assert!(
+        content.contains("/// outer_field comment"),
+        "missing outer_field doc: {content}"
+    );
+    assert!(
+        content.contains("/// field trailing"),
+        "missing outer_field trailing doc: {content}"
+    );
+    assert!(
+        content.contains("#[deprecated]\n    pub fn outer_field"),
+        "missing outer_field #[deprecated]: {content}"
+    );
+
+    // Nested message Inner
+    assert!(
+        content.contains("/// Inner message comment"),
+        "missing Inner doc: {content}"
+    );
+    assert!(
+        content.contains("/// inner_field comment"),
+        "missing inner_field doc: {content}"
+    );
+
+    // TopEnum doc comments and deprecation
+    assert!(
+        content.contains("/// TopEnum comment"),
+        "missing TopEnum doc: {content}"
+    );
+    assert!(
+        content.contains("#[deprecated]\n#[repr(transparent)]"),
+        "missing TopEnum #[deprecated]: {content}"
+    );
+    assert!(
+        content.contains("pub struct TopEnum(pub i32);"),
+        "missing TopEnum struct: {content}"
+    );
+    assert!(
+        content.contains("/// ZERO comment"),
+        "missing ZERO doc: {content}"
+    );
+    assert!(
+        content.contains("#[deprecated]\n    pub const Zero"),
+        "missing ZERO #[deprecated]: {content}"
+    );
+    assert!(
+        content.contains("/// ONE comment"),
+        "missing ONE doc: {content}"
+    );
+
+    // NestedEnum doc comments
+    assert!(
+        content.contains("/// NestedEnum comment"),
+        "missing NestedEnum doc: {content}"
+    );
+    assert!(
+        content.contains("/// NESTED_ZERO comment"),
+        "missing NESTED_ZERO doc: {content}"
+    );
+
+    // Service doc comments and deprecation
+    assert!(
+        content.contains("/// TestService comment"),
+        "missing TestService doc: {content}"
+    );
+    assert!(
+        content.contains("/// DoSomething comment"),
+        "missing DoSomething doc: {content}"
+    );
+}
+
+#[test]
+fn codegen_config_include_source_info() {
+    let mut config = pbrs::codegen::Config::new();
+    config.include_source_info(true);
+    config.preserve_comments(true);
+}

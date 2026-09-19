@@ -569,7 +569,7 @@ mod tests {
 
 #[cfg(test)]
 mod handshake {
-    use super::{ClientTls, Identity, ServerTls};
+    use super::{ClientTls, Identity, ServerTls, Status};
     use crate::status::Code;
     use tokio::net::{TcpListener, TcpStream};
 
@@ -583,16 +583,25 @@ mod handshake {
         let tls = ServerTls::mtls(identity, CA).expect("mtls");
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("addr");
-        drop(tokio::spawn(async move {
+        let server_task = tokio::spawn(async move {
             let (tcp, _) = listener.accept().await.expect("accept");
             drop(tls.accept(tcp).await);
-        }));
+        });
         let tcp = TcpStream::connect(addr).await.expect("connect");
         let client = ClientTls::ca("localhost", CA).expect("client");
         let err = match client.connect(tcp).await {
-            Ok(_) => panic!("anonymous client finished handshake"),
+            Ok(mut stream) => {
+                use tokio::io::AsyncReadExt;
+                let mut buf = [0u8; 1];
+                match stream.read(&mut buf).await {
+                    Ok(0) => Status::unauthenticated("tls: peer closed after handshake"),
+                    Ok(_) => panic!("anonymous client finished handshake and read data"),
+                    Err(e) => Status::unauthenticated(format!("tls: {e}")),
+                }
+            }
             Err(e) => e,
         };
         assert_eq!(err.code(), Code::Unauthenticated, "{err}");
+        let _ = server_task.await;
     }
 }

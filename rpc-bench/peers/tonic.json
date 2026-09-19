@@ -1,0 +1,88 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "tonic",
+  "name": "tonic",
+  "description": "Tonic 0.14 reference gRPC implementation over Hyper/H2 with Prost and protobuf-tonic",
+  "role": ["client", "server"],
+  "language": "rust",
+  "runtime": "tokio + hyper + h2",
+  "codec": "prost / protobuf-tonic",
+  "upstream_pin": {
+    "repository": "hyperium/tonic",
+    "version": "v0.14.0",
+    "prost_version": "v0.13.0",
+    "notes": "Pinned standard Rust ecosystem reference peer"
+  },
+  "server": {
+    "description": "Tonic interop & benchmark server (from tests/interop/tonic or rpc-bench)",
+    "binary_name": "tonic-interop",
+    "candidates": [
+      "target/release/tonic-interop",
+      "target/debug/tonic-interop",
+      "tests/interop/tonic/target/release/tonic-interop",
+      "tests/interop/tonic/target/debug/tonic-interop",
+      "rpc-bench/target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench"
+    ],
+    "build_command": "cargo build --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
+    "args_template": [
+      "{binary}",
+      "server",
+      "--port={port}"
+    ],
+    "fallback_args_template": [
+      "{binary}",
+      "server",
+      "--transport=tonic",
+      "--host={host}",
+      "--port={port}",
+      "--timeout-secs={timeout_secs}"
+    ],
+    "readiness": {
+      "type": "socket_connect",
+      "fallback_stdout_pattern": "^(?:READY\\s+port=(\\d+)|.*listening on)"
+    }
+  },
+  "client": {
+    "description": "Tonic interop & benchmark client (from tests/interop/tonic or rpc-bench)",
+    "binary_name": "rpc-bench",
+    "candidates": [
+      "rpc-bench/target/release/rpc-bench",
+      "target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench",
+      "target/debug/rpc-bench",
+      "target/release/tonic-interop",
+      "tests/interop/tonic/target/release/tonic-interop"
+    ],
+    "build_command": "cargo build --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
+    "args_template": [
+      "{binary}",
+      "client",
+      "--server_addr={server_addr}",
+      "--transport=tonic",
+      "--shape={shape}",
+      "--output={output_file}"
+    ],
+    "interop_client_args_template": [
+      "{binary}",
+      "client",
+      "--server_host={host}",
+      "--server_port={port}",
+      "--test_case={test_case}"
+    ],
+    "quick_flag": "--quick"
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  }
+}

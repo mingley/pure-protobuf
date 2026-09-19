@@ -6,11 +6,15 @@
 //! kernel you cannot drive by hand is a kernel you cannot debug.
 
 use crate::config::{ServerConfig, Wire};
-use crate::limits::MessageLimits;
+use crate::limits::{ByteBudgetTracker, MessageLimits};
 use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
+use crate::telemetry::{
+    CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver, ObserverChain,
+    RejectionEvent, RejectionReason,
+};
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
     check_request, encode_msg, grpc_trailers, gzip_outbound, gzip_stream_frame,
@@ -110,6 +114,9 @@ impl<S: Service> DynService for S {
 /// for [`Router`].
 trait Dispatch: Send + Sync + 'static {
     fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
+    fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
+        None
+    }
 }
 
 /// One [`Incoming::accept`] result: a connection, an error, or `None` if exhausted.
@@ -277,6 +284,8 @@ pub struct Rpc {
     metadata: Metadata,
     timeout: Option<Duration>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
+    byte_budget: ByteBudgetTracker,
+    pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -295,6 +304,7 @@ impl std::fmt::Debug for Rpc {
             .field("timeout", &self.timeout)
             .field("rpc_timeout", &self.rpc_timeout())
             .field("peer_timeout", &self.peer_timeout())
+            .field("observer", &self.observer.is_some())
             .field("effective_timeout", &self.effective_timeout())
             .field("deadline", &self.deadline())
             .field("limits", &self.limits())
@@ -304,6 +314,7 @@ impl std::fmt::Debug for Rpc {
             .field("accepts_compressed", &self.accepts_compressed())
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit())
             .field("send_buffer_size", &self.send_buffer_size())
+            .field("byte_budget_allocated", &self.byte_budget.allocated())
             .field("encoding", &self.encoding())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -607,6 +618,18 @@ impl Rpc {
         self.config.send_buffer_size()
     }
 
+    /// The byte budget tracker in effect for this RPC.
+    #[must_use]
+    pub fn byte_budget(&self) -> &ByteBudgetTracker {
+        &self.byte_budget
+    }
+
+    /// Number of bytes currently allocated in transport buffers on this server.
+    #[must_use]
+    pub fn byte_budget_allocated(&self) -> usize {
+        self.byte_budget.allocated()
+    }
+
     /// The peer's `grpc-encoding` token, if it sent a non-identity coding.
     ///
     /// Missing, empty, or an explicit `identity` token is `None` — the spec
@@ -651,11 +674,18 @@ impl Rpc {
     /// This is the correct default arm of a method `match`: a peer asking for
     /// a method you do not have is a peer error, not a server error.
     pub fn unimplemented(mut self) {
-        send_trailers_only(
-            &mut self.respond,
-            Status::unimplemented(self.request.uri().path().to_string()),
-            &Metadata::new(),
-        );
+        let status = Status::unimplemented(self.request.uri().path().to_string());
+        if let Some(obs) = &self.observer {
+            let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
+            obs.on_server_call_start(&labels);
+            obs.on_rejection(&RejectionEvent {
+                call: labels,
+                reason: RejectionReason::Unimplemented,
+                code: Code::Unimplemented,
+            });
+            obs.on_server_call_end(&labels, &status, Duration::ZERO);
+        }
+        send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
     /// Answer with `status` without reading the request body.
@@ -689,6 +719,16 @@ impl Rpc {
     /// }
     /// ```
     pub fn reject(mut self, status: Status) {
+        if let Some(obs) = &self.observer {
+            let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
+            obs.on_server_call_start(&labels);
+            obs.on_rejection(&RejectionEvent {
+                call: labels,
+                reason: RejectionReason::ServerInterceptor,
+                code: status.code(),
+            });
+            obs.on_server_call_end(&labels, &status, Duration::ZERO);
+        }
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -729,11 +769,17 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget,
+            observer,
+            call_start,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
+            let path_clone = path.clone();
+            let call_labels =
+                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -751,10 +797,27 @@ impl Rpc {
                     hook.as_deref(),
                 )
             }) {
-                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Err(status) => {
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    }
+                    send_trailers_only(&mut respond, status, &Metadata::new())
+                }
                 Ok(response) => {
-                    send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
-                        .await
+                    send_unary_response(
+                        response,
+                        respond,
+                        wire,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        &budget,
+                        observer.as_deref(),
+                        &call_labels,
+                    )
+                    .await;
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
+                    }
                 }
             }
         })
@@ -798,11 +861,17 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget,
+            observer,
+            call_start,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
+            let path_clone = path.clone();
+            let call_labels =
+                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -820,10 +889,27 @@ impl Rpc {
                     hook.as_deref(),
                 )
             }) {
-                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Err(status) => {
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    }
+                    send_trailers_only(&mut respond, status, &Metadata::new())
+                }
                 Ok(response) => {
-                    send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
-                        .await
+                    send_unary_response(
+                        response,
+                        respond,
+                        wire,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        &budget,
+                        observer.as_deref(),
+                        &call_labels,
+                    )
+                    .await;
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
+                    }
                 }
             }
         })
@@ -874,11 +960,17 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget,
+            observer,
+            call_start,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
+            let path_clone = path.clone();
+            let call_labels =
+                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -896,17 +988,28 @@ impl Rpc {
                     hook.as_deref(),
                 )
             }) {
-                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Err(status) => {
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    }
+                    send_trailers_only(&mut respond, status, &Metadata::new())
+                }
                 Ok(response) => {
-                    send_stream_response(
+                    let final_status = send_stream_response(
                         response,
                         respond,
                         wire,
                         deadline,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        &budget,
+                        observer.as_deref(),
+                        &call_labels,
                     )
-                    .await
+                    .await;
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
+                    }
                 }
             }
         })
@@ -957,11 +1060,17 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget,
+            observer,
+            call_start,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
+            let path_clone = path.clone();
+            let call_labels =
+                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -979,17 +1088,28 @@ impl Rpc {
                     hook.as_deref(),
                 )
             }) {
-                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Err(status) => {
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    }
+                    send_trailers_only(&mut respond, status, &Metadata::new())
+                }
                 Ok(response) => {
-                    send_stream_response(
+                    let final_status = send_stream_response(
                         response,
                         respond,
                         wire,
                         deadline,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        &budget,
+                        observer.as_deref(),
+                        &call_labels,
                     )
-                    .await
+                    .await;
+                    if let Some(obs) = &observer {
+                        obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
+                    }
                 }
             }
         })
@@ -1013,6 +1133,19 @@ impl Rpc {
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
+        let observer = self.observer.clone();
+        let call_start = tokio::time::Instant::now();
+        let owned_labels = observer.as_ref().map(|_| {
+            CallLabels::new(
+                path.as_deref().unwrap_or(""),
+                authority.as_deref(),
+                CallRole::Server,
+            )
+            .to_owned()
+        });
+        if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+            obs.on_server_call_start(&labels.as_borrowed());
+        }
         let Self {
             request,
             mut respond,
@@ -1026,6 +1159,8 @@ impl Rpc {
             metadata,
             timeout: _,
             response_interceptor: _,
+            byte_budget,
+            observer: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1033,9 +1168,14 @@ impl Rpc {
         let mut recv = request.into_body();
         let (cancel_tx, cancel_rx) = watch::channel(false);
         let on_reset = cancel_tx.clone();
+        let obs_clone = observer.clone();
+        let labels_clone = owned_labels.clone();
         let outcome = wrap_timeout(timeout, async {
             let framed =
                 read_one_message::<Req>(&mut recv, limits, config.accepts_compressed()).await?;
+            if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
+                obs.on_bytes_received(&labels.as_borrowed(), 0);
+            }
             let mut req = Request::from_metadata(
                 framed.message,
                 metadata,
@@ -1068,6 +1208,21 @@ impl Rpc {
         })
         .await;
         notify_deadline(&outcome, &cancel_tx);
+        if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
+            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+                obs.on_cancellation(&CancellationEvent {
+                    call: labels.as_borrowed(),
+                    reason: CancellationReason::DeadlineExceeded,
+                });
+            }
+        } else if matches!(&outcome, Err(s) if s.code() == Code::Cancelled) {
+            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+                obs.on_cancellation(&CancellationEvent {
+                    call: labels.as_borrowed(),
+                    reason: CancellationReason::PeerReset,
+                });
+            }
+        }
         Some(Prepared {
             respond,
             wire: config.wire(),
@@ -1081,6 +1236,9 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget: byte_budget,
+            observer,
+            call_start,
         })
     }
 
@@ -1101,6 +1259,19 @@ impl Rpc {
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
+        let observer = self.observer.clone();
+        let call_start = tokio::time::Instant::now();
+        let owned_labels = observer.as_ref().map(|_| {
+            CallLabels::new(
+                path.as_deref().unwrap_or(""),
+                authority.as_deref(),
+                CallRole::Server,
+            )
+            .to_owned()
+        });
+        if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+            obs.on_server_call_start(&labels.as_borrowed());
+        }
         let Self {
             request,
             mut respond,
@@ -1114,6 +1285,8 @@ impl Rpc {
             metadata,
             timeout: _,
             response_interceptor: _,
+            byte_budget,
+            observer: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1156,6 +1329,21 @@ impl Rpc {
         })
         .await;
         notify_deadline(&outcome, &cancel_tx);
+        if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
+            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+                obs.on_cancellation(&CancellationEvent {
+                    call: labels.as_borrowed(),
+                    reason: CancellationReason::DeadlineExceeded,
+                });
+            }
+        } else if matches!(&outcome, Err(s) if s.code() == Code::Cancelled) {
+            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+                obs.on_cancellation(&CancellationEvent {
+                    call: labels.as_borrowed(),
+                    reason: CancellationReason::PeerReset,
+                });
+            }
+        }
         Some(Prepared {
             respond,
             wire: config.wire(),
@@ -1169,6 +1357,9 @@ impl Rpc {
             timeout,
             peer_timeout,
             rpc_timeout,
+            budget: byte_budget,
+            observer,
+            call_start,
         })
     }
 }
@@ -1277,14 +1468,24 @@ struct Prepared<T> {
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
     rpc_timeout: Option<Duration>,
+    budget: ByteBudgetTracker,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    call_start: tokio::time::Instant,
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal write helper with observer and options"
+)]
 async fn send_unary_response<Resp: Serialize>(
     response: Response<Resp>,
     mut respond: h2::server::SendResponse<Bytes>,
     wire: Wire,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
@@ -1295,12 +1496,23 @@ async fn send_unary_response<Resp: Serialize>(
             return;
         }
     };
+    let permit = match budget.acquire(frame.len()) {
+        Ok(p) => p,
+        Err(status) => {
+            send_trailers_only(&mut respond, status, &Metadata::new());
+            return;
+        }
+    };
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
         return;
     };
+    if let Some(obs) = observer {
+        obs.on_bytes_sent(call_labels, frame.len());
+    }
     send_bytes(&mut send, frame, false, wire.send_buffer)
         .await
         .ok();
+    drop(permit);
     let mut status = Status::new(Code::Ok, "");
     *status.metadata_mut() = trailers;
     if let Ok(map) = grpc_trailers(&status) {
@@ -1308,6 +1520,10 @@ async fn send_unary_response<Resp: Serialize>(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal stream write helper with observer and options"
+)]
 async fn send_stream_response<Resp: Serialize + Send>(
     response: Response<Streaming<Resp>>,
     mut respond: h2::server::SendResponse<Bytes>,
@@ -1315,13 +1531,16 @@ async fn send_stream_response<Resp: Serialize + Send>(
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
-) {
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
+) -> Status {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
     // initial metadata is not blocked behind handler work.
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
-        return;
+        return Status::unavailable("failed to send response headers");
     };
     let mut status = Status::from_code(Code::Ok);
     *status.metadata_mut() = trailers;
@@ -1337,6 +1556,9 @@ async fn send_stream_response<Resp: Serialize + Send>(
                 compress,
                 prefer_gzip,
                 peer_accepts_gzip,
+                budget,
+                observer,
+                call_labels,
             )
             .await
         }
@@ -1349,6 +1571,9 @@ async fn send_stream_response<Resp: Serialize + Send>(
                 compress,
                 prefer_gzip,
                 peer_accepts_gzip,
+                budget,
+                observer,
+                call_labels,
             ),
         )
         .await
@@ -1358,7 +1583,7 @@ async fn send_stream_response<Resp: Serialize + Send>(
         // A transport failure cannot be reported; a producer failure becomes
         // the stream's trailing status.
         match err {
-            DrainError::Transport => return,
+            DrainError::Transport => return Status::unavailable("transport closed during stream"),
             DrainError::Producer(producer) => status = producer,
         }
     }
@@ -1374,6 +1599,7 @@ async fn send_stream_response<Resp: Serialize + Send>(
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
     }
+    status
 }
 
 /// Why a stream stopped before its clean end.
@@ -1385,6 +1611,10 @@ enum DrainError {
 }
 
 /// Copy every message from `stream` onto `send`, batching each burst.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal stream drain helper with observer and options"
+)]
 async fn drain_to_wire<Resp: Serialize + Send>(
     stream: &mut Streaming<Resp>,
     send: &mut h2::SendStream<Bytes>,
@@ -1392,9 +1622,13 @@ async fn drain_to_wire<Resp: Serialize + Send>(
     envelope: Option<bool>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
 ) -> Result<(), DrainError> {
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
+    let mut permits = Vec::with_capacity(OutBatch::BURST);
     loop {
         items.clear();
         // A client RST while we wait for the next message must abort: a
@@ -1425,18 +1659,30 @@ async fn drain_to_wire<Resp: Serialize + Send>(
             let mut item = item.map_err(DrainError::Producer)?;
             item.compressed =
                 gzip_stream_frame(item.compressed, envelope, prefer_gzip, peer_accepts_gzip);
+            let frame_len = 5 + item.message.serialized_len();
+            match budget.acquire(frame_len) {
+                Ok(permit) => permits.push(permit),
+                Err(status) => return Err(DrainError::Producer(status)),
+            }
+            if let Some(obs) = observer {
+                obs.on_bytes_sent(call_labels, frame_len);
+            }
             if let Err(status) = batch.encode(item) {
                 return Err(DrainError::Producer(status));
             }
             if batch.is_full() {
                 batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+                permits.clear();
             }
         }
         if !batch.is_full() {
             batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+            permits.clear();
         }
     }
-    batch.flush(send).await.map_err(|_| DrainError::Transport)
+    batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    permits.clear();
+    Ok(())
 }
 
 /// Split `/service/method` without allocating. Unparseable paths yield empty
@@ -1481,6 +1727,8 @@ pub struct Server<S> {
     config: ServerConfig,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    byte_budget: ByteBudgetTracker,
 }
 
 impl<S> Clone for Server<S> {
@@ -1490,6 +1738,8 @@ impl<S> Clone for Server<S> {
             config: self.config,
             interceptor: self.interceptor.clone(),
             response_interceptor: self.response_interceptor.clone(),
+            observer: self.observer.clone(),
+            byte_budget: self.byte_budget.clone(),
         }
     }
 }
@@ -1504,6 +1754,7 @@ impl<S: Service> std::fmt::Debug for Server<S> {
                 "response_interceptors",
                 &self.response_interceptor.is_some(),
             )
+            .field("observer", &self.observer.is_some())
             .finish()
     }
 }
@@ -1517,6 +1768,8 @@ impl<S: Service> Server<S> {
             config: ServerConfig::default(),
             interceptor: None,
             response_interceptor: None,
+            observer: None,
+            byte_budget: ByteBudgetTracker::default(),
         }
     }
 
@@ -1534,13 +1787,56 @@ impl<S: Service> Server<S> {
             config: ServerConfig::default(),
             interceptor: None,
             response_interceptor: None,
+            observer: None,
+            byte_budget: ByteBudgetTracker::default(),
         }
+    }
+
+    /// Byte budget tracker in effect.
+    #[must_use]
+    pub fn byte_budget_tracker(&self) -> &ByteBudgetTracker {
+        &self.byte_budget
+    }
+
+    /// Set a transport byte budget for queued and in-flight buffers.
+    #[must_use]
+    pub fn byte_budget(mut self, limit: usize) -> Self {
+        self.byte_budget = ByteBudgetTracker::with_limit(limit);
+        self
+    }
+
+    /// Attach an existing [`ByteBudgetTracker`] to this server.
+    #[must_use]
+    pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
+        self.byte_budget = tracker;
+        self
+    }
+
+    /// Number of bytes currently allocated in transport buffers on this server.
+    #[must_use]
+    pub fn byte_budget_allocated(&self) -> usize {
+        self.byte_budget.allocated()
+    }
+
+    /// The configured byte budget limit, if any.
+    #[must_use]
+    pub fn byte_budget_limit(&self) -> Option<usize> {
+        self.byte_budget.limit()
+    }
+
+    /// Whether transport buffer allocation is currently zero.
+    #[must_use]
+    pub fn is_byte_budget_quiescent(&self) -> bool {
+        self.byte_budget.is_quiescent()
     }
 
     /// Replace the transport and limit configuration. Applies to every call
     /// shape.
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
+        if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
+            self.byte_budget = ByteBudgetTracker::with_limit(config.send_buffer_size());
+        }
         self.config = config;
         self
     }
@@ -1717,6 +2013,7 @@ impl<S: Service> Server<S> {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
+        self.byte_budget = ByteBudgetTracker::with_limit(bytes);
         self
     }
 
@@ -2134,12 +2431,29 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Register a lifecycle telemetry observer.
+    ///
+    /// The observer receives low-cardinality lifecycle events for incoming RPCs:
+    /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
+    ///
+    /// Calling this twice stacks observers: the first registered observer runs first.
+    #[must_use]
+    pub fn observer<O: LifecycleObserver>(mut self, observer: O) -> Self {
+        self.observer = Some(match self.observer {
+            None => Arc::new(observer),
+            Some(prev) => Arc::new(ObserverChain::new(prev, Arc::new(observer))),
+        });
+        self
+    }
+
     fn into_single(self) -> (Single<S>, ServerConfig) {
         (
             Single {
                 service: self.service,
                 interceptor: self.interceptor,
                 response_interceptor: self.response_interceptor,
+                observer: self.observer,
+                byte_budget: self.byte_budget,
             },
             self.config,
         )
@@ -2178,6 +2492,8 @@ impl<S: Service> Server<S> {
         let mut router = Router::new().config(self.config).add_arc(self.service);
         router.interceptor = self.interceptor;
         router.response_interceptor = self.response_interceptor;
+        router.observer = self.observer;
+        router.byte_budget = self.byte_budget;
         router
     }
 
@@ -2404,17 +2720,25 @@ struct Single<S> {
     service: Arc<S>,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    byte_budget: ByteBudgetTracker,
 }
 
 impl<S: Service> Dispatch for Single<S> {
     async fn dispatch(&self, mut rpc: Rpc) {
         rpc.response_interceptor = self.response_interceptor.clone();
+        rpc.byte_budget = self.byte_budget.clone();
+        rpc.observer = self.observer.clone();
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);
             }
         }
         self.service.call(rpc).await;
+    }
+
+    fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
+        self.observer.as_ref()
     }
 }
 
@@ -2464,6 +2788,8 @@ pub struct Router {
     config: ServerConfig,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    byte_budget: ByteBudgetTracker,
 }
 
 impl std::fmt::Debug for Router {
@@ -2478,6 +2804,7 @@ impl std::fmt::Debug for Router {
                 "response_interceptors",
                 &self.response_interceptor.is_some(),
             )
+            .field("observer", &self.observer.is_some())
             .finish()
     }
 }
@@ -2491,13 +2818,56 @@ impl Router {
             config: ServerConfig::default(),
             interceptor: None,
             response_interceptor: None,
+            observer: None,
+            byte_budget: ByteBudgetTracker::default(),
         }
+    }
+
+    /// Set a transport byte budget for queued and in-flight buffers.
+    #[must_use]
+    pub fn byte_budget(mut self, limit: usize) -> Self {
+        self.byte_budget = ByteBudgetTracker::with_limit(limit);
+        self
+    }
+
+    /// Attach an existing [`ByteBudgetTracker`] to this router.
+    #[must_use]
+    pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
+        self.byte_budget = tracker;
+        self
+    }
+
+    /// Byte budget tracker in effect.
+    #[must_use]
+    pub fn byte_budget_tracker(&self) -> &ByteBudgetTracker {
+        &self.byte_budget
+    }
+
+    /// Number of bytes currently allocated in transport buffers on this router.
+    #[must_use]
+    pub fn byte_budget_allocated(&self) -> usize {
+        self.byte_budget.allocated()
+    }
+
+    /// The configured byte budget limit, if any.
+    #[must_use]
+    pub fn byte_budget_limit(&self) -> Option<usize> {
+        self.byte_budget.limit()
+    }
+
+    /// Whether transport buffer allocation is currently zero.
+    #[must_use]
+    pub fn is_byte_budget_quiescent(&self) -> bool {
+        self.byte_budget.is_quiescent()
     }
 
     /// Replace the transport and limit configuration. Applies to every call
     /// shape.
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
+        if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
+            self.byte_budget = ByteBudgetTracker::with_limit(config.send_buffer_size());
+        }
         self.config = config;
         self
     }
@@ -2674,6 +3044,7 @@ impl Router {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
+        self.byte_budget = ByteBudgetTracker::with_limit(bytes);
         self
     }
 
@@ -3092,6 +3463,21 @@ impl Router {
         self
     }
 
+    /// Register a lifecycle telemetry observer.
+    ///
+    /// The observer receives low-cardinality lifecycle events for all routed RPCs:
+    /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
+    ///
+    /// Calling this twice stacks observers: the first registered observer runs first.
+    #[must_use]
+    pub fn observer<O: LifecycleObserver>(mut self, observer: O) -> Self {
+        self.observer = Some(match self.observer {
+            None => Arc::new(observer),
+            Some(prev) => Arc::new(ObserverChain::new(prev, Arc::new(observer))),
+        });
+        self
+    }
+
     fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
         let service: Arc<dyn DynService> = service;
         for &alias in S::ALIASES {
@@ -3277,6 +3663,8 @@ impl Router {
 impl Dispatch for Router {
     async fn dispatch(&self, mut rpc: Rpc) {
         rpc.response_interceptor = self.response_interceptor.clone();
+        rpc.byte_budget = self.byte_budget.clone();
+        rpc.observer = self.observer.clone();
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);
@@ -3286,6 +3674,10 @@ impl Dispatch for Router {
             Some(service) => service.dispatch(rpc).await,
             None => rpc.unimplemented(),
         }
+    }
+
+    fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
+        self.observer.as_ref()
     }
 }
 
@@ -3455,7 +3847,14 @@ async fn accept_loop<D: Dispatch>(
                                 config.io_handshake_timeout(),
                                 tls.accept(tcp),
                             );
-                            if let Ok(Ok(io)) = accept.await {
+                            let io = tokio::select! {
+                                res = accept => match res {
+                                    Ok(Ok(io)) => Some(io),
+                                    _ => None,
+                                },
+                                _ = wait_for_drain(goaway.clone()) => None,
+                            };
+                            if let Some(io) = io {
                                 let identity = crate::tls::peer_identity_of(&io);
                                 drop(
                                     serve_io(
@@ -3831,6 +4230,8 @@ fn incoming_rpc(
         metadata,
         timeout: None,
         response_interceptor: None,
+        byte_budget: ByteBudgetTracker::default(),
+        observer: None,
     }
 }
 
@@ -3846,15 +4247,19 @@ where
     D: Dispatch,
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let mut conn = match tokio::time::timeout(
+    let handshake = tokio::time::timeout(
         config.io_handshake_timeout(),
         config.h2_builder().handshake(io),
-    )
-    .await
-    {
-        Ok(Ok(conn)) => conn,
-        Ok(Err(e)) => return Err(Status::unavailable(e.to_string())),
-        Err(_) => return Err(Status::unavailable("http/2 preface timed out")),
+    );
+    let mut conn = tokio::select! {
+        res = handshake => match res {
+            Ok(Ok(conn)) => conn,
+            Ok(Err(e)) => return Err(Status::unavailable(e.to_string())),
+            Err(_) => return Err(Status::unavailable("http/2 preface timed out")),
+        },
+        _ = wait_for_drain(goaway.clone()) => {
+            return Ok(());
+        }
     };
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
@@ -3890,6 +4295,24 @@ where
                 };
                 occupied = true;
                 if let Err(err) = check_request(&request, config.accepts_compressed()) {
+                    if let Some(obs) = dispatch.observer() {
+                        let path = request.uri().path();
+                        let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                        let labels = CallLabels::new(path, authority, CallRole::Server);
+                        let status = match &err {
+                            crate::wire::RequestReject::Grpc(s) => s.clone(),
+                            crate::wire::RequestReject::Http(c) => {
+                                Status::unknown(format!("http {c}"))
+                            }
+                        };
+                        obs.on_server_call_start(&labels);
+                        obs.on_rejection(&RejectionEvent {
+                            call: labels,
+                            reason: RejectionReason::InvalidRequest,
+                            code: status.code(),
+                        });
+                        obs.on_server_call_end(&labels, &status, Duration::ZERO);
+                    }
                     reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
@@ -3898,9 +4321,22 @@ where
                     Some(slots) => match slots.clone().try_acquire_owned() {
                         Ok(permit) => Some(permit),
                         Err(_) => {
+                            let status = Status::resource_exhausted("too many concurrent RPCs");
+                            if let Some(obs) = dispatch.observer() {
+                                let path = request.uri().path();
+                                let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                                let labels = CallLabels::new(path, authority, CallRole::Server);
+                                obs.on_server_call_start(&labels);
+                                obs.on_rejection(&RejectionEvent {
+                                    call: labels,
+                                    reason: RejectionReason::ConcurrencyLimit,
+                                    code: Code::ResourceExhausted,
+                                });
+                                obs.on_server_call_end(&labels, &status, Duration::ZERO);
+                            }
                             reject(
                                 &mut respond,
-                                Status::resource_exhausted("too many concurrent RPCs"),
+                                status,
                                 config.accepts_compressed(),
                             );
                             continue;
@@ -3921,6 +4357,7 @@ where
             _ = busy.notified() => {}
             _ = wait_for_drain(goaway.clone()), if !draining => {
                 draining = true;
+                force_close = Some(tokio::time::Instant::now() + grace);
                 conn.graceful_shutdown();
             }
             _ = sleep_until_opt(age_at), if !draining => {

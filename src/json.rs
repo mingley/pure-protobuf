@@ -734,21 +734,18 @@ fn parse_map_key(ty: FieldType, s: &str) -> Result<MapKeyValue, ParseError> {
     })
 }
 
-fn parse_c_f64(s: &str) -> Result<f64, ParseError> {
-    let mut buf = Vec::with_capacity(s.len() + 1);
-    buf.extend_from_slice(s.as_bytes());
-    buf.push(0);
-    let mut end: *mut i8 = std::ptr::null_mut();
-    // SAFETY: buf is a NUL-terminated byte string; strtod only reads it.
-    let v = unsafe { strtod(buf.as_ptr() as *const i8, &mut end) };
-    if end == buf.as_ptr() as *mut i8 || unsafe { *end } != 0 {
+fn parse_json_f64(s: &str) -> Result<f64, ParseError> {
+    // In Protobuf JSON, special values ("NaN", "Infinity", "-Infinity") are
+    // handled explicitly. Any other strings containing non-numeric identifiers
+    // (such as "nan", "inf", "+Infinity", or hex forms) are invalid.
+    if s.bytes().any(|b| matches!(b, b'i' | b'I' | b'n' | b'N')) {
         return Err(ParseError::new("bad float"));
     }
-    Ok(v)
-}
-
-extern "C" {
-    fn strtod(nptr: *const i8, endptr: *mut *mut i8) -> f64;
+    let f = s.parse::<f64>().map_err(|_| ParseError::new("bad float"))?;
+    if !f.is_finite() {
+        return Err(ParseError::new("float overflow"));
+    }
+    Ok(f)
 }
 
 fn json_as_f32(v: &Json) -> Result<f32, ParseError> {
@@ -761,18 +758,12 @@ fn json_as_f32(v: &Json) -> Result<f32, ParseError> {
 
 fn json_as_f64(v: &Json) -> Result<f64, ParseError> {
     match v {
-        Json::Number(n) => {
-            let f = parse_c_f64(&n.to_string())?;
-            if !f.is_finite() {
-                return Err(ParseError::new("float overflow"));
-            }
-            Ok(f)
-        }
+        Json::Number(n) => parse_json_f64(&n.to_string()),
         Json::String(s) => match s.as_str() {
             "NaN" => Ok(f64::NAN),
             "Infinity" => Ok(f64::INFINITY),
             "-Infinity" => Ok(f64::NEG_INFINITY),
-            other => parse_c_f64(other),
+            other => parse_json_f64(other),
         },
         _ => Err(ParseError::new("expected number")),
     }

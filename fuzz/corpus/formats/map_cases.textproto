@@ -1,0 +1,28 @@
+map_int32_int32 {
+  key: -1
+  value: 200
+}
+map_int32_int32 {
+  key: 0
+  value: 0
+}
+map_int32_int32 {
+  key: 42
+  value: 100
+}
+map_bool_bool {
+  key: false
+  value: false
+}
+map_bool_bool {
+  key: true
+  value: true
+}
+map_string_string {
+  key: "farewell"
+  value: "world"
+}
+map_string_string {
+  key: "greeting"
+  value: "hello"
+}

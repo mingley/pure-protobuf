@@ -209,9 +209,9 @@ struct Detail {
     message: String,
     metadata: Metadata,
     details: Bytes,
-    /// HTTP/2 connection died (GOAWAY, I/O, `REFUSED_STREAM`). Not a peer
-    /// `UNAVAILABLE` trailer. Unary/server-streaming redial once.
-    transport: bool,
+    /// Transport failure evidence if the error originated from the transport
+    /// (not a peer gRPC status trailer).
+    transport: Option<TransportEvidence>,
     /// Local cause. Peer trailers leave this unset.
     source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
@@ -305,6 +305,12 @@ impl Status {
     #[must_use]
     pub fn from_code(code: Code) -> Self {
         Self { code, detail: None }
+    }
+
+    /// Shorthand for an OK status (`Code::Ok`).
+    #[must_use]
+    pub fn ok() -> Self {
+        Self::from_code(Code::Ok)
     }
 
     /// The status code.
@@ -1333,29 +1339,64 @@ impl Status {
         self
     }
 
-    /// Map an HTTP/2 error onto [`Code::Unavailable`].
+    /// Map an HTTP/2 error occurring before request headers are sent onto [`Code::Unavailable`].
     ///
-    /// Connection death (`GOAWAY`, I/O, `REFUSED_STREAM`) is marked so a
-    /// unary or server-streaming RPC can redial this call once, and so
-    /// client-streaming / bidi can redial once before HEADERS. Stream
-    /// resets and user errors stay plain `UNAVAILABLE` and are not retried.
-    pub(crate) fn from_h2(err: impl Into<h2::Error>) -> Self {
+    /// Failures before headers (or on connection handshake) are safe to retry
+    /// transparently under gRFC A6.
+    pub(crate) fn from_h2_pre_headers(err: impl Into<h2::Error>) -> Self {
         let err = err.into();
         let mut status = Self::unavailable(err.to_string());
-        if h2_lost_connection(&err) {
-            status.mark_transport();
+        if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+            status.mark_transport(TransportEvidence::RefusedStream);
+        } else if err.is_go_away() {
+            status.mark_transport(TransportEvidence::GoawayUnprocessed);
+        } else if h2_lost_connection(&err) {
+            status.mark_transport(TransportEvidence::PreHeaders);
         }
         status.with_cause(err)
     }
 
-    /// Like [`Self::from_h2`], but non-connection failures stay
+    /// Map an HTTP/2 error occurring after request data began transmitting onto [`Code::Unavailable`].
+    ///
+    /// If the remote peer explicitly resets with `REFUSED_STREAM` or sends `GOAWAY` with
+    /// `last_stream_id < stream_id`, transparent retry is proven safe. Ambiguous connection
+    /// drops (I/O error, broken pipe) are marked [`TransportEvidence::AmbiguousLoss`] and
+    /// must not be transparently retried.
+    pub(crate) fn from_h2_post_dispatch(err: impl Into<h2::Error>) -> Self {
+        let err = err.into();
+        let mut status = Self::unavailable(err.to_string());
+        if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+            status.mark_transport(TransportEvidence::RefusedStream);
+        } else if err.is_go_away() {
+            status.mark_transport(TransportEvidence::GoawayUnprocessed);
+        } else if h2_lost_connection(&err) {
+            status.mark_transport(TransportEvidence::AmbiguousLoss);
+        }
+        status.with_cause(err)
+    }
+
+    /// Map an HTTP/2 error onto [`Code::Unavailable`].
+    ///
+    /// Explicit `REFUSED_STREAM` and `GOAWAY` are recognized as unexecuted; general
+    /// connection drops default safely to [`TransportEvidence::AmbiguousLoss`].
+    pub(crate) fn from_h2(err: impl Into<h2::Error>) -> Self {
+        Self::from_h2_post_dispatch(err)
+    }
+
+    /// Like [`Self::from_h2_post_dispatch`], but non-connection failures stay
     /// [`Code::Internal`] so a flow-control `send_data` error is not
     /// reported as a dead peer.
     pub(crate) fn from_h2_send(err: impl Into<h2::Error>) -> Self {
         let err = err.into();
         if h2_lost_connection(&err) {
             let mut status = Self::unavailable(err.to_string());
-            status.mark_transport();
+            if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+                status.mark_transport(TransportEvidence::RefusedStream);
+            } else if err.is_go_away() {
+                status.mark_transport(TransportEvidence::GoawayUnprocessed);
+            } else {
+                status.mark_transport(TransportEvidence::AmbiguousLoss);
+            }
             status.with_cause(err)
         } else {
             Self::internal(err.to_string()).with_cause(err)
@@ -1365,18 +1406,59 @@ impl Status {
     /// [`Code::Unavailable`] for a send stream that vanished under us.
     pub(crate) fn stream_closed() -> Self {
         let mut status = Self::unavailable("stream closed");
-        status.mark_transport();
+        status.mark_transport(TransportEvidence::AmbiguousLoss);
         status
     }
 
-    fn mark_transport(&mut self) {
-        self.detail.get_or_insert_with(Box::default).transport = true;
+    pub(crate) fn mark_transport(&mut self, evidence: TransportEvidence) {
+        self.detail.get_or_insert_with(Box::default).transport = Some(evidence);
     }
 
-    /// The HTTP/2 connection died; this is not a peer status trailer.
+    /// The HTTP/2 connection or stream died; this is not a peer status trailer.
     #[must_use]
     pub(crate) fn is_transport(&self) -> bool {
-        self.detail.as_ref().is_some_and(|d| d.transport)
+        self.detail.as_ref().is_some_and(|d| d.transport.is_some())
+    }
+
+    /// Whether this failure is proven safe to retry transparently under gRFC A6.
+    #[must_use]
+    pub(crate) fn is_transparent_retryable(&self) -> bool {
+        self.detail
+            .as_ref()
+            .and_then(|d| d.transport)
+            .is_some_and(TransportEvidence::is_transparent_retryable)
+    }
+
+    /// Transport evidence classification, if this status originated from the transport.
+    #[must_use]
+    pub(crate) fn transport_evidence(&self) -> Option<TransportEvidence> {
+        self.detail.as_ref().and_then(|d| d.transport)
+    }
+}
+
+/// Evidence classifying a transport failure's transparent-retry safety
+/// according to gRFC A6.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TransportEvidence {
+    /// Failure occurred before request HEADERS were dispatched (e.g. idle pool drop, open failure).
+    PreHeaders,
+    /// Remote peer explicitly sent HTTP/2 REFUSED_STREAM (RFC 7540 §8.1.4: stream was not processed).
+    RefusedStream,
+    /// Remote peer sent GOAWAY with last_stream_id < stream_id (RFC 7540 §6.8).
+    GoawayUnprocessed,
+    /// Connection dropped or reset after request data began transmitting without proof of non-execution.
+    AmbiguousLoss,
+}
+
+impl TransportEvidence {
+    /// Whether this transport evidence proves that server application logic
+    /// has never seen or processed the request (gRFC A6).
+    #[must_use]
+    pub(crate) fn is_transparent_retryable(self) -> bool {
+        matches!(
+            self,
+            Self::PreHeaders | Self::RefusedStream | Self::GoawayUnprocessed
+        )
     }
 }
 
@@ -1848,6 +1930,7 @@ mod tests {
         let status = Status::from(err);
         assert_eq!(status.code(), Code::Unavailable);
         assert!(!status.is_transport());
+        assert!(!status.is_transparent_retryable());
         let cause = std::error::Error::source(&status).expect("io cause");
         assert_eq!(
             cause.downcast_ref::<std::io::Error>().expect("io").kind(),
@@ -1856,11 +1939,54 @@ mod tests {
     }
 
     #[test]
-    fn refused_stream_is_transport_lost() {
+    fn refused_stream_is_transport_lost_and_retryable() {
         let status = Status::from_h2(h2::Reason::REFUSED_STREAM);
         assert_eq!(status.code(), Code::Unavailable);
         assert!(status.is_transport());
+        assert!(status.is_transparent_retryable());
+        assert_eq!(
+            status.transport_evidence(),
+            Some(super::TransportEvidence::RefusedStream)
+        );
         assert!(std::error::Error::source(&status).is_some());
+    }
+
+    #[test]
+    fn pre_headers_transport_error_is_retryable() {
+        let mut status = Status::unavailable("connect error");
+        status.mark_transport(super::TransportEvidence::PreHeaders);
+        assert_eq!(status.code(), Code::Unavailable);
+        assert!(status.is_transport());
+        assert!(status.is_transparent_retryable());
+        assert_eq!(
+            status.transport_evidence(),
+            Some(super::TransportEvidence::PreHeaders)
+        );
+    }
+
+    #[test]
+    fn post_dispatch_transport_error_is_not_retryable() {
+        let mut status = Status::unavailable("broken pipe");
+        status.mark_transport(super::TransportEvidence::AmbiguousLoss);
+        assert_eq!(status.code(), Code::Unavailable);
+        assert!(status.is_transport());
+        assert!(!status.is_transparent_retryable());
+        assert_eq!(
+            status.transport_evidence(),
+            Some(super::TransportEvidence::AmbiguousLoss)
+        );
+    }
+
+    #[test]
+    fn stream_closed_is_ambiguous_loss_and_not_retryable() {
+        let status = Status::stream_closed();
+        assert_eq!(status.code(), Code::Unavailable);
+        assert!(status.is_transport());
+        assert!(!status.is_transparent_retryable());
+        assert_eq!(
+            status.transport_evidence(),
+            Some(super::TransportEvidence::AmbiguousLoss)
+        );
     }
 
     #[test]
@@ -1873,6 +1999,8 @@ mod tests {
     fn peer_unavailable_message_is_not_transport_lost() {
         let status = Status::unavailable("too many concurrent RPCs");
         assert!(!status.is_transport());
+        assert!(!status.is_transparent_retryable());
+        assert_eq!(status.transport_evidence(), None);
         assert!(std::error::Error::source(&status).is_none());
     }
 

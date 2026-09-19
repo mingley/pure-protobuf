@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package pkg.a;
+
+enum CommonEnum {
+  COMMON_ENUM_UNSPECIFIED = 0;
+  COMMON_ENUM_A_ACTIVE = 1;
+  COMMON_ENUM_A_PENDING = 2;
+}
+
+message CommonMsg {
+  string a_name = 1;
+  int32 a_code = 2;
+
+  message NestedA {
+    string note_a = 1;
+  }
+
+  NestedA nested_a = 3;
+  CommonEnum status_a = 4;
+}

@@ -1,0 +1,141 @@
+{
+  "file": "overrides.proto",
+  "edition": 1001,
+  "syntax": "editions",
+  "package": "edition2024.overrides",
+  "messages": [
+    {
+      "name": "OverridesMessage",
+      "full_name": "edition2024.overrides.OverridesMessage",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "implicit_int32",
+          "number": 1,
+          "type": "TYPE_INT32",
+          "cardinality": "OPTIONAL",
+          "presence": "IMPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "required_int32",
+          "number": 2,
+          "type": "TYPE_INT32",
+          "cardinality": "REQUIRED",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "expanded_int32",
+          "number": 3,
+          "type": "TYPE_INT32",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "unverified_string",
+          "number": 4,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "delimited_message",
+          "number": 5,
+          "type": "TYPE_MESSAGE",
+          "type_name": "edition2024.overrides.SubDelimited",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": true
+        },
+        {
+          "name": "json_message",
+          "number": 6,
+          "type": "TYPE_MESSAGE",
+          "type_name": "edition2024.overrides.SubJsonBestEffort",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "closed_enum",
+          "number": 7,
+          "type": "TYPE_ENUM",
+          "type_name": "edition2024.overrides.ClosedEnum",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        }
+      ]
+    },
+    {
+      "name": "SubDelimited",
+      "full_name": "edition2024.overrides.SubDelimited",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "text",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        }
+      ]
+    },
+    {
+      "name": "SubJsonBestEffort",
+      "full_name": "edition2024.overrides.SubJsonBestEffort",
+      "visibility": "EXPORT",
+      "json_format": "LEGACY_BEST_EFFORT",
+      "fields": [
+        {
+          "name": "text",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "ClosedEnum",
+      "full_name": "edition2024.overrides.ClosedEnum",
+      "visibility": "EXPORT",
+      "closed": true,
+      "values": [
+        {
+          "number": 0,
+          "name": "CLOSED_ZERO"
+        },
+        {
+          "number": 1,
+          "name": "CLOSED_ONE"
+        }
+      ]
+    }
+  ]
+}

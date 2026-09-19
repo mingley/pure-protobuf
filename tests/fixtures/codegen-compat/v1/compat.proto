@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package compat;
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_PENDING = 2;
+}
+
+message CompatMessage {
+  // Scalar fields
+  int32 id = 1;
+  string name = 2;
+
+  // Optional fields with explicit presence
+  optional string description = 3;
+  optional int32 priority = 4;
+
+  // Repeated fields
+  repeated string tags = 5;
+  repeated int32 scores = 6;
+
+  // Map field
+  map<string, string> properties = 7;
+
+  // Enum field
+  Status status = 8;
+
+  // Oneof field
+  oneof payload {
+    string text_payload = 9;
+    int32 number_payload = 10;
+  }
+
+  // Legacy field present in v1, retired in v2
+  int32 legacy_field = 11;
+}
+
+message CompatRequest {
+  string query = 1;
+  int32 page = 2;
+}
+
+message CompatResponse {
+  string result = 1;
+  int32 code = 2;
+}
+
+service CompatService {
+  rpc UnaryCall (CompatRequest) returns (CompatResponse);
+  rpc ClientStreamCall (stream CompatRequest) returns (CompatResponse);
+  rpc ServerStreamCall (CompatRequest) returns (stream CompatResponse);
+  rpc BidiStreamCall (stream CompatRequest) returns (stream CompatResponse);
+}

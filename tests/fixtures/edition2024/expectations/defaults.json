@@ -1,0 +1,198 @@
+{
+  "file": "defaults.proto",
+  "edition": 1001,
+  "syntax": "editions",
+  "package": "edition2024.defaults",
+  "resolved_edition_defaults": {
+    "field_presence": "EXPLICIT",
+    "enum_type": "OPEN",
+    "repeated_field_encoding": "PACKED",
+    "utf8_validation": "VERIFY",
+    "message_encoding": "LENGTH_PREFIXED",
+    "json_format": "ALLOW",
+    "enforce_naming_style": "STYLE2024",
+    "default_symbol_visibility": "EXPORT_TOP_LEVEL"
+  },
+  "messages": [
+    {
+      "name": "DefaultMessage",
+      "full_name": "edition2024.defaults.DefaultMessage",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "int32_field",
+          "number": 1,
+          "type": "TYPE_INT32",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "int64_field",
+          "number": 2,
+          "type": "TYPE_INT64",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "uint32_field",
+          "number": 3,
+          "type": "TYPE_UINT32",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "uint64_field",
+          "number": 4,
+          "type": "TYPE_UINT64",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "bool_field",
+          "number": 5,
+          "type": "TYPE_BOOL",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "string_field",
+          "number": 6,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        },
+        {
+          "name": "bytes_field",
+          "number": 7,
+          "type": "TYPE_BYTES",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "enum_field",
+          "number": 8,
+          "type": "TYPE_ENUM",
+          "type_name": "edition2024.defaults.DefaultEnum",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "submessage_field",
+          "number": 9,
+          "type": "TYPE_MESSAGE",
+          "type_name": "edition2024.defaults.DefaultSubmessage",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "repeated_int32",
+          "number": 10,
+          "type": "TYPE_INT32",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": true,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "repeated_string",
+          "number": 11,
+          "type": "TYPE_STRING",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        },
+        {
+          "name": "repeated_submessage",
+          "number": 12,
+          "type": "TYPE_MESSAGE",
+          "type_name": "edition2024.defaults.DefaultSubmessage",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "map_field",
+          "number": 13,
+          "type": "TYPE_MESSAGE",
+          "cardinality": "REPEATED",
+          "is_map": true,
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        }
+      ]
+    },
+    {
+      "name": "DefaultSubmessage",
+      "full_name": "edition2024.defaults.DefaultSubmessage",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "body",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "DefaultEnum",
+      "full_name": "edition2024.defaults.DefaultEnum",
+      "visibility": "EXPORT",
+      "closed": false,
+      "values": [
+        {
+          "number": 0,
+          "name": "DEFAULT_ZERO"
+        },
+        {
+          "number": 1,
+          "name": "DEFAULT_ONE"
+        },
+        {
+          "number": 2,
+          "name": "DEFAULT_TWO"
+        }
+      ]
+    }
+  ]
+}

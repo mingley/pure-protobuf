@@ -381,6 +381,17 @@
       "checks": ["codegen", "shared", "conformance"]
     },
     {
+      "id": "CG-14b",
+      "title": "Implement typed extension code generation",
+      "wave": 2,
+      "depends_on": ["CG-14"],
+      "read": ["docs/edition-2024.md", "src/codegen.rs", "tests/fixtures/edition2024/"],
+      "write": ["src/codegen.rs", "tests/plugin.rs", "tests/fixtures/edition2024/"],
+      "deliverable": "Generate typed Extension identifiers and struct extension accessors for Edition 2024 extend blocks, validating vendor/google/rust/test/extensions.proto.",
+      "accept": ["Typed extension accessors compile and round-trip for scalar, repeated, enum and message extensions.", "Unextended messages preserve extension payloads in unknown fields without memory overhead."],
+      "checks": ["codegen", "shared"]
+    },
+    {
       "id": "CG-15",
       "title": "Expose descriptor-set-only build generation",
       "wave": 2,

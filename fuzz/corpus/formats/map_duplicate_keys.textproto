@@ -1,0 +1,8 @@
+map_string_string {
+  key: "dupKey"
+  value: "first"
+}
+map_string_string {
+  key: "dupKey"
+  value: "second"
+}

@@ -1,0 +1,11 @@
+edition = "2024";
+
+package edition2024.rejected.defs;
+
+export message ExportedMsg {
+  int32 id = 1;
+}
+
+local message LocalMsg {
+  int32 id = 1;
+}

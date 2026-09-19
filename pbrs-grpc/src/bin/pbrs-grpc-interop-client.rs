@@ -18,65 +18,463 @@
 
 use pbrs_grpc::interop_cases;
 use pbrs_grpc::{
-    Payload, Request, ResponseParameters, Status, StreamingInputCallRequest,
+    Channel, ClientTls, Payload, Request, ResponseParameters, Status, StreamingInputCallRequest,
     StreamingOutputCallRequest, TestServiceClient,
 };
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
 struct Args {
-    host: String,
-    port: u16,
+    server_host: String,
+    server_port: u16,
     test_case: String,
+    use_tls: bool,
+    tls_ca_file: Option<String>,
+    server_host_override: Option<String>,
     bench: bool,
+    soak_iterations: usize,
+    max_failures: usize,
+    per_rpc_timeout_ms: u64,
+    overall_timeout_seconds: u64,
+    soak_min_time_ms_between_rpcs: u64,
+    soak_request_size: i32,
+    soak_response_size: i32,
+    soak_num_threads: usize,
+    qualification: Option<bool>,
+}
+
+fn parse_port(flag: &str, val: &str) -> u16 {
+    match val.parse::<u16>() {
+        Ok(p) if p >= 1 => p,
+        Ok(_) => {
+            eprintln!("invalid port 0 for {flag}: must be between 1 and 65535");
+            std::process::exit(1);
+        }
+        Err(_) => {
+            eprintln!(
+                "invalid port value {val:?} for {flag}: must be an integer between 1 and 65535"
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_bool(flag: &str, val: &str) -> bool {
+    match val.to_ascii_lowercase().as_str() {
+        "true" | "1" => true,
+        "false" | "0" => false,
+        _ => {
+            eprintln!("invalid boolean value {val:?} for {flag}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_positive_usize(flag: &str, val: &str) -> usize {
+    match val.parse::<usize>() {
+        Ok(n) if n >= 1 => n,
+        Ok(_) => {
+            eprintln!("invalid value 0 for {flag}: must be at least 1");
+            std::process::exit(1);
+        }
+        Err(_) => {
+            eprintln!("invalid value {val:?} for {flag}: must be a positive integer");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_non_negative_usize(flag: &str, val: &str) -> usize {
+    match val.parse::<usize>() {
+        Ok(n) => n,
+        Err(_) => {
+            eprintln!("invalid value {val:?} for {flag}: must be a non-negative integer");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_u64(flag: &str, val: &str) -> u64 {
+    match val.parse::<u64>() {
+        Ok(n) => n,
+        Err(_) => {
+            eprintln!("invalid value {val:?} for {flag}: must be a non-negative integer");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_i32(flag: &str, val: &str) -> i32 {
+    match val.parse::<i32>() {
+        Ok(n) if n >= 0 => n,
+        _ => {
+            eprintln!("invalid value {val:?} for {flag}: must be a non-negative integer");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn parse_args() -> Args {
-    let mut host = "127.0.0.1".to_string();
-    let mut port = 10000u16;
+    let raw_args: Vec<String> = std::env::args().skip(1).collect();
+    let mut server_host = "127.0.0.1".to_string();
+    let mut server_port = 10000u16;
     let mut test_case = "empty_unary".to_string();
+    let mut use_tls = false;
+    let mut tls_ca_file = None;
+    let mut server_host_override = None;
     let mut bench = false;
-    let args: Vec<String> = std::env::args().collect();
-    let mut i = 1;
-    while i < args.len() {
-        let a = args.get(i).map(String::as_str).unwrap_or("");
-        let next = args.get(i + 1);
-        let (key, val) = if let Some((k, v)) = a.split_once('=') {
-            (k, Some(v.to_string()))
-        } else if next.is_some_and(|n| !n.starts_with('-')) {
-            i += 1;
-            (a, next.cloned())
-        } else {
-            (a, None)
+    let mut soak_iterations = 10usize;
+    let mut max_failures = 0usize;
+    let mut per_rpc_timeout_ms = 1000u64;
+    let mut overall_timeout_seconds = 10u64;
+    let mut soak_min_time_ms_between_rpcs = 0u64;
+    let mut soak_request_size = 271828i32;
+    let mut soak_response_size = 314159i32;
+    let mut soak_num_threads = 1usize;
+    let mut qualification = None;
+
+    let mut i = 0;
+    while i < raw_args.len() {
+        let Some(arg) = raw_args.get(i) else {
+            break;
         };
-        match key {
-            "--server_host" | "-server_host" => {
-                if let Some(v) = val {
-                    host = v;
-                }
-            }
-            "--server_port" | "-server_port" => {
-                if let Some(v) = val {
-                    if let Ok(p) = v.parse() {
-                        port = p;
+        if !arg.starts_with('-') {
+            eprintln!("unexpected positional argument: {arg}");
+            std::process::exit(1);
+        }
+
+        let (raw_key, inline_val) = match arg.split_once('=') {
+            Some((k, v)) => (k, Some(v.to_string())),
+            None => (arg.as_str(), None),
+        };
+
+        let normalized = raw_key.trim_start_matches('-');
+
+        match normalized {
+            "server_host" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
                     }
-                }
+                };
+                server_host = val;
             }
-            "--test_case" | "-test_case" => {
-                if let Some(v) = val {
-                    test_case = v;
-                }
+            "server_port" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                server_port = parse_port(raw_key, &val);
             }
-            "--bench" | "-bench" => bench = true,
-            _ => {}
+            "test_case" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                test_case = val;
+            }
+            "use_tls" => {
+                use_tls = match inline_val {
+                    Some(v) => parse_bool(raw_key, &v),
+                    None => {
+                        if let Some(next) = raw_args.get(i + 1) {
+                            if !next.starts_with('-') {
+                                i += 1;
+                                parse_bool(raw_key, next)
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                };
+            }
+            "tls_ca_file" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                tls_ca_file = Some(val);
+            }
+            "server_host_override" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                server_host_override = Some(val);
+            }
+            "bench" => {
+                bench = match inline_val {
+                    Some(v) => parse_bool(raw_key, &v),
+                    None => {
+                        if let Some(next) = raw_args.get(i + 1) {
+                            if !next.starts_with('-') {
+                                i += 1;
+                                parse_bool(raw_key, next)
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                };
+            }
+            "soak_iterations" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                soak_iterations = parse_positive_usize(raw_key, &val);
+            }
+            "max_failures" | "soak_max_failures" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                max_failures = parse_non_negative_usize(raw_key, &val);
+            }
+            "per_rpc_timeout_ms"
+            | "soak_per_iteration_max_acceptable_latency_ms"
+            | "soak_per_rpc_timeout_ms" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                per_rpc_timeout_ms = parse_u64(raw_key, &val);
+            }
+            "overall_timeout_seconds" | "soak_overall_timeout_seconds" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                overall_timeout_seconds = parse_u64(raw_key, &val);
+            }
+            "soak_min_time_ms_between_rpcs" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                soak_min_time_ms_between_rpcs = parse_u64(raw_key, &val);
+            }
+            "soak_request_size" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                soak_request_size = parse_i32(raw_key, &val);
+            }
+            "soak_response_size" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                soak_response_size = parse_i32(raw_key, &val);
+            }
+            "soak_num_threads" | "soak_threads" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                soak_num_threads = parse_positive_usize(raw_key, &val);
+            }
+            "qualification" => {
+                let b = match inline_val {
+                    Some(v) => parse_bool(raw_key, &v),
+                    None => {
+                        if let Some(next) = raw_args.get(i + 1) {
+                            if !next.starts_with('-') {
+                                i += 1;
+                                parse_bool(raw_key, next)
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                };
+                qualification = Some(b);
+            }
+            "smoke" => {
+                let b = match inline_val {
+                    Some(v) => parse_bool(raw_key, &v),
+                    None => {
+                        if let Some(next) = raw_args.get(i + 1) {
+                            if !next.starts_with('-') {
+                                i += 1;
+                                parse_bool(raw_key, next)
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                };
+                qualification = Some(!b);
+            }
+            _ => {
+                eprintln!("unknown flag: {arg}");
+                std::process::exit(1);
+            }
         }
         i += 1;
     }
+
+    if qualification == Some(true)
+        && soak_iterations < interop_cases::QUALIFICATION_SOAK_MIN_ITERATIONS
+    {
+        eprintln!(
+            "error: qualification soak requires at least {} iterations (got {}): shorter runs are local smoke tests and cannot be labeled qualification soak",
+            interop_cases::QUALIFICATION_SOAK_MIN_ITERATIONS,
+            soak_iterations
+        );
+        std::process::exit(1);
+    }
+
+    if soak_iterations % soak_num_threads != 0 {
+        eprintln!(
+            "error: soak_iterations ({}) must be divisible by soak_num_threads ({})",
+            soak_iterations, soak_num_threads
+        );
+        std::process::exit(1);
+    }
+
     Args {
-        host,
-        port,
+        server_host,
+        server_port,
         test_case,
+        use_tls,
+        tls_ca_file,
+        server_host_override,
         bench,
+        soak_iterations,
+        max_failures,
+        per_rpc_timeout_ms,
+        overall_timeout_seconds,
+        soak_min_time_ms_between_rpcs,
+        soak_request_size,
+        soak_response_size,
+        soak_num_threads,
+        qualification,
     }
 }
 
@@ -237,9 +635,11 @@ ping_pong_rps={ping_pong_rps} upload_rps={upload_rps}"
 
 #[tokio::main]
 async fn main() {
-    match run().await {
+    let args = parse_args();
+    let is_bench = args.bench;
+    match run(args).await {
         Ok(()) => {
-            if !parse_args().bench {
+            if !is_bench {
                 println!("Passed");
             }
         }
@@ -250,16 +650,143 @@ async fn main() {
     }
 }
 
-async fn run() -> Result<(), Status> {
-    let args = parse_args();
-    let addr: SocketAddr = (args.host.as_str(), args.port)
-        .to_socket_addrs()
-        .map_err(|e| Status::unavailable(e.to_string()))?
-        .next()
-        .ok_or_else(|| Status::unavailable("resolve"))?;
-    let client = interop_cases::connect(addr).await?;
+async fn run(args: Args) -> Result<(), Status> {
+    if args.test_case == "channel_soak" {
+        let soak_config = interop_cases::SoakConfig {
+            soak_iterations: args.soak_iterations,
+            max_failures: args.max_failures,
+            per_rpc_timeout_ms: args.per_rpc_timeout_ms,
+            overall_timeout_seconds: args.overall_timeout_seconds,
+            min_time_ms_between_rpcs: args.soak_min_time_ms_between_rpcs,
+            soak_num_threads: args.soak_num_threads,
+            request_size: args.soak_request_size,
+            response_size: args.soak_response_size,
+            qualification_mode: args.qualification,
+        };
+        let host = args.server_host.clone();
+        let port = args.server_port;
+        let use_tls = args.use_tls;
+        let host_override = args.server_host_override.clone();
+        let tls_ca_file = args.tls_ca_file.clone();
+        let factory = move || {
+            let host = host.clone();
+            let host_override = host_override.clone();
+            let ca_file = tls_ca_file.clone();
+            async move {
+                if use_tls {
+                    let server_name = host_override.as_deref().unwrap_or(host.as_str());
+                    let client_tls = match ca_file.as_deref() {
+                        Some(ca_path) => {
+                            let ca_pem = std::fs::read(ca_path)
+                                .map_err(|e| Status::unavailable(format!("read ca: {e}")))?;
+                            ClientTls::ca(server_name, &ca_pem)
+                                .map_err(|e| Status::unavailable(format!("tls ca: {e}")))?
+                        }
+                        None => ClientTls::webpki(server_name)
+                            .map_err(|e| Status::unavailable(format!("tls webpki: {e}")))?,
+                    };
+                    let addr: SocketAddr = (host.as_str(), port)
+                        .to_socket_addrs()
+                        .map_err(|e| Status::unavailable(e.to_string()))?
+                        .next()
+                        .ok_or_else(|| Status::unavailable("resolve"))?;
+                    let mut ch = Channel::connect_tls(addr, client_tls).await?;
+                    if let Some(ref ho) = host_override {
+                        ch = ch.origin(format!("{ho}:{port}"))?;
+                    }
+                    Ok(TestServiceClient::new(ch))
+                } else {
+                    let addr: SocketAddr = (host.as_str(), port)
+                        .to_socket_addrs()
+                        .map_err(|e| Status::unavailable(e.to_string()))?
+                        .next()
+                        .ok_or_else(|| Status::unavailable("resolve"))?;
+                    interop_cases::connect(addr).await
+                }
+            }
+        };
+        let summary = interop_cases::channel_soak_with(factory, &soak_config).await?;
+        println!("{}", summary.summary_string());
+        return Ok(());
+    }
+
+    let client = if args.use_tls {
+        let server_name = args
+            .server_host_override
+            .as_deref()
+            .unwrap_or(args.server_host.as_str());
+        let client_tls = match args.tls_ca_file.as_deref() {
+            Some(ca_path) => {
+                let ca_pem = match std::fs::read(ca_path) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        eprintln!("failed to read TLS CA file {ca_path:?}: {e}");
+                        std::process::exit(1);
+                    }
+                };
+                match ClientTls::ca(server_name, &ca_pem) {
+                    Ok(tls) => tls,
+                    Err(e) => {
+                        eprintln!("failed to configure TLS CA: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+            None => match ClientTls::webpki(server_name) {
+                Ok(tls) => tls,
+                Err(e) => {
+                    eprintln!("failed to configure WebPKI TLS: {e}");
+                    std::process::exit(1);
+                }
+            },
+        };
+        let addr: SocketAddr = (args.server_host.as_str(), args.server_port)
+            .to_socket_addrs()
+            .map_err(|e| Status::unavailable(e.to_string()))?
+            .next()
+            .ok_or_else(|| Status::unavailable("resolve"))?;
+        let mut ch = if args.test_case == "rpc_soak" {
+            Channel::connect_tls_lazy(addr, client_tls)?
+        } else {
+            Channel::connect_tls(addr, client_tls).await?
+        };
+        if let Some(ref host_override) = args.server_host_override {
+            ch = ch.origin(format!("{host_override}:{}", args.server_port))?;
+        }
+        TestServiceClient::new(ch)
+    } else {
+        if args.test_case == "rpc_soak" {
+            let target = format!("{}:{}", args.server_host, args.server_port);
+            let ch = Channel::connect_lazy(target)?;
+            TestServiceClient::new(ch)
+        } else {
+            let addr: SocketAddr = (args.server_host.as_str(), args.server_port)
+                .to_socket_addrs()
+                .map_err(|e| Status::unavailable(e.to_string()))?
+                .next()
+                .ok_or_else(|| Status::unavailable("resolve"))?;
+            interop_cases::connect(addr).await?
+        }
+    };
+
     if args.bench {
         return bench(&client).await;
+    }
+    if args.test_case == "rpc_soak" {
+        let soak_config = interop_cases::SoakConfig {
+            soak_iterations: args.soak_iterations,
+            max_failures: args.max_failures,
+            per_rpc_timeout_ms: args.per_rpc_timeout_ms,
+            overall_timeout_seconds: args.overall_timeout_seconds,
+            min_time_ms_between_rpcs: args.soak_min_time_ms_between_rpcs,
+            soak_num_threads: args.soak_num_threads,
+            request_size: args.soak_request_size,
+            response_size: args.soak_response_size,
+            qualification_mode: args.qualification,
+        };
+        let summary = interop_cases::rpc_soak(&client, &soak_config).await?;
+        println!("{}", summary.summary_string());
+        return Ok(());
     }
     interop_cases::run_case(&client, &args.test_case).await
 }

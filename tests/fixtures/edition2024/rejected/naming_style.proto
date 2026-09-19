@@ -1,0 +1,8 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+// Fails: enforce_naming_style defaults to STYLE2024 in Edition 2024
+message badName {
+  int32 BadField = 1;
+}

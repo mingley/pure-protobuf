@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package consumer.external;
+
+import "google/protobuf/timestamp.proto";
+import "pkg_a/common.proto";
+
+message ExternalPayload {
+  string event_id = 1;
+  // External WKT to be mapped via extern_path
+  google.protobuf.Timestamp event_time = 2;
+  // External proto package to be mapped via extern_path or cross-package reference
+  pkg.a.CommonMsg payload = 3;
+}

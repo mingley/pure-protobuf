@@ -1,0 +1,134 @@
+{
+  "file": "inheritance.proto",
+  "edition": 1001,
+  "syntax": "editions",
+  "package": "edition2024.inheritance",
+  "file_level_features": {
+    "field_presence": "IMPLICIT",
+    "repeated_field_encoding": "EXPANDED",
+    "utf8_validation": "NONE"
+  },
+  "messages": [
+    {
+      "name": "FileDefaultsConsumer",
+      "full_name": "edition2024.inheritance.FileDefaultsConsumer",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "file_implicit_int",
+          "number": 1,
+          "type": "TYPE_INT32",
+          "cardinality": "OPTIONAL",
+          "presence": "IMPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "file_expanded_int",
+          "number": 2,
+          "type": "TYPE_INT32",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "file_unverified_string",
+          "number": 3,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "IMPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        }
+      ]
+    },
+    {
+      "name": "FieldLevelOverrides",
+      "full_name": "edition2024.inheritance.FieldLevelOverrides",
+      "visibility": "EXPORT",
+      "fields": [
+        {
+          "name": "explicit_int",
+          "number": 1,
+          "type": "TYPE_INT32",
+          "cardinality": "OPTIONAL",
+          "presence": "EXPLICIT",
+          "packed": false,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "packed_int",
+          "number": 2,
+          "type": "TYPE_INT32",
+          "cardinality": "REPEATED",
+          "presence": "EXPLICIT",
+          "packed": true,
+          "utf8_validate": false,
+          "delimited": false
+        },
+        {
+          "name": "verified_string",
+          "number": 3,
+          "type": "TYPE_STRING",
+          "cardinality": "OPTIONAL",
+          "presence": "IMPLICIT",
+          "packed": false,
+          "utf8_validate": true,
+          "delimited": false
+        }
+      ]
+    },
+    {
+      "name": "MessageJsonConsumer",
+      "full_name": "edition2024.inheritance.MessageJsonConsumer",
+      "visibility": "EXPORT",
+      "json_format": "LEGACY_BEST_EFFORT",
+      "nested_messages": [
+        {
+          "name": "NestedMessageJsonOverride",
+          "full_name": "edition2024.inheritance.MessageJsonConsumer.NestedMessageJsonOverride",
+          "visibility": "LOCAL",
+          "json_format": "ALLOW"
+        }
+      ]
+    },
+    {
+      "name": "MessageWithNestedEnums",
+      "full_name": "edition2024.inheritance.MessageWithNestedEnums",
+      "visibility": "EXPORT",
+      "nested_enums": [
+        {
+          "name": "NestedDefaultEnum",
+          "full_name": "edition2024.inheritance.MessageWithNestedEnums.NestedDefaultEnum",
+          "visibility": "LOCAL",
+          "closed": false
+        },
+        {
+          "name": "NestedClosedEnum",
+          "full_name": "edition2024.inheritance.MessageWithNestedEnums.NestedClosedEnum",
+          "visibility": "LOCAL",
+          "closed": true
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "TopLevelEnumDefault",
+      "full_name": "edition2024.inheritance.TopLevelEnumDefault",
+      "visibility": "EXPORT",
+      "closed": false
+    },
+    {
+      "name": "TopLevelEnumClosed",
+      "full_name": "edition2024.inheritance.TopLevelEnumClosed",
+      "visibility": "EXPORT",
+      "closed": true
+    }
+  ]
+}

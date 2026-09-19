@@ -637,14 +637,18 @@ async fn rst_flood_beyond_pending_reset_cap_drops_that_connection() {
     }
     drop(opened);
     drop(send);
-    for _ in 0..16 {
+    let started = std::time::Instant::now();
+    let dropped = loop {
         tokio::task::yield_now().await;
-    }
-    let dropped =
-        match tokio::time::timeout(Duration::from_millis(500), peer.send.clone().ready()).await {
-            Ok(Ok(_)) => false,
-            Ok(Err(_)) | Err(_) => true,
-        };
+        match tokio::time::timeout(Duration::from_millis(50), peer.send.clone().ready()).await {
+            Ok(Err(_)) | Err(_) => break true,
+            Ok(Ok(_)) => {
+                if started.elapsed() > Duration::from_millis(1500) {
+                    break false;
+                }
+            }
+        }
+    };
     assert!(
         dropped,
         "RST flood must trip max_pending_accept_reset_streams and drop that connection"
@@ -938,4 +942,311 @@ async fn unfinished_headers_do_not_take_the_accept_loop_down() {
     }
     assert_accept_loop_still_serves(addr).await;
     drop(peer);
+}
+
+// ============================================================================
+// RT-09 Deterministic Framing, Metadata, and Compression Boundary Regressions
+// ============================================================================
+
+/// Deterministic test: random chunk fragmentation over arbitrary byte boundaries
+/// yields the exact same message stream.
+#[test]
+fn regression_chunk_fragmentation_preserves_message_stream() {
+    let payload1 = b"first message: deterministic gRPC frame fragmentation";
+    let payload2 = b"second message: compressed protobuf payload on the wire";
+    let payload3 = b""; // empty message
+    let payload4 = b"fourth message: multi-byte boundary straddling payload";
+
+    let gz2 = pbrs_grpc::gzip::encode(payload2).expect("encode gz");
+
+    let f1 = pbrs_grpc::codec::encode(payload1, false).expect("f1");
+    let f2 = pbrs_grpc::codec::encode(&gz2, true).expect("f2");
+    let f3 = pbrs_grpc::codec::encode(payload3, false).expect("f3");
+    let f4 = pbrs_grpc::codec::encode(payload4, false).expect("f4");
+
+    let mut stream = BytesMut::new();
+    stream.extend_from_slice(&f1);
+    stream.extend_from_slice(&f2);
+    stream.extend_from_slice(&f3);
+    stream.extend_from_slice(&f4);
+    let wire = stream.freeze();
+
+    let decode_all_chunks = |chunk_sizes: &[usize]| -> Vec<pbrs_grpc::codec::Frame> {
+        let mut buf = BytesMut::new();
+        let mut frames = Vec::new();
+        let mut offset = 0;
+        let mut chunk_idx = 0;
+        while offset < wire.len() {
+            let chunk_len = chunk_sizes[chunk_idx % chunk_sizes.len()].min(wire.len() - offset);
+            buf.extend_from_slice(&wire[offset..offset + chunk_len]);
+            offset += chunk_len;
+            chunk_idx += 1;
+            while let Ok(Some(frame)) =
+                pbrs_grpc::codec::pop_limited(&mut buf, pbrs_grpc::MessageLimits::unlimited())
+            {
+                frames.push(frame);
+            }
+        }
+        frames
+    };
+
+    // Regime 1: 1 byte at a time
+    let frames_1byte = decode_all_chunks(&[1]);
+    // Regime 2: 2 bytes at a time (misaligns 5-byte header)
+    let frames_2byte = decode_all_chunks(&[2]);
+    // Regime 3: 3 and 7 bytes alternating
+    let frames_variable = decode_all_chunks(&[3, 7, 1, 4, 11]);
+    // Regime 4: whole stream coalesced
+    let frames_coalesced = decode_all_chunks(&[wire.len()]);
+
+    for regime in [
+        &frames_1byte,
+        &frames_2byte,
+        &frames_variable,
+        &frames_coalesced,
+    ] {
+        assert_eq!(
+            regime.len(),
+            4,
+            "all 4 frames must be decoded regardless of chunking"
+        );
+        assert_eq!(&regime[0].payload[..], payload1);
+        assert!(!regime[0].compressed);
+
+        assert!(regime[1].compressed);
+        let inflated = pbrs_grpc::gzip::decode_limited(
+            &regime[1].payload,
+            pbrs_grpc::MessageLimits::unlimited(),
+        )
+        .expect("inflate");
+        assert_eq!(inflated, payload2);
+
+        assert_eq!(&regime[2].payload[..], payload3);
+        assert!(!regime[2].compressed);
+
+        assert_eq!(&regime[3].payload[..], payload4);
+        assert!(!regime[3].compressed);
+    }
+}
+
+/// HTTP/2 regression: fragmented DATA chunks over HTTP/2 reassemble correctly.
+#[tokio::test]
+async fn regression_http2_single_byte_data_chunks_serve_cleanly() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let peer = RawPeer::connect(addr).await;
+
+    let wire_frame = frame(&hello_request());
+    let request = peer.request(SAY_HELLO, "application/grpc");
+
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    let (response, mut stream) = send.send_request(request, false).expect("send_request");
+
+    // Send the frame byte-by-byte in individual HTTP/2 DATA frames
+    for (i, &b) in wire_frame.iter().enumerate() {
+        let is_last = i == wire_frame.len() - 1;
+        stream
+            .send_data(Bytes::copy_from_slice(&[b]), is_last)
+            .expect("send_data byte");
+    }
+
+    let response = response.await.expect("response");
+    let mut body = response.into_body();
+    while let Some(chunk) = body.data().await {
+        let chunk = chunk.expect("data");
+        body.flow_control().release_capacity(chunk.len()).ok();
+    }
+    let trailer_status = body
+        .trailers()
+        .await
+        .expect("trailers")
+        .and_then(|t| grpc_status(&t));
+
+    assert_eq!(
+        trailer_status,
+        Some(0),
+        "fragmented request must succeed with OK status"
+    );
+}
+
+/// Compression bomb regression: 10 MiB of zeros compressed to ~1 KiB must fail
+/// within strict memory and time budgets.
+#[test]
+fn regression_compression_bomb_fails_within_byte_and_time_budgets() {
+    let uncompressed_size = 10 * 1024 * 1024; // 10 MiB
+    let bomb_raw = vec![0u8; uncompressed_size];
+    let bomb_gz = pbrs_grpc::gzip::encode(&bomb_raw).expect("encode bomb");
+    assert!(
+        bomb_gz.len() < 100 * 1024,
+        "bomb must compress to < 100 KiB: actual {}",
+        bomb_gz.len()
+    );
+
+    let limits = pbrs_grpc::MessageLimits::unlimited().with_max_decoding(4096);
+    let start = std::time::Instant::now();
+    let res = pbrs_grpc::gzip::decode_limited(&bomb_gz, limits);
+    let elapsed = start.elapsed();
+
+    let err = res.expect_err("compression bomb must be rejected");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    assert!(
+        elapsed < Duration::from_millis(20),
+        "bomb rejection must be instantaneous, took {elapsed:?}"
+    );
+}
+
+/// Invalid frame lengths regression: declared lengths exceeding limit, u32::MAX,
+/// and invalid flags are rejected safely from the header.
+#[test]
+fn regression_invalid_frame_lengths_and_flags_safely_rejected() {
+    let limits = pbrs_grpc::MessageLimits::unlimited().with_max_decoding(1024);
+
+    // 1. Declared length exceeding limit (1025 > 1024)
+    let mut buf = BytesMut::from(&[0x00, 0x00, 0x00, 0x04, 0x01][..]); // declares 1025 bytes
+    let err = pbrs_grpc::codec::pop_limited(&mut buf, limits).expect_err("oversize");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+
+    // 2. Declared length u32::MAX
+    let mut buf = BytesMut::from(&[0x00, 0xff, 0xff, 0xff, 0xff][..]);
+    let err = pbrs_grpc::codec::pop_limited(&mut buf, limits).expect_err("max len");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+
+    // 3. Oversize length (0xffff_fffe) rejected by limit check before buffering
+    let mut buf = BytesMut::from(&[0x00, 0xff, 0xff, 0xff, 0xfe][..]);
+    let err = pbrs_grpc::codec::pop_limited(&mut buf, limits).expect_err("oversize length");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+
+    // 4. Invalid compressed flag (> 1)
+    for bad_flag in [2u8, 3, 7, 255] {
+        let mut buf = BytesMut::from(&[bad_flag, 0x00, 0x00, 0x00, 0x00][..]);
+        let err = pbrs_grpc::codec::pop_limited(&mut buf, pbrs_grpc::MessageLimits::unlimited())
+            .expect_err("bad flag");
+        assert_eq!(err.code(), Code::Internal);
+    }
+
+    // 5. Truncation: 1..=4 bytes header
+    for len in 1..5 {
+        let mut buf = BytesMut::from(&vec![0u8; len][..]);
+        assert!(pbrs_grpc::codec::pop_limited(&mut buf, limits)
+            .expect("pop")
+            .is_none());
+    }
+
+    // 6. Truncation: 5-byte header claiming 10 bytes, but only 9 present
+    let mut buf = BytesMut::from(&[0x00, 0x00, 0x00, 0x00, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8, 9][..]);
+    assert!(pbrs_grpc::codec::pop_limited(&mut buf, limits)
+        .expect("pop")
+        .is_none());
+}
+
+/// Bad metadata encodings regression: reserved keys, mis-suffixed -bin keys,
+/// and invalid ASCII characters are safely rejected with InvalidArgument.
+#[test]
+fn regression_bad_metadata_encodings_safely_rejected() {
+    let mut md = pbrs_grpc::Metadata::new();
+
+    // 1. ASCII metadata cannot end in -bin
+    let err = md
+        .insert("custom-bin", "valid_ascii")
+        .expect_err("ascii -bin");
+    assert_eq!(err.code(), Code::InvalidArgument);
+    let err = md
+        .set("custom-bin", "valid_ascii")
+        .expect_err("ascii set -bin");
+    assert_eq!(err.code(), Code::InvalidArgument);
+
+    // 2. Binary metadata must end in -bin
+    let err = md
+        .insert_bin("custom_ascii", b"bytes")
+        .expect_err("bin non-bin");
+    assert_eq!(err.code(), Code::InvalidArgument);
+    let err = md
+        .set_bin("custom_ascii", b"bytes")
+        .expect_err("bin set non-bin");
+    assert_eq!(err.code(), Code::InvalidArgument);
+
+    // 3. Reserved protocol headers
+    for reserved in [
+        ":status",
+        ":path",
+        ":method",
+        ":scheme",
+        ":authority",
+        "grpc-status",
+        "grpc-message",
+        "grpc-encoding",
+        "grpc-accept-encoding",
+        "grpc-status-details-bin",
+        "content-type",
+        "te",
+        "connection",
+        "keep-alive",
+        "proxy-connection",
+        "transfer-encoding",
+        "upgrade",
+        "host",
+    ] {
+        assert_eq!(
+            md.insert(reserved, "val").unwrap_err().code(),
+            Code::InvalidArgument,
+            "insert {reserved}"
+        );
+        assert_eq!(
+            md.set(reserved, "val").unwrap_err().code(),
+            Code::InvalidArgument,
+            "set {reserved}"
+        );
+        assert_eq!(
+            md.insert_bin(reserved, b"val").unwrap_err().code(),
+            Code::InvalidArgument,
+            "insert_bin {reserved}"
+        );
+        assert_eq!(
+            md.set_bin(reserved, b"val").unwrap_err().code(),
+            Code::InvalidArgument,
+            "set_bin {reserved}"
+        );
+    }
+
+    // 4. Invalid key characters (spaces, control chars)
+    assert_eq!(
+        md.insert("bad key with spaces", "val").unwrap_err().code(),
+        Code::InvalidArgument
+    );
+    assert_eq!(
+        md.insert("bad\nkey", "val").unwrap_err().code(),
+        Code::InvalidArgument
+    );
+
+    // 5. Invalid ASCII values (newlines, control characters)
+    assert_eq!(
+        md.insert("x-key", "val\r\nnewline").unwrap_err().code(),
+        Code::InvalidArgument
+    );
+    assert_eq!(
+        md.insert("x-key", "val\0null").unwrap_err().code(),
+        Code::InvalidArgument
+    );
+
+    // 6. Corrupt binary details in Status safely handled without panic
+    let mut status = Status::not_found("not found");
+    status.set_details(vec![0xff, 0xff, 0xff]);
+    let rpc_err = status.rpc().expect_err("corrupt details must fail parse");
+    assert_eq!(rpc_err.code(), Code::Internal);
+
+    // 7. Malformed timeout strings return None rather than panic or incorrect duration
+    for bad in [
+        "",
+        "-1S",
+        "100",
+        "10X",
+        "99999999999999999999999999S",
+        "\0S",
+        "abc",
+    ] {
+        assert_eq!(
+            pbrs_grpc::timeout::parse_timeout(bad),
+            None,
+            "timeout {bad}"
+        );
+    }
 }

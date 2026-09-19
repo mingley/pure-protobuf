@@ -109,6 +109,8 @@ pub struct Request<T> {
     /// Call-site [`Request::set_user_agent`] / interceptor
     /// [`Outgoing::set_user_agent`] override. `None` uses the channel value.
     user_agent: Option<http::HeaderValue>,
+    diagnostic_payload: bool,
+    diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
 }
 
 impl<T> Request<T> {
@@ -143,6 +145,8 @@ impl<T> Request<T> {
             cancel: None,
             extensions: http::Extensions::new(),
             user_agent: None,
+            diagnostic_payload: false,
+            diagnostic_config: None,
         }
     }
 
@@ -200,6 +204,7 @@ impl<T> Request<T> {
                 cancel: self.cancel,
                 extensions: self.extensions,
                 user_agent: self.user_agent,
+                diagnostic_config: self.diagnostic_config,
             },
         )
     }
@@ -239,6 +244,8 @@ impl<T> Request<T> {
             cancel: parts.cancel,
             extensions: parts.extensions,
             user_agent: parts.user_agent,
+            diagnostic_payload: false,
+            diagnostic_config: parts.diagnostic_config,
         }
     }
 
@@ -263,6 +270,64 @@ impl<T> Request<T> {
     /// Distinct from [`Self::metadata`]: that borrows this envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
+    }
+
+    /// Configure whether payload detail is displayed in [`fmt::Debug`].
+    ///
+    /// Requires explicit consent to display payloads. Defaults to `false` (redacted with `[REDACTED]`).
+    pub fn allow_diagnostic_payload(&mut self, allow: bool) -> &mut Self {
+        self.diagnostic_payload = allow;
+        self
+    }
+
+    /// Builder form of [`Self::allow_diagnostic_payload`].
+    #[must_use]
+    pub fn with_diagnostic_payload(mut self, allow: bool) -> Self {
+        self.diagnostic_payload = allow;
+        self
+    }
+
+    /// Attach diagnostic configuration for safe diagnostics and telemetry.
+    pub fn set_diagnostic_config(
+        &mut self,
+        config: crate::telemetry::DiagnosticConfig,
+    ) -> &mut Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Builder form of [`Self::set_diagnostic_config`].
+    #[must_use]
+    pub fn with_diagnostic_config(mut self, config: crate::telemetry::DiagnosticConfig) -> Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Check if diagnostic payload display is permitted.
+    #[must_use]
+    pub fn is_diagnostic_payload_allowed(&self) -> bool {
+        if let Some(config) = &self.diagnostic_config {
+            config.is_payload_allowed()
+        } else {
+            self.diagnostic_payload
+        }
+    }
+
+    /// Create a safe telemetry diagnostic context for this request.
+    ///
+    /// The returned context redacts sensitive headers and payloads by default,
+    /// preserving call labels, status, and safe metadata.
+    #[must_use]
+    pub fn telemetry_context(&self) -> crate::telemetry::TelemetryContext<'_> {
+        let path = self.path().unwrap_or("");
+        let authority = self.authority();
+        let labels =
+            crate::telemetry::CallLabels::new(path, authority, crate::telemetry::CallRole::Server);
+        let mut ctx = crate::telemetry::TelemetryContext::new(labels).with_metadata(&self.metadata);
+        if let Some(config) = &self.diagnostic_config {
+            ctx = ctx.with_config(config.clone());
+        }
+        ctx
     }
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
@@ -807,6 +872,8 @@ impl<T> Request<T> {
             cancel: None,
             extensions: http::Extensions::new(),
             user_agent: None,
+            diagnostic_config: None,
+            diagnostic_payload: false,
         }
     }
 
@@ -1452,8 +1519,13 @@ impl fmt::Debug for Outgoing<'_> {
 
 impl<T: fmt::Debug> fmt::Debug for Request<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message_display: &dyn fmt::Debug = if self.is_diagnostic_payload_allowed() {
+            &self.message
+        } else {
+            &"[REDACTED]"
+        };
         f.debug_struct("Request")
-            .field("message", &self.message)
+            .field("message", message_display)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline)
@@ -1559,6 +1631,7 @@ pub struct Parts {
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
     user_agent: Option<http::HeaderValue>,
+    diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
 }
 
 impl Parts {
@@ -1575,6 +1648,42 @@ impl Parts {
     /// Distinct from [`Self::metadata`]: that borrows this split envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
+    }
+
+    /// Attach diagnostic configuration.
+    pub fn set_diagnostic_config(
+        &mut self,
+        config: crate::telemetry::DiagnosticConfig,
+    ) -> &mut Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Builder form of [`Self::set_diagnostic_config`].
+    #[must_use]
+    pub fn with_diagnostic_config(mut self, config: crate::telemetry::DiagnosticConfig) -> Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Borrow diagnostic configuration if set.
+    #[must_use]
+    pub fn diagnostic_config(&self) -> Option<&crate::telemetry::DiagnosticConfig> {
+        self.diagnostic_config.as_ref()
+    }
+
+    /// Create a safe telemetry diagnostic context for these split parts.
+    #[must_use]
+    pub fn telemetry_context(&self) -> crate::telemetry::TelemetryContext<'_> {
+        let path = self.path().unwrap_or("");
+        let authority = self.authority();
+        let labels =
+            crate::telemetry::CallLabels::new(path, authority, crate::telemetry::CallRole::Server);
+        let mut ctx = crate::telemetry::TelemetryContext::new(labels).with_metadata(&self.metadata);
+        if let Some(config) = &self.diagnostic_config {
+            ctx = ctx.with_config(config.clone());
+        }
+        ctx
     }
 
     /// Relative timeout stamped at dispatch, if any. See [`Request::timeout`].
@@ -1982,6 +2091,8 @@ pub struct Response<T> {
     limits: Option<MessageLimits>,
     send_buffer_size: Option<usize>,
     extensions: http::Extensions,
+    diagnostic_payload: bool,
+    diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
 }
 
 impl<T> Response<T> {
@@ -2006,6 +2117,8 @@ impl<T> Response<T> {
             limits: None,
             send_buffer_size: None,
             extensions: http::Extensions::new(),
+            diagnostic_payload: false,
+            diagnostic_config: None,
         }
     }
 
@@ -2044,6 +2157,7 @@ impl<T> Response<T> {
                 limits: self.limits,
                 send_buffer_size: self.send_buffer_size,
                 extensions: self.extensions,
+                diagnostic_config: self.diagnostic_config,
             },
         )
     }
@@ -2069,6 +2183,8 @@ impl<T> Response<T> {
             limits: parts.limits,
             send_buffer_size: parts.send_buffer_size,
             extensions: parts.extensions,
+            diagnostic_payload: false,
+            diagnostic_config: parts.diagnostic_config,
         }
     }
 
@@ -2126,6 +2242,47 @@ impl<T> Response<T> {
     /// Distinct from [`Self::trailers`]: that borrows this reply envelope; this mutates it.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
+    }
+
+    /// Configure whether payload detail is displayed in [`fmt::Debug`].
+    ///
+    /// Requires explicit consent to display payloads. Defaults to `false` (redacted with `[REDACTED]`).
+    pub fn allow_diagnostic_payload(&mut self, allow: bool) -> &mut Self {
+        self.diagnostic_payload = allow;
+        self
+    }
+
+    /// Builder form of [`Self::allow_diagnostic_payload`].
+    #[must_use]
+    pub fn with_diagnostic_payload(mut self, allow: bool) -> Self {
+        self.diagnostic_payload = allow;
+        self
+    }
+
+    /// Attach diagnostic configuration.
+    pub fn set_diagnostic_config(
+        &mut self,
+        config: crate::telemetry::DiagnosticConfig,
+    ) -> &mut Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Builder form of [`Self::set_diagnostic_config`].
+    #[must_use]
+    pub fn with_diagnostic_config(mut self, config: crate::telemetry::DiagnosticConfig) -> Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Check if diagnostic payload display is permitted.
+    #[must_use]
+    pub fn is_diagnostic_payload_allowed(&self) -> bool {
+        if let Some(config) = &self.diagnostic_config {
+            config.is_payload_allowed()
+        } else {
+            self.diagnostic_payload
+        }
     }
 
     /// Typed values on this envelope. They are not headers and they are not
@@ -2532,6 +2689,8 @@ impl<T> Response<T> {
             limits: None,
             send_buffer_size: None,
             extensions: http::Extensions::new(),
+            diagnostic_payload: false,
+            diagnostic_config: None,
         }
     }
 
@@ -2559,6 +2718,8 @@ impl<T> Response<T> {
             limits: None,
             send_buffer_size: None,
             extensions: http::Extensions::new(),
+            diagnostic_payload: false,
+            diagnostic_config: None,
         }
     }
 
@@ -2596,6 +2757,7 @@ pub struct ResponseParts {
     limits: Option<MessageLimits>,
     send_buffer_size: Option<usize>,
     extensions: http::Extensions,
+    diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
 }
 
 impl ResponseParts {
@@ -2627,6 +2789,28 @@ impl ResponseParts {
     /// Distinct from [`Self::trailers`]: that borrows this split reply envelope; this mutates it.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
+    }
+
+    /// Attach diagnostic configuration.
+    pub fn set_diagnostic_config(
+        &mut self,
+        config: crate::telemetry::DiagnosticConfig,
+    ) -> &mut Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Builder form of [`Self::set_diagnostic_config`].
+    #[must_use]
+    pub fn with_diagnostic_config(mut self, config: crate::telemetry::DiagnosticConfig) -> Self {
+        self.diagnostic_config = Some(config);
+        self
+    }
+
+    /// Borrow diagnostic configuration if set.
+    #[must_use]
+    pub fn diagnostic_config(&self) -> Option<&crate::telemetry::DiagnosticConfig> {
+        self.diagnostic_config.as_ref()
     }
 
     /// gzip this payload and set the Compressed-Flag.
@@ -2838,8 +3022,13 @@ impl ResponseParts {
 
 impl<T: fmt::Debug> fmt::Debug for Response<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message_display: &dyn fmt::Debug = if self.is_diagnostic_payload_allowed() {
+            &self.message
+        } else {
+            &"[REDACTED]"
+        };
         f.debug_struct("Response")
-            .field("message", &self.message)
+            .field("message", message_display)
             .field("metadata", &self.metadata)
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package consumer.external;
+
+import "google/protobuf/timestamp.proto";
+import "pkg_a/common.proto";
+import "external/client.proto";
+
+message ExternalBatch {
+  string batch_id = 1;
+  repeated ExternalPayload items = 2;
+  google.protobuf.Timestamp batch_time = 3;
+  pkg.a.CommonMsg summary = 4;
+}

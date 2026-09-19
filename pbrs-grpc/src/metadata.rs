@@ -4,7 +4,38 @@ use crate::status::Status;
 use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use base64::Engine;
 use http::{HeaderMap, HeaderName, HeaderValue};
+use std::collections::BTreeSet;
 use std::fmt;
+use std::sync::Arc;
+
+/// Type alias for [`Metadata`] matching common gRPC terminology.
+pub type MetadataMap = Metadata;
+
+/// Returns true if the metadata header key is considered sensitive and should be redacted.
+///
+/// Matches standard credentials (`authorization`, `cookie`, `set-cookie`, `proxy-authorization`),
+/// binary metadata keys (ending in `-bin`), and keys containing sensitive substrings such as
+/// `token`, `secret`, `password`, `credential`, `api-key`, `apikey`, `private-key`, `auth`,
+/// `sensitive`, or `signature`.
+#[must_use]
+pub fn is_sensitive_key(key: &str) -> bool {
+    let lower = key.to_ascii_lowercase();
+    lower == "authorization"
+        || lower == "cookie"
+        || lower == "set-cookie"
+        || lower == "proxy-authorization"
+        || lower.ends_with("-bin")
+        || lower.contains("token")
+        || lower.contains("secret")
+        || lower.contains("password")
+        || lower.contains("credential")
+        || lower.contains("api-key")
+        || lower.contains("apikey")
+        || lower.contains("private-key")
+        || lower.contains("auth")
+        || lower.contains("sensitive")
+        || lower.contains("signature")
+}
 
 /// gRPC metadata, i.e. HTTP/2 headers or trailers minus the reserved ones.
 ///
@@ -62,16 +93,77 @@ use std::fmt;
 #[derive(Clone, Default)]
 pub struct Metadata {
     map: HeaderMap,
+    sensitive_keys: Option<Arc<BTreeSet<String>>>,
 }
 
 impl fmt::Debug for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = f.debug_map();
+        let mut count = 0usize;
+        const DEFAULT_MAX_METADATA_ENTRIES: usize = 64;
+
         for (k, v) in &self.map {
-            if is_reserved(k.as_str()) {
+            let key_str = k.as_str();
+            if is_reserved(key_str) {
                 continue;
             }
-            s.entry(&k.as_str(), v);
+            if count >= DEFAULT_MAX_METADATA_ENTRIES {
+                s.entry(&"...", &"[TRUNCATED: cardinality limit exceeded]");
+                break;
+            }
+            count += 1;
+            if self.is_sensitive(key_str) {
+                s.entry(&key_str, &"[REDACTED]");
+            } else {
+                s.entry(&key_str, v);
+            }
+        }
+        s.finish()
+    }
+}
+
+/// Helper returned by [`Metadata::safe_debug`] to format metadata with custom diagnostic configuration.
+pub struct SafeMetadataDebug<'a> {
+    metadata: &'a Metadata,
+    config: &'a crate::telemetry::DiagnosticConfig,
+}
+
+impl fmt::Debug for SafeMetadataDebug<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_map();
+        let mut count = 0usize;
+        let max_entries = self.config.max_metadata_entries();
+        let max_len = self.config.max_value_length();
+
+        for (k, v) in &self.metadata.map {
+            let key_str = k.as_str();
+            if is_reserved(key_str) {
+                continue;
+            }
+            if count >= max_entries {
+                s.entry(&"...", &"[TRUNCATED: cardinality limit exceeded]");
+                break;
+            }
+            count += 1;
+
+            let is_custom = self.config.is_custom_sensitive(key_str);
+            let is_sens = self.metadata.is_sensitive(key_str) || is_custom;
+            let is_bin = key_str.ends_with("-bin");
+
+            if (is_bin && !self.config.is_binary_metadata_allowed())
+                || (is_sens && !self.config.are_sensitive_headers_allowed())
+            {
+                s.entry(&key_str, &"[REDACTED]");
+            } else if let Ok(val_str) = v.to_str() {
+                if val_str.len() > max_len {
+                    let truncated = format!("{}... [TRUNCATED]", &val_str[..max_len]);
+                    s.entry(&key_str, &truncated);
+                } else {
+                    s.entry(&key_str, &val_str);
+                }
+            } else {
+                s.entry(&key_str, v);
+            }
         }
         s.finish()
     }
@@ -314,6 +406,7 @@ impl Metadata {
     /// metadata can clear and then insert what it still needs.
     pub fn clear(&mut self) {
         self.map.clear();
+        self.sensitive_keys = None;
     }
 
     /// Append every user entry from `other`.
@@ -326,6 +419,51 @@ impl Metadata {
                 continue;
             }
             self.map.append(name.clone(), value.clone());
+        }
+        if let Some(other_sens) = &other.sensitive_keys {
+            let set = self
+                .sensitive_keys
+                .get_or_insert_with(|| Arc::new(BTreeSet::new()));
+            let set_mut = Arc::make_mut(set);
+            for k in other_sens.as_ref() {
+                set_mut.insert(k.clone());
+            }
+        }
+    }
+
+    /// Mark an additional custom header key as sensitive so it will be redacted in [`fmt::Debug`].
+    pub fn mark_sensitive(&mut self, key: impl AsRef<str>) -> &mut Self {
+        let set = self
+            .sensitive_keys
+            .get_or_insert_with(|| Arc::new(BTreeSet::new()));
+        let set_mut = Arc::make_mut(set);
+        set_mut.insert(key.as_ref().to_ascii_lowercase());
+        self
+    }
+
+    /// Whether `key` is considered sensitive for this metadata instance.
+    #[must_use]
+    pub fn is_sensitive(&self, key: &str) -> bool {
+        if is_sensitive_key(key) {
+            return true;
+        }
+        if let Some(set) = &self.sensitive_keys {
+            if set.contains(&key.to_ascii_lowercase()) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Format this metadata with custom diagnostic configuration and cardinality limits.
+    #[must_use]
+    pub fn safe_debug<'a>(
+        &'a self,
+        config: &'a crate::telemetry::DiagnosticConfig,
+    ) -> SafeMetadataDebug<'a> {
+        SafeMetadataDebug {
+            metadata: self,
+            config,
         }
     }
 
@@ -378,11 +516,17 @@ impl Metadata {
     /// No per-entry copying: reserved keys are filtered on read and on write,
     /// so receiving metadata costs nothing until it is used.
     pub(crate) fn from_owned_headers(map: HeaderMap) -> Self {
-        Self { map }
+        Self {
+            map,
+            sensitive_keys: None,
+        }
     }
 
     pub(crate) fn from_headers(map: &HeaderMap) -> Self {
-        Self { map: map.clone() }
+        Self {
+            map: map.clone(),
+            sensitive_keys: None,
+        }
     }
 
     pub(crate) fn write_to(&self, headers: &mut HeaderMap) -> Result<(), Status> {

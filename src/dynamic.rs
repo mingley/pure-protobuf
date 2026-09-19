@@ -99,6 +99,73 @@ pub enum Presence {
     Explicit,
 }
 
+/// Source code information for a protobuf file, containing source locations with paths, spans, and comments.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SourceCodeInfo {
+    /// List of source locations in the file.
+    pub locations: Vec<SourceLocation>,
+}
+
+impl SourceCodeInfo {
+    /// Find the first [`SourceLocation`] matching the given descriptor path.
+    pub fn find_location(&self, path: &[i32]) -> Option<&SourceLocation> {
+        self.locations
+            .iter()
+            .find(|loc| loc.path.as_slice() == path)
+    }
+}
+
+/// A location in a source protobuf file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SourceLocation {
+    /// Path of field numbers and indexes leading from the file root to this element.
+    pub path: Vec<i32>,
+    /// Line and column span in the source file: `[start_line, start_col, end_line, end_col]` or `[start_line, start_col, end_col]`.
+    pub span: Vec<i32>,
+    /// Leading comment block directly preceding the element.
+    pub leading_comments: Option<String>,
+    /// Trailing comment on the same line after the element.
+    pub trailing_comments: Option<String>,
+    /// Detached comment blocks preceding the element.
+    pub leading_detached_comments: Vec<String>,
+}
+
+/// Comments and span associated with a descriptor element.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Comments {
+    /// Leading comment block directly preceding the element.
+    pub leading_comments: Option<String>,
+    /// Trailing comment on the same line after the element.
+    pub trailing_comments: Option<String>,
+    /// Detached comment blocks preceding the element.
+    pub leading_detached_comments: Vec<String>,
+    /// Leading comment (alias for [`Self::leading_comments`]).
+    pub leading: Option<String>,
+    /// Trailing comment (alias for [`Self::trailing_comments`]).
+    pub trailing: Option<String>,
+    /// Line and column span in the source file, if available.
+    pub span: Vec<i32>,
+}
+
+impl Comments {
+    /// Returns the leading comment, if any.
+    pub fn leading(&self) -> Option<&str> {
+        self.leading_comments.as_deref()
+    }
+
+    /// Returns the trailing comment, if any.
+    pub fn trailing(&self) -> Option<&str> {
+        self.trailing_comments.as_deref()
+    }
+
+    /// Returns `true` if there are no comments.
+    pub fn is_empty(&self) -> bool {
+        self.leading_comments.as_ref().is_none_or(String::is_empty)
+            && self.trailing_comments.as_ref().is_none_or(String::is_empty)
+            && self.leading_detached_comments.is_empty()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FieldDescriptor {
     pub name: String,
@@ -121,6 +188,10 @@ pub struct FieldDescriptor {
     /// Unrecognized `FieldOptions` tags (custom options). Payload is the option
     /// body: length-delimited bytes, or the varint/fixed encoding.
     pub options: Vec<DescriptorOption>,
+    /// Comments associated with this field.
+    pub comments: Comments,
+    /// Whether this field is marked deprecated in `FieldOptions`.
+    pub deprecated: bool,
 }
 
 impl FieldDescriptor {
@@ -151,6 +222,8 @@ impl FieldDescriptor {
             delimited: field_type == FieldType::Group,
             extension_name: None,
             options: Vec::new(),
+            comments: Comments::default(),
+            deprecated: false,
         }
     }
 
@@ -160,6 +233,26 @@ impl FieldDescriptor {
             .iter()
             .find(|o| o.number == number)
             .map(|o| o.value.as_slice())
+    }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Source span `[start_line, start_col, end_line, end_col]`, if available.
+    pub fn span(&self) -> &[i32] {
+        &self.comments.span
+    }
+
+    /// Whether this field is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
     }
 }
 
@@ -178,6 +271,10 @@ pub struct MessageDescriptor {
     pub message_set_wire_format: bool,
     /// Unrecognized `MessageOptions` tags (custom options).
     pub options: Vec<DescriptorOption>,
+    /// Comments associated with this message.
+    pub comments: Comments,
+    /// Whether this message is marked deprecated in `MessageOptions`.
+    pub deprecated: bool,
 }
 
 impl MessageDescriptor {
@@ -202,6 +299,8 @@ impl MessageDescriptor {
                 file_name: String::new(),
                 message_set_wire_format: false,
                 options: Vec::new(),
+                comments: Comments::default(),
+                deprecated: false,
             },
         }
     }
@@ -240,6 +339,26 @@ impl MessageDescriptor {
             .find(|o| o.number == number)
             .map(|o| o.value.as_slice())
     }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Source span `[start_line, start_col, end_line, end_col]`, if available.
+    pub fn span(&self) -> &[i32] {
+        &self.comments.span
+    }
+
+    /// Whether this message is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
+    }
 }
 
 /// One custom option on a file, message, field, enum, or method descriptor.
@@ -261,6 +380,16 @@ pub struct EnumDescriptor {
     pub closed: bool,
     /// Unrecognized `EnumOptions` tags (custom options).
     pub options: Vec<DescriptorOption>,
+    /// Comments associated with this enum.
+    pub comments: Comments,
+    /// Comments on individual enum values by number.
+    pub value_comments: BTreeMap<i32, Comments>,
+    /// Comments on individual enum values by name.
+    pub value_comments_by_name: BTreeMap<String, Comments>,
+    /// Whether this enum is marked deprecated in `EnumOptions`.
+    pub deprecated: bool,
+    /// Enum values marked deprecated.
+    pub deprecated_values: BTreeSet<i32>,
 }
 
 impl EnumDescriptor {
@@ -270,6 +399,41 @@ impl EnumDescriptor {
             .iter()
             .find(|o| o.number == number)
             .map(|o| o.value.as_slice())
+    }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Source span `[start_line, start_col, end_line, end_col]`, if available.
+    pub fn span(&self) -> &[i32] {
+        &self.comments.span
+    }
+
+    /// Comments for an enum value by number.
+    pub fn value_comments(&self, number: i32) -> Option<&Comments> {
+        self.value_comments.get(&number)
+    }
+
+    /// Comments for an enum value by name.
+    pub fn value_comments_by_name(&self, name: &str) -> Option<&Comments> {
+        self.value_comments_by_name.get(name)
+    }
+
+    /// Whether this enum is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
+    }
+
+    /// Whether an enum value is marked deprecated.
+    pub fn is_value_deprecated(&self, number: i32) -> bool {
+        self.deprecated_values.contains(&number)
     }
 }
 
@@ -294,6 +458,18 @@ impl MessageDescriptorBuilder {
         self
     }
 
+    /// Set comments on the message being built.
+    pub fn comments(mut self, comments: Comments) -> Self {
+        self.desc.comments = comments;
+        self
+    }
+
+    /// Set whether the message being built is deprecated.
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
+        self.desc.deprecated = deprecated;
+        self
+    }
+
     pub fn build(self) -> MessageDescriptor {
         self.desc
     }
@@ -308,6 +484,10 @@ pub struct MethodDescriptor {
     pub server_streaming: bool,
     /// Unrecognized `MethodOptions` tags (custom options).
     pub options: Vec<DescriptorOption>,
+    /// Comments associated with this method.
+    pub comments: Comments,
+    /// Whether this method is marked deprecated in `MethodOptions`.
+    pub deprecated: bool,
 }
 
 impl MethodDescriptor {
@@ -318,6 +498,26 @@ impl MethodDescriptor {
             .find(|o| o.number == number)
             .map(|o| o.value.as_slice())
     }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Source span `[start_line, start_col, end_line, end_col]`, if available.
+    pub fn span(&self) -> &[i32] {
+        &self.comments.span
+    }
+
+    /// Whether this method is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -326,6 +526,42 @@ pub struct ServiceDescriptor {
     pub full_name: String,
     pub file_name: String,
     pub methods: Vec<MethodDescriptor>,
+    /// Comments associated with this service.
+    pub comments: Comments,
+    /// Whether this service is marked deprecated in `ServiceOptions`.
+    pub deprecated: bool,
+    /// Unrecognized `ServiceOptions` tags (custom options).
+    pub options: Vec<DescriptorOption>,
+}
+
+impl ServiceDescriptor {
+    /// Custom `ServiceOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
+    }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Source span `[start_line, start_col, end_line, end_col]`, if available.
+    pub fn span(&self) -> &[i32] {
+        &self.comments.span
+    }
+
+    /// Whether this service is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -334,6 +570,12 @@ pub struct FileDescriptor {
     pub package: String,
     /// Unrecognized `FileOptions` tags (custom options).
     pub options: Vec<DescriptorOption>,
+    /// Source code information, if available.
+    pub source_code_info: Option<SourceCodeInfo>,
+    /// Comments associated with the file.
+    pub comments: Comments,
+    /// Whether this file is marked deprecated in `FileOptions`.
+    pub deprecated: bool,
 }
 
 impl FileDescriptor {
@@ -343,6 +585,26 @@ impl FileDescriptor {
             .iter()
             .find(|o| o.number == number)
             .map(|o| o.value.as_slice())
+    }
+
+    /// Source code information, if present.
+    pub fn source_code_info(&self) -> Option<&SourceCodeInfo> {
+        self.source_code_info.as_ref()
+    }
+
+    /// Leading comment, if present.
+    pub fn leading_comments(&self) -> Option<&str> {
+        self.comments.leading()
+    }
+
+    /// Trailing comment, if present.
+    pub fn trailing_comments(&self) -> Option<&str> {
+        self.comments.trailing()
+    }
+
+    /// Whether this file is marked deprecated.
+    pub fn is_deprecated(&self) -> bool {
+        self.deprecated
     }
 }
 
@@ -484,6 +746,9 @@ impl DescriptorPool {
                     name: file.name.clone(),
                     package: file.package.clone(),
                     options: file.options.clone(),
+                    source_code_info: file.source_code_info.clone(),
+                    comments: file.comments.clone(),
+                    deprecated: file.deprecated,
                 }),
             );
             let pubs: Vec<String> = file
@@ -500,6 +765,9 @@ impl DescriptorPool {
                     full_name: svc.full_name.clone(),
                     file_name: file.name.clone(),
                     methods: svc.methods.clone(),
+                    comments: svc.comments.clone(),
+                    deprecated: svc.deprecated,
+                    options: svc.options.clone(),
                 });
                 pool.services.insert(desc.full_name.clone(), desc);
             }
@@ -1817,6 +2085,9 @@ struct RawFile {
     dependencies: Vec<String>,
     public_dependency: Vec<i32>,
     options: Vec<DescriptorOption>,
+    source_code_info: Option<SourceCodeInfo>,
+    comments: Comments,
+    deprecated: bool,
 }
 
 #[derive(Default, Clone)]
@@ -1824,6 +2095,9 @@ struct RawService {
     name: String,
     full_name: String,
     methods: Vec<MethodDescriptor>,
+    comments: Comments,
+    deprecated: bool,
+    options: Vec<DescriptorOption>,
 }
 
 #[derive(Default, Clone)]
@@ -1843,6 +2117,8 @@ struct RawField {
     full_ext_name: String,
     file_name: String,
     options: Vec<DescriptorOption>,
+    comments: Comments,
+    deprecated: bool,
 }
 
 #[derive(Default, Clone)]
@@ -1862,6 +2138,8 @@ struct RawMessage {
     file_name: String,
     message_set_wire_format: bool,
     options: Vec<DescriptorOption>,
+    comments: Comments,
+    deprecated: bool,
 }
 
 #[derive(Default, Clone)]
@@ -1872,6 +2150,11 @@ struct RawEnum {
     values: Vec<(i32, String)>,
     closed: bool,
     options: Vec<DescriptorOption>,
+    comments: Comments,
+    value_comments: BTreeMap<i32, Comments>,
+    value_comments_by_name: BTreeMap<String, Comments>,
+    deprecated: bool,
+    deprecated_values: BTreeSet<i32>,
 }
 
 fn file_name_matches(wanted: &str, file_name: &str) -> bool {
@@ -1928,14 +2211,22 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             }
             (8, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (features, options) = parse_file_options(payload)?;
+                let (features, deprecated, options) = parse_file_options(payload)?;
                 file.features = features;
+                file.deprecated = deprecated;
                 file.options = options;
+            }
+            (9, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                file.source_code_info = Some(parse_source_code_info(payload)?);
             }
             (12, WIRE_LEN) => file.syntax = read_string(bytes, &mut pos)?,
             (14, WIRE_VARINT) => file.edition = decode_varint(bytes, &mut pos)? as i32,
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
+    }
+    if file.source_code_info.is_some() {
+        attach_source_code_info(&mut file);
     }
     let defaults = edition_defaults(&file.syntax, file.edition);
     file.features = defaults.merge(file.features);
@@ -1981,6 +2272,236 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
     Ok(file)
 }
 
+fn attach_source_code_info(file: &mut RawFile) {
+    let Some(sci) = file.source_code_info.clone() else {
+        return;
+    };
+    let mut path_map: BTreeMap<Vec<i32>, Comments> = BTreeMap::new();
+    for loc in &sci.locations {
+        let comments = Comments {
+            leading_comments: loc.leading_comments.clone(),
+            trailing_comments: loc.trailing_comments.clone(),
+            leading_detached_comments: loc.leading_detached_comments.clone(),
+            leading: loc.leading_comments.clone(),
+            trailing: loc.trailing_comments.clone(),
+            span: loc.span.clone(),
+        };
+        match path_map.entry(loc.path.clone()) {
+            std::collections::btree_map::Entry::Vacant(e) => {
+                e.insert(comments);
+            }
+            std::collections::btree_map::Entry::Occupied(mut e) => {
+                let existing = e.get_mut();
+                if existing.span.is_empty() && !comments.span.is_empty() {
+                    existing.span = comments.span;
+                }
+                if existing.leading_comments.is_none() && comments.leading_comments.is_some() {
+                    existing.leading_comments = comments.leading_comments;
+                    existing.leading = comments.leading;
+                }
+                if existing.trailing_comments.is_none() && comments.trailing_comments.is_some() {
+                    existing.trailing_comments = comments.trailing_comments;
+                    existing.trailing = comments.trailing;
+                }
+                if existing.leading_detached_comments.is_empty()
+                    && !comments.leading_detached_comments.is_empty()
+                {
+                    existing.leading_detached_comments = comments.leading_detached_comments;
+                }
+            }
+        }
+    }
+
+    let file_c = lookup_comments(&path_map, &[]);
+    if !file_c.is_empty() {
+        file.comments = file_c;
+    } else {
+        let syntax_c = lookup_comments(&path_map, &[12]);
+        if !syntax_c.is_empty() {
+            file.comments = syntax_c;
+        } else {
+            let pkg_c = lookup_comments(&path_map, &[2]);
+            if !pkg_c.is_empty() {
+                file.comments = pkg_c;
+            }
+        }
+    }
+
+    for (i, msg) in file.messages.iter_mut().enumerate() {
+        let path = [4, i as i32];
+        attach_message_comments(msg, &path, &path_map);
+    }
+
+    for (i, e) in file.enums.iter_mut().enumerate() {
+        let path = [5, i as i32];
+        attach_enum_comments(e, &path, &path_map);
+    }
+
+    for (i, svc) in file.services.iter_mut().enumerate() {
+        let path = [6, i as i32];
+        attach_service_comments(svc, &path, &path_map);
+    }
+
+    for (i, ext) in file.extensions.iter_mut().enumerate() {
+        let path = [7, i as i32];
+        ext.comments = lookup_comments(&path_map, &path);
+    }
+}
+
+fn attach_message_comments(
+    msg: &mut RawMessage,
+    path: &[i32],
+    path_map: &BTreeMap<Vec<i32>, Comments>,
+) {
+    msg.comments = lookup_comments(path_map, path);
+
+    for (j, field) in msg.fields.iter_mut().enumerate() {
+        let mut field_path = path.to_vec();
+        field_path.push(2);
+        field_path.push(j as i32);
+        field.comments = lookup_comments(path_map, &field_path);
+    }
+
+    for (j, nested) in msg.nested.iter_mut().enumerate() {
+        let mut nested_path = path.to_vec();
+        nested_path.push(3);
+        nested_path.push(j as i32);
+        attach_message_comments(nested, &nested_path, path_map);
+    }
+
+    for (j, e) in msg.enums.iter_mut().enumerate() {
+        let mut enum_path = path.to_vec();
+        enum_path.push(4);
+        enum_path.push(j as i32);
+        attach_enum_comments(e, &enum_path, path_map);
+    }
+
+    for (j, ext) in msg.extensions.iter_mut().enumerate() {
+        let mut ext_path = path.to_vec();
+        ext_path.push(6);
+        ext_path.push(j as i32);
+        ext.comments = lookup_comments(path_map, &ext_path);
+    }
+}
+
+fn attach_enum_comments(e: &mut RawEnum, path: &[i32], path_map: &BTreeMap<Vec<i32>, Comments>) {
+    e.comments = lookup_comments(path_map, path);
+
+    for (j, val) in e.values.iter().enumerate() {
+        let mut val_path = path.to_vec();
+        val_path.push(2);
+        val_path.push(j as i32);
+        let comments = lookup_comments(path_map, &val_path);
+        e.value_comments.insert(val.0, comments.clone());
+        e.value_comments_by_name.insert(val.1.clone(), comments);
+    }
+}
+
+fn attach_service_comments(
+    svc: &mut RawService,
+    path: &[i32],
+    path_map: &BTreeMap<Vec<i32>, Comments>,
+) {
+    svc.comments = lookup_comments(path_map, path);
+
+    for (j, method) in svc.methods.iter_mut().enumerate() {
+        let mut method_path = path.to_vec();
+        method_path.push(2);
+        method_path.push(j as i32);
+        method.comments = lookup_comments(path_map, &method_path);
+    }
+}
+
+fn lookup_comments(path_map: &BTreeMap<Vec<i32>, Comments>, path: &[i32]) -> Comments {
+    if let Some(c) = path_map.get(path) {
+        if !c.is_empty() || !c.span.is_empty() {
+            let mut res = c.clone();
+            if res.is_empty() {
+                let mut name_path = path.to_vec();
+                name_path.push(1);
+                if let Some(nc) = path_map.get(&name_path) {
+                    if !nc.is_empty() {
+                        res.leading_comments = nc.leading_comments.clone();
+                        res.trailing_comments = nc.trailing_comments.clone();
+                        res.leading_detached_comments = nc.leading_detached_comments.clone();
+                        res.leading = nc.leading.clone();
+                        res.trailing = nc.trailing.clone();
+                    }
+                }
+            }
+            return res;
+        }
+    }
+    let mut name_path = path.to_vec();
+    name_path.push(1);
+    if let Some(c) = path_map.get(&name_path) {
+        return c.clone();
+    }
+    Comments::default()
+}
+
+fn parse_source_code_info(bytes: &[u8]) -> Result<SourceCodeInfo, ParseError> {
+    let mut info = SourceCodeInfo::default();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        match (n, w) {
+            (1, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                info.locations.push(parse_source_location(payload)?);
+            }
+            _ => wire::skip_field(bytes, &mut pos, w)?,
+        }
+    }
+    Ok(info)
+}
+
+fn parse_source_location(bytes: &[u8]) -> Result<SourceLocation, ParseError> {
+    let mut loc = SourceLocation::default();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        match (n, w) {
+            (1, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                let mut p_pos = 0;
+                while p_pos < payload.len() {
+                    let v = decode_varint(payload, &mut p_pos)? as i32;
+                    loc.path.push(v);
+                }
+            }
+            (1, WIRE_VARINT) => {
+                let v = decode_varint(bytes, &mut pos)? as i32;
+                loc.path.push(v);
+            }
+            (2, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                let mut p_pos = 0;
+                while p_pos < payload.len() {
+                    let v = decode_varint(payload, &mut p_pos)? as i32;
+                    loc.span.push(v);
+                }
+            }
+            (2, WIRE_VARINT) => {
+                let v = decode_varint(bytes, &mut pos)? as i32;
+                loc.span.push(v);
+            }
+            (3, WIRE_LEN) => {
+                loc.leading_comments = Some(read_string(bytes, &mut pos)?);
+            }
+            (4, WIRE_LEN) => {
+                loc.trailing_comments = Some(read_string(bytes, &mut pos)?);
+            }
+            (6, WIRE_LEN) => {
+                loc.leading_detached_comments
+                    .push(read_string(bytes, &mut pos)?);
+            }
+            _ => wire::skip_field(bytes, &mut pos, w)?,
+        }
+    }
+    Ok(loc)
+}
+
 fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
     let mut svc = RawService::default();
     let mut pos = 0;
@@ -1991,6 +2512,12 @@ fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
             (2, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 svc.methods.push(parse_method(payload)?);
+            }
+            (3, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                let (deprecated, options) = parse_service_options(payload)?;
+                svc.deprecated = deprecated;
+                svc.options = options;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
@@ -2011,7 +2538,9 @@ fn parse_method(bytes: &[u8]) -> Result<MethodDescriptor, ParseError> {
             (6, WIRE_VARINT) => m.server_streaming = decode_varint(bytes, &mut pos)? != 0,
             (4, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                m.options = parse_method_options(payload)?;
+                let (deprecated, options) = parse_method_options(payload)?;
+                m.deprecated = deprecated;
+                m.options = options;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
@@ -2078,9 +2607,11 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
             }
             (7, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (map_entry, message_set, features, options) = parse_message_options(payload)?;
+                let (map_entry, message_set, deprecated, features, options) =
+                    parse_message_options(payload)?;
                 msg.is_map_entry = map_entry;
                 msg.message_set_wire_format = message_set;
+                msg.deprecated = deprecated;
                 msg.features = features;
                 msg.options = options;
             }
@@ -2108,8 +2639,9 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
             (10, WIRE_LEN) => f.json_name = read_string(bytes, &mut pos)?,
             (8, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (packed, features, options) = parse_field_options(payload)?;
+                let (packed, deprecated, features, options) = parse_field_options(payload)?;
                 f.packed = packed;
+                f.deprecated = deprecated;
                 f.features = features;
                 f.options = options;
             }
@@ -2122,9 +2654,10 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
 
 fn parse_message_options(
     bytes: &[u8],
-) -> Result<(bool, bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
+) -> Result<(bool, bool, bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut map_entry = false;
     let mut message_set = false;
+    let mut deprecated = false;
     let mut features = RawFeatures::default();
     let mut options = Vec::new();
     let mut pos = 0;
@@ -2132,6 +2665,7 @@ fn parse_message_options(
         let (n, w) = decode_tag(bytes, &mut pos)?;
         match (n, w) {
             (1, WIRE_VARINT) => message_set = decode_varint(bytes, &mut pos)? != 0,
+            (3, WIRE_VARINT) => deprecated = decode_varint(bytes, &mut pos)? != 0,
             (7, WIRE_VARINT) => map_entry = decode_varint(bytes, &mut pos)? != 0,
             (12, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
@@ -2143,13 +2677,14 @@ fn parse_message_options(
             }),
         }
     }
-    Ok((map_entry, message_set, features, options))
+    Ok((map_entry, message_set, deprecated, features, options))
 }
 
 fn parse_field_options(
     bytes: &[u8],
-) -> Result<(Option<bool>, RawFeatures, Vec<DescriptorOption>), ParseError> {
+) -> Result<(Option<bool>, bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut packed = None;
+    let mut deprecated = false;
     let mut features = RawFeatures::default();
     let mut options = Vec::new();
     let mut pos = 0;
@@ -2157,6 +2692,7 @@ fn parse_field_options(
         let (n, w) = decode_tag(bytes, &mut pos)?;
         match (n, w) {
             (2, WIRE_VARINT) => packed = Some(decode_varint(bytes, &mut pos)? != 0),
+            (3, WIRE_VARINT) => deprecated = decode_varint(bytes, &mut pos)? != 0,
             (21, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 features = parse_features(payload)?;
@@ -2167,7 +2703,7 @@ fn parse_field_options(
             }),
         }
     }
-    Ok((packed, features, options))
+    Ok((packed, deprecated, features, options))
 }
 
 fn capture_option_value(bytes: &[u8], pos: &mut usize, w: u32) -> Result<Vec<u8>, ParseError> {
@@ -2194,8 +2730,11 @@ fn capture_option_value(bytes: &[u8], pos: &mut usize, w: u32) -> Result<Vec<u8>
     }
 }
 
-fn parse_file_options(bytes: &[u8]) -> Result<(RawFeatures, Vec<DescriptorOption>), ParseError> {
+fn parse_file_options(
+    bytes: &[u8],
+) -> Result<(RawFeatures, bool, Vec<DescriptorOption>), ParseError> {
     let mut features = RawFeatures::default();
+    let mut deprecated = false;
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
@@ -2203,6 +2742,8 @@ fn parse_file_options(bytes: &[u8]) -> Result<(RawFeatures, Vec<DescriptorOption
         if n == 50 && w == WIRE_LEN {
             let payload = read_len_bytes(bytes, &mut pos)?;
             features = parse_features(payload)?;
+        } else if n == 23 && w == WIRE_VARINT {
+            deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             options.push(DescriptorOption {
                 number: n,
@@ -2210,16 +2751,19 @@ fn parse_file_options(bytes: &[u8]) -> Result<(RawFeatures, Vec<DescriptorOption
             });
         }
     }
-    Ok((features, options))
+    Ok((features, deprecated, options))
 }
 
-fn parse_enum_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseError> {
+fn parse_enum_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+    let mut deprecated = false;
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
         if n == 7 && w == WIRE_LEN {
             wire::skip_field(bytes, &mut pos, w)?;
+        } else if n == 2 && w == WIRE_VARINT {
+            deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             options.push(DescriptorOption {
                 number: n,
@@ -2227,16 +2771,19 @@ fn parse_enum_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseError>
             });
         }
     }
-    Ok(options)
+    Ok((deprecated, options))
 }
 
-fn parse_method_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseError> {
+fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+    let mut deprecated = false;
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
         if n == 35 && w == WIRE_LEN {
             wire::skip_field(bytes, &mut pos, w)?;
+        } else if n == 33 && w == WIRE_VARINT {
+            deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             options.push(DescriptorOption {
                 number: n,
@@ -2244,7 +2791,25 @@ fn parse_method_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseErro
             });
         }
     }
-    Ok(options)
+    Ok((deprecated, options))
+}
+
+fn parse_service_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+    let mut deprecated = false;
+    let mut options = Vec::new();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        if n == 33 && w == WIRE_VARINT {
+            deprecated = decode_varint(bytes, &mut pos)? != 0;
+        } else {
+            options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            });
+        }
+    }
+    Ok((deprecated, options))
 }
 
 fn parse_features(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
@@ -2300,11 +2865,17 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
             (1, WIRE_LEN) => e.name = read_string(bytes, &mut pos)?,
             (2, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                e.values.push(parse_enum_value(payload)?);
+                let (num, name, dep) = parse_enum_value(payload)?;
+                e.values.push((num, name));
+                if dep {
+                    e.deprecated_values.insert(num);
+                }
             }
             (3, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                e.options = parse_enum_options(payload)?;
+                let (deprecated, options) = parse_enum_options(payload)?;
+                e.deprecated = deprecated;
+                e.options = options;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
@@ -2312,19 +2883,38 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
     Ok(e)
 }
 
-fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String), ParseError> {
+fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String, bool), ParseError> {
     let mut name = String::new();
     let mut number = 0i32;
+    let mut deprecated = false;
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
         match (n, w) {
             (1, WIRE_LEN) => name = read_string(bytes, &mut pos)?,
             (2, WIRE_VARINT) => number = decode_varint(bytes, &mut pos)? as i32,
+            (3, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                deprecated = parse_enum_value_options(payload)?;
+            }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
-    Ok((number, name))
+    Ok((number, name, deprecated))
+}
+
+fn parse_enum_value_options(bytes: &[u8]) -> Result<bool, ParseError> {
+    let mut deprecated = false;
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        if n == 1 && w == WIRE_VARINT {
+            deprecated = decode_varint(bytes, &mut pos)? != 0;
+        } else {
+            wire::skip_field(bytes, &mut pos, w)?;
+        }
+    }
+    Ok(deprecated)
 }
 
 fn read_string(bytes: &[u8], pos: &mut usize) -> Result<String, ParseError> {
@@ -2411,6 +3001,8 @@ fn resolve_pool(
         built.message_set_wire_format = raw_msg.message_set_wire_format;
         built.file_name = raw_msg.file_name.clone();
         built.options = raw_msg.options.clone();
+        built.comments = raw_msg.comments.clone();
+        built.deprecated = raw_msg.deprecated;
         skeletons.insert(name.clone(), built);
     }
     let mut enum_arcs: BTreeMap<String, Arc<EnumDescriptor>> = BTreeMap::new();
@@ -2424,6 +3016,11 @@ fn resolve_pool(
             listed: raw_e.values.clone(),
             closed: raw_e.closed,
             options: raw_e.options.clone(),
+            comments: raw_e.comments.clone(),
+            value_comments: raw_e.value_comments.clone(),
+            value_comments_by_name: raw_e.value_comments_by_name.clone(),
+            deprecated: raw_e.deprecated,
+            deprecated_values: raw_e.deprecated_values.clone(),
         };
         for (num, n) in &raw_e.values {
             ed.values.entry(*num).or_insert_with(|| n.clone());
@@ -2591,5 +3188,7 @@ fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
             Some(f.full_ext_name.clone())
         },
         options: f.options.clone(),
+        comments: f.comments.clone(),
+        deprecated: f.deprecated,
     }
 }

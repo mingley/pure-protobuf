@@ -1,0 +1,43 @@
+[package]
+name = "pbrs-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+pbrs = { path = ".." }
+pbrs-grpc = { path = "../pbrs-grpc" }
+bytes = "1"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "wire"
+path = "fuzz_targets/wire.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "descriptors"
+path = "fuzz_targets/descriptors.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "formats"
+path = "fuzz_targets/formats.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "grpc_wire"
+path = "fuzz_targets/grpc_wire.rs"
+test = false
+doc = false
+

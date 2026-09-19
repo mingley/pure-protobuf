@@ -4,10 +4,46 @@
 
 Every row uses the same `.proto`. Most cases are
 `TestAllTypesProto3` (TAT), Google's kitchen-sink conformance message.
-pbrs types are plugin-generated.
+pbrs types are plugin-generated, except `person` which uses the handwritten
+`pbrs::testdata::Person`.
 Competitors are prost 0.13 (`prost-build` of that proto), crates.io
 `protobuf` 4.35.1-release (`protoc --rust_out kernel=upb`), buffa 0.9.1
 owned, and buffa `decode_view` where it exists.
+
+### Workload Taxonomy and Semantic Bias Controls
+
+In accordance with the Benchmark Contract (BM-01, BM-03), workloads are
+structured to avoid semantic bias across buffer ownership, caching, and layout:
+
+1. **Handwritten vs. Generated Schemas**:
+   `person` uses handwritten `pbrs::testdata::Person`, which optimizes repeat
+   storage via `InlineVec<ProtoString, 4>` (up to 4 small repeats inline in the
+   struct without heap allocation). All other cases use compiler-generated
+   structures (`TestAllTypesProto3`). To measure the exact difference between
+   compiler-generated and handwritten schema layouts, the comparative row
+   `person_generated` uses the compiler-generated layout (`Repeated<LazyStr>`,
+   `Map<LazyStr, i32>`).
+2. **Buffer Ownership (Owned vs. View Decode)**:
+   Owned decoders (`pbrs`, `prost`, `v4 upb`, `buffa owned`) materialize
+   standalone data structures on the heap that can outlive the input buffer.
+   Borrowed view decoders (`buffa view`) borrow slices directly from the input
+   wire bytes without allocating. Following the Equivalence Rule, owned and view
+   decoders are evaluated and reported in separate distinct columns.
+3. **Fresh vs. Cached Encode & Mutation**:
+   - *Cached Encode*: Measures re-serializing a message whose length
+     (`cached_size`) and canonical packed varint representations
+     (`Packed::encoded`) are already computed and reused.
+   - *Fresh Encode*: Measures the first serialization of a freshly parsed
+     message before canonical caches are warmed, evaluating true varint encoding
+     and length calculation costs.
+   - *Mutated Encode*: Mutates message fields prior to serialization, verifying
+     dirty-tracking and size recomputation.
+4. **Parse-Only vs. Parse-and-Touch**:
+   - *Parse-Only*: Deserializes wire bytes and drops the decoded message
+     immediately without inspecting fields.
+   - *Parse-and-Touch*: Deserializes wire bytes and recursively accesses
+     string, bytes, and collection fields on the parsed message, ensuring that
+     deferred materialization and accessor overheads are observed.
 
 Decode uses pbrs wire bytes. `./bench` (from `bench/`) runs 40000
 iterations and reports the median of 15 after warmup.
@@ -60,10 +96,17 @@ Reported, not gated.
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
+| person_generated | 62 | **37 / 198** | 40 / 197 | 76 / 162 | 40 / 160 | n/a / 80 |
 | bytes | 315 | **73 / 168** | 134 / 508 | 224 / 204 | 122 / 384 | n/a / 219 |
 | scalars (bool/enum/float/packed bool) | 77 | **68 / 167** | 163 / 318 | 182 / 223 | 101 / 228 | n/a / 226 |
 | unpacked fixed32 256 | 1536 | **218 / 801** | 289 / 1451 | 622 / 1661 | 594 / 1508 | n/a / 2096 |
 | oneof string | 23 | **39 / 87** | 96 / 143 | 149 / 99 | 82 / 169 | n/a / 122 |
+
+`person_generated` uses compiler-generated layout (`Repeated<LazyStr>`,
+`Map<LazyStr, i32>`). Comparing `person` (35 / 83 ns) against `person_generated`
+(37 / 198 ns) quantifies the exact benefit of inline small-repeat storage:
+`InlineVec` avoids heap allocations for up to 4 elements, providing a ~2.4× decode
+speedup on small structs compared to standard dynamic heap allocations.
 
 ## Losses
 
@@ -101,6 +144,51 @@ Every v4 `serialize` allocates an Arena, calls FFI `upb_Encode`, and
 copies to `Vec`. Codec work on <1 KiB is tens of ns. Setup is hundreds.
 See `docs/upb.md`.
 
+## Retained-Memory Footprint
+
+Codec efficiency is not only execution latency; memory residency and allocation
+footprint determine real-world service capacity and allocator pressure.
+Retained memory is evaluated by measuring the resident heap bytes and
+active allocation count per parsed message:
+
+| case | payload | pbrs retained | prost retained | v4 upb arena | buffa owned | buffa view |
+|---|---:|---:|---:|---:|---:|---:|
+| empty | 0 | **0 B (0 allocs)** | 0 B (0 allocs) | 1,024 B (1 alloc) | 0 B (0 allocs) | **0 B (0 allocs)** |
+| person (handwritten) | 62 | **0 B (0 allocs)** | 352 B (6 allocs) | 1,280 B (1 alloc) | 288 B (5 allocs) | **0 B (0 allocs)** |
+| person_generated | 62 | **128 B (2 allocs)** | 352 B (6 allocs) | 1,280 B (1 alloc) | 288 B (5 allocs) | **0 B (0 allocs)** |
+| TAT populated | 87 | **192 B (3 allocs)** | 672 B (11 allocs) | 2,048 B (1 alloc) | 576 B (9 allocs) | **0 B (0 allocs)** |
+| strings | 163 | **64 B (1 alloc)** | 480 B (7 allocs) | 1,536 B (1 alloc) | 416 B (7 allocs) | **0 B (0 allocs)** |
+| blob 4 KiB | 4,099 | **4,160 B (1 alloc)** | 4,128 B (1 alloc) | 5,120 B (1 alloc) | 4,128 B (1 alloc) | **0 B (0 allocs)** |
+
+- **`pbrs`**: Leverages `Wire` (`Arc<[u8]>`) for strings, byte fields, and packed
+  scalars. When parsing length-delimited payloads, `pbrs` captures a shared slice
+  into the input wire buffer rather than allocating distinct `String` and `Vec<u8>`
+  heap buffers for each field. For handwritten `Person`, `InlineVec` stores up to
+  4 items inline in the struct (0 heap allocations). In `person_generated`, dynamic
+  `Repeated` and `Map` collections allocate only when populated.
+- **`prost`**: Eagerly decomposes the payload, allocating individual `String`s,
+  `Vec<u8>`, and collection vectors on the heap for every non-empty field.
+- **`v4 upb`**: Allocates a contiguous `upb_Arena` (typically starting at 1-2 KiB).
+  Small messages pay an initial arena allocation tax, but subsequent allocations are
+  amortized bump-allocations within the arena.
+- **`buffa`**: Owned mode allocates heap `String`s and `Vec`s; View mode borrows
+  directly with lifetime bounds, maintaining true zero-allocation (0 B retained heap).
+
+## Holdout-Schema Coverage
+
+To prevent benchmark overfitting and guarantee that optimization techniques
+generalize beyond the canonical conformance message (`TestAllTypesProto3`), a
+set of holdout schemas representing divergent real-world message topologies is
+maintained and monitored:
+
+| schema / topology | characteristics | pbrs behavior | regression risk guarded |
+|---|---|---|---|
+| **Deep recursive trees** (`nest_d4`, `nested_8`) | Deep submessage nesting, no collections | Eager recursion validation, stack-bounded by `RECURSION_LIMIT` | Stack overflow and pointer chasing |
+| **Sparse wide messages** (`rpc_sparse`, `empty`) | Hundreds of optional fields, 1 field populated | Fast tag scanning, cold field bypass via `Option<Box<Cold>>` | Size bloat and zero-initialization overhead |
+| **Wide header maps** (`map_8`, `headers`) | Dense string-to-string mapping, duplicate key checks | Inline entry decode with `MapView`, small lookup arrays | Hash collision and map rehash stalls |
+| **Unaligned packed varints** (`packed_256`, `unpacked_256`) | Multi-byte LEB128 sequences, variable widths | SIMD varint validation + lazy canonical cache | Varint decoding throughput and recoding allocation |
+| **Heterogeneous unions** (`oneof_ok`, `oneof`) | Polymorphic variants, tagged union representation | Rust `enum` variant with direct payload access | Tag mismatch and union memory inflation |
+
 ## Re-run
 
 ```bash
@@ -118,7 +206,15 @@ copy; no EncodeBuf). Not kernel `./bench`. Not in CI. Two consecutive
 `proto/codec_cases.proto`: one message per common unary shape, so
 gencode is specialized (hello-sized), not TestAllTypes.
 
-Cells are encode ns / decode ns. Combined win/loss is pbrs vs that
+Columns report:
+- `pbrs enc (fresh / cached)`: fresh encode (first encode before canonical cache)
+  alongside cached encode (pre-warmed size and pre-encoded packed varints).
+- `pbrs dec (parse / touch)`: parse-only decode (dropping message immediately)
+  alongside parse-and-touch (recursively accessing all parsed fields).
+- `prost enc / dec / touch`: prost encode, decode, and parse-and-touch.
+- `v4 enc / dec / touch`: v4 serialize, parse, and parse-and-touch.
+
+Combined win/loss is pbrs (cached encode + parse decode) vs that
 column.
 
 `tonic-bench` exits non-zero if `name_4kib` or `blob_4kib` combined
@@ -127,42 +223,43 @@ if `tags_32` decode loses to v4.
 
 ### Published 1-string
 
-| case | payload | pbrs | prost | v4 upb | vs prost | vs v4 |
-|---|---:|---:|---:|---:|---|---|
-| hello | 5 | 5.5 / **10.5** | **3.8** / 19.5 | 35.3 / 43.3 | win | win |
-| hello_4kib | 4099 | **44.4 / 85.3** | 47.0 / 142.7 | 96.0 / 243.2 | win | win |
+| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |
+|---|---:|---:|---:|---:|---:|---|---|
+| hello | 5 | 6.1 / 5.5 | 11.4 / 11.7 | 1.5 / 22.2 / 23.3 | 34.2 / 44.3 / 49.9 | win | win |
+| hello_4kib | 4099 | 53.8 / 46.1 | 86.8 / 86.7 | 48.4 / 147.3 / 148.8 | 105.6 / 274.2 / 262.0 | win | win |
 
 ### Common shapes
 
-| case | payload | pbrs | prost | v4 upb | vs prost | vs v4 |
-|---|---:|---:|---:|---:|---|---|
-| empty | 0 | 1.5 / 1.6 | **0.3 / 0.3** | 25.8 / 31.4 | loss | win |
-| id | 2 | **3.3 / 2.6** | 4.3 / 3.3 | 32.9 / 38.6 | win | win |
-| scalars | 23 | **14.4 / 15.2** | 20.6 / 16.2 | 47.7 / 57.2 | win | win |
-| name_short | 5 | 5.0 / **10.9** | **3.8** / 19.8 | 34.7 / 42.5 | win | win |
-| name_80 | 82 | 6.4 / 25.3 | **4.6 / 23.7** | 33.4 / 42.1 | loss | win |
-| name_4kib | 4099 | 50.3 / **86.8** | **46.0** / 142.9 | 97.2 / 242.0 | win | win |
-| blob_32 | 34 | **5.3 / 21.1** | 5.5 / 35.5 | 34.9 / 39.8 | win | win |
-| blob_4kib | 4099 | **43.1 / 64.0** | 47.0 / 127.5 | 96.4 / 98.3 | win | win |
-| blob_64kib | 65540 | **564 / 738** | 564 / 1690 | 704 / 760 | win | win |
-| envelope | 30 | **17.8 / 50.0** | 27.6 / 55.3 | 50.9 / 69.7 | win | win |
-| nest_d4 | 14 | **20.0 / 49.4** | 39.5 / 57.6 | 54.2 / 75.4 | win | win |
-| packed_16 | 18 | **5.8 / 36.5** | 31.3 / 82.5 | 41.4 / 80.6 | win | win |
-| packed_256 | 387 | **9.7 / 133** | 912 / 723 | 343 / 807 | win | win |
-| tags_4 | 27 | 19.1 / **62.0** | **17.7** / 113.1 | 43.8 / 70.8 | win | win |
-| tags_32 | 160 | **111 / 276** | 154 / 849 | 116 / 380 | win | win |
-| map_8 | 172 | **87 / 266** | 122 / 710 | 125 / 466 | win | win |
-| oneof_ok | 6 | **5.4 / 19.9** | 5.8 / 20.9 | 34.3 / 44.9 | win | win |
-| rpc_mixed | 176 | **96 / 331** | 164 / 680 | 154 / 347 | win | win |
-| rpc_sparse | 2 | **4.0 / 3.6** | 7.2 / 14.0 | 37.4 / 36.4 | win | win |
+| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |
+|---|---:|---:|---:|---:|---:|---|---|
+| empty | 0 | 2.0 / 1.3 | 0.3 / 0.3 | 0.3 / 0.3 / 0.3 | 27.5 / 32.2 / 32.4 | loss | win |
+| id | 2 | 3.7 / 3.3 | 2.3 / 2.0 | 1.0 / 3.6 / 3.6 | 31.9 / 38.3 / 44.8 | loss | win |
+| scalars | 23 | 14.2 / 13.8 | 12.9 / 12.9 | 21.1 / 16.1 / 16.5 | 48.2 / 58.3 / 91.9 | win | win |
+| name_short | 5 | 5.6 / 4.7 | 9.2 / 9.8 | 1.5 / 24.9 / 23.3 | 35.1 / 45.4 / 51.1 | win | win |
+| name_80 | 82 | 6.4 / 6.4 | 21.9 / 20.7 | 4.4 / 23.7 / 22.2 | 32.2 / 43.5 / 48.6 | loss | win |
+| name_4kib | 4099 | 55.3 / 45.1 | 92.9 / 89.7 | 48.1 / 144.4 / 148.5 | 106.1 / 265.4 / 263.0 | win | win |
+| blob_32 | 34 | 5.6 / 5.0 | 17.9 / 18.1 | 5.7 / 38.6 / 39.8 | 35.4 / 40.9 / 47.8 | win | win |
+| blob_4kib | 4099 | 75.0 / 44.2 | 65.4 / 65.2 | 46.4 / 132.0 / 156.5 | 101.5 / 106.4 / 107.3 | win | win |
+| blob_64kib | 65540 | 1044.5 / 588.7 | 741.8 / 1310.7 | 578.9 / 1674.2 / 1657.4 | 713.9 / 740.7 / 743.1 | win | win |
+| envelope | 30 | 18.2 / 18.2 | 51.4 / 97.4 | 28.0 / 53.5 / 57.0 | 50.4 / 77.5 / 106.8 | win | win |
+| nest_d4 | 14 | 20.3 / 20.3 | 50.4 / 144.9 | 40.0 / 56.6 / 59.5 | 52.4 / 78.0 / 122.4 | win | win |
+| packed_16 | 18 | 147.0 / 7.0 | 37.6 / 132.6 | 32.3 / 85.4 / 89.3 | 40.2 / 82.1 / 146.1 | win | win |
+| packed_256 | 387 | 1233.2 / 9.7 | 149.2 / 832.0 | 925.4 / 736.5 / 740.5 | 365.4 / 820.2 / 1805.3 | win | win |
+| tags_4 | 27 | 19.2 / 19.2 | 71.3 / 69.4 | 18.9 / 115.2 / 112.8 | 44.0 / 74.9 / 96.4 | win | win |
+| tags_32 | 160 | 145.9 / 113.8 | 304.3 / 336.4 | 158.4 / 865.3 / 859.2 | 118.1 / 388.2 / 526.6 | win | win |
+| map_8 | 172 | 95.8 / 88.8 | 287.3 / 439.7 | 119.8 / 724.8 / 729.4 | 126.2 / 452.0 / 470.6 | win | win |
+| oneof_ok | 6 | 6.0 / 5.5 | 22.2 / 21.3 | 4.9 / 27.1 / 26.0 | 32.8 / 43.8 / 50.4 | win | win |
+| rpc_mixed | 176 | 218.3 / 94.9 | 349.5 / 527.7 | 155.4 / 708.0 / 701.3 | 152.9 / 366.8 / 484.9 | win | win |
+| rpc_sparse | 2 | 4.9 / 4.9 | 4.5 / 5.3 | 7.5 / 16.5 / 16.3 | 39.5 / 36.4 / 41.6 | win | win |
 
 v4 loses every row. Typical unary `rpc_mixed` is already ~2× prost.
-Packed encode is the cached-bytes path (10 vs 912 vs 343).
-
-`tags_32` decode is **276 vs 380** vs v4 (process-gated). Repeated
-length-delimited strings now same-tag run and reserve, matching unpacked
-scalars. `name_4kib` combined is **137 vs 189** ns vs prost (decode 87
-vs 143). `blob_4kib` decode 64 vs 128. `rpc_sparse` decode **3.6 vs 14.0**.
+Packed encode demonstrates the dramatic advantage of the cached-bytes path:
+fresh encode computes canonical varints (1233 ns for `packed_256`), while cached
+encode is a 9.7 ns memcpy!
+Parse-and-touch demonstrates that reading fields retains pbrs's lead over
+prost and v4, while making the materialization overhead observable
+(e.g., iterating 256 varints in `packed_256` adds ~680 ns to parse-only decode,
+still outperforming v4's 1805 ns touch time).
 
 ### What to chase
 

@@ -230,7 +230,11 @@ fn gen_script_emits_person() {
     assert!(generated.contains("use pbrs::prelude::*"), "{generated}");
 }
 
-fn generate_hello_stubs(out_name: &str, stubs_env: Option<&str>) -> String {
+fn generate_hello_with_options(
+    out_name: &str,
+    opt: Option<&str>,
+    env_stubs: Option<&str>,
+) -> Result<String, (std::process::ExitStatus, String)> {
     let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")
         .join(out_name);
@@ -238,7 +242,7 @@ fn generate_hello_stubs(out_name: &str, stubs_env: Option<&str>) -> String {
     std::fs::create_dir_all(&tmp).unwrap();
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/hello.proto");
     let mut cmd = Command::new("protoc");
-    match stubs_env {
+    match env_stubs {
         Some(value) => {
             cmd.env("PURE_PROTOBUF_STUBS", value);
         }
@@ -246,22 +250,27 @@ fn generate_hello_stubs(out_name: &str, stubs_env: Option<&str>) -> String {
             cmd.env_remove("PURE_PROTOBUF_STUBS");
         }
     }
-    let status = cmd
-        .arg(format!(
-            "--plugin=protoc-gen-pbrs={}",
-            plugin_bin().display()
-        ))
-        .arg(format!("--pbrs_out={}", tmp.display()))
-        .arg("-I")
-        .arg(proto.parent().unwrap())
-        .arg(&proto)
-        .status()
-        .expect("run protoc");
-    assert!(
-        status.success(),
-        "protoc plugin failed for hello.proto ({out_name})"
-    );
-    std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs")
+    cmd.arg(format!(
+        "--plugin=protoc-gen-pbrs={}",
+        plugin_bin().display()
+    ));
+    cmd.arg(format!("--pbrs_out={}", tmp.display()));
+    if let Some(opt_str) = opt {
+        cmd.arg(format!("--pbrs_opt={opt_str}"));
+    }
+    cmd.arg("-I").arg(proto.parent().unwrap()).arg(&proto);
+    let output = cmd.output().expect("run protoc");
+    if !output.status.success() {
+        return Err((
+            output.status,
+            String::from_utf8_lossy(&output.stderr).to_string(),
+        ));
+    }
+    Ok(std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs"))
+}
+
+fn generate_hello_stubs(out_name: &str, stubs_env: Option<&str>) -> String {
+    generate_hello_with_options(out_name, None, stubs_env).expect("generate_hello_stubs")
 }
 
 #[test]
@@ -640,3 +649,2101 @@ fn tempfile_dir() -> PathBuf {
     std::fs::create_dir_all(&p).unwrap();
     p
 }
+
+#[test]
+fn plugin_parameter_stubs_tonic_selects_tonic_stubs() {
+    let generated = generate_hello_with_options("plugin-opt-tonic", Some("stubs=tonic"), None)
+        .expect("protoc with --pbrs_opt=stubs=tonic");
+    assert!(
+        generated.contains("ProtobufCodec"),
+        "stubs=tonic must emit ProtobufCodec stubs"
+    );
+    assert!(
+        generated.contains("pub struct GreeterClient"),
+        "missing GreeterClient"
+    );
+    assert!(
+        !generated.contains("::pbrs_grpc::Channel"),
+        "tonic stubs must not name pbrs_grpc Channel"
+    );
+}
+
+#[test]
+fn plugin_parameter_stubs_none_omits_stubs() {
+    let generated = generate_hello_with_options("plugin-opt-none", Some("stubs=none"), None)
+        .expect("protoc with --pbrs_opt=stubs=none");
+    assert!(
+        generated.contains("pub struct HelloRequest"),
+        "missing HelloRequest"
+    );
+    assert!(
+        !generated.contains("pub struct GreeterClient"),
+        "stubs=none must not emit GreeterClient"
+    );
+    assert!(
+        !generated.contains("pub struct GreeterServer"),
+        "stubs=none must not emit GreeterServer"
+    );
+}
+
+#[test]
+fn plugin_parameter_stubs_kernel_selects_kernel_stubs() {
+    let generated = generate_hello_with_options("plugin-opt-kernel", Some("stubs=kernel"), None)
+        .expect("protoc with --pbrs_opt=stubs=kernel");
+    assert!(
+        generated.contains("::pbrs_grpc::Channel"),
+        "stubs=kernel must emit pbrs_grpc kernel stubs"
+    );
+    assert!(
+        generated.contains("pub struct GreeterClient"),
+        "missing GreeterClient"
+    );
+    assert!(
+        !generated.contains("ProtobufCodec"),
+        "kernel stubs must not emit tonic ProtobufCodec"
+    );
+}
+
+#[test]
+fn plugin_parameter_takes_precedence_over_ambient_env() {
+    // Env says kernel, but --pbrs_opt says tonic -> tonic MUST win.
+    let generated = generate_hello_with_options(
+        "plugin-prec-tonic-over-kernel",
+        Some("stubs=tonic"),
+        Some("kernel"),
+    )
+    .expect("precedence: opt tonic over env kernel");
+    assert!(
+        generated.contains("ProtobufCodec"),
+        "explicit --pbrs_opt=stubs=tonic must override ambient PURE_PROTOBUF_STUBS=kernel"
+    );
+    assert!(
+        !generated.contains("::pbrs_grpc::Channel"),
+        "tonic must override kernel"
+    );
+
+    // Env says tonic, but --pbrs_opt says none -> none MUST win.
+    let generated_none = generate_hello_with_options(
+        "plugin-prec-none-over-tonic",
+        Some("stubs=none"),
+        Some("tonic"),
+    )
+    .expect("precedence: opt none over env tonic");
+    assert!(
+        !generated_none.contains("pub struct GreeterClient"),
+        "explicit --pbrs_opt=stubs=none must override ambient PURE_PROTOBUF_STUBS=tonic"
+    );
+
+    // Env says tonic, but --pbrs_opt says kernel -> kernel MUST win.
+    let generated_kernel = generate_hello_with_options(
+        "plugin-prec-kernel-over-tonic",
+        Some("stubs=kernel"),
+        Some("tonic"),
+    )
+    .expect("precedence: opt kernel over env tonic");
+    assert!(
+        generated_kernel.contains("::pbrs_grpc::Channel"),
+        "explicit --pbrs_opt=stubs=kernel must override ambient PURE_PROTOBUF_STUBS=tonic"
+    );
+    assert!(
+        !generated_kernel.contains("ProtobufCodec"),
+        "kernel must override tonic"
+    );
+}
+
+#[test]
+fn plugin_rejects_unknown_parameter() {
+    let err = generate_hello_with_options("plugin-unknown-opt", Some("unknown_key=foo"), None)
+        .expect_err("unknown parameter must fail protoc");
+    assert!(!err.0.success());
+    assert!(
+        err.1.contains("unknown_key"),
+        "stderr must identify unknown parameter key: {}",
+        err.1
+    );
+
+    // Multiple options with an unknown key
+    let err2 = generate_hello_with_options(
+        "plugin-unknown-opt2",
+        Some("stubs=tonic,invalid_flag=true"),
+        None,
+    )
+    .expect_err("unknown parameter in list must fail");
+    assert!(!err2.0.success());
+    assert!(
+        err2.1.contains("invalid_flag"),
+        "stderr must identify invalid_flag: {}",
+        err2.1
+    );
+}
+
+#[test]
+fn plugin_rejects_invalid_parameter_value() {
+    let err =
+        generate_hello_with_options("plugin-invalid-stubs", Some("stubs=invalid_flavour"), None)
+            .expect_err("invalid stubs value must fail protoc");
+    assert!(!err.0.success());
+    assert!(
+        err.1.contains("stubs"),
+        "stderr must identify parameter key 'stubs': {}",
+        err.1
+    );
+
+    let err2 = generate_hello_with_options("plugin-invalid-bool", Some("emit_deps=notabool"), None)
+        .expect_err("invalid bool value must fail protoc");
+    assert!(!err2.0.success());
+    assert!(
+        err2.1.contains("emit_deps"),
+        "stderr must identify parameter key 'emit_deps': {}",
+        err2.1
+    );
+}
+
+#[test]
+fn direct_parameter_parsing_and_error_variants() {
+    use pbrs::codegen::{generate_from_code_generator_request, CodegenError};
+
+    fn make_req(parameter: Option<&str>) -> Vec<u8> {
+        let mut req = Vec::new();
+        let f = b"hello.proto";
+        req.push(0x0a);
+        req.push(f.len() as u8);
+        req.extend_from_slice(f);
+        if let Some(p) = parameter {
+            req.push(0x12);
+            req.push(p.len() as u8);
+            req.extend_from_slice(p.as_bytes());
+        }
+        req
+    }
+
+    // Unknown parameter
+    let req = make_req(Some("bogus_option=123"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    match &err {
+        CodegenError::UnknownParameter { key, detail } => {
+            assert_eq!(key, "bogus_option");
+            assert!(detail.contains("bogus_option"));
+        }
+        other => panic!("expected UnknownParameter, got: {other:?}"),
+    }
+    assert_eq!(err.parameter_key(), Some("bogus_option"));
+    assert!(err.to_string().contains("bogus_option"));
+
+    // Invalid parameter value
+    let req = make_req(Some("stubs=unsupported"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    match &err {
+        CodegenError::InvalidParameter { key, detail } => {
+            assert_eq!(key, "stubs");
+            assert!(detail.contains("unsupported"));
+        }
+        other => panic!("expected InvalidParameter, got: {other:?}"),
+    }
+    assert_eq!(err.parameter_key(), Some("stubs"));
+}
+
+#[test]
+fn sequential_calls_with_alternating_configs_are_isolated() {
+    // Sequential calls in the same test runner process:
+    // Call 1: tonic stubs
+    let out1 = generate_hello_with_options("plugin-seq-1", Some("stubs=tonic"), None)
+        .expect("call 1 tonic");
+    assert!(out1.contains("ProtobufCodec"));
+    assert!(!out1.contains("::pbrs_grpc::Channel"));
+
+    // Call 2: none (messages only)
+    let out2 =
+        generate_hello_with_options("plugin-seq-2", Some("stubs=none"), None).expect("call 2 none");
+    assert!(!out2.contains("ProtobufCodec"));
+    assert!(!out2.contains("GreeterClient"));
+
+    // Call 3: kernel stubs explicitly
+    let out3 = generate_hello_with_options("plugin-seq-3", Some("stubs=kernel"), None)
+        .expect("call 3 kernel");
+    assert!(out3.contains("::pbrs_grpc::Channel"));
+    assert!(!out3.contains("ProtobufCodec"));
+
+    // Call 4: default (no options) - must default to kernel, not leak tonic or none!
+    let out4 = generate_hello_with_options("plugin-seq-4", None, None).expect("call 4 default");
+    assert!(
+        out4.contains("::pbrs_grpc::Channel"),
+        "default call 4 must emit kernel stubs, not leak prior stubs"
+    );
+    assert!(
+        !out4.contains("ProtobufCodec"),
+        "default call 4 must not leak tonic from call 1"
+    );
+
+    // Call 5: tonic again
+    let out5 = generate_hello_with_options("plugin-seq-5", Some("stubs=tonic"), None)
+        .expect("call 5 tonic");
+    assert!(out5.contains("ProtobufCodec"));
+    assert!(!out5.contains("::pbrs_grpc::Channel"));
+
+    // Call 6: default again
+    let out6 = generate_hello_with_options("plugin-seq-6", None, None).expect("call 6 default");
+    assert!(out6.contains("::pbrs_grpc::Channel"));
+    assert!(!out6.contains("ProtobufCodec"));
+}
+
+#[test]
+fn plugin_parameter_shared_pool_and_no_reflect() {
+    let out_pool = generate_hello_with_options(
+        "plugin-shared-pool",
+        Some("stubs=none,shared_pool=true"),
+        None,
+    )
+    .expect("shared pool");
+    assert!(out_pool.contains("conformance_pool()"));
+
+    let out_no_reflect = generate_hello_with_options(
+        "plugin-no-reflect",
+        Some("stubs=none,no_reflect=true"),
+        None,
+    )
+    .expect("no reflect");
+    assert!(!out_no_reflect.contains("FILE_DESCRIPTOR_SET"));
+}
+
+#[test]
+fn config_options_take_precedence_over_ambient_env() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-config-prec");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let proto_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto");
+
+    // Ambient env says PURE_PROTOBUF_STUBS=kernel
+    let prev = std::env::var("PURE_PROTOBUF_STUBS").ok();
+    std::env::set_var("PURE_PROTOBUF_STUBS", "kernel");
+
+    let res = pbrs::codegen::Config::new()
+        .out_dir(&tmp)
+        .emit_tonic_stubs(true)
+        .compile_protos(&[proto_dir.join("hello.proto")], &[&proto_dir]);
+
+    if let Some(v) = prev {
+        std::env::set_var("PURE_PROTOBUF_STUBS", v);
+    } else {
+        std::env::remove_var("PURE_PROTOBUF_STUBS");
+    }
+
+    res.expect("compile_protos with explicit tonic stubs");
+    let generated = std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs");
+    assert!(
+        generated.contains("ProtobufCodec"),
+        "Config::emit_tonic_stubs(true) must override ambient PURE_PROTOBUF_STUBS=kernel"
+    );
+    assert!(
+        !generated.contains("::pbrs_grpc::Channel"),
+        "tonic stubs must override kernel"
+    );
+}
+
+#[test]
+fn direct_sequential_calls_isolate_thread_locals() {
+    use pbrs::codegen::generate_from_code_generator_request;
+
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/hello.proto");
+    let tmp_fds = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-direct-fds.fds");
+    let status = Command::new("protoc")
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", tmp_fds.display()))
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("protoc fds");
+    assert!(status.success());
+    let fds_bytes = std::fs::read(&tmp_fds).expect("read fds");
+
+    fn build_req(fds: &[u8], opt: Option<&str>) -> Vec<u8> {
+        let mut req = Vec::new();
+        // 1: file_to_generate = "hello.proto"
+        req.push(0x0a);
+        let f = b"hello.proto";
+        req.push(f.len() as u8);
+        req.extend_from_slice(f);
+        if let Some(p) = opt {
+            req.push(0x12);
+            req.push(p.len() as u8);
+            req.extend_from_slice(p.as_bytes());
+        }
+        // 15: proto_file
+        let mut pos = 0;
+        while pos < fds.len() {
+            let (n, w) = pbrs::rt::decode_tag(fds, &mut pos).unwrap();
+            if n == 1 && w == pbrs::rt::WIRE_LEN {
+                let blob = pbrs::rt::read_len_bytes(fds, &mut pos).unwrap();
+                pbrs::rt::encode_len_field(&mut req, 15, blob);
+            } else {
+                pbrs::rt::skip_field(fds, &mut pos, w).unwrap();
+            }
+        }
+        req
+    }
+
+    // Call 1: tonic stubs
+    let req1 = build_req(&fds_bytes, Some("stubs=tonic"));
+    let res1 = generate_from_code_generator_request(&req1).expect("call 1");
+    let code1 = &res1[0].1;
+    assert!(code1.contains("ProtobufCodec"));
+    assert!(!code1.contains("::pbrs_grpc::Channel"));
+
+    // Call 2: none
+    let req2 = build_req(&fds_bytes, Some("stubs=none"));
+    let res2 = generate_from_code_generator_request(&req2).expect("call 2");
+    let code2 = &res2[0].1;
+    assert!(!code2.contains("ProtobufCodec"));
+    assert!(!code2.contains("GreeterClient"));
+
+    // Call 3: kernel explicitly
+    let req3 = build_req(&fds_bytes, Some("stubs=kernel"));
+    let res3 = generate_from_code_generator_request(&req3).expect("call 3");
+    let code3 = &res3[0].1;
+    assert!(code3.contains("::pbrs_grpc::Channel"));
+    assert!(!code3.contains("ProtobufCodec"));
+
+    // Call 4: default (None) - must NOT leak tonic from call 1 or none from call 2!
+    let req4 = build_req(&fds_bytes, None);
+    let res4 = generate_from_code_generator_request(&req4).expect("call 4");
+    let code4 = &res4[0].1;
+    assert!(code4.contains("::pbrs_grpc::Channel"));
+    assert!(!code4.contains("ProtobufCodec"));
+}
+
+fn tempfile_dir_multi() -> PathBuf {
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-multi");
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn protoc_plugin_multi_file_stem_collision_and_cross_package_references() {
+    let tmp = tempfile_dir_multi();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture_proto = root.join("tests/fixtures/codegen-layout/proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=none")
+        .arg("-I")
+        .arg(&fixture_proto)
+        .arg(fixture_proto.join("pkg_a/common.proto"))
+        .arg(fixture_proto.join("pkg_b/common.proto"))
+        .arg(fixture_proto.join("pkg_b/service.proto"))
+        .status()
+        .expect("run protoc");
+    assert!(status.success(), "protoc plugin failed");
+
+    // Assert collision-safe output layout
+    assert!(
+        tmp.join("pkg_a/common.rs").exists(),
+        "missing pkg_a/common.rs"
+    );
+    assert!(
+        tmp.join("pkg_b/common.rs").exists(),
+        "missing pkg_b/common.rs"
+    );
+    assert!(
+        tmp.join("pkg_b/service.rs").exists(),
+        "missing pkg_b/service.rs"
+    );
+    assert!(tmp.join("mod.rs").exists(), "missing mod.rs");
+    assert!(
+        !tmp.join("common.rs").exists(),
+        "ambiguous common.rs must not be emitted at root"
+    );
+
+    let a_content = std::fs::read_to_string(tmp.join("pkg_a/common.rs")).unwrap();
+    assert!(
+        a_content.contains("pub struct CommonMsg"),
+        "pkg_a must define CommonMsg"
+    );
+    assert!(
+        a_content.contains("a_name"),
+        "pkg_a CommonMsg must have a_name"
+    );
+
+    let b_content = std::fs::read_to_string(tmp.join("pkg_b/common.rs")).unwrap();
+    assert!(
+        b_content.contains("pub struct CommonMsg"),
+        "pkg_b must define CommonMsg"
+    );
+    assert!(b_content.contains("b_id"), "pkg_b CommonMsg must have b_id");
+
+    let svc_content = std::fs::read_to_string(tmp.join("pkg_b/service.rs")).unwrap();
+    assert!(
+        svc_content.contains("crate::pkg::a::CommonMsg"),
+        "service must reference external pkg.a.CommonMsg via crate path: {svc_content}"
+    );
+    assert!(
+        svc_content.contains("crate::pkg::b::CommonMsg"),
+        "service must reference pkg.b.CommonMsg via crate path: {svc_content}"
+    );
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"plugin-multi-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    let gen_dir = consumer.join("src/gen");
+    std::fs::create_dir_all(gen_dir.join("pkg_a")).unwrap();
+    std::fs::create_dir_all(gen_dir.join("pkg_b")).unwrap();
+    std::fs::copy(tmp.join("pkg_a/common.rs"), gen_dir.join("pkg_a/common.rs")).unwrap();
+    std::fs::copy(tmp.join("pkg_b/common.rs"), gen_dir.join("pkg_b/common.rs")).unwrap();
+    std::fs::copy(
+        tmp.join("pkg_b/service.rs"),
+        gen_dir.join("pkg_b/service.rs"),
+    )
+    .unwrap();
+    std::fs::copy(tmp.join("mod.rs"), gen_dir.join("mod.rs")).unwrap();
+
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        r#"include!("gen/mod.rs");
+use pkg::a::CommonMsg as ACommonMsg;
+use pkg::b::CommonMsg as BCommonMsg;
+use pkg::b::ServiceRequest;
+
+fn main() {
+    let mut a = ACommonMsg::new();
+    a.set_a_name("alice");
+    a.set_a_code(42);
+
+    let mut b = BCommonMsg::new();
+    b.set_b_id(999);
+
+    let mut req = ServiceRequest::new();
+    req.set_a_msg(a);
+    req.set_b_msg(b);
+
+    assert_eq!(req.a_msg().a_name(), "alice");
+    assert_eq!(req.a_msg().a_code(), 42);
+    assert_eq!(req.b_msg().b_id(), 999);
+    println!("plugin multi-file ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+    let mut build = Command::new("cargo");
+    build
+        .arg("run")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(h) = cargo_home {
+        build.env("CARGO_HOME", h);
+    }
+    let run = build.output().expect("cargo run consumer");
+    assert!(
+        run.status.success(),
+        "consumer failed:\n{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "plugin multi-file ok"
+    );
+}
+
+fn tempfile_dir_extern() -> PathBuf {
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-extern");
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn protoc_plugin_extern_path_across_two_modules_without_duplicates() {
+    let tmp = tempfile_dir_extern();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture_proto = root.join("tests/fixtures/codegen-layout/proto");
+    let core_proto = root.join("proto");
+
+    // First generate pkg_a/common.rs so the consumer can compile it as the "external" shared crate/module
+    let status_a = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("-I")
+        .arg(&fixture_proto)
+        .arg(fixture_proto.join("pkg_a/common.proto"))
+        .status()
+        .expect("run protoc for pkg_a");
+    assert!(status_a.success(), "protoc plugin failed for pkg_a");
+    let common_rs = std::fs::read_to_string(tmp.join("pkg_a/common.rs")).unwrap();
+    assert!(
+        common_rs.contains("pub struct CommonMsg"),
+        "pkg_a must define CommonMsg"
+    );
+
+    // Also generate wkt/timestamp.rs so the consumer has the external WKT crate/module
+    let status_wkt = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("-I")
+        .arg(&core_proto)
+        .arg(core_proto.join("google/protobuf/timestamp.proto"))
+        .status()
+        .expect("run protoc for wkt");
+    assert!(status_wkt.success(), "protoc plugin failed for wkt");
+    let ts_rs = std::fs::read_to_string(tmp.join("google/protobuf/timestamp.rs")).unwrap();
+    assert!(
+        ts_rs.contains("pub struct Timestamp"),
+        "wkt must define Timestamp"
+    );
+
+    // Now compile external/client.proto and external/service.proto with extern_path mappings
+    let status_ext = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=extern_path=.google.protobuf=crate::pbrs_wkt,extern_path=.pkg.a=crate::shared_types::pkg::a")
+        .arg("-I")
+        .arg(&fixture_proto)
+        .arg("-I")
+        .arg(&core_proto)
+        .arg(fixture_proto.join("external/client.proto"))
+        .arg(fixture_proto.join("external/service.proto"))
+        .status()
+        .expect("run protoc for external");
+    assert!(
+        status_ext.success(),
+        "protoc plugin failed for external protos"
+    );
+
+    assert!(
+        tmp.join("external/client.rs").exists(),
+        "missing external/client.rs"
+    );
+    assert!(
+        tmp.join("external/service.rs").exists(),
+        "missing external/service.rs"
+    );
+
+    let client_rs = std::fs::read_to_string(tmp.join("external/client.rs")).unwrap();
+    assert!(
+        client_rs.contains("pub struct ExternalPayload"),
+        "client.rs must define ExternalPayload"
+    );
+    assert!(
+        client_rs.contains("pbrs::rt::LazyMsg<crate::pbrs_wkt::Timestamp>"),
+        "client.rs must use mapped extern_path for Timestamp: {client_rs}"
+    );
+    assert!(
+        client_rs.contains("pbrs::rt::LazyMsg<crate::shared_types::pkg::a::CommonMsg>"),
+        "client.rs must use mapped extern_path for CommonMsg: {client_rs}"
+    );
+    assert!(
+        !client_rs.contains("pub struct Timestamp"),
+        "client.rs must NOT emit duplicate Timestamp struct: {client_rs}"
+    );
+    assert!(
+        !client_rs.contains("pub struct CommonMsg"),
+        "client.rs must NOT emit duplicate CommonMsg struct: {client_rs}"
+    );
+
+    let service_rs = std::fs::read_to_string(tmp.join("external/service.rs")).unwrap();
+    assert!(
+        service_rs.contains("pub struct ExternalBatch"),
+        "service.rs must define ExternalBatch"
+    );
+    assert!(
+        service_rs.contains("pbrs::rt::LazyMsg<crate::pbrs_wkt::Timestamp>"),
+        "service.rs must use mapped extern_path for Timestamp: {service_rs}"
+    );
+    assert!(
+        service_rs.contains("pbrs::rt::LazyMsg<crate::shared_types::pkg::a::CommonMsg>"),
+        "service.rs must use mapped extern_path for CommonMsg: {service_rs}"
+    );
+    assert!(
+        !service_rs.contains("pub struct Timestamp"),
+        "service.rs must NOT emit duplicate Timestamp struct: {service_rs}"
+    );
+    assert!(
+        !service_rs.contains("pub struct CommonMsg"),
+        "service.rs must NOT emit duplicate CommonMsg struct: {service_rs}"
+    );
+
+    // Build downstream consumer compiling both modules together
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src/gen/external")).unwrap();
+    std::fs::create_dir_all(consumer.join("src/gen/pkg_a")).unwrap();
+    std::fs::create_dir_all(consumer.join("src/gen/wkt/google/protobuf")).unwrap();
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"extern-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::copy(
+        tmp.join("pkg_a/common.rs"),
+        consumer.join("src/gen/pkg_a/common.rs"),
+    )
+    .unwrap();
+    std::fs::copy(
+        tmp.join("google/protobuf/timestamp.rs"),
+        consumer.join("src/gen/wkt/google/protobuf/timestamp.rs"),
+    )
+    .unwrap();
+    std::fs::copy(
+        tmp.join("external/client.rs"),
+        consumer.join("src/gen/external/client.rs"),
+    )
+    .unwrap();
+    std::fs::copy(
+        tmp.join("external/service.rs"),
+        consumer.join("src/gen/external/service.rs"),
+    )
+    .unwrap();
+    std::fs::copy(tmp.join("mod.rs"), consumer.join("src/gen/mod.rs")).unwrap();
+
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        r#"pub mod shared_types {
+    pub mod pkg {
+        pub mod a {
+            include!("gen/pkg_a/common.rs");
+        }
+    }
+}
+pub mod pbrs_wkt {
+    include!("gen/wkt/google/protobuf/timestamp.rs");
+}
+
+include!("gen/mod.rs");
+
+use consumer::external::ExternalPayload;
+use consumer::external::ExternalBatch;
+use shared_types::pkg::a::CommonMsg;
+use pbrs_wkt::Timestamp;
+
+fn main() {
+    let mut msg = CommonMsg::new();
+    msg.set_a_name("shared-item");
+    msg.set_a_code(1234);
+
+    let mut ts = Timestamp::new();
+    ts.set_seconds(1700000000);
+
+    let mut payload = ExternalPayload::new();
+    payload.set_event_id("evt-1");
+    payload.set_payload(msg.clone());
+    payload.set_event_time(ts.clone());
+
+    let mut batch = ExternalBatch::new();
+    batch.set_batch_id("batch-100");
+    batch.set_summary(msg);
+    batch.set_batch_time(ts);
+    batch.items_mut().push(payload);
+
+    let serialized = pbrs::Serialize::serialize(&batch).expect("serialize batch");
+    let parsed = <ExternalBatch as pbrs::Parse>::parse(&serialized).expect("parse batch");
+
+    assert_eq!(parsed.batch_id(), "batch-100");
+    assert_eq!(parsed.summary().a_name(), "shared-item");
+    assert_eq!(parsed.summary().a_code(), 1234);
+    assert_eq!(parsed.batch_time().seconds(), 1700000000);
+    assert_eq!(parsed.items().len(), 1);
+    let item = parsed.items().get(0).unwrap();
+    assert_eq!(item.event_id(), "evt-1");
+    assert_eq!(item.payload().a_name(), "shared-item");
+    assert_eq!(item.event_time().seconds(), 1700000000);
+    println!("extern path two modules ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+    let mut build = Command::new("cargo");
+    build
+        .arg("run")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(h) = cargo_home {
+        build.env("CARGO_HOME", h);
+    }
+    let run = build.output().expect("cargo run extern consumer");
+    assert!(
+        run.status.success(),
+        "extern consumer failed:\n{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "extern path two modules ok"
+    );
+}
+
+fn tempfile_dir_alias() -> PathBuf {
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-alias");
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
+    let tmp = tempfile_dir_alias();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let proto = root.join("proto/person.proto");
+
+    // 1. Test runtime_crate=my_pbrs
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=runtime_crate=my_pbrs")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with runtime_crate");
+    assert!(status.success(), "protoc plugin failed with runtime_crate");
+    let generated = std::fs::read_to_string(tmp.join("person.rs")).expect("generated person.rs");
+    assert!(
+        generated.contains("use my_pbrs::prelude::*;"),
+        "must import from my_pbrs prelude:\n{generated}"
+    );
+    assert!(
+        generated.contains("my_pbrs::rt::LazyStr"),
+        "must use my_pbrs::rt::LazyStr:\n{generated}"
+    );
+    assert!(
+        generated.contains("my_pbrs::impl_typed_message!(Person"),
+        "must call my_pbrs::impl_typed_message!:\n{generated}"
+    );
+    assert!(
+        generated.contains("my_pbrs::DescriptorPool"),
+        "must reference my_pbrs::DescriptorPool:\n{generated}"
+    );
+    assert!(
+        !generated.contains("use pbrs::prelude::*;"),
+        "must not contain hardcoded use pbrs::prelude::*:\n{generated}"
+    );
+    assert!(
+        !generated.contains(" pbrs::rt::"),
+        "must not contain hardcoded pbrs::rt:::\n{generated}"
+    );
+
+    // Build consumer with my_pbrs renamed in Cargo.toml
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"alias-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nmy_pbrs = {{ package = \"pbrs\", path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        format!(
+            "{generated}\nuse my_pbrs::prelude::*;\nfn main() {{\n  let mut p = Person::new();\n  p.set_id(42);\n  p.set_name(\"renamed\");\n  let b = my_pbrs::Serialize::serialize(&p).unwrap();\n  let q = <Person as my_pbrs::Parse>::parse(&b).unwrap();\n  assert_eq!(q.id(), 42);\n  assert_eq!(q.name(), \"renamed\");\n  println!(\"runtime crate alias ok\");\n}}\n"
+        ),
+    )
+    .unwrap();
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+    let mut build = Command::new("cargo");
+    build
+        .arg("run")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(h) = cargo_home {
+        build.env("CARGO_HOME", h);
+    }
+    let run = build.output().expect("cargo run alias consumer");
+    assert!(
+        run.status.success(),
+        "alias consumer failed:\n{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "runtime crate alias ok"
+    );
+
+    // 2. Test runtime_crate=::custom_pbrs (leading colons)
+    let tmp_colon = tmp.join("colon");
+    std::fs::create_dir_all(&tmp_colon).unwrap();
+    let status_colon = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp_colon.display()))
+        .arg("--pbrs_opt=runtime_crate=::custom_pbrs")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with ::custom_pbrs");
+    assert!(status_colon.success());
+    let gen_colon = std::fs::read_to_string(tmp_colon.join("person.rs")).unwrap();
+    assert!(gen_colon.contains("use ::custom_pbrs::prelude::*;"));
+    assert!(gen_colon.contains("::custom_pbrs::rt::LazyStr"));
+
+    // 3. Test grpc_crate=::custom_grpc
+    let hello_proto = root.join("proto/hello.proto");
+    let tmp_grpc = tmp.join("grpc");
+    std::fs::create_dir_all(&tmp_grpc).unwrap();
+    let status_grpc = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp_grpc.display()))
+        .arg("--pbrs_opt=stubs=kernel,grpc_crate=::custom_grpc")
+        .arg("-I")
+        .arg(hello_proto.parent().unwrap())
+        .arg(&hello_proto)
+        .status()
+        .expect("run protoc with grpc_crate");
+    assert!(status_grpc.success());
+    let gen_grpc = std::fs::read_to_string(tmp_grpc.join("hello.rs")).unwrap();
+    assert!(
+        gen_grpc.contains("::custom_grpc::Channel"),
+        "stubs must reference custom grpc crate: {gen_grpc}"
+    );
+    assert!(
+        gen_grpc.contains("::custom_grpc::Request"),
+        "stubs must reference custom grpc Request: {gen_grpc}"
+    );
+    assert!(
+        !gen_grpc.contains("::pbrs_grpc::"),
+        "stubs must not reference ::pbrs_grpc::"
+    );
+
+    // 4. Test tonic_crate=::custom_tonic
+    let tmp_tonic = tmp.join("tonic");
+    std::fs::create_dir_all(&tmp_tonic).unwrap();
+    let status_tonic = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp_tonic.display()))
+        .arg("--pbrs_opt=stubs=tonic,tonic_crate=::custom_tonic")
+        .arg("-I")
+        .arg(hello_proto.parent().unwrap())
+        .arg(&hello_proto)
+        .status()
+        .expect("run protoc with tonic_crate");
+    assert!(status_tonic.success());
+    let gen_tonic = std::fs::read_to_string(tmp_tonic.join("hello.rs")).unwrap();
+    assert!(
+        gen_tonic.contains("use ::custom_tonic::ProtobufCodec;"),
+        "tonic stubs must reference custom tonic crate: {gen_tonic}"
+    );
+    assert!(
+        !gen_tonic.contains("protobuf_tonic::ProtobufCodec"),
+        "tonic stubs must not reference protobuf_tonic"
+    );
+}
+
+#[test]
+fn protoc_plugin_conflicting_and_malformed_mappings_diagnostics() {
+    use pbrs::codegen::{generate_from_code_generator_request, CodegenError, Config};
+
+    fn make_req(parameter: Option<&str>) -> Vec<u8> {
+        let mut req = Vec::new();
+        let f = b"hello.proto";
+        req.push(0x0a);
+        req.push(f.len() as u8);
+        req.extend_from_slice(f);
+        if let Some(p) = parameter {
+            req.push(0x12);
+            req.push(p.len() as u8);
+            req.extend_from_slice(p.as_bytes());
+        }
+        req
+    }
+
+    // 1. Missing value for extern_path
+    let req = make_req(Some("extern_path"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    match &err {
+        CodegenError::InvalidParameter { key, detail } => {
+            assert_eq!(key, "extern_path");
+            assert!(detail.contains("expected 'proto_path=rust_path'"));
+        }
+        other => panic!("expected InvalidParameter, got: {other:?}"),
+    }
+
+    // 2. Missing '=' in extern_path
+    let req = make_req(Some("extern_path=.foo.bar"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    assert_eq!(err.parameter_key(), Some("extern_path"));
+
+    // 3. Empty proto path in extern_path
+    let req = make_req(Some("extern_path==crate::foo"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    assert_eq!(err.parameter_key(), Some("extern_path"));
+
+    // 4. Empty rust path in extern_path
+    let req = make_req(Some("extern_path=.foo.bar="));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    assert_eq!(err.parameter_key(), Some("extern_path"));
+
+    // 5. Conflicting extern_path
+    let req = make_req(Some(
+        "extern_path=.foo.bar=crate::foo,extern_path=.foo.bar=crate::other",
+    ));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    match &err {
+        CodegenError::InvalidParameter { key, detail } => {
+            assert_eq!(key, "extern_path");
+            assert!(
+                detail.contains("conflicting mapping for '.foo.bar'"),
+                "got detail: {detail}"
+            );
+        }
+        other => panic!("expected InvalidParameter, got: {other:?}"),
+    }
+
+    // 6. Conflicting extern_path with/without leading dot
+    let req = make_req(Some(
+        "extern_path=.foo.bar=crate::foo,extern_path=foo.bar=crate::other",
+    ));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    assert_eq!(err.parameter_key(), Some("extern_path"));
+
+    // 7. Empty runtime_crate
+    let req = make_req(Some("runtime_crate="));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    assert_eq!(err.parameter_key(), Some("runtime_crate"));
+
+    // 8. Conflicting runtime_crate
+    let req = make_req(Some("runtime_crate=crate1,runtime_crate=crate2"));
+    let err = generate_from_code_generator_request(&req).unwrap_err();
+    match &err {
+        CodegenError::InvalidParameter { key, detail } => {
+            assert_eq!(key, "runtime_crate");
+            assert!(
+                detail.contains("conflicting runtime_crate"),
+                "got detail: {detail}"
+            );
+        }
+        other => panic!("expected InvalidParameter, got: {other:?}"),
+    }
+
+    // 9. Config::compile_protos builder with conflicting extern_path fails
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-config-conflict");
+    let err = Config::new()
+        .out_dir(&tmp)
+        .extern_path(".foo.bar", "crate::a")
+        .extern_path(".foo.bar", "crate::b")
+        .compile_protos(&["proto/hello.proto"], &["proto"])
+        .unwrap_err();
+    assert_eq!(err.parameter_key(), Some("extern_path"));
+    assert!(err.to_string().contains("conflicting mapping"));
+}
+
+fn tempfile_dir_docs() -> PathBuf {
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-docs");
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
+    let tmp = tempfile_dir_docs();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let proto = root.join("tests/fixtures/codegen-docs/hostile_docs.proto");
+
+    // 1. Compile with stubs=none (messages, enums, fields)
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=none")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with hostile_docs.proto");
+    assert!(
+        status.success(),
+        "protoc plugin failed on hostile_docs.proto"
+    );
+
+    let generated =
+        std::fs::read_to_string(tmp.join("hostile_docs.rs")).expect("read hostile_docs.rs");
+
+    // Assert schema comments and escape sanitizations
+    assert!(
+        generated.contains(
+            r"Broken intra-doc links: \[NonExistentType\] and \[BrokenReference\]\[ref\]"
+        ),
+        "must escape broken intra-doc links:\n{generated}"
+    );
+    assert!(
+        generated
+            .contains(r"Bare URLs: <https://example.com/api?v=1&x=2> and <http://foo.bar.baz>"),
+        "must wrap bare URLs in autolinks:\n{generated}"
+    );
+    assert!(
+        generated.contains(r"Valid markdown link: [Example Site](https://example.com)"),
+        "must preserve valid markdown links:\n{generated}"
+    );
+    assert!(
+        generated
+            .contains(r"Hostile HTML tags: \<custom-element\> and \<T\> and Map\<string, int32\>"),
+        "must escape hostile HTML angle brackets:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// ```text\n/// fn invalid_rust_syntax()"),
+        "untagged code fence must be tagged with text:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// ```text\n/// panic!(\"untrusted doctest executed!\");"),
+        "hostile rust doctest code fence must be tagged with text:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// ```text\n/// unclosed block\n/// ```"),
+        "unclosed code fence must be terminated:\n{generated}"
+    );
+
+    // Assert presence and default semantics in API docs
+    assert!(
+        generated.contains("/// Implicit presence string (default: \"\")."),
+        "string getter must document implicit presence:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// Explicit optional field. Returns the value of `count` or the default (`0`) if unset."),
+        "count getter must document explicit optional presence and default value:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// Returns `true` if field `count` is set."),
+        "count has_count must be documented:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// Repeated field of `pbrs::rt::LazyStr`. Empty by default."),
+        "repeated tags must document repeated presence and default:\n{generated}"
+    );
+    assert!(
+        generated.contains(
+            "/// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default."
+        ),
+        "map scores must document map presence and default:\n{generated}"
+    );
+    assert!(
+        generated
+            .contains("/// Part of a oneof: setting this field clears other fields in the oneof."),
+        "oneof member getters/setters must document oneof clearing semantics:\n{generated}"
+    );
+
+    // Assert deprecation annotations and rustdoc
+    assert!(
+        generated.contains("/// # Deprecated\n    #[deprecated]\n    pub fn old_id"),
+        "old_id getter must document and annotate deprecation:\n{generated}"
+    );
+    assert!(
+        generated
+            .contains("/// Sets the value of `old_id`.\n    #[deprecated]\n    pub fn set_old_id"),
+        "old_id setter must annotate deprecation:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// # Deprecated\n#[deprecated]\n#[derive(Clone, Debug)]\npub struct DeprecatedHostileMessage"),
+        "deprecated message must document and annotate deprecation:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// # Deprecated\n    #[deprecated]\n    pub const HostileOne"),
+        "deprecated enum value must document and annotate deprecation:\n{generated}"
+    );
+
+    // Assert constructor and metadata docs
+    assert!(
+        generated.contains("/// Creates a new, default instance of [`HostileMessage`]."),
+        "new() must be documented:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// Whether an empty byte slice is a valid encoding of this message."),
+        "EMPTY_PARSE_OK must be documented:\n{generated}"
+    );
+    assert!(
+        generated.contains("/// The fully-qualified protobuf name of this message."),
+        "FULL_NAME must be documented:\n{generated}"
+    );
+
+    // Build consumer crate and verify rustdoc with -D warnings
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"doc-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        format!("//! Documentation verification library.\n\n{generated}\n"),
+    )
+    .unwrap();
+
+    let mut doc_cmd = Command::new("cargo");
+    doc_cmd
+        .arg("doc")
+        .arg("--offline")
+        .arg("--no-deps")
+        .env("RUSTDOCFLAGS", "-D warnings")
+        .current_dir(&consumer);
+    if let Ok(h) = std::env::var("CARGO_HOME") {
+        doc_cmd.env("CARGO_HOME", h);
+    }
+    let doc_res = doc_cmd.output().expect("run cargo doc on consumer");
+    assert!(
+        doc_res.status.success(),
+        "cargo doc with -D warnings failed on generated code:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&doc_res.stdout),
+        String::from_utf8_lossy(&doc_res.stderr)
+    );
+
+    // Verify cargo test --doc executes 0 hostile doctests
+    let mut test_doc_cmd = Command::new("cargo");
+    test_doc_cmd
+        .arg("test")
+        .arg("--doc")
+        .arg("--offline")
+        .current_dir(&consumer);
+    if let Ok(h) = std::env::var("CARGO_HOME") {
+        test_doc_cmd.env("CARGO_HOME", h);
+    }
+    let test_doc_res = test_doc_cmd
+        .output()
+        .expect("run cargo test --doc on consumer");
+    assert!(
+        test_doc_res.status.success(),
+        "cargo test --doc failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&test_doc_res.stdout),
+        String::from_utf8_lossy(&test_doc_res.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&test_doc_res.stdout);
+    assert!(
+        stdout.contains("0 passed; 0 failed") || stdout.contains("running 0 tests"),
+        "must not execute any untrusted doctests: {stdout}"
+    );
+
+    // 2. Also compile with stubs=kernel and verify streaming signatures and docs
+    let tmp_kernel = tmp.join("kernel");
+    std::fs::create_dir_all(&tmp_kernel).unwrap();
+    let status_kernel = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp_kernel.display()))
+        .arg("--pbrs_opt=stubs=kernel")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with stubs=kernel");
+    assert!(status_kernel.success());
+    let gen_kernel = std::fs::read_to_string(tmp_kernel.join("hostile_docs.rs")).unwrap();
+
+    // Verify streaming signatures in kernel trait docs
+    assert!(
+        gen_kernel.contains("/// Streaming signature: Unary `HostileMessage` -> `HostileMessage`."),
+        "kernel service must document unary streaming signature:\n{gen_kernel}"
+    );
+    assert!(
+        gen_kernel.contains("/// Streaming signature: Client-streaming stream of `HostileMessage` -> `HostileMessage`."),
+        "kernel service must document client streaming signature:\n{gen_kernel}"
+    );
+    assert!(
+        gen_kernel.contains("/// Streaming signature: Server-streaming `HostileMessage` -> stream of `HostileMessage`."),
+        "kernel service must document server streaming signature:\n{gen_kernel}"
+    );
+    assert!(
+        gen_kernel.contains("/// Streaming signature: Bidirectional-streaming stream of `HostileMessage` -> stream of `HostileMessage`."),
+        "kernel service must document bidi streaming signature:\n{gen_kernel}"
+    );
+    assert!(
+        gen_kernel.contains("/// # Deprecated\n    #[deprecated]\n    fn deprecated_method"),
+        "kernel trait deprecated method must document and annotate deprecation:\n{gen_kernel}"
+    );
+    assert!(
+        gen_kernel.contains("/// See \\[ServiceLink\\] and \\<ServiceTag\\>"),
+        "kernel service doc comments must be escaped:\n{gen_kernel}"
+    );
+
+    // 3. Also compile with stubs=tonic and verify streaming signatures and deprecation
+    let tmp_tonic = tmp.join("tonic");
+    std::fs::create_dir_all(&tmp_tonic).unwrap();
+    let status_tonic = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp_tonic.display()))
+        .arg("--pbrs_opt=stubs=tonic")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with stubs=tonic");
+    assert!(status_tonic.success());
+    let gen_tonic = std::fs::read_to_string(tmp_tonic.join("hostile_docs.rs")).unwrap();
+
+    assert!(
+        gen_tonic.contains("/// Streaming signature: Unary `HostileMessage` -> `HostileMessage`."),
+        "tonic service must document unary streaming signature:\n{gen_tonic}"
+    );
+    assert!(
+        gen_tonic.contains("/// Streaming signature: Client-streaming stream of `HostileMessage` -> `HostileMessage`."),
+        "tonic service must document client streaming signature:\n{gen_tonic}"
+    );
+    assert!(
+        gen_tonic.contains("/// # Deprecated\n    #[deprecated]\n    fn deprecated_method"),
+        "tonic trait deprecated method must document and annotate deprecation:\n{gen_tonic}"
+    );
+    assert!(
+        gen_tonic
+            .contains("/// # Deprecated\n    #[deprecated]\n    pub async fn deprecated_method"),
+        "tonic client deprecated method must document and annotate deprecation:\n{gen_tonic}"
+    );
+}
+
+fn tempfile_dir_perm() -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join(format!("plugin-test-perm-{}-{}", std::process::id(), n));
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn byte_stability_across_code_generator_request_input_permutations() {
+    let tmp = tempfile_dir_perm();
+    let p_alpha = tmp.join("alpha.proto");
+    let p_beta = tmp.join("beta.proto");
+
+    std::fs::write(
+        &p_alpha,
+        r#"syntax = "proto3";
+package test.plugin_perm;
+message Alpha {
+    string id = 1;
+    oneof payload {
+        string text = 2;
+        int32 code = 3;
+    }
+}
+enum AlphaStatus {
+    ALPHA_UNSPECIFIED = 0;
+    ALPHA_OK = 1;
+}
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        &p_beta,
+        r#"syntax = "proto3";
+package test.plugin_perm;
+message Beta {
+    string desc = 1;
+}
+"#,
+    )
+    .unwrap();
+
+    let fds_path = tmp.join("test.fds");
+    let status = Command::new("protoc")
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", fds_path.display()))
+        .arg("-I")
+        .arg(&tmp)
+        .arg(&p_alpha)
+        .arg(&p_beta)
+        .status()
+        .expect("run protoc");
+    assert!(status.success());
+    let fds_bytes = std::fs::read(&fds_path).expect("read fds");
+
+    let build_req = |files: &[&str], blobs: &[&[u8]]| -> Vec<u8> {
+        let mut req = Vec::new();
+        for f in files {
+            pbrs::rt::encode_len_field(&mut req, 1, f.as_bytes());
+        }
+        for b in blobs {
+            pbrs::rt::encode_len_field(&mut req, 15, b);
+        }
+        req
+    };
+
+    let mut blobs = Vec::new();
+    let mut pos = 0;
+    while pos < fds_bytes.len() {
+        if let Ok((n, w)) = pbrs::rt::decode_tag(&fds_bytes, &mut pos) {
+            if n == 1 && w == pbrs::rt::WIRE_LEN {
+                let blob = pbrs::rt::read_len_bytes(&fds_bytes, &mut pos).unwrap();
+                blobs.push(blob);
+            } else {
+                let _ = pbrs::rt::skip_field(&fds_bytes, &mut pos, w);
+            }
+        } else {
+            break;
+        }
+    }
+    assert_eq!(blobs.len(), 2, "expected 2 proto files in descriptor set");
+
+    // Permutation 1: [alpha, beta]
+    let req1 = build_req(&["alpha.proto", "beta.proto"], &[blobs[0], blobs[1]]);
+    // Permutation 2: [beta, alpha] with permuted blobs
+    let req2 = build_req(&["beta.proto", "alpha.proto"], &[blobs[1], blobs[0]]);
+
+    let files1 = pbrs::codegen::generate_from_code_generator_request(&req1)
+        .expect("generate permutation 1");
+    let files2 = pbrs::codegen::generate_from_code_generator_request(&req2)
+        .expect("generate permutation 2");
+
+    assert_eq!(files1.len(), files2.len(), "file counts must match");
+    for (f1, f2) in files1.iter().zip(files2.iter()) {
+        assert_eq!(f1.0, f2.0, "file names must match in deterministic sorted order");
+        assert_eq!(f1.1, f2.1, "file content must be byte-identical for {}", f1.0);
+    }
+
+    let resp1 = pbrs::codegen::encode_code_generator_response(&files1);
+    let resp2 = pbrs::codegen::encode_code_generator_response(&files2);
+    assert_eq!(
+        resp1, resp2,
+        "encoded CodeGeneratorResponse must be 100% byte-identical across input permutations"
+    );
+}
+
+#[test]
+fn protoc_plugin_separate_processes_yield_identical_bytes() {
+    let tmp = tempfile_dir_perm();
+    let p_a = tmp.join("svc_a.proto");
+    let p_b = tmp.join("svc_b.proto");
+
+    std::fs::write(
+        &p_a,
+        r#"syntax = "proto3";
+package test.proc;
+message SvcAMsg {
+    string name = 1;
+    int32 count = 2;
+}
+service SvcAService {
+    rpc ZRpc (SvcAMsg) returns (SvcAMsg);
+    rpc ARpc (SvcAMsg) returns (SvcAMsg);
+}
+"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        &p_b,
+        r#"syntax = "proto3";
+package test.proc;
+message SvcBMsg {
+    string desc = 1;
+}
+"#,
+    )
+    .unwrap();
+
+    let out1 = tmp.join("proc_out1");
+    let out2 = tmp.join("proc_out2");
+    std::fs::create_dir_all(&out1).unwrap();
+    std::fs::create_dir_all(&out2).unwrap();
+
+    // Process 1: protoc invocation with input order: p_a, p_b
+    let status1 = Command::new("protoc")
+        .arg(format!("--plugin=protoc-gen-pbrs={}", plugin_bin().display()))
+        .arg(format!("--pbrs_out={}", out1.display()))
+        .arg("--pbrs_opt=stubs=kernel")
+        .arg("-I")
+        .arg(&tmp)
+        .arg(&p_a)
+        .arg(&p_b)
+        .status()
+        .expect("run protoc process 1");
+    assert!(status1.success());
+
+    // Process 2: separate protoc process invocation with permuted input order: p_b, p_a
+    let status2 = Command::new("protoc")
+        .arg(format!("--plugin=protoc-gen-pbrs={}", plugin_bin().display()))
+        .arg(format!("--pbrs_out={}", out2.display()))
+        .arg("--pbrs_opt=stubs=kernel")
+        .arg("-I")
+        .arg(&tmp)
+        .arg(&p_b)
+        .arg(&p_a)
+        .status()
+        .expect("run protoc process 2");
+    assert!(status2.success());
+
+    // Compare bytes between the two separate processes
+    let bytes_a1 = std::fs::read(out1.join("svc_a.rs")).unwrap();
+    let bytes_a2 = std::fs::read(out2.join("svc_a.rs")).unwrap();
+    assert_eq!(bytes_a1, bytes_a2, "svc_a.rs must be byte-identical between separate processes");
+
+    let bytes_b1 = std::fs::read(out1.join("svc_b.rs")).unwrap();
+    let bytes_b2 = std::fs::read(out2.join("svc_b.rs")).unwrap();
+    assert_eq!(bytes_b1, bytes_b2, "svc_b.rs must be byte-identical between separate processes");
+
+    let bytes_mod1 = std::fs::read(out1.join("mod.rs")).unwrap();
+    let bytes_mod2 = std::fs::read(out2.join("mod.rs")).unwrap();
+    assert_eq!(bytes_mod1, bytes_mod2, "mod.rs must be byte-identical between separate processes");
+
+    // Also assert that identical re-run preserves mtime
+    let out3 = tmp.join("proc_out3");
+    std::fs::create_dir_all(&out3).unwrap();
+    pbrs::codegen::Config::new()
+        .out_dir(&out3)
+        .emit_kernel_stubs(true)
+        .compile_protos(&[&p_a, &p_b], &[&tmp])
+        .expect("initial compile out3");
+
+    let mtime_b1 = std::fs::metadata(out3.join("svc_b.rs")).unwrap().modified().unwrap();
+    let mtime_a1 = std::fs::metadata(out3.join("svc_a.rs")).unwrap().modified().unwrap();
+    let mtime_mod1 = std::fs::metadata(out3.join("mod.rs")).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // Re-run compilation into out3 with identical inputs using Config
+    pbrs::codegen::Config::new()
+        .out_dir(&out3)
+        .emit_kernel_stubs(true)
+        .compile_protos(&[&p_a, &p_b], &[&tmp])
+        .expect("recompile out3 with identical inputs");
+
+    let mtime_b2 = std::fs::metadata(out3.join("svc_b.rs")).unwrap().modified().unwrap();
+    let mtime_a2 = std::fs::metadata(out3.join("svc_a.rs")).unwrap().modified().unwrap();
+    let mtime_mod2 = std::fs::metadata(out3.join("mod.rs")).unwrap().modified().unwrap();
+    assert_eq!(mtime_b1, mtime_b2, "svc_b.rs mtime must be preserved on identical inputs");
+    assert_eq!(mtime_a1, mtime_a2, "svc_a.rs mtime must be preserved on identical inputs");
+    assert_eq!(mtime_mod1, mtime_mod2, "mod.rs mtime must be preserved on identical inputs");
+}
+
+fn tempfile_dir_lints() -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join(format!("plugin-test-lints-{}-{}", std::process::id(), n));
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    p
+}
+
+#[test]
+fn protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_restriction() {
+    let tmp = tempfile_dir_lints();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/codegen-lints/lint_cases.proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=kernel")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc");
+    assert!(status.success(), "protoc plugin failed on lint_cases.proto");
+
+    let generated =
+        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+
+    // Assert that clippy::restriction is NOT present
+    assert!(
+        !generated.contains("clippy::restriction"),
+        "must not contain broad clippy::restriction allow:\n{generated}"
+    );
+
+    // Assert that clippy::all and clippy::pedantic are present with explicit justifications
+    assert!(
+        generated.contains(r#"#[allow(clippy::all, reason = "#),
+        "clippy::all must have an explicit reason attribute:\n{generated}"
+    );
+    assert!(
+        generated.contains(r#"#[allow(clippy::pedantic, reason = "#),
+        "clippy::pedantic must have an explicit reason attribute:\n{generated}"
+    );
+
+    // Verify all #[allow(...)] and #![allow(...)] occurrences have an explicit reason = "..."
+    for line in generated.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("#[allow(") || trimmed.starts_with("#![allow(") {
+            assert!(
+                trimmed.contains("reason = "),
+                "allow attribute is missing reason in line: {trimmed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn protoc_plugin_generated_messages_compile_under_strict_consumer_lint_policy() {
+    let tmp = tempfile_dir_lints();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/codegen-lints/lint_cases.proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=none")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with stubs=none");
+    assert!(status.success(), "protoc plugin failed");
+
+    let generated =
+        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "message-strict-consumer"
+version = "0.0.1"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+pbrs = {{ path = "{root}" }}
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        format!(
+            r#"//! Strict consumer test for message generation.
+#![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+
+{generated}
+
+#[test]
+fn test_message_keywords_and_non_standard_casings() {{
+    let mut msg = r#type::new();
+    msg.set_type("test_type");
+    msg.set_match(42);
+    msg.set_fn(true);
+    msg.set_struct(12345);
+    msg.set_for("for_val");
+    msg.set_let("let_val");
+    msg.set_mut("mut_val");
+    msg.set_ref("ref_val");
+    msg.set_pub("pub_val");
+    msg.set_self("self_val");
+    msg.set_crate("crate_val");
+    msg.set_super("super_val");
+    msg.set_loop("loop_val");
+    msg.set_while("while_val");
+    msg.set_if("if_val");
+    msg.set_else("else_val");
+    msg.set_return("return_val");
+    msg.set_trait("trait_val");
+    msg.set_impl("impl_val");
+    msg.set_const("const_val");
+
+    // Optional fields
+    msg.set_optional_type("opt_t");
+    msg.set_optional_match(77);
+    msg.set_optional_fn(true);
+    msg.set_optional_struct(999);
+
+    assert_eq!(msg.r#type(), "test_type");
+    assert_eq!(msg.r#match(), 42);
+    assert!(msg.r#fn());
+    assert_eq!(msg.r#struct(), 12345);
+    assert_eq!(msg.self_(), "self_val");
+    assert_eq!(msg.crate_(), "crate_val");
+    assert_eq!(msg.super_(), "super_val");
+
+    assert!(msg.has_optional_type());
+    assert_eq!(msg.optional_type(), "opt_t");
+    assert_eq!(msg.optional_type_opt().map(|s| s.as_bytes()), Some(b"opt_t".as_slice()));
+    assert!(msg.has_optional_match());
+    assert_eq!(msg.optional_match(), 77);
+    assert_eq!(msg.optional_match_opt(), Some(77));
+    assert!(msg.has_optional_fn());
+    assert_eq!(msg.optional_fn(), true);
+    assert_eq!(msg.optional_fn_opt(), Some(true));
+    assert!(msg.has_optional_struct());
+    assert_eq!(msg.optional_struct(), 999);
+    assert_eq!(msg.optional_struct_opt(), Some(999));
+
+    // Non-standard casing fields
+    msg.set_PascalCaseField("pascal");
+    msg.set_UPPER_CASE_FIELD(100);
+    msg.set_camelCaseField(true);
+    msg.set_mixed_Case_Field("mixed");
+    assert_eq!(msg.PascalCaseField(), "pascal");
+    assert_eq!(msg.UPPER_CASE_FIELD(), 100);
+    assert!(msg.camelCaseField());
+    assert_eq!(msg.mixed_Case_Field(), "mixed");
+
+    // Enums
+    msg.set_enum_field(non_standard_enum::Pascalval.0);
+    assert_eq!(msg.enum_field(), non_standard_enum::Pascalval);
+
+    // Repeated and Map
+    msg.repeated_fn_mut().push("rep1");
+    msg.map_match_mut().insert("k1", 10);
+    assert_eq!(msg.repeated_fn().len(), 1);
+    assert_eq!(msg.map_match().get("k1"), Some(10));
+
+    // Roundtrip serialization
+    let bytes = pbrs::Serialize::serialize(&msg).expect("serialize");
+    let parsed = <r#type as pbrs::Parse>::parse(&bytes).expect("parse");
+    assert_eq!(parsed.r#type(), "test_type");
+    assert_eq!(parsed.r#match(), 42);
+    assert!(parsed.r#fn());
+    assert_eq!(parsed.r#struct(), 12345);
+    assert_eq!(parsed.optional_type(), "opt_t");
+    assert_eq!(parsed.PascalCaseField(), "pascal");
+
+    // Bad casing messages
+    let mut snake = snake_case_message::new();
+    snake.set_field_one("one");
+    assert_eq!(snake.field_one(), "one");
+
+    let mut upper = UPPER_CASE_MESSAGE::new();
+    upper.set_ID("id1");
+    assert_eq!(upper.ID(), "id1");
+
+    let mut camel = camelCaseMessage::new();
+    camel.set_myField("my_val");
+    assert_eq!(camel.myField(), "my_val");
+}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+
+    let mut clippy_cmd = Command::new("cargo");
+    clippy_cmd
+        .arg("clippy")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        clippy_cmd.env("CARGO_HOME", h);
+    }
+    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    assert!(
+        clippy_out.status.success(),
+        "cargo clippy on message consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&clippy_out.stdout),
+        String::from_utf8_lossy(&clippy_out.stderr)
+    );
+
+    let mut test_cmd = Command::new("cargo");
+    test_cmd
+        .arg("test")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        test_cmd.env("CARGO_HOME", h);
+    }
+    let test_out = test_cmd.output().expect("run cargo test");
+    assert!(
+        test_out.status.success(),
+        "cargo test on message consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&test_out.stdout),
+        String::from_utf8_lossy(&test_out.stderr)
+    );
+}
+
+#[test]
+fn protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_policy() {
+    let tmp = tempfile_dir_lints();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/codegen-lints/lint_cases.proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=kernel")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with stubs=kernel");
+    assert!(status.success(), "protoc plugin failed");
+
+    let generated =
+        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "native-strict-consumer"
+version = "0.0.1"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+pbrs = {{ path = "{root}" }}
+pbrs-grpc = {{ path = "{root}/pbrs-grpc" }}
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        format!(
+            r#"//! Strict consumer test for native kernel gRPC generation.
+#![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+
+{generated}
+
+/// Concrete implementation of [`KeywordService`].
+/// Demonstrates implementing all 4 call shapes with keyword names,
+/// while leaving optional methods (`non_standard__casing`) omitted.
+pub struct MyNativeKeywordService;
+
+impl KeywordService for MyNativeKeywordService {{
+    // 1. Unary call shape with keyword name: r#type
+    async fn r#type(
+        &self,
+        request: ::pbrs_grpc::Request<r#type>,
+    ) -> ::core::result::Result<::pbrs_grpc::Response<r#match>, ::pbrs_grpc::Status> {{
+        std::future::ready(()).await;
+        let req = request.into_inner();
+        let mut resp = r#match::new();
+        resp.set_text(req.r#type());
+        Ok(::pbrs_grpc::Response::new(resp))
+    }}
+
+    // 2. Client-streaming call shape with keyword name: r#match
+    async fn r#match(
+        &self,
+        request: ::pbrs_grpc::Request<::pbrs_grpc::Streaming<r#type>>,
+    ) -> ::core::result::Result<::pbrs_grpc::Response<r#match>, ::pbrs_grpc::Status> {{
+        std::future::ready(()).await;
+        drop(request);
+        let mut resp = r#match::new();
+        resp.set_text("client_stream");
+        Ok(::pbrs_grpc::Response::new(resp))
+    }}
+
+    // 3. Server-streaming call shape with keyword name: r#fn
+    async fn r#fn(
+        &self,
+        request: ::pbrs_grpc::Request<r#type>,
+    ) -> ::core::result::Result<::pbrs_grpc::Response<::pbrs_grpc::Streaming<r#match>>, ::pbrs_grpc::Status> {{
+        drop(request);
+        let (tx, rx) = ::pbrs_grpc::Streaming::channel(4);
+        let mut m = r#match::new();
+        m.set_text("server_stream_item");
+        let _ = tx.send(m).await;
+        drop(tx);
+        Ok(::pbrs_grpc::Response::new(rx))
+    }}
+
+    // 4. Bidirectional-streaming call shape with keyword name: r#struct
+    async fn r#struct(
+        &self,
+        request: ::pbrs_grpc::Request<::pbrs_grpc::Streaming<r#type>>,
+    ) -> ::core::result::Result<::pbrs_grpc::Response<::pbrs_grpc::Streaming<r#match>>, ::pbrs_grpc::Status> {{
+        drop(request);
+        let (tx, rx) = ::pbrs_grpc::Streaming::channel(4);
+        let mut m = r#match::new();
+        m.set_text("bidi_stream_item");
+        let _ = tx.send(m).await;
+        drop(tx);
+        Ok(::pbrs_grpc::Response::new(rx))
+    }}
+
+    // Optional method `non_standard__casing` is omitted to verify default unimplemented answer!
+}}
+
+#[test]
+fn test_native_server_and_client_instantiation() {{
+    let svc = std::sync::Arc::new(MyNativeKeywordService);
+    let server = KeywordServiceServer::from_arc(svc);
+    assert_eq!(KeywordServiceServer::<MyNativeKeywordService>::NAME, "test.codegen_lints.KeywordService");
+    let _ = server.clone();
+}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+
+    let mut clippy_cmd = Command::new("cargo");
+    clippy_cmd
+        .arg("clippy")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        clippy_cmd.env("CARGO_HOME", h);
+    }
+    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    assert!(
+        clippy_out.status.success(),
+        "cargo clippy on native kernel consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&clippy_out.stdout),
+        String::from_utf8_lossy(&clippy_out.stderr)
+    );
+
+    let mut test_cmd = Command::new("cargo");
+    test_cmd
+        .arg("test")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        test_cmd.env("CARGO_HOME", h);
+    }
+    let test_out = test_cmd.output().expect("run cargo test");
+    assert!(
+        test_out.status.success(),
+        "cargo test on native kernel consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&test_out.stdout),
+        String::from_utf8_lossy(&test_out.stderr)
+    );
+}
+
+#[test]
+fn protoc_plugin_generated_tonic_compiles_under_strict_consumer_lint_policy() {
+    let tmp = tempfile_dir_lints();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/codegen-lints/lint_cases.proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=tonic")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("run protoc with stubs=tonic");
+    assert!(status.success(), "protoc plugin failed");
+
+    let generated =
+        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "tonic-strict-consumer"
+version = "0.0.1"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+pbrs = {{ path = "{root}" }}
+protobuf-tonic = {{ path = "{root}/protobuf-tonic" }}
+tokio = {{ version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }}
+tokio-stream = {{ version = "0.1", features = ["net"] }}
+tonic = {{ version = "0.14", default-features = false, features = ["transport", "codegen", "router", "gzip"] }}
+http = "1"
+"#,
+            root = root.display()
+        ),
+    )
+    .unwrap();
+
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        format!(
+            r#"//! Strict consumer test for tonic gRPC generation.
+#![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
+{generated}
+
+/// Concrete implementation of tonic [`KeywordService`].
+pub struct MyTonicKeywordService;
+
+impl KeywordService for MyTonicKeywordService {{
+    type fnStream = tokio_stream::Iter<std::vec::IntoIter<Result<r#match, tonic::Status>>>;
+    type structStream = tokio_stream::Iter<std::vec::IntoIter<Result<r#match, tonic::Status>>>;
+
+    // 1. Unary call shape
+    async fn r#type(&self, _request: tonic::Request<r#type>) -> Result<tonic::Response<r#match>, tonic::Status> {{
+        tokio::task::yield_now().await;
+        let mut m = r#match::new();
+        m.set_text("unary");
+        Ok(tonic::Response::new(m))
+    }}
+
+    // 2. Client-streaming call shape
+    async fn r#match(&self, _request: tonic::Request<tonic::Streaming<r#type>>) -> Result<tonic::Response<r#match>, tonic::Status> {{
+        tokio::task::yield_now().await;
+        let mut m = r#match::new();
+        m.set_text("client_streaming");
+        Ok(tonic::Response::new(m))
+    }}
+
+    // 3. Server-streaming call shape
+    async fn r#fn(&self, _request: tonic::Request<r#type>) -> Result<tonic::Response<Self::fnStream>, tonic::Status> {{
+        tokio::task::yield_now().await;
+        let mut m = r#match::new();
+        m.set_text("server_streaming");
+        Ok(tonic::Response::new(tokio_stream::iter(vec![Ok(m)])))
+    }}
+
+    // 4. Bidirectional-streaming call shape
+    async fn r#struct(&self, _request: tonic::Request<tonic::Streaming<r#type>>) -> Result<tonic::Response<Self::structStream>, tonic::Status> {{
+        tokio::task::yield_now().await;
+        let mut m = r#match::new();
+        m.set_text("bidi_streaming");
+        Ok(tonic::Response::new(tokio_stream::iter(vec![Ok(m)])))
+    }}
+
+    // NonStandard_Casing
+    async fn non_standard__casing(&self, _request: tonic::Request<snake_case_message>) -> Result<tonic::Response<UPPER_CASE_MESSAGE>, tonic::Status> {{
+        tokio::task::yield_now().await;
+        let mut resp = UPPER_CASE_MESSAGE::new();
+        resp.set_ID("ok");
+        Ok(tonic::Response::new(resp))
+    }}
+}}
+
+#[tokio::test]
+async fn test_tonic_service_instantiation() {{
+    let svc = MyTonicKeywordService;
+    let mut req_msg = r#type::new();
+    req_msg.set_type("test");
+    let resp = svc.r#type(tonic::Request::new(req_msg)).await.expect("unary");
+    assert_eq!(resp.into_inner().text(), "unary");
+}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+
+    let mut clippy_cmd = Command::new("cargo");
+    clippy_cmd
+        .arg("clippy")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        clippy_cmd.env("CARGO_HOME", h);
+    }
+    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    assert!(
+        clippy_out.status.success(),
+        "cargo clippy on tonic consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&clippy_out.stdout),
+        String::from_utf8_lossy(&clippy_out.stderr)
+    );
+
+    let mut test_cmd = Command::new("cargo");
+    test_cmd
+        .arg("test")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(ref h) = cargo_home {
+        test_cmd.env("CARGO_HOME", h);
+    }
+    let test_out = test_cmd.output().expect("run cargo test");
+    assert!(
+        test_out.status.success(),
+        "cargo test on tonic consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
+        String::from_utf8_lossy(&test_out.stdout),
+        String::from_utf8_lossy(&test_out.stderr)
+    );
+}
+

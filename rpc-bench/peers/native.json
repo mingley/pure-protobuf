@@ -1,0 +1,72 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "native",
+  "name": "pbrs-grpc",
+  "description": "Pure-Rust native gRPC transport and pure-protobuf codec implementation",
+  "role": ["client", "server"],
+  "language": "rust",
+  "runtime": "tokio + pbrs-grpc",
+  "codec": "pbrs",
+  "upstream_pin": {
+    "repository": "mingley/pure-protobuf",
+    "version": "in-tree",
+    "commit": "HEAD",
+    "notes": "Native pbrs-grpc transport and pure-protobuf codec engine"
+  },
+  "server": {
+    "description": "pbrs-grpc native benchmark server (from rpc-bench)",
+    "binary_name": "rpc-bench",
+    "candidates": [
+      "rpc-bench/target/release/rpc-bench",
+      "target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench",
+      "target/debug/rpc-bench"
+    ],
+    "build_command": "cargo build --release --manifest-path rpc-bench/Cargo.toml",
+    "args_template": [
+      "{binary}",
+      "server",
+      "--transport=native",
+      "--host={host}",
+      "--port={port}",
+      "--timeout-secs={timeout_secs}"
+    ],
+    "readiness": {
+      "type": "stdout_or_socket",
+      "stdout_pattern": "^READY\\s+port=(\\d+)\\s+addr=([^\\s]+)"
+    }
+  },
+  "client": {
+    "description": "pbrs-grpc native benchmark client (from rpc-bench)",
+    "binary_name": "rpc-bench",
+    "candidates": [
+      "rpc-bench/target/release/rpc-bench",
+      "target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench",
+      "target/debug/rpc-bench"
+    ],
+    "build_command": "cargo build --release --manifest-path rpc-bench/Cargo.toml",
+    "args_template": [
+      "{binary}",
+      "client",
+      "--server_addr={server_addr}",
+      "--transport=native",
+      "--shape={shape}",
+      "--output={output_file}"
+    ],
+    "quick_flag": "--quick"
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  }
+}

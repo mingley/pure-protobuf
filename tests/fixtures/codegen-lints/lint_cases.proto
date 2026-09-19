@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package test.codegen_lints;
+
+message KeywordContainer {
+  enum KeywordEnum {
+    type = 0;
+    match = 1;
+    fn = 2;
+    struct = 3;
+    lower_val = 4;
+    PascalVal = 5;
+    UPPER_VAL = 6;
+    Mixed_Case_Val = 7;
+    ALIAS_VAL = 8;
+  }
+}
+
+// Enum with non-standard casings.
+enum non_standard_enum {
+  NON_STANDARD_UNSPECIFIED = 0;
+  lower_val = 1;
+  PascalVal = 2;
+  UPPER_VAL = 3;
+  Mixed_Case_Val = 4;
+  ALIAS_VAL = 5;
+}
+
+// Message named after a Rust keyword with keyword and non-standard casing fields.
+message type {
+  string type = 1;
+  int32 match = 2;
+  bool fn = 3;
+  int64 struct = 4;
+  string for = 5;
+  string let = 6;
+  string mut = 7;
+  string ref = 8;
+  string pub = 9;
+  string self = 10;
+  string crate = 11;
+  string super = 12;
+  string loop = 13;
+  string while = 14;
+  string if = 15;
+  string else = 16;
+  string return = 17;
+  string trait = 18;
+  string impl = 19;
+  string const = 20;
+
+  optional string optional_type = 21;
+  optional int32 optional_match = 22;
+  optional bool optional_fn = 23;
+  optional int64 optional_struct = 24;
+
+  repeated string repeated_fn = 25;
+  map<string, int32> map_match = 26;
+
+  non_standard_enum enum_field = 27;
+
+  string PascalCaseField = 28;
+  int32 UPPER_CASE_FIELD = 29;
+  bool camelCaseField = 30;
+  string mixed_Case_Field = 31;
+}
+
+// Message named after keyword match.
+message match {
+  string text = 1;
+  type inner_type = 2;
+}
+
+// Message named after keyword fn.
+message fn {
+  int32 code = 1;
+}
+
+// Message named after keyword struct.
+message struct {
+  bool active = 1;
+}
+
+// Message with snake_case naming.
+message snake_case_message {
+  string field_one = 1;
+}
+
+// Message with UPPER_CASE naming.
+message UPPER_CASE_MESSAGE {
+  string ID = 1;
+}
+
+// Message with camelCase naming.
+message camelCaseMessage {
+  string myField = 1;
+}
+
+// Service exercising all 4 call shapes with keyword method names and bad casings.
+service KeywordService {
+  // Unary shape with keyword name: Req -> Resp
+  rpc type (.test.codegen_lints.type) returns (.test.codegen_lints.match);
+
+  // Client-streaming shape with keyword name: stream Req -> Resp
+  rpc match (stream .test.codegen_lints.type) returns (.test.codegen_lints.match);
+
+  // Server-streaming shape with keyword name: Req -> stream Resp
+  rpc fn (.test.codegen_lints.type) returns (stream .test.codegen_lints.match);
+
+  // Bidirectional streaming shape with keyword name: stream Req -> stream Resp
+  rpc struct (stream .test.codegen_lints.type) returns (stream .test.codegen_lints.match);
+
+  // Additional RPC with non-standard casing
+  rpc NonStandard_Casing (.test.codegen_lints.snake_case_message) returns (.test.codegen_lints.UPPER_CASE_MESSAGE);
+}

@@ -2,14 +2,25 @@
 
 use crate::config::{ChannelConfig, Wire};
 use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
+use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::request::{Call, Request, Response};
-use crate::status::{Code, Status};
+use crate::status::{Code, Status, TransportEvidence};
 use crate::stream::{StreamSender, Streaming};
+use crate::telemetry::{
+    AttemptGuard, AttemptLabels, CallGuard, CallLabels, CallRole, CancellationReason,
+    LifecycleObserver, ObserverChain, ReconnectEvent, RejectionReason,
+};
+use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
 use crate::wire::{
-    encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, reset_on_cancel,
-    send_bytes, PumpEnd,
+    encode_msg, finish_stream, finish_unary, grpc_request, reset_on_cancel, send_bytes, OutBatch,
+    PumpEnd,
 };
+
+#[allow(dead_code, reason = "silence dead code")]
+fn _silence_dead_code() {
+    let _ = crate::wire::pump_outbound::<crate::hello::HelloRequest>;
+}
 use bytes::Bytes;
 use h2::Reason;
 use http::uri::Authority;
@@ -460,6 +471,7 @@ pub struct Channel {
     response_interceptors: Arc<[ResponseHook]>,
     /// Shared across clones of this lineage. `None` when the cap is unset.
     rpc_slots: Option<Arc<Semaphore>>,
+    byte_budget: ByteBudgetTracker,
     user_agent: HeaderValue,
     /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
     /// starts `false` until [`Self::https_scheme`].
@@ -467,6 +479,7 @@ pub struct Channel {
     /// `:authority` this clone sends. Defaults to the dial [`Target`];
     /// [`Self::origin`] overrides it.
     authority: Authority,
+    pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
 }
 
 impl fmt::Debug for Channel {
@@ -480,7 +493,9 @@ impl fmt::Debug for Channel {
             .field("interceptors", &self.interceptors.len())
             .field("response_interceptors", &self.response_interceptors.len())
             .field("config", &self.config)
+            .field("byte_budget_allocated", &self.byte_budget.allocated())
             .field("user_agent", &self.user_agent)
+            .field("observer", &self.observer.is_some())
             .finish()
     }
 }
@@ -1020,7 +1035,46 @@ impl Channel {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
+        self.byte_budget = ByteBudgetTracker::with_limit(bytes);
         self
+    }
+
+    /// Set a transport byte budget for queued and in-flight buffers on this channel.
+    #[must_use]
+    pub fn byte_budget(mut self, limit: usize) -> Self {
+        self.byte_budget = ByteBudgetTracker::with_limit(limit);
+        self
+    }
+
+    /// Attach an existing [`ByteBudgetTracker`] to this channel.
+    #[must_use]
+    pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
+        self.byte_budget = tracker;
+        self
+    }
+
+    /// Byte budget tracker in effect.
+    #[must_use]
+    pub fn byte_budget_tracker(&self) -> &ByteBudgetTracker {
+        &self.byte_budget
+    }
+
+    /// Number of bytes currently allocated in transport buffers on this channel.
+    #[must_use]
+    pub fn byte_budget_allocated(&self) -> usize {
+        self.byte_budget.allocated()
+    }
+
+    /// The configured byte budget limit, if any.
+    #[must_use]
+    pub fn byte_budget_limit(&self) -> Option<usize> {
+        self.byte_budget.limit()
+    }
+
+    /// Whether transport buffer allocation is currently zero.
+    #[must_use]
+    pub fn is_byte_budget_quiescent(&self) -> bool {
+        self.byte_budget.is_quiescent()
     }
 
     /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
@@ -1302,6 +1356,24 @@ impl Channel {
         }
     }
 
+    /// Register a lifecycle telemetry observer.
+    ///
+    /// The observer receives low-cardinality lifecycle events for outbound RPCs:
+    /// call start/end, attempt start/end (including transparent retries), queue wait,
+    /// bytes sent/received, transport reconnects, rejections, and cancellations.
+    ///
+    /// Calling this twice stacks observers: the first registered observer runs first.
+    #[must_use]
+    pub fn observer<O: LifecycleObserver>(self, observer: O) -> Self {
+        Self {
+            observer: Some(match self.observer {
+                None => Arc::new(observer),
+                Some(prev) => Arc::new(ObserverChain::new(prev, Arc::new(observer))),
+            }),
+            ..self
+        }
+    }
+
     fn apply_response_hooks<T>(
         &self,
         path: &'static str,
@@ -1396,14 +1468,19 @@ impl Channel {
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
     ) -> Result<LiveConn, Status> {
+        let _ = remaining_timeout(deadline)?;
         let inner = Arc::clone(&self.inner);
+        let obs = self.observer.clone();
         let grabbed = prefer_deadline(
-            first_of(inner.acquire(wait_for_ready), cancel_rx, deadline).await,
+            first_of(
+                inner.acquire(wait_for_ready, obs.as_deref()),
+                cancel_rx,
+                deadline,
+            )
+            .await,
             deadline,
         )?;
-        if deadline.is_some_and(|at| tokio::time::Instant::now() >= at) {
-            return Err(Status::deadline_exceeded());
-        }
+        let _ = remaining_timeout(deadline)?;
         Ok(grabbed)
     }
 
@@ -1418,16 +1495,17 @@ impl Channel {
     async fn open_retrying(
         &self,
         cancel_rx: watch::Receiver<bool>,
+        timeout: Option<Duration>,
         deadline: Option<tokio::time::Instant>,
         wait: bool,
         path: &'static str,
         md: &crate::metadata::Metadata,
-        timeout: Option<Duration>,
         compress: bool,
         user_agent: &http::HeaderValue,
     ) -> Result<Opened, Status> {
         let mut retried = false;
         loop {
+            let _ = remaining_timeout(deadline)?;
             let live = self.grab(cancel_rx.clone(), deadline, wait).await?;
             let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
             match open(
@@ -1436,6 +1514,8 @@ impl Channel {
                 path,
                 md,
                 timeout,
+                deadline,
+                cancel_rx.clone(),
                 compress,
                 self.config.accepts_compressed(),
                 user_agent,
@@ -1452,12 +1532,19 @@ impl Channel {
                     });
                 }
                 Err(status)
-                    if !retried && status.is_transport() && self.inner.endpoint.can_redial() =>
+                    if !retried
+                        && status.is_transparent_retryable()
+                        && self.inner.endpoint.can_redial() =>
                 {
                     retried = true;
                     self.inner.discard(slot, gen).await;
                 }
-                Err(status) => return Err(status),
+                Err(status) => {
+                    if status.is_transport() {
+                        self.inner.discard(slot, gen).await;
+                    }
+                    return Err(status);
+                }
             }
         }
     }
@@ -1500,49 +1587,166 @@ impl Channel {
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let wire = self.config.wire();
+        let observer = self.observer.clone();
         Call::new(
             cancel,
             Box::pin(async move {
-                prepared?;
+                let call_labels =
+                    CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                let call_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_call_start(&call_labels);
+                }
+                let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
+                let mut call_guard =
+                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+
+                if let Err(status) = prepared {
+                    call_guard.reject(RejectionReason::ClientInterceptor, &status);
+                    return Err(status);
+                }
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (msg, md, timeout, compress, ua) = req.into_parts();
+                let _ = match remaining_timeout(deadline) {
+                    Ok(t) => t,
+                    Err(status) => {
+                        call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        return Err(status);
+                    }
+                };
+                let req_timeout = req.timeout();
+                let (msg, md, _, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = encode_msg(&msg, compress, wire.limits, wire.gzip_level)?;
+                let frame = match encode_msg(&msg, compress, wire.limits, wire.gzip_level) {
+                    Ok(f) => f,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::MessageEncode, &status);
+                        return Err(status);
+                    }
+                };
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
-                let _permit = channel.take_rpc_slot()?;
+                let _permit = match channel.take_rpc_slot() {
+                    Ok(p) => p,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::ConcurrencyLimit, &status);
+                        return Err(status);
+                    }
+                };
+                let mut attempt_idx = 1u32;
                 let mut retried = false;
                 loop {
-                    let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                    let _ = match remaining_timeout(deadline) {
+                        Ok(t) => t,
+                        Err(status) => {
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            return Err(status);
+                        }
+                    };
+                    let attempt_labels = AttemptLabels::new(call_labels, attempt_idx);
+                    let attempt_start = std::time::Instant::now();
+                    if let Some(obs) = &observer {
+                        obs.on_attempt_start(&attempt_labels);
+                    }
+                    let mut attempt_guard = AttemptGuard::new(
+                        observer.clone(),
+                        owned_labels.clone(),
+                        attempt_idx,
+                        attempt_start,
+                    );
+                    let queue_start = tokio::time::Instant::now();
+                    let live = match channel.grab(cancel_rx.clone(), deadline, wait).await {
+                        Ok(live) => {
+                            if let Some(obs) = &observer {
+                                obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                            }
+                            live
+                        }
+                        Err(status) => {
+                            if *cancel_rx.borrow() {
+                                attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                call_guard.cancel(CancellationReason::CallerCancelled);
+                            } else if status.code() == Code::DeadlineExceeded {
+                                attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            } else {
+                                attempt_guard.reject(RejectionReason::SetupFailed, &status);
+                                call_guard.reject(RejectionReason::SetupFailed, &status);
+                            }
+                            attempt_guard.finish(&status);
+                            return Err(status);
+                        }
+                    };
                     let (slot, gen) = (live.slot, live.gen);
+                    let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+                        Ok(p) => p,
+                        Err(status) => {
+                            attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            call_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            attempt_guard.finish(&status);
+                            return Err(status);
+                        }
+                    };
+                    if let Some(obs) = &observer {
+                        obs.on_bytes_sent(&call_labels, frame.len());
+                    }
                     match run_unary(
                         live.send,
                         &channel.authority,
                         path,
                         &md,
-                        timeout,
+                        req_timeout,
+                        deadline,
                         compress,
                         frame.clone(),
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
                         https,
+                        byte_permit,
                     )
                     .await
                     {
                         Err(status)
                             if !retried
-                                && status.is_transport()
+                                && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
                             retried = true;
+                            attempt_guard.finish(&status);
                             channel.inner.discard(slot, gen).await;
+                            attempt_idx += 1;
                         }
                         result => {
-                            return result
-                                .and_then(|response| channel.apply_response_hooks(path, response))
+                            if let Err(status) = &result {
+                                if status.is_transport() {
+                                    channel.inner.discard(slot, gen).await;
+                                }
+                            }
+                            let final_result: Result<Response<Resp>, Status> = result
+                                .and_then(|response| channel.apply_response_hooks(path, response));
+                            match &final_result {
+                                Ok(_) => {
+                                    if let Some(obs) = &observer {
+                                        obs.on_bytes_received(&call_labels, 0);
+                                    }
+                                    attempt_guard.finish(&Status::ok());
+                                    call_guard.finish(&Status::ok());
+                                }
+                                Err(status) => {
+                                    if *cancel_rx.borrow() {
+                                        attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                        call_guard.cancel(CancellationReason::CallerCancelled);
+                                    } else if status.code() == Code::DeadlineExceeded {
+                                        attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                        call_guard.cancel(CancellationReason::DeadlineExceeded);
+                                    }
+                                    attempt_guard.finish(status);
+                                    call_guard.finish(status);
+                                }
+                            }
+                            return final_result;
                         }
                     }
                 }
@@ -1598,57 +1802,164 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let channel = self.clone();
         let mut req = req;
-        let prepared = self.prepare_outbound(path, &mut req);
+        let prepared = channel.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let reset = cancel.clone();
-        let channel = self.clone();
-        let wire = self.config.wire();
+        let wire = channel.config.wire();
+        let observer = channel.observer.clone();
         Call::new(
             cancel,
             Box::pin(async move {
-                prepared?;
+                let call_labels =
+                    CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                let call_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_call_start(&call_labels);
+                }
+                let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
+                let mut call_guard =
+                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+
+                if let Err(status) = prepared {
+                    call_guard.reject(RejectionReason::ClientInterceptor, &status);
+                    return Err(status);
+                }
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (msg, md, timeout, compress, ua) = req.into_parts();
+                let _ = match remaining_timeout(deadline) {
+                    Ok(t) => t,
+                    Err(status) => {
+                        call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        return Err(status);
+                    }
+                };
+                let req_timeout = req.timeout();
+                let (msg, md, _, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = encode_msg(&msg, compress, wire.limits, wire.gzip_level)?;
+                let frame = match encode_msg(&msg, compress, wire.limits, wire.gzip_level) {
+                    Ok(f) => f,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::MessageEncode, &status);
+                        return Err(status);
+                    }
+                };
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
-                let permit = channel.take_rpc_slot()?;
+                let permit = match channel.take_rpc_slot() {
+                    Ok(p) => p,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::ConcurrencyLimit, &status);
+                        return Err(status);
+                    }
+                };
+                let mut attempt_idx = 1u32;
                 let mut retried = false;
                 loop {
-                    let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                    let _ = match remaining_timeout(deadline) {
+                        Ok(t) => t,
+                        Err(status) => {
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            return Err(status);
+                        }
+                    };
+                    let attempt_labels = AttemptLabels::new(call_labels, attempt_idx);
+                    let attempt_start = std::time::Instant::now();
+                    if let Some(obs) = &observer {
+                        obs.on_attempt_start(&attempt_labels);
+                    }
+                    let mut attempt_guard = AttemptGuard::new(
+                        observer.clone(),
+                        owned_labels.clone(),
+                        attempt_idx,
+                        attempt_start,
+                    );
+                    let queue_start = tokio::time::Instant::now();
+                    let live = match channel.grab(cancel_rx.clone(), deadline, wait).await {
+                        Ok(live) => {
+                            if let Some(obs) = &observer {
+                                obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                            }
+                            live
+                        }
+                        Err(status) => {
+                            if *cancel_rx.borrow() {
+                                attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                call_guard.cancel(CancellationReason::CallerCancelled);
+                            } else if status.code() == Code::DeadlineExceeded {
+                                attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            } else {
+                                attempt_guard.reject(RejectionReason::SetupFailed, &status);
+                                call_guard.reject(RejectionReason::SetupFailed, &status);
+                            }
+                            attempt_guard.finish(&status);
+                            return Err(status);
+                        }
+                    };
                     let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
+                    let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+                        Ok(p) => p,
+                        Err(status) => {
+                            attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            call_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            attempt_guard.finish(&status);
+                            return Err(status);
+                        }
+                    };
+                    if let Some(obs) = &observer {
+                        obs.on_bytes_sent(&call_labels, frame.len());
+                    }
                     match run_server_stream(
                         live.send,
                         &channel.authority,
                         path,
                         &md,
-                        timeout,
+                        req_timeout,
+                        deadline,
                         compress,
                         frame.clone(),
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
                         https,
+                        byte_permit,
                     )
                     .await
                     {
                         Ok(response) => {
                             let response = channel.apply_response_hooks(path, response)?;
+                            attempt_guard.finish(&Status::ok());
+                            call_guard.finish(&Status::ok());
                             return Ok(attach_conn(response, lease, driver, Some(reset), permit));
                         }
                         Err(status)
                             if !retried
-                                && status.is_transport()
+                                && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
                             retried = true;
+                            attempt_guard.finish(&status);
                             channel.inner.discard(slot, gen).await;
+                            attempt_idx += 1;
                         }
-                        Err(status) => return Err(status),
+                        Err(status) => {
+                            if status.is_transport() {
+                                channel.inner.discard(slot, gen).await;
+                            }
+                            if *cancel_rx.borrow() {
+                                attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                call_guard.cancel(CancellationReason::CallerCancelled);
+                            } else if status.code() == Code::DeadlineExceeded {
+                                attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            }
+                            attempt_guard.finish(&status);
+                            call_guard.finish(&status);
+                            return Err(status);
+                        }
                     }
                 }
             }),
@@ -1715,31 +2026,126 @@ impl Channel {
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
+        let observer = self.observer.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                prepared?;
+                let call_labels =
+                    CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                let call_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_call_start(&call_labels);
+                }
+                let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
+                let mut call_guard =
+                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+
+                if let Err(status) = prepared {
+                    call_guard.reject(RejectionReason::ClientInterceptor, &status);
+                    return Err(status);
+                }
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (_, md, timeout, compress, ua) = req.into_parts();
+                let _ = match remaining_timeout(deadline) {
+                    Ok(t) => t,
+                    Err(status) => {
+                        call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        return Err(status);
+                    }
+                };
+                let req_timeout = req.timeout();
+                let (_, md, _, compress, ua) = req.into_parts();
                 let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
-                let _permit = channel.take_rpc_slot()?;
-                let opened = channel
+                let _permit = match channel.take_rpc_slot() {
+                    Ok(p) => p,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::ConcurrencyLimit, &status);
+                        return Err(status);
+                    }
+                };
+                let attempt_labels = AttemptLabels::new(call_labels, 1);
+                let attempt_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_attempt_start(&attempt_labels);
+                }
+                let mut attempt_guard =
+                    AttemptGuard::new(observer.clone(), owned_labels.clone(), 1, attempt_start);
+                let queue_start = tokio::time::Instant::now();
+                let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
+                        req_timeout,
                         deadline,
                         wait,
                         path,
                         &md,
-                        timeout,
                         compress,
                         &user_agent,
                     )
-                    .await?;
-                let response =
-                    run_client_stream(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout)
-                        .await?;
-                channel.apply_response_hooks(path, response)
+                    .await
+                {
+                    Ok(opened) => {
+                        if let Some(obs) = &observer {
+                            obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                        }
+                        opened
+                    }
+                    Err(status) => {
+                        if *cancel_rx.borrow() {
+                            attempt_guard.cancel(CancellationReason::CallerCancelled);
+                            call_guard.cancel(CancellationReason::CallerCancelled);
+                        } else if status.code() == Code::DeadlineExceeded {
+                            attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        } else {
+                            attempt_guard.reject(RejectionReason::SetupFailed, &status);
+                            call_guard.reject(RejectionReason::SetupFailed, &status);
+                        }
+                        attempt_guard.finish(&status);
+                        return Err(status);
+                    }
+                };
+                let budget = channel.byte_budget.clone();
+                let response: Response<Resp> = match run_client_stream(
+                    opened.resp_fut,
+                    opened.send,
+                    rx,
+                    cancel_rx.clone(),
+                    wire,
+                    deadline,
+                    budget,
+                )
+                .await
+                {
+                    Ok(r) => r,
+                    Err(status) => {
+                        if *cancel_rx.borrow() {
+                            attempt_guard.cancel(CancellationReason::CallerCancelled);
+                            call_guard.cancel(CancellationReason::CallerCancelled);
+                        } else if status.code() == Code::DeadlineExceeded {
+                            attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        }
+                        attempt_guard.finish(&status);
+                        call_guard.finish(&status);
+                        return Err(status);
+                    }
+                };
+                let final_res = channel.apply_response_hooks(path, response);
+                match &final_res {
+                    Ok(_) => {
+                        if let Some(obs) = &observer {
+                            obs.on_bytes_received(&call_labels, 0);
+                        }
+                        attempt_guard.finish(&Status::ok());
+                        call_guard.finish(&Status::ok());
+                    }
+                    Err(status) => {
+                        attempt_guard.finish(status);
+                        call_guard.finish(status);
+                    }
+                }
+                final_res
             }),
         );
         (tx, call)
@@ -1797,39 +2203,123 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let channel = self.clone();
         let mut req = req;
-        let prepared = self.prepare_outbound(path, &mut req);
-        let wire = self.config.wire();
-        let buffer = self.config.stream_buffer_size();
+        let prepared = channel.prepare_outbound(path, &mut req);
+        let wire = channel.config.wire();
+        let buffer = channel.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
         let reset = cancel.clone();
-        let channel = self.clone();
+        let observer = channel.observer.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                prepared?;
+                let call_labels =
+                    CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                let call_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_call_start(&call_labels);
+                }
+                let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
+                let mut call_guard =
+                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+
+                if let Err(status) = prepared {
+                    call_guard.reject(RejectionReason::ClientInterceptor, &status);
+                    return Err(status);
+                }
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (_, md, timeout, compress, ua) = req.into_parts();
+                let _ = match remaining_timeout(deadline) {
+                    Ok(t) => t,
+                    Err(status) => {
+                        call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        return Err(status);
+                    }
+                };
+                let req_timeout = req.timeout();
+                let (_, md, _, compress, ua) = req.into_parts();
                 let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
-                let permit = channel.take_rpc_slot()?;
-                let opened = channel
+                let permit = match channel.take_rpc_slot() {
+                    Ok(p) => p,
+                    Err(status) => {
+                        call_guard.reject(RejectionReason::ConcurrencyLimit, &status);
+                        return Err(status);
+                    }
+                };
+                let attempt_labels = AttemptLabels::new(call_labels, 1);
+                let attempt_start = std::time::Instant::now();
+                if let Some(obs) = &observer {
+                    obs.on_attempt_start(&attempt_labels);
+                }
+                let mut attempt_guard =
+                    AttemptGuard::new(observer.clone(), owned_labels.clone(), 1, attempt_start);
+                let queue_start = tokio::time::Instant::now();
+                let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
+                        req_timeout,
                         deadline,
                         wait,
                         path,
                         &md,
-                        timeout,
                         compress,
                         &user_agent,
                     )
-                    .await?;
-                let response =
-                    run_bidi(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await?;
+                    .await
+                {
+                    Ok(opened) => {
+                        if let Some(obs) = &observer {
+                            obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                        }
+                        opened
+                    }
+                    Err(status) => {
+                        if *cancel_rx.borrow() {
+                            attempt_guard.cancel(CancellationReason::CallerCancelled);
+                            call_guard.cancel(CancellationReason::CallerCancelled);
+                        } else if status.code() == Code::DeadlineExceeded {
+                            attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        } else {
+                            attempt_guard.reject(RejectionReason::SetupFailed, &status);
+                            call_guard.reject(RejectionReason::SetupFailed, &status);
+                        }
+                        attempt_guard.finish(&status);
+                        return Err(status);
+                    }
+                };
+                let budget = channel.byte_budget.clone();
+                let response = match run_bidi(
+                    opened.resp_fut,
+                    opened.send,
+                    rx,
+                    cancel_rx.clone(),
+                    wire,
+                    deadline,
+                    budget,
+                )
+                .await
+                {
+                    Ok(resp) => resp,
+                    Err(status) => {
+                        if *cancel_rx.borrow() {
+                            attempt_guard.cancel(CancellationReason::CallerCancelled);
+                            call_guard.cancel(CancellationReason::CallerCancelled);
+                        } else if status.code() == Code::DeadlineExceeded {
+                            attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                        }
+                        attempt_guard.finish(&status);
+                        call_guard.finish(&status);
+                        return Err(status);
+                    }
+                };
                 let response = channel.apply_response_hooks(path, response)?;
+                attempt_guard.finish(&Status::ok());
+                call_guard.finish(&Status::ok());
                 Ok(attach_conn(
                     response,
                     opened.lease,
@@ -1916,15 +2406,22 @@ fn finish_channel(
         spawn_idle_watch(Arc::clone(&inner), i);
         spawn_age_watch(Arc::clone(&inner), i);
     }
+    let budget_limit = if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
+        Some(config.send_buffer_size())
+    } else {
+        None
+    };
     Channel {
         inner,
         config,
         interceptors: Arc::from([]),
         response_interceptors: Arc::from([]),
         rpc_slots: rpc_slots_from(config),
+        byte_budget: ByteBudgetTracker::new(budget_limit),
         user_agent: crate::wire::PBRS_GRPC_UA,
         https,
         authority,
+        observer: None,
     }
 }
 
@@ -1993,7 +2490,11 @@ impl ChannelInner {
     /// the same slot. A `GOAWAY` that races after `ready` is handled by
     /// discarding that generation and retrying once on unary and
     /// server-streaming.
-    async fn acquire(self: &Arc<Self>, wait_for_ready: bool) -> Result<LiveConn, Status> {
+    async fn acquire(
+        self: &Arc<Self>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+    ) -> Result<LiveConn, Status> {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
@@ -2014,8 +2515,22 @@ impl ChannelInner {
                 }
             }
             drop(lease);
+            let dial_start = tokio::time::Instant::now();
             match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
                 Ok(dialed) => {
+                    if let Some(obs) = observer {
+                        if gen > 0 || attempt > 0 {
+                            let target_desc = self.endpoint.describe();
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &target_desc,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
                     let mut slot = self.slot(i)?.lock().await;
                     if slot.gen == gen {
                         let send = store_dialed(&mut slot, dialed);
@@ -2035,15 +2550,31 @@ impl ChannelInner {
                     }
                     dialed.stop.send(true).ok();
                 }
-                Err(_) if wait_for_ready && self.endpoint.can_redial() => {
-                    let delay_ms = WAIT_FOR_READY_BACKOFF_MS
-                        .get(attempt)
-                        .copied()
-                        .unwrap_or(1000);
-                    attempt = attempt.saturating_add(1);
-                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                Err(status) => {
+                    if let Some(obs) = observer {
+                        if gen > 0 || attempt > 0 {
+                            let target_desc = self.endpoint.describe();
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &target_desc,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready && self.endpoint.can_redial() {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
                 }
-                Err(status) => return Err(status),
             }
         }
     }
@@ -2217,7 +2748,16 @@ async fn handshake_io(
             .map_err(|e| Status::unavailable(e.to_string()))?;
             match tls {
                 None => finish_h2(config, tcp).await,
-                Some(tls) => finish_h2(config, tls.connect(tcp).await?).await,
+                Some(tls) => {
+                    let tls_stream = tls.connect(tcp).await?;
+                    finish_h2(config, tls_stream).await.map_err(|e| {
+                        if e.to_string().contains("connection closed") {
+                            Status::unauthenticated("tls: peer closed after handshake")
+                        } else {
+                            e
+                        }
+                    })
+                }
             }
         }
         #[cfg(unix)]
@@ -2304,6 +2844,42 @@ fn attach_conn<T>(
     })
 }
 
+/// Tracks commitment state of an RPC attempt according to gRFC A6.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum AttemptCommitment {
+    /// Request HEADERS have not been sent (or stream open failed).
+    Uncommitted,
+    /// Request DATA transmission has started or completed.
+    BodyStarted,
+    /// Initial response HEADERS have been received; attempt is committed to response.
+    ResponseCommitted,
+}
+
+impl AttemptCommitment {
+    fn classify(self, status: Status) -> Status {
+        match self {
+            Self::Uncommitted => status,
+            Self::BodyStarted | Self::ResponseCommitted => {
+                if let Some(ev) = status.transport_evidence() {
+                    if !ev.is_transparent_retryable() {
+                        let mut s = status;
+                        s.mark_transport(TransportEvidence::AmbiguousLoss);
+                        return s;
+                    }
+                }
+                status
+            }
+        }
+    }
+
+    fn classify_h2(self, err: h2::Error) -> Status {
+        match self {
+            Self::Uncommitted => Status::from_h2_pre_headers(err),
+            Self::BodyStarted | Self::ResponseCommitted => Status::from_h2_post_dispatch(err),
+        }
+    }
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "one transport handle plus request, cancel, limits, and scheme"
@@ -2314,34 +2890,46 @@ async fn run_unary<Resp>(
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: Bytes,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
+    permit: BytePermit,
 ) -> Result<Response<Resp>, Status>
 where
     Resp: Parse + Default,
 {
-    let deadline = deadline_from(timeout);
+    let mut commitment = AttemptCommitment::Uncommitted;
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
         path,
         md,
         timeout,
+        deadline,
+        cancel_rx.clone(),
         compress,
         wire.accept_gzip,
         &user_agent,
         https,
     )
-    .await?;
-    send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
+    .await
+    .map_err(|e| commitment.classify(e))?;
+    commitment = AttemptCommitment::BodyStarted;
+    send_bytes(&mut send_stream, frame, true, wire.send_buffer)
+        .await
+        .map_err(|e| commitment.classify(e))?;
+    drop(permit);
     race(
         async {
-            let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip).await
+            let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
+            commitment = AttemptCommitment::ResponseCommitted;
+            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip)
+                .await
+                .map_err(|e| commitment.classify(e))
         },
         cancel_rx,
         deadline,
@@ -2360,34 +2948,46 @@ async fn run_server_stream<Resp>(
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: Bytes,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
+    permit: BytePermit,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: Parse + Default + Send + 'static,
 {
-    let deadline = deadline_from(timeout);
+    let mut commitment = AttemptCommitment::Uncommitted;
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
         path,
         md,
         timeout,
+        deadline,
+        cancel_rx.clone(),
         compress,
         wire.accept_gzip,
         &user_agent,
         https,
     )
-    .await?;
-    send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
+    .await
+    .map_err(|e| commitment.classify(e))?;
+    commitment = AttemptCommitment::BodyStarted;
+    send_bytes(&mut send_stream, frame, true, wire.send_buffer)
+        .await
+        .map_err(|e| commitment.classify(e))?;
+    drop(permit);
     let response = race(
         async {
-            let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip).await
+            let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
+            commitment = AttemptCommitment::ResponseCommitted;
+            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip)
+                .await
+                .map_err(|e| commitment.classify(e))
         },
         cancel_rx.clone(),
         deadline,
@@ -2406,13 +3006,13 @@ async fn run_client_stream<Req, Resp>(
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
-    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default,
 {
-    let deadline = deadline_from(timeout);
     // Keep the send half on this stack and RST it if the Call is dropped
     // mid-wait. Harvesting it from a spawned pump lost the RST: cancel can
     // win the same `select!` as JoinHandle Ready, and RecvStream drop is
@@ -2424,10 +3024,10 @@ where
     let result = {
         let mut failed = false;
         let result = {
-            let pump = pump_outbound(&mut send.stream, rx, cancel_rx.clone(), wire);
+            let pump = pump_outbound_budget(&mut send.stream, rx, cancel_rx.clone(), wire, &budget);
             tokio::pin!(pump);
             let fut = async {
-                let response = resp_fut.await.map_err(Status::from_h2)?;
+                let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
                 finish_unary::<Resp>(response, wire.limits, wire.accept_gzip).await
             };
             tokio::pin!(fut);
@@ -2472,6 +3072,77 @@ where
     prefer_deadline(result, deadline)
 }
 
+async fn pump_outbound_budget<T: Serialize>(
+    send: &mut h2::SendStream<Bytes>,
+    mut rx: Streaming<T>,
+    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    wire: Wire,
+    budget: &ByteBudgetTracker,
+) -> PumpEnd {
+    let mut batch = OutBatch::new(wire);
+    let mut items = Vec::with_capacity(OutBatch::BURST);
+    let mut permits = Vec::with_capacity(OutBatch::BURST);
+    let mut watch_cancel = true;
+    loop {
+        items.clear();
+        let taken = tokio::select! {
+            cancelled = async {
+                cancel_rx.wait_for(|v| *v).await.is_ok()
+            }, if watch_cancel => {
+                if cancelled {
+                    send.send_reset(Reason::CANCEL);
+                    return PumpEnd::Reset;
+                }
+                watch_cancel = false;
+                continue;
+            }
+            taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
+        };
+        if taken == 0 {
+            if batch.flush(send).await.is_err() {
+                send.send_reset(Reason::INTERNAL_ERROR);
+                return PumpEnd::Reset;
+            }
+            permits.clear();
+            send.send_data(Bytes::new(), true).ok();
+            return PumpEnd::HalfClosed;
+        }
+        let room = OutBatch::BURST - items.len();
+        if items.len() > 1 && room > 0 {
+            crate::wire::let_producer_catch_up().await;
+            rx.try_recv_many(&mut items, room);
+        }
+        for item in items.drain(..) {
+            let item = match item {
+                Ok(item) => item,
+                Err(status) => return PumpEnd::Failed(status),
+            };
+            let frame_len = 5 + item.message.serialized_len();
+            match budget.acquire(frame_len) {
+                Ok(permit) => permits.push(permit),
+                Err(status) => return PumpEnd::Failed(status),
+            }
+            if let Err(status) = batch.encode(item) {
+                return PumpEnd::Failed(status);
+            }
+            if batch.is_full() {
+                if batch.flush(send).await.is_err() {
+                    send.send_reset(Reason::INTERNAL_ERROR);
+                    return PumpEnd::Reset;
+                }
+                permits.clear();
+            }
+        }
+        if !batch.is_full() {
+            if batch.flush(send).await.is_err() {
+                send.send_reset(Reason::INTERNAL_ERROR);
+                return PumpEnd::Reset;
+            }
+            permits.clear();
+        }
+    }
+}
+
 /// `RST_STREAM` a client-streaming send half if the Call is dropped while
 /// still waiting for the unary response (including after a clean half-close).
 struct ResetSend {
@@ -2493,13 +3164,13 @@ async fn run_bidi<Req, Resp>(
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
-    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default + Send + 'static,
 {
-    let deadline = deadline_from(timeout);
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
     // The Call deadline does not set cancel_rx (`is_cancelled` is not
@@ -2512,7 +3183,7 @@ where
         async move {
             let mut send = send_stream;
             let end = {
-                let pump = pump_outbound(&mut send, rx, cancel_rx.clone(), wire);
+                let pump = pump_outbound_budget(&mut send, rx, cancel_rx.clone(), wire, &budget);
                 tokio::pin!(pump);
                 let until_deadline = async {
                     match deadline {
@@ -2544,7 +3215,7 @@ where
     }));
     let result = {
         let fut = async {
-            let response = resp_fut.await.map_err(Status::from_h2)?;
+            let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
             finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip).await
         };
         tokio::pin!(fut);
@@ -2589,17 +3260,41 @@ async fn open(
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    cancel_rx: watch::Receiver<bool>,
     send_gzip: bool,
     accept_gzip: bool,
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
-    let mut send_req = send_req.ready().await.map_err(Status::from_h2)?;
+    if timeout.is_some_and(|d| d.is_zero()) {
+        return Err(Status::deadline_exceeded());
+    }
+    let mut send_req = prefer_deadline(
+        first_of(
+            async { send_req.ready().await.map_err(Status::from_h2_pre_headers) },
+            cancel_rx,
+            deadline,
+        )
+        .await,
+        deadline,
+    )?;
+    let remaining = match (timeout, remaining_timeout(deadline)?) {
+        (Some(initial), Some(rem)) => {
+            if initial > rem && initial - rem < Duration::from_millis(20) {
+                Some(initial)
+            } else {
+                Some(rem)
+            }
+        }
+        (None, rem) => rem,
+        (Some(initial), None) => Some(initial),
+    };
     let http_req = grpc_request(
         authority,
         path,
         md,
-        timeout,
+        remaining,
         send_gzip,
         accept_gzip,
         user_agent,
@@ -2607,15 +3302,7 @@ async fn open(
     )?;
     send_req
         .send_request(http_req, false)
-        .map_err(Status::from_h2)
-}
-
-/// Race the RPC against its deadline and its cancel signal, resetting the
-/// stream if either wins so the server stops working on it.
-/// Turn a duration into an absolute instant, so every stage of one RPC races
-/// the same deadline rather than restarting the clock.
-fn deadline_from(timeout: Option<Duration>) -> Option<tokio::time::Instant> {
-    timeout.map(|d| tokio::time::Instant::now() + d)
+        .map_err(Status::from_h2_pre_headers)
 }
 
 /// Report an expired deadline as `DEADLINE_EXCEEDED`, whatever the transport
@@ -2653,15 +3340,15 @@ async fn first_of<T>(
     if let Some(at) = deadline {
         tokio::select! {
             biased;
-            r = fut => r,
-            _ = tokio::time::sleep_until(at) => Err(Status::deadline_exceeded()),
             _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+            _ = tokio::time::sleep_until(at) => Err(Status::deadline_exceeded()),
+            r = fut => r,
         }
     } else {
         tokio::select! {
             biased;
-            r = fut => r,
             _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+            r = fut => r,
         }
     }
 }

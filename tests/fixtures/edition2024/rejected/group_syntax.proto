@@ -1,0 +1,10 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+message GroupConsumer {
+  // Fails: group keyword is no longer supported in editions
+  group MyGroup = 1 {
+    int32 nested_val = 1;
+  }
+}

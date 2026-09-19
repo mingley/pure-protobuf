@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package reexport.child;
+
+import public "reexport/parent.proto";
+
+message ChildData {
+  string tag = 1;
+  // Access grandparent type transitively exported through parent
+  reexport.grandparent.GrandparentData gp_data = 2;
+  // Access parent type directly exported through parent
+  reexport.parent.ParentData parent_data = 3;
+}

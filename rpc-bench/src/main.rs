@@ -46,790 +46,580 @@
     reason = "bench binary"
 )]
 
-use std::net::SocketAddr;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::net::TcpListener;
+pub mod load;
+pub mod report;
+pub mod benchmark_service;
+pub mod resources;
+pub mod worker_server;
+pub mod worker_client;
 
-mod tonic_gen {
+pub mod tonic_gen {
     #![allow(missing_docs, unused, reason = "generated tonic TestService")]
     include!(concat!(env!("OUT_DIR"), "/test.rs"));
 }
 
-use pbrs_grpc::{
-    Empty, InteropTestService, Payload, Request as KReq, ResponseParameters, SimpleRequest,
-    StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
-};
-use tonic::transport::{Channel, Server};
-use tonic::{Request, Response, Status};
+pub mod process;
 
-const LARGE_REQ: i32 = 271828;
-const LARGE_RESP: i32 = 314159;
-const ITERS: u32 = 2000;
-const LARGE_ITERS: u32 = 200;
-const WARMUP: u32 = 64;
-const QPS_SECS: f64 = 2.0;
-const QPS_ROUNDS: usize = 3;
-const QPS_CONC_LOW: u32 = 1;
-const QPS_CONNS_LOW: usize = 1;
-const QPS_CONC_HIGH: u32 = 16;
-const QPS_CONNS_HIGH: usize = 4;
-/// Messages per server-streaming RPC, and their payload size.
-const STREAM_MSGS: i32 = 2000;
-const STREAM_SIZE: i32 = 1024;
-const STREAM_ROUNDS: usize = 9;
-/// The kernel must reach at least this fraction of tonic's stream throughput.
-const STREAM_PARITY: f64 = 0.9;
-/// Empty request/response pairs in one bidi `FullDuplexCall`.
-const PING_PONGS: u64 = 256;
-/// Same band as stream: bidi ping-pong is noisier than unary latency.
-const PING_PONG_PARITY: f64 = 0.9;
-/// Same band as stream: client-streaming upload is noisier than unary latency.
-const UPLOAD_PARITY: f64 = 0.9;
+use std::net::SocketAddr;
+use std::time::Duration;
+use tokio::net::TcpListener;
 
-struct TonicInterop;
+/// Create a router mounting both `TestService` and `BenchmarkService`.
+pub fn create_dual_server() -> pbrs_grpc::Router {
+    pbrs_grpc::Router::new()
+        .add_service(pbrs_grpc::TestServiceServer::new(pbrs_grpc::InteropTestService))
+        .add_service(benchmark_service::BenchmarkServiceServer::new(
+            benchmark_service::BenchmarkServiceImpl,
+        ))
+}
 
-impl tonic_gen::TestService for TonicInterop {
-    async fn empty_call(
-        &self,
-        _req: Request<tonic_gen::Empty>,
-    ) -> Result<Response<tonic_gen::Empty>, Status> {
-        Ok(Response::new(tonic_gen::Empty::new()))
-    }
+/// CLI options for load generation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoadCliArgs {
+    pub distribution: Option<load::LoadDistribution>,
+    pub rate: Option<f64>,
+    pub seed: Option<u64>,
+    pub max_in_flight: Option<usize>,
+    pub duration_secs: Option<f64>,
+    pub server_addr: Option<String>,
+    pub output_file: Option<String>,
+    pub print_json: bool,
+    pub quick: bool,
+    pub benchmark_service: bool,
+}
 
-    async fn unary_call(
-        &self,
-        req: Request<tonic_gen::SimpleRequest>,
-    ) -> Result<Response<tonic_gen::SimpleResponse>, Status> {
-        let n = req.into_inner().response_size();
-        let mut resp = tonic_gen::SimpleResponse::new();
-        let mut p = tonic_gen::Payload::new();
-        p.set_body(vec![0u8; usize::try_from(n.max(0)).unwrap_or(0)]);
-        resp.set_payload(p);
-        Ok(Response::new(resp))
-    }
-
-    async fn cacheable_unary_call(
-        &self,
-        req: Request<tonic_gen::SimpleRequest>,
-    ) -> Result<Response<tonic_gen::SimpleResponse>, Status> {
-        self.unary_call(req).await
-    }
-
-    type StreamingOutputCallStream = tokio_stream::wrappers::ReceiverStream<
-        Result<tonic_gen::StreamingOutputCallResponse, Status>,
-    >;
-
-    /// Mirrors the kernel's `InteropTestService`: emit one reply per requested
-    /// `ResponseParameters`, through a channel of the same depth.
-    async fn streaming_output_call(
-        &self,
-        req: Request<tonic_gen::StreamingOutputCallRequest>,
-    ) -> Result<Response<Self::StreamingOutputCallStream>, Status> {
-        let sizes: Vec<i32> = req
-            .into_inner()
-            .response_parameters()
-            .iter()
-            .map(|p| p.size())
-            .collect();
-        let (tx, rx) = tokio::sync::mpsc::channel(8);
-        tokio::spawn(async move {
-            for size in sizes {
-                let mut msg = tonic_gen::StreamingOutputCallResponse::new();
-                let mut p = tonic_gen::Payload::new();
-                p.set_body(vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)]);
-                msg.set_payload(p);
-                if tx.send(Ok(msg)).await.is_err() {
-                    break;
-                }
-            }
-        });
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
-            rx,
-        )))
-    }
-
-    /// Mirrors the kernel's `InteropTestService`: sum inbound payload sizes.
-    async fn streaming_input_call(
-        &self,
-        req: Request<tonic::Streaming<tonic_gen::StreamingInputCallRequest>>,
-    ) -> Result<Response<tonic_gen::StreamingInputCallResponse>, Status> {
-        let mut inbound = req.into_inner();
-        let mut total: i32 = 0;
-        while let Some(item) = inbound.message().await? {
-            let n = i32::try_from(item.payload().body().len()).unwrap_or(i32::MAX);
-            total = total.saturating_add(n);
+fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
+    for i in 0..args.len() {
+        if let Some(val) = args[i].strip_prefix(&format!("{flag}=")) {
+            return Some(val.to_string());
         }
-        let mut msg = tonic_gen::StreamingInputCallResponse::new();
-        msg.set_aggregated_payload_size(total);
-        Ok(Response::new(msg))
-    }
-
-    type FullDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
-        Result<tonic_gen::StreamingOutputCallResponse, Status>,
-    >;
-
-    /// Mirrors the kernel's `InteropTestService`: for each inbound request,
-    /// emit one reply per requested `ResponseParameters`.
-    async fn full_duplex_call(
-        &self,
-        req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
-    ) -> Result<Response<Self::FullDuplexCallStream>, Status> {
-        let mut inbound = req.into_inner();
-        let (tx, rx) = tokio::sync::mpsc::channel(8);
-        tokio::spawn(async move {
-            loop {
-                match inbound.message().await {
-                    Ok(Some(msg)) => {
-                        let sizes: Vec<i32> =
-                            msg.response_parameters().iter().map(|p| p.size()).collect();
-                        for size in sizes {
-                            let mut out = tonic_gen::StreamingOutputCallResponse::new();
-                            let mut payload = tonic_gen::Payload::new();
-                            payload.set_body(vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)]);
-                            out.set_payload(payload);
-                            if tx.send(Ok(out)).await.is_err() {
-                                return;
-                            }
-                        }
-                    }
-                    Ok(None) => return,
-                    Err(_) => return,
-                }
-            }
-        });
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
-            rx,
-        )))
-    }
-
-    type HalfDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
-        Result<tonic_gen::StreamingOutputCallResponse, Status>,
-    >;
-
-    async fn half_duplex_call(
-        &self,
-        _req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
-    ) -> Result<Response<Self::HalfDuplexCallStream>, Status> {
-        Err(Status::unimplemented("bench"))
-    }
-
-    async fn unimplemented_call(
-        &self,
-        _req: Request<tonic_gen::Empty>,
-    ) -> Result<Response<tonic_gen::Empty>, Status> {
-        Err(Status::unimplemented("bench"))
-    }
-}
-
-/// Latency summary in nanoseconds.
-#[derive(Clone, Copy)]
-struct Latency {
-    p50: u128,
-    p99: u128,
-}
-
-impl Latency {
-    fn from(mut samples: Vec<u128>) -> Self {
-        samples.sort_unstable();
-        let pick = |q: f64| {
-            let i = ((samples.len() as f64 - 1.0) * q).round() as usize;
-            samples.get(i).copied().unwrap_or(0)
-        };
-        Self {
-            p50: pick(0.5),
-            p99: pick(0.99),
+        if args[i] == flag && i + 1 < args.len() && !args[i + 1].starts_with('-') {
+            return Some(args[i + 1].clone());
         }
     }
-
-    /// Strictly faster than `other` on both percentiles.
-    fn beats(self, other: Self) -> bool {
-        self.p50 < other.p50 && self.p99 < other.p99
-    }
+    None
 }
 
-fn large_kernel_req() -> SimpleRequest {
-    let mut sr = SimpleRequest::new();
-    sr.set_response_size(LARGE_RESP);
-    let mut p = pbrs_grpc::Payload::new();
-    p.set_body(vec![0u8; LARGE_REQ as usize]);
-    sr.set_payload(p);
-    sr
+fn has_flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 
-fn large_tonic_req() -> tonic_gen::SimpleRequest {
-    let mut sr = tonic_gen::SimpleRequest::new();
-    sr.set_response_size(LARGE_RESP);
-    let mut p = tonic_gen::Payload::new();
-    p.set_body(vec![0u8; LARGE_REQ as usize]);
-    sr.set_payload(p);
-    sr
-}
+/// Parse load generator options from command-line arguments.
+pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
+    let distribution = if let Some(val) = get_arg_val(args, "--distribution") {
+        Some(val.parse::<load::LoadDistribution>()?)
+    } else {
+        None
+    };
 
-fn stream_kernel_req() -> pbrs_grpc::StreamingOutputCallRequest {
-    let mut req = pbrs_grpc::StreamingOutputCallRequest::new();
-    for _ in 0..STREAM_MSGS {
-        let mut p = pbrs_grpc::ResponseParameters::new();
-        p.set_size(STREAM_SIZE);
-        req.response_parameters_mut().push(p);
-    }
-    req
-}
-
-fn stream_tonic_req() -> tonic_gen::StreamingOutputCallRequest {
-    let mut req = tonic_gen::StreamingOutputCallRequest::new();
-    for _ in 0..STREAM_MSGS {
-        let mut p = tonic_gen::ResponseParameters::new();
-        p.set_size(STREAM_SIZE);
-        req.response_parameters_mut().push(p);
-    }
-    req
-}
-
-async fn latency_kernel(addr: SocketAddr) -> (Latency, Latency) {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
-    for _ in 0..WARMUP {
-        client.empty_call(KReq::new(Empty::new())).await.unwrap();
-    }
-    let mut empty = Vec::with_capacity(ITERS as usize);
-    for _ in 0..ITERS {
-        let t = Instant::now();
-        client.empty_call(KReq::new(Empty::new())).await.unwrap();
-        empty.push(t.elapsed().as_nanos());
-    }
-
-    let sr = large_kernel_req();
-    for _ in 0..WARMUP / 4 {
-        client.unary_call(KReq::new(sr.clone())).await.unwrap();
-    }
-    let mut large = Vec::with_capacity(LARGE_ITERS as usize);
-    for _ in 0..LARGE_ITERS {
-        let t = Instant::now();
-        client.unary_call(KReq::new(sr.clone())).await.unwrap();
-        large.push(t.elapsed().as_nanos());
-    }
-    (Latency::from(empty), Latency::from(large))
-}
-
-async fn latency_tonic(addr: SocketAddr) -> (Latency, Latency) {
-    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
-    for _ in 0..WARMUP {
-        client
-            .empty_call(Request::new(tonic_gen::Empty::new()))
-            .await
-            .unwrap();
-    }
-    let mut empty = Vec::with_capacity(ITERS as usize);
-    for _ in 0..ITERS {
-        let t = Instant::now();
-        client
-            .empty_call(Request::new(tonic_gen::Empty::new()))
-            .await
-            .unwrap();
-        empty.push(t.elapsed().as_nanos());
-    }
-
-    let sr = large_tonic_req();
-    for _ in 0..WARMUP / 4 {
-        client.unary_call(Request::new(sr.clone())).await.unwrap();
-    }
-    let mut large = Vec::with_capacity(LARGE_ITERS as usize);
-    for _ in 0..LARGE_ITERS {
-        let t = Instant::now();
-        client.unary_call(Request::new(sr.clone())).await.unwrap();
-        large.push(t.elapsed().as_nanos());
-    }
-    (Latency::from(empty), Latency::from(large))
-}
-
-async fn tonic_channel(addr: SocketAddr) -> Channel {
-    Channel::from_shared(format!("http://{addr}"))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap()
-}
-
-/// Counters shared by a load generator and its driver.
-#[derive(Clone)]
-struct Counters {
-    ok: Arc<AtomicU64>,
-    err: Arc<AtomicU64>,
-    run: Arc<AtomicBool>,
-}
-
-impl Counters {
-    fn new() -> Self {
-        Self {
-            ok: Arc::new(AtomicU64::new(0)),
-            err: Arc::new(AtomicU64::new(0)),
-            run: Arc::new(AtomicBool::new(true)),
+    let rate = if let Some(val) = get_arg_val(args, "--rate") {
+        let r: f64 = val.parse().map_err(|e| format!("invalid --rate '{val}': {e}"))?;
+        if r <= 0.0 {
+            return Err(format!("invalid --rate '{val}': must be strictly positive"));
         }
-    }
+        Some(r)
+    } else {
+        None
+    };
 
-    fn record(&self, ok: bool) {
-        if ok {
-            self.ok.fetch_add(1, Ordering::Relaxed);
-        } else {
-            self.err.fetch_add(1, Ordering::Relaxed);
+    let seed = if let Some(val) = get_arg_val(args, "--seed") {
+        let s: u64 = val.parse().map_err(|e| format!("invalid --seed '{val}': {e}"))?;
+        Some(s)
+    } else {
+        None
+    };
+
+    let max_in_flight = if let Some(val) = get_arg_val(args, "--max-in-flight").or_else(|| get_arg_val(args, "--max_in_flight")) {
+        let m: usize = val.parse().map_err(|e| format!("invalid --max-in-flight '{val}': {e}"))?;
+        if m == 0 {
+            return Err(format!("invalid --max-in-flight '{val}': must be at least 1"));
         }
-    }
+        Some(m)
+    } else {
+        None
+    };
 
-    fn running(&self) -> bool {
-        self.run.load(Ordering::Relaxed)
-    }
-
-    async fn stop_after(&self, dur: Duration) {
-        tokio::time::sleep(dur).await;
-        self.run.store(false, Ordering::Relaxed);
-    }
-}
-
-async fn qps_kernel(
-    addr: SocketAddr,
-    conc: u32,
-    conns: usize,
-    dur: Duration,
-    large: bool,
-) -> (u64, u64) {
-    let client = TestServiceClient::new(
-        pbrs_grpc::Channel::connect_pool(addr, conns.max(1))
-            .await
-            .unwrap(),
-    );
-    let sr = large_kernel_req();
-    for _ in 0..8 {
-        if large {
-            client.unary_call(KReq::new(sr.clone())).await.unwrap();
-        } else {
-            client.empty_call(KReq::new(Empty::new())).await.unwrap();
-        }
-    }
-    let counters = Counters::new();
-    let mut handles = Vec::with_capacity(conc as usize);
-    for _ in 0..conc {
-        let client = client.clone();
-        let counters = counters.clone();
-        let sr = sr.clone();
-        handles.push(tokio::spawn(async move {
-            while counters.running() {
-                let ok = if large {
-                    client.unary_call(KReq::new(sr.clone())).await.is_ok()
-                } else {
-                    client.empty_call(KReq::new(Empty::new())).await.is_ok()
-                };
-                counters.record(ok);
-            }
-        }));
-    }
-    counters.stop_after(dur).await;
-    for h in handles {
-        h.await.unwrap();
-    }
-    (
-        counters.ok.load(Ordering::Relaxed),
-        counters.err.load(Ordering::Relaxed),
-    )
-}
-
-async fn qps_tonic(
-    addr: SocketAddr,
-    conc: u32,
-    conns: usize,
-    dur: Duration,
-    large: bool,
-) -> (u64, u64) {
-    let nconn = conns.max(1);
-    let mut clients = Vec::with_capacity(nconn);
-    for _ in 0..nconn {
-        clients.push(tonic_gen::TestServiceClient::new(tonic_channel(addr).await));
-    }
-    let sr = large_tonic_req();
+    let duration_secs = if let Some(val) = get_arg_val(args, "--duration-secs")
+        .or_else(|| get_arg_val(args, "--duration_secs"))
+        .or_else(|| get_arg_val(args, "--duration"))
     {
-        let c0 = clients.first_mut().unwrap();
-        for _ in 0..8 {
-            if large {
-                c0.unary_call(Request::new(sr.clone())).await.unwrap();
-            } else {
-                c0.empty_call(Request::new(tonic_gen::Empty::new()))
-                    .await
-                    .unwrap();
-            }
+        let d: f64 = val.parse().map_err(|e| format!("invalid duration '{val}': {e}"))?;
+        if d <= 0.0 {
+            return Err(format!("invalid duration '{val}': must be strictly positive"));
         }
-    }
-    let counters = Counters::new();
-    let mut handles = Vec::with_capacity(conc as usize);
-    for i in 0..conc {
-        let mut client = clients.get(i as usize % nconn).cloned().unwrap();
-        let counters = counters.clone();
-        let sr = sr.clone();
-        handles.push(tokio::spawn(async move {
-            while counters.running() {
-                let ok = if large {
-                    client.unary_call(Request::new(sr.clone())).await.is_ok()
-                } else {
-                    client
-                        .empty_call(Request::new(tonic_gen::Empty::new()))
-                        .await
-                        .is_ok()
-                };
-                counters.record(ok);
-            }
-        }));
-    }
-    counters.stop_after(dur).await;
-    for h in handles {
-        h.await.unwrap();
-    }
-    (
-        counters.ok.load(Ordering::Relaxed),
-        counters.err.load(Ordering::Relaxed),
+        Some(d)
+    } else {
+        None
+    };
+
+    let server_addr = get_arg_val(args, "--server_addr")
+        .or_else(|| get_arg_val(args, "--server-addr"))
+        .or_else(|| get_arg_val(args, "--serveraddr"))
+        .or_else(|| get_arg_val(args, "--target"));
+
+    let output_file = get_arg_val(args, "--output")
+        .or_else(|| get_arg_val(args, "-o"))
+        .or_else(|| get_arg_val(args, "--report"));
+
+    let print_json = has_flag(args, "--json");
+    let quick = has_flag(args, "--quick") || has_flag(args, "-q");
+    let benchmark_service = has_flag(args, "--benchmark-service")
+        || has_flag(args, "--benchmark_service")
+        || get_arg_val(args, "--service").as_deref() == Some("benchmark");
+
+    Ok(LoadCliArgs {
+        distribution,
+        rate,
+        seed,
+        max_in_flight,
+        duration_secs,
+        server_addr,
+        output_file,
+        print_json,
+        quick,
+        benchmark_service,
+    })
+}
+
+pub fn extended_usage() -> String {
+    format!(
+        "{}\n\
+         Load generator options:\n  \
+           --distribution <MODE>    Load distribution: closed, constant, or poisson (default: closed)\n  \
+           --rate <QPS>             Target offered rate in queries per second (for constant/poisson)\n  \
+           --seed <SEED>            Random seed for Poisson arrival schedule\n  \
+           --max-in-flight <CAP>    Maximum in-flight calls before queue overflow (default: 1000)\n  \
+           --duration-secs <SECS>   Duration of load test in seconds\n  \
+           --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.EmptyCall\n\
+         Worker options:\n  \
+           worker                   Run official gRPC WorkerService\n  \
+           --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n",
+        process::usage()
     )
 }
 
-/// Messages per second draining one server-streaming RPC.
-async fn stream_kernel(addr: SocketAddr) -> u64 {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
-    let req = stream_kernel_req();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let mut stream = client
-            .streaming_output_call(KReq::new(req.clone()))
-            .await
-            .unwrap()
-            .into_inner();
-        let mut n = 0u64;
-        while stream.message().await.unwrap().is_some() {
-            n += 1;
+async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), String> {
+    let distribution = opts.distribution.unwrap_or(if opts.rate.is_some() {
+        load::LoadDistribution::Constant
+    } else {
+        load::LoadDistribution::Closed
+    });
+
+    let rate = match distribution {
+        load::LoadDistribution::Closed => opts.rate,
+        load::LoadDistribution::Constant | load::LoadDistribution::Poisson => {
+            Some(opts.rate.unwrap_or(if opts.quick { 100.0 } else { 1000.0 }))
         }
-        assert_eq!(n, STREAM_MSGS as u64, "kernel stream must be complete");
-        // Skip the first round: it pays connection and allocator warmup.
-        if round > 0 {
-            best = best.max(rate(n, t.elapsed()));
+    };
+
+    let duration = Duration::from_secs_f64(opts.duration_secs.unwrap_or(if opts.quick { 0.5 } else { 2.0 }));
+    let mut cfg = match distribution {
+        load::LoadDistribution::Closed => load::LoadConfig::closed(4, duration),
+        load::LoadDistribution::Constant => load::LoadConfig::open_constant(rate.unwrap(), duration),
+        load::LoadDistribution::Poisson => {
+            let seed = opts.seed.unwrap_or(0x5eed_2026_0918);
+            load::LoadConfig::open_poisson(rate.unwrap(), seed, duration)
         }
+    };
+
+    if let Some(cap) = opts.max_in_flight {
+        cfg = cfg.with_max_in_flight(cap);
     }
-    best
-}
+    cfg = cfg.with_timeout(Duration::from_secs(5));
 
-async fn stream_tonic(addr: SocketAddr) -> u64 {
-    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
-    let req = stream_tonic_req();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let mut stream = client
-            .streaming_output_call(Request::new(req.clone()))
+    println!(
+        "running load benchmark: distribution={distribution}, rate={:?}, duration={:.1}s, max_in_flight={}",
+        rate,
+        duration.as_secs_f64(),
+        cfg.max_in_flight
+    );
+
+    let load_gen = load::LoadGenerator::new(cfg);
+
+    let record = if let Some(ref addr_str) = opts.server_addr {
+        let addr: SocketAddr = addr_str
+            .parse()
+            .map_err(|e| format!("invalid --server_addr '{addr_str}': {e}"))?;
+        let channel = pbrs_grpc::Channel::connect(addr)
             .await
-            .unwrap()
-            .into_inner();
-        let mut n = 0u64;
-        while stream.message().await.unwrap().is_some() {
-            n += 1;
+            .map_err(|e| format!("failed to connect to {addr}: {e}"))?;
+        if opts.benchmark_service {
+            let client = benchmark_service::BenchmarkServiceClient::new(channel);
+            load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        let mut req = benchmark_service::SimpleRequest::new();
+                        req.set_response_size(1024);
+                        client
+                            .unary_call(pbrs_grpc::Request::new(req))
+                            .await
+                            .map(|_| ())
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
+                    }
+                })
+                .await
+        } else {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        client
+                            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+                            .await
+                            .map(|_| ())
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
+                    }
+                })
+                .await
         }
-        assert_eq!(n, STREAM_MSGS as u64, "tonic stream must be complete");
-        if round > 0 {
-            best = best.max(rate(n, t.elapsed()));
+    } else {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .map_err(|e| format!("failed to bind listener: {e}"))?;
+        let addr = listener
+            .local_addr()
+            .map_err(|e| format!("failed to get local addr: {e}"))?;
+        tokio::spawn(async move {
+            create_dual_server()
+                .serve_listener(listener)
+                .await
+                .ok();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let channel = pbrs_grpc::Channel::connect(addr)
+            .await
+            .map_err(|e| format!("failed to connect to loopback server {addr}: {e}"))?;
+        if opts.benchmark_service {
+            let client = benchmark_service::BenchmarkServiceClient::new(channel);
+            load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        let mut req = benchmark_service::SimpleRequest::new();
+                        req.set_response_size(1024);
+                        client
+                            .unary_call(pbrs_grpc::Request::new(req))
+                            .await
+                            .map(|_| ())
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
+                    }
+                })
+                .await
+        } else {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        client
+                            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+                            .await
+                            .map(|_| ())
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
+                    }
+                })
+                .await
         }
-    }
-    best
-}
+    };
 
-fn ping_pong_kernel_req() -> StreamingOutputCallRequest {
-    let mut req = StreamingOutputCallRequest::new();
-    let mut p = ResponseParameters::new();
-    p.set_size(0);
-    req.response_parameters_mut().push(p);
-    req
-}
+    let metrics = record.to_rpc_metrics();
+    let qps = if record.duration.as_secs_f64() > 0.0 {
+        record.successful_calls as f64 / record.duration.as_secs_f64()
+    } else {
+        0.0
+    };
 
-fn ping_pong_tonic_req() -> tonic_gen::StreamingOutputCallRequest {
-    let mut req = tonic_gen::StreamingOutputCallRequest::new();
-    let mut p = tonic_gen::ResponseParameters::new();
-    p.set_size(0);
-    req.response_parameters_mut().push(p);
-    req
-}
+    println!(
+        "offered_calls={} dispatched_calls={} completed_calls={} successes={} failures={} timeouts={} queue_overflows={} throughput_qps={:.1}",
+        record.offered_calls,
+        record.dispatched_calls,
+        record.completed_calls,
+        record.successful_calls,
+        record.failed_calls,
+        record.timed_out_calls,
+        record.rejected_calls,
+        qps
+    );
 
-/// Round-trips per second on one bidi RPC of `PING_PONGS` empty pairs.
-async fn ping_pong_kernel(addr: SocketAddr) -> u64 {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
-    let req = ping_pong_kernel_req();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let (tx, call) = client.full_duplex_call(KReq::new(()));
-        tx.send(req.clone()).await.unwrap();
-        let mut inbound = call.await.unwrap().into_inner();
-        assert!(
-            inbound.message().await.unwrap().is_some(),
-            "kernel ping_pong missing first reply"
+    if let Some(lag) = record.scheduling_lag_summary() {
+        println!(
+            "scheduling_lag_nanos: p50={} p99={} max={}",
+            lag.p50, lag.p99, lag.max
         );
-        for _ in 1..PING_PONGS {
-            tx.send(req.clone()).await.unwrap();
-            assert!(
-                inbound.message().await.unwrap().is_some(),
-                "kernel ping_pong ended early"
-            );
-        }
-        tx.close();
-        while inbound.message().await.unwrap().is_some() {}
-        if round > 0 {
-            best = best.max(rate(PING_PONGS, t.elapsed()));
-        }
     }
-    best
-}
 
-async fn ping_pong_tonic(addr: SocketAddr) -> u64 {
-    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
-    let req = ping_pong_tonic_req();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
-        let mut inbound = client
-            .full_duplex_call(Request::new(tokio_stream::wrappers::ReceiverStream::new(
-                rx,
-            )))
-            .await
-            .unwrap()
-            .into_inner();
-        for _ in 0..PING_PONGS {
-            tx.send(req.clone()).await.unwrap();
-            assert!(
-                inbound.message().await.unwrap().is_some(),
-                "tonic ping_pong ended early"
-            );
-        }
-        drop(tx);
-        while inbound.message().await.unwrap().is_some() {}
-        if round > 0 {
-            best = best.max(rate(PING_PONGS, t.elapsed()));
-        }
+    if let Some(e2e) = record.e2e_latency_distribution() {
+        println!(
+            "e2e_latency_nanos: p50={} p90={} p99={} max={}",
+            e2e.p50_nanos, e2e.p90_nanos, e2e.p99_nanos, e2e.max_nanos
+        );
     }
-    best
-}
 
-fn upload_kernel_req() -> StreamingInputCallRequest {
-    let mut m = StreamingInputCallRequest::new();
-    let mut p = Payload::new();
-    p.set_body(vec![0u8; STREAM_SIZE as usize]);
-    m.set_payload(p);
-    m
-}
-
-fn upload_tonic_req() -> tonic_gen::StreamingInputCallRequest {
-    let mut m = tonic_gen::StreamingInputCallRequest::new();
-    let mut p = tonic_gen::Payload::new();
-    p.set_body(vec![0u8; STREAM_SIZE as usize]);
-    m.set_payload(p);
-    m
-}
-
-fn upload_want_bytes() -> i32 {
-    STREAM_MSGS.saturating_mul(STREAM_SIZE)
-}
-
-/// Messages per second on one client-streaming RPC of `STREAM_MSGS` payloads.
-async fn upload_kernel(addr: SocketAddr) -> u64 {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
-    let req = upload_kernel_req();
-    let want = upload_want_bytes();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let (tx, call) = client.streaming_input_call(KReq::new(()));
-        // The default request buffer is 16 messages. Send without polling
-        // `call` fills it and parks; join so the driver drains while we upload.
-        let send = async {
-            for _ in 0..STREAM_MSGS {
-                tx.send(req.clone()).await.unwrap();
-            }
-            tx.close();
-        };
-        let ((), resp) = tokio::join!(send, call);
-        let got = resp.unwrap().into_inner().aggregated_payload_size();
-        assert_eq!(got, want, "kernel upload must be complete");
-        if round > 0 {
-            best = best.max(rate(STREAM_MSGS as u64, t.elapsed()));
-        }
+    if opts.print_json {
+        let json = serde_json::to_string_pretty(&metrics)
+            .map_err(|e| format!("serialization error: {e}"))?;
+        println!("{json}");
     }
-    best
-}
 
-async fn upload_tonic(addr: SocketAddr) -> u64 {
-    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
-    let req = upload_tonic_req();
-    let want = upload_want_bytes();
-    let mut best = 0u64;
-    for round in 0..STREAM_ROUNDS {
-        let t = Instant::now();
-        let (tx, rx) = tokio::sync::mpsc::channel(8);
-        let send = async {
-            for _ in 0..STREAM_MSGS {
-                tx.send(req.clone()).await.unwrap();
-            }
-            drop(tx);
-        };
-        let recv = client.streaming_input_call(Request::new(
-            tokio_stream::wrappers::ReceiverStream::new(rx),
-        ));
-        let (_, resp) = tokio::join!(send, recv);
-        let got = resp.unwrap().into_inner().aggregated_payload_size();
-        assert_eq!(got, want, "tonic upload must be complete");
-        if round > 0 {
-            best = best.max(rate(STREAM_MSGS as u64, t.elapsed()));
-        }
+    if let Some(ref path) = opts.output_file {
+        let json = serde_json::to_string_pretty(&metrics)
+            .map_err(|e| format!("serialization error: {e}"))?;
+        std::fs::write(path, json)
+            .map_err(|e| format!("failed to write output to {path}: {e}"))?;
+        println!("saved metrics to {path}");
     }
-    best
-}
 
-fn rate(count: u64, dur: Duration) -> u64 {
-    (count as f64 / dur.as_secs_f64()).round() as u64
-}
-
-/// Best of `QPS_ROUNDS` for each side, so scheduler noise cannot pick a winner.
-async fn best_qps<F, Fut>(rounds: usize, mut run: F) -> (u64, u64)
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = (u64, u64)>,
-{
-    let dur = Duration::from_secs_f64(QPS_SECS);
-    let mut best = 0;
-    let mut errors = 0;
-    for _ in 0..rounds {
-        let (ok, err) = run().await;
-        best = best.max(rate(ok, dur));
-        errors += err;
-    }
-    (best, errors)
+    Ok(())
 }
 
 #[tokio::main]
 async fn main() {
-    let k_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let k_addr = k_listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        TestServiceServer::new(InteropTestService)
-            .serve_listener(k_listener)
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+        println!("{}", extended_usage());
+        std::process::exit(0);
+    }
+
+    let load_opts = match parse_load_cli_args(&args) {
+        Ok(opts) => opts,
+        Err(err) => {
+            eprintln!("Error: {err}");
+            eprintln!("{}", extended_usage());
+            std::process::exit(2);
+        }
+    };
+
+    if args.get(1).map(String::as_str) == Some("load") {
+        if let Err(e) = run_load_benchmark(&args, load_opts).await {
+            eprintln!("Load benchmark failed: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if args.get(1).map(String::as_str) == Some("benchmark-server")
+        || args.get(1).map(String::as_str) == Some("serve-both")
+    {
+        let bind_addr = args.get(2).map(String::as_str).unwrap_or("127.0.0.1:50051");
+        let listener = match TcpListener::bind(bind_addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("failed to bind to {bind_addr}: {e}");
+                std::process::exit(1);
+            }
+        };
+        let local_addr = match listener.local_addr() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("failed to get local addr: {e}");
+                std::process::exit(1);
+            }
+        };
+        println!(
+            "READY port={} addr={} transport=native services=grpc.testing.TestService,grpc.testing.BenchmarkService",
+            local_addr.port(),
+            local_addr
+        );
+        if let Err(e) = create_dual_server().serve_listener(listener).await {
+            eprintln!("Server error: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    if args.get(1).map(String::as_str) == Some("worker") {
+        let driver_port = get_arg_val(&args, "--driver_port")
+            .or_else(|| get_arg_val(&args, "--driver-port"))
+            .or_else(|| get_arg_val(&args, "--port"))
+            .or_else(|| get_arg_val(&args, "-p"))
+            .unwrap_or_else(|| "10010".to_string());
+
+        let port: u16 = match driver_port.parse() {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("invalid --driver_port '{driver_port}': {e}");
+                std::process::exit(2);
+            }
+        };
+
+        let bind_addr = format!("0.0.0.0:{port}");
+        let listener = match TcpListener::bind(&bind_addr).await {
+            Ok(l) => l,
+            Err(_) => match TcpListener::bind(format!("127.0.0.1:{port}")).await {
+                Ok(l) => l,
+                Err(e) => {
+                    eprintln!("failed to bind to {bind_addr} or 127.0.0.1:{port}: {e}");
+                    std::process::exit(1);
+                }
+            },
+        };
+
+        let local_addr = match listener.local_addr() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("failed to get local addr: {e}");
+                std::process::exit(1);
+            }
+        };
+
+        println!(
+            "READY port={} addr={} transport=native services=grpc.testing.WorkerService",
+            local_addr.port(),
+            local_addr
+        );
+
+        let (quit_tx, mut quit_rx) = tokio::sync::watch::channel(false);
+        let worker_impl = worker_client::WorkerServiceImpl::with_shutdown(quit_tx);
+
+        let shutdown = async move {
+            while !*quit_rx.borrow() {
+                if quit_rx.changed().await.is_err() {
+                    break;
+                }
+            }
+        };
+
+        if let Err(e) = worker_server::WorkerServiceServer::new(worker_impl)
+            .serve_with_shutdown(listener, shutdown)
             .await
-            .ok();
-    });
+        {
+            eprintln!("Worker server error: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
 
-    let t_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let t_addr = t_listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        Server::builder()
-            .add_service(tonic_gen::TestServiceServer::new(TonicInterop))
-            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(t_listener))
-            .await
-            .ok();
-    });
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    let role = match process::parse_args(&args) {
+        Ok(role) => role,
+        Err(err) => {
+            eprintln!("Error: {err}");
+            eprintln!("{}", extended_usage());
+            std::process::exit(2);
+        }
+    };
 
-    let (k_empty, k_large) = latency_kernel(k_addr).await;
-    let (t_empty, t_large) = latency_tonic(t_addr).await;
-    println!(
-        "empty_unary kernel_p50={} kernel_p99={} tonic_p50={} tonic_p99={}",
-        k_empty.p50, k_empty.p99, t_empty.p50, t_empty.p99
-    );
-    println!(
-        "large_unary kernel_p50={} kernel_p99={} tonic_p50={} tonic_p99={}",
-        k_large.p50, k_large.p99, t_large.p50, t_large.p99
-    );
-
-    let dur = Duration::from_secs_f64(QPS_SECS);
-    let mut errors = 0;
-    for (label, conc, conns) in [
-        ("low", QPS_CONC_LOW, QPS_CONNS_LOW),
-        ("high", QPS_CONC_HIGH, QPS_CONNS_HIGH),
-    ] {
-        for (shape, large) in [("empty", false), ("large", true)] {
-            let (kernel, kerr) =
-                best_qps(QPS_ROUNDS, || qps_kernel(k_addr, conc, conns, dur, large)).await;
-            let (tonic, terr) =
-                best_qps(QPS_ROUNDS, || qps_tonic(t_addr, conc, conns, dur, large)).await;
-            errors += kerr + terr;
-            println!(
-                "qps {shape} {label} conc={conc} conns={conns} kernel={kernel} tonic={tonic} \
-                 kernel_err={kerr} tonic_err={terr}"
-            );
+    match role {
+        process::ProcessRole::Server(cfg) => {
+            if let Err(e) = process::run_server(cfg).await {
+                eprintln!("Server error: {e}");
+                std::process::exit(1);
+            }
+        }
+        process::ProcessRole::Client(cfg) => {
+            if let Err(e) = process::run_client(cfg).await {
+                eprintln!("Client benchmark failed: {e}");
+                std::process::exit(1);
+            }
+        }
+        process::ProcessRole::Smoke(cfg) => {
+            if let Err(e) = process::run_smoke(cfg).await {
+                eprintln!("Smoke benchmark failed: {e}");
+                std::process::exit(1);
+            }
         }
     }
+}
 
-    let k_stream = stream_kernel(k_addr).await;
-    let t_stream = stream_tonic(t_addr).await;
-    let bytes_per_msg = STREAM_SIZE as u64;
-    println!(
-        "stream msgs={STREAM_MSGS} size={STREAM_SIZE} kernel_msgs_per_s={k_stream} \
-         tonic_msgs_per_s={t_stream} kernel_mib_per_s={} tonic_mib_per_s={}",
-        k_stream * bytes_per_msg / (1024 * 1024),
-        t_stream * bytes_per_msg / (1024 * 1024)
-    );
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let k_ping = ping_pong_kernel(k_addr).await;
-    let t_ping = ping_pong_tonic(t_addr).await;
-    println!(
-        "ping_pong pairs={PING_PONGS} kernel_round_trips_per_s={k_ping} \
-         tonic_round_trips_per_s={t_ping}"
-    );
+    #[test]
+    fn test_parse_load_cli_args_valid_combinations() {
+        let args = vec![
+            "rpc-bench".to_string(),
+            "--rate=1500.5".to_string(),
+            "--distribution=poisson".to_string(),
+            "--seed=999".to_string(),
+            "--max-in-flight=50".to_string(),
+        ];
+        let opts = parse_load_cli_args(&args).unwrap();
+        assert_eq!(opts.rate, Some(1500.5));
+        assert_eq!(opts.distribution, Some(load::LoadDistribution::Poisson));
+        assert_eq!(opts.seed, Some(999));
+        assert_eq!(opts.max_in_flight, Some(50));
 
-    let k_upload = upload_kernel(k_addr).await;
-    let t_upload = upload_tonic(t_addr).await;
-    println!(
-        "upload msgs={STREAM_MSGS} size={STREAM_SIZE} kernel_msgs_per_s={k_upload} \
-         tonic_msgs_per_s={t_upload} kernel_mib_per_s={} tonic_mib_per_s={}",
-        k_upload * bytes_per_msg / (1024 * 1024),
-        t_upload * bytes_per_msg / (1024 * 1024)
-    );
+        let args_space = vec![
+            "rpc-bench".to_string(),
+            "--rate".to_string(),
+            "2000".to_string(),
+            "--distribution".to_string(),
+            "constant".to_string(),
+            "--seed".to_string(),
+            "123".to_string(),
+        ];
+        let opts_space = parse_load_cli_args(&args_space).unwrap();
+        assert_eq!(opts_space.rate, Some(2000.0));
+        assert_eq!(opts_space.distribution, Some(load::LoadDistribution::Constant));
+        assert_eq!(opts_space.seed, Some(123));
 
-    let mut failed = false;
-    if !k_empty.beats(t_empty) {
-        eprintln!(
-            "perf gate failed: empty_unary kernel p50={} p99={} vs tonic p50={} p99={}",
-            k_empty.p50, k_empty.p99, t_empty.p50, t_empty.p99
-        );
-        failed = true;
+        let args_closed = vec![
+            "rpc-bench".to_string(),
+            "--distribution=closed".to_string(),
+        ];
+        let opts_closed = parse_load_cli_args(&args_closed).unwrap();
+        assert_eq!(opts_closed.distribution, Some(load::LoadDistribution::Closed));
     }
-    if !k_large.beats(t_large) {
-        eprintln!(
-            "perf gate failed: large_unary kernel p50={} p99={} vs tonic p50={} p99={}",
-            k_large.p50, k_large.p99, t_large.p50, t_large.p99
-        );
-        failed = true;
+
+    #[test]
+    fn test_parse_load_cli_args_invalid_values() {
+        // Invalid rate
+        let args = vec!["rpc-bench".to_string(), "--rate=invalid".to_string()];
+        assert!(parse_load_cli_args(&args).is_err());
+
+        // Negative rate
+        let args = vec!["rpc-bench".to_string(), "--rate=-5.0".to_string()];
+        assert!(parse_load_cli_args(&args).is_err());
+
+        // Invalid distribution
+        let args = vec!["rpc-bench".to_string(), "--distribution=gaussian".to_string()];
+        assert!(parse_load_cli_args(&args).is_err());
+
+        // Invalid seed
+        let args = vec!["rpc-bench".to_string(), "--seed=not_a_number".to_string()];
+        assert!(parse_load_cli_args(&args).is_err());
+
+        // Benchmark service flag
+        let args_bench = vec!["rpc-bench".to_string(), "--benchmark-service".to_string()];
+        let opts_bench = parse_load_cli_args(&args_bench).unwrap();
+        assert!(opts_bench.benchmark_service);
     }
-    // Parity, not victory: see the module docs for why this axis is a band.
-    if (k_stream as f64) < (t_stream as f64) * STREAM_PARITY {
-        eprintln!(
-            "perf gate failed: stream kernel {k_stream} vs tonic {t_stream} msgs/s \
-             (must be within {}%)",
-            ((1.0 - STREAM_PARITY) * 100.0).round()
-        );
-        failed = true;
-    }
-    if (k_ping as f64) < (t_ping as f64) * PING_PONG_PARITY {
-        eprintln!(
-            "perf gate failed: ping_pong kernel {k_ping} vs tonic {t_ping} round-trips/s \
-             (must be within {}%)",
-            ((1.0 - PING_PONG_PARITY) * 100.0).round()
-        );
-        failed = true;
-    }
-    if (k_upload as f64) < (t_upload as f64) * UPLOAD_PARITY {
-        eprintln!(
-            "perf gate failed: upload kernel {k_upload} vs tonic {t_upload} msgs/s \
-             (must be within {}%)",
-            ((1.0 - UPLOAD_PARITY) * 100.0).round()
-        );
-        failed = true;
-    }
-    if errors != 0 {
-        eprintln!("rpc-bench failed: {errors} RPC errors");
-        failed = true;
-    }
-    if failed {
-        std::process::exit(1);
+
+    #[tokio::test]
+    async fn test_dual_server_mounts_both_services() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        tokio::spawn(async move {
+            create_dual_server()
+                .serve_listener(listener)
+                .await
+                .ok();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+
+        // 1. Verify TestService is served
+        let test_client = pbrs_grpc::TestServiceClient::new(channel.clone());
+        let empty_resp = test_client
+            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+            .await;
+        assert!(empty_resp.is_ok());
+
+        // 2. Verify BenchmarkService is served on the same endpoint
+        let bench_client = benchmark_service::BenchmarkServiceClient::new(channel);
+        let mut req = benchmark_service::SimpleRequest::new();
+        req.set_response_size(256);
+        let bench_resp = bench_client
+            .unary_call(pbrs_grpc::Request::new(req))
+            .await;
+        assert!(bench_resp.is_ok());
+        assert_eq!(bench_resp.unwrap().into_inner().payload().body().len(), 256);
     }
 }
+

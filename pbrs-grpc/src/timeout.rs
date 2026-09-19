@@ -23,6 +23,7 @@
 //! );
 //! ```
 
+use crate::Status;
 use std::time::Duration;
 
 /// Largest value the eight-digit field can hold.
@@ -69,6 +70,12 @@ pub fn encode_timeout(d: Duration) -> String {
     if nanos <= MAX_DIGITS_VALUE {
         return format!("{nanos}n");
     }
+    for (per_unit, suffix) in [(NANOS_PER_MICRO, 'u'), (NANOS_PER_MILLI, 'm')] {
+        let value = nanos / per_unit;
+        if value <= MAX_DIGITS_VALUE {
+            return format!("{value}{suffix}");
+        }
+    }
     let hours = (nanos / NANOS_PER_HOUR).min(MAX_DIGITS_VALUE);
     format!("{hours}H")
 }
@@ -113,9 +120,37 @@ pub fn parse_timeout(s: &str) -> Option<Duration> {
     }
 }
 
+/// Turn an optional duration timeout into an absolute deadline Instant from `now`.
+#[must_use]
+pub fn deadline_from(timeout: Option<Duration>) -> Option<tokio::time::Instant> {
+    timeout.map(|d| tokio::time::Instant::now() + d)
+}
+
+/// Compute the remaining duration until an absolute `tokio::time::Instant` deadline.
+///
+/// Returns:
+/// - `Ok(None)` if no deadline was set (`deadline` is `None`).
+/// - `Ok(Some(remaining))` if the deadline has not expired (`remaining > Duration::ZERO`).
+/// - `Err(Status::deadline_exceeded())` if the deadline has expired (`remaining == Duration::ZERO`).
+pub fn remaining_timeout(
+    deadline: Option<tokio::time::Instant>,
+) -> Result<Option<Duration>, Status> {
+    match deadline {
+        None => Ok(None),
+        Some(at) => {
+            let remaining = at.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                Err(Status::deadline_exceeded())
+            } else {
+                Ok(Some(remaining))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{encode_timeout, parse_timeout};
+    use super::{deadline_from, encode_timeout, parse_timeout, remaining_timeout};
     use std::time::Duration;
 
     #[test]
@@ -193,5 +228,17 @@ mod tests {
             parse_timeout("100000000m"),
             Some(Duration::from_millis(100_000_000))
         );
+    }
+
+    #[test]
+    fn deadline_helpers_track_remaining_budget() {
+        assert_eq!(deadline_from(None), None);
+        let at = deadline_from(Some(Duration::from_secs(10))).unwrap();
+        assert!(remaining_timeout(Some(at)).unwrap().unwrap() > Duration::from_secs(8));
+
+        assert_eq!(remaining_timeout(None).unwrap(), None);
+
+        let past = tokio::time::Instant::now() - Duration::from_millis(50);
+        assert!(remaining_timeout(Some(past)).is_err());
     }
 }

@@ -1,0 +1,78 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "cpp",
+  "name": "grpc-cpp",
+  "description": "Official C++ reference gRPC implementation (grpc/grpc core)",
+  "role": ["client", "server"],
+  "language": "cpp",
+  "runtime": "grpc-core C++ event engine",
+  "codec": "google::protobuf (upb/C++)",
+  "upstream_pin": {
+    "repository": "grpc/grpc",
+    "version": "v1.84.0",
+    "commit": "d1487957db6658bc532b72871775148229836627",
+    "doc": "tests/interop/cases.json",
+    "notes": "Official C++ reference peer pinned in tests/interop/cases.json"
+  },
+  "server": {
+    "description": "Official C++ gRPC interop server (from scripts/grpc-interop-cpp.sh)",
+    "binary_name": "interop_server",
+    "env_var": "GRPC_INTEROP_CPP_SERVER",
+    "candidates": [
+      "target/interop-cpp/interop_server",
+      "target/interop-cpp-build/interop_server",
+      "third_party/grpc/cmake/build/interop_server"
+    ],
+    "build_command": "scripts/grpc-interop-cpp.sh",
+    "args_template": [
+      "{binary}",
+      "--port={port}",
+      "--use_tls=false"
+    ],
+    "readiness": {
+      "type": "socket_connect"
+    }
+  },
+  "client": {
+    "description": "Official C++ gRPC interop client (from scripts/grpc-interop-cpp.sh)",
+    "binary_name": "interop_client",
+    "env_var": "GRPC_INTEROP_CPP_CLIENT",
+    "candidates": [
+      "target/interop-cpp/interop_client",
+      "target/interop-cpp-build/interop_client",
+      "third_party/grpc/cmake/build/interop_client"
+    ],
+    "build_command": "scripts/grpc-interop-cpp.sh",
+    "args_template": [
+      "{binary}",
+      "--server_host={host}",
+      "--server_port={port}",
+      "--use_tls=false",
+      "--test_case={test_case}"
+    ],
+    "soak_args_template": [
+      "{binary}",
+      "--server_host={host}",
+      "--server_port={port}",
+      "--use_tls=false",
+      "--test_case=rpc_soak",
+      "--soak_iterations={iterations}",
+      "--soak_min_time_ms_between_rpcs=0",
+      "--soak_request_size={request_size}",
+      "--soak_response_size={response_size}"
+    ]
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  }
+}

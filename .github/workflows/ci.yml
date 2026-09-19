@@ -27,6 +27,8 @@ jobs:
       - run: protoc --version
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Documentation contract checks (links, anchors, snippets, caveats)
+        run: cargo test --test documentation -- --nocapture
       - run: cargo test --workspace
       - name: Docs build without warnings
         run: cargo doc --workspace --no-deps
@@ -49,6 +51,73 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Official interop cases, three ways
         run: ./scripts/grpc-interop.sh
+      - name: Server framing and TLS probes
+        run: ./scripts/grpc-http2-server-interop.sh
+      - name: Prepare interop report artifact
+        if: always()
+        run: |
+          latest_report="$(find target/interop-logs -name report.json 2>/dev/null | sort | tail -n 1)"
+          if [[ -n "$latest_report" && -f "$latest_report" ]]; then
+            cp "$latest_report" target/interop-report.json
+          fi
+      - name: Upload interop logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grpc-interop-logs
+          path: target/interop-logs/
+          if-no-files-found: warn
+      - name: Upload interop report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grpc-interop-report
+          path: target/interop-report.json
+          if-no-files-found: warn
+
+  # Cross-language gRPC C++ interop. The kernel talks to the official C++
+  # reference client and server in both directions, qualifying all 14 base
+  # cases and all 4 compression cases.
+  grpc-interop-cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cmake and C++ compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ protobuf-compiler
+          cmake --version
+          g++ --version
+      - name: Cache C++ reference peer binaries
+        uses: actions/cache@v4
+        with:
+          path: target/interop-cpp
+          key: grpc-interop-cpp-${{ runner.os }}-d1487957db6658bc532b72871775148229836627
+      - name: Official C++ interop cases, both directions
+        run: ./scripts/grpc-interop-cpp.sh
+      - name: Prepare C++ interop report artifact
+        if: always()
+        run: |
+          latest_report="$(find target/interop-logs -name report.json 2>/dev/null | sort | tail -n 1)"
+          if [[ -n "$latest_report" && -f "$latest_report" ]]; then
+            cp "$latest_report" target/interop-cpp-report.json
+          fi
+      - name: Upload C++ interop logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grpc-interop-cpp-logs
+          path: target/interop-logs/
+          if-no-files-found: warn
+      - name: Upload C++ interop report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grpc-interop-cpp-report
+          path: target/interop-cpp-report.json
+          if-no-files-found: warn
 
   # Official runner from the v35.1 pin. protoc comes from this cmake
   # build ($BUILD/protoc), not apt protobuf-compiler. The test job above
@@ -76,6 +145,13 @@ jobs:
           key: conformance-runner-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
       - name: Official conformance_test_runner
         run: ./scripts/conformance.sh
+      - name: Upload conformance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-out
+          path: target/conformance-out/
+          if-no-files-found: warn
 
   # Declared rust-version on pbrs and pbrs-grpc. Adapter build.rs needs protoc
   # even for `--lib` tests. Do not skip if a dep needs a newer rustc: pin or

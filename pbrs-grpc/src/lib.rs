@@ -1056,6 +1056,8 @@ pub mod gzip;
 #[forbid(unsafe_code)]
 pub mod interop_cases;
 #[forbid(unsafe_code)]
+pub mod telemetry;
+#[forbid(unsafe_code)]
 pub mod timeout;
 
 pub mod health;
@@ -1136,6 +1138,10 @@ pub use server::{
 };
 pub use status::{Code, ParseCodeError, Status};
 pub use stream::{Framed, StreamSender, Streaming};
+pub use telemetry::{
+    AttemptLabels, CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver,
+    ObserverChain, OwnedCallLabels, ReconnectEvent, RejectionEvent, RejectionReason,
+};
 pub use tls::{ClientTls, Identity, PeerIdentity, ServerTls};
 
 pub use hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};

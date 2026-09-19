@@ -1,0 +1,42 @@
+// Protocol Buffers - Google's data interchange format
+// Pinned Edition 2024 Fixture: Extensions Semantics
+//
+// Demonstrates Edition 2024 extension declarations:
+// - `extensions <start> to <end>;` range declaration inside message
+// - Top-level `extend` block
+// - Nested message-scoped `extend` block
+// - Scalar, repeated, submessage, and enum extensions
+// - Extensions with default values
+// - Extensions with feature overrides (enum_type = CLOSED)
+
+edition = "2024";
+
+package edition2024.extensions;
+
+message ExtendableMessage {
+  int32 base_field = 1;
+  extensions 100 to 1000;
+
+  extend ExtendableMessage {
+    int32 nested_scoped_extension = 150;
+  }
+}
+
+extend ExtendableMessage {
+  int32 ext_int32 = 101;
+  string ext_string = 102;
+  repeated int32 ext_repeated_int32 = 103;
+  ExtensionSubmessage ext_submessage = 104;
+  ExtensionClosedEnum ext_closed_enum = 105;
+  int32 ext_int32_with_default = 106 [default = 42];
+}
+
+message ExtensionSubmessage {
+  string detail = 1;
+}
+
+enum ExtensionClosedEnum {
+  option features.enum_type = CLOSED;
+  EXT_CLOSED_ZERO = 0;
+  EXT_CLOSED_ONE = 1;
+}

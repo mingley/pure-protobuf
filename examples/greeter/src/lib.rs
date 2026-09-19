@@ -103,19 +103,42 @@ mod proto {
 
 use pbrs_grpc::health::{service as health_service, HealthReporter, ServingStatus};
 use pbrs_grpc::reflection::service as reflection_service;
-use pbrs_grpc::{Request, Response, Router, Status, Streaming};
-use proto::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET};
+pub use pbrs_grpc::{Call, Request, Response, Router, Status, StreamSender, Streaming};
+pub use proto::{
+    Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET,
+};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
-struct Live {
-    addr: SocketAddr,
-    reporter: HealthReporter,
-    _server: tokio::task::JoinHandle<()>,
+pub struct Live {
+    pub addr: SocketAddr,
+    pub reporter: HealthReporter,
+    shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    server_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
-struct MyGreeter;
+impl Live {
+    /// Gracefully shutdown the server and wait for drain to complete.
+    pub async fn shutdown(mut self) {
+        if let Some(tx) = self.shutdown_tx.take() {
+            let _ = tx.send(());
+        }
+        if let Some(handle) = self.server_handle.take() {
+            let _ = handle.await;
+        }
+    }
+}
+
+impl Drop for Live {
+    fn drop(&mut self) {
+        if let Some(tx) = self.shutdown_tx.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
+pub struct MyGreeter;
 
 fn name_of(req: &HelloRequest) -> String {
     req.name().to_str().unwrap_or_default().to_owned()
@@ -132,10 +155,15 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        Ok(Response::new(reply(format!(
-            "hello {}",
-            name_of(request.get_ref())
-        ))))
+        let name = request
+            .get_ref()
+            .name()
+            .to_str()
+            .map_err(|_| Status::invalid_argument("name must be valid UTF-8"))?;
+        if name.is_empty() {
+            return Err(Status::invalid_argument("name must not be empty"));
+        }
+        Ok(Response::new(reply(format!("hello {name}"))))
     }
 
     async fn client_hello(
@@ -145,7 +173,18 @@ impl Greeter for MyGreeter {
         let mut stream = request.into_inner();
         let mut names = Vec::new();
         while let Some(req) = stream.message().await? {
-            names.push(name_of(&req));
+            let name = req
+                .name()
+                .to_str()
+                .map_err(|_| Status::invalid_argument("streamed name must be valid UTF-8"))?;
+            if !name.is_empty() {
+                names.push(name.to_owned());
+            }
+        }
+        if names.is_empty() {
+            return Err(Status::invalid_argument(
+                "stream must contain at least one name",
+            ));
         }
         Ok(Response::new(reply(format!("hello {}", names.join(", ")))))
     }
@@ -154,7 +193,16 @@ impl Greeter for MyGreeter {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        let name = name_of(request.get_ref());
+        let name = request
+            .get_ref()
+            .name()
+            .to_str()
+            .map_err(|_| Status::invalid_argument("name must be valid UTF-8"))?
+            .to_owned();
+        if name.is_empty() {
+            return Err(Status::invalid_argument("name must not be empty"));
+        }
+
         let (tx, stream) = Streaming::channel(4);
         drop(tokio::spawn(async move {
             for i in 1..=3 {
@@ -187,29 +235,33 @@ impl Greeter for MyGreeter {
     }
 }
 
-async fn serve() -> Result<Live, Status> {
+pub async fn serve() -> Result<Live, Status> {
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await?;
     let addr = listener.local_addr()?;
     let (health, reporter) = health_service();
     reporter.set_serving(GreeterServer::<MyGreeter>::NAME);
     let reflection = reflection_service([FILE_DESCRIPTOR_SET])?;
-    let _server = tokio::spawn(async move {
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let server_handle = tokio::spawn(async move {
         Router::new()
             .add_service(health)
             .add_service(reflection)
             .add_service(GreeterServer::new(MyGreeter))
-            .serve_listener(listener)
+            .serve_with_shutdown(listener, async {
+                let _ = shutdown_rx.await;
+            })
             .await
             .ok();
     });
     Ok(Live {
         addr,
         reporter,
-        _server,
+        shutdown_tx: Some(shutdown_tx),
+        server_handle: Some(server_handle),
     })
 }
 
-async fn greeter(addr: SocketAddr) -> Result<GreeterClient, Status> {
+pub async fn greeter(addr: SocketAddr) -> Result<GreeterClient, Status> {
     let mut last = Status::unavailable("connect");
     for _ in 0..80 {
         match GreeterClient::connect(addr).await {
@@ -223,25 +275,196 @@ async fn greeter(addr: SocketAddr) -> Result<GreeterClient, Status> {
     Err(last)
 }
 
-async fn greet(client: &GreeterClient, name: &str) -> Result<String, Status> {
+impl GreeterClient {
+    /// Client-streaming alias for `client_hello` (`SayHelloStream`).
+    pub fn say_hello_stream(
+        &self,
+        request: Request<()>,
+    ) -> (StreamSender<HelloRequest>, Call<Response<HelloReply>>) {
+        self.client_hello(request)
+    }
+
+    /// Server-streaming alias for `server_hello` (`SayHelloServerStream`).
+    pub fn say_hello_server_stream(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Call<Response<Streaming<HelloReply>>> {
+        self.server_hello(request)
+    }
+
+    /// Bidirectional-streaming alias for `stream_hello` (`SayHelloBidiStream`).
+    pub fn say_hello_bidi_stream(
+        &self,
+        request: Request<()>,
+    ) -> (
+        StreamSender<HelloRequest>,
+        Call<Response<Streaming<HelloReply>>>,
+    ) {
+        self.stream_hello(request)
+    }
+}
+
+/// 1. Unary RPC (`SayHello`): single request, single response.
+///
+/// Demonstrates explicit request creation, error handling, and response unpacking.
+pub async fn say_hello(client: &GreeterClient, name: &str) -> Result<String, Status> {
     let mut req = HelloRequest::new();
     req.set_name(name);
     let reply = client.say_hello(Request::new(req)).await?;
-    Ok(reply
+    let text = reply
         .get_ref()
         .message()
         .to_str()
-        .unwrap_or_default()
-        .to_owned())
+        .map_err(|_| Status::internal("reply was not valid UTF-8"))?;
+    Ok(text.to_owned())
 }
 
-/// Bind loopback, serve, call `SayHello`, return the reply text.
+/// 2. Client-streaming RPC (`SayHelloStream` / `ClientHello`):
+/// client streams requests into a bounded sender, half-closes via `tx.close()`,
+/// and awaits the single server response.
+pub async fn say_hello_stream<'a>(
+    client: &GreeterClient,
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<String, Status> {
+    let (tx, call) = client.say_hello_stream(Request::new(()));
+    for name in names {
+        let mut req = HelloRequest::new();
+        req.set_name(name);
+        tx.send(req)
+            .await
+            .map_err(|e| Status::unavailable(format!("failed to send to stream: {e}")))?;
+    }
+    // Half-close: signal end of stream to server
+    tx.close();
+
+    let reply = call.await?;
+    let text = reply
+        .get_ref()
+        .message()
+        .to_str()
+        .map_err(|_| Status::internal("reply was not valid UTF-8"))?;
+    Ok(text.to_owned())
+}
+
+/// Client-streaming alias matching proto RPC name `ClientHello`.
+pub async fn client_hello<'a>(
+    client: &GreeterClient,
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<String, Status> {
+    say_hello_stream(client, names).await
+}
+
+/// 3. Server-streaming RPC (`SayHelloServerStream` / `ServerHello`):
+/// single request, stream of responses read to EOF (`while let Some(msg) = stream.message().await?`).
+pub async fn say_hello_server_stream(
+    client: &GreeterClient,
+    name: &str,
+) -> Result<Vec<String>, Status> {
+    let mut req = HelloRequest::new();
+    req.set_name(name);
+    let mut stream = client
+        .say_hello_server_stream(Request::new(req))
+        .await?
+        .into_inner();
+    let mut replies = Vec::new();
+    while let Some(reply) = stream.message().await? {
+        let text = reply
+            .message()
+            .to_str()
+            .map_err(|_| Status::internal("reply was not valid UTF-8"))?;
+        replies.push(text.to_owned());
+    }
+    Ok(replies)
+}
+
+/// Server-streaming alias matching proto RPC name `ServerHello`.
+pub async fn server_hello(client: &GreeterClient, name: &str) -> Result<Vec<String>, Status> {
+    say_hello_server_stream(client, name).await
+}
+
+/// 4. Bidirectional streaming RPC (`SayHelloBidiStream` / `StreamHello`):
+/// concurrent full-duplex streams coordinated via `StreamSender` and inbound `Streaming`.
+pub async fn say_hello_bidi_stream<'a>(
+    client: &GreeterClient,
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<Vec<String>, Status> {
+    let (tx, call) = client.say_hello_bidi_stream(Request::new(()));
+    let mut inbound = call.await?.into_inner();
+
+    for name in names {
+        let mut req = HelloRequest::new();
+        req.set_name(name);
+        tx.send(req)
+            .await
+            .map_err(|e| Status::unavailable(format!("failed to send bidi message: {e}")))?;
+    }
+    // Half-close client sender
+    tx.close();
+
+    let mut replies = Vec::new();
+    while let Some(reply) = inbound.message().await? {
+        let text = reply
+            .message()
+            .to_str()
+            .map_err(|_| Status::internal("bidi reply was not valid UTF-8"))?;
+        replies.push(text.to_owned());
+    }
+    Ok(replies)
+}
+
+/// Bidirectional-streaming alias matching proto RPC name `StreamHello`.
+pub async fn stream_hello<'a>(
+    client: &GreeterClient,
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<Vec<String>, Status> {
+    say_hello_bidi_stream(client, names).await
+}
+
+/// Unary greet helper.
+pub async fn greet(client: &GreeterClient, name: &str) -> Result<String, Status> {
+    say_hello(client, name).await
+}
+
+/// Bind loopback, serve, execute all four call shapes with clean shutdown,
+/// and return the unary reply text ("hello world").
 pub async fn run() -> Result<String, Status> {
     let live = serve().await?;
     if live.reporter.status(GreeterServer::<MyGreeter>::NAME) != Some(ServingStatus::Serving) {
         return Err(Status::failed_precondition("greeter health not serving"));
     }
-    greet(&greeter(live.addr).await?, "world").await
+    let client = greeter(live.addr).await?;
+
+    // 1. Unary
+    let unary_reply = say_hello(&client, "world").await?;
+
+    // 2. Client streaming (upload)
+    let upload_reply = say_hello_stream(&client, ["alice", "bob"]).await?;
+    if upload_reply != "hello alice, bob" {
+        return Err(Status::internal(format!(
+            "unexpected upload reply: {upload_reply}"
+        )));
+    }
+
+    // 3. Server streaming (download)
+    let download_replies = say_hello_server_stream(&client, "world").await?;
+    if download_replies != ["hello world #1", "hello world #2", "hello world #3"] {
+        return Err(Status::internal(format!(
+            "unexpected download replies: {download_replies:?}"
+        )));
+    }
+
+    // 4. Bidirectional streaming
+    let bidi_replies = say_hello_bidi_stream(&client, ["alpha", "beta"]).await?;
+    if bidi_replies != ["hello alpha", "hello beta"] {
+        return Err(Status::internal(format!(
+            "unexpected bidi replies: {bidi_replies:?}"
+        )));
+    }
+
+    // Clean server shutdown
+    live.shutdown().await;
+
+    Ok(unary_reply)
 }
 
 #[cfg(test)]
@@ -654,5 +877,71 @@ mod tests {
             names.contains(&GreeterServer::<MyGreeter>::NAME.to_owned()),
             "{names:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn teaching_paths_exercise_all_four_shapes_and_shutdown() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // 1. Unary
+        let unary = say_hello(&client, "ada").await.unwrap();
+        assert_eq!(unary, "hello ada");
+
+        // 2. Client streaming (upload)
+        let upload = say_hello_stream(&client, ["grace", "alan"]).await.unwrap();
+        assert_eq!(upload, "hello grace, alan");
+
+        // Also test alias
+        let upload_alias = client_hello(&client, ["grace", "alan"]).await.unwrap();
+        assert_eq!(upload_alias, "hello grace, alan");
+
+        // 3. Server streaming (download)
+        let download = say_hello_server_stream(&client, "edsger").await.unwrap();
+        assert_eq!(
+            download,
+            ["hello edsger #1", "hello edsger #2", "hello edsger #3"]
+        );
+
+        // Also test alias
+        let download_alias = server_hello(&client, "edsger").await.unwrap();
+        assert_eq!(
+            download_alias,
+            ["hello edsger #1", "hello edsger #2", "hello edsger #3"]
+        );
+
+        // 4. Bidirectional streaming
+        let bidi = say_hello_bidi_stream(&client, ["barbara"]).await.unwrap();
+        assert_eq!(bidi, ["hello barbara"]);
+
+        // Also test alias
+        let bidi_alias = stream_hello(&client, ["barbara"]).await.unwrap();
+        assert_eq!(bidi_alias, ["hello barbara"]);
+
+        // Explicit clean shutdown
+        live.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn teaching_paths_explicit_error_handling() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // Empty name unary fails with invalid_argument
+        let mut req = HelloRequest::new();
+        req.set_name("");
+        let err = client.say_hello(Request::new(req)).await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        // Empty stream client-streaming fails with invalid_argument
+        let empty: [&str; 0] = [];
+        let err = say_hello_stream(&client, empty).await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        // Empty name server-streaming fails with invalid_argument
+        let err = say_hello_server_stream(&client, "").await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        live.shutdown().await;
     }
 }

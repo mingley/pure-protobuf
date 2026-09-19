@@ -1,0 +1,8 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+message OptionalConsumer {
+  // Fails: label "optional" is not supported in editions
+  optional int32 val = 1;
+}
