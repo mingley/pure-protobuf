@@ -21,6 +21,10 @@ use pbrs::{Parse, Serialize};
 
 const EMPTY: &[u8] = &[];
 const TRUNCATED_VARINT: &[u8] = &[0x08, 0xff];
+// Minimized fuzzer crash (fuzz/corpus/wire/len_overflow_min.bin): field 1,
+// length-delimited, length varint far beyond the buffer. Must be a parse
+// error, never an arithmetic-overflow panic.
+const LEN_OVERFLOW: &[u8] = &[0x0a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
 // id=1 name=ada email=ada@ex address.city=nyc (tests/typed.rs)
 const PERSON: &[u8] = &[
     0x08, 0x01, 0x12, 0x03, b'a', b'd', b'a', 0x1a, 0x06, b'a', b'd', b'a', b'@', b'e', b'x', 0x32,
@@ -42,7 +46,7 @@ fn feed(bytes: &[u8]) {
 #[test]
 fn fuzz_parse_short_campaign() {
     let tat = valid_tat_bytes();
-    let corpus: [&[u8]; 4] = [EMPTY, TRUNCATED_VARINT, PERSON, &tat];
+    let corpus: [&[u8]; 5] = [EMPTY, TRUNCATED_VARINT, PERSON, &tat, LEN_OVERFLOW];
     for bytes in corpus {
         feed(bytes);
     }

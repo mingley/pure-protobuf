@@ -314,12 +314,61 @@ pub mod lifecycle {
     use std::task::{Context, Poll};
     use std::time::Duration;
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-    use tokio::net::{TcpListener, TcpStream};
+    use tokio::net::{TcpListener, TcpStream, UnixListener, UnixStream};
     use tokio::sync::oneshot;
+
+    /// Byte-forwarding TCP proxy that applies [`ProxyState`] faults.
+    ///
+    /// Forwards handshake and record bytes opaquely, so TLS/mTLS sessions pass
+    /// through untouched while `TcpReset`/`TcpDisconnect` faults still break
+    /// the connection at the byte level. Raw RST/GOAWAY injection stays
+    /// plaintext-only; encrypted arms map those faults to call cancel and
+    /// server shutdown (see `fire_fault`).
+    fn spawn_tcp_byte_proxy(
+        proxy_listener: TcpListener,
+        server_addr: SocketAddr,
+        proxy_state: Arc<Mutex<ProxyState>>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            while let Ok((client_tcp, _)) = proxy_listener.accept().await {
+                let p_state_clone = proxy_state.clone();
+                tokio::spawn(async move {
+                    if let Ok(server_tcp) = TcpStream::connect(server_addr).await {
+                        let wrapped_server =
+                            FaultInjectingStream::new(server_tcp, p_state_clone.clone(), true);
+                        let wrapped_client =
+                            FaultInjectingStream::new(client_tcp, p_state_clone, false);
+                        let (mut cr, mut cw) = tokio::io::split(wrapped_client);
+                        let (mut sr, mut sw) = tokio::io::split(wrapped_server);
+                        tokio::select! {
+                            _ = tokio::io::copy(&mut cr, &mut sw) => {}
+                            _ = tokio::io::copy(&mut sr, &mut cw) => {}
+                        }
+                    }
+                });
+            }
+        })
+    }
+
+    static UNIX_SOCK_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    /// Unique Unix socket path for one lifecycle scenario.
+    fn lifecycle_unix_sock(prefix: &str) -> std::path::PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "pbrs-lc-{prefix}-{}-{}.sock",
+            std::process::id(),
+            UNIX_SOCK_COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_file(&path);
+        path
+    }
 
     const CA: &str = include_str!("../tls_data/ca.crt");
     const SERVER_CERT: &str = include_str!("../tls_data/server.crt");
     const SERVER_KEY: &str = include_str!("../tls_data/server.key");
+    const CLIENT_CERT: &str = include_str!("../tls_data/client.crt");
+    const CLIENT_KEY: &str = include_str!("../tls_data/client.key");
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum CallShape {
@@ -329,12 +378,43 @@ pub mod lifecycle {
         Bidi,
     }
 
+    /// Advertised transports with explicit lifecycle cells (RT-04).
+    ///
+    /// Every variant has its own PR scenarios and its own 1000-seed
+    /// qualification schedule; no transport is inferred from another.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum TransportKind {
         FromIo,
         Tcp,
         Tls,
+        Mtls,
+        Uds,
     }
+
+    /// All advertised transports, in qualification order.
+    pub const ALL_TRANSPORTS: [TransportKind; 5] = [
+        TransportKind::FromIo,
+        TransportKind::Tcp,
+        TransportKind::Tls,
+        TransportKind::Mtls,
+        TransportKind::Uds,
+    ];
+
+    /// Qualification cycles recorded per advertised transport (RT-04).
+    pub const QUALIFICATION_CYCLES_PER_TRANSPORT: usize = 1000;
+
+    /// Deterministic master seed per advertised transport. Cycle `i` for a
+    /// transport uses `master.wrapping_add(i * STRIDE)`, so every recorded
+    /// cycle is reproducible from `(transport, index)`.
+    pub const QUALIFICATION_MASTER_SEEDS: [(TransportKind, u64); 5] = [
+        (TransportKind::FromIo, 0x5e3d_f00d_cafe_babe),
+        (TransportKind::Tcp, 0x1f2b_3c4d_5e6f_7081),
+        (TransportKind::Tls, 0x8bad_f00d_d15e_a5ed),
+        (TransportKind::Mtls, 0xc0ff_ee11_5eed_beef),
+        (TransportKind::Uds, 0xdec0_ded0_badc_0de0),
+    ];
+
+    const QUALIFICATION_SEED_STRIDE: u64 = 0x9e37_79b9_7f4a_7c15;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub enum LifecycleBoundary {
@@ -415,12 +495,7 @@ pub mod lifecycle {
             ];
             let shape = shapes[rng.next_range(shapes.len())];
 
-            let transports = [
-                TransportKind::FromIo,
-                TransportKind::Tcp,
-                TransportKind::Tls,
-            ];
-            let transport = transports[rng.next_range(transports.len())];
+            let transport = ALL_TRANSPORTS[rng.next_range(ALL_TRANSPORTS.len())];
 
             let boundaries = [
                 LifecycleBoundary::Queued,
@@ -454,6 +529,37 @@ pub mod lifecycle {
                 seed,
             }
         }
+
+        /// Deterministic scenario for `seed` pinned to `transport`.
+        ///
+        /// Shape, boundary, and fault are drawn from the seed; only the
+        /// transport is fixed, so per-transport qualification schedules vary
+        /// the call matrix while holding the transport cell constant.
+        pub fn from_seed_for_transport(seed: u64, transport: TransportKind) -> Self {
+            let mut scenario = Self::from_seed(seed);
+            scenario.transport = transport;
+            scenario
+        }
+
+        /// Recorded qualification schedule for one transport (RT-04).
+        ///
+        /// Returns exactly [`QUALIFICATION_CYCLES_PER_TRANSPORT`] scenarios
+        /// derived from that transport's master seed, so the full 1000-cycle
+        /// qualification run is reproducible from `(transport, index)`.
+        pub fn qualification_schedule(transport: TransportKind) -> Vec<Self> {
+            let master = QUALIFICATION_MASTER_SEEDS
+                .iter()
+                .find(|(t, _)| *t == transport)
+                .map(|(_, seed)| *seed)
+                .expect("master seed for every advertised transport");
+            (0..QUALIFICATION_CYCLES_PER_TRANSPORT)
+                .map(|cycle| {
+                    let seed =
+                        master.wrapping_add((cycle as u64).wrapping_mul(QUALIFICATION_SEED_STRIDE));
+                    Self::from_seed_for_transport(seed, transport)
+                })
+                .collect()
+        }
     }
 
     pub struct TaskGuard {
@@ -480,6 +586,8 @@ pub mod lifecycle {
         pub is_reset: bool,
         pub is_disconnected: bool,
         pub active_stream_id: u32,
+        pub headers_observed: bool,
+        pub deferred_rst: Option<u32>,
         pub pending_client_injections: Vec<u8>,
         pub pending_server_injections: Vec<u8>,
         pub client_read_waker: Option<std::task::Waker>,
@@ -492,6 +600,8 @@ pub mod lifecycle {
                 is_reset: false,
                 is_disconnected: false,
                 active_stream_id: 1,
+                headers_observed: false,
+                deferred_rst: None,
                 pending_client_injections: Vec::new(),
                 pending_server_injections: Vec::new(),
                 client_read_waker: None,
@@ -499,20 +609,52 @@ pub mod lifecycle {
             }
         }
 
-        pub fn inject_rst(&mut self, stream_id: u32, reason: u32) {
+        fn rst_frame(stream_id: u32, reason: u32) -> Vec<u8> {
             let mut frame = Vec::with_capacity(13);
             frame.extend_from_slice(&[0x00, 0x00, 0x04]);
             frame.push(0x03);
             frame.push(0x00);
             frame.extend_from_slice(&(stream_id & 0x7FFFFFFF).to_be_bytes());
             frame.extend_from_slice(&reason.to_be_bytes());
-            self.pending_client_injections.extend_from_slice(&frame);
-            self.pending_server_injections.extend_from_slice(&frame);
-            if let Some(waker) = self.client_read_waker.take() {
-                waker.wake();
+            frame
+        }
+
+        pub fn inject_rst(&mut self, reason: u32) {
+            if self.headers_observed {
+                let frame = Self::rst_frame(self.active_stream_id, reason);
+                self.pending_client_injections.extend_from_slice(&frame);
+                self.pending_server_injections.extend_from_slice(&frame);
+                if let Some(waker) = self.client_read_waker.take() {
+                    waker.wake();
+                }
+                if let Some(waker) = self.server_read_waker.take() {
+                    waker.wake();
+                }
+            } else {
+                // No stream is open yet (e.g. fault at `Queued`): hold the
+                // RST until the first HEADERS is forwarded, otherwise both
+                // peers would see a reset for an idle stream and ignore it.
+                self.deferred_rst = Some(reason);
             }
-            if let Some(waker) = self.server_read_waker.take() {
-                waker.wake();
+        }
+
+        /// Deliver a deferred RST once the first HEADERS has been observed.
+        ///
+        /// Both copies are injected, matching immediate injection: the client
+        /// has the stream open and resets it, while the server-side copy
+        /// (read before the forwarded HEADERS) ends the server handler so no
+        /// task or permit leaks.
+        pub fn deliver_deferred_rst(&mut self, stream_id: u32) {
+            if let Some(reason) = self.deferred_rst.take() {
+                let frame = Self::rst_frame(stream_id, reason);
+                self.pending_client_injections.extend_from_slice(&frame);
+                self.pending_server_injections.extend_from_slice(&frame);
+                if let Some(waker) = self.client_read_waker.take() {
+                    waker.wake();
+                }
+                if let Some(waker) = self.server_read_waker.take() {
+                    waker.wake();
+                }
             }
         }
 
@@ -561,6 +703,8 @@ pub mod lifecycle {
         injected_cursor: usize,
         injected_buf: Vec<u8>,
         is_client_side: bool,
+        sniff_buf: Vec<u8>,
+        sniff_skip: usize,
     }
 
     impl<S> FaultInjectingStream<S> {
@@ -571,7 +715,70 @@ pub mod lifecycle {
                 injected_cursor: 0,
                 injected_buf: Vec::new(),
                 is_client_side,
+                sniff_buf: Vec::new(),
+                // Every h2 client opens with the 24-byte connection preface,
+                // which is not a frame and must not be frame-parsed.
+                sniff_skip: 24,
             }
+        }
+    }
+
+    /// Record every HEADERS frame in a client-to-server byte chunk.
+    ///
+    /// Chunks are arbitrary TCP segmentations: a HEADERS frame may be
+    /// coalesced behind a SETTINGS ack or split across writes, so an
+    /// offset-zero check misses it nondeterministically. `sniff_buf` carries
+    /// the incomplete tail across calls and parses complete frames from the
+    /// head, keeping deferred-RST delivery deterministic. TLS ciphertext
+    /// never parses as valid frames; oversize garbage is discarded cheaply
+    /// (deferred RST is plaintext-only, so nothing is lost there).
+    fn sniff_headers_frames(
+        sniff_buf: &mut Vec<u8>,
+        sniff_skip: &mut usize,
+        chunk: &[u8],
+        state: &Mutex<ProxyState>,
+    ) {
+        const FRAME_HEADER: usize = 9;
+        const MAX_FRAME: usize = 16 * 1024 * 1024;
+        sniff_buf.extend_from_slice(chunk);
+        if *sniff_skip > 0 {
+            let drop = (*sniff_skip).min(sniff_buf.len());
+            sniff_buf.drain(..drop);
+            *sniff_skip -= drop;
+            if *sniff_skip > 0 {
+                return;
+            }
+        }
+        loop {
+            if sniff_buf.len() < FRAME_HEADER {
+                return;
+            }
+            let len = ((sniff_buf[0] as usize) << 16)
+                | ((sniff_buf[1] as usize) << 8)
+                | sniff_buf[2] as usize;
+            if len > MAX_FRAME {
+                sniff_buf.clear();
+                return;
+            }
+            let total = FRAME_HEADER + len;
+            if sniff_buf.len() < total {
+                return;
+            }
+            if sniff_buf[3] == 0x01 {
+                let stream_id = u32::from_be_bytes([
+                    sniff_buf[5] & 0x7f,
+                    sniff_buf[6],
+                    sniff_buf[7],
+                    sniff_buf[8],
+                ]);
+                if stream_id > 0 {
+                    let mut st = state.lock().unwrap();
+                    st.active_stream_id = stream_id;
+                    st.headers_observed = true;
+                    st.deliver_deferred_rst(stream_id);
+                }
+            }
+            sniff_buf.drain(..total);
         }
     }
 
@@ -638,7 +845,7 @@ pub mod lifecycle {
         ) -> Poll<io::Result<usize>> {
             let this = self.get_mut();
             {
-                let mut st = this.state.lock().unwrap();
+                let st = this.state.lock().unwrap();
                 if st.is_reset {
                     return Poll::Ready(Err(io::Error::new(
                         io::ErrorKind::ConnectionReset,
@@ -652,14 +859,14 @@ pub mod lifecycle {
                     )));
                 }
 
-                if this.is_client_side && buf.len() >= 9 {
-                    let frame_type = buf[3];
-                    if frame_type == 0x01 {
-                        let stream_id = u32::from_be_bytes([buf[5] & 0x7f, buf[6], buf[7], buf[8]]);
-                        if stream_id > 0 {
-                            st.active_stream_id = stream_id;
-                        }
-                    }
+                if this.is_client_side {
+                    drop(st);
+                    sniff_headers_frames(
+                        &mut this.sniff_buf,
+                        &mut this.sniff_skip,
+                        buf,
+                        &this.state,
+                    );
                 }
             }
 
@@ -781,7 +988,12 @@ pub mod lifecycle {
                     self.proxy_state.lock().unwrap().trigger_disconnect();
                 }
                 FaultKind::RstStream(reason) => {
-                    if self.scenario.transport == TransportKind::Tls {
+                    // TLS and mTLS wires are encrypted, so raw frames cannot be
+                    // injected; cancelling the call observes the same terminal path.
+                    if matches!(
+                        self.scenario.transport,
+                        TransportKind::Tls | TransportKind::Mtls
+                    ) {
                         if let Some(handle) = self.cancel_handle.lock().unwrap().as_ref() {
                             handle.cancel();
                         }
@@ -791,12 +1003,14 @@ pub mod lifecycle {
                             RstReason::Cancel => 8,
                             RstReason::InternalError => 2,
                         };
-                        let stream_id = self.proxy_state.lock().unwrap().active_stream_id;
-                        self.proxy_state.lock().unwrap().inject_rst(stream_id, code);
+                        self.proxy_state.lock().unwrap().inject_rst(code);
                     }
                 }
                 FaultKind::Goaway => {
-                    if self.scenario.transport == TransportKind::Tls {
+                    if matches!(
+                        self.scenario.transport,
+                        TransportKind::Tls | TransportKind::Mtls
+                    ) {
                         if let Some(tx) = self.server_shutdown_trigger.lock().unwrap().take() {
                             let _ = tx.send(());
                         }
@@ -1099,6 +1313,12 @@ pub mod lifecycle {
                     tx.fail(Status::internal("server handler aborted")).await;
                 }
             });
+            // Response headers go out on return: reach the boundary here so a
+            // fault fires while the producer task is still alive. Without
+            // this, a client-side-only reach races with handler completion.
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseHeadersReceived)
+                .await;
             Ok(Response::new(stream))
         }
 
@@ -1163,6 +1383,12 @@ pub mod lifecycle {
                     tx.fail(Status::internal("server handler aborted")).await;
                 }
             });
+            // Response headers go out on return: reach the boundary here so a
+            // fault fires while the producer task is still alive. Without
+            // this, a client-side-only reach races with handler completion.
+            self.coordinator
+                .reach(LifecycleBoundary::ResponseHeadersReceived)
+                .await;
             Ok(Response::new(stream))
         }
     }
@@ -1215,30 +1441,8 @@ pub mod lifecycle {
                         .await
                         .expect("bind proxy");
                     let proxy_addr = proxy_listener.local_addr().expect("proxy addr");
-                    let p_state = proxy_state.clone();
-
-                    let proxy_task = tokio::spawn(async move {
-                        while let Ok((client_tcp, _)) = proxy_listener.accept().await {
-                            let p_state_clone = p_state.clone();
-                            tokio::spawn(async move {
-                                if let Ok(server_tcp) = TcpStream::connect(server_addr).await {
-                                    let wrapped_server = FaultInjectingStream::new(
-                                        server_tcp,
-                                        p_state_clone.clone(),
-                                        true,
-                                    );
-                                    let wrapped_client =
-                                        FaultInjectingStream::new(client_tcp, p_state_clone, false);
-                                    let (mut cr, mut cw) = tokio::io::split(wrapped_client);
-                                    let (mut sr, mut sw) = tokio::io::split(wrapped_server);
-                                    tokio::select! {
-                                        _ = tokio::io::copy(&mut cr, &mut sw) => {}
-                                        _ = tokio::io::copy(&mut sr, &mut cw) => {}
-                                    }
-                                }
-                            });
-                        }
-                    });
+                    let proxy_task =
+                        spawn_tcp_byte_proxy(proxy_listener, server_addr, proxy_state.clone());
 
                     let client = greeter_client(proxy_addr).await.max_concurrent_rpcs(1);
 
@@ -1274,11 +1478,79 @@ pub mod lifecycle {
                             .ok();
                     });
 
+                    let proxy_listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind proxy");
+                    let proxy_addr = proxy_listener.local_addr().expect("proxy addr");
+                    let proxy_task =
+                        spawn_tcp_byte_proxy(proxy_listener, server_addr, proxy_state.clone());
+
                     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
                     let mut last = Status::unavailable("connect");
                     let mut client_opt = None;
                     for _ in 0..80 {
-                        match GreeterClient::connect_tls(server_addr, client_tls.clone()).await {
+                        match GreeterClient::connect_tls(proxy_addr, client_tls.clone()).await {
+                            Ok(c) => {
+                                client_opt = Some(c.max_concurrent_rpcs(1));
+                                break;
+                            }
+                            Err(e) => {
+                                last = e;
+                                tokio::time::sleep(Duration::from_millis(5)).await;
+                            }
+                        }
+                    }
+                    let client = client_opt
+                        .unwrap_or_else(|| panic!("could not connect tls to {proxy_addr}: {last}"));
+
+                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    proxy_task.abort();
+                    server_task.abort();
+                }
+                TransportKind::Mtls => {
+                    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind server");
+                    let server_addr = listener.local_addr().expect("server addr");
+                    let server_tls = ServerTls::mtls(
+                        Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity"),
+                        CA,
+                    )
+                    .expect("mtls server tls");
+
+                    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+                    *coord.server_shutdown_trigger.lock().unwrap() = Some(shutdown_tx);
+
+                    let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
+                        .config(ServerConfig::new().max_concurrent_rpcs(1));
+                    let server_task = tokio::spawn(async move {
+                        server
+                            .serve_tls_with_shutdown(
+                                listener,
+                                async move {
+                                    let _ = shutdown_rx.await;
+                                },
+                                server_tls,
+                            )
+                            .await
+                            .ok();
+                    });
+
+                    let proxy_listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+                        .await
+                        .expect("bind proxy");
+                    let proxy_addr = proxy_listener.local_addr().expect("proxy addr");
+                    let proxy_task =
+                        spawn_tcp_byte_proxy(proxy_listener, server_addr, proxy_state.clone());
+
+                    let client_identity =
+                        Identity::from_pem(CLIENT_CERT, CLIENT_KEY).expect("client identity");
+                    let client_tls =
+                        ClientTls::ca_mtls("localhost", CA, client_identity).expect("mtls client");
+                    let mut last = Status::unavailable("connect");
+                    let mut client_opt = None;
+                    for _ in 0..80 {
+                        match GreeterClient::connect_tls(proxy_addr, client_tls.clone()).await {
                             Ok(c) => {
                                 client_opt = Some(c.max_concurrent_rpcs(1));
                                 break;
@@ -1290,11 +1562,80 @@ pub mod lifecycle {
                         }
                     }
                     let client = client_opt.unwrap_or_else(|| {
-                        panic!("could not connect tls to {server_addr}: {last}")
+                        panic!("could not connect mtls to {proxy_addr}: {last}")
                     });
 
                     Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    proxy_task.abort();
                     server_task.abort();
+                }
+                TransportKind::Uds => {
+                    let server_path = lifecycle_unix_sock("srv");
+                    let server_listener =
+                        UnixListener::bind(&server_path).expect("bind uds server");
+                    let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
+                        .config(ServerConfig::new().max_concurrent_rpcs(1));
+                    let server_task = tokio::spawn(async move {
+                        server.serve_unix_listener(server_listener).await.ok();
+                    });
+
+                    let proxy_path = lifecycle_unix_sock("pxy");
+                    let proxy_listener = UnixListener::bind(&proxy_path).expect("bind uds proxy");
+                    let p_state = proxy_state.clone();
+                    let server_path_clone = server_path.clone();
+
+                    let proxy_task = tokio::spawn(async move {
+                        while let Ok((client_sock, _)) = proxy_listener.accept().await {
+                            let p_state_clone = p_state.clone();
+                            let server_path_clone = server_path_clone.clone();
+                            tokio::spawn(async move {
+                                if let Ok(server_sock) =
+                                    UnixStream::connect(server_path_clone).await
+                                {
+                                    let wrapped_server = FaultInjectingStream::new(
+                                        server_sock,
+                                        p_state_clone.clone(),
+                                        true,
+                                    );
+                                    let wrapped_client = FaultInjectingStream::new(
+                                        client_sock,
+                                        p_state_clone,
+                                        false,
+                                    );
+                                    let (mut cr, mut cw) = tokio::io::split(wrapped_client);
+                                    let (mut sr, mut sw) = tokio::io::split(wrapped_server);
+                                    tokio::select! {
+                                        _ = tokio::io::copy(&mut cr, &mut sw) => {}
+                                        _ = tokio::io::copy(&mut sr, &mut cw) => {}
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    let mut last = Status::unavailable("connect");
+                    let mut client_opt = None;
+                    for _ in 0..80 {
+                        match GreeterClient::connect_unix(&proxy_path).await {
+                            Ok(c) => {
+                                client_opt = Some(c.max_concurrent_rpcs(1));
+                                break;
+                            }
+                            Err(e) => {
+                                last = e;
+                                tokio::time::sleep(Duration::from_millis(5)).await;
+                            }
+                        }
+                    }
+                    let client = client_opt.unwrap_or_else(|| {
+                        panic!("could not connect uds to {}: {last}", proxy_path.display())
+                    });
+
+                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    proxy_task.abort();
+                    server_task.abort();
+                    let _ = std::fs::remove_file(&server_path);
+                    let _ = std::fs::remove_file(&proxy_path);
                 }
             }
         }

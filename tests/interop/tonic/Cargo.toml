@@ -17,6 +17,7 @@ http-body = "1"
 pbrs = { path = "../../../" }
 pbrs-grpc = { path = "../../../pbrs-grpc" }
 pin-project-lite = "0.2"
+prost = "0.14"
 protobuf-tonic = { path = "../../../protobuf-tonic" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }

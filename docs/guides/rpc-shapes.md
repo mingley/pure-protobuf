@@ -8,6 +8,20 @@ This guide provides concrete, task-oriented walkthroughs for all four gRPC commu
 4. **Bidirectional (Bidi) Streaming RPC**: Concurrent streams of requests and responses.
 
 All patterns match the runnable reference implementation in `examples/greeter/`.
+Each recipe below ends with the exact command that runs it. Every recipe
+asserts reply content, the final status, and clean shutdown instead of
+printing optimistic success.
+
+Run every recipe and the full binary path with:
+
+```bash
+cargo test -p pbrs-grpc-example-greeter
+cargo run -p pbrs-grpc-example-greeter
+```
+
+The binary prints `hello world` only after `run()` asserts all four
+shapes and drains the server; any content, status, or shutdown failure
+exits nonzero instead.
 
 ---
 
@@ -93,11 +107,30 @@ impl Greeter for MyGreeter {
 ```rust
 let client = GreeterClient::connect(addr).await?;
 let mut req = HelloRequest::new();
-req.set_name("Ada");
+req.set_name("ada");
 
+// The awaited call resolves only on the final OK status; assert content.
 let reply = client.say_hello(Request::new(req)).await?;
-println!("Response: {}", reply.get_ref().message().to_str().unwrap_or_default());
+assert_eq!(
+    reply.get_ref().message().to_str().unwrap_or_default(),
+    "hello ada"
+);
+
+// Failures surface as typed status, never as silent success.
+let mut bad = HelloRequest::new();
+bad.set_name("");
+let err = client.say_hello(Request::new(bad)).await.unwrap_err();
+assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
 ```
+
+### Run this recipe
+```bash
+cargo test -p pbrs-grpc-example-greeter --lib recipe_unary_asserts_content_status_shutdown
+```
+
+Expect `test result: ok. 1 passed; 0 failed`. The test asserts the
+`hello ada` content, the `InvalidArgument` final status on bad input,
+and clean `shutdown()` drain.
 
 ---
 
@@ -144,15 +177,33 @@ impl Greeter for MyGreeter {
 ### Client Call
 ```rust
 let mut req = HelloRequest::new();
-req.set_name("Edsger");
+req.set_name("edsger");
 
-let mut stream = client.server_hello(Request::new(req)).await?.into_inner();
+let mut stream = client
+    .server_hello(Request::new(req))
+    .await?
+    .into_inner();
 
-// Read to EOF: loop terminates when `stream.message().await?` returns `None`.
+// Read to EOF: the loop ends only on `Ok(None)`, which is the OK final
+// status; a failed RPC surfaces as `Err(status)` from `message()`.
+let mut chunks = Vec::new();
 while let Some(reply) = stream.message().await? {
-    println!("Chunk: {}", reply.message().to_str().unwrap_or_default());
+    chunks.push(reply.message().to_str().unwrap_or_default().to_owned());
 }
+assert_eq!(
+    chunks,
+    ["hello edsger #1", "hello edsger #2", "hello edsger #3"]
+);
 ```
+
+### Run this recipe
+```bash
+cargo test -p pbrs-grpc-example-greeter --lib recipe_server_streaming_asserts_content_status_shutdown
+```
+
+Expect `test result: ok. 1 passed; 0 failed`. The test asserts the
+three-chunk content, the `InvalidArgument` final status on bad input,
+and clean `shutdown()` drain.
 
 ---
 
@@ -198,7 +249,7 @@ impl Greeter for MyGreeter {
 ```rust
 let (tx, call) = client.client_hello(Request::new(()));
 
-for name in ["Grace", "Alan"] {
+for name in ["grace", "alan"] {
     let mut req = HelloRequest::new();
     req.set_name(name);
     // Sends apply backpressure when the outbound queue is full
@@ -210,10 +261,22 @@ for name in ["Grace", "Alan"] {
 // Half-close: informs the server no more requests will be sent
 tx.close();
 
-// Await the consolidated response
+// The awaited call resolves only on the final status; assert content.
 let response = call.await?;
-println!("Summary: {}", response.get_ref().message().to_str().unwrap_or_default());
+assert_eq!(
+    response.get_ref().message().to_str().unwrap_or_default(),
+    "hello grace, alan"
+);
 ```
+
+### Run this recipe
+```bash
+cargo test -p pbrs-grpc-example-greeter --lib recipe_client_streaming_asserts_content_status_shutdown
+```
+
+Expect `test result: ok. 1 passed; 0 failed`. The test asserts the
+consolidated content, the `InvalidArgument` final status on an empty
+upload, and clean `shutdown()` drain.
 
 ---
 
@@ -256,7 +319,7 @@ let mut inbound = call.await?.into_inner();
 
 // Send requests and half-close when done
 tokio::spawn(async move {
-    for name in ["Barbara", "Donald"] {
+    for name in ["barbara", "donald"] {
         let mut req = HelloRequest::new();
         req.set_name(name);
         if tx.send(req).await.is_err() {
@@ -266,11 +329,22 @@ tokio::spawn(async move {
     tx.close(); // Half-close client sender
 });
 
-// Concurrently consume replies until server closes
+// Concurrently consume replies until the server closes (OK final status).
+let mut replies = Vec::new();
 while let Some(reply) = inbound.message().await? {
-    println!("Bidi reply: {}", reply.message().to_str().unwrap_or_default());
+    replies.push(reply.message().to_str().unwrap_or_default().to_owned());
 }
+assert_eq!(replies, ["hello barbara", "hello donald"]);
 ```
+
+### Run this recipe
+```bash
+cargo test -p pbrs-grpc-example-greeter --lib recipe_bidi_asserts_content_status_shutdown
+```
+
+Expect `test result: ok. 1 passed; 0 failed`. The test asserts the
+full-duplex content, drains to EOF (a non-OK trailer would surface as
+`Err` instead of `None`), and ends with clean `shutdown()` drain.
 
 ---
 
@@ -307,5 +381,48 @@ tokio::spawn(async move {
 
 // Trigger clean drain and wait for shutdown
 let _ = shutdown_tx.send(());
+```
+
+---
+
+## 7. Fresh-directory setup (published crates)
+
+The same four shapes run outside this repo against the published crates
+(no workspace `path =` dependencies). `protoc` must be on `PATH`;
+codegen shells out to it:
+
+```toml
+[dependencies]
+pbrs = "0.1"
+pbrs-grpc = "0.1.0-alpha.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[build-dependencies]
+pbrs = "0.1"
+```
+
+```rust
+// build.rs: explicit native stub selection (the default is also native).
+fn main() {
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(&["proto/hello.proto"], &["proto"])
+        .expect("compile_protos");
+}
+```
+
+```bash
+cargo run
+```
+
+The separate tonic entry point selects `emit_tonic_stubs(true)` with the
+`protobuf-tonic` adapter instead; see the
+[codegen guide](codegen.md). Both fresh-directory flows are proven
+hermetically by `tests/onboarding.rs` (native unary plus all-four-shapes
+consumers, and the tonic consumer), which assert reply content and exit
+nonzero on any failure:
+
+```bash
+cargo test -p pbrs --test onboarding
 ```
 

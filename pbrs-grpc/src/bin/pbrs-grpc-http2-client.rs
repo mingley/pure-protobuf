@@ -3,7 +3,9 @@
 //!
 //! Implements official HTTP/2 test cases:
 //! - `goaway`: sends first UnaryCall (response_size 314159, payload zeros 271828);
-//!   sleeps 1s; sends second UnaryCall; asserts both succeed with response body 314159.
+//!   sleeps 1s; sends second UnaryCall; asserts both succeed with response body 314159
+//!   and that at least one successful transport reconnect was observed, proving the
+//!   second call used a new connection after the peer's GOAWAY.
 //! - `rst_after_header`: sends UnaryCall; asserts call fails (non-zero / error status).
 //! - `rst_during_data`: sends UnaryCall; asserts call fails.
 //! - `rst_after_data`: sends UnaryCall; asserts call fails.
@@ -26,10 +28,14 @@
 )]
 
 use pbrs_grpc::{
-    Channel, ChannelConfig, Payload, Request, SimpleRequest, SimpleResponse, Status,
-    TestServiceClient,
+    Channel, ChannelConfig, LifecycleObserver, Payload, ReconnectEvent, Request, SimpleRequest,
+    SimpleResponse, Status, TestServiceClient,
 };
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc,
+};
 use std::time::Duration;
 
 const LARGE_REQ: i32 = 271_828;
@@ -187,19 +193,57 @@ fn assert_response_payload(resp: &SimpleResponse, expected_len: i32) -> Result<(
     Ok(())
 }
 
+/// Counts successful transport reconnects observed on the channel.
+/// The `goaway` case uses this to prove the post-GOAWAY call ran on a new
+/// connection instead of the connection the peer asked us to drain.
+#[derive(Clone, Debug, Default)]
+struct ReconnectCounter {
+    successful: Arc<AtomicU32>,
+}
+
+impl ReconnectCounter {
+    fn successful_reconnects(&self) -> u32 {
+        self.successful.load(Ordering::SeqCst)
+    }
+}
+
+impl LifecycleObserver for ReconnectCounter {
+    fn on_reconnect(&self, event: &ReconnectEvent<'_>) {
+        if event.status.is_none() {
+            self.successful.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+}
+
 /// Case `goaway`:
 /// Sends first UnaryCall (response_size 314159, payload zeros 271828);
-/// sleeps 1s; sends second UnaryCall; asserts both succeed with response body 314159.
-async fn run_goaway(client: &TestServiceClient) -> Result<(), Status> {
+/// sleeps 1s; sends second UnaryCall; asserts both succeed with response body 314159
+/// and that a successful reconnect happened, proving the second call used a new
+/// connection after the peer's GOAWAY.
+async fn run_goaway(
+    client: &TestServiceClient,
+    reconnects: &ReconnectCounter,
+) -> Result<(), Status> {
     let req1 = large_simple_request();
     let resp1 = client.unary_call(Request::new(req1)).await?;
     assert_response_payload(&resp1.into_inner(), LARGE_RESP)?;
+    let reconnects_before = reconnects.successful_reconnects();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let req2 = large_simple_request();
     let resp2 = client.unary_call(Request::new(req2)).await?;
     assert_response_payload(&resp2.into_inner(), LARGE_RESP)?;
+
+    // Nothing else in this window can kill the connection (no idle/age
+    // limits or keepalive are configured), so a successful reconnect
+    // observed between the two calls proves the second call migrated to a
+    // new connection after the peer's GOAWAY.
+    if reconnects.successful_reconnects() <= reconnects_before {
+        return Err(Status::internal(
+            "goaway: expected a successful reconnect to a new connection after GOAWAY, observed none",
+        ));
+    }
 
     Ok(())
 }
@@ -306,11 +350,25 @@ async fn run(args: Args) -> Result<(), Status> {
         .ok_or_else(|| Status::unavailable("resolve"))?;
 
     let config = ChannelConfig::new().data_frame_budget(16 * 1024 * 1024);
-    let channel = Channel::connect_with(addr, config).await?;
+    let reconnects = ReconnectCounter::default();
+    // The `goaway` case dials lazily: slots opened eagerly by `connect_with`
+    // start at generation 0, so the first redial after the peer's GOAWAY
+    // emits no `on_reconnect` event and the new-connection proof would be
+    // unobservable. A lazy first dial goes through the same redial path as
+    // the migration, making the reconnect visible. The wire procedure is
+    // identical either way. Other cases keep the eager dial so a dead peer
+    // fails fast instead of surfacing as an RPC error.
+    let channel = if args.test_case == "goaway" {
+        Channel::connect_lazy_with(addr, config)?.observer(reconnects.clone())
+    } else {
+        Channel::connect_with(addr, config)
+            .await?
+            .observer(reconnects.clone())
+    };
     let client = TestServiceClient::new(channel);
 
     match args.test_case.as_str() {
-        "goaway" => run_goaway(&client).await,
+        "goaway" => run_goaway(&client, &reconnects).await,
         "rst_after_header" => run_rst_after_header(&client).await,
         "rst_during_data" => run_rst_during_data(&client).await,
         "rst_after_data" => run_rst_after_data(&client).await,

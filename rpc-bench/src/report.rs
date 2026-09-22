@@ -20,8 +20,8 @@ use std::time::SystemTime;
 #[path = "resources.rs"]
 pub mod resources;
 pub use resources::{
-    CombinedResourceMetrics, EndpointResourceAttribution, EndpointResources, EndpointRole,
-    ProcessResources, ResourceAttributionError, ResourceSnapshot,
+    CombinedResourceMetrics, CpuConstraints, EndpointResourceAttribution, EndpointResources,
+    EndpointRole, ProcessResources, ResourceAttributionError, ResourceSnapshot,
 };
 
 /// Current schema version for benchmark result records.
@@ -67,6 +67,9 @@ pub struct HostInfo {
     /// Optional total system memory in bytes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_memory_bytes: Option<u64>,
+    /// Effective CPU constraints (core quota/affinity) observed at runtime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_constraints: Option<CpuConstraints>,
 }
 
 impl HostInfo {
@@ -88,6 +91,7 @@ impl HostInfo {
             cpu_model: None,
             hostname,
             total_memory_bytes: None,
+            cpu_constraints: Some(CpuConstraints::detect()),
         }
     }
 }
@@ -134,7 +138,14 @@ impl ToolPins {
             peer_version,
             pbrs_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             tonic_version: Some("0.14".to_string()),
-            profile: Some(if cfg!(debug_assertions) { "debug" } else { "release" }.to_string()),
+            profile: Some(
+                if cfg!(debug_assertions) {
+                    "debug"
+                } else {
+                    "release"
+                }
+                .to_string(),
+            ),
         }
     }
 }
@@ -541,11 +552,7 @@ impl LatencyDistribution {
 
         // Per benchmark contract Section 6.4: p99.9 requires at least 1,000 observations
         // for meaningful reporting (and 1,000,000 for authoritative claims).
-        let p999_nanos = if n >= 1000 {
-            Some(pick(0.999))
-        } else {
-            None
-        };
+        let p999_nanos = if n >= 1000 { Some(pick(0.999)) } else { None };
 
         let histogram = LatencyHistogram::build_exponential_buckets(&sorted);
 
@@ -646,7 +653,9 @@ impl BenchmarkRun {
             return Err(ValidationError::MissingField("git_commit"));
         }
         if self.tool_pins.peer_implementation.trim().is_empty() {
-            return Err(ValidationError::MissingField("tool_pins.peer_implementation"));
+            return Err(ValidationError::MissingField(
+                "tool_pins.peer_implementation",
+            ));
         }
         if self.tool_pins.peer_version.trim().is_empty() {
             return Err(ValidationError::MissingPeerVersion);
@@ -668,9 +677,7 @@ impl BenchmarkRun {
         if self.metrics.attempted_rpcs < self.metrics.successful_rpcs + self.metrics.failed_rpcs {
             return Err(ValidationError::InconsistentCounts(format!(
                 "attempted_rpcs ({}) cannot be less than successful_rpcs ({}) + failed_rpcs ({})",
-                self.metrics.attempted_rpcs,
-                self.metrics.successful_rpcs,
-                self.metrics.failed_rpcs
+                self.metrics.attempted_rpcs, self.metrics.successful_rpcs, self.metrics.failed_rpcs
             )));
         }
 
@@ -815,7 +822,13 @@ impl BenchmarkReport {
 
         Self {
             schema_version: REPORT_SCHEMA_VERSION.to_string(),
-            report_id: format!("report-{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
+            report_id: format!(
+                "report-{}",
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ),
             created_at: format_rfc3339(SystemTime::now()),
             git_commit,
             host_info,
@@ -1042,6 +1055,7 @@ mod tests {
                 cpu_model: Some("Apple M4 Pro".to_string()),
                 hostname: None,
                 total_memory_bytes: None,
+                cpu_constraints: None,
             },
             tool_pins: ToolPins {
                 git_commit: "139af0c2559ebc36ecae86c647482a758dff4d64".to_string(),
@@ -1143,20 +1157,14 @@ mod tests {
             des_unsupported.metrics.client_cpu_seconds,
             des_zero.metrics.client_cpu_seconds
         );
-        assert_ne!(
-            des_unsupported.metrics.timeouts,
-            des_zero.metrics.timeouts
-        );
+        assert_ne!(des_unsupported.metrics.timeouts, des_zero.metrics.timeouts);
     }
 
     #[test]
     fn test_validation_rejects_missing_peer_version() {
         let mut run = sample_run();
         run.tool_pins.peer_version = "".to_string();
-        assert_eq!(
-            run.validate(),
-            Err(ValidationError::MissingPeerVersion)
-        );
+        assert_eq!(run.validate(), Err(ValidationError::MissingPeerVersion));
     }
 
     #[test]
@@ -1264,7 +1272,13 @@ mod tests {
     #[test]
     fn test_benchmark_run_with_raw_samples_and_save_to_file() {
         let temp_dir = std::env::temp_dir();
-        let path = temp_dir.join(format!("test_benchmark_run_{}.json", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()));
+        let path = temp_dir.join(format!(
+            "test_benchmark_run_{}.json",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
 
         let mut run = sample_run();
         let samples = vec![1000, 2000, 3000];
@@ -1283,6 +1297,35 @@ mod tests {
         let loaded = BenchmarkRun::from_json(&content).unwrap();
         assert_eq!(run, loaded);
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_host_info_detect_records_cpu_constraints() {
+        let host = HostInfo::detect();
+        let constraints = host
+            .cpu_constraints
+            .as_ref()
+            .expect("HostInfo::detect must record effective CPU constraints");
+        assert!(!constraints.source.is_empty());
+        if cfg!(any(target_os = "macos", target_os = "linux")) {
+            assert!(constraints.effective_cpu_count.unwrap_or(0) >= 1);
+        }
+
+        let json = serde_json::to_string(&host).expect("serialization should succeed");
+        assert!(json.contains("\"cpu_constraints\""));
+        let deserialized: HostInfo =
+            serde_json::from_str(&json).expect("deserialization should succeed");
+        assert_eq!(host, deserialized);
+
+        // Records written before BM-06 (no cpu_constraints field) still parse.
+        let legacy = serde_json::json!({
+            "os": "linux",
+            "arch": "x86_64",
+            "cpu_count": 4,
+        });
+        let legacy_host: HostInfo =
+            serde_json::from_value(legacy).expect("legacy HostInfo must still parse");
+        assert_eq!(legacy_host.cpu_constraints, None);
     }
 
     #[test]
@@ -1329,7 +1372,8 @@ mod tests {
 
         // Validate rejection if scheduling lag percentiles inverted
         let mut invalid_lag = run.clone();
-        invalid_lag.metrics.scheduling_lag_nanos = Some(SchedulingLagNanos::new(50_000, 20_000, 89_000));
+        invalid_lag.metrics.scheduling_lag_nanos =
+            Some(SchedulingLagNanos::new(50_000, 20_000, 89_000));
         assert!(matches!(
             invalid_lag.validate(),
             Err(ValidationError::InvalidLatencyDistribution(_))
@@ -1361,10 +1405,9 @@ mod tests {
             .with_cpu_per_rpc(10_000);
 
         let mut run = sample_run();
-        run.metrics = run.metrics.with_resources(
-            Some(client_res.clone()),
-            Some(server_res.clone()),
-        );
+        run.metrics = run
+            .metrics
+            .with_resources(Some(client_res.clone()), Some(server_res.clone()));
 
         assert_eq!(run.metrics.client_cpu_seconds, Some(0.75));
         assert_eq!(run.metrics.server_cpu_seconds, Some(0.75));
@@ -1381,11 +1424,14 @@ mod tests {
         assert!(report.validate().is_ok());
 
         // Round-trip serialization
-        let json = report.to_json_pretty().expect("serialization should succeed");
+        let json = report
+            .to_json_pretty()
+            .expect("serialization should succeed");
         assert!(json.contains("\"client_resources\""));
         assert!(json.contains("\"server_resources\""));
 
-        let deserialized = BenchmarkReport::from_json(&json).expect("deserialization should succeed");
+        let deserialized =
+            BenchmarkReport::from_json(&json).expect("deserialization should succeed");
         assert_eq!(report, deserialized);
         assert!(deserialized.validate().is_ok());
 

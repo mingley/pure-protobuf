@@ -365,10 +365,7 @@ pub fn skip_field(buf: &[u8], pos: &mut usize, wire: u32) -> Result<(), ParseErr
             *pos += 4;
         }
         WIRE_LEN => {
-            let len = decode_varint(buf, pos)? as usize;
-            if *pos + len > buf.len() {
-                return Err(ParseError::new("truncated length-delimited"));
-            }
+            let len = decode_len(buf, pos)?;
             *pos += len;
         }
         WIRE_SGROUP => loop {
@@ -389,12 +386,23 @@ pub fn read_len_bytes<'a>(buf: &'a [u8], pos: &mut usize) -> Result<&'a [u8], Pa
     Ok(&buf[start..end])
 }
 
-/// Length-delimited payload as `start..end` indices into `buf` (after the length varint).
-pub fn read_len_span(buf: &[u8], pos: &mut usize) -> Result<(usize, usize), ParseError> {
-    let len = decode_varint(buf, pos)? as usize;
-    if *pos + len > buf.len() {
+/// Length-delimited prefix decoded and bounds-checked against the remaining
+/// buffer. Lengths that exceed the remaining bytes — including varints that
+/// would overflow `usize` arithmetic — are errors, never panics.
+fn decode_len(buf: &[u8], pos: &mut usize) -> Result<usize, ParseError> {
+    let raw = decode_varint(buf, pos)?;
+    let Ok(len) = usize::try_from(raw) else {
+        return Err(ParseError::new("length exceeds addressable memory"));
+    };
+    if len > buf.len().saturating_sub(*pos) {
         return Err(ParseError::new("truncated length-delimited"));
     }
+    Ok(len)
+}
+
+/// Length-delimited payload as `start..end` indices into `buf` (after the length varint).
+pub fn read_len_span(buf: &[u8], pos: &mut usize) -> Result<(usize, usize), ParseError> {
+    let len = decode_len(buf, pos)?;
     let start = *pos;
     *pos += len;
     Ok((start, *pos))
@@ -470,4 +478,36 @@ pub fn check_size(len: u64) -> Result<u32, crate::error::SerializeError> {
 
 pub fn key_len_value_len(number: u32, payload_len: u64) -> u64 {
     tag_len(number, WIRE_LEN) + varint_len(payload_len) + payload_len
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Minimized fuzzer crash: the length varint exceeds the remaining
+    /// buffer by far (`fuzz/corpus/wire/len_overflow_min.bin`).
+    const LEN_OVERFLOW: &[u8] = &[0x0a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
+
+    #[test]
+    fn huge_length_span_is_error_not_panic() {
+        let mut pos = 1usize;
+        assert!(read_len_span(LEN_OVERFLOW, &mut pos).is_err());
+    }
+
+    #[test]
+    fn huge_length_skip_is_error_not_panic() {
+        let mut pos = 1usize;
+        assert!(skip_field(LEN_OVERFLOW, &mut pos, WIRE_LEN).is_err());
+    }
+
+    #[test]
+    fn max_u64_length_is_error_not_panic() {
+        let mut buf = vec![0x0au8];
+        buf.extend_from_slice(&[0xff; 9]);
+        buf.push(0x01);
+        let mut pos = 1usize;
+        assert!(read_len_span(&buf, &mut pos).is_err());
+        let mut pos = 1usize;
+        assert!(skip_field(&buf, &mut pos, WIRE_LEN).is_err());
+    }
 }

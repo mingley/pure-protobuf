@@ -1489,7 +1489,7 @@ fn value_to_map_key(v: &Value) -> Result<MapKeyValue, ParseError> {
     })
 }
 
-fn default_map_key(ty: FieldType) -> Result<MapKeyValue, ParseError> {
+pub(crate) fn default_map_key(ty: FieldType) -> Result<MapKeyValue, ParseError> {
     Ok(match ty {
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => MapKeyValue::I32(0),
         FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => MapKeyValue::I64(0),
@@ -1501,7 +1501,7 @@ fn default_map_key(ty: FieldType) -> Result<MapKeyValue, ParseError> {
     })
 }
 
-fn default_value(
+pub(crate) fn default_value(
     field: &FieldDescriptor,
     pool: Option<&Arc<DescriptorPool>>,
 ) -> Result<Value, ParseError> {

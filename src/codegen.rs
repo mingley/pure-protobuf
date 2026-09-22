@@ -63,6 +63,11 @@ pub enum CodegenError {
         stem: String,
         matches: Vec<(String, String)>,
     },
+    /// A requested proto file is not present in the descriptor set.
+    UnknownFile {
+        file: String,
+        available: Vec<(String, String)>,
+    },
 }
 
 impl CodegenError {
@@ -78,7 +83,8 @@ impl CodegenError {
             Self::MissingOutDir
             | Self::UnknownParameter { .. }
             | Self::InvalidParameter { .. }
-            | Self::AmbiguousStem { .. } => None,
+            | Self::AmbiguousStem { .. }
+            | Self::UnknownFile { .. } => None,
         }
     }
 
@@ -197,6 +203,23 @@ impl std::fmt::Display for CodegenError {
                     f,
                     "\nUse the hierarchical path or include the root mod.rs instead."
                 )
+            }
+            Self::UnknownFile { file, available } => {
+                write!(
+                    f,
+                    "unknown proto file '{file}': not present in the descriptor set."
+                )?;
+                if !available.is_empty() {
+                    write!(f, "\nAvailable files:")?;
+                    for (path, pkg) in available {
+                        if pkg.is_empty() {
+                            write!(f, "\n  - {path}")?;
+                        } else {
+                            write!(f, "\n  - {path} (package {pkg})")?;
+                        }
+                    }
+                }
+                Ok(())
             }
         }
     }
@@ -750,6 +773,27 @@ pub fn generate_from_code_generator_request(
                     });
                 }
             }
+        }
+    }
+
+    for target in &targets {
+        let norm_target = normalize_proto_path_str(target);
+        if norm_target == "generated.proto" || norm_target == "generated" {
+            continue;
+        }
+        let wanted: std::collections::BTreeSet<String> = std::iter::once(target.clone()).collect();
+        let known = file_packages
+            .keys()
+            .any(|file_name| file_matches(&wanted, file_name));
+        if !known {
+            let available: Vec<(String, String)> = file_packages
+                .iter()
+                .map(|(path, pkg)| (path.clone(), pkg.clone()))
+                .collect();
+            return Err(CodegenError::UnknownFile {
+                file: target.clone(),
+                available,
+            });
         }
     }
 
@@ -5712,7 +5756,8 @@ fn screaming_snake_to_upper_camel(s: &str) -> String {
 }
 
 fn starts_with_ignore_ascii(name: &str, prefix: &str) -> bool {
-    name.len() >= prefix.len() && name[..prefix.len()].eq_ignore_ascii_case(prefix)
+    name.get(..prefix.len())
+        .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
 }
 
 fn strip_enum_prefix<'a>(enum_name: &str, value_name: &'a str) -> &'a str {
@@ -8426,5 +8471,15 @@ mod tests {
         emit_doc_line(&mut src, "```", "", &mut in_fence);
         assert!(!in_fence);
         assert_eq!(src, "/// ```text\n/// invalid rust syntax !@#$\n/// ```\n");
+    }
+
+    #[test]
+    fn test_starts_with_ignore_ascii_non_boundary() {
+        // Fuzzer crash: prefix length landing inside a multibyte char must
+        // return false, not panic on byte slicing.
+        assert!(!starts_with_ignore_ascii("abé", "abc"));
+        assert!(!starts_with_ignore_ascii("é", "ex"));
+        assert!(starts_with_ignore_ascii("FOOBar", "foo"));
+        assert!(!starts_with_ignore_ascii("short", "much longer prefix"));
     }
 }

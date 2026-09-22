@@ -822,6 +822,775 @@ async fn server_compressed_streaming_fails_when_not_compressed() {
     assert_eq!(err.code(), Code::Internal);
 }
 
+// --- IO-04 mutation fixtures for the remaining asserted properties ---
+
+struct EmptyErrorService;
+
+impl TestService for EmptyErrorService {
+    async fn empty_call(&self, _request: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(Status::invalid_argument("boom"))
+    }
+}
+
+struct ExtraMessageServerStreamingService;
+
+impl TestService for ExtraMessageServerStreamingService {
+    async fn streaming_output_call(
+        &self,
+        _request: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            for &n in &[31415, 9, 2653, 58979, 1] {
+                let mut msg = StreamingOutputCallResponse::new();
+                let mut p = Payload::new();
+                p.set_body(vec![0u8; n]);
+                msg.set_payload(p);
+                if tx.send(msg).await.is_err() {
+                    return;
+                }
+            }
+        });
+        Ok(Response::new(stream))
+    }
+}
+
+struct ExtraMessagePingPongService;
+
+impl TestService for ExtraMessagePingPongService {
+    async fn full_duplex_call(
+        &self,
+        request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            while let Ok(Some(req)) = inbound.message().await {
+                let size = req
+                    .response_parameters()
+                    .get(0)
+                    .map(|p| p.size())
+                    .unwrap_or(0);
+                let mut msg = StreamingOutputCallResponse::new();
+                let mut p = Payload::new();
+                p.set_body(vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)]);
+                msg.set_payload(p);
+                if tx.send(msg).await.is_err() {
+                    return;
+                }
+            }
+            // Client half-closed after its expected replies: send one extra.
+            let mut extra = StreamingOutputCallResponse::new();
+            let mut p = Payload::new();
+            p.set_body(vec![0u8; 1]);
+            extra.set_payload(p);
+            tx.send(extra).await.ok();
+        });
+        Ok(Response::new(stream))
+    }
+}
+
+struct WrongInitialMetadataService;
+
+impl TestService for WrongInitialMetadataService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut resp = Response::new(SimpleResponse::new());
+        resp.metadata_mut()
+            .insert("x-grpc-test-echo-initial", "wrong value")
+            .ok();
+        if let Some(tb) = request.metadata().get_bin("x-grpc-test-echo-trailing-bin") {
+            resp.trailers_mut()
+                .insert_bin("x-grpc-test-echo-trailing-bin", &tb)
+                .ok();
+        }
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        resp.get_mut().set_payload(p);
+        Ok(resp)
+    }
+}
+
+struct DuplexStatusExtraMessageService;
+
+impl TestService for DuplexStatusExtraMessageService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let inner = request.into_inner();
+        if inner.has_response_status() {
+            let st = inner.response_status();
+            return Err(Status::new(
+                Code::from_i32(st.code()),
+                st.message().to_string(),
+            ));
+        }
+        Ok(Response::new(SimpleResponse::new()))
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let (tx, stream) = Streaming::channel(8);
+        let mut msg = StreamingOutputCallResponse::new();
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; 10]);
+        msg.set_payload(p);
+        tx.send(msg).await.ok();
+        drop(tx);
+        Ok(Response::new(stream))
+    }
+}
+
+struct UnimplementedWrongCodeService;
+
+impl TestService for UnimplementedWrongCodeService {
+    async fn unimplemented_call(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<Empty>, Status> {
+        Err(Status::not_found("wrong code"))
+    }
+}
+
+struct ProbeIgnoringUnaryService;
+
+impl TestService for ProbeIgnoringUnaryService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut msg = SimpleResponse::new();
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        msg.set_payload(p);
+        Ok(Response::new(msg))
+    }
+}
+
+struct ProbeIgnoringStreamingInputService;
+
+impl TestService for ProbeIgnoringStreamingInputService {
+    async fn streaming_input_call(
+        &self,
+        request: Request<Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        let mut inbound = request.into_inner();
+        let mut total: i32 = 0;
+        while let Some(m) = inbound.message().await? {
+            total = total.saturating_add(i32::try_from(m.payload().body().len()).unwrap_or(0));
+        }
+        let mut resp = StreamingInputCallResponse::new();
+        resp.set_aggregated_payload_size(total);
+        Ok(Response::new(resp))
+    }
+}
+
+struct WrongAggCompressedStreamingService {
+    calls: std::sync::atomic::AtomicUsize,
+}
+
+impl TestService for WrongAggCompressedStreamingService {
+    async fn streaming_input_call(
+        &self,
+        request: Request<Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        let mut inbound = request.into_inner();
+        while inbound.message().await?.is_some() {}
+        let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if call == 0 {
+            return Err(Status::invalid_argument("request not compressed"));
+        }
+        let mut resp = StreamingInputCallResponse::new();
+        resp.set_aggregated_payload_size(1);
+        Ok(Response::new(resp))
+    }
+}
+
+struct InvertedFlagsCompressedStreamingService;
+
+impl TestService for InvertedFlagsCompressedStreamingService {
+    async fn streaming_output_call(
+        &self,
+        _request: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            let mut first = StreamingOutputCallResponse::new();
+            let mut p0 = Payload::new();
+            p0.set_body(vec![0u8; 31415]);
+            first.set_payload(p0);
+            if tx.send(first).await.is_err() {
+                return;
+            }
+            let mut second = StreamingOutputCallResponse::new();
+            let mut p1 = Payload::new();
+            p1.set_body(vec![0u8; 92653]);
+            second.set_payload(p1);
+            tx.send_compressed(second).await.ok();
+        });
+        let mut resp = Response::new(stream);
+        resp.set_compress(true);
+        Ok(resp)
+    }
+}
+
+struct ExtraMessageCompressedStreamingService;
+
+impl TestService for ExtraMessageCompressedStreamingService {
+    async fn streaming_output_call(
+        &self,
+        _request: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            let mut first = StreamingOutputCallResponse::new();
+            let mut p0 = Payload::new();
+            p0.set_body(vec![0u8; 31415]);
+            first.set_payload(p0);
+            if tx.send_compressed(first).await.is_err() {
+                return;
+            }
+            for &n in &[92653usize, 1usize] {
+                let mut msg = StreamingOutputCallResponse::new();
+                let mut p = Payload::new();
+                p.set_body(vec![0u8; n]);
+                msg.set_payload(p);
+                if tx.send(msg).await.is_err() {
+                    return;
+                }
+            }
+        });
+        let mut resp = Response::new(stream);
+        resp.set_compress(true);
+        Ok(resp)
+    }
+}
+
+struct AlwaysCompressedUnaryService;
+
+impl TestService for AlwaysCompressedUnaryService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut resp = Response::new(SimpleResponse::new());
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        resp.get_mut().set_payload(p);
+        resp.set_compress(true);
+        Ok(resp)
+    }
+}
+
+#[tokio::test]
+async fn empty_unary_propagates_server_error_as_final_status() {
+    let (addr, _guard) = spawn_test_server(EmptyErrorService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "empty_unary").await;
+    assert!(res.is_err(), "expected empty_unary to fail on server error");
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::InvalidArgument);
+    assert!(
+        err.message().contains("boom"),
+        "expected propagated message, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn server_streaming_fails_on_extra_message() {
+    let (addr, _guard) = spawn_test_server(ExtraMessageServerStreamingService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "server_streaming").await;
+    assert!(
+        res.is_err(),
+        "expected server_streaming to fail on extra message"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("more messages than requested"),
+        "expected error about extra messages, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn ping_pong_fails_on_extra_message_after_close() {
+    let (addr, _guard) = spawn_test_server(ExtraMessagePingPongService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "ping_pong").await;
+    assert!(
+        res.is_err(),
+        "expected ping_pong to fail on extra message after close"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("unexpected extra message"),
+        "expected error about extra message, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn custom_metadata_fails_on_wrong_initial_value() {
+    let (addr, _guard) = spawn_test_server(WrongInitialMetadataService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "custom_metadata").await;
+    assert!(
+        res.is_err(),
+        "expected custom_metadata to fail on wrong initial value"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("missing initial metadata"),
+        "expected error about initial metadata, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn status_code_and_message_duplex_fails_on_extra_message() {
+    let (addr, _guard) = spawn_test_server(DuplexStatusExtraMessageService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "status_code_and_message").await;
+    assert!(
+        res.is_err(),
+        "expected status_code_and_message to fail when duplex sends a message"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("duplex status extra message"),
+        "expected error about duplex extra message, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn unimplemented_method_fails_on_wrong_code() {
+    let (addr, _guard) = spawn_test_server(UnimplementedWrongCodeService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "unimplemented_method").await;
+    assert!(
+        res.is_err(),
+        "expected failure when unimplemented method returns the wrong code"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("want UNIMPLEMENTED"),
+        "expected error mentioning UNIMPLEMENTED, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn client_compressed_unary_fails_when_probe_ignored() {
+    let (addr, _guard) = spawn_test_server(ProbeIgnoringUnaryService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "client_compressed_unary").await;
+    assert!(
+        res.is_err(),
+        "expected client_compressed_unary to fail when the probe is ignored"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("probe want INVALID_ARGUMENT got ok"),
+        "expected error about ignored probe, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn client_compressed_streaming_fails_when_probe_ignored() {
+    let (addr, _guard) = spawn_test_server(ProbeIgnoringStreamingInputService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "client_compressed_streaming").await;
+    assert!(
+        res.is_err(),
+        "expected client_compressed_streaming to fail when the probe is ignored"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("probe want INVALID_ARGUMENT got ok"),
+        "expected error about ignored probe, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn client_compressed_streaming_fails_on_wrong_aggregated_size() {
+    let (addr, _guard) = spawn_test_server(WrongAggCompressedStreamingService {
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    })
+    .await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "client_compressed_streaming").await;
+    assert!(
+        res.is_err(),
+        "expected client_compressed_streaming to fail on wrong aggregated size"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("want 73086"),
+        "expected error mentioning 73086, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn server_compressed_streaming_fails_on_inverted_flags() {
+    let (addr, _guard) = spawn_test_server(InvertedFlagsCompressedStreamingService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "server_compressed_streaming").await;
+    assert!(
+        res.is_err(),
+        "expected server_compressed_streaming to fail on inverted flags"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("compressed flags"),
+        "expected error about compressed flags, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn server_compressed_streaming_fails_on_extra_message() {
+    let (addr, _guard) = spawn_test_server(ExtraMessageCompressedStreamingService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "server_compressed_streaming").await;
+    assert!(
+        res.is_err(),
+        "expected server_compressed_streaming to fail on extra message"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("got 3 replies"),
+        "expected error about reply count, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn server_compressed_unary_fails_when_uncompressed_leg_compressed() {
+    let (addr, _guard) = spawn_test_server(AlwaysCompressedUnaryService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "server_compressed_unary").await;
+    assert!(
+        res.is_err(),
+        "expected server_compressed_unary to fail when the uncompressed leg is compressed"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("compressed flag true want false"),
+        "expected error about compressed flag, got: {:?}",
+        err.message()
+    );
+}
+
+struct CorrectUnaryWrongDuplexInitialService;
+
+impl TestService for CorrectUnaryWrongDuplexInitialService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut resp = Response::new(SimpleResponse::new());
+        if let Some(init) = request.metadata().get("x-grpc-test-echo-initial") {
+            resp.metadata_mut()
+                .insert("x-grpc-test-echo-initial", init)
+                .ok();
+        }
+        if let Some(tb) = request.metadata().get_bin("x-grpc-test-echo-trailing-bin") {
+            resp.trailers_mut()
+                .insert_bin("x-grpc-test-echo-trailing-bin", &tb)
+                .ok();
+        }
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        resp.get_mut().set_payload(p);
+        Ok(resp)
+    }
+
+    async fn full_duplex_call(
+        &self,
+        request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            while let Ok(Some(_)) = inbound.message().await {}
+            let mut msg = StreamingOutputCallResponse::new();
+            let mut p = Payload::new();
+            p.set_body(vec![0u8; 314159]);
+            msg.set_payload(p);
+            tx.send(msg).await.ok();
+        });
+        let mut resp = Response::new(stream);
+        resp.metadata_mut()
+            .insert("x-grpc-test-echo-initial", "wrong value")
+            .ok();
+        Ok(resp)
+    }
+}
+
+struct CorrectUnaryMissingDuplexTrailingService;
+
+impl TestService for CorrectUnaryMissingDuplexTrailingService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut resp = Response::new(SimpleResponse::new());
+        if let Some(init) = request.metadata().get("x-grpc-test-echo-initial") {
+            resp.metadata_mut()
+                .insert("x-grpc-test-echo-initial", init)
+                .ok();
+        }
+        if let Some(tb) = request.metadata().get_bin("x-grpc-test-echo-trailing-bin") {
+            resp.trailers_mut()
+                .insert_bin("x-grpc-test-echo-trailing-bin", &tb)
+                .ok();
+        }
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        resp.get_mut().set_payload(p);
+        Ok(resp)
+    }
+
+    async fn full_duplex_call(
+        &self,
+        request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(8);
+        tokio::spawn(async move {
+            while let Ok(Some(_)) = inbound.message().await {}
+            let mut msg = StreamingOutputCallResponse::new();
+            let mut p = Payload::new();
+            p.set_body(vec![0u8; 314159]);
+            msg.set_payload(p);
+            tx.send(msg).await.ok();
+        });
+        let mut resp = Response::new(stream);
+        resp.metadata_mut()
+            .insert("x-grpc-test-echo-initial", "test_initial_metadata_value")
+            .ok();
+        Ok(resp)
+    }
+}
+
+struct LeakedInitialMetadataService;
+
+impl TestService for LeakedInitialMetadataService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let size = usize::try_from(request.get_ref().response_size()).unwrap_or(0);
+        let mut resp = Response::new(SimpleResponse::new());
+        if let Some(init) = request.metadata().get("x-grpc-test-echo-initial") {
+            resp.metadata_mut()
+                .insert("x-grpc-test-echo-initial", init)
+                .ok();
+            resp.trailers_mut()
+                .insert("x-grpc-test-echo-initial", init)
+                .ok();
+        }
+        if let Some(tb) = request.metadata().get_bin("x-grpc-test-echo-trailing-bin") {
+            resp.trailers_mut()
+                .insert_bin("x-grpc-test-echo-trailing-bin", &tb)
+                .ok();
+        }
+        let mut p = Payload::new();
+        p.set_body(vec![0u8; size]);
+        resp.get_mut().set_payload(p);
+        Ok(resp)
+    }
+}
+
+struct DuplexWrongStatusService;
+
+impl TestService for DuplexWrongStatusService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let inner = request.into_inner();
+        if inner.has_response_status() {
+            let st = inner.response_status();
+            return Err(Status::new(
+                Code::from_i32(st.code()),
+                st.message().to_string(),
+            ));
+        }
+        Ok(Response::new(SimpleResponse::new()))
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(Status::not_found("nope"))
+    }
+}
+
+struct DuplexMissingStatusService;
+
+impl TestService for DuplexMissingStatusService {
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        let inner = request.into_inner();
+        if inner.has_response_status() {
+            let st = inner.response_status();
+            return Err(Status::new(
+                Code::from_i32(st.code()),
+                st.message().to_string(),
+            ));
+        }
+        Ok(Response::new(SimpleResponse::new()))
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        let (_tx, stream) = Streaming::channel(8);
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::test]
+async fn custom_metadata_duplex_fails_on_wrong_initial_value() {
+    let (addr, _guard) = spawn_test_server(CorrectUnaryWrongDuplexInitialService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "custom_metadata").await;
+    assert!(
+        res.is_err(),
+        "expected custom_metadata duplex to fail on wrong initial value"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("missing initial metadata"),
+        "expected error about initial metadata, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn custom_metadata_duplex_fails_when_trailing_missing() {
+    let (addr, _guard) = spawn_test_server(CorrectUnaryMissingDuplexTrailingService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "custom_metadata").await;
+    assert!(
+        res.is_err(),
+        "expected custom_metadata duplex to fail when trailing is missing"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("missing trailing-bin trailers"),
+        "expected error about missing trailing-bin, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn custom_metadata_fails_when_initial_metadata_leaked_into_trailers() {
+    let (addr, _guard) = spawn_test_server(LeakedInitialMetadataService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "custom_metadata").await;
+    assert!(
+        res.is_err(),
+        "expected custom_metadata to fail when initial metadata leaks into trailers"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message()
+            .contains("initial metadata leaked into trailers"),
+        "expected error about leaked initial metadata, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn status_code_and_message_duplex_fails_on_wrong_status() {
+    let (addr, _guard) = spawn_test_server(DuplexWrongStatusService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "status_code_and_message").await;
+    assert!(
+        res.is_err(),
+        "expected status_code_and_message to fail when duplex returns the wrong status"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("status code mismatch"),
+        "expected error about status code mismatch, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn status_code_and_message_duplex_fails_when_status_missing() {
+    let (addr, _guard) = spawn_test_server(DuplexMissingStatusService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "status_code_and_message").await;
+    assert!(
+        res.is_err(),
+        "expected status_code_and_message to fail when duplex status is missing"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("duplex status missing"),
+        "expected error about missing duplex status, got: {:?}",
+        err.message()
+    );
+}
+
+#[tokio::test]
+async fn special_status_message_fails_on_wrong_code() {
+    let (addr, _guard) = spawn_test_server(WrongStatusCodeService).await;
+    let client = connect_client(addr).await;
+    let res = run_case(&client, "special_status_message").await;
+    assert!(
+        res.is_err(),
+        "expected failure on wrong special status code"
+    );
+    let err = res.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert!(
+        err.message().contains("status code mismatch"),
+        "expected error about status code mismatch, got: {:?}",
+        err.message()
+    );
+}
+
 #[tokio::test]
 async fn all_cases_succeed_against_reference_interop_server() {
     let (addr, _guard) = spawn_test_server(InteropTestService).await;

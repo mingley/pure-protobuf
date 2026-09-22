@@ -316,3 +316,32 @@ fn dynamic_message_float_double_json_roundtrip() {
         other => panic!("expected Infinity double, got {other:?}"),
     }
 }
+
+#[test]
+fn text_map_entry_missing_value_defaults_by_type_and_reparses() {
+    // Fuzzer round-trip crash: a map<string,string> entry without `value`
+    // used to default to Int32(0), which `to_text` emitted as `value: 0`
+    // (unparseable as a string). Missing values must take the entry's typed
+    // default so emitted text always reparses.
+    let pool = pbrs::gencode::conformance_pool();
+    let desc = pool
+        .get_message("protobuf_test_messages.proto3.TestAllTypesProto3")
+        .expect("proto3 test message");
+    let msg = DynamicMessage::from_text(desc.clone(), "map_string_string { key: \"k\" }")
+        .expect("entry without value parses");
+    let out = msg.to_text().expect("to_text");
+    assert!(
+        out.contains("value: \"\""),
+        "string default must emit as quoted empty string, got: {out:?}"
+    );
+    DynamicMessage::from_text(desc.clone(), &out).expect("emitted text reparses");
+    // Missing key on an int-keyed map defaults to 0, not an empty string.
+    let msg2 = DynamicMessage::from_text(desc.clone(), "map_int32_int32 { value: 7 }")
+        .expect("entry without key parses");
+    let out2 = msg2.to_text().expect("to_text");
+    assert!(
+        out2.contains("key: 0"),
+        "int32 key default must emit as 0, got: {out2:?}"
+    );
+    DynamicMessage::from_text(desc, &out2).expect("emitted text reparses");
+}

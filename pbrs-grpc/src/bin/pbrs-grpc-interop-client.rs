@@ -18,8 +18,8 @@
 
 use pbrs_grpc::interop_cases;
 use pbrs_grpc::{
-    Channel, ClientTls, Payload, Request, ResponseParameters, Status, StreamingInputCallRequest,
-    StreamingOutputCallRequest, TestServiceClient,
+    Channel, ClientTls, Identity, Payload, Request, ResponseParameters, Status,
+    StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient,
 };
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
@@ -30,6 +30,8 @@ struct Args {
     test_case: String,
     use_tls: bool,
     tls_ca_file: Option<String>,
+    tls_client_cert_file: Option<String>,
+    tls_client_key_file: Option<String>,
     server_host_override: Option<String>,
     bench: bool,
     soak_iterations: usize,
@@ -121,6 +123,8 @@ fn parse_args() -> Args {
     let mut test_case = "empty_unary".to_string();
     let mut use_tls = false;
     let mut tls_ca_file = None;
+    let mut tls_client_cert_file = None;
+    let mut tls_client_key_file = None;
     let mut server_host_override = None;
     let mut bench = false;
     let mut soak_iterations = 10usize;
@@ -231,6 +235,38 @@ fn parse_args() -> Args {
                     }
                 };
                 tls_ca_file = Some(val);
+            }
+            "tls_client_cert_file" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                tls_client_cert_file = Some(val);
+            }
+            "tls_client_key_file" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                tls_client_key_file = Some(val);
             }
             "server_host_override" => {
                 let val = match inline_val {
@@ -458,12 +494,23 @@ fn parse_args() -> Args {
         std::process::exit(1);
     }
 
+    if tls_client_cert_file.is_some() != tls_client_key_file.is_some() {
+        eprintln!("error: --tls_client_cert_file and --tls_client_key_file must be used together");
+        std::process::exit(1);
+    }
+    if (tls_client_cert_file.is_some() || tls_client_key_file.is_some()) && !use_tls {
+        eprintln!("error: --tls_client_cert_file and --tls_client_key_file require --use_tls=true");
+        std::process::exit(1);
+    }
+
     Args {
         server_host,
         server_port,
         test_case,
         use_tls,
         tls_ca_file,
+        tls_client_cert_file,
+        tls_client_key_file,
         server_host_override,
         bench,
         soak_iterations,
@@ -668,21 +715,54 @@ async fn run(args: Args) -> Result<(), Status> {
         let use_tls = args.use_tls;
         let host_override = args.server_host_override.clone();
         let tls_ca_file = args.tls_ca_file.clone();
+        let tls_client_cert_file = args.tls_client_cert_file.clone();
+        let tls_client_key_file = args.tls_client_key_file.clone();
         let factory = move || {
             let host = host.clone();
             let host_override = host_override.clone();
             let ca_file = tls_ca_file.clone();
+            let cert_file = tls_client_cert_file.clone();
+            let key_file = tls_client_key_file.clone();
             async move {
                 if use_tls {
                     let server_name = host_override.as_deref().unwrap_or(host.as_str());
-                    let client_tls = match ca_file.as_deref() {
-                        Some(ca_path) => {
-                            let ca_pem = std::fs::read(ca_path)
-                                .map_err(|e| Status::unavailable(format!("read ca: {e}")))?;
-                            ClientTls::ca(server_name, &ca_pem)
-                                .map_err(|e| Status::unavailable(format!("tls ca: {e}")))?
+                    let ca_pem: Option<Vec<u8>> = match ca_file.as_deref() {
+                        Some(ca_path) => Some(
+                            std::fs::read(ca_path)
+                                .map_err(|e| Status::unavailable(format!("read ca: {e}")))?,
+                        ),
+                        None => None,
+                    };
+                    let identity: Option<Identity> = match (
+                        cert_file.as_deref(),
+                        key_file.as_deref(),
+                    ) {
+                        (Some(cert_path), Some(key_path)) => {
+                            let cert_pem = std::fs::read(cert_path).map_err(|e| {
+                                Status::unavailable(format!("read client cert: {e}"))
+                            })?;
+                            let key_pem = std::fs::read(key_path).map_err(|e| {
+                                Status::unavailable(format!("read client key: {e}"))
+                            })?;
+                            Some(Identity::from_pem(&cert_pem, &key_pem).map_err(|e| {
+                                Status::unavailable(format!("client identity: {e}"))
+                            })?)
                         }
-                        None => ClientTls::webpki(server_name)
+                        (None, None) => None,
+                        _ => {
+                            return Err(Status::invalid_argument(
+                                    "--tls_client_cert_file and --tls_client_key_file must be used together",
+                                ));
+                        }
+                    };
+                    let client_tls = match (ca_pem.as_deref(), identity) {
+                        (Some(ca), Some(id)) => ClientTls::ca_mtls(server_name, ca, id)
+                            .map_err(|e| Status::unavailable(format!("tls mtls: {e}")))?,
+                        (Some(ca), None) => ClientTls::ca(server_name, ca)
+                            .map_err(|e| Status::unavailable(format!("tls ca: {e}")))?,
+                        (None, Some(id)) => ClientTls::webpki_mtls(server_name, id)
+                            .map_err(|e| Status::unavailable(format!("tls webpki mtls: {e}")))?,
+                        (None, None) => ClientTls::webpki(server_name)
                             .map_err(|e| Status::unavailable(format!("tls webpki: {e}")))?,
                     };
                     let addr: SocketAddr = (host.as_str(), port)
@@ -715,24 +795,74 @@ async fn run(args: Args) -> Result<(), Status> {
             .server_host_override
             .as_deref()
             .unwrap_or(args.server_host.as_str());
-        let client_tls = match args.tls_ca_file.as_deref() {
-            Some(ca_path) => {
-                let ca_pem = match std::fs::read(ca_path) {
-                    Ok(bytes) => bytes,
-                    Err(e) => {
-                        eprintln!("failed to read TLS CA file {ca_path:?}: {e}");
-                        std::process::exit(1);
-                    }
-                };
-                match ClientTls::ca(server_name, &ca_pem) {
-                    Ok(tls) => tls,
-                    Err(e) => {
-                        eprintln!("failed to configure TLS CA: {e}");
-                        std::process::exit(1);
+        let ca_pem: Option<Vec<u8>> = match args.tls_ca_file.as_deref() {
+            Some(ca_path) => match std::fs::read(ca_path) {
+                Ok(bytes) => Some(bytes),
+                Err(e) => {
+                    eprintln!("failed to read TLS CA file {ca_path:?}: {e}");
+                    std::process::exit(1);
+                }
+            },
+            None => None,
+        };
+        let identity: Option<Identity> =
+            match (&args.tls_client_cert_file, &args.tls_client_key_file) {
+                (Some(cert_path), Some(key_path)) => {
+                    let cert_pem = match std::fs::read(cert_path) {
+                        Ok(bytes) => bytes,
+                        Err(e) => {
+                            eprintln!(
+                                "failed to read TLS client certificate file {cert_path:?}: {e}"
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    let key_pem = match std::fs::read(key_path) {
+                        Ok(bytes) => bytes,
+                        Err(e) => {
+                            eprintln!("failed to read TLS client key file {key_path:?}: {e}");
+                            std::process::exit(1);
+                        }
+                    };
+                    match Identity::from_pem(&cert_pem, &key_pem) {
+                        Ok(id) => Some(id),
+                        Err(e) => {
+                            eprintln!("invalid TLS client certificate or key: {e}");
+                            std::process::exit(1);
+                        }
                     }
                 }
-            }
-            None => match ClientTls::webpki(server_name) {
+                (None, None) => None,
+                _ => {
+                    eprintln!(
+                    "error: --tls_client_cert_file and --tls_client_key_file must be used together"
+                );
+                    std::process::exit(1);
+                }
+            };
+        let client_tls = match (ca_pem.as_deref(), identity) {
+            (Some(ca), Some(id)) => match ClientTls::ca_mtls(server_name, ca, id) {
+                Ok(tls) => tls,
+                Err(e) => {
+                    eprintln!("failed to configure mTLS: {e}");
+                    std::process::exit(1);
+                }
+            },
+            (Some(ca), None) => match ClientTls::ca(server_name, ca) {
+                Ok(tls) => tls,
+                Err(e) => {
+                    eprintln!("failed to configure TLS CA: {e}");
+                    std::process::exit(1);
+                }
+            },
+            (None, Some(id)) => match ClientTls::webpki_mtls(server_name, id) {
+                Ok(tls) => tls,
+                Err(e) => {
+                    eprintln!("failed to configure WebPKI mTLS: {e}");
+                    std::process::exit(1);
+                }
+            },
+            (None, None) => match ClientTls::webpki(server_name) {
                 Ok(tls) => tls,
                 Err(e) => {
                     eprintln!("failed to configure WebPKI TLS: {e}");

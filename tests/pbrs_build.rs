@@ -597,6 +597,60 @@ fn ambiguous_stem_request_fails_with_diagnostic() {
 }
 
 #[test]
+fn unknown_requested_file_fails_with_diagnostic() {
+    let tmp = test_temp_dir("unknown-file-test");
+    let root = repo_root();
+    let fixture_proto = root.join("tests/fixtures/codegen-layout/proto");
+
+    let fds_path = tmp.join("test.fds");
+    let status = Command::new("protoc")
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", fds_path.display()))
+        .arg("-I")
+        .arg(&fixture_proto)
+        .arg(fixture_proto.join("pkg_a/common.proto"))
+        .arg(fixture_proto.join("pkg_b/common.proto"))
+        .status()
+        .expect("run protoc");
+    assert!(status.success());
+    let bytes = std::fs::read(&fds_path).expect("read fds");
+
+    let res = pbrs::codegen::generate_from_file_descriptor_set(
+        &bytes,
+        &["nope/missing.proto".to_string()],
+    );
+    let err = res.expect_err("unknown nope/missing.proto must fail");
+    assert!(
+        matches!(err, pbrs::codegen::CodegenError::UnknownFile { .. }),
+        "expected UnknownFile variant, got: {err:?}"
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("unknown proto file 'nope/missing.proto'"),
+        "error message should name the unknown file:\n{msg}"
+    );
+    assert!(
+        msg.contains("pkg_a/common.proto (package pkg.a)"),
+        "error message should list pkg_a/common.proto:\n{msg}"
+    );
+    assert!(
+        msg.contains("pkg_b/common.proto (package pkg.b)"),
+        "error message should list pkg_b/common.proto:\n{msg}"
+    );
+
+    // A known canonical target from the same set still succeeds.
+    let ok = pbrs::codegen::generate_from_file_descriptor_set(
+        &bytes,
+        &["pkg_a/common.proto".to_string()],
+    )
+    .expect("known target must succeed");
+    assert!(
+        ok.iter().any(|(name, _)| name == "pkg_a/common.rs"),
+        "expected pkg_a/common.rs in {ok:?}"
+    );
+}
+
+#[test]
 fn transitive_public_import_chain_compiles() {
     let tmp = test_temp_dir("transitive-reexport-test");
     let root = repo_root();
@@ -1132,6 +1186,86 @@ message StableMsg {
         mtime_test_3 > mtime_test_1,
         "mtime of test.rs must be updated when content changed"
     );
+}
+
+#[test]
+fn changed_input_updates_only_affected_outputs() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    let tmp = test_temp_dir("affected-outputs");
+    let alpha_proto = tmp.join("alpha.proto");
+    let beta_proto = tmp.join("beta.proto");
+    std::fs::write(
+        &alpha_proto,
+        "syntax = \"proto3\";\npackage test.affected;\nmessage Alpha {\n    string a = 1;\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &beta_proto,
+        "syntax = \"proto3\";\npackage test.affected;\nmessage Beta {\n    string b = 1;\n}\n",
+    )
+    .unwrap();
+
+    // no_reflect removes the shared embedded FileDescriptorSet so each
+    // output depends only on its own input; with default reflection every
+    // output embeds the whole set and is legitimately affected by any change.
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .no_reflect(true)
+        .compile_protos(&[&alpha_proto, &beta_proto], &[&tmp])
+        .expect("initial compile");
+
+    let alpha_rs = out_dir.join("alpha.rs");
+    let beta_rs = out_dir.join("beta.rs");
+    let alpha_before = std::fs::read(&alpha_rs).expect("read alpha");
+    let beta_before = std::fs::read(&beta_rs).expect("read beta");
+    assert!(
+        !String::from_utf8_lossy(&alpha_before).contains("FILE_DESCRIPTOR_SET"),
+        "no_reflect output must not embed shared descriptor bytes"
+    );
+    let alpha_mtime = std::fs::metadata(&alpha_rs).unwrap().modified().unwrap();
+
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    std::fs::write(
+        &beta_proto,
+        "syntax = \"proto3\";\npackage test.affected;\nmessage Beta {\n    string b = 1;\n    int32 added = 2;\n}\n",
+    )
+    .unwrap();
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .emit_kernel_stubs(false)
+        .no_reflect(true)
+        .compile_protos(&[&alpha_proto, &beta_proto], &[&tmp])
+        .expect("recompile after beta change");
+
+    let alpha_after = std::fs::read(&alpha_rs).expect("reread alpha");
+    let beta_after = std::fs::read(&beta_rs).expect("reread beta");
+    assert_eq!(
+        alpha_before, alpha_after,
+        "alpha.rs bytes must be identical when only beta.proto changed"
+    );
+    assert_eq!(
+        std::fs::metadata(&alpha_rs).unwrap().modified().unwrap(),
+        alpha_mtime,
+        "alpha.rs mtime must be preserved when only beta.proto changed"
+    );
+    assert_ne!(
+        beta_before, beta_after,
+        "beta.rs bytes must change when beta.proto changed"
+    );
+    assert!(
+        String::from_utf8_lossy(&beta_after).contains("added"),
+        "beta.rs must contain the new field"
+    );
+    for entry in std::fs::read_dir(&out_dir).unwrap() {
+        let name = entry.unwrap().file_name().to_string_lossy().to_string();
+        assert!(
+            !name.contains(".tmp"),
+            "temporary file left behind in output directory: {name}"
+        );
+    }
 }
 
 #[test]

@@ -3,6 +3,10 @@
 #   1. Native client (pbrs-grpc-interop-client) -> Tonic server
 #   2. Tonic client                             -> Native server (pbrs-grpc-interop-server)
 #
+# Two codec matrices, recorded under separate peers so they never mix:
+#   peer=tonic               prost 0.14 messages (wire independence)
+#   peer=tonic-pbrs-adapter  protobuf-tonic adapter over pbrs messages
+#
 # Covers official cases:
 #   empty_unary
 #   large_unary
@@ -11,9 +15,19 @@
 #   ping_pong
 #   empty_stream
 #   cancel_after_begin
+#   cancel_after_first_response (native-client direction only; see below)
 #   timeout_on_sleeping_server
 #   custom_metadata
 #   status_code_and_message
+#   special_status_message
+#   unimplemented_method
+#   unimplemented_service
+#
+# Named limitations, recorded as explicit unsupported rows (never fabricated
+# passes): the four gzip cases in both directions (tonic's public API cannot
+# express the official expect_compressed/response_compressed semantics), and
+# tonic-client cancel_after_first_response (no mid-stream client cancel
+# handle in tonic's public API with which to observe terminal CANCELLED).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,12 +43,31 @@ DEFAULT_CASES=(
   ping_pong
   empty_stream
   cancel_after_begin
+  cancel_after_first_response
   timeout_on_sleeping_server
   custom_metadata
   status_code_and_message
+  special_status_message
+  unimplemented_method
+  unimplemented_service
 )
 
+# Official gzip cases: tonic's public API exposes neither per-message
+# compression control nor observation, so the expect/response_compressed
+# semantics cannot run here. They get explicit unsupported rows, mirroring
+# the grpc-go compression precedent in scripts/grpc-interop.sh.
+GZIP_CASES=(
+  client_compressed_unary
+  server_compressed_unary
+  client_compressed_streaming
+  server_compressed_streaming
+)
+
+GZIP_NOTES="tonic public API cannot express official expect_compressed/response_compressed semantics; explicit unsupported, not fabricated coverage"
+CANCEL_CLIENT_NOTES="tonic public client API has no mid-stream cancel handle to observe terminal CANCELLED; explicit unsupported, not fabricated coverage"
+
 CASES=("${DEFAULT_CASES[@]}")
+FILTER_SET=0
 
 SKIP_BUILD="${SKIP_BUILD:-${GRPC_INTEROP_SKIP_BUILD:-0}}"
 LOG_DIR=""
@@ -92,7 +125,24 @@ done
 
 if [[ -n "${GRPC_INTEROP_CASES:-}" ]]; then
   IFS=', ' read -r -a CASES <<< "$GRPC_INTEROP_CASES"
+  FILTER_SET=1
 fi
+
+# True when a case belongs in this run: everything by default, or only the
+# named filter entries when --cases/GRPC_INTEROP_CASES is set.
+wanted() {
+  local needle="$1"
+  if [[ $FILTER_SET -eq 0 ]]; then
+    return 0
+  fi
+  local c
+  for c in "${CASES[@]}"; do
+    if [[ "$c" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
 
 TIMESTAMP_PID="$(date +%Y%m%d_%H%M%S)_$$"
 LOG_DIR="${LOG_DIR:-${GRPC_INTEROP_LOG_DIR:-$ROOT/target/interop-logs/$TIMESTAMP_PID}}"
@@ -371,12 +421,12 @@ run_native_client() {
 }
 
 run_tonic_client() {
-  local host="$1" port="$2" peer="$3" direction="$4" label="$5"
-  shift 5
+  local host="$1" port="$2" peer="$3" direction="$4" label="$5" codec="$6"
+  shift 6
   local cases=("$@")
   local pass_failed=0
   for case in "${cases[@]}"; do
-    if run_case "$TONIC_BIN" "$host" "$port" "$case" "$peer" "$direction" "--"; then
+    if run_case "$TONIC_BIN" "$host" "$port" "$case" "$peer" "$direction" "--" "--codec=$codec"; then
       echo "  ok   $case"
     else
       echo "  FAIL $case"
@@ -389,6 +439,19 @@ run_tonic_client() {
     return 1
   fi
   echo "PASS: tonic client against $label (${#cases[@]} cases)"
+}
+
+record_case_unsupported() {
+  local case="$1" peer="$2" direction="$3" notes="$4"
+  python3 "$INTEROP_REPORT" record \
+    --output "$RESULTS_JSON" \
+    --case "$case" \
+    --status unsupported \
+    --duration-ms 0.0 \
+    --peer "$peer" \
+    --direction "$direction" \
+    --transport "$TRANSPORT" \
+    --notes "$notes" >/dev/null
 }
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
@@ -413,41 +476,85 @@ if [[ ! -x "$TONIC_BIN" && -x "$ROOT/tests/interop/tonic/target/debug/tonic-inte
   TONIC_BIN="$ROOT/tests/interop/tonic/target/debug/tonic-interop"
 fi
 
-# =========================================================================
-# Pass 1: Native client (pbrs-grpc-interop-client) -> Tonic server
-# =========================================================================
-echo "== Native client -> Tonic server =="
-TONIC_SERVER_PORT="$(find_free_port)"
-TONIC_SERVER_PID=""
-if ! start_server "Tonic server" "$TONIC_SERVER_PORT" "$LOG_DIR/server-tonic.log" "$TONIC_BIN" server --port "$TONIC_SERVER_PORT"; then
-  echo "FAIL: Tonic server failed to start on port $TONIC_SERVER_PORT" >&2
-  OVERALL_FAILED=1
-  for case in "${CASES[@]}"; do
-    record_server_failure "$case" "tonic" "native_client_to_tonic_server" "Tonic server failed to start on port $TONIC_SERVER_PORT" "$LOG_DIR/server-tonic.log"
-  done
-else
-  TONIC_SERVER_PID="${TRACKED_PIDS[-1]}"
-  run_native_client 127.0.0.1 "$TONIC_SERVER_PORT" "tonic" "native_client_to_tonic_server" "Tonic server" "${CASES[@]}" || OVERALL_FAILED=1
-  stop_server "$TONIC_SERVER_PID"
-fi
+run_codec_matrix() {
+  local peer="$1" codec="$2"
+  echo "== matrix: peer=$peer codec=$codec =="
 
-# =========================================================================
-# Pass 2: Tonic client -> Native server (pbrs-grpc-interop-server)
-# =========================================================================
-echo "== Tonic client -> Native server =="
-NATIVE_SERVER_PORT="$(find_free_port)"
-NATIVE_SERVER_PID=""
-if ! start_server "Native server" "$NATIVE_SERVER_PORT" "$LOG_DIR/server-native.log" "$KERNEL_SERVER" --port "$NATIVE_SERVER_PORT"; then
-  echo "FAIL: Native server failed to start on port $NATIVE_SERVER_PORT" >&2
-  OVERALL_FAILED=1
-  for case in "${CASES[@]}"; do
-    record_server_failure "$case" "tonic" "tonic_client_to_native_server" "Native server failed to start on port $NATIVE_SERVER_PORT" "$LOG_DIR/server-native.log"
+  # Pass 1: Native client (pbrs-grpc-interop-client) -> Tonic server
+  echo "== Native client -> Tonic server ($codec) =="
+  TONIC_SERVER_PORT="$(find_free_port)"
+  TONIC_SERVER_PID=""
+  if ! start_server "Tonic server ($codec)" "$TONIC_SERVER_PORT" "$LOG_DIR/server-tonic-$codec.log" "$TONIC_BIN" server --port "$TONIC_SERVER_PORT" --codec "$codec"; then
+    echo "FAIL: Tonic server ($codec) failed to start on port $TONIC_SERVER_PORT" >&2
+    OVERALL_FAILED=1
+    for case in "${CASES[@]}"; do
+      record_server_failure "$case" "$peer" "native_client_to_tonic_server" "Tonic server ($codec) failed to start on port $TONIC_SERVER_PORT" "$LOG_DIR/server-tonic-$codec.log"
+    done
+  else
+    TONIC_SERVER_PID="${TRACKED_PIDS[-1]}"
+    # Gzip cases never run here: they only ever record explicit unsupported
+    # rows below, even when named by --cases.
+    NATIVE_CLIENT_CASES=()
+    for case in "${CASES[@]}"; do
+      skip=0
+      for g in "${GZIP_CASES[@]}"; do
+        if [[ "$case" == "$g" ]]; then skip=1; break; fi
+      done
+      if [[ $skip -eq 0 ]]; then NATIVE_CLIENT_CASES+=("$case"); fi
+    done
+    run_native_client 127.0.0.1 "$TONIC_SERVER_PORT" "$peer" "native_client_to_tonic_server" "Tonic server ($codec)" "${NATIVE_CLIENT_CASES[@]}" || OVERALL_FAILED=1
+    stop_server "$TONIC_SERVER_PID"
+  fi
+  for case in "${GZIP_CASES[@]}"; do
+    if wanted "$case"; then
+      echo "  skip $case (tonic $codec: no per-message compression API)"
+      record_case_unsupported "$case" "$peer" "native_client_to_tonic_server" "$GZIP_NOTES"
+    fi
   done
-else
-  NATIVE_SERVER_PID="${TRACKED_PIDS[-1]}"
-  run_tonic_client 127.0.0.1 "$NATIVE_SERVER_PORT" "tonic" "tonic_client_to_native_server" "Native server" "${CASES[@]}" || OVERALL_FAILED=1
-  stop_server "$NATIVE_SERVER_PID"
-fi
+
+  # Pass 2: Tonic client -> Native server (pbrs-grpc-interop-server).
+  # cancel_after_first_response cannot run here: tonic's public client API
+  # has no mid-stream cancel handle, so it records an explicit unsupported
+  # row instead of a fabricated pass.
+  echo "== Tonic client ($codec) -> Native server =="
+  NATIVE_SERVER_PORT="$(find_free_port)"
+  NATIVE_SERVER_PID=""
+  if ! start_server "Native server" "$NATIVE_SERVER_PORT" "$LOG_DIR/server-native-$codec.log" "$KERNEL_SERVER" --port "$NATIVE_SERVER_PORT"; then
+    echo "FAIL: Native server failed to start on port $NATIVE_SERVER_PORT" >&2
+    OVERALL_FAILED=1
+    for case in "${CASES[@]}"; do
+      record_server_failure "$case" "$peer" "tonic_client_to_native_server" "Native server failed to start on port $NATIVE_SERVER_PORT" "$LOG_DIR/server-native-$codec.log"
+    done
+  else
+    NATIVE_SERVER_PID="${TRACKED_PIDS[-1]}"
+    TONIC_CLIENT_CASES=()
+    for case in "${CASES[@]}"; do
+      if [[ "$case" == "cancel_after_first_response" ]]; then
+        continue
+      fi
+      skip=0
+      for g in "${GZIP_CASES[@]}"; do
+        if [[ "$case" == "$g" ]]; then skip=1; break; fi
+      done
+      if [[ $skip -eq 0 ]]; then TONIC_CLIENT_CASES+=("$case"); fi
+    done
+    run_tonic_client 127.0.0.1 "$NATIVE_SERVER_PORT" "$peer" "tonic_client_to_native_server" "Native server" "$codec" "${TONIC_CLIENT_CASES[@]}" || OVERALL_FAILED=1
+    stop_server "$NATIVE_SERVER_PID"
+  fi
+  if wanted "cancel_after_first_response"; then
+    echo "  skip cancel_after_first_response (tonic client: no cancel handle)"
+    record_case_unsupported "cancel_after_first_response" "$peer" "tonic_client_to_native_server" "$CANCEL_CLIENT_NOTES"
+  fi
+  for case in "${GZIP_CASES[@]}"; do
+    if wanted "$case"; then
+      echo "  skip $case (tonic $codec: no per-message compression API)"
+      record_case_unsupported "$case" "$peer" "tonic_client_to_native_server" "$GZIP_NOTES"
+    fi
+  done
+}
+
+run_codec_matrix "tonic" "prost"
+run_codec_matrix "tonic-pbrs-adapter" "pbrs"
 
 echo "== aggregating tonic interop results =="
 AGGREGATE_EXIT=0

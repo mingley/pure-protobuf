@@ -419,6 +419,285 @@ async fn test_client_cancellation_releases_budget() {
     assert_eq!(channel.byte_budget_allocated(), 0);
 }
 
+/// Deterministic incompressible payload: xorshift bytes over ASCII
+/// alphanumerics, so gzip cannot shrink it and protobuf strings stay valid.
+fn incompressible_payload(len: usize) -> String {
+    const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let mut state: u64 = 0x243f_6a88_85a3_08d3;
+    (0..len)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ALPHABET[(state % ALPHABET.len() as u64) as usize] as char
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn test_mixed_large_small_compressed_byte_budget() {
+    // Client budget admits small and gzip-shrunk messages but rejects large
+    // wire payloads with explicit errors; a held allocation deterministically
+    // blocks new admissions until released (permits guard the microsecond
+    // send window, so steady-state sampling cannot observe them reliably).
+    const LIMIT: usize = 2048;
+    let (addr, server, _guard) = spawn_budgeted_server(1_000_000).await;
+    let channel = connect_client(addr)
+        .await
+        .byte_budget(LIMIT)
+        .send_compressed();
+    let client = GreeterClient::new(channel.clone());
+
+    let big_compressible = "x".repeat(5000);
+    let big_incompressible = incompressible_payload(5000);
+
+    // Sanity: the compressible payload gzips well under budget while the
+    // incompressible one does not (flate2 fast, matching channel default).
+    {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+        let mut enc = GzEncoder::new(Vec::new(), Compression::fast());
+        enc.write_all(big_compressible.as_bytes()).expect("gzip");
+        let small = enc.finish().expect("finish");
+        assert!(
+            small.len() < 128,
+            "compressible must shrink: {}",
+            small.len()
+        );
+        let mut enc = GzEncoder::new(Vec::new(), Compression::fast());
+        enc.write_all(big_incompressible.as_bytes()).expect("gzip");
+        let big = enc.finish().expect("finish");
+        assert!(
+            big.len() > LIMIT,
+            "incompressible must stay over budget: {}",
+            big.len()
+        );
+    }
+
+    let mut handles = Vec::new();
+    for round in 0..3 {
+        // Small plain messages (opt out of channel gzip per request).
+        for i in 0..3 {
+            let cl = client.clone();
+            let name = format!("plain-{round}-{i}");
+            handles.push(tokio::spawn(async move {
+                let mut call = Request::new(req(&name));
+                call.set_compress(false);
+                let reply = cl.say_hello(call).await.expect("small plain succeeds");
+                assert_eq!(name_of(reply.get_ref()), name);
+            }));
+        }
+        // Small gzip messages (channel default).
+        for i in 0..3 {
+            let cl = client.clone();
+            let name = format!("gzip-{round}-{i}");
+            handles.push(tokio::spawn(async move {
+                let reply = cl
+                    .say_hello(Request::new(req(&name)))
+                    .await
+                    .expect("small gzip succeeds");
+                assert_eq!(name_of(reply.get_ref()), name);
+            }));
+        }
+        // Large but highly compressible: wire bytes fit, so it succeeds even
+        // though the uncompressed form (5000+ bytes) exceeds the budget.
+        for i in 0..3 {
+            let cl = client.clone();
+            let body = big_compressible.clone();
+            handles.push(tokio::spawn(async move {
+                let name = format!("{body}-{i}");
+                let reply = cl
+                    .say_hello(Request::new(req(&name)))
+                    .await
+                    .expect("compressible large succeeds");
+                assert_eq!(name_of(reply.get_ref()), name);
+            }));
+        }
+        // Large incompressible over gzip: wire bytes exceed the budget.
+        for _ in 0..3 {
+            let cl = client.clone();
+            let body = big_incompressible.clone();
+            handles.push(tokio::spawn(async move {
+                let err = cl
+                    .say_hello(Request::new(req(&body)))
+                    .await
+                    .expect_err("incompressible large must be rejected");
+                assert_eq!(err.code(), Code::ResourceExhausted);
+                assert!(
+                    err.message().contains("transport byte budget exceeded"),
+                    "rejection must cite the byte budget: {err}"
+                );
+            }));
+        }
+        // Large plain (gzip opted out): uncompressed wire bytes rejected.
+        for _ in 0..3 {
+            let cl = client.clone();
+            let body = big_compressible.clone();
+            handles.push(tokio::spawn(async move {
+                let mut call = Request::new(req(&body));
+                call.set_compress(false);
+                let err = cl
+                    .say_hello(call)
+                    .await
+                    .expect_err("plain large must be rejected");
+                assert_eq!(err.code(), Code::ResourceExhausted);
+                assert!(
+                    err.message().contains("transport byte budget exceeded"),
+                    "rejection must cite the byte budget: {err}"
+                );
+            }));
+        }
+    }
+
+    for h in handles {
+        h.await.expect("load task join");
+    }
+
+    // Held in-flight bytes deterministically block new admissions (no silent
+    // queueing past the cap), and releasing them re-admits immediately (no
+    // deadlock between the budget and the RPC path).
+    let hold = channel
+        .byte_budget_tracker()
+        .acquire(LIMIT)
+        .expect("hold full budget");
+    assert_eq!(channel.byte_budget_allocated(), LIMIT);
+    let err = client
+        .say_hello(Request::new(req("blocked")))
+        .await
+        .expect_err("held budget must block admission");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    assert!(
+        err.message().contains("transport byte budget exceeded"),
+        "rejection must cite the byte budget: {err}"
+    );
+    drop(hold);
+    let reply = client
+        .say_hello(Request::new(req("after-release")))
+        .await
+        .expect("release must re-admit immediately");
+    assert_eq!(name_of(reply.get_ref()), "after-release");
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(
+        channel.is_byte_budget_quiescent(),
+        "client must quiesce, allocated = {}",
+        channel.byte_budget_allocated()
+    );
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    assert!(
+        server.is_byte_budget_quiescent(),
+        "server must quiesce, allocated = {}",
+        server.byte_budget_allocated()
+    );
+    assert_eq!(server.byte_budget_allocated(), 0);
+}
+
+#[tokio::test]
+async fn test_encode_error_releases_budget_to_baseline() {
+    // Client-side unary encode error: oversize vs max_encoding, rejected
+    // before any byte permit is acquired.
+    let (addr, _server, _guard) = spawn_budgeted_server(1_000_000).await;
+    let channel = connect_client(addr)
+        .await
+        .byte_budget(64 * 1024)
+        .max_encoding_message_size(16);
+    let client = GreeterClient::new(channel.clone());
+
+    let err = client
+        .say_hello(Request::new(req(&"y".repeat(500))))
+        .await
+        .expect_err("oversize unary must fail encode");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    assert!(
+        err.message().contains("encoded message length"),
+        "encode error must cite the encoding limit: {err}"
+    );
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    assert!(channel.is_byte_budget_quiescent());
+
+    // Client-side mid-stream encode error: one small item flows, then an
+    // oversize item fails fast at enqueue and the error is forwarded through
+    // the pump so the call fails; held permits are released on failure.
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("fine")).await.expect("send small");
+    let send_err = tx
+        .send(req(&"y".repeat(500)))
+        .await
+        .expect_err("oversize send must fail at enqueue");
+    assert_eq!(send_err.code(), Code::ResourceExhausted);
+    assert!(
+        send_err.message().contains("encoded message length"),
+        "enqueue error must cite the encoding limit: {send_err}"
+    );
+    tx.close();
+    let err = call
+        .await
+        .expect_err("oversize stream item must fail encode");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    assert!(
+        err.message().contains("encoded message length"),
+        "encode error must cite the encoding limit: {err}"
+    );
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    assert!(channel.is_byte_budget_quiescent());
+
+    // Server-side unary encode error: the echo reply exceeds the server
+    // max_encoding cap, answered trailers-only without holding budget.
+    let (addr2, server2, _guard2) =
+        spawn_custom_server(|s| s.byte_budget(64 * 1024).max_encoding_message_size(16)).await;
+    let channel2 = connect_client(addr2).await;
+    let client2 = GreeterClient::new(channel2);
+
+    let err = client2
+        .say_hello(Request::new(req(&"z".repeat(500))))
+        .await
+        .expect_err("oversize server reply must fail encode");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(server2.byte_budget_allocated(), 0);
+    assert!(server2.is_byte_budget_quiescent());
+
+    // Server-side mid-stream encode error: the stream ends truncated with
+    // the explicit encode status (a producer failure truncates; it never
+    // ships OK trailers over a dropped item). The pre-error item may or may
+    // not have been flushed before the failure; either way the terminal
+    // status is explicit and the budget drains.
+    let mut stream = client2
+        .server_hello(Request::new(req(&format!("ok,{}", "z".repeat(500)))))
+        .await
+        .expect("server stream opens")
+        .into_inner();
+    let mut saw_ok = false;
+    let mut err = None;
+    loop {
+        match stream.message().await {
+            Ok(Some(msg)) => {
+                assert!(!saw_ok, "at most one pre-error item");
+                assert_eq!(name_of(&msg), "ok");
+                saw_ok = true;
+            }
+            Ok(None) => break,
+            Err(e) => {
+                err = Some(e);
+                break;
+            }
+        }
+    }
+    let err = match err {
+        Some(e) => e,
+        None => stream
+            .trailers()
+            .await
+            .expect_err("expected error in trailers"),
+    };
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(server2.byte_budget_allocated(), 0);
+    assert!(server2.is_byte_budget_quiescent());
+}
+
 #[tokio::test]
 async fn test_max_send_buffer_size_sets_budget_limit() {
     let (addr, server, _guard) = spawn_budgeted_server(1_000_000).await;

@@ -200,7 +200,10 @@ fn run_consumer(dir: &std::path::Path) -> String {
         .arg("run")
         .arg("--offline")
         .arg("--quiet")
-        .current_dir(dir);
+        .current_dir(dir)
+        // Isolate the consumer target dir: parallel consumers share a package
+        // name, so an inherited CARGO_TARGET_DIR makes them race on one binary.
+        .env("CARGO_TARGET_DIR", dir.join("target"));
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }

@@ -782,6 +782,9 @@ impl Parser<'_> {
     ) -> Result<(), ParseError> {
         if field.is_map {
             if let Value::Message(entry) = v {
+                // Missing key/value default per the entry field types, matching
+                // the wire path (`decode_map_entry`): an untyped Int32(0) default
+                // breaks text re-parsing for string/bool/message maps.
                 let key = match entry.get_singular(1) {
                     Some(Value::String(s)) => MapKeyValue::String(s.clone()),
                     Some(Value::Int32(n)) => MapKeyValue::I32(*n),
@@ -789,9 +792,25 @@ impl Parser<'_> {
                     Some(Value::Uint32(n)) => MapKeyValue::U32(*n),
                     Some(Value::Uint64(n)) => MapKeyValue::U64(*n),
                     Some(Value::Bool(b)) => MapKeyValue::Bool(*b),
-                    _ => MapKeyValue::String(ProtoString::new()),
+                    Some(_) => return Err(ParseError::new("invalid map key type")),
+                    None => {
+                        let kf = entry
+                            .descriptor()
+                            .field(1)
+                            .ok_or_else(|| ParseError::new("map entry missing key"))?;
+                        crate::dynamic::default_map_key(kf.field_type)?
+                    }
                 };
-                let val = entry.get_singular(2).cloned().unwrap_or(Value::Int32(0));
+                let val = match entry.get_singular(2) {
+                    Some(v) => v.clone(),
+                    None => {
+                        let vf = entry
+                            .descriptor()
+                            .field(2)
+                            .ok_or_else(|| ParseError::new("map entry missing value"))?;
+                        crate::dynamic::default_value(vf, self.pool.as_ref())?
+                    }
+                };
                 msg.insert_map(field.number, key, val);
                 return Ok(());
             }

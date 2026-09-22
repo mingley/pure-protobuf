@@ -10,6 +10,10 @@
 # The Go passes require a Go toolchain and the pinned Go reference peer
 # in tests/interop/go (google.golang.org/grpc @ dd51b1c90aaf / v1.85.0-dev).
 # Cross-language execution fails closed unless --self-only is explicitly passed.
+#
+# Transports: plaintext by default, one-way TLS with --use-tls, mutual TLS
+# with --use-mtls (self pass only; the pinned Go peer has no mTLS
+# client-identity flags, so Go directions record explicit unsupported rows).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -67,6 +71,10 @@ USE_TLS="${USE_TLS:-${GRPC_INTEROP_USE_TLS:-0}}"
 TLS_CA_FILE="${TLS_CA_FILE:-${GRPC_INTEROP_TLS_CA_FILE:-}}"
 TLS_CERT_FILE="${TLS_CERT_FILE:-${GRPC_INTEROP_TLS_CERT_FILE:-}}"
 TLS_KEY_FILE="${TLS_KEY_FILE:-${GRPC_INTEROP_TLS_KEY_FILE:-}}"
+USE_MTLS="${USE_MTLS:-${GRPC_INTEROP_USE_MTLS:-0}}"
+TLS_CLIENT_CA_FILE="${TLS_CLIENT_CA_FILE:-${GRPC_INTEROP_TLS_CLIENT_CA_FILE:-}}"
+TLS_CLIENT_CERT_FILE="${TLS_CLIENT_CERT_FILE:-${GRPC_INTEROP_TLS_CLIENT_CERT_FILE:-}}"
+TLS_CLIENT_KEY_FILE="${TLS_CLIENT_KEY_FILE:-${GRPC_INTEROP_TLS_CLIENT_KEY_FILE:-}}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -139,6 +147,43 @@ while [[ $# -gt 0 ]]; do
       TLS_KEY_FILE="${1#*=}"
       shift
       ;;
+    --use-mtls|--use_mtls)
+      USE_MTLS=1
+      shift
+      ;;
+    --use-mtls=*|--use_mtls=*)
+      val="${1#*=}"
+      case "$val" in
+        true|1|yes) USE_MTLS=1 ;;
+        false|0|no) USE_MTLS=0 ;;
+        *) echo "invalid boolean for --use-mtls: $val" >&2; exit 1 ;;
+      esac
+      shift
+      ;;
+    --tls-client-ca-file|--tls_client_ca_file)
+      TLS_CLIENT_CA_FILE="$2"
+      shift 2
+      ;;
+    --tls-client-ca-file=*|--tls_client_ca_file=*)
+      TLS_CLIENT_CA_FILE="${1#*=}"
+      shift
+      ;;
+    --tls-client-cert-file|--tls_client_cert_file)
+      TLS_CLIENT_CERT_FILE="$2"
+      shift 2
+      ;;
+    --tls-client-cert-file=*|--tls_client_cert_file=*)
+      TLS_CLIENT_CERT_FILE="${1#*=}"
+      shift
+      ;;
+    --tls-client-key-file|--tls_client_key_file)
+      TLS_CLIENT_KEY_FILE="$2"
+      shift 2
+      ;;
+    --tls-client-key-file=*|--tls_client_key_file=*)
+      TLS_CLIENT_KEY_FILE="${1#*=}"
+      shift
+      ;;
     --timeout)
       CASE_TIMEOUT_SEC="$2"
       shift 2
@@ -154,6 +199,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ $USE_MTLS -eq 1 ]]; then
+  USE_TLS=1
+fi
+
 if [[ $USE_TLS -eq 1 ]]; then
   DEFAULT_TLS_DIR="$ROOT/pbrs-grpc/tests/tls_data"
   TLS_CA_FILE="${TLS_CA_FILE:-$DEFAULT_TLS_DIR/ca.crt}"
@@ -162,6 +211,14 @@ if [[ $USE_TLS -eq 1 ]]; then
   TRANSPORT="http2_tls"
 else
   TRANSPORT="http2_cleartext"
+fi
+
+if [[ $USE_MTLS -eq 1 ]]; then
+  DEFAULT_TLS_DIR="$ROOT/pbrs-grpc/tests/tls_data"
+  TLS_CLIENT_CA_FILE="${TLS_CLIENT_CA_FILE:-$DEFAULT_TLS_DIR/ca.crt}"
+  TLS_CLIENT_CERT_FILE="${TLS_CLIENT_CERT_FILE:-$DEFAULT_TLS_DIR/client.crt}"
+  TLS_CLIENT_KEY_FILE="${TLS_CLIENT_KEY_FILE:-$DEFAULT_TLS_DIR/client.key}"
+  TRANSPORT="http2_mtls"
 fi
 
 if [[ -n "${GRPC_INTEROP_CASES:-}" ]]; then
@@ -512,6 +569,12 @@ run_kernel_client() {
       "--server_host_override=localhost"
     )
   fi
+  if [[ $USE_MTLS -eq 1 ]]; then
+    client_extra+=(
+      "--tls_client_cert_file=$TLS_CLIENT_CERT_FILE"
+      "--tls_client_key_file=$TLS_CLIENT_KEY_FILE"
+    )
+  fi
   for case in "${cases[@]}"; do
     if run_case "$KERNEL_CLIENT" "$host" "$port" "$case" "$peer" "$direction" "--" "${client_extra[@]}"; then
       echo "  ok   $case"
@@ -577,6 +640,9 @@ if [[ $USE_TLS -eq 1 ]]; then
     --tls_key_file "$TLS_KEY_FILE"
   )
 fi
+if [[ $USE_MTLS -eq 1 ]]; then
+  KERNEL_SERVER_ARGS+=(--tls_client_ca_file "$TLS_CLIENT_CA_FILE")
+fi
 
 echo "== kernel client -> kernel server =="
 SERVER_PID=""
@@ -609,11 +675,20 @@ if [[ $SELF_ONLY -eq 1 ]]; then
   exit 0
 fi
 
-if ! command -v go >/dev/null 2>&1; then
+# The pinned Go peer has no mTLS client-identity flags, so an mTLS run
+# executes the self pass only and records explicit unsupported rows for the
+# Go directions instead of silently skipping or faking those cells.
+RUN_GO_PASSES=1
+if [[ $USE_MTLS -eq 1 ]]; then
+  RUN_GO_PASSES=0
+fi
+
+if [[ $RUN_GO_PASSES -eq 1 ]] && ! command -v go >/dev/null 2>&1; then
   echo "FAIL: Go toolchain missing (required for cross-language interop qualification)" >&2
   exit 1
 fi
 
+if [[ $RUN_GO_PASSES -eq 1 ]]; then
 GO_DIR="$ROOT/tests/interop/go"
 GO_BIN_DIR="${GRPC_INTEROP_GO_BIN_DIR:-$ROOT/target/interop-go}"
 mkdir -p "$GO_BIN_DIR"
@@ -698,6 +773,39 @@ if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
       --transport "$TRANSPORT" \
       --peer-pin "$GO_PEER_PIN" \
       --notes "grpc-go does not implement compression flags" >/dev/null
+  done
+fi
+else
+  echo "== Go directions: unsupported under mTLS (pinned peer has no client-identity flags) =="
+  for case in "${BASE_CASES[@]}"; do
+    for direction in kernel_client_to_go_server go_client_to_kernel_server; do
+      echo "  skip $case ($direction: grpc-go @ $GO_PEER_PIN has no mTLS flags)"
+      python3 "$INTEROP_REPORT" record \
+        --output "$RESULTS_JSON" \
+        --case "$case" \
+        --status unsupported \
+        --duration-ms 0.0 \
+        --peer "grpc-go" \
+        --direction "$direction" \
+        --transport "$TRANSPORT" \
+        --peer-pin "$GO_PEER_PIN" \
+        --notes "pinned Go peer ($GO_PEER_PIN) has no mTLS client-identity flags" >/dev/null
+    done
+  done
+  for case in "${COMPRESSION_CASES[@]}"; do
+    for direction in kernel_client_to_go_server go_client_to_kernel_server; do
+      echo "  skip $case ($direction: grpc-go @ $GO_PEER_PIN does not implement it)"
+      python3 "$INTEROP_REPORT" record \
+        --output "$RESULTS_JSON" \
+        --case "$case" \
+        --status unsupported \
+        --duration-ms 0.0 \
+        --peer "grpc-go" \
+        --direction "$direction" \
+        --transport "$TRANSPORT" \
+        --peer-pin "$GO_PEER_PIN" \
+        --notes "grpc-go does not implement compression flags" >/dev/null
+    done
   done
 fi
 

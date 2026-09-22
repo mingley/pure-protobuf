@@ -1,7 +1,7 @@
 {
   "$schema": "./cases.schema.json",
-  "version": "1.0.0",
-  "updated_at": "2026-09-18",
+  "version": "1.1.0",
+  "updated_at": "2026-09-22",
   "title": "Official gRPC and Protobuf Interoperability Case Registry",
   "description": "Versioned case registry pinning official test suites, procedure sources, peer directions, transports, profiles, owners, and present coverage across pure-protobuf and pbrs-grpc.",
   "upstream_pins": {
@@ -102,7 +102,14 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Verified in scripts/grpc-interop.sh across self and Go reference peers in both directions."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "final_status",
+          "assertion": "EmptyCall completes with gRPC OK; any terminal error fails the case",
+          "mutation_fixture": "empty_unary_propagates_server_error_as_final_status"
+        }
+      ]
     },
     {
       "case": "large_unary",
@@ -124,7 +131,25 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Sends 271,828 bytes request and receives 314,159 bytes response; verifies zero-payload bytes and length in all 3 passes."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "payload_length",
+          "assertion": "response body is exactly 314159 bytes",
+          "mutation_fixture": "large_unary_fails_on_wrong_length"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "every response byte is zero; length alone does not pass",
+          "mutation_fixture": "large_unary_fails_on_corrupt_payload"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "client_streaming",
@@ -146,7 +171,20 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Streams 4 request payloads totaling 74,922 bytes and verifies aggregated response size."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "aggregated_size",
+          "assertion": "aggregated_payload_size equals 74922 (27182+8+1828+45904)",
+          "mutation_fixture": "client_streaming_fails_on_wrong_aggregated_size"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "server_streaming",
@@ -168,7 +206,35 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Server streams requested payload sequence [31415, 9, 2653, 58979] bytes."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "message_order",
+          "assertion": "reply sizes arrive in order [31415, 9, 2653, 58979] (position-2 mutation proves order-sensitivity)",
+          "mutation_fixture": "server_streaming_fails_on_wrong_lengths"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "every reply byte is zero in every message",
+          "mutation_fixture": "server_streaming_fails_on_corrupt_payload"
+        },
+        {
+          "property": "message_count",
+          "assertion": "exactly 4 messages; a truncated stream fails",
+          "mutation_fixture": "server_streaming_fails_on_wrong_count"
+        },
+        {
+          "property": "extra_elements",
+          "assertion": "a 5th message fails",
+          "mutation_fixture": "server_streaming_fails_on_extra_message"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation on each read",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "ping_pong",
@@ -190,7 +256,30 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Full-duplex call with sequential ping-pong message exchanges."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "payload_length",
+          "assertion": "each reply length matches its request response_size",
+          "mutation_fixture": "ping_pong_fails_on_wrong_length"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "every reply byte is zero",
+          "mutation_fixture": "ping_pong_fails_on_corrupt_payload"
+        },
+        {
+          "property": "extra_elements",
+          "assertion": "no message arrives after the client half-close",
+          "mutation_fixture": "ping_pong_fails_on_extra_message_after_close"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation on each read",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "empty_stream",
@@ -212,7 +301,20 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Opens full-duplex stream and immediately half-closes; verifies no messages received."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "extra_elements",
+          "assertion": "zero messages on an immediately half-closed stream",
+          "mutation_fixture": "empty_stream_fails_on_unexpected_message"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "cancel_after_begin",
@@ -234,7 +336,15 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Cancels stream immediately after creation. Retries on transient 1ms startup race."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "terminal_status",
+          "assertion": "call settles with CANCELLED; OK or any other code fails",
+          "mutation_fixture": null,
+          "fixture_note": "client-local cancel; an OK-wins-the-race fixture would be timing-flaky by design"
+        }
+      ]
     },
     {
       "case": "cancel_after_first_response",
@@ -278,7 +388,15 @@
           "go_client_to_kernel_server"
         ],
         "notes": "1ms deadline against sleeping server; verifies client observes DEADLINE_EXCEEDED."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "terminal_status",
+          "assertion": "first read observes DEADLINE_EXCEEDED; a message, clean EOF, or another status fails",
+          "mutation_fixture": null,
+          "fixture_note": "the 1ms deadline races any server answer, so no deterministic negative fixture exists; rejection arms verified by inspection"
+        }
+      ]
     },
     {
       "case": "custom_metadata",
@@ -300,7 +418,51 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Echoes initial text metadata and trailing binary metadata (-bin suffix); asserts trailing metadata does not leak into initial headers."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "metadata_initial_unary",
+          "assertion": "unary response headers echo x-grpc-test-echo-initial with the exact sent value",
+          "mutation_fixture": "custom_metadata_fails_on_wrong_initial_value"
+        },
+        {
+          "property": "metadata_initial_duplex",
+          "assertion": "duplex response headers echo x-grpc-test-echo-initial with the exact sent value",
+          "mutation_fixture": "custom_metadata_duplex_fails_on_wrong_initial_value"
+        },
+        {
+          "property": "metadata_trailing_unary",
+          "assertion": "unary trailers echo x-grpc-test-echo-trailing-bin bytes exactly",
+          "mutation_fixture": "custom_metadata_fails_when_trailing_metadata_missing"
+        },
+        {
+          "property": "metadata_trailing_duplex",
+          "assertion": "duplex trailers echo x-grpc-test-echo-trailing-bin bytes exactly",
+          "mutation_fixture": "custom_metadata_duplex_fails_when_trailing_missing"
+        },
+        {
+          "property": "metadata_placement_headers",
+          "assertion": "trailing-bin material in headers fails",
+          "mutation_fixture": "custom_metadata_fails_when_trailing_metadata_leaked_into_headers"
+        },
+        {
+          "property": "metadata_placement_trailers",
+          "assertion": "initial metadata leaked into trailers fails",
+          "mutation_fixture": "custom_metadata_fails_when_initial_metadata_leaked_into_trailers"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "unary and duplex payloads are zero-filled at 314159 bytes",
+          "mutation_fixture": null,
+          "fixture_note": "shared assert_zero_payload mechanism proven by the large_unary/server_streaming corrupt fixtures"
+        },
+        {
+          "property": "message_count_duplex",
+          "assertion": "duplex half yields exactly 1 message",
+          "mutation_fixture": null,
+          "fixture_note": "same extra-element mechanism as the empty_stream and ping_pong fixtures"
+        }
+      ]
     },
     {
       "case": "status_code_and_message",
@@ -322,7 +484,34 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Requests explicit error status code 2 (UNKNOWN) and custom error message; verifies client receives matching Status."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "status_code_unary",
+          "assertion": "unary code is exactly Unknown (2)",
+          "mutation_fixture": "status_code_and_message_fails_on_wrong_status_code"
+        },
+        {
+          "property": "status_message_unary",
+          "assertion": "unary message is exactly 'test status message'",
+          "mutation_fixture": "status_code_and_message_fails_on_wrong_status_message"
+        },
+        {
+          "property": "status_duplex",
+          "assertion": "duplex terminal status is exactly Unknown / 'test status message'",
+          "mutation_fixture": "status_code_and_message_duplex_fails_on_wrong_status"
+        },
+        {
+          "property": "extra_elements_duplex",
+          "assertion": "a duplex message instead of terminal status fails",
+          "mutation_fixture": "status_code_and_message_duplex_fails_on_extra_message"
+        },
+        {
+          "property": "missing_status_duplex",
+          "assertion": "clean EOF without terminal status fails",
+          "mutation_fixture": "status_code_and_message_duplex_fails_when_status_missing"
+        }
+      ]
     },
     {
       "case": "special_status_message",
@@ -344,7 +533,19 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Verifies status message containing Unicode and percent-encoded characters ('\\t\\ntest\\r-', emoji, etc.)."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "status_code",
+          "assertion": "code is exactly Unknown (2)",
+          "mutation_fixture": "special_status_message_fails_on_wrong_code"
+        },
+        {
+          "property": "status_message",
+          "assertion": "message preserves tabs, CR, LF, BMP and non-BMP characters exactly",
+          "mutation_fixture": "special_status_message_fails_on_wrong_message"
+        }
+      ]
     },
     {
       "case": "unimplemented_method",
@@ -366,7 +567,19 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Invokes /grpc.testing.TestService/UnimplementedCall; verifies server returns UNIMPLEMENTED."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "terminal_status",
+          "assertion": "UnimplementedCall yields UNIMPLEMENTED; OK fails",
+          "mutation_fixture": "unimplemented_method_fails_when_server_returns_ok"
+        },
+        {
+          "property": "status_code",
+          "assertion": "exactly UNIMPLEMENTED; other error codes fail",
+          "mutation_fixture": "unimplemented_method_fails_on_wrong_code"
+        }
+      ]
     },
     {
       "case": "unimplemented_service",
@@ -388,7 +601,15 @@
           "go_client_to_kernel_server"
         ],
         "notes": "Invokes method on non-existent service /grpc.testing.UnimplementedService; verifies UNIMPLEMENTED status."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "terminal_status",
+          "assertion": "router rejects /grpc.testing.UnimplementedService with UNIMPLEMENTED",
+          "mutation_fixture": null,
+          "fixture_note": "no TestService mock can serve that path; covered by the success test plus Go cross-peer runs"
+        }
+      ]
     },
     {
       "case": "pick_first_unary",
@@ -444,7 +665,26 @@
           "kernel_client_to_kernel_server"
         ],
         "notes": "Passes in self-interop pass (18-case run). Cross-peer with grpc-go skipped because grpc-go does not implement expect_compressed / response_compressed flags; IO-05 adds C++ reference peer."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "probe_enforcement",
+          "assertion": "uncompressed request with expect_compressed=true yields INVALID_ARGUMENT",
+          "mutation_fixture": "client_compressed_unary_fails_when_probe_ignored"
+        },
+        {
+          "property": "roundtrip_payload",
+          "assertion": "compressed and plain legs return zero-filled 314159-byte payloads",
+          "mutation_fixture": null,
+          "fixture_note": "shared assert_zero_payload mechanism proven by the large_unary/server_streaming corrupt fixtures"
+        },
+        {
+          "property": "final_status",
+          "assertion": "terminal non-OK fails via status propagation",
+          "mutation_fixture": null,
+          "fixture_note": "terminal errors propagate via status checks; mechanism proven by the empty_unary fixture"
+        }
+      ]
     },
     {
       "case": "server_compressed_unary",
@@ -464,7 +704,25 @@
           "kernel_client_to_kernel_server"
         ],
         "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "compression_flag_true",
+          "assertion": "response_compressed=true leg arrives compressed with grpc-encoding: gzip",
+          "mutation_fixture": "server_compressed_unary_fails_when_not_compressed"
+        },
+        {
+          "property": "compression_flag_false",
+          "assertion": "response_compressed=false leg arrives uncompressed with no gzip advertisement",
+          "mutation_fixture": "server_compressed_unary_fails_when_uncompressed_leg_compressed"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "both legs return zero-filled 314159-byte payloads",
+          "mutation_fixture": null,
+          "fixture_note": "shared assert_zero_payload mechanism proven by the large_unary/server_streaming corrupt fixtures"
+        }
+      ]
     },
     {
       "case": "client_compressed_streaming",
@@ -484,7 +742,19 @@
           "kernel_client_to_kernel_server"
         ],
         "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "probe_enforcement",
+          "assertion": "uncompressed probe with expect_compressed=true yields INVALID_ARGUMENT",
+          "mutation_fixture": "client_compressed_streaming_fails_when_probe_ignored"
+        },
+        {
+          "property": "aggregated_size",
+          "assertion": "mixed compressed/plain legs aggregate to 73086 (27182+45904)",
+          "mutation_fixture": "client_compressed_streaming_fails_on_wrong_aggregated_size"
+        }
+      ]
     },
     {
       "case": "server_compressed_streaming",
@@ -504,7 +774,30 @@
           "kernel_client_to_kernel_server"
         ],
         "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
-      }
+      },
+      "assertion_checklist": [
+        {
+          "property": "compression_encoding",
+          "assertion": "stream advertises grpc-encoding: gzip",
+          "mutation_fixture": "server_compressed_streaming_fails_when_not_compressed"
+        },
+        {
+          "property": "compression_flags",
+          "assertion": "per-message flags are [compressed, plain] in order",
+          "mutation_fixture": "server_compressed_streaming_fails_on_inverted_flags"
+        },
+        {
+          "property": "message_count",
+          "assertion": "exactly 2 messages; extras fail",
+          "mutation_fixture": "server_compressed_streaming_fails_on_extra_message"
+        },
+        {
+          "property": "payload_bytes",
+          "assertion": "replies are zero-filled at [31415, 92653] bytes",
+          "mutation_fixture": null,
+          "fixture_note": "shared assert_zero_payload mechanism proven by the large_unary/server_streaming corrupt fixtures"
+        }
+      ]
     },
     {
       "case": "rst_after_header",

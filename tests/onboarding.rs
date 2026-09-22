@@ -314,7 +314,10 @@ fn write_native_consumer(dir: &Path) {
     std::fs::write(
         dir.join("build.rs"),
         r#"fn main() {
-    pbrs::codegen::compile_protos(&["hello.proto"], &["."]).expect("compile_protos");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(&["hello.proto"], &["."])
+        .expect("compile_protos");
 }
 "#,
     )

@@ -574,6 +574,29 @@ To guarantee that no detached task, stalled peer, unending stream, or slow uploa
   - The server's `_permit` and `_lease` are dropped immediately on task exit, releasing concurrency slots and decrementing byte budget allocation to 0.
 - **Zero Background Task Leaks:** All auxiliary tasks (ping-pong drivers, response producers, frame writers) monitor stream cancellation channels (`watch::Receiver<bool>`) or select on `poll_reset`, guaranteeing zero detached task leaks.
 
+#### 3. Measurable Overload, Fairness, and Cleanup Bounds (RT-06/RT-07/RT-08 Contract)
+
+The table below is the pass/fail contract enforced in `pbrs-grpc/tests/resource_bounds.rs`. Every bound names the side(s) it constrains; "quiescent" always means `byte_budget_allocated() == 0` **and** a probe RPC is not rejected with `RESOURCE_EXHAUSTED` (permits released). RSS is recorded (start/peak per run) for qualification review, not threshold-gated in PR runs.
+
+| # | Bound | Value | Side | Enforced by |
+|---|---|---|---|---|
+| F-1 | Competing small RPCs under bulk-stream load: success rate | 100% (no starvation) | Server | `test_competing_small_rpcs_progress_under_bulk_stream_load` |
+| F-2 | Same workload: admitted-call p99 latency | < 500 ms | Server | `test_competing_small_rpcs_progress_under_bulk_stream_load` |
+| F-3 | Same workload: max scheduling queue delay | < 100 ms | Server | `test_competing_small_rpcs_progress_under_bulk_stream_load` |
+| F-4 | Fast-client p99 with a slow reader or slow writer peer | < 200 ms | Server | `test_slow_reader_peer_isolation`, `test_slow_writer_peer_isolation` |
+| F-5 | Legitimate-call p99 during an RST storm | < 300 ms | Server | `test_reset_storm_isolation_and_competing_progress` |
+| F-6 | Idle-peer contention: active-call p99 | < 200 ms | Server | `test_idle_peers_contention_and_fairness` |
+| O-1 | Overload: every offered call gets an explicit outcome (success or `RESOURCE_EXHAUSTED` citing the violated limit); no silent buffering, no silent drop | 100% explicit | Client + Server | `test_overload_explicit_status_rejection_no_silent_buffering` |
+| O-2 | Overload: admitted-call p99 latency | < 500 ms | Server | `test_overload_explicit_status_rejection_no_silent_buffering` |
+| O-3 | Transport byte budget under mixed large/small/compressed load: explicit outcomes only (success or `RESOURCE_EXHAUSTED` citing the budget); held allocations block admission, release re-admits (hard ceiling additionally unit-covered in `limits.rs`) | 100% explicit, block/release | Client + Server | `test_mixed_large_small_compressed_byte_budget` |
+| C-1 | Cancellation, encode error, or peer reset returns byte accounting to baseline | `allocated() == 0` | Client + Server | `test_client_cancellation_releases_budget`, `test_encode_error_releases_budget_to_baseline`, `test_reset_storm_isolation_and_competing_progress` |
+| C-2 | Dropping `Call` futures across all four shapes releases concurrency permits immediately (next calls succeed) and quiesces buffers | probe succeeds, `allocated() == 0` | Client + Server | `test_cancellation_cleanup_drops_call_futures_and_quiesces` |
+| C-3 | Graceful drain with unending streams or blocked uploads terminates within the grace policy and quiesces | `T_drain <= grace` (test window), `allocated() == 0` | Server | `test_graceful_shutdown_bounded_drain_unending_client_stream`, `test_graceful_shutdown_blocked_upload_stream` |
+| C-4 | Stalled handshakes never extend termination | drain completes promptly, `allocated() == 0` | Server | `test_graceful_shutdown_handshake_stall_terminates_promptly` |
+| C-5 | Deadline-expired unending streams abort, quiesce, and drain fast | `DeadlineExceeded`, `allocated() == 0` | Server | `test_unending_stream_deadline_expiration_and_drain` |
+
+Changing a value above requires a recorded decision **before** rerunning; a test edit that merely relaxes a bound to fit slower code is a contract change, not a fix.
+
 ---
 
 ## 8. Verification & Links to Downstream Implementation

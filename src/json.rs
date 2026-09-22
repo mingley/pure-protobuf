@@ -976,7 +976,12 @@ fn parse_timestamp(s: &str) -> Result<(i64, i32), ParseError> {
             .ok_or_else(|| ParseError::new("bad timestamp offset"))?;
         let oh: i64 = oh.parse().map_err(|_| ParseError::new("bad offset"))?;
         let om: i64 = om.parse().map_err(|_| ParseError::new("bad offset"))?;
-        (body, sign * (oh * 3600 + om * 60))
+        let offset_secs = oh
+            .checked_mul(3600)
+            .and_then(|h| h.checked_add(om.checked_mul(60)?))
+            .and_then(|o| o.checked_mul(sign))
+            .ok_or_else(|| ParseError::new("bad offset"))?;
+        (body, offset_secs)
     } else {
         return Err(ParseError::new("timestamp must be RFC3339"));
     };
@@ -999,6 +1004,9 @@ fn parse_timestamp(s: &str) -> Result<(i64, i32), ParseError> {
     let hh: u32 = time[0].parse().map_err(|_| ParseError::new("bad hour"))?;
     let mm: u32 = time[1].parse().map_err(|_| ParseError::new("bad minute"))?;
     let ss: u32 = time[2].parse().map_err(|_| ParseError::new("bad second"))?;
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || hh > 23 || mm > 59 || ss > 60 {
+        return Err(ParseError::new("timestamp field out of range"));
+    }
     let mut nanos = 0i32;
     if let Some(f) = frac {
         let digits: String = f.chars().take_while(|c| c.is_ascii_digit()).collect();
@@ -1010,7 +1018,11 @@ fn parse_timestamp(s: &str) -> Result<(i64, i32), ParseError> {
         nanos = buf.parse().map_err(|_| ParseError::new("bad nanos"))?;
     }
     let days = days_from_civil(y, m, d) - 719468;
-    let seconds = days * 86400 + (hh as i64) * 3600 + (mm as i64) * 60 + ss as i64 - offset_secs;
+    let seconds = days
+        .checked_mul(86400)
+        .and_then(|s| s.checked_add((hh as i64) * 3600 + (mm as i64) * 60 + ss as i64))
+        .and_then(|s| s.checked_sub(offset_secs))
+        .ok_or_else(|| ParseError::new("timestamp out of range"))?;
     if !(-62_135_596_800..=253_402_300_799).contains(&seconds) {
         return Err(ParseError::new("timestamp out of range"));
     }
@@ -1021,7 +1033,9 @@ fn parse_timestamp(s: &str) -> Result<(i64, i32), ParseError> {
 }
 
 fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y } as i64;
+    // Widen before decrementing: `y - 1` overflows i32 at `i32::MIN`.
+    let y = y as i64;
+    let y = if m <= 2 { y - 1 } else { y };
     let era = if y >= 0 { y } else { y - 399 } / 400;
     let yoe = (y - era * 400) as u64;
     let mp = if m > 2 { m - 3 } else { m + 9 } as u64;
@@ -1060,8 +1074,10 @@ fn parse_duration(s: &str) -> Result<(i64, i32), ParseError> {
     let neg = s.starts_with('-');
     let (sec, nanos) = if let Some((a, b)) = s.split_once('.') {
         let sec: i64 = a.parse().map_err(|_| ParseError::new("bad duration"))?;
-        let mut frac = b.to_string();
-        frac.truncate(9);
+        // Truncate by chars, not bytes: attacker-controlled fractions may
+        // contain multibyte code points and `String::truncate` panics when
+        // the cut is not a char boundary.
+        let mut frac: String = b.chars().take(9).collect();
         while frac.len() < 9 {
             frac.push('0');
         }
@@ -1493,4 +1509,32 @@ fn b64_decode(s: &str) -> Result<Vec<u8>, ParseError> {
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duration_multibyte_fraction_is_error_not_panic() {
+        // Fuzzer crash shape: multibyte code points in the fraction must not
+        // panic byte-based truncation.
+        assert!(parse_duration("123.456789éxtras").is_err());
+        assert!(parse_duration("0.123456789é").is_err());
+        assert!(parse_duration("3.000000001s").is_ok());
+    }
+
+    #[test]
+    fn timestamp_extremes_are_errors_not_panics() {
+        // i32::MIN year: `y - 1` must not overflow.
+        assert!(parse_timestamp("-2147483648-01-01T00:00:00Z").is_err());
+        // Huge UTC offset: `oh * 3600` must not overflow i64.
+        assert!(parse_timestamp("2024-01-01T00:00:00+9999999999999999999:00").is_err());
+        // Day zero and month 13: unsigned underflow / garbage dates rejected.
+        assert!(parse_timestamp("2024-01-00T00:00:00Z").is_err());
+        assert!(parse_timestamp("2024-13-01T00:00:00Z").is_err());
+        // Valid control still parses.
+        let (sec, nanos) = parse_timestamp("2024-01-01T00:00:00Z").expect("valid timestamp");
+        assert_eq!((sec, nanos), (1_704_067_200, 0));
+    }
 }

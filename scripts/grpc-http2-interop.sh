@@ -15,6 +15,13 @@
 #   1. An external HTTP/2 test server (via --server-host and --server-port)
 #   2. An automatic in-process local simulated HTTP/2 test server (default)
 #
+# No upstream grpc/grpc files are patched or forked by this harness: the
+# local simulated server below is a purpose-built test double speaking the
+# documented wire procedures (GOAWAY/RST/PING/SETTINGS/padding), and the
+# client adapter asserts the official expected outcomes (both `goaway` calls
+# succeed on a proven-new connection; `rst_*` calls fail rather than
+# returning fabricated OK). Case names passed to both ends always match.
+#
 # Usage:
 #   ./scripts/grpc-http2-interop.sh [OPTIONS]
 #
@@ -208,6 +215,7 @@ def handle_conn(conn):
     global conn_count
     conn_count += 1
     my_idx = conn_count
+    print(f"NEW_CONNECTION idx={my_idx}", file=sys.stderr, flush=True)
     try:
         preface = recv_exact(conn, 24)
         if not preface:
@@ -469,7 +477,19 @@ for case in "${CASES[@]}"; do
     server_assert_failed=1
   fi
 
-  if [[ $client_exit -eq 0 && $server_assert_failed -eq 0 ]]; then
+  # Local-mode cross-check for `goaway`: the peer must have accepted at
+  # least two connections, proving the client migrated after GOAWAY instead
+  # of reusing the drained connection. External-peer runs have no server
+  # log; there the client-side reconnect assertion is the proof.
+  goaway_conn_failed=0
+  if [[ "$case" == "goaway" && -f "$LOG_DIR/${case}_server.log" ]]; then
+    conn_seen=$(grep -c "NEW_CONNECTION" "$LOG_DIR/${case}_server.log" || true)
+    if [[ "$conn_seen" -lt 2 ]]; then
+      goaway_conn_failed=1
+    fi
+  fi
+
+  if [[ $client_exit -eq 0 && $server_assert_failed -eq 0 && $goaway_conn_failed -eq 0 ]]; then
     echo "  ok   $case (${dur_ms}ms)"
     PASSED_COUNT=$((PASSED_COUNT + 1))
     status="passed"
@@ -477,6 +497,9 @@ for case in "${CASES[@]}"; do
     echo "  FAIL $case (exit code $client_exit, ${dur_ms}ms)"
     if [[ $server_assert_failed -ne 0 ]]; then
       grep "SERVER_ASSERTION_FAILED" "$LOG_DIR/${case}_server.log" | sed 's/^/       /'
+    fi
+    if [[ $goaway_conn_failed -ne 0 ]]; then
+      echo "goaway: server accepted $conn_seen connection(s), need >= 2 to prove migration" | sed 's/^/       /'
     fi
     sed 's/^/       /' "$log_file"
     OVERALL_FAILED=1

@@ -17,6 +17,7 @@ struct ServerArgs {
     use_tls: bool,
     tls_cert_file: Option<String>,
     tls_key_file: Option<String>,
+    tls_client_ca_file: Option<String>,
 }
 
 fn parse_port(flag: &str, val: &str) -> u16 {
@@ -52,6 +53,7 @@ fn parse_args() -> ServerArgs {
     let mut use_tls = false;
     let mut tls_cert_file = None;
     let mut tls_key_file = None;
+    let mut tls_client_ca_file = None;
 
     let mut i = 0;
     while i < raw_args.len() {
@@ -136,6 +138,22 @@ fn parse_args() -> ServerArgs {
                 };
                 tls_key_file = Some(val);
             }
+            "tls_client_ca_file" => {
+                let val = match inline_val {
+                    Some(v) => v,
+                    None => {
+                        i += 1;
+                        match raw_args.get(i) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("missing value for flag {raw_key}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                };
+                tls_client_ca_file = Some(val);
+            }
             _ => {
                 eprintln!("unknown flag: {arg}");
                 std::process::exit(1);
@@ -144,11 +162,17 @@ fn parse_args() -> ServerArgs {
         i += 1;
     }
 
+    if tls_client_ca_file.is_some() && !use_tls {
+        eprintln!("error: --tls_client_ca_file requires --use_tls=true");
+        std::process::exit(1);
+    }
+
     ServerArgs {
         port,
         use_tls,
         tls_cert_file,
         tls_key_file,
+        tls_client_ca_file,
     }
 }
 
@@ -199,12 +223,30 @@ async fn run(args: ServerArgs) -> Result<(), Status> {
                 std::process::exit(1);
             }
         };
-        let server_tls = match ServerTls::new(identity) {
-            Ok(tls) => tls,
-            Err(e) => {
-                eprintln!("failed to configure TLS: {e}");
-                std::process::exit(1);
+        let server_tls = match args.tls_client_ca_file.as_deref() {
+            Some(ca_path) => {
+                let ca_pem = match std::fs::read(ca_path) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        eprintln!("failed to read TLS client CA file {ca_path:?}: {e}");
+                        std::process::exit(1);
+                    }
+                };
+                match ServerTls::mtls(identity, &ca_pem) {
+                    Ok(tls) => tls,
+                    Err(e) => {
+                        eprintln!("failed to configure mTLS: {e}");
+                        std::process::exit(1);
+                    }
+                }
             }
+            None => match ServerTls::new(identity) {
+                Ok(tls) => tls,
+                Err(e) => {
+                    eprintln!("failed to configure TLS: {e}");
+                    std::process::exit(1);
+                }
+            },
         };
         let listener = TcpListener::bind(addr)
             .await

@@ -84,12 +84,14 @@ class ProcessSnapshot:
         rss_bytes: int,
         thread_count: int,
         timestamp: float,
+        method: str,
     ):
         self.user_s = user_s
         self.sys_s = sys_s
         self.rss_bytes = rss_bytes
         self.thread_count = thread_count
         self.timestamp = timestamp
+        self.method = method
 
     @property
     def total_cpu_s(self) -> float:
@@ -114,6 +116,7 @@ def sample_process(pid: int) -> Optional[ProcessSnapshot]:
                 rss_bytes=int(info.pti_resident_size),
                 thread_count=int(info.pti_threadnum),
                 timestamp=now,
+                method="macos-mach",
             )
 
     # 2. Linux /proc/{pid}/stat and /proc/{pid}/status
@@ -153,6 +156,7 @@ def sample_process(pid: int) -> Optional[ProcessSnapshot]:
                     rss_bytes=rss_bytes,
                     thread_count=num_threads,
                     timestamp=now,
+                    method="linux-procfs",
                 )
         except Exception:
             pass
@@ -179,6 +183,7 @@ def sample_process(pid: int) -> Optional[ProcessSnapshot]:
                 rss_bytes=rss_kb * 1024,
                 thread_count=1,
                 timestamp=now,
+                method="ps-fallback",
             )
     except Exception:
         pass
@@ -354,6 +359,13 @@ class ProcessResourceMonitor:
                 f"(avg CPU: {avg_cpu_pct:.1f}% across {client_threads} threads). True server ceiling verified."
             )
 
+        # Explicit platform support: when no snapshot was ever captured for an
+        # endpoint, its counters are unsupported (never measured zeros).
+        client_supported = (self.client_initial is not None) or (self._client_last_snap is not None)
+        server_supported = (self.server_initial is not None) or (self._server_last_snap is not None)
+        client_method = self._client_last_snap.method if self._client_last_snap else "unsupported"
+        server_method = self._server_last_snap.method if self._server_last_snap else "unsupported"
+
         client_dict = {
             "user_cpu_seconds": round(client_user_s, 6),
             "system_cpu_seconds": round(client_sys_s, 6),
@@ -365,6 +377,8 @@ class ProcessResourceMonitor:
             "system_cpu_nanos": int(client_sys_s * 1e9),
             "thread_count": client_threads,
             "cpu_seconds_per_rpc": None,
+            "method": client_method,
+            "supported": client_supported,
         }
 
         server_dict = {
@@ -378,6 +392,8 @@ class ProcessResourceMonitor:
             "system_cpu_nanos": int(server_sys_s * 1e9),
             "thread_count": server_threads,
             "cpu_seconds_per_rpc": None,
+            "method": server_method,
+            "supported": server_supported,
         }
 
         saturation_dict = {
@@ -484,6 +500,59 @@ def find_binary(repo_root: Path, override_path: Optional[str] = None) -> Path:
     raise FileNotFoundError(
         "rpc-bench binary not found. Build it with: cargo build --manifest-path rpc-bench/Cargo.toml"
     )
+
+
+def collect_cpu_constraints() -> Dict[str, Any]:
+    """Record the effective core quota/affinity the matrix runs under.
+
+    Mirrors the Rust `CpuConstraints` record: unknown values stay `None`
+    (never measured zeros) and `source` names the detection path explicitly.
+    """
+    info: Dict[str, Any] = {
+        "effective_cpu_count": None,
+        "affinity_cpus": None,
+        "affinity_count": None,
+        "cgroup_quota_millicpus": None,
+        "source": "unsupported",
+    }
+
+    try:
+        if hasattr(os, "process_cpu_count"):
+            info["effective_cpu_count"] = os.process_cpu_count()
+        else:
+            info["effective_cpu_count"] = os.cpu_count()
+        info["source"] = "os-cpu-count"
+    except Exception:
+        pass
+
+    if hasattr(os, "sched_affinity"):
+        try:
+            cpus = sorted(os.sched_affinity(0))
+            info["affinity_cpus"] = ",".join(str(c) for c in cpus)
+            info["affinity_count"] = len(cpus)
+            info["source"] = "linux-sched-affinity"
+        except Exception:
+            pass
+
+    try:
+        with open("/sys/fs/cgroup/cpu.max", "r", encoding="utf-8") as f:
+            parts = f.read().split()
+        if len(parts) == 2 and parts[0] != "max":
+            quota, period = int(parts[0]), int(parts[1])
+            if period > 0:
+                info["cgroup_quota_millicpus"] = (quota * 1000) // period
+    except Exception:
+        try:
+            with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "r", encoding="utf-8") as f:
+                quota = int(f.read().strip())
+            with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us", "r", encoding="utf-8") as f:
+                period = int(f.read().strip())
+            if quota >= 0 and period > 0:
+                info["cgroup_quota_millicpus"] = (quota * 1000) // period
+        except Exception:
+            pass
+
+    return info
 
 
 class PeerRegistry:
@@ -977,6 +1046,9 @@ def run_single_benchmark(
             report_data["client_resources"] = client_res
             report_data["server_resources"] = server_res
             report_data["client_saturation_check"] = sat_check
+            # A saturated load generator cannot prove a server ceiling: the
+            # measured throughput may reflect client limits instead.
+            report_data["server_ceiling_valid"] = not sat_check["saturated"]
 
         res_summary = (
             f"[RESOURCES] Client ({client_peer}): user={client_res['user_cpu_seconds']:.4f}s, sys={client_res['system_cpu_seconds']:.4f}s, "
@@ -986,6 +1058,11 @@ def run_single_benchmark(
             f"[SATURATION] Load generator: avg_cpu={sat_check['avg_cpu_pct']:.1f}%, "
             f"spare_capacity={sat_check['spare_capacity_pct']:.1f}% -> {sat_check['status']}"
         )
+        if sat_check["saturated"]:
+            res_summary += (
+                "\n[WARNING] Load generator saturated: server ceiling NOT valid for "
+                f"server={server_peer}, client={client_peer} (see client_saturation_check)."
+            )
         summary = f"{client_stdout.strip()}\n{res_summary}"
         return True, report_data, summary
 
@@ -1360,9 +1437,16 @@ def main() -> int:
     print(f"  Ping-Pong:           {MATCHING_CONFIGURATION['payload_sizes']['ping_pong']['round_trips']} round-trips")
     print(f"  Upload Payload:      {MATCHING_CONFIGURATION['payload_sizes']['upload']['message_bytes']}B / message")
     print(f"  Evaluated Pairs:     {len(pairs)} ({', '.join(f'{s}->{c}' for s, c in pairs)})")
+    cpu_constraints = collect_cpu_constraints()
+    print(f"  Effective CPUs:      {cpu_constraints['effective_cpu_count']} (source: {cpu_constraints['source']})")
+    if cpu_constraints["affinity_count"] is not None:
+        print(f"  CPU Affinity:        {cpu_constraints['affinity_count']} CPUs ({cpu_constraints['affinity_cpus']})")
+    if cpu_constraints["cgroup_quota_millicpus"] is not None:
+        print(f"  CGroup CPU Quota:    {cpu_constraints['cgroup_quota_millicpus'] / 1000.0:.2f} CPUs")
     print("=" * 80)
 
     all_runs: List[Dict] = []
+    pair_saturation_checks: List[Dict] = []
     failed = False
 
     for s_peer, c_peer in pairs:
@@ -1390,6 +1474,12 @@ def main() -> int:
 
         if report_json and "runs" in report_json:
             all_runs.extend(report_json["runs"])
+            pair_saturation_checks.append({
+                "server_peer": s_peer,
+                "client_peer": c_peer,
+                "server_ceiling_valid": report_json.get("server_ceiling_valid"),
+                "client_saturation_check": report_json.get("client_saturation_check"),
+            })
 
     # Output comparison tables
     tables_json, tables_text = generate_comparison_tables(all_runs)
@@ -1406,6 +1496,13 @@ def main() -> int:
             "host_info": first_run.get("host_info", {}),
             "matching_configuration": MATCHING_CONFIGURATION,
             "matrix_complete": not failed,
+            "cpu_constraints": cpu_constraints,
+            "pair_saturation_checks": pair_saturation_checks,
+            "server_ceiling_valid": (
+                all(p.get("server_ceiling_valid") for p in pair_saturation_checks)
+                if pair_saturation_checks
+                else None
+            ),
             "runs": all_runs,
             "comparison_tables": tables_json,
             "client_resources": first_run.get("metrics", {}).get("client_resources"),
@@ -1416,6 +1513,15 @@ def main() -> int:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(aggregated_report, f, indent=2)
         print(f"\nSaved aggregated BenchmarkReport with {len(all_runs)} runs to {out_path}")
+
+    invalid_ceilings = [p for p in pair_saturation_checks if not p.get("server_ceiling_valid")]
+    if invalid_ceilings:
+        pairs_str = ", ".join(f"{p['server_peer']}->{p['client_peer']}" for p in invalid_ceilings)
+        print(
+            f"\n[WARNING] Load generator saturated for pair(s): {pairs_str}. "
+            "Server ceiling NOT valid for these pairs (see pair_saturation_checks).",
+            file=sys.stderr,
+        )
 
     if failed:
         print("\nRPC-Bench matrix execution encountered failures.", file=sys.stderr)

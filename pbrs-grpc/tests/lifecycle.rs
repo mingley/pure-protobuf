@@ -20,7 +20,7 @@ mod common;
 
 use common::lifecycle::{
     CallShape, FaultKind, LifecycleBoundary, LifecycleRunner, LifecycleScenario, RstReason,
-    TransportKind,
+    TransportKind, ALL_TRANSPORTS, QUALIFICATION_CYCLES_PER_TRANSPORT,
 };
 use common::{name_of, req, Echo};
 use pbrs_grpc::hello::GreeterClient;
@@ -32,7 +32,7 @@ use tokio::net::TcpListener;
 
 #[tokio::test]
 async fn pr_suite_fast_cycles() {
-    // 36 curated deterministic scenarios spanning all 4 shapes, 3 transports,
+    // 48 curated deterministic scenarios spanning all 4 shapes, 5 transports,
     // 6 boundaries, and 10 fault types.
     let scenarios = [
         // 1. Unary over FromIo
@@ -283,7 +283,7 @@ async fn pr_suite_fast_cycles() {
             shape: CallShape::Unary,
             transport: TransportKind::Tls,
             boundary: LifecycleBoundary::Queued,
-            fault: FaultKind::Cancel,
+            fault: FaultKind::TcpReset,
             seed: 605,
         },
         LifecycleScenario {
@@ -292,6 +292,92 @@ async fn pr_suite_fast_cycles() {
             boundary: LifecycleBoundary::HeadersSent,
             fault: FaultKind::FutureDropServer,
             seed: 606,
+        },
+        // 7. mTLS transport coverage (all 4 shapes)
+        LifecycleScenario {
+            shape: CallShape::Unary,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::HeadersSent,
+            fault: FaultKind::Cancel,
+            seed: 701,
+        },
+        LifecycleScenario {
+            shape: CallShape::ClientStreaming,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::BodyStarted,
+            fault: FaultKind::RstStream(RstReason::Cancel),
+            seed: 702,
+        },
+        LifecycleScenario {
+            shape: CallShape::ServerStreaming,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::ResponseHeadersReceived,
+            fault: FaultKind::Goaway,
+            seed: 703,
+        },
+        LifecycleScenario {
+            shape: CallShape::Bidi,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::ResponseBodyReceived,
+            fault: FaultKind::FutureDropClient,
+            seed: 704,
+        },
+        LifecycleScenario {
+            shape: CallShape::Unary,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::Queued,
+            fault: FaultKind::FutureDropServer,
+            seed: 705,
+        },
+        LifecycleScenario {
+            shape: CallShape::Bidi,
+            transport: TransportKind::Mtls,
+            boundary: LifecycleBoundary::TrailersReceived,
+            fault: FaultKind::TcpDisconnect,
+            seed: 706,
+        },
+        // 8. UDS transport coverage (all 4 shapes)
+        LifecycleScenario {
+            shape: CallShape::Unary,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::HeadersSent,
+            fault: FaultKind::RstStream(RstReason::RefusedStream),
+            seed: 801,
+        },
+        LifecycleScenario {
+            shape: CallShape::ClientStreaming,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::BodyStarted,
+            fault: FaultKind::StreamHalfClose,
+            seed: 802,
+        },
+        LifecycleScenario {
+            shape: CallShape::ServerStreaming,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::ResponseHeadersReceived,
+            fault: FaultKind::Goaway,
+            seed: 803,
+        },
+        LifecycleScenario {
+            shape: CallShape::Bidi,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::ResponseBodyReceived,
+            fault: FaultKind::TcpReset,
+            seed: 804,
+        },
+        LifecycleScenario {
+            shape: CallShape::Unary,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::Queued,
+            fault: FaultKind::FutureDropClient,
+            seed: 805,
+        },
+        LifecycleScenario {
+            shape: CallShape::ClientStreaming,
+            transport: TransportKind::Uds,
+            boundary: LifecycleBoundary::TrailersReceived,
+            fault: FaultKind::Cancel,
+            seed: 806,
         },
     ];
 
@@ -308,17 +394,12 @@ async fn pr_suite_fast_cycles() {
 
 #[tokio::test]
 async fn generator_1000_seeded_cycles() {
-    // 1000 deterministic seeded cycles with recorded seeds.
-    const MASTER_SEED: u64 = 0x5e3d_f00d_cafe_babe;
-    let mut recorded_seeds = Vec::with_capacity(1000);
+    // Executes the recorded 1000-cycle FromIo qualification schedule.
+    let schedule = LifecycleScenario::qualification_schedule(TransportKind::FromIo);
+    assert_eq!(schedule.len(), QUALIFICATION_CYCLES_PER_TRANSPORT);
 
-    for cycle in 0..1000 {
-        let seed = MASTER_SEED.wrapping_add((cycle as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15));
-        recorded_seeds.push(seed);
-
-        let mut scenario = LifecycleScenario::from_seed(seed);
-        scenario.transport = TransportKind::FromIo;
-
+    for (cycle, scenario) in schedule.iter().enumerate() {
+        let scenario = *scenario;
         let res = tokio::time::timeout(
             std::time::Duration::from_secs(2),
             tokio::spawn(async move {
@@ -331,18 +412,117 @@ async fn generator_1000_seeded_cycles() {
             Ok(Ok(_)) => {}
             Ok(Err(panic_err)) => {
                 panic!(
-                    "Generator cycle {cycle}/1000 panicked! Failing seed: {seed:#x}. Scenario: {scenario:?}. Err: {panic_err:?}"
+                    "Generator cycle {cycle}/1000 panicked! Failing seed: {:#x}. Scenario: {scenario:?}. Err: {panic_err:?}",
+                    scenario.seed
                 );
             }
             Err(_) => {
                 panic!(
-                    "Generator cycle {cycle}/1000 timed out! Failing seed: {seed:#x}. Scenario: {scenario:?}"
+                    "Generator cycle {cycle}/1000 timed out! Failing seed: {:#x}. Scenario: {scenario:?}",
+                    scenario.seed
                 );
             }
         }
     }
+}
 
-    assert_eq!(recorded_seeds.len(), 1000);
+#[test]
+fn qualification_schedules_cover_every_cell() {
+    use std::collections::HashSet;
+
+    // Every advertised transport records exactly 1000 qualification cycles
+    // covering all 4 shapes, 6 boundaries, and 10 faults. No I/O: this pins
+    // the recorded seed schedules that qualification executes.
+    assert_eq!(ALL_TRANSPORTS.len(), 5);
+    for transport in ALL_TRANSPORTS {
+        let schedule = LifecycleScenario::qualification_schedule(transport);
+        assert_eq!(
+            schedule.len(),
+            QUALIFICATION_CYCLES_PER_TRANSPORT,
+            "transport {transport:?} must record 1000 cycles"
+        );
+
+        // Deterministic: rebuilding the schedule yields identical scenarios.
+        let rebuilt = LifecycleScenario::qualification_schedule(transport);
+        assert_eq!(schedule, rebuilt, "transport {transport:?} schedule");
+
+        assert!(
+            schedule.iter().all(|s| s.transport == transport),
+            "transport {transport:?} schedule must be pinned to its cell"
+        );
+
+        let shapes: HashSet<CallShape> = schedule.iter().map(|s| s.shape).collect();
+        assert_eq!(
+            shapes.len(),
+            4,
+            "transport {transport:?} shapes: {shapes:?}"
+        );
+
+        let boundaries: HashSet<LifecycleBoundary> = schedule.iter().map(|s| s.boundary).collect();
+        assert_eq!(
+            boundaries.len(),
+            6,
+            "transport {transport:?} boundaries: {boundaries:?}"
+        );
+
+        let faults: HashSet<FaultKind> = schedule.iter().map(|s| s.fault).collect();
+        assert_eq!(
+            faults.len(),
+            10,
+            "transport {transport:?} faults: {faults:?}"
+        );
+
+        let seeds: HashSet<u64> = schedule.iter().map(|s| s.seed).collect();
+        assert_eq!(
+            seeds.len(),
+            QUALIFICATION_CYCLES_PER_TRANSPORT,
+            "transport {transport:?} seeds must be unique"
+        );
+    }
+}
+
+#[tokio::test]
+async fn qualification_1000_cycles_per_socket_transport() {
+    // Executes the recorded 1000-cycle qualification schedules for every
+    // socket transport (TCP, TLS, mTLS, UDS). FromIo runs in
+    // `generator_1000_seeded_cycles`. Serial like the generator so every
+    // failure reports its exact transport, cycle, and seed.
+    for transport in [
+        TransportKind::Tcp,
+        TransportKind::Tls,
+        TransportKind::Mtls,
+        TransportKind::Uds,
+    ] {
+        let schedule = LifecycleScenario::qualification_schedule(transport);
+        assert_eq!(schedule.len(), QUALIFICATION_CYCLES_PER_TRANSPORT);
+
+        for (cycle, scenario) in schedule.iter().enumerate() {
+            let scenario = *scenario;
+            let res = tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                tokio::spawn(async move {
+                    LifecycleRunner::run_scenario(scenario).await;
+                }),
+            )
+            .await;
+
+            match res {
+                Ok(Ok(_)) => {}
+                Ok(Err(panic_err)) => {
+                    panic!(
+                        "Qualification {transport:?} cycle {cycle}/1000 panicked! Failing seed: {:#x}. Scenario: {scenario:?}. Err: {panic_err:?}",
+                        scenario.seed
+                    );
+                }
+                Err(_) => {
+                    panic!(
+                        "Qualification {transport:?} cycle {cycle}/1000 timed out! Failing seed: {:#x}. Scenario: {scenario:?}",
+                        scenario.seed
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[tokio::test]

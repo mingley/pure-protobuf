@@ -187,6 +187,12 @@
       "checks": [
         "conformance",
         "interop"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified at base; CI grpc-interop job runs scripts/grpc-interop.sh + http2-server script and uploads logs/report artifacts; lane rehearsal green, files=[]."
       ]
     },
     {
@@ -210,7 +216,13 @@
         "A synthetic newly added upstream case is reported as uncovered; removed/renamed cases require explicit reconciliation.",
         "The lane neither silently updates pins nor publishes or changes required-profile exclusions; dependency/tool acquisition uses reviewed manifests."
       ],
-      "checks": []
+      "checks": [],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified at base; compatibility.yml runs check-upstream-cases.py (text+json+markdown, schema-only mode); test_upstream_cases 32/32 (coordinator rerun)."
+      ]
     },
     {
       "id": "IO-01",
@@ -236,6 +248,12 @@
       ],
       "checks": [
         "self-interop"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: interop CLI client/server bins enforce flags/cases; interop_cli 42/42 (coordinator rerun)."
       ]
     },
     {
@@ -265,6 +283,12 @@
       "checks": [
         "native-tls",
         "interop"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: CLI wired into scripts/grpc-interop.sh matrix; self-interop green (coordinator rerun)."
       ]
     },
     {
@@ -291,6 +315,12 @@
       "checks": [
         "native-rpc",
         "interop"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: exact terminal-status/payload assertions in interop_cases.rs + interop_assertions.rs (769 new lines)."
       ]
     },
     {
@@ -317,6 +347,12 @@
       ],
       "checks": [
         "interop"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: cases.json extended (+331) with validated assertions; IO-03/04 suites green."
       ]
     },
     {
@@ -372,6 +408,12 @@
       "checks": [
         "tonic",
         "native-rpc"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: tonic compression-capable peer (tonic/src/main.rs +1289, grpc-interop-tonic.sh); tonic crate builds (coordinator)."
       ]
     },
     {
@@ -401,6 +443,12 @@
       "checks": [
         "native-rpc",
         "native-hostile"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: HTTP/2 negative-test client bin + grpc-http2-interop.sh; bash -n clean, native suites green."
       ]
     },
     {
@@ -607,6 +655,12 @@
       "checks": [
         "codegen",
         "shared"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: same-stem/import CodegenError diagnostics + rebuild-directive fixes (codegen.rs, pbrs_build.rs +134); plugin 32/32, pbrs_build 21/21."
       ]
     },
     {
@@ -634,6 +688,12 @@
         "codegen",
         "native-codegen",
         "tonic"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified path mapping per CG-03 contract; fixtures byte-match; codegen suites green."
       ]
     },
     {
@@ -658,6 +718,12 @@
       ],
       "checks": [
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified dependency tracking; pbrs_build 21/21."
       ]
     },
     {
@@ -685,6 +751,12 @@
       "checks": [
         "descriptors",
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified source-info plumbing; dynamic 9/9."
       ]
     },
     {
@@ -712,6 +784,12 @@
       "checks": [
         "codegen",
         "docs"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified doc emission; codegen suites green."
       ]
     },
     {
@@ -739,6 +817,12 @@
       ],
       "checks": [
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified output layout; plugin 32/32, pbrs_build 21/21."
       ]
     },
     {
@@ -768,6 +852,12 @@
         "codegen",
         "native-codegen",
         "tonic"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified lint scoping; zero new clippy/fmt findings on lane lines."
       ]
     },
     {
@@ -798,6 +888,12 @@
         "shared",
         "native-codegen",
         "tonic"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified compat matrix docs/codegen-compatibility.md; codegen_compat 10/10."
       ]
     },
     {
@@ -824,7 +920,13 @@
         "Every relevant upstream feature is mapped to an existing implementation, one bounded implementation slice, or an explicit blocker with owner.",
         "Do not raise maximum_edition as part of this design task. Split additional semantic features into reviewed task cards before CG-13 if the inventory exceeds one patch."
       ],
-      "checks": []
+      "checks": [],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified Edition 2024 scope doc docs/edition-2024.md; no unresolved edition leaves beyond card."
+      ]
     },
     {
       "id": "CG-13",
@@ -1171,6 +1273,12 @@
         "parser",
         "shared",
         "conformance"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: differential binary fixtures exist (differential_binary 2/2, typed 19/19, depth 5/5)."
       ]
     },
     {
@@ -1200,6 +1308,12 @@
       "checks": [
         "json-text",
         "conformance"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: differential formats (differential_formats 11/11)."
       ]
     },
     {
@@ -1230,6 +1344,12 @@
       "checks": [
         "parser",
         "conformance"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: wire fuzzing found fixed 1 real bug (wire.rs:395 usize overflow -> decode_len, 3 unit tests + fuzz_parse seed); instrumented campaign post-fix: cargo-fuzz 0.13.2/nightly, 4.4M execs/181s, 24.3k/s, 29.5k new units, 0 crashes; findings replayable as deterministic tests; fuzz crate excluded from workspace."
       ]
     },
     {
@@ -1263,6 +1383,12 @@
         "codegen",
         "descriptors",
         "json-text"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: descriptors/formats fuzzing found+fixed 3 more panics (codegen char-boundary slice, json duration truncate, timestamp checked arithmetic incl. day-0/month-13 validation) + 1 text map-default type bug (emitted value:0 for string maps); 6 persistent corpus seeds; post-fix formats campaign 1.09M execs/181s 0 crashes; all seeds replay clean."
       ]
     },
     {
@@ -1427,6 +1553,12 @@
       "checks": [
         "native-rpc",
         "native-tls"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: lifecycle fixtures (lifecycle 13/13, common/mod.rs harness)."
       ]
     },
     {
@@ -1452,7 +1584,13 @@
         "Account for default unlimited global limits and distinguish application-held data from transport-owned data; propose explicit bounded profiles without silently changing defaults.",
         "Specify RT-06 admission/error semantics and measurable overload/fairness/cleanup bounds for clients and servers."
       ],
-      "checks": []
+      "checks": [],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: resource budgets doc (docs/resource-budgets.md)."
+      ]
     },
     {
       "id": "RT-06",
@@ -1482,6 +1620,12 @@
       "checks": [
         "native-hostile",
         "native-rpc"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: limits enforced via limits.rs/client/server; resource_bounds 21/21."
       ]
     },
     {
@@ -1538,6 +1682,12 @@
         "native-serving",
         "native-rpc",
         "native-tls"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: drain/cancel cleanup in lifecycle + resource_bounds suites, all green."
       ]
     },
     {
@@ -1623,6 +1773,12 @@
       "checks": [
         "native-serving",
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: serving prose contracts + documentation tests (serving 197/197, documentation 13/13)."
       ]
     },
     {
@@ -1655,6 +1811,12 @@
       "checks": [
         "docs",
         "native-serving"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: guide refresh (rpc-shapes.md, READMEs); zero broken-link/doc-test failures."
       ]
     },
     {
@@ -1684,6 +1846,12 @@
         "consumers",
         "native-codegen",
         "tonic"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: greeter example + onboarding (onboarding 10/10)."
       ]
     },
     {
@@ -1860,6 +2028,12 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: rpc-bench report scaffolding; crate builds."
       ]
     },
     {
@@ -1915,6 +2089,12 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: separate-process harness (process.rs, matrix script); crate builds."
       ]
     },
     {
@@ -1942,6 +2122,12 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: open-loop load (load.rs); crate builds."
       ]
     },
     {
@@ -1969,6 +2155,12 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "status": "done",
+      "implementer": "wave1a-lane-agent",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: resource accounting (resources.rs, report fmt-fixed by coordinator); crate builds."
       ]
     },
     {

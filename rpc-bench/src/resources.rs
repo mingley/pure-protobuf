@@ -204,6 +204,153 @@ impl ProcessResources {
     }
 }
 
+/// Effective CPU constraints observed for the current process.
+///
+/// Records the core budget a benchmark actually runs under: the process-visible
+/// CPU count, the scheduler affinity set, and any cgroup CPU quota. Fields the
+/// platform cannot provide are `None`, explicitly distinguishing "unknown /
+/// unsupported" from a measured value. Quota is stored as integer millicpus so
+/// records using this type keep exact equality semantics.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CpuConstraints {
+    /// Process-visible logical CPU count (`available_parallelism`), if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_cpu_count: Option<usize>,
+    /// CPU affinity set in kernel list form (e.g. `"0-3,8"`), if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affinity_cpus: Option<String>,
+    /// Number of CPUs in the affinity set, if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affinity_count: Option<usize>,
+    /// cgroup CPU quota in millicpus (`quota_us * 1000 / period_us`), if capped.
+    /// `None` means uncapped or unknown, never a measured zero.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cgroup_quota_millicpus: Option<u64>,
+    /// How this record was obtained (e.g. `"linux-procfs"`,
+    /// `"available-parallelism"`, or `"unsupported"`).
+    pub source: String,
+}
+
+impl CpuConstraints {
+    /// Detect the effective CPU constraints of the current process.
+    pub fn detect() -> Self {
+        let effective_cpu_count = std::thread::available_parallelism().map(|n| n.get()).ok();
+        let (affinity_cpus, affinity_count, cgroup_quota_millicpus, source) =
+            detect_platform_constraints();
+        Self {
+            effective_cpu_count,
+            affinity_cpus,
+            affinity_count,
+            cgroup_quota_millicpus,
+            source,
+        }
+    }
+
+    /// cgroup CPU quota expressed in whole CPUs, if capped.
+    pub fn cgroup_quota_cpus(&self) -> Option<f64> {
+        self.cgroup_quota_millicpus.map(|m| m as f64 / 1000.0)
+    }
+}
+
+/// Count the CPUs described by a kernel CPU list such as `"0-3,8"`.
+/// Returns `None` when the list is empty or malformed.
+pub fn parse_cpu_list_count(list: &str) -> Option<usize> {
+    let list = list.trim();
+    if list.is_empty() {
+        return None;
+    }
+    let mut count = 0usize;
+    for part in list.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            return None;
+        }
+        if let Some((lo, hi)) = part.split_once('-') {
+            let lo: usize = lo.trim().parse().ok()?;
+            let hi: usize = hi.trim().parse().ok()?;
+            if hi < lo {
+                return None;
+            }
+            count = count.saturating_add(hi.saturating_sub(lo).saturating_add(1));
+        } else {
+            let _: usize = part.parse().ok()?;
+            count = count.saturating_add(1);
+        }
+    }
+    if count == 0 {
+        None
+    } else {
+        Some(count)
+    }
+}
+
+/// Parse cgroup v2 `cpu.max` contents (`"$MAX $PERIOD"` or `"max $PERIOD"`)
+/// into millicpus. Returns `None` when uncapped (`max`) or malformed.
+pub fn parse_cgroup_quota_v2_millicpus(contents: &str) -> Option<u64> {
+    let mut parts = contents.split_whitespace();
+    let max = parts.next()?;
+    let period: u64 = parts.next()?.parse().ok()?;
+    if max == "max" || period == 0 {
+        return None;
+    }
+    let quota: u64 = max.parse().ok()?;
+    Some(quota.saturating_mul(1000) / period)
+}
+
+/// Parse cgroup v1 `cpu.cfs_quota_us` / `cpu.cfs_period_us` contents into
+/// millicpus. Returns `None` when uncapped (`-1`) or malformed.
+pub fn parse_cgroup_quota_v1_millicpus(quota_us: &str, period_us: &str) -> Option<u64> {
+    let quota: i64 = quota_us.trim().parse().ok()?;
+    let period: u64 = period_us.trim().parse().ok()?;
+    if quota < 0 || period == 0 {
+        return None;
+    }
+    Some((quota as u64).saturating_mul(1000) / period)
+}
+
+#[cfg(target_os = "linux")]
+fn detect_platform_constraints() -> (Option<String>, Option<usize>, Option<u64>, String) {
+    let mut affinity_cpus = None;
+    let mut affinity_count = None;
+    if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+        for line in status.lines() {
+            if let Some(rest) = line.strip_prefix("Cpus_allowed_list:") {
+                let list = rest.trim().to_string();
+                affinity_count = parse_cpu_list_count(&list);
+                affinity_cpus = Some(list);
+                break;
+            }
+        }
+    }
+    (
+        affinity_cpus,
+        affinity_count,
+        detect_cgroup_quota_millicpus(),
+        "linux-procfs".to_string(),
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn detect_platform_constraints() -> (Option<String>, Option<usize>, Option<u64>, String) {
+    (None, None, None, "available-parallelism".to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn detect_cgroup_quota_millicpus() -> Option<u64> {
+    if let Ok(contents) = std::fs::read_to_string("/sys/fs/cgroup/cpu.max") {
+        // cgroup v2 honors an explicit "max" (uncapped) without consulting v1.
+        if contents.split_whitespace().next() == Some("max") {
+            return None;
+        }
+        if let Some(millicpus) = parse_cgroup_quota_v2_millicpus(&contents) {
+            return Some(millicpus);
+        }
+    }
+    let quota = std::fs::read_to_string("/sys/fs/cgroup/cpu/cpu.cfs_quota_us").ok()?;
+    let period = std::fs::read_to_string("/sys/fs/cgroup/cpu/cpu.cfs_period_us").ok()?;
+    parse_cgroup_quota_v1_millicpus(&quota, &period)
+}
+
 /// Point-in-time snapshot of process resource consumption.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceSnapshot {
@@ -220,7 +367,27 @@ pub struct ResourceSnapshot {
 }
 
 impl ResourceSnapshot {
+    /// Whether per-process resource capture is supported on this platform.
+    pub fn is_supported() -> bool {
+        cfg!(any(target_os = "macos", target_os = "linux"))
+    }
+
+    /// Short name of the platform capture backend, or `"unsupported"`.
+    pub fn platform_backend() -> &'static str {
+        if cfg!(target_os = "macos") {
+            "macos-mach"
+        } else if cfg!(target_os = "linux") {
+            "linux-procfs"
+        } else {
+            "unsupported"
+        }
+    }
+
     /// Capture an instantaneous snapshot of the current process resources.
+    ///
+    /// Returns an [`std::io::ErrorKind::Unsupported`] error on platforms without
+    /// a capture backend instead of silent zero-fill, so unsupported counters
+    /// are never mistaken for measured zeros.
     pub fn capture() -> std::io::Result<Self> {
         capture_platform()
     }
@@ -410,10 +577,8 @@ impl CombinedResourceMetrics {
         }
 
         let combined_user_cpu_seconds = client.user_cpu_seconds() + server.user_cpu_seconds();
-        let combined_system_cpu_seconds =
-            client.system_cpu_seconds() + server.system_cpu_seconds();
-        let combined_total_cpu_seconds =
-            client.total_cpu_seconds() + server.total_cpu_seconds();
+        let combined_system_cpu_seconds = client.system_cpu_seconds() + server.system_cpu_seconds();
+        let combined_total_cpu_seconds = client.total_cpu_seconds() + server.total_cpu_seconds();
 
         let successful_rpcs = client.successful_rpcs.max(server.successful_rpcs);
         let combined_cpu_seconds_per_rpc = if successful_rpcs > 0 {
@@ -716,13 +881,10 @@ fn capture_platform() -> std::io::Result<ResourceSnapshot> {
 
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn capture_platform() -> std::io::Result<ResourceSnapshot> {
-    Ok(ResourceSnapshot {
-        user_cpu_nanos: 0,
-        system_cpu_nanos: 0,
-        current_rss_bytes: 0,
-        peak_rss_bytes: 0,
-        thread_count: 1,
-    })
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "process resource capture is unsupported on this platform",
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -760,8 +922,8 @@ mod tests {
     #[test]
     fn test_process_resources_computations() {
         let mut res = ProcessResources::from_nanos(
-            250_000_000, // 0.25s
-            50_000_000,  // 0.05s
+            250_000_000,       // 0.25s
+            50_000_000,        // 0.05s
             100 * 1024 * 1024, // 100 MiB
         );
 
@@ -832,6 +994,74 @@ mod tests {
             CombinedResourceMetrics::new(real_client, duplicate_client),
             Err(ResourceAttributionError::MismatchedServerRole)
         );
+    }
+
+    #[test]
+    fn test_platform_backend_is_explicit() {
+        if cfg!(any(target_os = "macos", target_os = "linux")) {
+            assert!(ResourceSnapshot::is_supported());
+            assert_ne!(ResourceSnapshot::platform_backend(), "unsupported");
+        } else {
+            assert!(!ResourceSnapshot::is_supported());
+            assert_eq!(ResourceSnapshot::platform_backend(), "unsupported");
+            let err = ResourceSnapshot::capture()
+                .expect_err("unsupported platforms must fail capture explicitly");
+            assert_eq!(err.kind(), std::io::ErrorKind::Unsupported);
+        }
+    }
+
+    #[test]
+    fn test_parse_cpu_list_count() {
+        assert_eq!(parse_cpu_list_count("0-3"), Some(4));
+        assert_eq!(parse_cpu_list_count("0-3,8"), Some(5));
+        assert_eq!(parse_cpu_list_count("0,2,4"), Some(3));
+        assert_eq!(parse_cpu_list_count("7"), Some(1));
+        assert_eq!(parse_cpu_list_count(" 0-1 , 4 "), Some(3));
+        assert_eq!(parse_cpu_list_count(""), None);
+        assert_eq!(parse_cpu_list_count("3-1"), None);
+        assert_eq!(parse_cpu_list_count("0,,2"), None);
+        assert_eq!(parse_cpu_list_count("abc"), None);
+    }
+
+    #[test]
+    fn test_parse_cgroup_quota_millicpus() {
+        assert_eq!(
+            parse_cgroup_quota_v2_millicpus("200000 100000\n"),
+            Some(2000)
+        );
+        assert_eq!(parse_cgroup_quota_v2_millicpus("50000 100000"), Some(500));
+        assert_eq!(parse_cgroup_quota_v2_millicpus("max 100000"), None);
+        assert_eq!(parse_cgroup_quota_v2_millicpus("bogus"), None);
+        assert_eq!(parse_cgroup_quota_v1_millicpus("-1", "100000"), None);
+        assert_eq!(
+            parse_cgroup_quota_v1_millicpus("250000", "100000"),
+            Some(2500)
+        );
+        assert_eq!(parse_cgroup_quota_v1_millicpus("250000", "0"), None);
+    }
+
+    #[test]
+    fn test_cpu_constraints_detect_and_serde() {
+        let constraints = CpuConstraints::detect();
+        assert!(!constraints.source.is_empty());
+        if cfg!(any(target_os = "macos", target_os = "linux")) {
+            let effective = constraints
+                .effective_cpu_count
+                .expect("supported platforms must report an effective CPU count");
+            assert!(effective >= 1);
+        }
+        if let (Some(list), Some(count)) = (
+            constraints.affinity_cpus.as_deref(),
+            constraints.affinity_count,
+        ) {
+            assert_eq!(parse_cpu_list_count(list), Some(count));
+        }
+
+        let json = serde_json::to_string(&constraints).expect("serialization should succeed");
+        assert!(json.contains("\"source\""));
+        let deserialized: CpuConstraints =
+            serde_json::from_str(&json).expect("deserialization should succeed");
+        assert_eq!(constraints, deserialized);
     }
 
     #[test]

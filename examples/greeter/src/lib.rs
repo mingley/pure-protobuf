@@ -944,4 +944,82 @@ mod tests {
 
         live.shutdown().await;
     }
+
+    #[tokio::test]
+    async fn recipe_unary_asserts_content_status_shutdown() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // Content: exact reply bytes for a known request.
+        assert_eq!(say_hello(&client, "ada").await.unwrap(), "hello ada");
+
+        // Final status: invalid input surfaces InvalidArgument, not Ok.
+        let mut bad = HelloRequest::new();
+        bad.set_name("");
+        let err = client.say_hello(Request::new(bad)).await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        // Shutdown: drain completes; the test would hang on failure.
+        live.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn recipe_client_streaming_asserts_content_status_shutdown() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // Content: consolidated reply over a bounded, half-closed upload.
+        let upload = say_hello_stream(&client, ["grace", "alan"]).await.unwrap();
+        assert_eq!(upload, "hello grace, alan");
+
+        // Final status: an empty upload surfaces InvalidArgument, not Ok.
+        let empty: [&str; 0] = [];
+        let err = say_hello_stream(&client, empty).await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        live.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn recipe_server_streaming_asserts_content_status_shutdown() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // Content: exact download sequence read to EOF.
+        let download = say_hello_server_stream(&client, "edsger").await.unwrap();
+        assert_eq!(
+            download,
+            ["hello edsger #1", "hello edsger #2", "hello edsger #3"]
+        );
+
+        // Final status: invalid input surfaces InvalidArgument, not Ok.
+        let err = say_hello_server_stream(&client, "").await.unwrap_err();
+        assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+
+        live.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn recipe_bidi_asserts_content_status_shutdown() {
+        let live = serve().await.unwrap();
+        let client = greeter(live.addr).await.unwrap();
+
+        // Content: exact full-duplex replies via the teaching helper.
+        let bidi = say_hello_bidi_stream(&client, ["barbara"]).await.unwrap();
+        assert_eq!(bidi, ["hello barbara"]);
+
+        // Final status: half-close then drain to EOF; a non-OK trailer
+        // would surface as Err from `message()` instead of `None`.
+        let (tx, call) = client.stream_hello(Request::new(()));
+        let mut inbound = call.await.unwrap().into_inner();
+        tx.send(request("donald")).await.unwrap();
+        assert_eq!(
+            text(&inbound.message().await.unwrap().unwrap()),
+            "hello donald"
+        );
+        tx.close();
+        assert!(inbound.message().await.unwrap().is_none());
+
+        live.shutdown().await;
+    }
 }
