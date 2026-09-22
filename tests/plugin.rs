@@ -2747,3 +2747,275 @@ async fn test_tonic_service_instantiation() {{
     );
 }
 
+fn hello_via_config(out_name: &str, configure: &dyn Fn(&mut pbrs::codegen::Config)) -> String {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join(out_name);
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let proto_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto");
+    let mut cfg = pbrs::codegen::Config::new();
+    configure(&mut cfg);
+    cfg.out_dir(&tmp)
+        .compile_protos(&[proto_dir.join("hello.proto")], &[&proto_dir])
+        .expect("Config::compile_protos");
+    std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs from Config")
+}
+
+/// Replace the embedded `FILE_DESCRIPTOR_SET` byte literal with a placeholder.
+///
+/// protoc always attaches `SourceCodeInfo` to the `CodeGeneratorRequest`
+/// descriptors it sends to plugins, while the `Config` path requests it only
+/// with `include_source_info(true)`; the embedded reflection bytes therefore
+/// legitimately differ between entry points even for identical options.
+/// Everything outside that literal must still match exactly.
+fn mask_embedded_fds(src: &str) -> String {
+    let start_marker = "pub const FILE_DESCRIPTOR_SET: &[u8] = &[";
+    let start = src
+        .find(start_marker)
+        .expect("generated code embeds FILE_DESCRIPTOR_SET");
+    let end_rel = src[start..]
+        .find("];")
+        .expect("FILE_DESCRIPTOR_SET literal terminator");
+    let end = start + end_rel + 2;
+    format!("{}<masked-fds>{}", &src[..start], &src[end..])
+}
+
+fn configure_stubs_for_mode(cfg: &mut pbrs::codegen::Config, mode: &str) {
+    match mode {
+        "none" => {
+            cfg.stubs(pbrs::codegen::Stubs::None);
+        }
+        "kernel" => {
+            cfg.stubs(pbrs::codegen::Stubs::Kernel);
+        }
+        "tonic" => {
+            cfg.emit_tonic_stubs(true);
+        }
+        other => panic!("unknown stub mode: {other}"),
+    }
+}
+
+fn assert_stub_mode_markers(mode: &str, generated: &str) {
+    match mode {
+        "none" => {
+            assert!(
+                generated.contains("pub struct HelloRequest"),
+                "messages-only must emit messages"
+            );
+            assert!(
+                !generated.contains("GreeterClient"),
+                "messages-only must not emit stubs"
+            );
+            assert!(
+                !generated.contains("GreeterServer"),
+                "messages-only must not emit stubs"
+            );
+        }
+        "kernel" => {
+            assert!(
+                generated.contains("::pbrs_grpc::Channel"),
+                "kernel mode must emit pbrs_grpc stubs"
+            );
+            assert!(
+                generated.contains("pub struct GreeterClient"),
+                "kernel mode must emit GreeterClient"
+            );
+            assert!(
+                !generated.contains("ProtobufCodec"),
+                "kernel mode must not emit tonic stubs"
+            );
+        }
+        "tonic" => {
+            assert!(
+                generated.contains("ProtobufCodec"),
+                "tonic mode must emit ProtobufCodec stubs"
+            );
+            assert!(
+                generated.contains("pub struct GreeterClient"),
+                "tonic mode must emit GreeterClient"
+            );
+            assert!(
+                !generated.contains("::pbrs_grpc::Channel"),
+                "tonic mode must not emit kernel stubs"
+            );
+        }
+        other => panic!("unknown stub mode: {other}"),
+    }
+}
+
+#[test]
+fn config_and_plugin_inputs_produce_identical_output_per_mode() {
+    // CG-02: messages / native-kernel / tonic modes must produce the same
+    // output through equivalent Config builder and --pbrs_opt inputs.
+    // Both sides use explicit selections, so ambient environment cannot skew
+    // either side of the comparison.
+    for mode in ["none", "kernel", "tonic"] {
+        let opt = format!("stubs={mode}");
+        let from_config = hello_via_config(&format!("plugin-equiv-config-{mode}"), &|c| {
+            configure_stubs_for_mode(c, mode)
+        });
+        let from_plugin =
+            generate_hello_with_options(&format!("plugin-equiv-plugin-{mode}"), Some(&opt), None)
+                .expect("protoc --pbrs_opt");
+        assert!(
+            !from_config.is_empty() && !from_plugin.is_empty(),
+            "{mode}: neither side may be empty"
+        );
+        assert_eq!(
+            mask_embedded_fds(&from_config),
+            mask_embedded_fds(&from_plugin),
+            "{mode}: Config and --pbrs_opt={opt} must agree outside the entry-point reflection bytes"
+        );
+        assert_stub_mode_markers(mode, &from_config);
+        assert_stub_mode_markers(mode, &from_plugin);
+    }
+}
+
+#[test]
+fn config_with_source_info_matches_plugin_bytes_exactly() {
+    // CG-02: with equivalent descriptor inputs on both sides (protoc always
+    // sends SourceCodeInfo to plugins; Config opts in via
+    // include_source_info(true)), equivalent config inputs must produce
+    // byte-identical output.
+    let proto_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto");
+    for (mode, opt, param) in [
+        ("none", "stubs=none", "stubs=none,include_source_info=true"),
+        (
+            "kernel",
+            "stubs=kernel",
+            "stubs=kernel,include_source_info=true",
+        ),
+        (
+            "tonic",
+            "stubs=tonic",
+            "stubs=tonic,include_source_info=true",
+        ),
+    ] {
+        let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!("plugin-equiv-si-config-{mode}"));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mut cfg = pbrs::codegen::Config::new();
+        configure_stubs_for_mode(&mut cfg, mode);
+        cfg.include_source_info(true);
+        cfg.out_dir(&tmp)
+            .compile_protos(&[proto_dir.join("hello.proto")], &[&proto_dir])
+            .expect("Config::compile_protos with source info");
+        let from_config = std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs");
+        let from_plugin =
+            generate_hello_with_options(&format!("plugin-equiv-si-plugin-{mode}"), Some(opt), None)
+                .expect("protoc --pbrs_opt");
+        assert_eq!(
+            from_config, from_plugin,
+            "{mode}: Config({param}) must match --pbrs_opt={opt} byte-for-byte"
+        );
+        assert_stub_mode_markers(mode, &from_config);
+    }
+}
+
+#[test]
+fn parallel_direct_calls_with_mixed_configs_are_isolated() {
+    // CG-02: parallel mixed-config generation calls on multiple threads must
+    // each observe exactly their own explicit configuration.
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/hello.proto");
+    let tmp_fds = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-parallel-fds.fds");
+    let status = Command::new("protoc")
+        .arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", tmp_fds.display()))
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("protoc fds");
+    assert!(status.success());
+    let fds_bytes = std::fs::read(&tmp_fds).expect("read fds");
+
+    fn build_req(fds: &[u8], opt: Option<&str>) -> Vec<u8> {
+        let mut req = Vec::new();
+        // 1: file_to_generate = "hello.proto"
+        req.push(0x0a);
+        let f = b"hello.proto";
+        req.push(f.len() as u8);
+        req.extend_from_slice(f);
+        if let Some(p) = opt {
+            req.push(0x12);
+            req.push(p.len() as u8);
+            req.extend_from_slice(p.as_bytes());
+        }
+        // 15: proto_file
+        let mut pos = 0;
+        while pos < fds.len() {
+            let (n, w) = pbrs::rt::decode_tag(fds, &mut pos).unwrap();
+            if n == 1 && w == pbrs::rt::WIRE_LEN {
+                let blob = pbrs::rt::read_len_bytes(fds, &mut pos).unwrap();
+                pbrs::rt::encode_len_field(&mut req, 15, blob);
+            } else {
+                pbrs::rt::skip_field(fds, &mut pos, w).unwrap();
+            }
+        }
+        req
+    }
+
+    let modes: &[(&str, Option<&str>)] = &[
+        ("none", Some("stubs=none")),
+        ("kernel", Some("stubs=kernel")),
+        ("tonic", Some("stubs=tonic")),
+        ("default", None),
+    ];
+    let requests: Vec<(&str, Vec<u8>)> = modes
+        .iter()
+        .map(|(m, o)| (*m, build_req(&fds_bytes, *o)))
+        .collect();
+
+    std::thread::scope(|s| {
+        for (mode, req) in &requests {
+            for _ in 0..4 {
+                s.spawn(move || {
+                    for _ in 0..5 {
+                        let res = pbrs::codegen::generate_from_code_generator_request(req)
+                            .expect("parallel generate");
+                        let code = res
+                            .iter()
+                            .find(|(name, _)| name == "hello.rs")
+                            .map(|(_, src)| src)
+                            .expect("hello.rs in response");
+                        match *mode {
+                            "none" => {
+                                assert!(
+                                    !code.contains("GreeterClient"),
+                                    "none leaked stubs under parallelism"
+                                );
+                                assert!(!code.contains("ProtobufCodec"));
+                            }
+                            "kernel" | "default" => {
+                                assert!(
+                                    code.contains("::pbrs_grpc::Channel"),
+                                    "{mode} lost kernel stubs under parallelism"
+                                );
+                                assert!(
+                                    !code.contains("ProtobufCodec"),
+                                    "{mode} leaked tonic stubs under parallelism"
+                                );
+                            }
+                            "tonic" => {
+                                assert!(
+                                    code.contains("ProtobufCodec"),
+                                    "tonic lost tonic stubs under parallelism"
+                                );
+                                assert!(
+                                    !code.contains("::pbrs_grpc::Channel"),
+                                    "tonic leaked kernel stubs under parallelism"
+                                );
+                            }
+                            other => panic!("unknown mode: {other}"),
+                        }
+                    }
+                });
+            }
+        }
+    });
+}

@@ -8,10 +8,12 @@ Exercises mock / fake peer behaviors:
   - Nonzero exit from client (assertion failure or error status)
   - Successful case execution (valid reporting, log retention, exit code 0)
   - Process cleanup and leak prevention (tracked child PIDs terminated cleanly)
-  - Unique log directory generation (no overwriting between runs)
+  - Flaky first attempt (retry pass stays visible and fails the gate)
+  - Interruption (SIGINT retains logs/results/report and exits nonzero)
+  - Concurrent runs (distinct dynamic ports, no shared or deleted files)
 
 Run with:
-  python3 -m unittest tests/interop/test_runner.py
+  python3 -m unittest tests.interop.test_runner
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
+import signal
 import socket
 import stat
 import subprocess
@@ -338,6 +342,202 @@ with open('{pid_file}', 'w') as f:
             is_alive = False
 
         self.assertFalse(is_alive, f"Server process {server_pid} was not cleaned up on exit!")
+
+    def test_flaky_first_attempt_visible_and_fails_gate(self):
+        """A retry pass after a first-attempt failure must stay visible and fail the gate."""
+        state_file = self.work_dir / "flaky_state.txt"
+        flaky_client = self.create_executable_script(
+            "flaky_client.py",
+            f"""#!/usr/bin/env python3
+import sys
+from pathlib import Path
+state = Path("{state_file}")
+n = int(state.read_text()) if state.exists() else 0
+state.write_text(str(n + 1))
+if n == 0:
+    sys.stderr.write("FLAKY: transient failure on first attempt\\n")
+    sys.exit(1)
+print("FLAKY: recovered on attempt 2", flush=True)
+""",
+        )
+        mock_server = self.create_mock_server()
+
+        proc = self.run_interop_script(
+            env_overrides={
+                "GRPC_INTEROP_KERNEL_SERVER": str(mock_server),
+                "GRPC_INTEROP_KERNEL_CLIENT": str(flaky_client),
+                "GRPC_INTEROP_MAX_ATTEMPTS": "2",
+            },
+            timeout=60.0,
+        )
+
+        self.assertNotEqual(proc.returncode, 0, "A flaky pass must not satisfy the required gate")
+
+        # Both attempt logs must be retained, showing the first failure.
+        att1 = self.log_dir / "pbrs-grpc-kernel_client_to_kernel_server-empty_unary-attempt1.log"
+        att2 = self.log_dir / "pbrs-grpc-kernel_client_to_kernel_server-empty_unary-attempt2.log"
+        self.assertTrue(att1.exists(), "First-attempt log must be retained")
+        self.assertTrue(att2.exists(), "Second-attempt log must be retained")
+        self.assertIn("FLAKY: transient failure", att1.read_text())
+
+        # The recorded result must expose the retry, not hide it.
+        with (self.log_dir / "results.json").open() as f:
+            results_data = json.load(f)
+        case_res = next(r for r in results_data["results"] if r["case"] == "empty_unary")
+        self.assertEqual(case_res["attempt_count"], 2)
+        self.assertEqual(case_res["first_attempt_status"], "failed")
+        self.assertTrue(case_res["is_flaky"])
+
+        # The aggregated report must fail closed on the hidden first failure.
+        with (self.log_dir / "report.json").open() as f:
+            report_data = json.load(f)
+        self.assertEqual(report_data.get("overall_status"), "failed")
+        self.assertFalse(report_data.get("overall_passed"))
+        self.assertTrue(
+            any("Retry hid" in r or "flaky" in r.lower() for r in report_data.get("failure_reasons", [])),
+            f"Report must cite the retried failure: {report_data.get('failure_reasons')}",
+        )
+
+    def test_interruption_retains_report_and_cleans_up(self):
+        """SIGINT mid-run must retain logs/results/report, stop owned servers, exit nonzero."""
+        pid_file = self.work_dir / "server.pid"
+        extra_server_code = f"""
+import os
+with open('{pid_file}', 'w') as f:
+    f.write(str(os.getpid()))
+"""
+        mock_server = self.create_mock_server(extra_code=extra_server_code)
+        hanging_client = self.create_mock_client(exit_code=0, message="Never reached", delay=25.0)
+
+        cmd = [str(SCRIPT_PATH), "--self-only"]
+        env = os.environ.copy()
+        env.update(
+            {
+                "SKIP_BUILD": "1",
+                "GRPC_INTEROP_SKIP_BUILD": "1",
+                "GRPC_INTEROP_LOG_DIR": str(self.log_dir),
+                "GRPC_INTEROP_CASES": "empty_unary",
+                "GRPC_INTEROP_KERNEL_SERVER": str(mock_server),
+                "GRPC_INTEROP_KERNEL_CLIENT": str(hanging_client),
+                "GRPC_INTEROP_MAX_ATTEMPTS": "1",
+            }
+        )
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(REPO_ROOT),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            # Wait until the case attempt is in flight (log created, no record yet).
+            attempt_log = self.log_dir / "pbrs-grpc-kernel_client_to_kernel_server-empty_unary-attempt1.log"
+            deadline = time.time() + 15.0
+            while time.time() < deadline:
+                if attempt_log.exists():
+                    break
+                if proc.poll() is not None:
+                    out, err = proc.communicate()
+                    self.fail(f"Script exited early with code {proc.returncode}:\n{out}\n{err}")
+                time.sleep(0.05)
+            self.assertTrue(attempt_log.exists(), "Timed out waiting for in-flight case attempt")
+            time.sleep(0.3)
+
+            os.killpg(proc.pid, signal.SIGINT)
+            try:
+                proc.communicate(timeout=30.0)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.communicate(timeout=10.0)
+                self.fail("Interop script did not exit within 30s of SIGINT")
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+
+        self.assertNotEqual(proc.returncode, 0, "Interrupted run must exit nonzero")
+
+        # Every failure must have a retained report.
+        self.assertTrue((self.log_dir / "server-kernel.log").exists(), "server-kernel.log must be retained")
+        self.assertTrue(attempt_log.exists(), "In-flight attempt log must be retained")
+        results_path = self.log_dir / "results.json"
+        self.assertTrue(results_path.exists(), "results.json must exist after interruption")
+        report_path = self.log_dir / "report.json"
+        self.assertTrue(report_path.exists(), "report.json must be retained after interruption")
+        with report_path.open() as f:
+            report_data = json.load(f)
+        self.assertEqual(report_data.get("overall_status"), "failed")
+        self.assertFalse(report_data.get("overall_passed"))
+
+        # The owned server must not leak.
+        self.assertTrue(pid_file.exists(), "PID file must have been written by mock server")
+        server_pid = int(pid_file.read_text().strip())
+        with self.assertRaises(OSError, msg=f"Server process {server_pid} leaked after SIGINT"):
+            os.kill(server_pid, 0)
+
+    def test_concurrent_runs_do_not_share_ports_or_logs(self):
+        """Two concurrent runs must bind distinct ports and keep each other's files intact."""
+        mock_server = self.create_mock_server()
+        mock_client = self.create_mock_client(exit_code=0, message="CONCURRENT_OK")
+
+        def launch(tag: str) -> tuple[subprocess.Popen, Path]:
+            run_log_dir = self.work_dir / f"logs-{tag}"
+            cmd = [str(SCRIPT_PATH), "--self-only", "--log-dir", str(run_log_dir)]
+            env = os.environ.copy()
+            env.update(
+                {
+                    "SKIP_BUILD": "1",
+                    "GRPC_INTEROP_SKIP_BUILD": "1",
+                    "GRPC_INTEROP_CASES": "empty_unary",
+                    "GRPC_INTEROP_KERNEL_SERVER": str(mock_server),
+                    "GRPC_INTEROP_KERNEL_CLIENT": str(mock_client),
+                }
+            )
+            # NOTE: no GRPC_INTEROP_PORT override; each run must pick a free dynamic port.
+            handle = subprocess.Popen(
+                cmd,
+                cwd=str(REPO_ROOT),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            return handle, run_log_dir
+
+        proc_a, dir_a = launch("a")
+        proc_b, dir_b = launch("b")
+        out_a, err_a = proc_a.communicate(timeout=90.0)
+        out_b, err_b = proc_b.communicate(timeout=90.0)
+
+        self.assertEqual(proc_a.returncode, 0, f"Concurrent run A failed:\n{out_a}\n{err_a}")
+        self.assertEqual(proc_b.returncode, 0, f"Concurrent run B failed:\n{out_b}\n{err_b}")
+
+        # Neither run may delete or corrupt the other's evidence.
+        ports = []
+        for run_dir in (dir_a, dir_b):
+            results_path = run_dir / "results.json"
+            report_path = run_dir / "report.json"
+            self.assertTrue(results_path.exists(), f"{run_dir}: results.json must exist")
+            self.assertTrue(report_path.exists(), f"{run_dir}: report.json must exist")
+            with report_path.open() as f:
+                report_data = json.load(f)
+            self.assertEqual(report_data.get("overall_status"), "passed")
+            with results_path.open() as f:
+                results_data = json.load(f)
+            self.assertTrue(
+                any(r["case"] == "empty_unary" and r["status"] == "passed" for r in results_data["results"]),
+                f"{run_dir}: own passing record must be intact",
+            )
+            match = re.search(
+                r"listening on 127\.0\.0\.1:(\d+)",
+                (run_dir / "server-kernel.log").read_text(),
+            )
+            self.assertIsNotNone(match, f"{run_dir}: server port must be logged")
+            ports.append(match.group(1))
+
+        self.assertNotEqual(ports[0], ports[1], "Concurrent runs must bind distinct dynamic ports")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,112 @@
+{
+  "_comment": "Machine-readable oracle for docs/codegen-layout.md. CG-04 owns the same_stem, reexport and single_file_compat sets; CG-05 owns external_mapped and external_default. Every value below was verified against the actual generator (protoc 36.1 + protoc-gen-pbrs at base 0d65607c); any deviation found by CG-04/05 is an implementation defect, not a design question.",
+  "contract": "docs/codegen-layout.md",
+  "include_root": "proto",
+  "same_stem": {
+    "targets": ["pkg_a/common.proto", "pkg_b/common.proto", "pkg_b/service.proto"],
+    "expected_files": [
+      "pkg_a/common.rs",
+      "pkg_b/common.rs",
+      "pkg_b/service.rs",
+      "service.rs",
+      "mod.rs"
+    ],
+    "root_alias_rule": "service.rs is emitted because stem 'service' is unique across targets; it must be byte-identical to pkg_b/service.rs.",
+    "must_not_exist": ["common.rs"],
+    "mod_rs_modules": {
+      "pkg": {
+        "a": ["pkg_a/common.rs"],
+        "b": ["pkg_b/common.rs", "pkg_b/service.rs"]
+      }
+    },
+    "inclusion": "mod.rs is included at the crate root. Nesting it under another module fails (crate::pkg::... paths do not resolve).",
+    "type_paths": {
+      "pkg.a.CommonMsg": "crate::pkg::a::CommonMsg",
+      "pkg.b.CommonMsg": "crate::pkg::b::CommonMsg",
+      "pkg.a.CommonMsg.NestedA": "crate::pkg::a::common_msg::NestedA",
+      "pkg.b.CommonMsg.NestedB": "crate::pkg::b::common_msg::NestedB",
+      "pkg.a.CommonEnum": "crate::pkg::a::CommonEnum",
+      "pkg.b.CommonEnum": "crate::pkg::b::CommonEnum"
+    },
+    "service_request_fields": {
+      "a_msg": "pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>",
+      "b_msg": "pbrs::rt::LazyMsg<crate::pkg::b::CommonMsg>",
+      "nested_a": "pbrs::rt::LazyMsg<crate::pkg::a::common_msg::NestedA>",
+      "nested_b": "pbrs::rt::LazyMsg<crate::pkg::b::common_msg::NestedB>"
+    },
+    "service_request_enum_getters": {
+      "a_status": "crate::pkg::a::CommonEnum",
+      "b_status": "crate::pkg::b::CommonEnum"
+    },
+    "forbidden_idents": ["ACommonMsg", "BCommonMsg"],
+    "local_definition_counts_in_service_rs": {
+      "pub struct CommonMsg": 0
+    }
+  },
+  "reexport": {
+    "targets": ["reexport/grandparent.proto", "reexport/parent.proto", "reexport/child.proto"],
+    "expected_files": [
+      "reexport/grandparent.rs",
+      "reexport/parent.rs",
+      "reexport/child.rs",
+      "grandparent.rs",
+      "parent.rs",
+      "child.rs",
+      "mod.rs"
+    ],
+    "reexport_lines": {
+      "reexport/parent.rs": ["pub use crate::reexport::grandparent::*;"],
+      "reexport/child.rs": ["pub use crate::reexport::parent::*;"]
+    },
+    "single_definition": {
+      "pub struct GrandparentData": {
+        "reexport/grandparent.rs": 1,
+        "reexport/parent.rs": 0,
+        "reexport/child.rs": 0
+      }
+    },
+    "resolvable_from_child": [
+      "crate::reexport::child::ChildData",
+      "crate::reexport::child::ParentData",
+      "crate::reexport::child::GrandparentData"
+    ]
+  },
+  "external_mapped": {
+    "targets": ["external/client.proto"],
+    "config": {
+      "extern_path": [
+        [".google.protobuf", "::pbrs::wkt"],
+        [".pkg.a", "::shared_types::pkg::a"]
+      ]
+    },
+    "external_payload_fields": {
+      "event_time": "pbrs::rt::LazyMsg<::pbrs::wkt::Timestamp>",
+      "payload": "pbrs::rt::LazyMsg<::shared_types::pkg::a::CommonMsg>"
+    },
+    "nested_extern_example": {
+      ".pkg.a.CommonMsg.NestedA": "::shared_types::pkg::a::common_msg::NestedA"
+    },
+    "forbidden_local_definitions_in_client_rs": [
+      "pub struct Timestamp",
+      "pub struct CommonMsg"
+    ]
+  },
+  "external_default": {
+    "_comment": "WKT ownership without extern_path: private per-file WKT copies; non-target non-WKT imports referenced via crate:: paths.",
+    "targets": ["external/client.proto"],
+    "config": {},
+    "external_payload_fields": {
+      "event_time": "pbrs::rt::LazyMsg<Timestamp>",
+      "payload": "pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>"
+    },
+    "local_definition_counts_in_client_rs": {
+      "pub struct Timestamp": 1,
+      "pub struct CommonMsg": 0
+    }
+  },
+  "single_file_compat": {
+    "_comment": "Backwards-compatibility invariant for self-contained single inputs (e.g. proto/person.proto -> person.rs).",
+    "rule": "A self-contained single target emits a root <stem>.rs that existing include!(concat!(env!(\"OUT_DIR\"), \"/<stem>.rs\")) consumers include unchanged, at any module level.",
+    "root_alias_rule": "A root <stem>.rs copy is emitted if and only if the stem is unique across the compilation target set."
+  }
+}

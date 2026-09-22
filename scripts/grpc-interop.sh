@@ -194,6 +194,11 @@ fi
 
 TRACKED_PIDS=()
 SCRATCH_PATHS=()
+INTERRUPTED=0
+CURRENT_CASE=""
+CURRENT_PEER=""
+CURRENT_DIRECTION=""
+CURRENT_LOG=""
 
 cleanup() {
   local exit_status=$?
@@ -215,11 +220,47 @@ cleanup() {
       rm -rf "$p"
     fi
   done
+  if [[ "$INTERRUPTED" -eq 1 && -n "${RESULTS_JSON:-}" ]]; then
+    # A signal during a concurrent record write may leave partial JSON;
+    # reset it so aggregation below still emits a failed report.
+    if [[ ! -f "$RESULTS_JSON" ]] || ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$RESULTS_JSON" 2>/dev/null; then
+      printf '{"results": []}\n' > "$RESULTS_JSON" 2>/dev/null || true
+    fi
+  fi
+  if [[ "$INTERRUPTED" -eq 1 && ! -f "${REPORT_JSON:-}" && -n "${CURRENT_CASE:-}" && -n "${RESULTS_JSON:-}" ]]; then
+    # A signal arrived while a case attempt was in flight: record the
+    # interruption against that case so the retained report fails closed
+    # instead of staying silent or passing on partial results.
+    local int_args=(
+      python3 "$INTEROP_REPORT" record
+      --output "$RESULTS_JSON"
+      --case "$CURRENT_CASE"
+      --status failed
+      --duration-ms 0.0
+      --peer "${CURRENT_PEER:-pbrs-grpc}"
+      --direction "${CURRENT_DIRECTION:-kernel_client_to_kernel_server}"
+      --transport "$TRANSPORT"
+      --exit-code 130
+      --attempt-count 1
+      --notes "run interrupted by signal during case execution"
+    )
+    if [[ -n "${CURRENT_LOG:-}" ]]; then
+      int_args+=(--stdout-log "$CURRENT_LOG" --stderr-log "$CURRENT_LOG")
+    fi
+    "${int_args[@]}" >/dev/null 2>&1 || true
+  fi
   if [[ -f "${RESULTS_JSON:-}" && ! -f "${REPORT_JSON:-}" ]]; then
     python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" >/dev/null 2>&1 || true
   fi
 }
-trap cleanup EXIT INT TERM
+
+on_signal() {
+  INTERRUPTED=1
+  cleanup
+  exit 130
+}
+trap cleanup EXIT
+trap on_signal INT TERM
 
 start_server() {
   local name="$1"
@@ -324,6 +365,16 @@ with open(log_path, "wb") as log_file:
             proc.wait()
             exit_code = 124
             log_file.write(f"\nCommand timed out after {deadline_sec}s\n".encode("utf-8"))
+        except KeyboardInterrupt:
+            # The runner was interrupted: stop the owned client process group
+            # instead of orphaning it, then report signal termination.
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.wait()
+            log_file.write(b"\nCommand interrupted by signal\n")
+            sys.exit(130)
     except Exception as e:
         log_file.write(f"\nExecution error: {e}\n".encode("utf-8"))
         exit_code = 1
@@ -345,6 +396,10 @@ run_case() {
   shift 7
   local extra_args=("$@")
 
+  CURRENT_CASE="$case"
+  CURRENT_PEER="$peer"
+  CURRENT_DIRECTION="$direction"
+
   local max_attempts="${MAX_ATTEMPTS:-2}"
   local attempt=1
   local first_attempt_status=""
@@ -362,6 +417,7 @@ run_case() {
   while (( attempt <= max_attempts )); do
     local log_file="$LOG_DIR/${peer}-${direction}-${case}-attempt${attempt}.log"
     last_log="$log_file"
+    CURRENT_LOG="$log_file"
 
     local result
     result=$(run_attempt "$CASE_TIMEOUT_SEC" "$log_file" "${client_cmd[@]}")
@@ -430,6 +486,11 @@ run_case() {
   fi
 
   "${record_args[@]}" >/dev/null
+
+  CURRENT_CASE=""
+  CURRENT_PEER=""
+  CURRENT_DIRECTION=""
+  CURRENT_LOG=""
 
   if [[ "$last_status" == "passed" ]]; then
     return 0

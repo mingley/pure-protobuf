@@ -1,7 +1,7 @@
 # gRPC Retry Safety & Commitment Boundaries Contract
 
 **Task:** RT-01 ("Specify and reproduce retry commitment boundaries")  
-**Pinned Standards:** gRFC A6 (Client-side retry support in gRPC), RFC 7540 / RFC 9113 (HTTP/2)  
+**Pinned Standards:** gRFC A6 (Client-side retry support in gRPC) at `grpc/proposal@6342be729b96478a2897ceb208a8cddcd832a17b` (per [plan pins](plan/README.md)), RFC 7540 / RFC 9113 (HTTP/2)  
 **Work Package:** RT Lane (Reliability & Retry Correctness), Wave 0  
 **Test Harness:** `pbrs-grpc/tests/retry_safety.rs`  
 
@@ -67,10 +67,12 @@ Each RPC attempt traverses a sequence of discrete lifecycle states. The boundari
 
 ---
 
-## 3. Current Baseline Analysis (`pbrs-grpc/src/client.rs`)
+## 3. Pre-Fix Baseline Analysis (`pbrs-grpc/src/client.rs`)
+
+This section records the exact pre-RT-02 baseline outcome (§6 holds the post-fix assertions).
 
 ### Baseline Implementation
-In `pbrs-grpc/src/client.rs`, `unary` (lines 1515–1550) and `server_streaming` (lines 1620–1655) execute the following loop:
+Before RT-02, `unary` and `server_streaming` in `pbrs-grpc/src/client.rs` executed the following loop:
 
 ```rust
 let mut retried = false;
@@ -131,7 +133,7 @@ In contrast, `client_streaming` and `bidi` calls use `open_retrying()`. `open_re
 
 ## 4. Official gRFC A6 Transparent Retry Rules
 
-Under [gRFC A6](https://github.com/grpc/proposal/blob/master/A6-client-retries.md), transparent retries are governed by strict eligibility rules.
+Under [gRFC A6](https://github.com/grpc/proposal/blob/6342be729b96478a2897ceb208a8cddcd832a17b/A6-client-retries.md) (pinned `grpc/proposal@6342be7`), transparent retries are governed by strict eligibility rules.
 
 ### Permitted Transparent Retries
 A transparent retry of an attempt is permitted **if and only if** the client has positive proof that the server application logic never started processing the request:
@@ -217,4 +219,4 @@ The test suite in `pbrs-grpc/tests/retry_safety.rs` establishes the verification
 | **Scenario C (Unary)** (`scenario_c_unary_response_headers_committed_no_retry_on_stream_error`) | Server sends response headers (response committed), then `RST_STREAM` | Client returns `Err(Status::unavailable)`; counter remains 1 | Confirms no retry after response commitment on unary |
 | **Scenario C (Streaming)** (`scenario_c_server_streaming_response_headers_committed_no_retry`) | Server sends response headers + 1 item, then `RST_STREAM` | Client returns `Err(Status::cancelled)`; counter remains 1 | Confirms no retry after response commitment on streaming |
 
-All 6 test cases in `pbrs-grpc/tests/retry_safety.rs` pass deterministically and provide the regression harness for RT-02.
+All 9 test cases in `pbrs-grpc/tests/retry_safety.rs` (scenarios A–C for RT-02, scenario D for RT-03) pass deterministically; scenarios A–C are the RT-02 regression harness.

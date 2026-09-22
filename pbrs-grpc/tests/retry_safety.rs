@@ -1,6 +1,7 @@
 //! Retry commitment boundaries and execution counting tests.
 //!
-//! Pinned reference: gRFC A6 (Client-side retry support in gRPC).
+//! Pinned reference: gRFC A6 (Client-side retry support in gRPC) at
+//! grpc/proposal@6342be729b96478a2897ceb208a8cddcd832a17b (see docs/plan/README.md).
 //!
 //! Retry safety verification for RT-02:
 //! - Scenario A: failure before headers (connection refused / failed connect / REFUSED_STREAM)

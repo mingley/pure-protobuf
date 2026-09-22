@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "contract": "docs/benchmark-contract.md",
   "description": "Machine-readable scenario definitions for gRPC leadership benchmarking",
   "defaults": {
@@ -77,6 +77,23 @@
       }
     ]
   },
+  "environment": {
+    "cores": [1, 2, 4, 8],
+    "core_policy": "pinned cores within host limits; single-core numbers never substitute for multicore scaling (contract 3.6)",
+    "network_profiles": {
+      "loopback_smoke_only": {"rtt_ms": 0, "authoritative": false},
+      "real_network": {"rtt_ms": null, "authoritative": true},
+      "injected_rtt_1ms": {"rtt_ms": 1, "authoritative": true},
+      "injected_rtt_10ms": {"rtt_ms": 10, "authoritative": true}
+    },
+    "overload_policy": "step offered load past saturation; retain all failures; report goodput, error rates and recovery (contract 3.7)"
+  },
+  "stages": [
+    {"id": "stage_0_smoke", "name": "Smoke", "select": {"hint": "one unary cell, loopback"}, "gates_next": true},
+    {"id": "stage_1_primary", "name": "Primary gates", "select": {"category": "primary"}, "gates_next": true},
+    {"id": "stage_2_holdout", "name": "Holdout validation", "select": {"category": "holdout"}, "gates_next": true},
+    {"id": "stage_3_qualification", "name": "Qualification", "select": {"category": "primary", "cores": [1, 2, 4, 8], "network": ["real_network", "injected_rtt_1ms", "injected_rtt_10ms"]}, "gates_next": false}
+  ],
   "scenarios": [
     {
       "id": "unary_empty_plaintext",
@@ -1463,6 +1480,200 @@
         "tls_cipher": "none",
         "connections": 4,
         "concurrency": 64,
+        "request_size_bytes": 1024,
+        "response_size_bytes": 1024,
+        "compression": "none"
+      },
+      "peer_combinations": [
+        {
+          "client": "native",
+          "server": "native",
+          "role": "native_pair",
+          "purpose": "full_stack_native"
+        },
+        {
+          "client": "native",
+          "server": "tonic",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "native",
+          "server": "go",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "native",
+          "server": "cpp",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "tonic",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "go",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "cpp",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "tonic",
+          "server": "tonic",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        },
+        {
+          "client": "go",
+          "server": "go",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        },
+        {
+          "client": "cpp",
+          "server": "cpp",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        }
+      ]
+    },
+    {
+      "id": "unary_1kib_overload",
+      "name": "Unary 1 KiB Overload and Recovery",
+      "description": "Offered load stepped past saturation to validate error accounting: all failures, timeouts and rejections retained in distributions; reports goodput, error rates and recovery time. Validation axis, not a leadership gate (contract 3.7).",
+      "category": "holdout",
+      "rpc_type": "unary",
+      "request_size": 1024,
+      "response_size": 1024,
+      "connections": 4,
+      "concurrency": 64,
+      "offered_qps": 200000,
+      "duration_seconds": 60,
+      "warmup_seconds": 15,
+      "tls": false,
+      "compression": "none",
+      "accounting": {
+        "retain_failures": true,
+        "report": ["goodput_qps", "error_rate", "timeout_rate", "p99_us_including_failures", "recovery_seconds"]
+      },
+      "target_thresholds": {
+        "min_cpu_efficiency_gain_pct": 0.0,
+        "min_throughput_gain_pct": 0.0,
+        "max_p99_regression_pct": 100.0,
+        "max_error_misclassification_pct": 0.0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 64,
+        "request_size_bytes": 1024,
+        "response_size_bytes": 1024,
+        "compression": "none"
+      },
+      "peer_combinations": [
+        {
+          "client": "native",
+          "server": "native",
+          "role": "native_pair",
+          "purpose": "full_stack_native"
+        },
+        {
+          "client": "native",
+          "server": "tonic",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "native",
+          "server": "go",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "native",
+          "server": "cpp",
+          "role": "client_vs_reference",
+          "purpose": "server_efficiency"
+        },
+        {
+          "client": "tonic",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "go",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "cpp",
+          "server": "native",
+          "role": "reference_vs_native",
+          "purpose": "client_efficiency"
+        },
+        {
+          "client": "tonic",
+          "server": "tonic",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        },
+        {
+          "client": "go",
+          "server": "go",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        },
+        {
+          "client": "cpp",
+          "server": "cpp",
+          "role": "reference_control",
+          "purpose": "reference_baseline"
+        }
+      ]
+    },
+    {
+      "id": "unary_1kib_rtt_10ms",
+      "name": "Unary 1 KiB with 10 ms Injected RTT",
+      "description": "Representative unary RPC over a real network with 10 ms injected round-trip delay, exercising window refill, pipelining and deadline paths hidden by loopback (contract 3.6).",
+      "category": "holdout",
+      "rpc_type": "unary",
+      "request_size": 1024,
+      "response_size": 1024,
+      "connections": 1,
+      "concurrency": 8,
+      "offered_qps": 5000,
+      "duration_seconds": 60,
+      "warmup_seconds": 15,
+      "tls": false,
+      "compression": "none",
+      "network": {
+        "profile": "injected_rtt_10ms",
+        "rtt_ms": 10
+      },
+      "target_thresholds": {
+        "min_cpu_efficiency_gain_pct": 10.0,
+        "min_throughput_gain_pct": 10.0,
+        "max_p99_regression_pct": 5.0,
+        "max_p99_latency_us": 12000.0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 1,
+        "concurrency": 8,
         "request_size_bytes": 1024,
         "response_size_bytes": 1024,
         "compression": "none"

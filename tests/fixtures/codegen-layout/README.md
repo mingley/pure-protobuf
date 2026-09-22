@@ -7,6 +7,10 @@ These fixtures serve as the authoritative test oracle for:
 - **CG-04**: Canonical proto input identity, collision-safe output layout, and public import chaining.
 - **CG-05**: External type and runtime crate mappings (`extern_path`, crate renaming).
 
+This README is the prose oracle; [`expected.json`](expected.json) is the
+machine-readable oracle (expected files, module paths, field types, and
+negative assertions per fixture set).
+
 ---
 
 ## 1. Fixture Inventory
@@ -45,6 +49,12 @@ $OUT_DIR/
 **Anti-Collision Invariant**:
 - `$OUT_DIR/common.rs` MUST NOT be emitted as a single file overwriting one of the packages.
 - If `$OUT_DIR/common.rs` is requested or expected by a consumer, the compiler must fail with an explicit diagnostic naming both `pkg_a/common.proto` and `pkg_b/common.proto`.
+
+**Inclusion Rule**: consumers include `mod.rs` at the crate root
+(`include!(concat!(env!("OUT_DIR"), "/mod.rs"));`). Cross-file references are
+`crate::`-anchored, so nesting the include under another module does not
+compile. Single-file `stem.rs` outputs with no cross-target references remain
+includable anywhere.
 
 ### 2.2 Package-Centric Layout (Alternative / Flat Package Mode)
 
@@ -108,7 +118,9 @@ message ServiceRequest {
 
 The generated Rust struct in `pkg::b` must reference:
 - `a_msg`: `pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>`
-- `b_msg`: `pbrs::rt::LazyMsg<crate::pkg::b::CommonMsg>` (or `pbrs::rt::LazyMsg<CommonMsg>` within module `b`)
+- `b_msg`: `pbrs::rt::LazyMsg<crate::pkg::b::CommonMsg>` (fully qualified even
+  for same-package types from another target file; bare idents are only for
+  types emitted into the same generated file)
 - `a_status`: getter returns `crate::pkg::a::CommonEnum`
 - `b_status`: getter returns `crate::pkg::b::CommonEnum`
 - `nested_a`: `pbrs::rt::LazyMsg<crate::pkg::a::common_msg::NestedA>`
@@ -197,6 +209,16 @@ config
 - `client.rs` does not contain `pub struct Timestamp` or `pub struct CommonMsg`.
 - Compilation succeeds when linking against the external crate.
 
+### 5.3 Nested Extern Types and Default Ownership
+
+- Nested suffixes below a matched prefix become snake_case module segments:
+  `.pkg.a.CommonMsg.NestedA` with `.extern_path(".pkg.a", "::shared_types::pkg::a")`
+  resolves to `::shared_types::pkg::a::common_msg::NestedA`.
+- Without `extern_path`, each generated file owns private copies of referenced
+  WKTs (`Timestamp` emitted locally, referenced as a bare ident), while
+  referenced non-WKT types from files outside the target set are referenced
+  via `crate::` package paths and require crate-root `mod.rs` inclusion.
+
 ---
 
 ## 6. Implementation Test Checklist for CG-04 and CG-05
@@ -207,7 +229,9 @@ config
    - Compile `pkg_a/common.proto` and `pkg_b/common.proto` together.
    - Assert `OUT_DIR/pkg_a/common.rs` and `OUT_DIR/pkg_b/common.rs` both exist.
    - Assert neither file overwrote the other.
-   - Assert a consumer crate importing both compiles with `cargo check`.
+   - Assert a consumer crate including `mod.rs` at the crate root compiles
+     with `cargo check` and both `pkg::a::CommonMsg` / `pkg::b::CommonMsg`
+     resolve to distinct types.
 2. **Ambiguous Stem Request Diagnostic**:
    - Verify that requesting an ambiguous single-file output name `common.rs` fails with an explicit error detailing conflicting files.
 3. **Single-File Backwards Compatibility Test**:

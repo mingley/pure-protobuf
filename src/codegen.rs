@@ -1215,6 +1215,36 @@ fn parse_missing_import(stderr: &str) -> Option<(String, PathBuf)> {
 }
 
 /// Options for [`compile_protos`].
+///
+/// # Configuration precedence
+///
+/// Every option resolves in the same order, so equivalent [`Config`] and
+/// `--pbrs_opt` plugin-parameter inputs select identical options:
+///
+/// 1. Explicit selection: a [`Config`] builder call or a `--pbrs_opt`
+///    `key=value` entry. This always wins and is never silently overridden
+///    by ambient environment.
+/// 2. `PURE_PROTOBUF_*` environment variable, kept as a legacy-compatibility
+///    fallback for existing build scripts (`PURE_PROTOBUF_STUBS`,
+///    `PURE_PROTOBUF_EMIT_DEPS`, `PURE_PROTOBUF_NO_WKT`,
+///    `PURE_PROTOBUF_SHARED_POOL`, `PURE_PROTOBUF_NO_REFLECT`,
+///    `PURE_PROTOBUF_RUNTIME_CRATE`, `PURE_PROTOBUF_GRPC_CRATE`,
+///    `PURE_PROTOBUF_TONIC_CRATE`, `PURE_PROTOBUF_INCLUDE_SOURCE_INFO`).
+///    New code should prefer explicit options.
+/// 3. Built-in default (kernel stubs; all other switches off).
+///
+/// Unknown plugin parameter keys and invalid values are rejected with
+/// [`CodegenError::UnknownParameter`] / [`CodegenError::InvalidParameter`]
+/// instead of being ignored, and each generation call resolves its own
+/// configuration, so sequential or parallel mixed-config calls cannot leak
+/// settings into each other.
+///
+/// Note: `protoc` always attaches source-code info to the descriptors it
+/// sends to plugins, while [`Config::compile_protos`] requests it only with
+/// [`Config::include_source_info`]; the embedded `FILE_DESCRIPTOR_SET`
+/// reflection bytes can therefore differ between entry points even for
+/// identical options. All message, enum, and stub output is otherwise
+/// byte-identical for equivalent inputs.
 #[derive(Clone, Debug, Default)]
 pub struct Config {
     protoc_path: Option<PathBuf>,

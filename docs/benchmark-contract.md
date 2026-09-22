@@ -1,7 +1,8 @@
 # gRPC and Protobuf Benchmark Contract
 
-**Version:** 1.0.0  
-**Status:** Frozen / Active Contract (Task BM-01)  
+**Version:** 1.1.0  
+**Status:** Active Contract (Task BM-01)  
+**Revision note:** 1.1.0 closes the BM-01 acceptance gaps: network/RTT and core-scaling dimensions (§3.6), overload rule (§3.7), identical handler work (§5.4), and staged execution, claim scope and anti-gaming rules (§10).
 **Applies to:** `pure-protobuf` (`pbrs`), `pbrs-grpc`, `rpc-bench`, and comparison suites
 
 ---
@@ -146,6 +147,17 @@ To prevent overfitting optimizations to a narrow set of synthetic micro-benchmar
 +------------------------------------------------------------------------------------+
 ```
 
+### 3.6 Network, RTT and Core Scaling
+
+1. **Loopback is smoke-only**: single-host loopback runs (shared or separate processes) validate harness wiring only. Authoritative cells run client and server on separate hosts over a real network (§8).
+2. **Real RTT holdouts**: at least one holdout cell per RPC shape class runs with injected round-trip delay (1 ms and 10 ms profiles via `tc netem` or equivalent), exercising window refill, pipelining and deadline paths that loopback hides.
+3. **Core scaling**: leadership hosts use pinned cores; the qualification stage repeats representative primary cells at 1/2/4/8 cores within host limits. Single-core numbers never stand in for multicore scaling.
+
+### 3.7 Overload and Saturation
+
+1. Offered load is stepped past the saturation knee until errors or timeouts appear; the overload cell reports goodput, error/timeout rates, p99 including retained failures, and time to recover after load drops.
+2. Overload is a validation axis, not a leadership gate: no throughput-gain threshold applies, but dropped or misclassified failures invalidate the run.
+
 ---
 
 ## 4. Measurement Methodology: Offered Load & Coordinated Omission
@@ -193,6 +205,11 @@ Measured on the dedicated server host/process:
 * **Total End-to-End CPU Cost**:
   $$\text{CPU}_{\text{total}} = \frac{\text{Client CPU Sec} + \text{Server CPU Sec}}{\text{Successful RPCs}}$$
 * **Goodput**: Delivered application payload megabytes per second (excluding framing/header bytes).
+
+### 5.4 Identical Handler and Validation Work
+
+1. All peers serve identical application semantics: the same `grpc.testing.TestService` / `BenchmarkService` procedures, the same request validation, and the same response construction. Handler CPU is held constant across peers or measured and reported separately; a faster transport must not win by doing less application work.
+2. The codec tier (§2.2) pins the identical `pbrs` codec on both ends; the end-to-end tier (§2.3) uses each peer's idiomatic codec but identical message contents and validation rules.
 
 ---
 
@@ -285,3 +302,28 @@ All authoritative benchmark runs must record and report their execution profile:
                  v
 [Leadership Audit: >=20% Efficiency Gain, <=5% p99 Regression]
 ```
+
+---
+
+## 10. Staged Execution, Claim Scope and Anti-Gaming Rules
+
+### 10.1 Affordable staged matrix
+
+Full Cartesian coverage (peers × shapes × payloads × TLS × compression × cores × RTT) is impractical. Runs proceed in stages; each stage gates the next:
+
+| Stage | Name | Cells | Budget |
+|---|---|---|---|
+| 0 | Smoke | Loopback harness check, one unary cell | Minutes, any host |
+| 1 | Primary gates | All `primary` scenarios in `leadership.json`, native pair plus strongest reference per axis | Dedicated hosts, §6 statistics |
+| 2 | Holdout validation | All `holdout` scenarios; detects overfitting, no leadership claim required | Same hosts; abbreviated peers allowed on cost grounds when recorded |
+| 3 | Qualification | Representative primary cells × 1/2/4/8 cores × real-network RTT profiles | Pinned hosts, full §6 statistics |
+
+Freezing representative cells and pairwise stress cases first is mandatory; expanding a stage requires recording the added cells before rerunning.
+
+### 10.2 Claim scope
+
+Every leadership claim names the exact scenario cells, peer implementations and versions, host hardware, resource budgets and statistical intervals. A codec win cannot satisfy a client or server gate, and a primary-cell win cannot be generalized beyond the measured matrix. Universal "fastest in the world" claims are forbidden; the publishable outcome is leadership on the named matrix, including losses.
+
+### 10.3 No benchmark-specific escape hatches
+
+Implementations must not detect benchmark traffic (by payload pattern, peer identity, port, timing, or scenario ID) to select fast paths unavailable to general traffic. Every optimization exercised by a benchmark cell must apply to equivalent production traffic; benchmark-only tuning disqualifies the run and the claim.
