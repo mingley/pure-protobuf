@@ -69,7 +69,9 @@ sets for their own build scripts. Their currently published `0.1.0-alpha.1`
 archives still require `protoc` until new versions are released. Creating or updating
 an application's descriptor set still requires a compiler in an earlier stage.
 Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
-`protoc`. See the [support matrix](../../README.md#support-matrix).
+`protoc`. No full-profile Rust-only `.proto` frontend is approved; see the
+[candidate review](../rust-frontend.md) and the
+[support matrix](../../README.md#support-matrix).
 
 ---
 
