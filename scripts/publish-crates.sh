@@ -89,6 +89,7 @@ if [[ "$DRY_RUN" == "1" ]]; then
   fi
 
   staging="$(mktemp -d "${TMPDIR:-/tmp}/pbrs-release-stage.XXXXXX")"
+  staging="$(cd "$staging" && pwd -P)"
   staging_added=0
   cleanup_staging() {
     if [[ "$staging_added" == "1" ]]; then
