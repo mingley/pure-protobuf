@@ -119,7 +119,7 @@ cd "$ROOT/rust_out_shared"
 
 # Run cargo test and capture output
 set +e
-cargo test "${CARGO_FLAGS[@]}" "${USER_ARGS[@]}" 2>&1 | tee "$TMP_OUT"
+CARGO_TERM_COLOR=never cargo test "${CARGO_FLAGS[@]}" "${USER_ARGS[@]}" 2>&1 | tee "$TMP_OUT"
 TEST_STATUS="${PIPESTATUS[0]}"
 set -e
 
@@ -128,36 +128,8 @@ echo "============================================================"
 echo " Test Results by Crate"
 echo "============================================================"
 
-# Parse test results
-PARSER_RESULT="$(python3 -c '
-import re, sys
-
-content = open(sys.argv[1]).read()
-
-crates = {}
-cur_crate = None
-for line in content.splitlines():
-    m_run = re.search(r"Running tests/([a-zA-Z0-9_]+)\.rs", line)
-    if m_run:
-        cur_crate = m_run.group(1)
-    m_res = re.search(r"test result: (ok|FAILED)\. (\d+) passed; (\d+) failed", line)
-    if m_res and cur_crate:
-        crates[cur_crate] = (m_res.group(1), int(m_res.group(2)), int(m_res.group(3)))
-        cur_crate = None
-
-total_passed = sum(c[1] for c in crates.values())
-total_failed = sum(c[2] for c in crates.values())
-crates_count = len(crates)
-
-for name in sorted(crates.keys()):
-    status, passed, failed = crates[name]
-    mark = "✓" if status == "ok" and failed == 0 else "✗"
-    print(f"  {mark} {name:<35} {status:>6} ({passed} passed, {failed} failed)")
-
-print(f"__CRATES_COUNT__={crates_count}")
-print(f"__TOTAL_PASSED__={total_passed}")
-print(f"__TOTAL_FAILED__={total_failed}")
-' "$TMP_OUT")"
+# Ignore terminal color when parsing retained Cargo output.
+PARSER_RESULT="$(python3 "$ROOT/scripts/shared_consumer_report.py" "$TMP_OUT")"
 
 echo "$PARSER_RESULT" | grep -v '^__.*__=' || true
 

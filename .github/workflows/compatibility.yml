@@ -45,6 +45,8 @@ jobs:
         with:
           path: third_party/protobuf
           key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Unit tests for shared consumer reporting
+        run: python3 -m unittest tests.test_shared_consumer_report -q
       - name: Cache pinned protoc with built-in Rust output
         uses: actions/cache@v4
         with:
