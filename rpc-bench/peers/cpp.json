@@ -57,6 +57,9 @@
       "--use_tls=false",
       "--test_case=rpc_soak",
       "--soak_iterations={iterations}",
+      "--soak_max_failures=0",
+      "--soak_overall_timeout_seconds={overall_timeout_seconds}",
+      "--soak_per_iteration_max_acceptable_latency_ms=5000",
       "--soak_min_time_ms_between_rpcs=0",
       "--soak_request_size={request_size}",
       "--soak_response_size={response_size}"

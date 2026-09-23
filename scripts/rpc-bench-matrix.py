@@ -25,6 +25,11 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+try:
+    import resource
+except ImportError:
+    resource = None
+
 # Track all active subprocesses to guarantee cleanup on exit or signal
 _ACTIVE_PROCESSES: Set[subprocess.Popen] = set()
 
@@ -356,7 +361,8 @@ class ProcessResourceMonitor:
         else:
             saturation_message = (
                 f"Client load generator maintained {spare_capacity_pct:.1f}% spare CPU capacity "
-                f"(avg CPU: {avg_cpu_pct:.1f}% across {client_threads} threads). True server ceiling verified."
+                f"(avg CPU: {avg_cpu_pct:.1f}% across {client_threads} threads). "
+                "Headroom alone does not establish a server ceiling."
             )
 
         # Explicit platform support: when no snapshot was ever captured for an
@@ -562,19 +568,23 @@ class PeerRegistry:
         self.repo_root = repo_root
         self.peer_dir = peer_dir or (repo_root / "rpc-bench" / "peers")
         self.peers: Dict[str, Dict[str, Any]] = {}
+        self.tonic_build_error = ""
         self._load_peers()
 
     def _load_peers(self) -> None:
         if not self.peer_dir.is_dir():
-            return
-        for f in self.peer_dir.glob("*.json"):
+            raise FileNotFoundError(f"Benchmark peer directory missing: {self.peer_dir}")
+        for f in sorted(self.peer_dir.glob("*.json")):
             try:
                 with open(f, "r", encoding="utf-8") as fp:
                     data = json.load(fp)
-                if isinstance(data, dict) and "id" in data:
-                    self.peers[data["id"]] = data
-            except Exception:
-                pass
+            except (OSError, json.JSONDecodeError) as e:
+                raise ValueError(f"Invalid benchmark peer manifest {f}: {e}") from e
+            if not isinstance(data, dict) or not isinstance(data.get("id"), str):
+                raise ValueError(f"Benchmark peer manifest {f} requires a string id")
+            if data["id"] in self.peers:
+                raise ValueError(f"Duplicate benchmark peer id {data['id']} in {f}")
+            self.peers[data["id"]] = data
 
     def get_peer(self, name: str) -> Optional[Dict[str, Any]]:
         return self.peers.get(name)
@@ -606,21 +616,26 @@ class PeerRegistry:
                     [
                         "cargo",
                         "build",
+                        "--locked",
                         "--release",
                         "--manifest-path",
                         str(manifest),
                         "--target-dir",
                         str(self.repo_root / "target"),
                     ],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    capture_output=True,
+                    text=True,
                     check=True,
                 )
                 cand = self.repo_root / "target" / "release" / "tonic-interop"
                 if cand.is_file() and os.access(cand, os.X_OK):
                     return cand.resolve()
-            except Exception:
-                pass
+                self.tonic_build_error = f"Build succeeded but tonic-interop missing at {cand}"
+            except (OSError, subprocess.CalledProcessError) as e:
+                stderr = e.stderr.strip() if isinstance(e, subprocess.CalledProcessError) and e.stderr else str(e)
+                self.tonic_build_error = f"tonic-interop build failed: {stderr[-1200:]}"
+        else:
+            self.tonic_build_error = f"tonic-interop manifest missing: {manifest}"
         return None
 
     def resolve_go_peer(self, role: str) -> Optional[Path]:
@@ -730,50 +745,53 @@ def wait_for_server_readiness(
 
 
 def parse_soak_output(
-    stderr: str, duration_s: float, req_size: int, resp_size: int
-) -> Optional[Dict[str, Any]]:
+    stderr: str, duration_s: float, req_size: int, resp_size: int, expected_iterations: int
+) -> Dict[str, Any]:
     """Parse soak test output from Go / C++ interop clients into BenchmarkRun metrics."""
     succ_m = re.search(
         r"soak test successes:\s+(\d+)\s+/\s+(\d+)\s+iterations\.\s+Total failures:\s+(\d+)",
         stderr,
     )
-    if not succ_m:
-        return None
-    successes = int(succ_m.group(1))
-    total = int(succ_m.group(2))
-    failures = int(succ_m.group(3))
+    if succ_m:
+        successes = int(succ_m.group(1))
+        total = int(succ_m.group(2))
+        failures = int(succ_m.group(3))
+    else:
+        cpp_m = re.search(
+            r"soak test ran:\s+(\d+)\s+iterations\.\s+total_failures:\s+(\d+)"
+            r"\s+is within max_failures_threshold:\s+(\d+)",
+            stderr,
+        )
+        if not cpp_m:
+            raise ValueError("soak summary missing from reference client output")
+        total = int(cpp_m.group(1))
+        failures = int(cpp_m.group(2))
+        successes = total - failures
+    if total != expected_iterations:
+        raise ValueError(f"requested {expected_iterations} iterations but peer reported {total}")
+    if failures or successes != total:
+        raise ValueError(f"soak failures or omissions: {successes}/{total} succeeded, {failures} failures")
+    if duration_s <= 0:
+        raise ValueError("soak duration must be positive")
 
     lat_m = re.search(
         r"Latencies in milliseconds:\s+Count:\s+(\d+)\s+Min:\s+([\d.]+)\s+Max:\s+([\d.]+)\s+Avg:\s+([\d.]+)",
         stderr,
     )
-    avg_ms = float(lat_m.group(4)) if lat_m else 1.0
-    p50_ns = int(avg_ms * 1e6)
-    p99_ns = int(avg_ms * 1.5 * 1e6)
-
-    samples_ms = [
-        float(m.group(1))
-        for m in re.finditer(r"soak iteration:\s+\d+\s+elapsed_ms:\s+(\d+)", stderr)
+    if lat_m and int(lat_m.group(1)) != total:
+        raise ValueError(f"latency summary count {lat_m.group(1)} does not match {total} iterations")
+    samples = [
+        (int(m.group(1)), float(m.group(2)))
+        for m in re.finditer(r"soak iteration:\s+(\d+)\s+elapsed_ms:\s+([\d.]+)", stderr)
     ]
-    if samples_ms:
-        samples_ms.sort()
-        p50_idx = min(int(len(samples_ms) * 0.5), len(samples_ms) - 1)
-        p99_idx = min(int(len(samples_ms) * 0.99), len(samples_ms) - 1)
-        p50_val_ms = samples_ms[p50_idx]
-        if p50_val_ms == 0.0 and avg_ms > 0.0:
-            p50_val_ms = avg_ms
-        elif p50_val_ms == 0.0:
-            p50_val_ms = max(0.01, (duration_s / max(1, successes)) * 1000.0)
-        p50_ns = int(p50_val_ms * 1e6)
-        p99_val_ms = max(samples_ms[p99_idx], p50_val_ms)
-        p99_ns = int(p99_val_ms * 1e6)
-    else:
-        avg_val_ms = avg_ms if avg_ms > 0.0 else max(0.01, (duration_s / max(1, successes)) * 1000.0)
-        p50_ns = int(avg_val_ms * 1e6)
-        p99_ns = int(avg_val_ms * 1.5 * 1e6)
+    if len(samples) != total or len({index for index, _ in samples}) != total:
+        raise ValueError(f"expected {total} distinct latency samples, got {len(samples)}")
+    samples_ms = sorted(latency for _, latency in samples)
+    p50_ns = int(samples_ms[min(int(total * 0.5), total - 1)] * 1e6)
+    p99_ns = int(samples_ms[min(int(total * 0.99), total - 1)] * 1e6)
 
-    dur_nanos = int(max(0.001, duration_s) * 1e9)
-    throughput_qps = successes / max(0.001, duration_s)
+    dur_nanos = int(duration_s * 1e9)
+    throughput_qps = successes / duration_s
 
     shape_id = "unary_empty_plaintext" if req_size == 0 and resp_size == 0 else "unary_large_plaintext"
     shape_name = (
@@ -801,8 +819,47 @@ def parse_soak_output(
         "latency": {
             "p50_nanos": p50_ns,
             "p99_nanos": p99_ns,
+            "sample_count": total,
+            "measurement_resolution_ms": 1,
+            "raw_samples_ms": samples_ms,
         },
     }
+
+
+def aggregate_endpoint_resources(samples: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not samples or any(not sample.get("supported") for sample in samples):
+        raise ValueError("endpoint resource sampling unavailable for one or more processes")
+    combined = dict(samples[-1])
+    combined["user_cpu_seconds"] = round(sum(s["user_cpu_seconds"] for s in samples), 6)
+    combined["system_cpu_seconds"] = round(sum(s["system_cpu_seconds"] for s in samples), 6)
+    combined["user_cpu_nanos"] = int(combined["user_cpu_seconds"] * 1e9)
+    combined["system_cpu_nanos"] = int(combined["system_cpu_seconds"] * 1e9)
+    combined["peak_rss_bytes"] = max(s["peak_rss_bytes"] for s in samples)
+    combined["peak_rss_mib"] = round(combined["peak_rss_bytes"] / (1024.0 * 1024.0), 3)
+    combined["thread_count"] = max(s["thread_count"] for s in samples)
+    combined["method"] = f"sum-of-{len(samples)}-{samples[-1]['method']}"
+    return combined
+
+
+def server_ceiling_exclusion(
+    quick: bool,
+    client_workload: str,
+    saturation: Dict[str, Any],
+    client_resources: Dict[str, Any],
+    server_resources: Dict[str, Any],
+    runs: List[Dict[str, Any]],
+) -> Optional[str]:
+    if quick:
+        return "quick smoke runs cannot establish a server ceiling"
+    if client_workload != "rpc-bench":
+        return "reference interop-soak clients execute a different workload"
+    if not client_resources.get("supported") or not server_resources.get("supported"):
+        return "separate client and server resource measurements are unavailable"
+    if saturation["saturated"]:
+        return "load generator saturated"
+    if not runs or any(run.get("metrics", {}).get("duration_nanos", 0) < 60_000_000_000 for run in runs):
+        return "each scenario needs at least 60 seconds measured after warmup"
+    return None
 
 
 def run_single_benchmark(
@@ -822,6 +879,8 @@ def run_single_benchmark(
 
     # 1. Resolve Server Command
     assigned_port = port if port > 0 else find_free_port()
+    server_codec = PEER_CODECS.get(server_peer, "unknown")
+    server_binary = ""
     if server_peer == "native":
         server_cmd = [
             str(native_bin),
@@ -831,29 +890,40 @@ def run_single_benchmark(
             f"--port={assigned_port}",
             f"--timeout-secs={int(timeout_secs + 30)}",
         ]
-    elif server_peer == "tonic":
+        server_binary = str(native_bin)
+    elif server_peer == TONIC_PBRS:
+        server_cmd = [
+            str(native_bin),
+            "server",
+            "--transport=tonic",
+            f"--host={host}",
+            f"--port={assigned_port}",
+            f"--timeout-secs={int(timeout_secs + 30)}",
+        ]
+        server_binary = str(native_bin)
+    elif server_peer in ("tonic", TONIC_PROST):
         tonic_server = peer_registry.resolve_tonic_binary()
-        if tonic_server:
-            server_cmd = [str(tonic_server), "server", f"--port={assigned_port}"]
-        else:
-            server_cmd = [
-                str(native_bin),
-                "server",
-                "--transport=tonic",
-                f"--host={host}",
-                f"--port={assigned_port}",
-                f"--timeout-secs={int(timeout_secs + 30)}",
-            ]
+        if not tonic_server:
+            return False, None, (
+                "tonic-prost server peer (tonic-interop) not found and could not be built. "
+                "Refusing to substitute the pbrs codec; choose tonic-pbrs for a same-codec cell. "
+                f"{peer_registry.tonic_build_error}"
+            )
+        server_cmd = [str(tonic_server), "server", f"--port={assigned_port}"]
+        server_binary = str(tonic_server)
+        server_codec = "prost"
     elif server_peer == "go":
         go_server = peer_registry.resolve_go_peer("server")
         if not go_server:
             return False, None, "Go server peer (go-interop-server) not found or could not be built."
         server_cmd = [str(go_server), f"-port={assigned_port}", "-use_tls=false"]
+        server_binary = str(go_server)
     elif server_peer == "cpp":
         cpp_server = peer_registry.resolve_cpp_peer("server")
         if not cpp_server:
             return False, None, "C++ server peer (interop_server) not found. Set GRPC_INTEROP_CPP_SERVER or build via scripts/grpc-interop-cpp.sh."
         server_cmd = [str(cpp_server), f"--port={assigned_port}", "--use_tls=false"]
+        server_binary = str(cpp_server)
     else:
         return False, None, f"Unsupported server peer: {server_peer}"
 
@@ -869,7 +939,10 @@ def run_single_benchmark(
     )
     _ACTIVE_PROCESSES.add(server_proc)
 
-    temp_report_path = Path(f"/tmp/rpc-bench-run-{os.getpid()}-{time.time_ns()}.json")
+    report_dir = peer_registry.repo_root / "target" / "rpc-bench-logs"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    temp_report_path = report_dir / f"rpc-bench-run-{os.getpid()}-{time.time_ns()}.json"
+    preserve_report = False
 
     try:
         try:
@@ -892,15 +965,24 @@ def run_single_benchmark(
         report_data = None
 
         # 2. Execute Client Peer
-        if client_peer in ("native", "tonic"):
+        client_codec = PEER_CODECS.get(client_peer, "unknown")
+        client_binary = ""
+        client_workload = "rpc-bench"
+        if client_peer in ("native", "tonic", TONIC_PBRS):
+            # rpc-bench transports are native or tonic; the tonic transport
+            # encodes with the pbrs codec (same-codec transport comparison).
+            transport_flag = "tonic" if client_peer in ("tonic", TONIC_PBRS) else "native"
+            if client_peer == "tonic":
+                client_codec = "pbrs"
             client_cmd = [
                 str(native_bin),
                 "client",
                 f"--server_addr={bound_addr}",
-                f"--transport={client_peer}",
+                f"--transport={transport_flag}",
                 f"--shape={shape}",
                 f"--output={temp_report_path}",
             ]
+            client_binary = str(native_bin)
             if quick:
                 client_cmd.append("--quick")
 
@@ -918,10 +1000,15 @@ def run_single_benchmark(
             resource_monitor.set_client_pid(client_proc.pid)
             resource_monitor.start()
 
-            client_stdout, client_stderr = client_proc.communicate(timeout=timeout_secs)
-            _ACTIVE_PROCESSES.discard(client_proc)
-
-            client_res, server_res, sat_check = resource_monitor.stop()
+            try:
+                client_stdout, client_stderr = client_proc.communicate(timeout=timeout_secs)
+            except subprocess.TimeoutExpired:
+                client_proc.kill()
+                client_stdout, client_stderr = client_proc.communicate()
+                return False, None, f"Client ({client_peer}) exceeded {timeout_secs}s: {client_stderr}"
+            finally:
+                _ACTIVE_PROCESSES.discard(client_proc)
+                client_res, server_res, sat_check = resource_monitor.stop()
 
             if client_proc.returncode != 0:
                 err_msg = (
@@ -931,14 +1018,24 @@ def run_single_benchmark(
                 )
                 return False, None, err_msg
 
-            if temp_report_path.is_file():
-                try:
-                    with open(temp_report_path, "r", encoding="utf-8") as f:
-                        report_data = json.load(f)
-                except Exception as e:
-                    if verbose:
-                        print(f"Warning: could not read report JSON: {e}")
+            if not temp_report_path.is_file():
+                return False, None, f"Client ({client_peer}) exited successfully without a BenchmarkReport at {temp_report_path}"
+            try:
+                with open(temp_report_path, "r", encoding="utf-8") as f:
+                    report_data = json.load(f)
+            except (OSError, json.JSONDecodeError) as e:
+                preserve_report = True
+                return False, None, f"Client ({client_peer}) wrote an invalid BenchmarkReport at {temp_report_path}: {e}"
 
+        elif client_peer == TONIC_PROST:
+            # No prost load generator exists (tonic-interop only runs named
+            # interop cases, not the rpc-bench workload). Fail the cell
+            # explicitly instead of silently substituting the pbrs codec.
+            return False, None, (
+                "tonic-prost client unsupported: no prost load generator; "
+                "use client tonic-pbrs for the same-codec transport comparison "
+                "or tonic-prost as server for end-to-end reference."
+            )
         elif client_peer in ("go", "cpp"):
             client_bin = (
                 peer_registry.resolve_go_peer("client")
@@ -948,6 +1045,13 @@ def run_single_benchmark(
             if not client_bin:
                 peer_name = "Go" if client_peer == "go" else "C++"
                 return False, None, f"{peer_name} client peer not found."
+            if resource is None:
+                return False, None, "POSIX child CPU accounting is unavailable for reference client processes."
+            client_binary = str(client_bin)
+            # Go/C++ reference clients drive fixed rpc_soak interop loops,
+            # not the rpc-bench open-loop workload: recorded per run so
+            # cross-client cells are never compared as equivalent.
+            client_workload = "interop-soak"
 
             soak_runs = []
             empty_iters = 20 if quick else 200
@@ -956,8 +1060,16 @@ def run_single_benchmark(
                 ("empty_unary", 0, 0, empty_iters),
                 ("large_unary", 271828, 314159, large_iters),
             ]
-
-            resource_monitor.start()
+            client_samples: List[Dict[str, Any]] = []
+            server_samples: List[Dict[str, Any]] = []
+            saturation_samples: List[Dict[str, Any]] = []
+            log_dir = (
+                peer_registry.repo_root
+                / "target"
+                / "rpc-bench-logs"
+                / f"{time.time_ns()}-{os.getpid()}-{server_peer}-{client_peer}"
+            )
+            log_dir.mkdir(parents=True, exist_ok=False)
             for c_name, req_sz, resp_sz, iters in cases_to_run:
                 flag_pfx = "-" if client_peer == "go" else "--"
                 c_args = [
@@ -971,9 +1083,16 @@ def run_single_benchmark(
                     f"{flag_pfx}soak_request_size={req_sz}",
                     f"{flag_pfx}soak_response_size={resp_sz}",
                 ]
+                if client_peer == "cpp":
+                    c_args.extend([
+                        f"--soak_max_failures=0",
+                        f"--soak_overall_timeout_seconds={max(1, int(timeout_secs) - 5)}",
+                        "--soak_per_iteration_max_acceptable_latency_ms=5000",
+                    ])
                 if verbose:
                     print(f"Spawning client ({client_peer}) {c_name}: {' '.join(c_args)}")
 
+                usage_before = resource.getrusage(resource.RUSAGE_CHILDREN)
                 t_start = time.monotonic()
                 sub_proc = subprocess.Popen(
                     c_args,
@@ -982,26 +1101,77 @@ def run_single_benchmark(
                     text=True,
                 )
                 _ACTIVE_PROCESSES.add(sub_proc)
-                resource_monitor.set_client_pid(sub_proc.pid)
-                sub_out, sub_err = sub_proc.communicate(timeout=timeout_secs)
-                _ACTIVE_PROCESSES.discard(sub_proc)
+                case_monitor = ProcessResourceMonitor(
+                    server_pid=server_proc.pid, client_pid=sub_proc.pid, poll_interval_s=0.005
+                )
+                case_monitor.start()
+                timed_out = False
+                try:
+                    sub_out, sub_err = sub_proc.communicate(timeout=timeout_secs)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+                    sub_proc.kill()
+                    sub_out, sub_err = sub_proc.communicate()
+                finally:
+                    _ACTIVE_PROCESSES.discard(sub_proc)
+                    case_client_res, case_server_res, case_sat = case_monitor.stop()
+                usage_after = resource.getrusage(resource.RUSAGE_CHILDREN)
                 dur_s = time.monotonic() - t_start
 
+                stdout_path = log_dir / f"{c_name}.stdout"
+                stderr_path = log_dir / f"{c_name}.stderr"
+                stdout_path.write_text(sub_out, encoding="utf-8")
+                stderr_path.write_text(sub_err, encoding="utf-8")
                 client_stdout += f"[{client_peer} {c_name}] {sub_out}\n"
                 client_stderr += f"[{client_peer} {c_name}] {sub_err}\n"
 
+                if timed_out:
+                    return False, None, f"Client ({client_peer}) {c_name} exceeded {timeout_secs}s; logs: {stderr_path}"
                 if sub_proc.returncode != 0:
-                    resource_monitor.stop()
-                    return False, None, f"Client ({client_peer}) {c_name} failed: {sub_err}"
+                    return False, None, f"Client ({client_peer}) {c_name} failed (exit {sub_proc.returncode}); logs: {stderr_path}"
 
-                run_entry = parse_soak_output(sub_err, dur_s, req_sz, resp_sz)
-                if run_entry:
-                    soak_runs.append(run_entry)
-                    p50_val = run_entry["latency"]["p50_nanos"]
-                    p99_val = run_entry["latency"]["p99_nanos"]
-                    client_stdout += f"{c_name} {client_peer}_p50={p50_val} {client_peer}_p99={p99_val}\n"
+                try:
+                    run_entry = parse_soak_output(sub_err, dur_s, req_sz, resp_sz, iters)
+                except ValueError as e:
+                    return False, None, f"Client ({client_peer}) {c_name} reported invalid soak results: {e}; logs: {stderr_path}"
+                if not case_client_res["supported"] or not case_server_res["supported"]:
+                    return False, None, f"Client ({client_peer}) {c_name} resource sampling unavailable; logs: {stderr_path}"
 
-            client_res, server_res, sat_check = resource_monitor.stop()
+                case_client_res["user_cpu_seconds"] = round(
+                    max(0.0, usage_after.ru_utime - usage_before.ru_utime), 6
+                )
+                case_client_res["system_cpu_seconds"] = round(
+                    max(0.0, usage_after.ru_stime - usage_before.ru_stime), 6
+                )
+                case_client_res["user_cpu_nanos"] = int(case_client_res["user_cpu_seconds"] * 1e9)
+                case_client_res["system_cpu_nanos"] = int(case_client_res["system_cpu_seconds"] * 1e9)
+                case_client_res["method"] = "posix-child-rusage+sampled-rss"
+                case_client_res["current_rss_bytes"] = None
+                case_client_res["current_rss_mib"] = None
+                client_samples.append(case_client_res)
+                server_samples.append(case_server_res)
+                saturation_samples.append(case_sat)
+                run_entry["metrics"]["client_resources"] = case_client_res
+                run_entry["metrics"]["server_resources"] = case_server_res
+                run_entry["raw_logs"] = {
+                    "stdout": str(stdout_path.relative_to(peer_registry.repo_root)),
+                    "stderr": str(stderr_path.relative_to(peer_registry.repo_root)),
+                }
+                soak_runs.append(run_entry)
+                p50_val = run_entry["latency"]["p50_nanos"]
+                p99_val = run_entry["latency"]["p99_nanos"]
+                client_stdout += f"{c_name} {client_peer}_p50={p50_val} {client_peer}_p99={p99_val}\n"
+
+            client_res = aggregate_endpoint_resources(client_samples)
+            server_res = aggregate_endpoint_resources(server_samples)
+            sat_check = {
+                "saturated": any(s["saturated"] for s in saturation_samples),
+                "avg_cpu_pct": max(s["avg_cpu_pct"] for s in saturation_samples),
+                "peak_cpu_pct": max(s["peak_cpu_pct"] for s in saturation_samples),
+                "spare_capacity_pct": min(s["spare_capacity_pct"] for s in saturation_samples),
+                "status": "FAIL (SATURATED)" if any(s["saturated"] for s in saturation_samples) else "PASS",
+                "message": "Conservative worst-case across independently sampled reference client processes.",
+            }
 
             report_data = {
                 "schema_version": "1.0.0",
@@ -1012,19 +1182,38 @@ def run_single_benchmark(
         else:
             return False, None, f"Unsupported client peer: {client_peer}"
 
+        if not client_res["supported"] or not server_res["supported"]:
+            return False, None, f"Client ({client_peer}) or server ({server_peer}) resource sampling unavailable"
+        if not isinstance(report_data, dict) or not isinstance(report_data.get("runs"), list) or not report_data["runs"]:
+            preserve_report = temp_report_path.is_file()
+            return False, None, f"Client ({client_peer}) produced no completed BenchmarkReport runs; raw report: {temp_report_path}"
+
         # 3. Enrich Report Data
+        runs = report_data["runs"]
+        for run in runs:
+            metrics = run.get("metrics")
+            if not isinstance(metrics, dict) or metrics.get("successful_rpcs", 0) <= 0 or metrics.get("failed_rpcs", 0):
+                preserve_report = temp_report_path.is_file()
+                return False, None, f"Client ({client_peer}) reported missing successes or failed calls; raw report: {temp_report_path}"
         if report_data and isinstance(report_data, dict):
-            runs = report_data.get("runs", [])
             for run in runs:
                 run["client_peer"] = client_peer
                 run["server_peer"] = server_peer
                 run["matching_configuration"] = MATCHING_CONFIGURATION
-
+                # Resolved endpoint configuration: every crossed direction
+                # records the actual codec, workload methodology, and binary
+                # so same-codec transport cells are never confused with
+                # end-to-end or soak-driven reference cells.
+                run["client_codec"] = client_codec
+                run["server_codec"] = server_codec
+                run["client_workload"] = client_workload
+                run["client_binary"] = client_binary
+                run["server_binary"] = server_binary
                 metrics = run.setdefault("metrics", {})
                 successful = metrics.get("successful_rpcs", 0)
 
-                c_res = dict(client_res)
-                s_res = dict(server_res)
+                c_res = dict(metrics.get("client_resources", client_res))
+                s_res = dict(metrics.get("server_resources", server_res))
 
                 if successful > 0:
                     c_res["cpu_seconds_per_rpc"] = round(
@@ -1046,11 +1235,15 @@ def run_single_benchmark(
             report_data["client_resources"] = client_res
             report_data["server_resources"] = server_res
             report_data["client_saturation_check"] = sat_check
-            # A saturated load generator cannot prove a server ceiling: the
-            # measured throughput may reflect client limits instead.
-            report_data["server_ceiling_valid"] = not sat_check["saturated"]
+            exclusion = server_ceiling_exclusion(
+                quick, client_workload, sat_check, client_res, server_res, runs
+            )
+            report_data["server_ceiling_valid"] = exclusion is None
+            report_data["server_ceiling_reason"] = exclusion
 
         res_summary = (
+            f"[ENDPOINTS] Client ({client_peer}): codec={client_codec}, workload={client_workload}, binary={client_binary}\n"
+            f"[ENDPOINTS] Server ({server_peer}): codec={server_codec}, binary={server_binary}\n"
             f"[RESOURCES] Client ({client_peer}): user={client_res['user_cpu_seconds']:.4f}s, sys={client_res['system_cpu_seconds']:.4f}s, "
             f"peak_rss={client_res['peak_rss_mib']:.1f} MiB, threads={client_res['thread_count']}\n"
             f"[RESOURCES] Server ({server_peer}): user={server_res['user_cpu_seconds']:.4f}s, sys={server_res['system_cpu_seconds']:.4f}s, "
@@ -1076,11 +1269,16 @@ def run_single_benchmark(
                 server_proc.wait(timeout=1.0)
         _ACTIVE_PROCESSES.discard(server_proc)
 
-        if temp_report_path.is_file():
+        if server_proc.stdout:
+            server_proc.stdout.close()
+        if server_proc.stderr:
+            server_proc.stderr.close()
+
+        if not preserve_report and temp_report_path.is_file():
             try:
                 temp_report_path.unlink()
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: could not remove temporary benchmark report {temp_report_path}: {e}", file=sys.stderr)
 
 
 def format_table(title: str, headers: List[str], rows: List[List[str]]) -> str:
@@ -1300,17 +1498,45 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
     return tables_json, "\n".join(output_text_parts)
 
 
-def parse_peers(arg_val: Optional[str], default_peers: List[str]) -> List[str]:
+TONIC_PBRS = "tonic-pbrs"
+TONIC_PROST = "tonic-prost"
+
+# Codec each matrix peer role actually executes. "tonic" is a legacy alias
+# whose server codec depends on binary availability (recorded per run);
+# explicit flavors are required for apples-to-apples codec claims.
+PEER_CODECS: Dict[str, str] = {
+    "native": "pbrs",
+    "tonic": "mixed (server: prost, client: pbrs)",
+    TONIC_PBRS: "pbrs",
+    TONIC_PROST: "prost",
+    "go": "google.golang.org/protobuf",
+    "cpp": "google::protobuf (upb/C++)",
+}
+
+
+def normalize_peer(name: str) -> str:
+    """Normalize a peer role spelling (underscores accepted, legacy kept)."""
+    p = name.strip().lower().replace("_", "-")
+    return p
+
+
+def parse_peers(arg_val: Optional[str], default_peers: List[str], role: str) -> List[str]:
     """Parse comma-separated peer list."""
+    if role not in ("client", "server"):
+        raise ValueError(f"Unknown benchmark peer role: {role}")
+    valid = ("native", "tonic", TONIC_PBRS, TONIC_PROST, "go", "cpp")
+    all_peers = ["native", TONIC_PBRS, "go", "cpp"]
+    if role == "server":
+        all_peers.insert(2, TONIC_PROST)
     if not arg_val:
         return default_peers
     val = arg_val.strip().lower()
     if val in ("all", "both"):
-        return ["native", "tonic", "go", "cpp"] if val == "all" else ["native", "tonic"]
+        return all_peers if val == "all" else ["native", "tonic"]
     result = []
     for item in val.split(","):
-        p = item.strip().lower()
-        if p in ("native", "tonic", "go", "cpp"):
+        p = normalize_peer(item)
+        if p in valid:
             if p not in result:
                 result.append(p)
         elif p == "both":
@@ -1318,11 +1544,14 @@ def parse_peers(arg_val: Optional[str], default_peers: List[str]) -> List[str]:
                 if b not in result:
                     result.append(b)
         elif p == "all":
-            for b in ("native", "tonic", "go", "cpp"):
+            for b in all_peers:
                 if b not in result:
                     result.append(b)
         else:
-            raise ValueError(f"Unknown peer: '{item}'. Valid peers: native, tonic, go, cpp")
+            raise ValueError(
+                f"Unknown peer: '{item}'. Valid peers: native, tonic, "
+                f"{TONIC_PBRS}, {TONIC_PROST}, go, cpp"
+            )
     return result
 
 
@@ -1347,7 +1576,7 @@ def main() -> int:
         dest="server_peer",
         type=str,
         default=None,
-        help="Server peer(s) to benchmark: native, tonic, go, cpp, or comma-separated list (default: native in quick mode, native/tonic in standard mode).",
+        help="Server peer(s): native, tonic (legacy alias), tonic-pbrs (same-codec), tonic-prost (end-to-end), go, cpp, or comma-separated list (default: native in quick mode, native/tonic in standard mode).",
     )
     parser.add_argument(
         "--client-peer",
@@ -1355,7 +1584,7 @@ def main() -> int:
         dest="client_peer",
         type=str,
         default=None,
-        help="Client peer(s) to benchmark: native, tonic, go, cpp, or comma-separated list (default: native in quick mode, native/tonic in standard mode).",
+        help="Client peer(s): native, tonic (legacy alias, pbrs codec), tonic-pbrs (same-codec), go, cpp, or comma-separated list (tonic-prost has no load generator and fails the cell explicitly).",
     )
     parser.add_argument(
         "--shape",
@@ -1412,8 +1641,8 @@ def main() -> int:
 
     # Determine peer combinations
     if args.server_peer or args.client_peer:
-        servers = parse_peers(args.server_peer, ["native"])
-        clients = parse_peers(args.client_peer, ["native"])
+        servers = parse_peers(args.server_peer, ["native"], role="server")
+        clients = parse_peers(args.client_peer, ["native"], role="client")
         pairs = []
         for s in servers:
             for c in clients:
@@ -1447,6 +1676,8 @@ def main() -> int:
 
     all_runs: List[Dict] = []
     pair_saturation_checks: List[Dict] = []
+    completed_pairs: List[Tuple[str, str]] = []
+    failed_pairs: List[Dict[str, str]] = []
     failed = False
 
     for s_peer, c_peer in pairs:
@@ -1466,8 +1697,14 @@ def main() -> int:
 
         if not ok:
             print(f"[FAIL] server={s_peer}, client={c_peer} failed:\n{summary}", file=sys.stderr)
+            failed_pairs.append({
+                "server_peer": s_peer,
+                "client_peer": c_peer,
+                "reason": summary.splitlines()[0] if summary else "unknown",
+            })
             failed = True
             break
+        completed_pairs.append((s_peer, c_peer))
 
         print(summary)
         print(f"[PASS] server={s_peer}, client={c_peer}")
@@ -1478,16 +1715,36 @@ def main() -> int:
                 "server_peer": s_peer,
                 "client_peer": c_peer,
                 "server_ceiling_valid": report_json.get("server_ceiling_valid"),
+                "server_ceiling_reason": report_json.get("server_ceiling_reason"),
                 "client_saturation_check": report_json.get("client_saturation_check"),
             })
+
+    # A missing peer yields an incomplete matrix, never a partial win: name
+    # every completed, failed, and skipped pair explicitly.
+    attempted = {(s, c) for s, c in completed_pairs} | {
+        (f["server_peer"], f["client_peer"]) for f in failed_pairs
+    }
+    skipped_pairs = [
+        {"server_peer": s, "client_peer": c}
+        for s, c in pairs
+        if (s, c) not in attempted
+    ]
+    if failed:
+        missing_str = ", ".join(
+            f"{f['server_peer']}->{f['client_peer']}" for f in failed_pairs
+        ) + "".join(f", {s['server_peer']}->{s['client_peer']} (skipped)" for s in skipped_pairs)
+        print(
+            f"\n[INCOMPLETE MATRIX] {len(completed_pairs)}/{len(pairs)} pair(s) completed; "
+            f"missing: {missing_str}. Partial tables below are NOT a comparison win.",
+        )
 
     # Output comparison tables
     tables_json, tables_text = generate_comparison_tables(all_runs)
     if tables_text:
         print(tables_text)
 
-    if args.output and all_runs:
-        first_run = all_runs[0]
+    if args.output and (all_runs or failed):
+        first_run = all_runs[0] if all_runs else {}
         aggregated_report = {
             "schema_version": "1.0.0",
             "report_id": f"matrix-report-{int(time.time() * 1000)}",
@@ -1496,6 +1753,11 @@ def main() -> int:
             "host_info": first_run.get("host_info", {}),
             "matching_configuration": MATCHING_CONFIGURATION,
             "matrix_complete": not failed,
+            "completed_pairs": [
+                {"server_peer": s, "client_peer": c} for s, c in completed_pairs
+            ],
+            "failed_pairs": failed_pairs,
+            "skipped_pairs": skipped_pairs,
             "cpu_constraints": cpu_constraints,
             "pair_saturation_checks": pair_saturation_checks,
             "server_ceiling_valid": (
@@ -1516,10 +1778,13 @@ def main() -> int:
 
     invalid_ceilings = [p for p in pair_saturation_checks if not p.get("server_ceiling_valid")]
     if invalid_ceilings:
-        pairs_str = ", ".join(f"{p['server_peer']}->{p['client_peer']}" for p in invalid_ceilings)
+        pairs_str = ", ".join(
+            f"{p['server_peer']}->{p['client_peer']}: {p['server_ceiling_reason']}"
+            for p in invalid_ceilings
+        )
         print(
-            f"\n[WARNING] Load generator saturated for pair(s): {pairs_str}. "
-            "Server ceiling NOT valid for these pairs (see pair_saturation_checks).",
+            f"\n[NOT QUALIFIED] Server ceiling not established for pair(s): {pairs_str}. "
+            "These results are diagnostic, not leadership evidence.",
             file=sys.stderr,
         )
 

@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "contract": "docs/benchmark-contract.md",
   "description": "Machine-readable scenario definitions for gRPC leadership benchmarking",
   "defaults": {
@@ -23,9 +23,15 @@
       },
       {
         "client": "native",
-        "server": "tonic",
+        "server": "tonic-pbrs",
         "role": "client_vs_reference",
-        "purpose": "server_efficiency"
+        "purpose": "same_codec_transport_server"
+      },
+      {
+        "client": "native",
+        "server": "tonic-prost",
+        "role": "client_vs_reference",
+        "purpose": "end_to_end_server"
       },
       {
         "client": "native",
@@ -40,10 +46,10 @@
         "purpose": "server_efficiency"
       },
       {
-        "client": "tonic",
+        "client": "tonic-pbrs",
         "server": "native",
         "role": "reference_vs_native",
-        "purpose": "client_efficiency"
+        "purpose": "same_codec_transport_client"
       },
       {
         "client": "go",
@@ -58,10 +64,16 @@
         "purpose": "client_efficiency"
       },
       {
-        "client": "tonic",
-        "server": "tonic",
+        "client": "tonic-pbrs",
+        "server": "tonic-pbrs",
         "role": "reference_control",
-        "purpose": "reference_baseline"
+        "purpose": "same_codec_transport_control"
+      },
+      {
+        "client": "tonic-pbrs",
+        "server": "tonic-prost",
+        "role": "reference_control",
+        "purpose": "end_to_end_control"
       },
       {
         "client": "go",
@@ -134,9 +146,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -151,10 +169,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -169,10 +187,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -227,9 +251,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -244,10 +274,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -262,10 +292,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -320,9 +356,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -337,10 +379,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -355,10 +397,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -413,9 +461,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -430,10 +484,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -448,10 +502,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -506,9 +566,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -523,10 +589,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -541,10 +607,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -599,9 +671,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -616,10 +694,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -634,10 +712,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -692,9 +776,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -709,10 +799,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -727,10 +817,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -785,9 +881,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -802,10 +904,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -820,10 +922,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -878,9 +986,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -895,10 +1009,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -913,10 +1027,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -971,9 +1091,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -988,10 +1114,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1006,10 +1132,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1064,9 +1196,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1075,10 +1213,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "cpp",
@@ -1087,10 +1225,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "cpp",
@@ -1139,9 +1283,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1150,10 +1300,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "cpp",
@@ -1162,10 +1312,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "cpp",
@@ -1214,9 +1370,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1231,10 +1393,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1249,10 +1411,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1307,9 +1475,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1324,10 +1498,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1342,10 +1516,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1400,9 +1580,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1417,10 +1603,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1435,10 +1621,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1493,9 +1685,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1510,10 +1708,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1528,10 +1726,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1590,9 +1794,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1607,10 +1817,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1625,10 +1835,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",
@@ -1687,9 +1903,15 @@
         },
         {
           "client": "native",
-          "server": "tonic",
+          "server": "tonic-pbrs",
           "role": "client_vs_reference",
-          "purpose": "server_efficiency"
+          "purpose": "same_codec_transport_server"
+        },
+        {
+          "client": "native",
+          "server": "tonic-prost",
+          "role": "client_vs_reference",
+          "purpose": "end_to_end_server"
         },
         {
           "client": "native",
@@ -1704,10 +1926,10 @@
           "purpose": "server_efficiency"
         },
         {
-          "client": "tonic",
+          "client": "tonic-pbrs",
           "server": "native",
           "role": "reference_vs_native",
-          "purpose": "client_efficiency"
+          "purpose": "same_codec_transport_client"
         },
         {
           "client": "go",
@@ -1722,10 +1944,16 @@
           "purpose": "client_efficiency"
         },
         {
-          "client": "tonic",
-          "server": "tonic",
+          "client": "tonic-pbrs",
+          "server": "tonic-pbrs",
           "role": "reference_control",
-          "purpose": "reference_baseline"
+          "purpose": "same_codec_transport_control"
+        },
+        {
+          "client": "tonic-pbrs",
+          "server": "tonic-prost",
+          "role": "reference_control",
+          "purpose": "end_to_end_control"
         },
         {
           "client": "go",

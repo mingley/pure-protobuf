@@ -9,9 +9,26 @@
   "codec": "prost / protobuf-tonic",
   "upstream_pin": {
     "repository": "hyperium/tonic",
-    "version": "v0.14.0",
-    "prost_version": "v0.13.0",
-    "notes": "Pinned standard Rust ecosystem reference peer"
+    "version": "v0.14.6",
+    "prost_version": "v0.14.4",
+    "notes": "Exact versions resolved in tests/interop/tonic/Cargo.lock; build with --locked"
+  },
+  "codec_variants": {
+    "tonic-prost": {
+      "description": "End-to-end reference: tonic 0.14 transport with prost codec (tonic-interop binary)",
+      "roles": ["server"],
+      "client_support": false,
+      "client_support_notes": "No prost load generator exists; the matrix fails tonic-prost client cells explicitly instead of substituting the pbrs codec."
+    },
+    "tonic-pbrs": {
+      "description": "Same-codec transport reference: tonic 0.14 transport with pbrs codec (rpc-bench --transport=tonic); isolates transport deltas from serialization",
+      "roles": ["client", "server"]
+    },
+    "tonic": {
+      "description": "Legacy alias: server requires tonic-prost; client is always tonic-pbrs. Missing prost server fails rather than substituting another codec. Use explicit flavors for codec claims.",
+      "roles": ["client", "server"],
+      "deprecated": true
+    }
   },
   "server": {
     "description": "Tonic interop & benchmark server (from tests/interop/tonic or rpc-bench)",
@@ -24,7 +41,7 @@
       "rpc-bench/target/release/rpc-bench",
       "rpc-bench/target/debug/rpc-bench"
     ],
-    "build_command": "cargo build --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
+    "build_command": "cargo build --locked --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
     "args_template": [
       "{binary}",
       "server",
@@ -54,7 +71,7 @@
       "target/release/tonic-interop",
       "tests/interop/tonic/target/release/tonic-interop"
     ],
-    "build_command": "cargo build --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
+    "build_command": "cargo build --locked --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
     "args_template": [
       "{binary}",
       "client",
