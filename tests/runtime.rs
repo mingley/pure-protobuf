@@ -175,6 +175,66 @@ fn message_set_item_roundtrip() {
 }
 
 #[test]
+fn raw_message_ptr_survives_arena_growth_and_fusion() {
+    struct Example;
+    // SAFETY: This test uses the dangling MiniTable only for fields added to MsgData dynamically.
+    unsafe impl pbrs::runtime::AssociatedMiniTable for Example {
+        fn mini_table() -> pbrs::runtime::MiniTablePtr {
+            pbrs::runtime::MiniTablePtr::dangling()
+        }
+    }
+
+    let source = pbrs::runtime::Arena::new();
+    let first = pbrs::runtime::MessagePtr::<Example>::new(&source).expect("first message");
+    // SAFETY: The message is owned by source until fusion and by destination afterward.
+    unsafe { first.set_base_field_i32_at_index(0, 42) };
+    for _ in 0..128 {
+        assert!(pbrs::runtime::MessagePtr::<Example>::new(&source).is_some());
+    }
+
+    let destination = pbrs::runtime::Arena::new();
+    destination.fuse(&source);
+    drop(source);
+    for _ in 0..128 {
+        assert!(pbrs::runtime::MessagePtr::<Example>::new(&destination).is_some());
+    }
+    // SAFETY: Arena ownership has moved, but the boxed MsgData and its raw pointer stay live.
+    unsafe { assert_eq!(first.get_i32_at_index(0, 0), 42) };
+}
+
+#[test]
+fn raw_message_strings_survive_slot_and_owner_growth() {
+    struct Example;
+    // SAFETY: The dynamically added fields are owned by the test's arena.
+    unsafe impl pbrs::runtime::AssociatedMiniTable for Example {
+        fn mini_table() -> pbrs::runtime::MiniTablePtr {
+            pbrs::runtime::MiniTablePtr::dangling()
+        }
+    }
+
+    let arena = pbrs::runtime::Arena::new();
+    let ptr = pbrs::runtime::MessagePtr::<Example>::new(&arena).expect("message");
+    // SAFETY: The arena owns the message while each field is inserted and read.
+    unsafe {
+        ptr.set_base_field_string_at_index(0, pbrs::runtime::StringView::from(b"alpha"));
+        for index in 1..128_u32 {
+            let bytes = index.to_le_bytes();
+            ptr.set_base_field_string_at_index(index, pbrs::runtime::StringView::from(&bytes));
+        }
+        let first = ptr.get_string_at_index(0, pbrs::runtime::StringView::empty());
+        assert_eq!(first.as_ref(), b"alpha");
+    }
+}
+
+#[test]
+fn inner_proto_string_raw_parts_are_reclaimed_with_arena() {
+    let (view, arena) = pbrs::runtime::InnerProtoString::from(b"alpha".as_slice()).into_raw_parts();
+    // SAFETY: the returned Arena owns the StringView's backing bytes until it is dropped.
+    unsafe { assert_eq!(view.as_ref(), b"alpha") };
+    drop(arena);
+}
+
+#[test]
 fn map_and_repeated_message_arena_adoption_fusion() {
     // 1. Low-level MiniTable / Arena adoption and fusion safety
     struct ChildMsg;

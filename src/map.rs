@@ -668,7 +668,9 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
                 let kb = crate::runtime::kernel_key_bytes(key.clone());
                 let mut entries = (*raw).entries.borrow_mut();
                 if let Some(i) = entries.iter().rposition(|(k, _)| k == &kb) {
-                    entries.swap_remove(i);
+                    let (_, old) = entries.swap_remove(i);
+                    drop(entries);
+                    crate::runtime::kernel_map_release_value(raw, old);
                     true
                 } else {
                     false
@@ -876,8 +878,10 @@ impl<
                     if entries[i + 1..].iter().any(|(k2, _)| k2 == kb) {
                         continue;
                     }
-                    let leaked: &'static [u8] = Box::leak(kb.clone().into_boxed_slice());
-                    let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(leaked) else {
+                    // SAFETY: raw map views borrow their arena-owned keys for 'msg;
+                    // safe callers cannot remove a key while a yielded view is live.
+                    let key_bytes: &'msg [u8] = std::slice::from_raw_parts(kb.as_ptr(), kb.len());
+                    let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(key_bytes) else {
                         continue;
                     };
                     let Some(v) = crate::runtime::kernel_fieldkind_to_view::<'msg, V>(*fk) else {
@@ -1049,5 +1053,40 @@ mod tests {
         let view = MapView::from_slice(&pairs);
         assert_eq!(view.get(3), Some(31));
         assert_eq!(view.len(), 1);
+    }
+
+    #[test]
+    fn arena_backed_map_iteration_does_not_leak_key_bytes() {
+        let arena = crate::runtime::Arena::new();
+        let raw = arena.alloc_map();
+        // SAFETY: `raw` points to a map owned by `arena`; no view exists while inserting.
+        unsafe {
+            (*raw)
+                .entries
+                .borrow_mut()
+                .push((b"alpha".to_vec(), crate::runtime::FieldKind::I32(7)));
+        }
+        // SAFETY: `arena` owns the map throughout the lifetime of this immutable view.
+        let view: MapView<'_, ProtoString, i32> = unsafe { MapView::from_raw_ptr(raw) };
+        let pairs: Vec<_> = view
+            .iter()
+            .map(|(key, value)| (key.as_bytes().to_vec(), value))
+            .collect();
+        assert_eq!(pairs, vec![(b"alpha".to_vec(), 7)]);
+    }
+
+    #[test]
+    fn arena_backed_map_values_are_reclaimed() {
+        let arena = crate::runtime::Arena::new();
+        let raw = arena.alloc_map();
+        let mut map: MapMut<'_, ProtoString, ProtoString> = MapMut::from_raw_inner(raw);
+        assert!(map.insert("alpha", "one"));
+        assert!(!map.insert("alpha", "two"));
+        assert_eq!(
+            map.get("alpha").map(|v| v.as_bytes()),
+            Some(b"two".as_slice())
+        );
+        assert!(map.remove("alpha"));
+        assert!(map.is_empty());
     }
 }

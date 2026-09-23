@@ -25,7 +25,9 @@ Pure-protobuf enforces `#![deny(unsafe_code)]` at the workspace level, supplemen
   - Invariants maintained during execution.
   - Proof that undefined behavior (UB), out-of-bounds access, aliasing violations, or use-after-free are impossible.
 - Code without a satisfactory `// SAFETY:` rationale is rejected at code review.
-- Memory safety is continuously verified with Miri, AddressSanitizer (ASan), and LeakSanitizer (LSan).
+- Miri, AddressSanitizer (ASan), and LeakSanitizer (LSan) are scheduled
+  qualification tools, not proofs of memory safety. A successful run and its
+  exact toolchain/artifact are required before claiming their coverage.
 
 ---
 
@@ -93,10 +95,27 @@ Pure-protobuf enforces `#![deny(unsafe_code)]` at the workspace level, supplemen
       msgs: Vec<Box<MsgData>>,
       arrays: Vec<Box<RawArrayInner>>,
       maps: Vec<Box<RawMapInner>>,
+      bytes: Vec<Box<Vec<u8>>>,
   }
   ```
 - **Pointer Stability Invariant**:
   All messages, arrays, and maps are wrapped in `Box<_>`. When `ArenaInner.msgs` reallocates or grows, the addresses of the underlying `MsgData` instances on the heap remain strictly pinned. Any raw pointer stored in `MessagePtr<T>` remains valid.
+- **String Header Stability**:
+  `MsgData.strs` and raw map/repeated string stores hold boxed `Vec<u8>`
+  headers, not movable headers in `Vec<Vec<u8>>`. `FieldKind::Bytes` pointers
+  therefore remain valid after later field insertions or collection growth.
+  Bytes produced by raw parsing or cloning live in `ArenaInner.bytes` and
+  move with the arena on fusion. `InnerProtoString::into_raw_parts` returns
+  that owning arena with its `StringView`, rather than leaking the buffer.
+- **Pointer Provenance Invariant**:
+  `Arena::alloc_msg`, `alloc_array`, and `alloc_map` derive raw pointers
+  **after** inserting their `Box` into the owning `ArenaInner` vector.
+  Taking a reference and raw pointer before moving the `Box` into that
+  vector preserves the address but invalidates its Stacked Borrows
+  permission on insertion. Miri detected this in the original
+  `map_and_repeated_message_arena_adoption_fusion` test. Deriving the pointer
+  from the stored owner fixes the invalid retag; the regression also grows
+  both arena vectors and reads the pointer after fusion.
 - **Arena Fusion (`Arena::fuse`)**:
   When a child message is assigned to a parent message (`message_set_sub_message`) or elements are inserted into repeated arrays/maps (`message_set_repeated_field`, `message_set_map_field`):
   ```rust
@@ -106,6 +125,12 @@ Pure-protobuf enforces `#![deny(unsafe_code)]` at the workspace level, supplemen
   - **No Use-After-Free**: If the original child handle drops, its arena has already transferred heap ownership to the parent. The child data remains alive as long as the parent message lives.
   - **No Memory Leaks**: When the parent message drops, the parent's arena deallocates all child nodes transitively.
   - **Idempotency**: If `Rc::ptr_eq(&self.inner, &other.inner)`, `fuse` is a no-op, avoiding self-append corruption.
+- **Raw collection adoption**: Each arena-owned repeated/map collection holds
+  a `Weak` link to its owner. A raw mutator that receives an owned submessage
+  without an explicit parent upgrades that link and fuses the child's
+  allocations; it never leaks a boxed `Arena`. On fusion, moved collections'
+  weak links are updated to the new owner, without creating an `Rc` cycle.
+  Pointers into the boxed message, array and map allocations remain valid.
 
 ### 2.4 Message Adoption (`adopt_owned_msg`)
 `adopt_owned_msg<T>` transmutes `value: T` to read `OwnedMsgHead { raw: *mut MsgData, arena: Arena }`:
@@ -180,6 +205,20 @@ enum Repr {
   - Short strings (`<= 23` bytes): copied into inline `ProtoString` without allocating a parent `Wire`.
   - Medium strings: share the parent `Wire` frame via `Wire::ensure`.
   - Long strings (`> 23` bytes): `Wire::from_utf8_payload` allocates a payload-specific `Wire` while running SIMD UTF-8 verification, avoiding pinning unused parent frame bytes.
+
+### 4.1.1 Arena-backed map and repeated views
+
+Raw map keys are borrowed from the arena-owned entry for the immutable view's
+lifetime, not cloned into permanently leaked allocations during every
+iteration. Values inserted into raw map/repeated collections own stable
+`Box<Vec<u8>>` headers. Overwritten and removed values are released, and
+`clear()` and arena drop reclaim the rest. Values parsed or cloned through raw
+message paths are owned by the arena instead of leaked. Allocation pointers
+are derived only after the boxes enter their owners. Returning a view while
+unsafely mutating that same raw collection would violate the view's exclusive
+borrow contract; safe generated APIs prevent it. Arena-owned parsed and cloned
+bytes are reclaimed when the arena drops, not necessarily when an individual
+field is cleared; count that retention in application memory budgets.
 
 ### 4.2 Packed Fixed-Width Scalars & Memcpy Preconditions (`src/packed.rs`)
 Fixed-width scalar types (`fixed32`, `sfixed32`, `fixed64`, `sfixed64`, `float`, `double`) implement `PackedCodec` with `MEMCPY_SAFE = true`.
@@ -277,11 +316,37 @@ To ensure ongoing qualification of unsafe invariants, parser bounds, and target-
    - Invariants checked: Safe recovery on syntax errors, bounded allocation.
 
 ### 6.2 Resource Allocation & Budget
-- **Initial Sustained Budget**: **24 CPU-hours per major target** (total 96 CPU-hours across the 4 major targets).
+- **Proposed initial sustained budget**: **24 CPU-hours per major target**
+  (total 96 CPU-hours across the 4 major targets). Do not start this campaign
+  without explicit compute approval and recorded run artifacts.
 - **Continuous Integration / Cadence**:
-  - Weekly automated fuzzing on schedule in CI.
-  - Nightly AddressSanitizer (ASan) and Miri executions on the core runtime and parser test suite.
+  - Weekly Miri and ASan/LSan checks in `compatibility.yml`, when the
+    scheduled or manual job actually completes successfully.
+  - Sustained fuzzing is a separate, approval-gated campaign, not a claim
+    that the weekly compatibility workflow already runs 96 CPU-hours.
   - Sanitizers: libFuzzer with `-Zsanitizer=address` and `-Zsanitizer=memory`.
 - **Corpus Management**:
   - Seed corpus generated from differential binary/JSON/text test fixtures (`tests/fixtures/differential/`).
   - Minimized corpus committed under `fuzz/corpus/`.
+
+### 6.3 Dated local proof and remaining limits
+
+On 2026-09-23, against the **dirty** local checkout at `cd9d7bd8`, macOS arm64
+nightly `rustc 1.100.0-nightly (e7769602a 2026-08-24)` with
+`MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-strict-provenance'` passed
+`cargo +nightly miri test --offline -p pbrs --lib` (38/38),
+`cargo +nightly miri test --offline -p pbrs --test runtime` (14/14), and
+`cargo +nightly miri test --manifest-path rust_out_shared/Cargo.toml --offline`
+(233/233 across 19 original Google shared suites). These cover pointer use
+after arena growth/fusion, raw map iteration and repeated/map ownership,
+including the previously leaking paths. This is local
+evidence for the current worktree, **not** a CI artifact for the committed
+SHA or a big-endian/32-bit proof. A separate local macOS arm64
+`RUSTFLAGS='-Zsanitizer=address'` run with nightly `-Zbuild-std` passed the
+same 38 core and 14 runtime tests; `ASAN_OPTIONS` requested leak detection,
+but LeakSanitizer support on this host was not independently verified. The
+repaired `compatibility.yml` scheduled lane now runs the core, runtime and 72
+targeted original shared tests under Miri and still needs a successful
+Linux ASan/LSan run. That lane retains both sanitizer logs even on failure;
+it runs on schedule or explicit dispatch, not on every release SHA.
+The proposed 24 CPU-hours per target remain unapproved and unexecuted.

@@ -23,7 +23,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::slice;
 use std::sync::OnceLock;
 
@@ -167,20 +167,26 @@ pub enum FieldKind {
 #[derive(Debug)]
 pub struct RawArrayInner {
     pub items: RefCell<Vec<FieldKind>>,
-    pub strs: RefCell<Vec<Vec<u8>>>,
+    pub strs: RefCell<Vec<Box<Vec<u8>>>>,
+    owner: Weak<RefCell<ArenaInner>>,
 }
 
 #[derive(Debug)]
 pub struct RawMapInner {
     pub entries: RefCell<Vec<(Vec<u8>, FieldKind)>>,
-    pub strs: RefCell<Vec<Vec<u8>>>,
+    pub strs: RefCell<Vec<Box<Vec<u8>>>>,
+    owner: Weak<RefCell<ArenaInner>>,
 }
 
 #[derive(Debug)]
 pub struct MsgData {
     pub slots: Vec<FieldKind>,
     pub has: Vec<bool>,
-    pub strs: Vec<Vec<u8>>,
+    #[allow(
+        clippy::vec_box,
+        reason = "FieldKind::Bytes holds pointers to these Vec headers across growth"
+    )]
+    pub strs: Vec<Box<Vec<u8>>>,
     pub unknown: UnknownFields,
     pub mt: MiniTablePtr,
 }
@@ -203,6 +209,11 @@ pub struct ArenaInner {
         reason = "upb-shaped repeated message slots are Box<Msg>"
     )]
     maps: Vec<Box<RawMapInner>>,
+    #[allow(
+        clippy::vec_box,
+        reason = "FieldKind::Bytes points to stable Vec headers owned across arena fusion"
+    )]
+    bytes: Vec<Box<Vec<u8>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -223,6 +234,7 @@ impl Arena {
                 msgs: Vec::new(),
                 arrays: Vec::new(),
                 maps: Vec::new(),
+                bytes: Vec::new(),
             })),
         }
     }
@@ -233,43 +245,74 @@ impl Arena {
         }
         let mut o = other.inner.borrow_mut();
         let mut s = self.inner.borrow_mut();
+        let array_start = s.arrays.len();
+        let map_start = s.maps.len();
         s.msgs.append(&mut o.msgs);
         s.arrays.append(&mut o.arrays);
         s.maps.append(&mut o.maps);
+        s.bytes.append(&mut o.bytes);
+        // Raw mutators must resolve the owner after a collection changes arenas.
+        for array in &mut s.arrays[array_start..] {
+            array.owner = Rc::downgrade(&self.inner);
+        }
+        for map in &mut s.maps[map_start..] {
+            map.owner = Rc::downgrade(&self.inner);
+        }
     }
 
     pub(crate) fn alloc_msg(&self, mt: MiniTablePtr) -> *mut MsgData {
         let n = unsafe { mt.0.as_ref().map(|t| t.fields.len()).unwrap_or(0) };
-        let mut b = Box::new(MsgData {
+        let b = Box::new(MsgData {
             slots: vec![FieldKind::Empty; n],
             has: vec![false; n],
             strs: Vec::new(),
             unknown: UnknownFields::default(),
             mt,
         });
-        let p = &mut *b as *mut MsgData;
-        self.inner.borrow_mut().msgs.push(b);
-        p
+        let mut owner = self.inner.borrow_mut();
+        owner.msgs.push(b);
+        owner
+            .msgs
+            .last_mut()
+            .expect("message was just inserted")
+            .as_mut() as *mut MsgData
     }
 
     pub(crate) fn alloc_array(&self) -> *const RawArrayInner {
         let b = Box::new(RawArrayInner {
             items: RefCell::new(Vec::new()),
             strs: RefCell::new(Vec::new()),
+            owner: Rc::downgrade(&self.inner),
         });
-        let p = &*b as *const RawArrayInner;
-        self.inner.borrow_mut().arrays.push(b);
-        p
+        let mut owner = self.inner.borrow_mut();
+        owner.arrays.push(b);
+        owner
+            .arrays
+            .last()
+            .expect("array was just inserted")
+            .as_ref() as *const RawArrayInner
     }
 
     pub(crate) fn alloc_map(&self) -> *const RawMapInner {
         let b = Box::new(RawMapInner {
             entries: RefCell::new(Vec::new()),
             strs: RefCell::new(Vec::new()),
+            owner: Rc::downgrade(&self.inner),
         });
-        let p = &*b as *const RawMapInner;
-        self.inner.borrow_mut().maps.push(b);
-        p
+        let mut owner = self.inner.borrow_mut();
+        owner.maps.push(b);
+        owner.maps.last().expect("map was just inserted").as_ref() as *const RawMapInner
+    }
+
+    fn alloc_bytes(&self, bytes: Vec<u8>) -> *const Vec<u8> {
+        let mut owner = self.inner.borrow_mut();
+        owner.bytes.push(Box::new(bytes));
+        // Taking the pointer before moving the Box here would invalidate its provenance.
+        owner
+            .bytes
+            .last()
+            .expect("bytes were just inserted")
+            .as_ref() as *const Vec<u8>
     }
 }
 
@@ -439,8 +482,8 @@ impl<T> MessagePtr<T> {
     pub unsafe fn set_base_field_string_at_index(self, index: u32, value: StringView) {
         let bytes = unsafe { value.as_ref() }.to_vec();
         let d = self.data_mut();
-        d.strs.push(bytes);
-        let p = d.strs.last().unwrap() as *const Vec<u8>;
+        d.strs.push(Box::new(bytes));
+        let p = d.strs.last().expect("string was just inserted").as_ref() as *const Vec<u8>;
         self.set_slot(index, FieldKind::Bytes(p), true);
     }
 
@@ -574,8 +617,8 @@ impl<T> MessagePtr<T> {
 fn clone_field_kind(fk: FieldKind, arena: &Arena) -> FieldKind {
     match fk {
         FieldKind::Bytes(p) if !p.is_null() => unsafe {
-            let leaked = Box::leak(Box::new((*p).clone()));
-            FieldKind::Bytes(leaked as *const Vec<u8>)
+            // SAFETY: p belongs to the live source field while this copy is made.
+            FieldKind::Bytes(arena.alloc_bytes((*p).clone()))
         },
         FieldKind::Msg(p) if !p.is_null() => FieldKind::Msg(kernel_clone_msg(p, arena)),
         FieldKind::Repeated(p) if !p.is_null() => {
@@ -620,8 +663,9 @@ fn copy_msg(dst: *mut MsgData, src: *mut MsgData, arena: &Arena) {
         for slot in &mut d.slots {
             match *slot {
                 FieldKind::Bytes(p) if !p.is_null() => {
-                    d.strs.push((*p).clone());
-                    *slot = FieldKind::Bytes(d.strs.last().unwrap() as *const Vec<u8>);
+                    d.strs.push(Box::new((*p).clone()));
+                    *slot =
+                        FieldKind::Bytes(d.strs.last().expect("string was just copied").as_ref());
                 }
                 FieldKind::Msg(p) if !p.is_null() => {
                     let child = arena.alloc_msg((*p).mt);
@@ -914,8 +958,10 @@ impl InnerProtoString {
     pub fn into_raw_parts(self) -> (StringView, Arena) {
         let bytes = self.0;
         let arena = self.1;
-        let leaked = Box::leak(bytes.into_boxed_slice());
-        (StringView::from(&leaked[..]), arena)
+        let ptr = arena.alloc_bytes(bytes);
+        // SAFETY: ptr refers to storage owned by the returned arena.
+        let view = unsafe { StringView::from((&*ptr).as_slice()) };
+        (view, arena)
     }
 }
 
@@ -976,6 +1022,32 @@ pub fn empty_map<K: crate::map::MapKey, V: crate::map::MapValue>(
     crate::map::MapView::from_slice(&[])
 }
 
+#[allow(
+    clippy::vec_box,
+    reason = "FieldKind::Bytes points at Vec headers that must stay put across storage growth"
+)]
+fn retain_bytes(storage: &RefCell<Vec<Box<Vec<u8>>>>, bytes: Vec<u8>) -> *const Vec<u8> {
+    let mut strings = storage.borrow_mut();
+    strings.push(Box::new(bytes));
+    strings.last().expect("bytes were just inserted").as_ref()
+}
+
+#[allow(
+    clippy::vec_box,
+    reason = "FieldKind::Bytes points at Vec headers owned by these stable boxes"
+)]
+fn release_bytes(storage: &RefCell<Vec<Box<Vec<u8>>>>, kind: FieldKind) {
+    if let FieldKind::Bytes(ptr) = kind {
+        let mut strings = storage.borrow_mut();
+        if let Some(index) = strings
+            .iter()
+            .position(|value| std::ptr::eq::<Vec<u8>>(value.as_ref(), ptr))
+        {
+            strings.swap_remove(index);
+        }
+    }
+}
+
 pub(crate) fn kernel_array_push<T: 'static>(
     raw: RawRepeatedField,
     value: T,
@@ -987,10 +1059,10 @@ pub(crate) fn kernel_array_push<T: 'static>(
         if TypeId::of::<T>() == TypeId::of::<ProtoString>() {
             let s = std::ptr::read(&value as *const T as *const ProtoString);
             std::mem::forget(value);
-            let leaked = Box::leak(Box::new(s.as_bytes().to_vec()));
-            arr.items
-                .borrow_mut()
-                .push(FieldKind::Bytes(leaked as *const Vec<u8>));
+            arr.items.borrow_mut().push(FieldKind::Bytes(retain_bytes(
+                &arr.strs,
+                s.as_bytes().to_vec(),
+            )));
         } else if TypeId::of::<T>() == TypeId::of::<i32>() {
             let v = std::ptr::read(&value as *const T as *const i32);
             std::mem::forget(value);
@@ -1006,10 +1078,10 @@ pub(crate) fn kernel_array_push<T: 'static>(
         } else if TypeId::of::<T>() == TypeId::of::<ProtoBytes>() {
             let s = std::ptr::read(&value as *const T as *const ProtoBytes);
             std::mem::forget(value);
-            let leaked = Box::leak(Box::new(s.as_bytes().to_vec()));
-            arr.items
-                .borrow_mut()
-                .push(FieldKind::Bytes(leaked as *const Vec<u8>));
+            arr.items.borrow_mut().push(FieldKind::Bytes(retain_bytes(
+                &arr.strs,
+                s.as_bytes().to_vec(),
+            )));
         } else if TypeId::of::<T>() == TypeId::of::<u32>() {
             let v = std::ptr::read(&value as *const T as *const u32);
             std::mem::forget(value);
@@ -1031,7 +1103,9 @@ pub(crate) fn kernel_array_push<T: 'static>(
             std::mem::forget(value);
             arr.items.borrow_mut().push(FieldKind::I32(v));
         } else {
-            arr.items.borrow_mut().push(adopt_owned_msg(value, arena));
+            arr.items
+                .borrow_mut()
+                .push(adopt_owned_msg(value, arena, &arr.owner));
         }
     }
 }
@@ -1051,11 +1125,8 @@ pub(crate) unsafe fn kernel_repeated_set<T: 'static>(
     value: T,
 ) {
     let arr = unsafe { &*raw };
-    if index >= arr.items.borrow().len() {
-        std::mem::forget(value);
-        return;
-    }
-    arr.items.borrow_mut().remove(index);
+    let old = arr.items.borrow_mut().remove(index);
+    release_bytes(&arr.strs, old);
     kernel_array_push(raw, value, None);
     let mut items = arr.items.borrow_mut();
     let last = items.pop().unwrap();
@@ -1221,7 +1292,11 @@ struct OwnedMsgHead {
     arena: Arena,
 }
 
-fn adopt_owned_msg<T>(value: T, parent: Option<&Arena>) -> FieldKind {
+fn adopt_owned_msg<T>(
+    value: T,
+    parent: Option<&Arena>,
+    owner: &Weak<RefCell<ArenaInner>>,
+) -> FieldKind {
     if std::mem::size_of::<T>() < std::mem::size_of::<OwnedMsgHead>() {
         std::mem::forget(value);
         return FieldKind::Empty;
@@ -1233,11 +1308,13 @@ fn adopt_owned_msg<T>(value: T, parent: Option<&Arena>) -> FieldKind {
     }
     if let Some(parent) = parent {
         parent.fuse(&head.arena);
-        FieldKind::Msg(head.raw)
     } else {
-        let _ = Box::leak(Box::new(head.arena));
-        FieldKind::Msg(head.raw)
+        let parent = Arena {
+            inner: owner.upgrade().expect("raw collection outlived its arena"),
+        };
+        parent.fuse(&head.arena);
     }
+    FieldKind::Msg(head.raw)
 }
 
 pub(crate) unsafe fn kernel_bytes_to_view<'msg, K: crate::proxied::Proxied + 'static>(
@@ -1322,7 +1399,7 @@ pub(crate) fn kernel_key_bytes<K: 'static>(key: K) -> Vec<u8> {
     }
 }
 
-fn kernel_value_kind<V: 'static>(value: V, arena: Option<&Arena>) -> FieldKind {
+fn kernel_value_kind<V: 'static>(value: V, arena: Option<&Arena>, raw: RawMap) -> FieldKind {
     use std::any::TypeId;
     unsafe {
         if TypeId::of::<V>() == TypeId::of::<i32>() {
@@ -1365,14 +1442,13 @@ fn kernel_value_kind<V: 'static>(value: V, arena: Option<&Arena>) -> FieldKind {
                 std::mem::forget(value);
                 p.as_bytes().to_vec()
             };
-            let leaked = Box::leak(Box::new(s));
-            FieldKind::Bytes(leaked as *const Vec<u8>)
+            FieldKind::Bytes(retain_bytes(&(*raw).strs, s))
         } else if std::mem::size_of::<V>() == 4 {
             let v = std::ptr::read(&value as *const V as *const i32);
             std::mem::forget(value);
             FieldKind::I32(v)
         } else {
-            adopt_owned_msg(value, arena)
+            adopt_owned_msg(value, arena, &(*raw).owner)
         }
     }
 }
@@ -1397,17 +1473,24 @@ pub(crate) fn kernel_map_insert<K: 'static, V: 'static>(
     arena: Option<&Arena>,
 ) -> bool {
     let kb = kernel_key_bytes(key);
-    let fk = kernel_value_kind(value, arena);
+    let fk = kernel_value_kind(value, arena, raw);
     unsafe {
         let mut entries = (*raw).entries.borrow_mut();
         if let Some(e) = entries.iter_mut().rev().find(|(k, _)| *k == kb) {
-            e.1 = fk;
+            let old = std::mem::replace(&mut e.1, fk);
+            drop(entries);
+            kernel_map_release_value(raw, old);
             false
         } else {
             entries.push((kb, fk));
             true
         }
     }
+}
+
+pub(crate) fn kernel_map_release_value(raw: RawMap, kind: FieldKind) {
+    // SAFETY: callers hold a live arena-owned raw map while replacing or removing its entry.
+    unsafe { release_bytes(&(*raw).strs, kind) };
 }
 
 pub(crate) unsafe fn kernel_map_get_bytes<'msg, V>(
@@ -1955,9 +2038,7 @@ fn decode_one(
         FieldType::Double => Ok(FieldKind::F64(f64::from_bits(read_fixed64(buf, pos)?))),
         FieldType::String | FieldType::Bytes => {
             let p = read_len_bytes(buf, pos)?;
-            Ok(FieldKind::Bytes(
-                Box::leak(Box::new(p.to_vec())) as *const Vec<u8>
-            ))
+            Ok(FieldKind::Bytes(arena.alloc_bytes(p.to_vec())))
         }
         FieldType::Message => {
             if wire != WIRE_LEN {
@@ -2394,11 +2475,49 @@ where
 mod tests {
     use super::*;
 
+    fn string_field(repeated: bool) -> MiniField {
+        MiniField {
+            number: 1,
+            ty: FieldType::String,
+            repeated,
+            packed: false,
+            proto3_singular: false,
+            required: false,
+            is_map: false,
+            sub: MiniTablePtr::dangling(),
+            oneof_group: 0,
+        }
+    }
+
     #[test]
     fn address_mini_table_one_string() {
         let mt = decode_mini_table(b"$M1P");
         assert_eq!(mt.fields.len(), 1);
         assert_eq!(mt.fields[0].number, 1);
         assert_eq!(mt.fields[0].ty, FieldType::String);
+    }
+
+    #[test]
+    fn parsed_string_storage_is_owned_by_the_arena() {
+        let arena = Arena::new();
+        let mut pos = 0;
+        let field = string_field(false);
+        let kind = decode_one(field, &[1, b'a'], &mut pos, WIRE_LEN, &arena).expect("decode");
+        let mut encoded = Vec::new();
+        encode_slot(&field, kind, &mut encoded);
+        assert_eq!(encoded, [0x0a, 1, b'a']);
+    }
+
+    #[test]
+    fn cloned_repeated_strings_are_owned_by_the_new_arena() {
+        let original = Arena::new();
+        let raw = original.alloc_array();
+        kernel_array_push(raw, ProtoString::from("beta"), Some(&original));
+        let clone = Arena::new();
+        let kind = clone_field_kind(FieldKind::Repeated(raw), &clone);
+        drop(original);
+        let mut encoded = Vec::new();
+        encode_slot(&string_field(true), kind, &mut encoded);
+        assert_eq!(encoded, [0x0a, 4, b'b', b'e', b't', b'a']);
     }
 }

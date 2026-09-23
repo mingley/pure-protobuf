@@ -159,8 +159,16 @@ jobs:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
         run: |
           set -euo pipefail
-          cargo miri test -p pbrs --lib wire packed string lazy rt runtime
-          cargo miri test -p pbrs --test runtime
+          mkdir -p target/sanitizer-logs
+          {
+            rustc --version &&
+            cargo miri --version &&
+            cargo miri test -p pbrs --lib &&
+            cargo miri test -p pbrs --test runtime &&
+            cargo miri test --manifest-path rust_out_shared/Cargo.toml --locked \
+              --test accessors_map_test --test accessors_repeated_test \
+              --test message_copy_merge_test
+          } 2>&1 | tee target/sanitizer-logs/miri.log
       - name: Run AddressSanitizer and LeakSanitizer
         env:
           RUSTFLAGS: "-Zsanitizer=address"
@@ -168,5 +176,16 @@ jobs:
           ASAN_OPTIONS: "detect_leaks=1:detect_stack_use_after_return=1"
         run: |
           set -euo pipefail
-          cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std
-          cargo test -p pbrs --test runtime --target x86_64-unknown-linux-gnu -Zbuild-std
+          mkdir -p target/sanitizer-logs
+          {
+            rustc --version &&
+            cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std &&
+            cargo test -p pbrs --test runtime --target x86_64-unknown-linux-gnu -Zbuild-std
+          } 2>&1 | tee target/sanitizer-logs/asan.log
+      - name: Retain sanitizer proof and failure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-sanitizer-logs
+          path: target/sanitizer-logs/
+          if-no-files-found: warn
