@@ -18,8 +18,8 @@
 use pbrs::prelude::*;
 use pbrs::testdata::Person;
 use pbrs::{
-    Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, MapKeyValue,
-    MessageDescriptor, Presence, Serialize, Value,
+    Cardinality, DescriptorPool, DynamicMessage, EnumDescriptor, FieldDescriptor, FieldType,
+    FileDescriptor, MapKeyValue, MessageDescriptor, Presence, Serialize, Value,
 };
 
 fn person_desc() -> std::sync::Arc<MessageDescriptor> {
@@ -106,6 +106,53 @@ fn person_desc() -> std::sync::Arc<MessageDescriptor> {
             .field(city)
             .build(),
     )
+}
+
+#[test]
+fn exhaustive_descriptor_literals_remain_external_source_compatible() {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    let message = MessageDescriptor {
+        name: "Legacy".into(),
+        full_name: "example.Legacy".into(),
+        fields: BTreeMap::new(),
+        fields_by_name: BTreeMap::new(),
+        is_map_entry: false,
+        oneofs: Vec::new(),
+        fields_by_json_name: BTreeMap::new(),
+        extension_ranges: Vec::new(),
+        reserved_names: BTreeSet::new(),
+        file_name: "legacy.proto".into(),
+        message_set_wire_format: false,
+        options: Vec::new(),
+        comments: pbrs::codegen::Comments::default(),
+        deprecated: false,
+    };
+    let en = EnumDescriptor {
+        name: "Kind".into(),
+        full_name: "example.Kind".into(),
+        file_name: "legacy.proto".into(),
+        values: BTreeMap::new(),
+        names: BTreeMap::new(),
+        listed: Vec::new(),
+        closed: false,
+        options: Vec::new(),
+        comments: pbrs::codegen::Comments::default(),
+        value_comments: BTreeMap::new(),
+        value_comments_by_name: BTreeMap::new(),
+        deprecated: false,
+        deprecated_values: BTreeSet::new(),
+    };
+    let file = FileDescriptor {
+        name: "legacy.proto".into(),
+        package: "example".into(),
+        options: Vec::new(),
+        source_code_info: None,
+        comments: pbrs::codegen::Comments::default(),
+        deprecated: false,
+    };
+    assert_eq!(message.file_name, en.file_name);
+    assert_eq!(en.file_name, file.name);
 }
 
 #[test]
@@ -721,4 +768,812 @@ fn codegen_config_include_source_info() {
     let mut config = pbrs::codegen::Config::new();
     config.include_source_info(true);
     config.preserve_comments(true);
+}
+
+fn edition2024_fds(name: &str) -> DescriptorPool {
+    let path = format!("tests/fixtures/edition2024/fds/{name}.fds");
+    let bytes = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path))
+        .expect("pinned Edition 2024 descriptor set");
+    DescriptorPool::from_file_descriptor_set(&bytes).expect("valid Edition 2024 descriptor set")
+}
+
+fn file_feature_values(pool: &DescriptorPool, name: &str) -> (i32, u32, u32, u32) {
+    (
+        pool.file_edition(name).expect("file edition"),
+        pool.file_json_format(name).expect("file JSON format"),
+        pool.file_naming_style(name).expect("file naming style"),
+        pool.file_default_symbol_visibility(name)
+            .expect("file default visibility"),
+    )
+}
+
+fn symbol_feature_values(pool: &DescriptorPool, name: &str) -> (u32, u32, u32, u32) {
+    (
+        pool.symbol_json_format(name).expect("symbol JSON format"),
+        pool.symbol_naming_style(name).expect("symbol naming style"),
+        pool.declared_symbol_visibility(name)
+            .expect("declared visibility"),
+        pool.effective_symbol_visibility(name)
+            .expect("effective visibility"),
+    )
+}
+
+fn edition2024_wire(name: &str) -> Vec<u8> {
+    let path = format!("tests/fixtures/edition2024/bin/{name}.bin");
+    std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path))
+        .expect("pinned Edition 2024 wire vector")
+}
+
+#[test]
+fn edition2024_field_defaults_and_wire_match_pinned_fixture() {
+    let pool = std::sync::Arc::new(edition2024_fds("defaults"));
+    let desc = pool
+        .get_message("edition2024.defaults.DefaultMessage")
+        .expect("DefaultMessage");
+    assert_eq!(desc.field(1).expect("int32").presence, Presence::Explicit);
+    assert_eq!(desc.field(5).expect("bool").presence, Presence::Explicit);
+    assert!(desc.field(6).expect("string").utf8_validate);
+    assert!(!desc.field(9).expect("submessage").delimited);
+    assert!(desc.field(10).expect("repeated int32").packed);
+    assert!(
+        !pool
+            .get_enum("edition2024.defaults.DefaultEnum")
+            .expect("DefaultEnum")
+            .closed
+    );
+
+    let empty = edition2024_wire("defaults_empty");
+    let zero_set = edition2024_wire("defaults_zero_set");
+    assert_eq!(
+        DynamicMessage::parse_with(desc.clone(), &empty)
+            .expect("empty")
+            .serialize()
+            .expect("serialize empty"),
+        empty
+    );
+    let parsed = DynamicMessage::parse_with(desc.clone(), &zero_set).expect("explicit zero");
+    assert_eq!(parsed.get_singular(1), Some(&Value::Int32(0)));
+    assert_eq!(parsed.get_singular(5), Some(&Value::Bool(false)));
+    assert!(parsed.has(6), "empty string still has explicit presence");
+    assert_eq!(parsed.serialize().expect("serialize zero"), zero_set);
+    let populated = edition2024_wire("defaults_populated");
+    let parsed = DynamicMessage::parse_with_pool(desc, Some(pool), &populated)
+        .expect("populated reference vector");
+    assert_eq!(parsed.get_repeated(10).map(|items| items.len()), Some(3));
+    assert_eq!(parsed.serialize().expect("serialize populated"), populated);
+}
+
+#[test]
+fn edition2024_field_and_enum_overrides_match_pinned_descriptors() {
+    let pool = std::sync::Arc::new(edition2024_fds("overrides"));
+    let desc = pool
+        .get_message("edition2024.overrides.OverridesMessage")
+        .expect("OverridesMessage");
+    assert_eq!(
+        desc.field(1).expect("implicit").presence,
+        Presence::Implicit
+    );
+    assert_eq!(
+        desc.field(2).expect("required").cardinality,
+        Cardinality::Required
+    );
+    assert!(!desc.field(3).expect("expanded").packed);
+    assert!(!desc.field(4).expect("unverified").utf8_validate);
+    assert!(desc.field(5).expect("delimited").delimited);
+    assert!(
+        pool.get_enum("edition2024.overrides.ClosedEnum")
+            .expect("ClosedEnum")
+            .closed
+    );
+
+    let mut expanded = vec![0x10, 0x01];
+    expanded.extend(edition2024_wire("overrides_expanded_repeated"));
+    let parsed = DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &expanded)
+        .expect("expanded");
+    assert_eq!(parsed.get_repeated(3).map(|items| items.len()), Some(3));
+    assert_eq!(parsed.serialize().expect("serialize expanded"), expanded);
+
+    let mut delimited = vec![0x10, 0x01];
+    delimited.extend(edition2024_wire("overrides_delimited_message"));
+    let parsed = DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &delimited)
+        .expect("group");
+    assert!(parsed.has(5));
+    assert_eq!(parsed.serialize().expect("serialize group"), delimited);
+
+    let known = [0x10, 0x01, 0x38, 0x01];
+    let parsed = DynamicMessage::parse_with(desc.clone(), &known).expect("known closed enum");
+    assert_eq!(parsed.get_singular(7), Some(&Value::Enum(1)));
+    let unknown = [0x10, 0x01, 0x38, 0x63];
+    let parsed = DynamicMessage::parse_with(desc, &unknown).expect("unknown closed enum");
+    assert!(
+        !parsed.has(7),
+        "unknown closed enum must not become a value"
+    );
+    assert_eq!(parsed.serialize().expect("preserve unknown enum"), unknown);
+
+    let inherited = edition2024_fds("inheritance");
+    let file = inherited
+        .get_message("edition2024.inheritance.FileDefaultsConsumer")
+        .expect("file defaults");
+    assert_eq!(
+        file.field(1).expect("implicit").presence,
+        Presence::Implicit
+    );
+    assert!(!file.field(2).expect("expanded").packed);
+    assert!(!file.field(3).expect("unverified").utf8_validate);
+    let fields = inherited
+        .get_message("edition2024.inheritance.FieldLevelOverrides")
+        .expect("field overrides");
+    assert_eq!(
+        fields.field(1).expect("explicit").presence,
+        Presence::Explicit
+    );
+    assert!(fields.field(2).expect("packed").packed);
+    assert!(fields.field(3).expect("verified").utf8_validate);
+    assert!(DynamicMessage::parse_with(file, &[0x1a, 0x01, 0xff]).is_ok());
+    assert!(DynamicMessage::parse_with(fields, &[0x1a, 0x01, 0xff]).is_err());
+
+    for (name, closed) in [
+        ("TopLevelEnumDefault", false),
+        ("TopLevelEnumClosed", true),
+        ("MessageWithNestedEnums.NestedDefaultEnum", false),
+        ("MessageWithNestedEnums.NestedClosedEnum", true),
+    ] {
+        let name = format!("edition2024.inheritance.{name}");
+        assert_eq!(inherited.get_enum(&name).expect(&name).closed, closed);
+    }
+    assert!(
+        edition2024_fds("extensions")
+            .get_enum("edition2024.extensions.ExtensionClosedEnum")
+            .expect("extension enum")
+            .closed
+    );
+    assert!(edition2024_fds("visibility")
+        .get_message("edition2024.visibility.DefaultTopLevelMessage.ExportedNestedMessage")
+        .is_some());
+}
+
+#[test]
+fn edition2024_metadata_matches_pinned_feature_inheritance() {
+    let defaults = edition2024_fds("defaults");
+    assert_eq!(
+        file_feature_values(&defaults, "defaults.proto"),
+        (1001, 1, 1, 2)
+    );
+    assert_eq!(defaults.file_json_format("proto/defaults.proto"), Some(1));
+    assert_eq!(
+        defaults.file_default_symbol_visibility("proto/defaults.proto"),
+        Some(2)
+    );
+    let message = defaults
+        .get_message("edition2024.defaults.DefaultMessage")
+        .expect("default message");
+    assert_eq!(
+        symbol_feature_values(&defaults, &message.full_name),
+        (1, 1, 0, 2)
+    );
+
+    let overrides = edition2024_fds("overrides");
+    assert_eq!(
+        symbol_feature_values(&overrides, "edition2024.overrides.SubJsonBestEffort"),
+        (2, 1, 0, 2)
+    );
+    assert_eq!(
+        symbol_feature_values(&overrides, "edition2024.overrides.OverridesMessage"),
+        (1, 1, 0, 2)
+    );
+    let inherited = edition2024_fds("inheritance");
+    assert_eq!(
+        symbol_feature_values(&inherited, "edition2024.inheritance.MessageJsonConsumer"),
+        (2, 1, 0, 2)
+    );
+    assert_eq!(
+        symbol_feature_values(
+            &inherited,
+            "edition2024.inheritance.MessageJsonConsumer.NestedMessageJsonOverride"
+        ),
+        (1, 1, 0, 1)
+    );
+
+    let legacy = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/differential/differential.fds"
+    ))
+    .expect("legacy reference FDS");
+    let legacy = DescriptorPool::from_file_descriptor_set(&legacy).expect("legacy pool");
+    assert_eq!(
+        file_feature_values(&legacy, "differential_proto2.proto"),
+        (0, 2, 2, 1)
+    );
+    assert_eq!(
+        file_feature_values(&legacy, "differential_proto3.proto"),
+        (0, 1, 2, 1)
+    );
+}
+
+#[test]
+fn edition2024_visibility_matches_pinned_descriptor_oracle() {
+    let pool = edition2024_fds("visibility");
+    assert_eq!(
+        file_feature_values(&pool, "visibility.proto"),
+        (1001, 1, 1, 2)
+    );
+    for (name, declared, effective) in [
+        ("ExportedTopLevelMessage", 2, 2),
+        ("LocalTopLevelMessage", 1, 1),
+        ("DefaultTopLevelMessage", 0, 2),
+        ("DefaultTopLevelMessage.DefaultNestedLocalMessage", 0, 1),
+        ("DefaultTopLevelMessage.ExportedNestedMessage", 2, 2),
+        ("DefaultTopLevelMessage.ExplicitLocalNestedMessage", 1, 1),
+    ] {
+        let full = format!("edition2024.visibility.{name}");
+        assert!(pool.get_message(&full).is_some(), "missing {full}");
+        assert_eq!(
+            symbol_feature_values(&pool, &full),
+            (1, 1, declared, effective),
+            "{full}"
+        );
+    }
+    for (name, declared, effective) in [
+        ("ExportedTopLevelEnum", 2, 2),
+        ("LocalTopLevelEnum", 1, 1),
+        ("DefaultTopLevelEnum", 0, 2),
+    ] {
+        let full = format!("edition2024.visibility.{name}");
+        assert!(pool.get_enum(&full).is_some(), "missing {full}");
+        assert_eq!(
+            symbol_feature_values(&pool, &full),
+            (1, 1, declared, effective),
+            "{full}"
+        );
+    }
+    let inherited = edition2024_fds("inheritance");
+    assert_eq!(
+        symbol_feature_values(
+            &inherited,
+            "edition2024.inheritance.MessageWithNestedEnums.NestedDefaultEnum"
+        ),
+        (1, 1, 0, 1)
+    );
+}
+
+#[test]
+fn manual_registration_does_not_inherit_stale_descriptor_metadata() {
+    let mut pool = edition2024_fds("visibility");
+    let message = "edition2024.visibility.LocalTopLevelMessage";
+    let en = "edition2024.visibility.LocalTopLevelEnum";
+    assert_eq!(pool.effective_symbol_visibility(message), Some(1));
+    assert_eq!(pool.effective_symbol_visibility(en), Some(1));
+
+    drop(pool.register_message(MessageDescriptor::builder(message).build()));
+    drop(pool.register_enum(EnumDescriptor {
+        full_name: en.into(),
+        ..EnumDescriptor::default()
+    }));
+    assert_eq!(pool.effective_symbol_visibility(message), None);
+    assert_eq!(pool.effective_symbol_visibility(en), None);
+}
+
+#[test]
+fn edition2024_file_metadata_overrides_reach_nested_symbols() {
+    let mut features = Vec::new();
+    protobuf_test_encode_varint(&mut features, 6, 2);
+    protobuf_test_encode_varint(&mut features, 7, 2);
+    let fds = edition_feature_fds_with_features("file", &features, 1001);
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("file features");
+    assert_eq!(
+        file_feature_values(&pool, "edition_feature.proto"),
+        (1001, 2, 2, 2)
+    );
+    assert_eq!(
+        symbol_feature_values(&pool, "features.Message"),
+        (2, 2, 0, 2)
+    );
+
+    let mut message_features = Vec::new();
+    protobuf_test_encode_varint(&mut message_features, 6, 2);
+    protobuf_test_encode_varint(&mut message_features, 7, 2);
+    let fds = edition_feature_fds_with_features("message", &message_features, 1001);
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("message features");
+    assert_eq!(
+        symbol_feature_values(&pool, "features.Message"),
+        (2, 2, 0, 2)
+    );
+
+    let mut enum_features = Vec::new();
+    protobuf_test_encode_varint(&mut enum_features, 6, 2);
+    protobuf_test_encode_varint(&mut enum_features, 7, 2);
+    let fds = edition_feature_fds_with_features("enum", &enum_features, 1001);
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("enum features");
+    assert_eq!(symbol_feature_values(&pool, "features.Kind"), (2, 2, 0, 2));
+
+    for (default_visibility, top, nested) in [(1, 2, 2), (2, 2, 1), (3, 1, 1)] {
+        let mut file = Vec::new();
+        protobuf_test_encode_string(&mut file, 1, "scoped.proto");
+        protobuf_test_encode_string(&mut file, 2, "scoped");
+        protobuf_test_encode_string(&mut file, 12, "editions");
+        protobuf_test_encode_varint(&mut file, 14, 1001);
+        let mut features = Vec::new();
+        protobuf_test_encode_varint(&mut features, 8, default_visibility);
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 50, &features);
+        protobuf_test_encode_len(&mut file, 8, &options);
+        let mut outer = Vec::new();
+        protobuf_test_encode_string(&mut outer, 1, "Outer");
+        let mut inner = Vec::new();
+        protobuf_test_encode_string(&mut inner, 1, "Inner");
+        protobuf_test_encode_len(&mut outer, 3, &inner);
+        protobuf_test_encode_len(&mut file, 4, &outer);
+        let mut en = Vec::new();
+        protobuf_test_encode_string(&mut en, 1, "Kind");
+        protobuf_test_encode_len(&mut file, 5, &en);
+        let mut fds = Vec::new();
+        protobuf_test_encode_len(&mut fds, 1, &file);
+        let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("visibility override");
+        assert_eq!(
+            file_feature_values(&pool, "scoped.proto"),
+            (1001, 1, 1, default_visibility as u32)
+        );
+        assert_eq!(symbol_feature_values(&pool, "scoped.Outer"), (1, 1, 0, top));
+        assert_eq!(
+            symbol_feature_values(&pool, "scoped.Outer.Inner"),
+            (1, 1, 0, nested)
+        );
+        assert_eq!(symbol_feature_values(&pool, "scoped.Kind"), (1, 1, 0, top));
+    }
+}
+
+fn edition2024_visibility_consumer(type_name: &str, field_type: u64) -> Vec<u8> {
+    let mut fds = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/edition2024/fds/visibility.fds"
+    ))
+    .expect("pinned visibility FDS");
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "consumer.proto");
+    protobuf_test_encode_string(&mut file, 2, "edition2024.consumer");
+    protobuf_test_encode_string(&mut file, 3, "visibility.proto");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, 1001);
+    let mut message = Vec::new();
+    protobuf_test_encode_string(&mut message, 1, "UsesType");
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "value");
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, field_type);
+    protobuf_test_encode_string(&mut field, 6, type_name);
+    protobuf_test_encode_len(&mut message, 2, &field);
+    protobuf_test_encode_len(&mut file, 4, &message);
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    fds
+}
+
+fn edition2024_visibility_service_consumer(input_type: &str) -> Vec<u8> {
+    let mut fds = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/edition2024/fds/visibility.fds"
+    ))
+    .expect("pinned visibility FDS");
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "service_consumer.proto");
+    protobuf_test_encode_string(&mut file, 2, "edition2024.consumer");
+    protobuf_test_encode_string(&mut file, 3, "visibility.proto");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, 1001);
+    let mut service = Vec::new();
+    protobuf_test_encode_string(&mut service, 1, "CallService");
+    let mut method = Vec::new();
+    protobuf_test_encode_string(&mut method, 1, "Call");
+    protobuf_test_encode_string(&mut method, 2, input_type);
+    protobuf_test_encode_string(
+        &mut method,
+        3,
+        ".edition2024.visibility.ExportedTopLevelMessage",
+    );
+    protobuf_test_encode_len(&mut service, 2, &method);
+    protobuf_test_encode_len(&mut file, 6, &service);
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    fds
+}
+
+fn edition2024_visibility_extension_consumer(local_type: bool) -> Vec<u8> {
+    let mut defs = Vec::new();
+    protobuf_test_encode_string(&mut defs, 1, "defs.proto");
+    protobuf_test_encode_string(&mut defs, 2, "scoped");
+    protobuf_test_encode_string(&mut defs, 12, "editions");
+    protobuf_test_encode_varint(&mut defs, 14, 1001);
+    let mut target = Vec::new();
+    protobuf_test_encode_string(&mut target, 1, "Target");
+    let mut range = Vec::new();
+    protobuf_test_encode_varint(&mut range, 1, 100);
+    protobuf_test_encode_varint(&mut range, 2, 1000);
+    protobuf_test_encode_len(&mut target, 5, &range);
+    protobuf_test_encode_len(&mut defs, 4, &target);
+    let mut extension_type = Vec::new();
+    protobuf_test_encode_string(&mut extension_type, 1, "ExtensionType");
+    protobuf_test_encode_varint(&mut extension_type, 11, if local_type { 1 } else { 2 });
+    protobuf_test_encode_len(&mut defs, 4, &extension_type);
+
+    let mut consumer = Vec::new();
+    protobuf_test_encode_string(&mut consumer, 1, "extension_consumer.proto");
+    protobuf_test_encode_string(&mut consumer, 2, "scoped");
+    protobuf_test_encode_string(&mut consumer, 3, "defs.proto");
+    protobuf_test_encode_string(&mut consumer, 12, "editions");
+    protobuf_test_encode_varint(&mut consumer, 14, 1001);
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "external");
+    protobuf_test_encode_string(&mut field, 2, ".scoped.Target");
+    protobuf_test_encode_varint(&mut field, 3, 101);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, 11);
+    protobuf_test_encode_string(&mut field, 6, ".scoped.ExtensionType");
+    protobuf_test_encode_len(&mut consumer, 7, &field);
+
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &defs);
+    protobuf_test_encode_len(&mut fds, 1, &consumer);
+    fds
+}
+
+#[test]
+fn edition2024_cross_file_local_symbols_are_rejected() {
+    for (name, field_type) in [
+        (".edition2024.visibility.ExportedTopLevelMessage", 11),
+        (
+            ".edition2024.visibility.DefaultTopLevelMessage.ExportedNestedMessage",
+            11,
+        ),
+        (".edition2024.visibility.ExportedTopLevelEnum", 14),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_visibility_consumer(
+                name, field_type
+            ))
+            .is_ok(),
+            "cross-file exported symbol {name} must remain accessible"
+        );
+    }
+    for (name, field_type) in [
+        (".edition2024.visibility.LocalTopLevelMessage", 11),
+        (
+            ".edition2024.visibility.DefaultTopLevelMessage.DefaultNestedLocalMessage",
+            11,
+        ),
+        (".edition2024.visibility.LocalTopLevelEnum", 14),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_visibility_consumer(
+                name, field_type
+            ))
+            .is_err(),
+            "cross-file local symbol {name} must be rejected"
+        );
+    }
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_service_consumer(
+            ".edition2024.visibility.ExportedTopLevelMessage"
+        ))
+        .is_ok(),
+        "service may reference an exported request type"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_service_consumer(
+            ".edition2024.visibility.LocalTopLevelMessage"
+        ))
+        .is_err(),
+        "service must not reference a cross-file local request type"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(false))
+            .is_ok(),
+        "extension may reference an exported cross-file type"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(true))
+            .is_err(),
+        "extension must not reference a cross-file local type"
+    );
+
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "same_file.proto");
+    protobuf_test_encode_string(&mut file, 2, "scoped");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, 1001);
+    let mut local = Vec::new();
+    protobuf_test_encode_string(&mut local, 1, "Hidden");
+    protobuf_test_encode_varint(&mut local, 11, 1);
+    protobuf_test_encode_len(&mut file, 4, &local);
+    let mut owner = Vec::new();
+    protobuf_test_encode_string(&mut owner, 1, "Owner");
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "hidden");
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, 11);
+    protobuf_test_encode_string(&mut field, 6, ".scoped.Hidden");
+    protobuf_test_encode_len(&mut owner, 2, &field);
+    protobuf_test_encode_len(&mut file, 4, &owner);
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&fds).is_ok(),
+        "same-file references to local types remain valid"
+    );
+}
+
+#[test]
+fn edition2024_visibility_rejects_unknown_declarations() {
+    for (kind, number, value) in [("message", 11, 3), ("enum", 6, 3), ("message", 11, 99)] {
+        let mut file = Vec::new();
+        protobuf_test_encode_string(&mut file, 1, "bad_visibility.proto");
+        protobuf_test_encode_string(&mut file, 12, "editions");
+        protobuf_test_encode_varint(&mut file, 14, 1001);
+        let mut desc = Vec::new();
+        protobuf_test_encode_string(&mut desc, 1, "Kind");
+        protobuf_test_encode_varint(&mut desc, number, value);
+        protobuf_test_encode_len(&mut file, if kind == "message" { 4 } else { 5 }, &desc);
+        let mut fds = Vec::new();
+        protobuf_test_encode_len(&mut fds, 1, &file);
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&fds).is_err(),
+            "accepted {kind} visibility {value}"
+        );
+    }
+}
+
+#[test]
+fn edition2024_packed_closed_enum_retains_unknown_numbers() {
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "packed_closed.proto");
+    protobuf_test_encode_string(&mut file, 2, "features");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, 1001);
+    let mut message = Vec::new();
+    protobuf_test_encode_string(&mut message, 1, "Collection");
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "values");
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 3);
+    protobuf_test_encode_varint(&mut field, 5, 14);
+    protobuf_test_encode_string(&mut field, 6, ".features.Kind");
+    protobuf_test_encode_len(&mut message, 2, &field);
+    protobuf_test_encode_len(&mut file, 4, &message);
+    let mut en = Vec::new();
+    protobuf_test_encode_string(&mut en, 1, "Kind");
+    for (number, name) in [(0, "KIND_ZERO"), (1, "KIND_ONE")] {
+        let mut value = Vec::new();
+        protobuf_test_encode_string(&mut value, 1, name);
+        protobuf_test_encode_varint(&mut value, 2, number);
+        protobuf_test_encode_len(&mut en, 2, &value);
+    }
+    let mut features = Vec::new();
+    protobuf_test_encode_varint(&mut features, 2, 2);
+    let mut options = Vec::new();
+    protobuf_test_encode_len(&mut options, 7, &features);
+    protobuf_test_encode_len(&mut en, 3, &options);
+    protobuf_test_encode_len(&mut file, 5, &en);
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("closed enum FDS");
+    let desc = pool.get_message("features.Collection").expect("collection");
+    assert!(desc.field(1).expect("values").packed);
+    let parsed =
+        DynamicMessage::parse_with(desc, &[0x0a, 0x02, 0x01, 0x63]).expect("packed closed enum");
+    assert_eq!(parsed.get_repeated(1), Some(&[Value::Enum(1)][..]));
+    assert_eq!(parsed.unknown_fields().fields.iter().count(), 1);
+}
+
+fn edition_feature_fds(target: &str, tag: u32, value: u64, edition: u64) -> Vec<u8> {
+    let mut features = Vec::new();
+    protobuf_test_encode_varint(&mut features, tag, value);
+    edition_feature_fds_with_features(target, &features, edition)
+}
+
+fn edition_feature_fds_with_features(target: &str, features: &[u8], edition: u64) -> Vec<u8> {
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "edition_feature.proto");
+    protobuf_test_encode_string(&mut file, 2, "features");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, edition);
+    if target == "file" {
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 50, features);
+        protobuf_test_encode_len(&mut file, 8, &options);
+    }
+    let mut message = Vec::new();
+    protobuf_test_encode_string(&mut message, 1, "Message");
+    if target == "message" {
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 12, features);
+        protobuf_test_encode_len(&mut message, 7, &options);
+    }
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "value");
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, 5);
+    if target == "field" {
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 21, features);
+        protobuf_test_encode_len(&mut field, 8, &options);
+    }
+    protobuf_test_encode_len(&mut message, 2, &field);
+    protobuf_test_encode_len(&mut file, 4, &message);
+    let mut en = Vec::new();
+    protobuf_test_encode_string(&mut en, 1, "Kind");
+    let mut zero = Vec::new();
+    protobuf_test_encode_string(&mut zero, 1, "KIND_ZERO");
+    protobuf_test_encode_varint(&mut zero, 2, 0);
+    protobuf_test_encode_len(&mut en, 2, &zero);
+    if target == "enum" {
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 7, features);
+        protobuf_test_encode_len(&mut en, 3, &options);
+    }
+    protobuf_test_encode_len(&mut file, 5, &en);
+    if target == "method" {
+        let mut service = Vec::new();
+        protobuf_test_encode_string(&mut service, 1, "Service");
+        let mut method = Vec::new();
+        protobuf_test_encode_string(&mut method, 1, "call");
+        protobuf_test_encode_string(&mut method, 2, ".features.Message");
+        protobuf_test_encode_string(&mut method, 3, ".features.Message");
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 35, features);
+        protobuf_test_encode_len(&mut method, 4, &options);
+        protobuf_test_encode_len(&mut service, 2, &method);
+        protobuf_test_encode_len(&mut file, 6, &service);
+    }
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    fds
+}
+
+#[test]
+fn edition2024_rejects_unresolved_features_and_invalid_targets() {
+    for (target, tag, value) in [
+        ("file", 1, 0),
+        ("file", 2, 99),
+        ("file", 4, 1),
+        ("file", 6, 99),
+        ("file", 7, 3),
+        ("file", 8, 4),
+        ("file", 9, 1),
+        ("file", 1, u64::from(u32::MAX) + 2),
+        ("message", 1, 1),
+        ("message", 8, 2),
+        ("field", 2, 2),
+        ("field", 6, 2),
+        ("enum", 1, 1),
+        ("enum", 8, 2),
+        ("method", 1, 1),
+        ("method", 9, 1),
+    ] {
+        let bytes = edition_feature_fds(target, tag, value, 1001);
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&bytes).is_err(),
+            "{target} accepted feature {tag}={value}"
+        );
+    }
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds("method", 7, 2, 1001))
+            .is_ok(),
+        "method-level legacy naming style is a supported target"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds("file", 1, 1, 1002)).is_err(),
+        "unknown edition must not inherit Edition 2023 semantics"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds("file", 1, 1, 0)).is_err(),
+        "an unnumbered editions file has no resolved defaults"
+    );
+    let mut wrong_wire = Vec::new();
+    protobuf_test_encode_len(&mut wrong_wire, 1, b"\x01");
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds_with_features(
+            "file",
+            &wrong_wire,
+            1001,
+        ))
+        .is_err(),
+        "a known feature with the wrong wire type must fail"
+    );
+    let mut unknown_wire = Vec::new();
+    protobuf_test_encode_len(&mut unknown_wire, 9, b"\x01");
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds_with_features(
+            "file",
+            &unknown_wire,
+            1001,
+        ))
+        .is_err(),
+        "an unknown length-delimited feature must fail"
+    );
+    let mut cpp_feature = Vec::new();
+    protobuf_test_encode_len(&mut cpp_feature, 1000, b"\x08\x01");
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition_feature_fds_with_features(
+            "file",
+            &cpp_feature,
+            1001,
+        ))
+        .is_ok(),
+        "language-specific feature extensions remain valid"
+    );
+
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "bad_feature_wire.proto");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, 1001);
+    let mut options = Vec::new();
+    protobuf_test_encode_varint(&mut options, 50, 1);
+    protobuf_test_encode_len(&mut file, 8, &options);
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&fds).is_err(),
+        "a malformed FileOptions.features field must not become a custom option"
+    );
+}
+
+#[test]
+fn edition2023_and_proto_defaults_remain_unchanged() {
+    let earlier = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/differential/differential.fds"
+    ))
+    .expect("PB-03 differential FDS");
+    let pool = DescriptorPool::from_file_descriptor_set(&earlier).expect("PB-03 FDS");
+    assert_eq!(
+        pool.get_message("differential.Proto2Presence")
+            .expect("proto2")
+            .field(1)
+            .expect("optional int32")
+            .presence,
+        Presence::Explicit
+    );
+    assert_eq!(
+        pool.get_message("differential.Proto3Presence")
+            .expect("proto3")
+            .field(1)
+            .expect("implicit int32")
+            .presence,
+        Presence::Implicit
+    );
+    assert!(
+        pool.get_enum("differential.ClosedEnum")
+            .expect("closed")
+            .closed
+    );
+    assert!(!pool.get_enum("differential.OpenEnum").expect("open").closed);
+
+    let fds = edition_feature_fds("file", 1, 1, 1000);
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("Edition 2023 FDS");
+    assert_eq!(
+        pool.get_message("features.Message")
+            .expect("Edition 2023")
+            .field(1)
+            .expect("value")
+            .presence,
+        Presence::Explicit
+    );
+}
+
+#[test]
+fn bundled_reference_pool_preserves_supported_editions() {
+    let fds = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/vendor/google/conformance_fds.bin"
+    ));
+    let pool = DescriptorPool::from_file_descriptor_set(fds).expect("bundled reference FDS");
+    for file in [
+        "google/protobuf/test_messages_proto2.proto",
+        "google/protobuf/test_messages_proto3.proto",
+        "conformance/test_protos/test_messages_edition2023.proto",
+    ] {
+        assert!(pool.get_file(file).is_some(), "missing {file}");
+    }
 }

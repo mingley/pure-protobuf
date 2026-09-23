@@ -608,6 +608,19 @@ impl FileDescriptor {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct FileMetadata {
+    edition: i32,
+    features: RawFeatures,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct SymbolMetadata {
+    features: RawFeatures,
+    declared_visibility: u32,
+    effective_visibility: u32,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct DescriptorPool {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
@@ -617,6 +630,8 @@ pub struct DescriptorPool {
     files: BTreeMap<String, Arc<FileDescriptor>>,
     /// file name -> public import file names
     public_imports: BTreeMap<String, Vec<String>>,
+    file_metadata: BTreeMap<String, FileMetadata>,
+    symbol_metadata: BTreeMap<String, SymbolMetadata>,
 }
 
 impl DescriptorPool {
@@ -637,6 +652,62 @@ impl DescriptorPool {
 
     pub fn get_enum(&self, full_name: &str) -> Option<Arc<EnumDescriptor>> {
         self.enums.get(full_name.trim_start_matches('.')).cloned()
+    }
+
+    fn lookup_file_metadata(&self, file_name: &str) -> Option<&FileMetadata> {
+        let file = self.get_file(file_name)?;
+        self.file_metadata.get(&file.name)
+    }
+
+    /// Edition number for a file loaded from a descriptor set.
+    pub fn file_edition(&self, file_name: &str) -> Option<i32> {
+        self.lookup_file_metadata(file_name).map(|m| m.edition)
+    }
+
+    /// Resolved file JSON format (`ALLOW = 1`, `LEGACY_BEST_EFFORT = 2`).
+    pub fn file_json_format(&self, file_name: &str) -> Option<u32> {
+        self.lookup_file_metadata(file_name)
+            .map(|m| m.features.json_format)
+    }
+
+    /// Resolved file naming style (`STYLE2024 = 1`, `STYLE_LEGACY = 2`).
+    pub fn file_naming_style(&self, file_name: &str) -> Option<u32> {
+        self.lookup_file_metadata(file_name)
+            .map(|m| m.features.naming_style)
+    }
+
+    /// Resolved file default visibility (`EXPORT_ALL = 1`, `EXPORT_TOP_LEVEL = 2`, `LOCAL_ALL = 3`).
+    pub fn file_default_symbol_visibility(&self, file_name: &str) -> Option<u32> {
+        self.lookup_file_metadata(file_name)
+            .map(|m| m.features.default_symbol_visibility)
+    }
+
+    /// Resolved JSON format of a message or enum loaded from a descriptor set.
+    pub fn symbol_json_format(&self, full_name: &str) -> Option<u32> {
+        self.symbol_metadata
+            .get(full_name.trim_start_matches('.'))
+            .map(|m| m.features.json_format)
+    }
+
+    /// Resolved naming style of a message or enum loaded from a descriptor set.
+    pub fn symbol_naming_style(&self, full_name: &str) -> Option<u32> {
+        self.symbol_metadata
+            .get(full_name.trim_start_matches('.'))
+            .map(|m| m.features.naming_style)
+    }
+
+    /// Declared visibility (`UNSET = 0`, `LOCAL = 1`, `EXPORT = 2`) of a message or enum.
+    pub fn declared_symbol_visibility(&self, full_name: &str) -> Option<u32> {
+        self.symbol_metadata
+            .get(full_name.trim_start_matches('.'))
+            .map(|m| m.declared_visibility)
+    }
+
+    /// Effective visibility (`LOCAL = 1`, `EXPORT = 2`) of a message or enum.
+    pub fn effective_symbol_visibility(&self, full_name: &str) -> Option<u32> {
+        self.symbol_metadata
+            .get(full_name.trim_start_matches('.'))
+            .map(|m| m.effective_visibility)
     }
 
     /// Fully-qualified names of every enum in the pool.
@@ -698,6 +769,7 @@ impl DescriptorPool {
 
     pub fn register_message(&mut self, desc: MessageDescriptor) -> Arc<MessageDescriptor> {
         let key = desc.full_name.clone();
+        let _ = self.symbol_metadata.remove(&key);
         let arc = Arc::new(desc);
         self.messages.insert(key, arc.clone());
         arc
@@ -724,6 +796,7 @@ impl DescriptorPool {
 
     pub fn register_enum(&mut self, desc: EnumDescriptor) -> Arc<EnumDescriptor> {
         let key = desc.full_name.clone();
+        let _ = self.symbol_metadata.remove(&key);
         let arc = Arc::new(desc);
         self.enums.insert(key, arc.clone());
         arc
@@ -738,8 +811,15 @@ impl DescriptorPool {
         for file in &files {
             collect_raw(file, &mut raw, &mut raw_enums, &mut extensions);
         }
-        let mut pool = resolve_pool(raw, raw_enums, extensions);
+        let mut pool = resolve_pool(raw, raw_enums, extensions)?;
         for file in &files {
+            pool.file_metadata.insert(
+                file.name.clone(),
+                FileMetadata {
+                    edition: file.edition,
+                    features: file.features,
+                },
+            );
             pool.files.insert(
                 file.name.clone(),
                 Arc::new(FileDescriptor {
@@ -760,6 +840,18 @@ impl DescriptorPool {
                 pool.public_imports.insert(file.name.clone(), pubs);
             }
             for svc in &file.services {
+                for method in &svc.methods {
+                    for name in [&method.input_type, &method.output_type] {
+                        if let Some(target) = pool.get_message(name.trim_start_matches('.')) {
+                            check_symbol_visible_from_file(
+                                &file.name,
+                                &target.file_name,
+                                name.trim_start_matches('.'),
+                                &pool.symbol_metadata,
+                            )?;
+                        }
+                    }
+                }
                 let desc = Arc::new(ServiceDescriptor {
                     name: svc.name.clone(),
                     full_name: svc.full_name.clone(),
@@ -1132,7 +1224,15 @@ impl DynamicMessage {
                 while p < payload.len() {
                     let v =
                         decode_leaf(field, payload, &mut p, leaf_wire, self.pool.clone(), depth)?;
-                    self.push(field.number, v);
+                    match v {
+                        Value::Enum(n) if is_closed_unknown(field, n) => {
+                            self.unknown.fields.push(UnknownField::Varint {
+                                number: field.number,
+                                value: n as u64,
+                            });
+                        }
+                        value => self.push(field.number, value),
+                    }
                 }
                 return Ok(());
             }
@@ -2006,13 +2106,42 @@ impl fmt::Debug for DynamicMessageMut<'_> {
 
 // --- FileDescriptorSet bootstrap -------------------------------------------
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct RawFeatures {
     presence: u32,
     enum_type: u32,
     repeated_encoding: u32,
     utf8: u32,
     message_encoding: u32,
+    json_format: u32,
+    naming_style: u32,
+    default_symbol_visibility: u32,
+}
+
+const VISIBILITY_LOCAL: u32 = 1;
+const VISIBILITY_EXPORT: u32 = 2;
+
+fn parse_declared_visibility(bytes: &[u8], pos: &mut usize) -> Result<u32, ParseError> {
+    match decode_varint(bytes, pos)? {
+        0 => Ok(0),
+        1 => Ok(VISIBILITY_LOCAL),
+        2 => Ok(VISIBILITY_EXPORT),
+        _ => Err(ParseError::new("unknown symbol visibility")),
+    }
+}
+
+fn resolve_visibility(declared: u32, default: u32, nested: bool) -> Result<u32, ParseError> {
+    match declared {
+        VISIBILITY_LOCAL | VISIBILITY_EXPORT => Ok(declared),
+        0 => match default {
+            1 => Ok(VISIBILITY_EXPORT),
+            2 if nested => Ok(VISIBILITY_LOCAL),
+            2 => Ok(VISIBILITY_EXPORT),
+            3 => Ok(VISIBILITY_LOCAL),
+            _ => Err(ParseError::new("unresolved default symbol visibility")),
+        },
+        _ => Err(ParseError::new("unknown symbol visibility")),
+    }
 }
 
 impl RawFeatures {
@@ -2039,6 +2168,21 @@ impl RawFeatures {
             } else {
                 self.message_encoding
             },
+            json_format: if over.json_format != 0 {
+                over.json_format
+            } else {
+                self.json_format
+            },
+            naming_style: if over.naming_style != 0 {
+                over.naming_style
+            } else {
+                self.naming_style
+            },
+            default_symbol_visibility: if over.default_symbol_visibility != 0 {
+                over.default_symbol_visibility
+            } else {
+                self.default_symbol_visibility
+            },
         }
     }
 }
@@ -2051,14 +2195,31 @@ fn edition_defaults(syntax: &str, edition: i32) -> RawFeatures {
             repeated_encoding: 1,
             utf8: 2,
             message_encoding: 1,
+            json_format: 1,
+            naming_style: 2,
+            default_symbol_visibility: 1,
         }
-    } else if syntax == "editions" || edition >= 1000 {
+    } else if edition == 1001 {
         RawFeatures {
             presence: 1,
             enum_type: 1,
             repeated_encoding: 1,
             utf8: 2,
             message_encoding: 1,
+            json_format: 1,
+            naming_style: 1,
+            default_symbol_visibility: 2,
+        }
+    } else if syntax == "editions" || edition == 1000 {
+        RawFeatures {
+            presence: 1,
+            enum_type: 1,
+            repeated_encoding: 1,
+            utf8: 2,
+            message_encoding: 1,
+            json_format: 1,
+            naming_style: 2,
+            default_symbol_visibility: 1,
         }
     } else {
         RawFeatures {
@@ -2067,6 +2228,9 @@ fn edition_defaults(syntax: &str, edition: i32) -> RawFeatures {
             repeated_encoding: 2,
             utf8: 3,
             message_encoding: 1,
+            json_format: 2,
+            naming_style: 2,
+            default_symbol_visibility: 1,
         }
     }
 }
@@ -2132,6 +2296,8 @@ struct RawMessage {
     oneof_count: u32,
     enums: Vec<RawEnum>,
     features: RawFeatures,
+    declared_visibility: u32,
+    effective_visibility: u32,
     extensions: Vec<RawField>,
     extension_ranges: Vec<(u32, u32)>,
     reserved_names: Vec<String>,
@@ -2149,6 +2315,9 @@ struct RawEnum {
     file_name: String,
     values: Vec<(i32, String)>,
     closed: bool,
+    features: RawFeatures,
+    declared_visibility: u32,
+    effective_visibility: u32,
     options: Vec<DescriptorOption>,
     comments: Comments,
     value_comments: BTreeMap<i32, Comments>,
@@ -2221,9 +2390,18 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
                 file.source_code_info = Some(parse_source_code_info(payload)?);
             }
             (12, WIRE_LEN) => file.syntax = read_string(bytes, &mut pos)?,
-            (14, WIRE_VARINT) => file.edition = decode_varint(bytes, &mut pos)? as i32,
+            (14, WIRE_VARINT) => {
+                file.edition = i32::try_from(decode_varint(bytes, &mut pos)?)
+                    .map_err(|_| ParseError::new("protobuf edition out of range"))?;
+            }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
+    }
+    // Edition 9999 is the known unstable conformance sentinel, not a future release.
+    if (file.edition > 1001 && file.edition != 9999)
+        || (file.syntax == "editions" && !matches!(file.edition, 1000 | 1001 | 9999))
+    {
+        return Err(ParseError::new("unsupported or missing protobuf edition"));
     }
     if file.source_code_info.is_some() {
         attach_source_code_info(&mut file);
@@ -2231,11 +2409,16 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
     let defaults = edition_defaults(&file.syntax, file.edition);
     file.features = defaults.merge(file.features);
     let proto3 = file.syntax == "proto3" || file.edition == 999;
-    let closed = file.features.enum_type == 2;
-    mark_syntax(&mut file.messages, proto3, file.features);
+    mark_syntax(&mut file.messages, proto3, file.features, false)?;
     prefix_names(&mut file.messages, &file.package);
     for e in &mut file.enums {
-        e.closed = closed;
+        e.features = file.features.merge(e.features);
+        e.closed = e.features.enum_type == 2;
+        e.effective_visibility = resolve_visibility(
+            e.declared_visibility,
+            e.features.default_symbol_visibility,
+            false,
+        )?;
         e.file_name = file.name.clone();
         e.full_name = if file.package.is_empty() {
             e.name.clone()
@@ -2243,7 +2426,7 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             format!("{}.{}", file.package, e.name)
         };
     }
-    prefix_enums_in_messages(&mut file.messages, closed);
+    prefix_enums_in_messages(&mut file.messages)?;
     for ext in &mut file.extensions {
         if ext.extendee.starts_with('.') {
             ext.extendee = ext.extendee.trim_start_matches('.').to_string();
@@ -2562,14 +2745,21 @@ fn stamp_file(msgs: &mut [RawMessage], file_name: &str) {
     }
 }
 
-fn prefix_enums_in_messages(msgs: &mut [RawMessage], closed: bool) {
+fn prefix_enums_in_messages(msgs: &mut [RawMessage]) -> Result<(), ParseError> {
     for m in msgs {
         for e in &mut m.enums {
-            e.closed = closed;
+            e.features = m.features.merge(e.features);
+            e.closed = e.features.enum_type == 2;
+            e.effective_visibility = resolve_visibility(
+                e.declared_visibility,
+                e.features.default_symbol_visibility,
+                true,
+            )?;
             e.full_name = format!("{}.{}", m.full_name, e.name);
         }
-        prefix_enums_in_messages(&mut m.nested, closed);
+        prefix_enums_in_messages(&mut m.nested)?;
     }
+    Ok(())
 }
 
 fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseError> {
@@ -2616,6 +2806,10 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
                 msg.options = options;
             }
             (10, WIRE_LEN) => msg.reserved_names.push(read_string(bytes, &mut pos)?),
+            (11, WIRE_VARINT) => {
+                msg.declared_visibility = parse_declared_visibility(bytes, &mut pos)?;
+            }
+            (11, _) => return Err(ParseError::new("invalid message visibility wire type")),
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
@@ -2669,8 +2863,9 @@ fn parse_message_options(
             (7, WIRE_VARINT) => map_entry = decode_varint(bytes, &mut pos)? != 0,
             (12, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                features = parse_features(payload)?;
+                features = features.merge(parse_features(payload, FeatureTarget::Message)?);
             }
+            (12, _) => return Err(ParseError::new("invalid MessageOptions.features wire type")),
             _ => options.push(DescriptorOption {
                 number: n,
                 value: capture_option_value(bytes, &mut pos, w)?,
@@ -2695,8 +2890,9 @@ fn parse_field_options(
             (3, WIRE_VARINT) => deprecated = decode_varint(bytes, &mut pos)? != 0,
             (21, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                features = parse_features(payload)?;
+                features = features.merge(parse_features(payload, FeatureTarget::Field)?);
             }
+            (21, _) => return Err(ParseError::new("invalid FieldOptions.features wire type")),
             _ => options.push(DescriptorOption {
                 number: n,
                 value: capture_option_value(bytes, &mut pos, w)?,
@@ -2739,9 +2935,12 @@ fn parse_file_options(
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if n == 50 && w == WIRE_LEN {
+        if n == 50 {
+            if w != WIRE_LEN {
+                return Err(ParseError::new("invalid FileOptions.features wire type"));
+            }
             let payload = read_len_bytes(bytes, &mut pos)?;
-            features = parse_features(payload)?;
+            features = features.merge(parse_features(payload, FeatureTarget::File)?);
         } else if n == 23 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
@@ -2754,14 +2953,23 @@ fn parse_file_options(
     Ok((features, deprecated, options))
 }
 
-fn parse_enum_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+fn parse_enum_options(
+    bytes: &[u8],
+) -> Result<(bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut deprecated = false;
+    let mut features = RawFeatures::default();
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if n == 7 && w == WIRE_LEN {
-            wire::skip_field(bytes, &mut pos, w)?;
+        if n == 7 {
+            if w != WIRE_LEN {
+                return Err(ParseError::new("invalid EnumOptions.features wire type"));
+            }
+            features = features.merge(parse_features(
+                read_len_bytes(bytes, &mut pos)?,
+                FeatureTarget::Enum,
+            )?);
         } else if n == 2 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
@@ -2771,7 +2979,7 @@ fn parse_enum_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), Par
             });
         }
     }
-    Ok((deprecated, options))
+    Ok((deprecated, features, options))
 }
 
 fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
@@ -2780,8 +2988,11 @@ fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), P
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if n == 35 && w == WIRE_LEN {
-            wire::skip_field(bytes, &mut pos, w)?;
+        if n == 35 {
+            if w != WIRE_LEN {
+                return Err(ParseError::new("invalid MethodOptions.features wire type"));
+            }
+            let _ = parse_features(read_len_bytes(bytes, &mut pos)?, FeatureTarget::Method)?;
         } else if n == 33 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
@@ -2812,23 +3023,63 @@ fn parse_service_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), 
     Ok((deprecated, options))
 }
 
-fn parse_features(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
+#[derive(Clone, Copy)]
+enum FeatureTarget {
+    File,
+    Message,
+    Field,
+    Enum,
+    Method,
+}
+
+fn parse_features(bytes: &[u8], target: FeatureTarget) -> Result<RawFeatures, ParseError> {
     let mut f = RawFeatures::default();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if w == WIRE_VARINT {
-            let v = decode_varint(bytes, &mut pos)? as u32;
-            match n {
-                1 => f.presence = v,
-                2 => f.enum_type = v,
-                3 => f.repeated_encoding = v,
-                4 => f.utf8 = v,
-                5 => f.message_encoding = v,
-                _ => {}
-            }
-        } else {
+        if (1000..=1004).contains(&n) && w == WIRE_LEN {
+            // Language-specific feature extensions do not affect Rust wire semantics.
             wire::skip_field(bytes, &mut pos, w)?;
+            continue;
+        }
+        let allowed = match n {
+            1 | 3..=5 => matches!(target, FeatureTarget::File | FeatureTarget::Field),
+            2 => matches!(target, FeatureTarget::File | FeatureTarget::Enum),
+            6 => matches!(
+                target,
+                FeatureTarget::File | FeatureTarget::Message | FeatureTarget::Enum
+            ),
+            7 => true,
+            8 => matches!(target, FeatureTarget::File),
+            _ => return Err(ParseError::new("unrecognized protobuf feature")),
+        };
+        if !allowed || w != WIRE_VARINT {
+            return Err(ParseError::new(
+                "invalid protobuf feature target or wire type",
+            ));
+        }
+        let v = u32::try_from(decode_varint(bytes, &mut pos)?)
+            .map_err(|_| ParseError::new("protobuf feature value out of range"))?;
+        let valid = match n {
+            1 => matches!(v, 1..=3),
+            2 | 3 | 5 | 6 | 7 => matches!(v, 1 | 2),
+            4 => matches!(v, 2 | 3),
+            8 => matches!(v, 1..=3),
+            _ => false,
+        };
+        if !valid {
+            return Err(ParseError::new("unsupported protobuf feature value"));
+        }
+        match n {
+            1 => f.presence = v,
+            2 => f.enum_type = v,
+            3 => f.repeated_encoding = v,
+            4 => f.utf8 = v,
+            5 => f.message_encoding = v,
+            6 => f.json_format = v,
+            7 => f.naming_style = v,
+            8 => f.default_symbol_visibility = v,
+            _ => return Err(ParseError::new("unrecognized protobuf feature")),
         }
     }
     Ok(f)
@@ -2873,10 +3124,15 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
             }
             (3, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (deprecated, options) = parse_enum_options(payload)?;
+                let (deprecated, features, options) = parse_enum_options(payload)?;
                 e.deprecated = deprecated;
+                e.features = features;
                 e.options = options;
             }
+            (6, WIRE_VARINT) => {
+                e.declared_visibility = parse_declared_visibility(bytes, &mut pos)?;
+            }
+            (6, _) => return Err(ParseError::new("invalid enum visibility wire type")),
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
@@ -2922,12 +3178,23 @@ fn read_string(bytes: &[u8], pos: &mut usize) -> Result<String, ParseError> {
     Ok(String::from_utf8_lossy(b).into_owned())
 }
 
-fn mark_syntax(msgs: &mut [RawMessage], proto3: bool, features: RawFeatures) {
+fn mark_syntax(
+    msgs: &mut [RawMessage],
+    proto3: bool,
+    features: RawFeatures,
+    nested: bool,
+) -> Result<(), ParseError> {
     for m in msgs {
         m.syntax_proto3 = proto3;
         m.features = features.merge(m.features);
-        mark_syntax(&mut m.nested, proto3, m.features);
+        m.effective_visibility = resolve_visibility(
+            m.declared_visibility,
+            m.features.default_symbol_visibility,
+            nested,
+        )?;
+        mark_syntax(&mut m.nested, proto3, m.features, true)?;
     }
+    Ok(())
 }
 
 fn prefix_names(msgs: &mut [RawMessage], package: &str) {
@@ -2975,14 +3242,47 @@ fn collect_raw(
     }
 }
 
+fn check_visible_from_file(
+    source_file: &str,
+    target_file: &str,
+    target_visibility: u32,
+) -> Result<(), ParseError> {
+    if source_file != target_file && target_visibility == VISIBILITY_LOCAL {
+        Err(ParseError::new("cross-file reference to local symbol"))
+    } else {
+        Ok(())
+    }
+}
+
+fn check_symbol_visible_from_file(
+    source_file: &str,
+    target_file: &str,
+    full_name: &str,
+    metadata: &BTreeMap<String, SymbolMetadata>,
+) -> Result<(), ParseError> {
+    let visibility = metadata
+        .get(full_name)
+        .ok_or_else(|| ParseError::new("unresolved symbol visibility"))?;
+    check_visible_from_file(source_file, target_file, visibility.effective_visibility)
+}
+
 fn resolve_pool(
     raw: BTreeMap<String, RawMessage>,
     raw_enums: BTreeMap<String, RawEnum>,
     extensions: Vec<(RawFeatures, RawField)>,
-) -> DescriptorPool {
+) -> Result<DescriptorPool, ParseError> {
     // First pass: skeleton descriptors (no nested message arcs).
     let mut skeletons: BTreeMap<String, MessageDescriptor> = BTreeMap::new();
+    let mut symbol_metadata = BTreeMap::new();
     for (name, raw_msg) in &raw {
+        symbol_metadata.insert(
+            name.clone(),
+            SymbolMetadata {
+                features: raw_msg.features,
+                declared_visibility: raw_msg.declared_visibility,
+                effective_visibility: raw_msg.effective_visibility,
+            },
+        );
         let mut b = MessageDescriptor::builder(name.clone()).map_entry(raw_msg.is_map_entry);
         let mut oneofs: Vec<Vec<u32>> = vec![Vec::new(); raw_msg.oneof_count as usize];
         for f in &raw_msg.fields {
@@ -3007,6 +3307,14 @@ fn resolve_pool(
     }
     let mut enum_arcs: BTreeMap<String, Arc<EnumDescriptor>> = BTreeMap::new();
     for (name, raw_e) in &raw_enums {
+        symbol_metadata.insert(
+            name.clone(),
+            SymbolMetadata {
+                features: raw_e.features,
+                declared_visibility: raw_e.declared_visibility,
+                effective_visibility: raw_e.effective_visibility,
+            },
+        );
         let mut ed = EnumDescriptor {
             name: raw_e.name.clone(),
             full_name: name.clone(),
@@ -3037,7 +3345,34 @@ fn resolve_pool(
             .unwrap_or("")
             .trim_start_matches('.')
             .to_string();
+        if let Some(type_name) = fd.type_name.as_deref() {
+            let key = type_name.trim_start_matches('.');
+            if let Some(target) = skeletons.get(key) {
+                check_symbol_visible_from_file(
+                    &ext.file_name,
+                    &target.file_name,
+                    key,
+                    &symbol_metadata,
+                )?;
+            }
+            if let Some(target) = enum_arcs.get(key) {
+                check_symbol_visible_from_file(
+                    &ext.file_name,
+                    &target.file_name,
+                    key,
+                    &symbol_metadata,
+                )?;
+            }
+        }
         if let Some(desc) = skeletons.get_mut(&extendee) {
+            if !ext.file_name.is_empty() {
+                check_symbol_visible_from_file(
+                    &ext.file_name,
+                    &desc.file_name,
+                    &extendee,
+                    &symbol_metadata,
+                )?;
+            }
             desc.fields_by_name
                 .entry(fd.name.clone())
                 .or_insert(fd.number);
@@ -3074,6 +3409,12 @@ fn resolve_pool(
             if let Some(tn) = &field.type_name {
                 let key = tn.trim_start_matches('.');
                 if let Some(target) = lookup.get(key) {
+                    check_symbol_visible_from_file(
+                        &d.file_name,
+                        &target.file_name,
+                        key,
+                        &symbol_metadata,
+                    )?;
                     field.message = Some(target.clone());
                     if target.is_map_entry {
                         field.is_map = true;
@@ -3084,6 +3425,12 @@ fn resolve_pool(
                 }
                 if field.field_type == FieldType::Enum || field.message.is_none() {
                     if let Some(en) = enum_arcs.get(key) {
+                        check_symbol_visible_from_file(
+                            &d.file_name,
+                            &en.file_name,
+                            key,
+                            &symbol_metadata,
+                        )?;
                         field.enum_ty = Some(en.clone());
                         field.field_type = FieldType::Enum;
                     }
@@ -3113,14 +3460,16 @@ fn resolve_pool(
         }
         resolved.insert(name, Arc::new(d));
     }
-    DescriptorPool {
+    Ok(DescriptorPool {
         messages: resolved,
         enums: enum_arcs,
         extensions_by_name: ext_index,
         services: BTreeMap::new(),
         files: BTreeMap::new(),
         public_imports: BTreeMap::new(),
-    }
+        file_metadata: BTreeMap::new(),
+        symbol_metadata,
+    })
 }
 
 fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
