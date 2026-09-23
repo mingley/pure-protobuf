@@ -239,6 +239,8 @@ def handle_conn(conn):
     global conn_count
     conn_count += 1
     my_idx = conn_count
+    started = False
+    case_done = False
     print(f"NEW_CONNECTION idx={my_idx}", file=sys.stderr, flush=True)
     try:
         preface = recv_exact(conn, 24)
@@ -254,9 +256,16 @@ def handle_conn(conn):
         initial_stream_window = 65535
         stream_windows = {}
         outstanding_pings = 0
+        ping_probes_sent = False
         active_streams = set()
         max_active = 0
         calls_handled = 0
+
+        def mark_done(phase="complete"):
+            nonlocal case_done
+            if not case_done:
+                case_done = True
+                print(f"SERVER_CASE_DONE idx={my_idx} phase={phase}", file=sys.stderr, flush=True)
 
         def send_ack_or_flow(ftype, fflags, fstream, fpayload):
             nonlocal conn_window, initial_stream_window, outstanding_pings
@@ -271,6 +280,10 @@ def handle_conn(conn):
             elif ftype == 6:
                 if fflags & 1:
                     outstanding_pings -= 1
+                    if outstanding_pings < 0:
+                        print("SERVER_ASSERTION_FAILED: unsolicited PING ACK", file=sys.stderr, flush=True)
+                    if case == "ping" and ping_probes_sent and outstanding_pings == 0:
+                        mark_done()
                 else:
                     conn.sendall(h2_frame(6, 1, fstream, fpayload))
             elif ftype == 8:
@@ -301,6 +314,7 @@ def handle_conn(conn):
             send_ack_or_flow(ftype, fflags, fstream, fpayload)
 
             if ftype == 1:
+                started = True
                 stream_id = fstream
                 stream_windows[stream_id] = stream_windows.get(stream_id, initial_stream_window)
 
@@ -315,13 +329,16 @@ def handle_conn(conn):
                     if my_idx == 1:
                         goaway_payload = struct.pack(">II", stream_id, 0)
                         conn.sendall(h2_frame(7, 0, 0, goaway_payload))
+                        mark_done("goaway")
                         time.sleep(0.1)
                         conn.close()
                         return
+                    mark_done("recovered")
                 elif case == "rst_after_header":
                     conn.sendall(h2_frame(1, 4, stream_id, headers_payload))
                     rst_payload = struct.pack(">I", 8)
                     conn.sendall(h2_frame(3, 0, stream_id, rst_payload))
+                    mark_done()
                     conn.close()
                     return
                 elif case == "rst_during_data":
@@ -329,6 +346,7 @@ def handle_conn(conn):
                     conn.sendall(h2_frame(0, 0, stream_id, grpc_msg[:1000]))
                     rst_payload = struct.pack(">I", 8)
                     conn.sendall(h2_frame(3, 0, stream_id, rst_payload))
+                    mark_done()
                     conn.close()
                     return
                 elif case == "rst_after_data":
@@ -340,6 +358,7 @@ def handle_conn(conn):
                         conn.sendall(h2_frame(0, 0, stream_id, chunk))
                     rst_payload = struct.pack(">I", 8)
                     conn.sendall(h2_frame(3, 0, stream_id, rst_payload))
+                    mark_done()
                     conn.close()
                     return
                 elif case == "ping":
@@ -358,6 +377,7 @@ def handle_conn(conn):
                     conn.sendall(h2_frame(1, 5, stream_id, trailers_payload))
                     conn.sendall(h2_frame(6, 0, 0, b"\x04" * 8))
                     outstanding_pings += 1
+                    ping_probes_sent = True
                 elif case == "max_streams":
                     active_streams.add(stream_id)
                     if len(active_streams) > max_active:
@@ -373,6 +393,8 @@ def handle_conn(conn):
                         conn.sendall(h2_frame(0, 0, stream_id, chunk))
                     conn.sendall(h2_frame(1, 5, stream_id, trailers_payload))
                     active_streams.discard(stream_id)
+                    if calls_handled >= 11 and max_active <= 1:
+                        mark_done()
                 elif case in ("data_frame_padding", "no_df_padding_sanity_test"):
                     is_padded = (case == "data_frame_padding")
                     pad_len = 255 if is_padded else 0
@@ -409,6 +431,7 @@ def handle_conn(conn):
                             conn.sendall(batch)
 
                     conn.sendall(h2_frame(1, 5, stream_id, trailers_payload))
+                    mark_done()
 
         if case == "ping":
             if outstanding_pings != 0:
@@ -417,7 +440,8 @@ def handle_conn(conn):
             if max_active > 1 or calls_handled < 11:
                 print(f"SERVER_ASSERTION_FAILED: max concurrent streams assertion failed: max_active={max_active}, calls_handled={calls_handled}", file=sys.stderr)
     except Exception as e:
-        pass
+        if started and not case_done:
+            print(f"SERVER_ASSERTION_FAILED: {case} peer failed before completion: {e}", file=sys.stderr, flush=True)
     finally:
         try:
             conn.close()
@@ -491,14 +515,31 @@ for case in "${CASES[@]}"; do
   end_time=$(python3 -c 'import time; print(time.perf_counter())')
   dur_ms=$(python3 -c "print(round(($end_time - $start_time) * 1000, 2))")
 
+  peer_done=1
+  server_assert_failed=0
   if [[ -n "$server_pid" ]]; then
+    peer_done=0
+    for _ in {1..100}; do
+      if [[ "$case" == "goaway" ]]; then
+        if grep -q 'SERVER_CASE_DONE.*phase=goaway' "$server_log" &&
+           grep -q 'SERVER_CASE_DONE.*phase=recovered' "$server_log"; then
+          peer_done=1
+        fi
+      elif grep -q 'SERVER_CASE_DONE' "$server_log"; then
+        peer_done=1
+      fi
+      if [[ $peer_done -eq 1 ]] ||
+         grep -q 'SERVER_ASSERTION_FAILED' "$server_log" ||
+         ! kill -0 "$server_pid" 2>/dev/null; then
+        break
+      fi
+      sleep 0.05
+    done
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
-  fi
-
-  server_assert_failed=0
-  if [[ -f "$LOG_DIR/${case}_server.log" ]] && grep -q "SERVER_ASSERTION_FAILED" "$LOG_DIR/${case}_server.log"; then
-    server_assert_failed=1
+    if grep -q 'SERVER_ASSERTION_FAILED' "$server_log"; then
+      server_assert_failed=1
+    fi
   fi
 
   # Local-mode cross-check for `goaway`: the peer must have accepted at
@@ -506,21 +547,24 @@ for case in "${CASES[@]}"; do
   # of reusing the drained connection. External-peer runs have no server
   # log; there the client-side reconnect assertion is the proof.
   goaway_conn_failed=0
-  if [[ "$case" == "goaway" && -f "$LOG_DIR/${case}_server.log" ]]; then
-    conn_seen=$(grep -c "NEW_CONNECTION" "$LOG_DIR/${case}_server.log" || true)
+  if [[ "$case" == "goaway" && -n "$server_pid" ]]; then
+    conn_seen=$(grep -c "NEW_CONNECTION" "$server_log" || true)
     if [[ "$conn_seen" -lt 2 ]]; then
       goaway_conn_failed=1
     fi
   fi
 
-  if [[ $client_exit -eq 0 && $server_assert_failed -eq 0 && $goaway_conn_failed -eq 0 ]]; then
+  if [[ $client_exit -eq 0 && $peer_done -eq 1 && $server_assert_failed -eq 0 && $goaway_conn_failed -eq 0 ]]; then
     echo "  ok   $case (${dur_ms}ms)"
     PASSED_COUNT=$((PASSED_COUNT + 1))
     status="passed"
   else
     echo "  FAIL $case (exit code $client_exit, ${dur_ms}ms)"
     if [[ $server_assert_failed -ne 0 ]]; then
-      grep "SERVER_ASSERTION_FAILED" "$LOG_DIR/${case}_server.log" | sed 's/^/       /'
+      grep "SERVER_ASSERTION_FAILED" "$server_log" | sed 's/^/       /'
+    fi
+    if [[ $peer_done -ne 1 ]]; then
+      echo "local peer never completed the $case wire procedure" | sed 's/^/       /'
     fi
     if [[ $goaway_conn_failed -ne 0 ]]; then
       echo "goaway: server accepted $conn_seen connection(s), need >= 2 to prove migration" | sed 's/^/       /'
@@ -531,6 +575,10 @@ for case in "${CASES[@]}"; do
     status="failed"
   fi
 
+  peer_log="$log_file"
+  if [[ -n "$server_pid" ]]; then
+    peer_log="$server_log"
+  fi
   if ! python3 "$INTEROP_REPORT" record \
       --output "$RESULTS_JSON" \
       --case "$case" \
@@ -542,7 +590,7 @@ for case in "${CASES[@]}"; do
       --suite "http2_negative" \
       --profile "native" \
       --stdout-log "$log_file" \
-      --stderr-log "$log_file" \
+      --stderr-log "$peer_log" \
       --exit-code "$client_exit" \
       --attempt-count 1 >/dev/null; then
     echo "FAIL: could not record $case in $RESULTS_JSON" >&2

@@ -93,7 +93,9 @@ Adversarial framing, stream cancellation, and connection termination defined in 
   procedures against a purpose-built local HTTP/2 peer and retains a required
   matrix report. This is a spec-derived adapter, **not** execution of the
   upstream runner binary; the independent-peer qualification in `IO-08`
-  remains open. In-tree hostile tests are complementary.
+  remains open. A fake successful client with no peer frames is recorded as
+  failed by `test_http2_peer_proof.py`; reports link both client and local-peer
+  logs. In-tree hostile tests are complementary.
 
 ### 4. Server Probes (`server_probe`, 2 cases)
 Official server transport verification probes from `tools/run_tests/run_interop_tests.py`:
