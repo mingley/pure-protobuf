@@ -23,6 +23,8 @@ use std::time::Duration;
 
 const CLIENT_BIN: &str = env!("CARGO_BIN_EXE_pbrs-grpc-interop-client");
 const SERVER_BIN: &str = env!("CARGO_BIN_EXE_pbrs-grpc-interop-server");
+#[cfg(unix)]
+const HTTP2_CLIENT_BIN: &str = env!("CARGO_BIN_EXE_pbrs-grpc-http2-client");
 
 struct ServerGuard {
     child: std::process::Child,
@@ -74,6 +76,102 @@ fn run_server(args: &[&str]) -> std::process::Output {
         .args(args)
         .output()
         .expect("failed to run server")
+}
+
+#[cfg(unix)]
+fn proof_log_dir(case: &str) -> PathBuf {
+    let log_dir = std::env::temp_dir().join(format!(
+        "pbrs-http2-proof-{}-{}-{}",
+        case,
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("wall clock")
+            .as_nanos()
+    ));
+    std::fs::create_dir(&log_dir).expect("proof log directory");
+    log_dir
+}
+
+#[cfg(unix)]
+fn assert_http2_script_rejects_missing_proof(script: &str, case: &str, env: &[(&str, &str)]) {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = root.parent().expect("workspace root");
+    let log_dir = proof_log_dir(case);
+    let output = Command::new("bash")
+        .arg(root.join("scripts").join(script))
+        .arg("--skip-build")
+        .arg(format!("--cases={case}"))
+        .arg(format!("--log-dir={}", log_dir.display()))
+        .arg("--results-json=/dev/null/blocked.json")
+        .envs(env.iter().copied())
+        .output()
+        .expect("run HTTP/2 proof adapter");
+    let report_exists = log_dir.join("report.json").exists();
+    std::fs::remove_dir_all(&log_dir).expect("remove only this proof's logs");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stdout.contains("1 passed, 0 failed"),
+        "{script} probe did not pass independently:\n{stdout}\n{stderr}"
+    );
+    assert!(
+        !output.status.success() && !report_exists,
+        "{script} falsely qualified missing proof:\n{stdout}\n{stderr}"
+    );
+    assert!(
+        stderr.contains(&format!("could not record {case}")),
+        "{script} did not surface the write error:\n{stderr}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn http2_negative_runner_does_not_qualify_without_persisted_results() {
+    assert_http2_script_rejects_missing_proof(
+        "grpc-http2-interop.sh",
+        "ping",
+        &[("GRPC_HTTP2_CLIENT", HTTP2_CLIENT_BIN)],
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn http2_server_probe_runner_does_not_qualify_without_persisted_results() {
+    assert_http2_script_rejects_missing_proof(
+        "grpc-http2-server-interop.sh",
+        "server_tls_probe",
+        &[
+            ("GRPC_INTEROP_KERNEL_CLIENT", CLIENT_BIN),
+            ("GRPC_INTEROP_KERNEL_SERVER", SERVER_BIN),
+        ],
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn http2_negative_runner_does_not_reuse_stale_result_rows() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = root.parent().expect("workspace root");
+    let log_dir = proof_log_dir("stale");
+    let results = log_dir.join("results.json");
+    let old = b"{\"results\":[]}";
+    std::fs::write(&results, old).expect("prior proof");
+    let output = Command::new("bash")
+        .arg(root.join("scripts/grpc-http2-interop.sh"))
+        .arg("--skip-build")
+        .arg(format!("--log-dir={}", log_dir.display()))
+        .output()
+        .expect("run with stale results");
+    let after = std::fs::read(&results).expect("prior proof survived");
+    std::fs::remove_dir_all(&log_dir).expect("remove only this proof's logs");
+    assert!(!output.status.success(), "stale results qualified the run");
+    assert_eq!(after, old, "runner modified evidence from an earlier run");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("fresh results and report paths"),
+        "missing stale-evidence diagnosis: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 // =========================================================================

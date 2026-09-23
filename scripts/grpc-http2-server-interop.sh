@@ -161,6 +161,17 @@ mkdir -p "$LOG_DIR"
 RESULTS_JSON="${RESULTS_JSON:-$LOG_DIR/results.json}"
 REPORT_JSON="${REPORT_JSON:-$LOG_DIR/report.json}"
 
+if [[ ! -f "$INTEROP_REPORT" ]]; then
+  echo "Error: required interop reporter missing at $INTEROP_REPORT" >&2
+  exit 1
+fi
+if [[ "$RESULTS_JSON" == "$REPORT_JSON" ||
+      -e "$RESULTS_JSON" || -L "$RESULTS_JSON" ||
+      -e "$REPORT_JSON" || -L "$REPORT_JSON" ]]; then
+  echo "Error: use distinct, fresh results and report paths for these probes" >&2
+  exit 1
+fi
+
 if [[ "$SKIP_BUILD" -ne 1 ]]; then
   echo "== building pbrs-grpc interop server and client =="
   cargo build --release -p pbrs-grpc --bin pbrs-grpc-interop-server --bin pbrs-grpc-interop-client
@@ -619,8 +630,7 @@ for case in "${CASES[@]}"; do
     status="failed"
   fi
 
-  if [[ -f "$INTEROP_REPORT" ]]; then
-    python3 "$INTEROP_REPORT" record \
+  if ! python3 "$INTEROP_REPORT" record \
       --output "$RESULTS_JSON" \
       --case "$case" \
       --status "$status" \
@@ -633,7 +643,9 @@ for case in "${CASES[@]}"; do
       --stdout-log "$log_file" \
       --stderr-log "$log_file" \
       --exit-code "$probe_exit" \
-      --attempt-count 1 >/dev/null || true
+      --attempt-count 1 >/dev/null; then
+    echo "FAIL: could not record $case in $RESULTS_JSON" >&2
+    OVERALL_FAILED=1
   fi
 done
 
@@ -643,13 +655,11 @@ echo "Server HTTP/2 probe summary: $PASSED_COUNT passed, $FAILED_COUNT failed"
 echo "Logs saved to $LOG_DIR"
 echo "=================================================="
 
-if [[ -f "$RESULTS_JSON" && -f "$INTEROP_REPORT" ]]; then
-  echo "== validating interop results =="
-  python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
+echo "== validating interop results =="
+python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
 
-  echo "== aggregating interop results =="
-  python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
-fi
+echo "== aggregating interop results =="
+python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then
   exit 1

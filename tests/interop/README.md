@@ -89,13 +89,20 @@ Adversarial framing, stream cancellation, and connection termination defined in 
 * `rst_after_header`, `rst_after_data`, `rst_during_data`.
 * `goaway`, `ping`, `max_streams`.
 * `data_frame_padding`, `no_df_padding_sanity_test`.
-* *Status*: In-tree hostile peer tests pass in `pbrs-grpc/tests/hostile.rs`. Native client/server adapters for official upstream runner cases are scheduled in tasks `IO-07` and `IO-08`.
+* *Status*: `scripts/grpc-http2-interop.sh` runs all eight registered
+  procedures against a purpose-built local HTTP/2 peer and retains a required
+  matrix report. This is a spec-derived adapter, **not** execution of the
+  upstream runner binary; the independent-peer qualification in `IO-08`
+  remains open. In-tree hostile tests are complementary.
 
 ### 4. Server Probes (`server_probe`, 2 cases)
 Official server transport verification probes from `tools/run_tests/run_interop_tests.py`:
 * `server_tls_probe`: Verifies ALPN negotiation (`h2`), rejection of invalid ALPN (`http/1.1`), TLS 1.2/1.3 protocol versions and AEAD ciphers, server certificate presentation, and live TLS gRPC RPC.
 * `server_framing_probe`: Probes HTTP/2 24-byte connection preface, SETTINGS frame exchange and ACK, rapid reset stream cancellation flood (CVE-2023-44487), small DATA frames flow control, fragmented HEADERS across CONTINUATION frames and CONTINUATION flood protection, bad headers / non-POST HTTP 405 / unsupported media type HTTP 415 rejection, and post-probe server health verification.
-* *Status*: Verified passing against native `pbrs-grpc-interop-server` via `scripts/grpc-http2-server-interop.sh` in task `IO-09`.
+* *Status*: `scripts/grpc-http2-server-interop.sh` runs spec-derived local TLS
+  and framing probes against `pbrs-grpc-interop-server`, with two required
+  result rows and retained logs. It does not invoke the upstream probe binary;
+  `IO-09` remains open until that qualification boundary is resolved.
 
 ### 5. Connection Backoff (`connection_backoff`, 1 case)
 Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-interop-test-description.md`:
@@ -221,6 +228,9 @@ Both servers are managed as background jobs with automatic process tracking, sta
 ```
 Execution traces and logs are stored under `target/interop-logs/`, recorded into `results.json`, validated against `cases.json`, and aggregated into `report.json`.
 Required-profile gating: validation and aggregation run with `--suite server_probe --profile native --require-matrix`, so a run that omits a probe (e.g. `--cases=server_tls_probe`) or hits an unexpected failure exits non-zero and cannot qualify. Local hostile tests in `pbrs-grpc/tests/hostile.rs` and TLS tests in `pbrs-grpc/tests/tls.rs` are complementary and never substitute for these probe records.
+Both HTTP/2 runners require fresh, distinct report paths and fail if any case
+cannot be recorded or aggregated; a prior report cannot fill a missing row in
+a later run.
 
 ---
 
