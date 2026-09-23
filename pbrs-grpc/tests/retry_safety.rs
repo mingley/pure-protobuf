@@ -185,6 +185,61 @@ async fn request_send_window_stall_obeys_deadline_for_both_single_request_shapes
     }
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn request_send_window_stall_obeys_cancellation() {
+    for shape in ["unary", "server_stream"] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local_addr");
+        let (accepted_tx, accepted_rx) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept connection");
+            let mut conn = h2::server::handshake(socket).await.expect("handshake");
+            let (request, _respond) = conn
+                .accept()
+                .await
+                .expect("request")
+                .expect("valid request");
+            accepted_tx.send(()).expect("acknowledge request headers");
+            let _body = request.into_body();
+            while let Some(Ok(_)) = conn.accept().await {}
+        });
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::new()
+                .connections(1)
+                .max_send_buffer_size(1024),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(256 * 1024);
+        let client = GreeterClient::new(channel.clone());
+        let mut request = Request::new(req(&"x".repeat(128 * 1024)));
+        request.set_timeout(Duration::from_secs(3));
+        let (handle, task) = if shape == "unary" {
+            let call = client.say_hello(request);
+            let handle = call.handle();
+            (handle, tokio::spawn(async move { call.await.map(|_| ()) }))
+        } else {
+            let call = client.server_hello(request);
+            let handle = call.handle();
+            (handle, tokio::spawn(async move { call.await.map(|_| ()) }))
+        };
+        tokio::time::timeout(Duration::from_secs(1), accepted_rx)
+            .await
+            .expect("request headers did not reach the server")
+            .expect("server task failed before admission");
+        handle.cancel();
+        let status = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("cancel did not interrupt the blocked send")
+            .expect("call task failed")
+            .expect_err("cancelled call must not succeed");
+        assert_eq!(status.code(), Code::Cancelled, "{shape}: {status}");
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        server.abort();
+    }
+}
+
 // ============================================================================
 // Scenario A: Failure before headers -> transparent retry is safe and works
 // ============================================================================
