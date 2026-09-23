@@ -15,8 +15,9 @@
 #   3. ref_client_to_native_server: Reference client (Go or C++) -> Native server
 #   4. ref_pair:                    Reference client -> Reference server
 #
-# Consumes native worker stats directly over official protobuf wire format without
-# schema adaptations hiding unsupported fields, and retains raw ScenarioResult JSON outputs.
+# Consumes native worker stats over official protobuf wire format. The integrated
+# Go driver retains full ScenarioResult JSON; upstream C++ exports QPS-only JSON
+# and its full reporter output is retained separately.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -68,7 +69,7 @@ Options:
   --scenario-filter <REGEX>   Filter scenarios matching pattern
   --mode <MODE>               Execution direction mode (default: all)
   --ref-peer <go|cpp>         Reference peer implementation (default: go)
-  --driver <PATH>             Path to QPS driver binary (default: integrated driver or qps_json_driver)
+  --driver <PATH>             Path to qps-driver (integrated Go) or qps_json_driver (upstream C++)
   --warmup <SEC>              Override scenario warmup_seconds (e.g. 1 for fast test)
   --duration <SEC>            Override scenario benchmark_seconds (e.g. 2 for fast test)
   --log-dir <DIR>             Directory for execution logs and ScenarioResult outputs
@@ -78,7 +79,7 @@ Options:
   --skip-build                Skip building worker and driver binaries
 
 Environment Variables:
-  GRPC_QPS_DRIVER             Path to official C++ qps_json_driver or custom driver binary
+  GRPC_QPS_DRIVER             Path to official C++ qps_json_driver or integrated Go qps-driver
   GRPC_QPS_SCENARIOS          Path to scenarios file
   GRPC_QPS_REF_PEER           Reference peer implementation (go or cpp)
   GRPC_QPS_MODE               Execution mode (all, native, native_client_to_ref_server, ...)
@@ -624,11 +625,11 @@ func main() {
 
 	var scenarios []*testpb.Scenario
 	var scList testpb.Scenarios
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(rawJSON, &scList); err == nil && len(scList.Scenarios) > 0 {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(rawJSON, &scList); err == nil && len(scList.Scenarios) > 0 {
 		scenarios = scList.Scenarios
 	} else {
 		var single testpb.Scenario
-		if err2 := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(rawJSON, &single); err2 == nil && single.Name != "" {
+		if err2 := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(rawJSON, &single); err2 == nil && single.Name != "" {
 			scenarios = []*testpb.Scenario{&single}
 		} else {
 			fmt.Fprintf(os.Stderr, "Error parsing scenarios JSON: %v (as Scenarios: %v)\n", err2, err)
@@ -669,9 +670,11 @@ func main() {
 			outData, err := opts.Marshal(res)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to marshal ScenarioResult: %v\n", err)
+				os.Exit(1)
 			} else {
 				if err := os.WriteFile(*scenarioResultFile, outData, 0644); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", *scenarioResultFile, err)
+					os.Exit(1)
 				} else {
 					fmt.Printf("Wrote raw ScenarioResult JSON: %s (%d bytes)\n", *scenarioResultFile, len(outData))
 				}
@@ -741,6 +744,24 @@ case "$MODE" in
     ;;
 esac
 
+case "$REF_PEER" in
+  go|cpp) ;;
+  *)
+    echo "FAIL: reference peer must be go or cpp, got '$REF_PEER'" >&2
+    exit 1
+    ;;
+esac
+if [[ ! "$WARMUP_OVERRIDE" =~ ^[0-9]+$ || ! "$DURATION_OVERRIDE" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: warmup and duration overrides must be nonnegative integer seconds" >&2
+  exit 1
+fi
+NEEDS_REFERENCE_WORKER=0
+for direction in "${DIRECTIONS[@]}"; do
+  if [[ "$direction" != native_pair ]]; then
+    NEEDS_REFERENCE_WORKER=1
+  fi
+done
+
 # Handle --dry-run
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "=== DRY RUN: Official gRPC QPS Benchmark Scenario Invocation ==="
@@ -796,10 +817,10 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     cargo build --release --manifest-path "$ROOT/rpc-bench/Cargo.toml"
   fi
 
-  if [[ "$REF_PEER" == "go" ]] || [[ "$MODE" == "all" ]] || [[ "$MODE" =~ ref ]]; then
+  if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 && "$REF_PEER" == "go" ]]; then
     echo "== building Go benchmark worker ($GO_PEER_VERSION) =="
     mkdir -p "$ROOT/target/interop-go"
-    (cd "$ROOT/tests/interop/go" && go build -o "$GO_WORKER_BIN" google.golang.org/grpc/benchmark/worker)
+    (cd "$ROOT/tests/interop/go" && go build -mod=readonly -o "$GO_WORKER_BIN" google.golang.org/grpc/benchmark/worker)
   fi
 
   if [[ -z "$DRIVER_BIN" ]]; then
@@ -815,10 +836,8 @@ else
     elif [[ -x "$ROOT/target/interop-cpp/qps_json_driver" ]]; then
       DRIVER_BIN="$ROOT/target/interop-cpp/qps_json_driver"
     else
-      echo "== compiling integrated QPS driver =="
-      generate_integrated_driver_source
-      (cd "$ROOT/tests/interop/go" && go build -o "$INTEGRATED_DRIVER_BIN" "$ROOT/target/interop-go/driver_src/main.go")
-      DRIVER_BIN="$INTEGRATED_DRIVER_BIN"
+      echo "FAIL: --skip-build requested but no QPS driver binary exists; build the pinned driver first" >&2
+      exit 1
     fi
   fi
 fi
@@ -826,6 +845,60 @@ fi
 if [[ ! -x "$NATIVE_WORKER_BIN" ]]; then
   echo "FAIL: native worker binary missing: $NATIVE_WORKER_BIN" >&2
   exit 1
+fi
+
+REF_WORKER_BIN=""
+REF_WORKER_SHA256=""
+REF_WORKER_SOURCE_PIN=""
+if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 ]]; then
+  if [[ "$REF_PEER" == "go" ]]; then
+    REF_WORKER_BIN="$GO_WORKER_BIN"
+    REF_WORKER_SOURCE_PIN="$GO_PEER_PIN"
+  else
+    REF_WORKER_BIN="${GRPC_QPS_WORKER:-$ROOT/target/interop-cpp/qps_worker}"
+    REF_WORKER_SOURCE_PIN="$CPP_PEER_PIN"
+  fi
+  if [[ ! -x "$REF_WORKER_BIN" ]]; then
+    echo "FAIL: pinned $REF_PEER QPS worker binary missing: $REF_WORKER_BIN" >&2
+    exit 1
+  fi
+  if [[ "$REF_PEER" == "go" ]] && ! go version -m "$REF_WORKER_BIN" | grep -q "google.golang.org/grpc.*${GO_PEER_PIN:0:12}"; then
+    echo "FAIL: Go QPS worker does not match pinned grpc-go $GO_PEER_PIN" >&2
+    exit 1
+  fi
+  REF_WORKER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$REF_WORKER_BIN")"
+fi
+
+if [[ ! -x "$DRIVER_BIN" ]]; then
+  echo "FAIL: QPS driver binary missing or not executable: $DRIVER_BIN" >&2
+  exit 1
+fi
+case "$(basename "$DRIVER_BIN")" in
+  qps_json_driver) DRIVER_KIND="cpp" ;;
+  qps-driver) DRIVER_KIND="go" ;;
+  *)
+    echo "FAIL: unknown driver type for $DRIVER_BIN; expected pinned qps_json_driver or integrated qps-driver" >&2
+    exit 1
+    ;;
+esac
+DRIVER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$DRIVER_BIN")"
+NATIVE_WORKER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$NATIVE_WORKER_BIN")"
+NATIVE_SOURCE_SHA="$(git rev-parse HEAD)"
+NATIVE_SOURCE_DIRTY=0
+if ! git diff --quiet HEAD --; then
+  NATIVE_SOURCE_DIRTY=1
+fi
+if [[ "$DRIVER_KIND" == "cpp" ]]; then
+  DRIVER_SOURCE_PIN="$CPP_PEER_PIN"
+else
+  DRIVER_SOURCE_PIN="$GO_PEER_PIN"
+fi
+
+if [[ "$DRIVER_KIND" == "cpp" ]]; then
+  for scenario in "${SCENARIO_NAMES[@]}"; do
+    python3 "$ROOT/scripts/qps-proof.py" prepare \
+      "$SCENARIOS_FILE" "$scenario" "$WARMUP_OVERRIDE" "$DURATION_OVERRIDE" "$LOG_DIR/$scenario.scenario.json"
+  done
 fi
 
 start_worker() {
@@ -936,6 +1009,9 @@ run_scenario_cell() {
   local c_log="$LOG_DIR/${scenario}-${direction}-client.log"
   local d_log="$LOG_DIR/${scenario}-${direction}-driver.log"
   local result_json="$LOG_DIR/${scenario}-${direction}-result.json"
+  if [[ "$DRIVER_KIND" == "cpp" ]]; then
+    result_json="$LOG_DIR/${scenario}-${direction}-driver-metrics.json"
+  fi
 
   echo "--------------------------------------------------------------------------------"
   echo "SCENARIO:  $scenario"
@@ -961,16 +1037,24 @@ run_scenario_cell() {
   c_pid="${TRACKED_PIDS[-1]}"
 
   # Prepare driver command
-  local driver_args=(
-    "--scenarios_file=$SCENARIOS_FILE"
-    "--scenario_name=$scenario"
-    "--scenario_result_file=$result_json"
-  )
-  if [[ $WARMUP_OVERRIDE -gt 0 ]]; then
-    driver_args+=("--warmup_override=$WARMUP_OVERRIDE")
-  fi
-  if [[ $DURATION_OVERRIDE -gt 0 ]]; then
-    driver_args+=("--benchmark_override=$DURATION_OVERRIDE")
+  local driver_args=()
+  if [[ "$DRIVER_KIND" == "cpp" ]]; then
+    driver_args=(
+      "--scenarios_file=$LOG_DIR/$scenario.scenario.json"
+      "--json_file_out=$result_json"
+    )
+  else
+    driver_args=(
+      "--scenarios_file=$SCENARIOS_FILE"
+      "--scenario_name=$scenario"
+      "--scenario_result_file=$result_json"
+    )
+    if [[ $WARMUP_OVERRIDE -gt 0 ]]; then
+      driver_args+=("--warmup_override=$WARMUP_OVERRIDE")
+    fi
+    if [[ $DURATION_OVERRIDE -gt 0 ]]; then
+      driver_args+=("--benchmark_override=$DURATION_OVERRIDE")
+    fi
   fi
 
   local driver_status=0
@@ -980,18 +1064,27 @@ run_scenario_cell() {
   stop_worker "$s_pid"
 
   if [[ $driver_status -eq 0 && -f "$result_json" ]]; then
+    if ! python3 "$ROOT/scripts/qps-proof.py" validate "$result_json" "$DRIVER_KIND"; then
+      driver_status=1
+    fi
+  fi
+
+  if [[ $driver_status -eq 0 && -f "$result_json" ]]; then
     echo "  PASS: $scenario ($direction)"
     cat "$d_log" | grep -E "QPS:|Latency p50:|Server CPU|Client CPU" | sed 's/^/    /' || true
 
-    # Extract metrics for table
     local qps p50 p99 scpu ccpu
-    qps=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('qps',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-    p50=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency50',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-    p99=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency99',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-    scpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('serverUserTime',0)+d.get('summary',{}).get('serverSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-    ccpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('clientUserTime',0)+d.get('summary',{}).get('clientSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-
-    SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|$p50 us|$p99 us|${scpu}%|${ccpu}%")
+    if [[ "$DRIVER_KIND" == "cpp" ]]; then
+      qps=$(python3 -c 'import json, sys; print("{:.1f}".format(json.load(open(sys.argv[1]))["qps"]))' "$result_json")
+      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|N/A|N/A|N/A|N/A")
+    else
+      qps=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d['summary']['qps']:.1f}\")" "$result_json")
+      p50=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency50',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
+      p99=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency99',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
+      scpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('serverUserTime',0)+d.get('summary',{}).get('serverSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
+      ccpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('clientUserTime',0)+d.get('summary',{}).get('clientSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
+      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|$p50 us|$p99 us|${scpu}%|${ccpu}%")
+    fi
   else
     echo "  FAIL: $scenario ($direction)" >&2
     if [[ -f "$d_log" ]]; then
@@ -1008,6 +1101,13 @@ echo "==========================================================================
 echo "Scenarios File:     $SCENARIOS_FILE"
 echo "Reference Peer:     $REF_PEER ($GO_PEER_VERSION)"
 echo "Driver Binary:      $DRIVER_BIN"
+echo "Driver SHA-256:     $DRIVER_SHA256"
+echo "Driver Source Pin:  $DRIVER_SOURCE_PIN"
+echo "Native Worker SHA: $NATIVE_WORKER_SHA256"
+echo "Native Source:     $NATIVE_SOURCE_SHA (dirty=$NATIVE_SOURCE_DIRTY)"
+if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 ]]; then
+  echo "Reference Worker:  $REF_WORKER_BIN sha256:$REF_WORKER_SHA256 source:$REF_WORKER_SOURCE_PIN"
+fi
 echo "Log Directory:      $LOG_DIR"
 echo "Scenarios Count:    ${#SCENARIO_NAMES[@]}"
 echo "Directions:         ${DIRECTIONS[*]}"
@@ -1037,8 +1137,8 @@ printf "%s\n" "-----------------------------------------------------------------
 # Save summary JSON
 python3 -c '
 import json, sys
-summary_file = sys.argv[1]
-rows = sys.argv[2:]
+summary_file, driver_binary, driver_kind, driver_sha256, source_pin, native_sha, native_binary_sha, native_dirty, ref_binary, ref_binary_sha, ref_source_pin = sys.argv[1:12]
+rows = sys.argv[12:]
 results = []
 for r in rows:
     parts = r.split("|")
@@ -1054,12 +1154,30 @@ for r in rows:
             "client_cpu": parts[7],
         })
 with open(summary_file, "w") as f:
-    json.dump({"runs": results}, f, indent=2)
-' "$SUMMARY_JSON" "${SUMMARY_ROWS[@]}"
+    json.dump({
+        "driver": {
+            "binary": driver_binary,
+            "kind": driver_kind,
+            "sha256": driver_sha256,
+            "source_pin": source_pin,
+        },
+        "native": {
+            "source_sha": native_sha,
+            "binary_sha256": native_binary_sha,
+            "dirty_source": native_dirty == "1",
+        },
+        "reference_worker": {
+            "binary": ref_binary,
+            "sha256": ref_binary_sha,
+            "source_pin": ref_source_pin,
+        } if ref_binary else None,
+        "runs": results,
+    }, f, indent=2)
+' "$SUMMARY_JSON" "$DRIVER_BIN" "$DRIVER_KIND" "$DRIVER_SHA256" "$DRIVER_SOURCE_PIN" "$NATIVE_SOURCE_SHA" "$NATIVE_WORKER_SHA256" "$NATIVE_SOURCE_DIRTY" "$REF_WORKER_BIN" "$REF_WORKER_SHA256" "$REF_WORKER_SOURCE_PIN" "${SUMMARY_ROWS[@]}"
 
 echo ""
 echo "Summary JSON written to: $SUMMARY_JSON"
-echo "Raw ScenarioResult JSON files saved in: $LOG_DIR/"
+echo "Raw integrated-driver ScenarioResult JSON (or upstream C++ QPS-only metrics) saved in: $LOG_DIR/"
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then
   echo "FAIL: one or more benchmark scenarios failed" >&2

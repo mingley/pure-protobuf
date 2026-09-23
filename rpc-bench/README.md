@@ -80,10 +80,23 @@ Run the entire suite of official scenarios across all three primary directions:
 ```
 
 ### Driving with Upstream C++ `qps_json_driver`
-When the official C++ driver binary is built (e.g. via `scripts/grpc-interop-cpp.sh` or manual CMake build):
+After `scripts/grpc-interop-cpp.sh` fetches and builds the pinned C++ interop
+peer, build the upstream QPS target from that same checked-out commit:
+
 ```bash
-./scripts/grpc-qps-interop.sh --driver=target/interop-cpp/qps_json_driver --scenario=protobuf_unary_ping_pong_empty
+cmake --build target/interop-cpp-build --parallel 4 --target qps_json_driver
+./scripts/grpc-qps-interop.sh --driver=target/interop-cpp-build/qps_json_driver \
+  --mode=all --ref-peer=go --scenario=protobuf_unary_ping_pong_empty --warmup=1 --duration=2
 ```
+
+The upstream C++ driver accepts only its own `--scenarios_file` and
+`--json_file_out` flags. The script writes a single-scenario copy with the
+requested timing overrides, and fails if a selected scenario or peer fails.
+That C++ version's `--json_file_out` contains **QPS only**, not a complete
+`ScenarioResult`; its full reporter output is retained in `*-driver.log`.
+The integrated Go driver instead emits the complete wire-compatible
+`ScenarioResult` below and rejects unknown scenario options. Neither short
+local smoke run establishes the paired, dedicated-host performance gate.
 
 ---
 
@@ -121,12 +134,21 @@ When the official C++ driver binary is built (e.g. via `scripts/grpc-interop-cpp
 
 Every benchmark run produces verifiable, immutable evidence in `target/qps-logs/<timestamp>_<pid>/`:
 
-1. **`summary.json`**: Tabular benchmark execution results containing scenario name, peer direction, status, QPS, p50/p90/p99 latency, and server/client CPU percentages.
-2. **`*-result.json`**: Complete raw `grpc.testing.ScenarioResult` protobuf messages serialized to JSON via standard `protojson`. Contains:
+1. **`summary.json`**: Tabular benchmark execution results containing scenario name,
+   peer direction, status and the metrics the selected driver actually exports.
+   It records the driver's binary path, SHA-256, kind and pinned source revision,
+   plus the native worker binary digest, source SHA and dirty-worktree marker.
+   Mixed-peer runs also record the reference worker binary digest and pinned
+   source; a cached Go worker with the wrong embedded grpc-go module is refused.
+   Upstream C++ exports QPS only; its p50/p99 and CPU table cells are `N/A`,
+   never inferred from QPS.
+2. **`*-result.json`** (integrated Go driver only): Complete raw `grpc.testing.ScenarioResult` protobuf messages serialized to JSON via standard `protojson`. Contains:
    - Full HDR `latencies` histogram data (`bucket`, `min_seen`, `max_seen`, `sum`, `sum_of_squares`, `count`).
    - Server and client `ServerStats` and `ClientStats`.
    - `ScenarioResultSummary` (`qps`, `qps_per_server_core`, `latency_50`..`latency_999`, `server_user_time`, `client_user_time`, etc.).
    - Per-worker exit status and error code distributions (`request_results`).
+   The upstream C++ driver's corresponding `*-driver-metrics.json` contains
+   only `qps`; it must not be treated as a substitute for these raw metrics.
 3. **`*-server.log` & `*-client.log`**: Standard output and error logs from each worker process.
 4. **`*-driver.log`**: Driver control stream logs and step-by-step mark transitions.
 
