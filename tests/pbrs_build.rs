@@ -26,6 +26,12 @@ use std::process::{Command, Output};
 )]
 static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[allow(
+    clippy::disallowed_types,
+    reason = "synchronous child Cargo runs share a cache and never hold this lock across await"
+)]
+static CARGO_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -122,18 +128,30 @@ fn dump(out: &Output) -> String {
     )
 }
 
+fn cargo_output(command: &mut Command, context: &str) -> Output {
+    let _guard = CARGO_MUTEX.lock().expect("consumer Cargo lock");
+    command
+        .output()
+        .unwrap_or_else(|err| panic!("{context}: {err}"))
+}
+
 fn cargo_run(dir: &Path, path: Option<&OsStr>, quiet: bool) -> Output {
     let mut cmd = Command::new("cargo");
     cmd.arg("run").arg("--offline");
     if quiet {
         cmd.arg("--quiet");
     }
-    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    cmd.current_dir(dir)
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
+        .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
     if let Some(p) = path {
         cmd.env("PATH", p);
     }
-    cmd.output().expect("cargo run")
+    cargo_output(&mut cmd, "cargo run")
 }
 
 fn assert_build_failed_without_protoc(out: &Output) {
@@ -897,12 +915,17 @@ fn find_real_protoc() -> PathBuf {
 fn cargo_build_verbose(dir: &Path, path: Option<&OsStr>) -> Output {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--offline").arg("-vv");
-    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    cmd.current_dir(dir)
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
+        .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
     if let Some(p) = path {
         cmd.env("PATH", p);
     }
-    cmd.output().expect("cargo build -vv")
+    cargo_output(&mut cmd, "cargo build -vv")
 }
 
 #[test]

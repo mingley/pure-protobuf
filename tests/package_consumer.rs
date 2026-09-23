@@ -187,7 +187,7 @@ fn write_consumer(dir: &Path, toml: &str, main_rs: &str) {
 }
 
 fn cargo_run_consumer(dir: &Path, expected_stdout: &str) {
-    let target = dir.join("target");
+    let target = repo_root().join("target/integration-consumers");
     let out = cargo_online_then_offline(
         |offline| {
             let mut cmd = Command::new("cargo");

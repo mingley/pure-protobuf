@@ -20,6 +20,12 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[allow(
+    clippy::disallowed_types,
+    reason = "synchronous child Cargo runs share a cache and never hold this lock across await"
+)]
+static CARGO_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 const HELLO_PROTO: &str = r#"syntax = "proto3";
 package helloworld;
 
@@ -367,18 +373,32 @@ fn dump(out: &Output) -> String {
     )
 }
 
+fn cargo_output(command: &mut Command, context: &str) -> Output {
+    let _guard = CARGO_MUTEX.lock().expect("consumer Cargo lock");
+    command
+        .output()
+        .unwrap_or_else(|err| panic!("{context}: {err}"))
+}
+
 fn cargo_run(dir: &Path, path: Option<&OsStr>, quiet: bool) -> Output {
     let mut cmd = Command::new("cargo");
     cmd.arg("run").arg("--offline");
     if quiet {
         cmd.arg("--quiet");
     }
-    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    // Share compatible consumer artifacts without sharing the outer Cargo lock.
+    // The cold no-protoc checks below still use unique, empty targets.
+    cmd.current_dir(dir)
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
+        .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
     if let Some(p) = path {
         cmd.env("PATH", p);
     }
-    cmd.output().expect("cargo run")
+    cargo_output(&mut cmd, "cargo run")
 }
 
 fn cargo_run_with_args(dir: &Path, args: &[&OsStr]) -> Output {
@@ -386,9 +406,13 @@ fn cargo_run_with_args(dir: &Path, args: &[&OsStr]) -> Output {
     cmd.args(["run", "--offline", "--quiet", "--"])
         .args(args)
         .current_dir(dir)
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
         .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
-    cmd.output().expect("cargo run with args")
+    cargo_output(&mut cmd, "cargo run with args")
 }
 
 fn cargo_check_pkg(pkg: &str, target_dir: &Path, path: Option<&OsStr>) -> Output {
@@ -407,7 +431,7 @@ fn cargo_check_pkg(pkg: &str, target_dir: &Path, path: Option<&OsStr>) -> Output
     if let Some(p) = path {
         cmd.env("PATH", p);
     }
-    cmd.output().expect("cargo check")
+    cargo_output(&mut cmd, "cargo check")
 }
 
 fn assert_build_failed_without_protoc(out: &Output) {
@@ -729,12 +753,12 @@ fn write_four_shapes_consumer(dir: &Path) {
     std::fs::write(dir.join("src/main.rs"), FOUR_SHAPES_MAIN).unwrap();
 }
 
-fn write_packaged_greeter_consumer(dir: &Path) {
+fn write_packaged_greeter_consumer(dir: &Path, name: &str) {
     let root = repo_root();
     std::fs::write(
         dir.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"pbrs-onboarding-packaged-greeter\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\npbrs-grpc = {{ path = \"{root}/pbrs-grpc\" }}\npbrs-grpc-example-greeter = {{ path = \"{root}/examples/greeter\" }}\ntokio = {{ version = \"1\", features = [\"rt-multi-thread\", \"macros\", \"net\", \"time\", \"sync\"] }}\n",
+            "[package]\nname = \"{name}\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\npbrs-grpc = {{ path = \"{root}/pbrs-grpc\" }}\npbrs-grpc-example-greeter = {{ path = \"{root}/examples/greeter\" }}\ntokio = {{ version = \"1\", features = [\"rt-multi-thread\", \"macros\", \"net\", \"time\", \"sync\"] }}\n",
             root = root.display()
         ),
     )
@@ -995,7 +1019,7 @@ fn pack_offline(
             .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
     }
     apply_cargo_home(&mut list);
-    let listed = list.output().expect("cargo package --list");
+    let listed = cargo_output(&mut list, "cargo package --list");
     assert!(
         listed.status.success(),
         "{pkg} list failed:\n{}",
@@ -1028,7 +1052,7 @@ fn pack_offline(
             .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
     }
     apply_cargo_home(&mut package);
-    let packed = package.output().expect("cargo package");
+    let packed = cargo_output(&mut package, "cargo package");
     assert!(
         packed.status.success(),
         "{pkg} pack failed:\n{}",
@@ -1180,7 +1204,7 @@ fn main() {
         .env("CARGO_TERM_COLOR", "never")
         .env("PATH", &no_protoc);
     apply_cargo_home(&mut cargo);
-    let run = cargo.output().expect("run cold packed consumer");
+    let run = cargo_output(&mut cargo, "run cold packed consumer");
     assert!(
         run.status.success(),
         "cold packed build failed:\n{}",
@@ -1352,7 +1376,7 @@ fn native_grpc_consumer_exercises_all_four_rpc_shapes() {
 #[test]
 fn packaged_greeter_example_consumer_runs_all_four_shapes() {
     let tmp = scratch("pbrs-onboarding-packaged-greeter");
-    write_packaged_greeter_consumer(&tmp);
+    write_packaged_greeter_consumer(&tmp, "pbrs-onboarding-packaged-greeter");
     let out = cargo_run(&tmp, None, true);
     assert!(
         out.status.success(),
@@ -1385,7 +1409,7 @@ fn packaged_greeter_example_consumer_runs_all_four_shapes() {
 #[test]
 fn packaged_production_recipe_exercises_tls_and_mtls_overload_and_drain() {
     let tmp = scratch("pbrs-onboarding-production");
-    write_packaged_greeter_consumer(&tmp);
+    write_packaged_greeter_consumer(&tmp, "pbrs-onboarding-production-greeter");
     std::fs::write(tmp.join("src/main.rs"), PRODUCTION_CONSUMER_MAIN).unwrap();
     let fixtures = repo_root().join("pbrs-grpc/tests/tls_data");
     let server_key = std::fs::read_to_string(fixtures.join("server.key")).unwrap();
@@ -1445,9 +1469,13 @@ fn greeter_binary_production_recipe_runs_without_changing_default() {
             "pbrs-grpc/tests/tls_data",
         ])
         .current_dir(&root)
+        .env(
+            "CARGO_TARGET_DIR",
+            root.join("target/integration-consumers"),
+        )
         .env("CARGO_TERM_COLOR", "never");
         apply_cargo_home(&mut cmd);
-        let out = cmd.output().expect("run guide command");
+        let out = cargo_output(&mut cmd, "run guide command");
         let output = dump(&out);
         assert!(
             !output.contains(&server_key)
