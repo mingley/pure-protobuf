@@ -908,7 +908,75 @@ fn adapter_descriptor_sets_match_pinned_protoc_and_generated_output() {
     }
 }
 
-fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str], core: Option<&Path>) -> PathBuf {
+struct PackWorkspace {
+    directory: PathBuf,
+    root: PathBuf,
+}
+
+impl Drop for PackWorkspace {
+    fn drop(&mut self) {
+        if let Err(err) = std::fs::remove_dir_all(&self.directory) {
+            eprintln!("failed to remove staged package workspace: {err}");
+        }
+    }
+}
+
+fn copy_package_tree(source: &Path, destination: &Path) {
+    std::fs::create_dir_all(destination).expect("staged package directory");
+    for entry in std::fs::read_dir(source).expect("package source directory") {
+        let entry = entry.expect("package source entry");
+        let name = entry.file_name();
+        if name == OsStr::new(".git") || name == OsStr::new("target") {
+            continue;
+        }
+        let to = destination.join(name);
+        if entry.file_type().expect("package source type").is_dir() {
+            copy_package_tree(&entry.path(), &to);
+        } else {
+            std::fs::copy(entry.path(), to).expect("copy staged package file");
+        }
+    }
+}
+
+fn stage_offline_workspace(core_archive: &Path) -> PackWorkspace {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let directory = loop {
+        let dir = std::env::temp_dir().join(format!(
+            "pbrs-package-stage-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        match std::fs::create_dir(&dir) {
+            Ok(()) => break dir,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(err) => panic!("create staged package workspace {}: {err}", dir.display()),
+        }
+    };
+    let mut staged = PackWorkspace {
+        directory,
+        root: PathBuf::new(),
+    };
+    staged.root = unpack_offline(core_archive, &staged.directory);
+    let root = repo_root();
+    std::fs::copy(root.join("Cargo.toml"), staged.root.join("Cargo.toml"))
+        .expect("stage workspace manifest");
+    std::fs::copy(root.join("Cargo.lock"), staged.root.join("Cargo.lock"))
+        .expect("stage workspace lockfile");
+    for package in ["pbrs-grpc", "protobuf-tonic", "examples/greeter"] {
+        copy_package_tree(&root.join(package), &staged.root.join(package));
+    }
+    staged
+}
+
+fn pack_offline(
+    pkg: &str,
+    target: &Path,
+    descriptors: &[&str],
+    workspace: Option<&Path>,
+) -> PathBuf {
+    let root = repo_root();
+    let base = workspace.unwrap_or(&root);
     let mut list = Command::new("cargo");
     list.args([
         "package",
@@ -919,10 +987,10 @@ fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str], core: Option<&Pa
         "--no-verify",
         "--allow-dirty",
     ])
-    .current_dir(repo_root())
+    .current_dir(base)
     .env("CARGO_TARGET_DIR", target)
     .env("CARGO_TERM_COLOR", "never");
-    if let Some(core) = core {
+    if let Some(core) = workspace {
         list.arg("--config")
             .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
     }
@@ -951,10 +1019,10 @@ fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str], core: Option<&Pa
             "--no-verify",
             "--allow-dirty",
         ])
-        .current_dir(repo_root())
+        .current_dir(base)
         .env("CARGO_TARGET_DIR", target)
         .env("CARGO_TERM_COLOR", "never");
-    if let Some(core) = core {
+    if let Some(core) = workspace {
         package
             .arg("--config")
             .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
@@ -996,11 +1064,14 @@ fn unpack_offline(crate_file: &Path, dest: &Path) -> PathBuf {
 #[test]
 fn packed_core_and_both_adapters_build_cold_without_protoc() {
     let tmp = scratch_unique("pbrs-onboarding-cold-packed");
-    let pbrs = pack_offline("pbrs", &tmp.join("pack-pbrs"), &[], None);
+    let root_lock = repo_root().join("Cargo.lock");
+    let lock_before = std::fs::read(&root_lock).expect("workspace lockfile");
+    let pbrs_archive = pack_offline("pbrs", &tmp.join("pack-pbrs"), &[], None);
     let unpack = tmp.join("unpacked");
-    let pbrs = unpack_offline(&pbrs, &unpack.join("pbrs"));
-    // Adapter archives still depend on the core version in the registry,
-    // which a fresh offline CI index may not contain. Use the packed core.
+    let pbrs = unpack_offline(&pbrs_archive, &unpack.join("pbrs"));
+    // An adapter-only patch changes the root lockfile even when packaging
+    // succeeds; keep that patch in an isolated copy of the workspace.
+    let staged = stage_offline_workspace(&pbrs_archive);
     let grpc = pack_offline(
         "pbrs-grpc",
         &tmp.join("pack-grpc"),
@@ -1014,14 +1085,20 @@ fn packed_core_and_both_adapters_build_cold_without_protoc() {
             "tests/proto/kv.fds",
             "tests/proto/extend.fds",
         ],
-        Some(&pbrs),
+        Some(&staged.root),
     );
     let tonic = pack_offline(
         "protobuf-tonic",
         &tmp.join("pack-tonic"),
         &["proto/hello.fds"],
-        Some(&pbrs),
+        Some(&staged.root),
     );
+    assert_eq!(
+        std::fs::read(&root_lock).expect("workspace lockfile after packing"),
+        lock_before,
+        "offline package proof must not rewrite the source Cargo.lock"
+    );
+    drop(staged);
     let grpc = unpack_offline(&grpc, &unpack.join("grpc"));
     let tonic = unpack_offline(&tonic, &unpack.join("tonic"));
     let consumer = tmp.join("consumer");
