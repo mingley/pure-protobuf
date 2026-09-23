@@ -36,7 +36,7 @@ jobs:
       - name: Lint native gRPC, tonic adapter, and example libraries
         run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
       - name: Interop proof and benchmark accounting contracts
-        run: python3 -m unittest tests.interop.test_report tests.interop.test_bench_matrix tests.interop.test_cpp_runner tests.interop.test_http2_peer_proof tests.interop.test_qps_proof tests.interop.test_conformance_summary tests.test_publish_script tests.test_shared_consumer_report -q
+        run: python3 -m unittest tests.interop.test_report tests.interop.test_bench_matrix tests.interop.test_cpp_runner tests.interop.test_http2_peer_proof tests.interop.test_http2_probe_status tests.interop.test_qps_proof tests.interop.test_conformance_summary tests.test_publish_script tests.test_shared_consumer_report -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
       - run: cargo test --workspace

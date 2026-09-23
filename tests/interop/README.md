@@ -103,7 +103,9 @@ Official server transport verification probes from `tools/run_tests/run_interop_
 * `server_framing_probe`: Probes HTTP/2 24-byte connection preface, SETTINGS frame exchange and ACK, rapid reset stream cancellation flood (CVE-2023-44487), small DATA frames flow control, fragmented HEADERS across CONTINUATION frames and CONTINUATION flood protection, bad headers / non-POST HTTP 405 / unsupported media type HTTP 415 rejection, and post-probe server health verification.
 * *Status*: `scripts/grpc-http2-server-interop.sh` runs spec-derived local TLS
   and framing probes against `pbrs-grpc-interop-server`, with two required
-  result rows and retained logs. It does not invoke the upstream probe binary;
+  result rows and retained logs. It decodes the response `:status` and
+  requires HTTP 405/415, rather than accepting any HEADERS frame. It does not
+  invoke the upstream probe binary;
   `IO-09` remains open until that qualification boundary is resolved.
 
 ### 5. Connection Backoff (`connection_backoff`, 1 case)

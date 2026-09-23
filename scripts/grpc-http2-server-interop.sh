@@ -280,6 +280,7 @@ import struct
 import subprocess
 import sys
 import time
+from scripts.http2_probe_status import decode_first_status
 
 mode = sys.argv[1]
 host = sys.argv[2]
@@ -517,15 +518,16 @@ def run_framing_suite():
     if f and f[0] == 4 and (f[1] & 0x1) == 0:
         s.sendall(h2_frame(4, 1, 0, b""))
     s.sendall(h2_frame(1, 5, 1, bytes([0x82, 0x86, 0x84]))) # GET, END_HEADERS | END_STREAM
-    got_resp = False
+    got_status = None
     for _ in range(5):
         frame = read_frame(s)
         if not frame:
             break
         if frame[0] == 1 and frame[2] == 1:
-            got_resp = True
+            print(f"  GET response HPACK: {frame[3].hex()}")
+            got_status = decode_first_status(frame)
             break
-    assert got_resp, "Server did not respond with HEADERS for non-POST method"
+    assert got_status == 405, f"Expected HTTP 405 for GET, got {got_status!r}"
     s.close()
     print("  PASS: non-POST method returned HTTP 405 Method Not Allowed")
 
@@ -538,15 +540,16 @@ def run_framing_suite():
     block = bytearray([0x83, 0x86, 0x84])
     block.extend(hpack_literal_new("content-type", "application/json"))
     s.sendall(h2_frame(1, 5, 1, bytes(block)))
-    got_415 = False
+    got_415 = None
     for _ in range(5):
         frame = read_frame(s)
         if not frame:
             break
         if frame[0] == 1 and frame[2] == 1:
-            got_415 = True
+            print(f"  bad content-type response HPACK: {frame[3].hex()}")
+            got_415 = decode_first_status(frame)
             break
-    assert got_415, "Server did not respond with HEADERS for bad content-type"
+    assert got_415 == 415, f"Expected HTTP 415 for JSON content-type, got {got_415!r}"
     s.close()
     print("  PASS: non-gRPC content-type returned HTTP 415 Unsupported Media Type")
 
