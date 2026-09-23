@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use pbrs::codegen::generate_from_code_generator_request;
 use pbrs::DescriptorPool;
+use pbrs::codegen::generate_from_code_generator_request;
 
 const MAX_FUZZ_INPUT_BYTES: usize = 64 * 1024; // 64 KiB
 const MAX_NAMES_TO_EXERCISE: usize = 256;
@@ -22,7 +22,10 @@ pub fn fuzz_descriptors(data: &[u8]) {
             let names = pool.collect_names();
             for name in names.iter().take(MAX_NAMES_TO_EXERCISE) {
                 let msg = pool.get_message(name);
-                assert!(msg.is_some(), "message from collect_names must be resolvable");
+                assert!(
+                    msg.is_some(),
+                    "message from collect_names must be resolvable"
+                );
                 let with_dot = format!(".{name}");
                 let _ = pool.get_message(&with_dot);
             }
@@ -43,7 +46,10 @@ pub fn fuzz_descriptors(data: &[u8]) {
         Ok(files) => {
             // Bound inspection of generated output to avoid runaway allocations under hostile inputs
             for (filename, content) in files.iter().take(MAX_GENERATED_FILES) {
-                assert!(!filename.is_empty(), "generated file name must not be empty");
+                assert!(
+                    !filename.is_empty(),
+                    "generated file name must not be empty"
+                );
                 let bound = content.len().min(MAX_GENERATED_CONTENT_BYTES);
                 let _ = &content[..bound];
             }

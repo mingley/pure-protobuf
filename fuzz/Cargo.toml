@@ -2,7 +2,7 @@
 name = "pbrs-fuzz"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [package.metadata]
 cargo-fuzz = true
@@ -40,4 +40,3 @@ name = "grpc_wire"
 path = "fuzz_targets/grpc_wire.rs"
 test = false
 doc = false
-

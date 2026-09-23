@@ -840,9 +840,9 @@ mod tests {
     async fn test_closed_loop_concurrency() {
         let cfg = LoadConfig::closed(4, Duration::from_millis(100))
             .with_timeout(Duration::from_millis(50));
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(5)).await;
                 Ok(())
@@ -873,9 +873,9 @@ mod tests {
         let cfg = LoadConfig::open_constant(200.0, Duration::from_millis(150))
             .with_timeout(Duration::from_millis(50))
             .with_max_calls(20);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(2)).await;
                 Ok(())
@@ -900,9 +900,9 @@ mod tests {
         let cfg = LoadConfig::open_poisson(300.0, seed, Duration::from_millis(150))
             .with_timeout(Duration::from_millis(50))
             .with_max_calls(25);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(1)).await;
                 Ok(())
@@ -939,9 +939,9 @@ mod tests {
             .with_max_in_flight(cap)
             .with_timeout(Duration::from_millis(200))
             .with_max_calls(30);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 // Server stalls for 100 ms
                 tokio::time::sleep(Duration::from_millis(100)).await;
@@ -972,9 +972,9 @@ mod tests {
         let cfg = LoadConfig::open_constant(100.0, Duration::from_millis(60))
             .with_timeout(Duration::from_millis(10))
             .with_max_calls(5);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(60)).await;
                 Ok(())
@@ -1003,9 +1003,9 @@ mod tests {
         let cfg = LoadConfig::open_constant(200.0, Duration::from_millis(50))
             .with_timeout(Duration::from_millis(50))
             .with_max_calls(6);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(1)).await;
                 Err(RpcCallError::Status("UNAVAILABLE".to_string()))
@@ -1039,10 +1039,10 @@ mod tests {
         let cfg = LoadConfig::open_constant(200.0, Duration::from_millis(60))
             .with_timeout(Duration::from_millis(100))
             .with_max_calls(6);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
         let call_idx = Arc::new(AtomicUsize::new(0));
-        let record = gen
+        let record = r#gen
             .run(move || {
                 let idx = call_idx.fetch_add(1, Ordering::SeqCst);
                 async move {
@@ -1068,9 +1068,9 @@ mod tests {
         let cfg = LoadConfig::open_constant(100.0, Duration::from_millis(50))
             .with_timeout(Duration::from_millis(50))
             .with_max_calls(4);
-        let gen = LoadGenerator::new(cfg);
+        let r#gen = LoadGenerator::new(cfg);
 
-        let record = gen
+        let record = r#gen
             .run(|| async {
                 tokio::time::sleep(Duration::from_millis(1)).await;
                 Ok(())

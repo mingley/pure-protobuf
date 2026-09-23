@@ -93,7 +93,9 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
         let mut byte_frames: Vec<Frame> = Vec::new();
         for &b in wire_bytes.as_ref() {
             byte_buf.put_u8(b);
-            while let Ok(Some(frame)) = codec::pop_limited(&mut byte_buf, MessageLimits::unlimited()) {
+            while let Ok(Some(frame)) =
+                codec::pop_limited(&mut byte_buf, MessageLimits::unlimited())
+            {
                 byte_frames.push(frame);
             }
         }
@@ -118,7 +120,9 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
             offset += take;
             step = (step % 17) + 1;
 
-            while let Ok(Some(frame)) = codec::pop_limited(&mut chunk_buf, MessageLimits::unlimited()) {
+            while let Ok(Some(frame)) =
+                codec::pop_limited(&mut chunk_buf, MessageLimits::unlimited())
+            {
                 chunk_frames.push(frame);
             }
         }
@@ -194,7 +198,9 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
     if data.len() >= 4 {
         let split_pos = (data[0] as usize) % data.len();
         let (k_bytes, v_bytes) = data.split_at(split_pos);
-        if let (Ok(key_str), Ok(val_str)) = (std::str::from_utf8(k_bytes), std::str::from_utf8(v_bytes)) {
+        if let (Ok(key_str), Ok(val_str)) =
+            (std::str::from_utf8(k_bytes), std::str::from_utf8(v_bytes))
+        {
             let mut md = Metadata::new();
             match md.insert(key_str, val_str) {
                 Ok(()) => {
@@ -223,7 +229,16 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
 
     // Reserved metadata keys must always be rejected
     let mut md = Metadata::new();
-    for reserved in [":status", ":path", "grpc-status", "grpc-message", "content-type", "te", "connection", "host"] {
+    for reserved in [
+        ":status",
+        ":path",
+        "grpc-status",
+        "grpc-message",
+        "content-type",
+        "te",
+        "connection",
+        "host",
+    ] {
         assert!(md.insert(reserved, "val").is_err());
         assert!(md.set(reserved, "val").is_err());
         assert!(md.insert_bin(reserved, b"val").is_err());
@@ -301,7 +316,9 @@ mod tests {
         let mut frames = Vec::new();
         for &b in wire.as_ref() {
             byte_buf.put_u8(b);
-            while let Ok(Some(frame)) = codec::pop_limited(&mut byte_buf, MessageLimits::unlimited()) {
+            while let Ok(Some(frame)) =
+                codec::pop_limited(&mut byte_buf, MessageLimits::unlimited())
+            {
                 frames.push(frame);
             }
         }
@@ -338,7 +355,9 @@ mod tests {
         let mut oversize = BytesMut::from(&[0x00, 0x00, 0x10, 0x00, 0x00][..]); // 1 MiB
         let limits = MessageLimits::unlimited().with_max_decoding(1024);
         assert_eq!(
-            codec::pop_limited(&mut oversize, limits).unwrap_err().code(),
+            codec::pop_limited(&mut oversize, limits)
+                .unwrap_err()
+                .code(),
             Code::ResourceExhausted
         );
     }

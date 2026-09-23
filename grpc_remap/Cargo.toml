@@ -5,7 +5,7 @@ resolver = "2"
 [package]
 name = "grpc_remap"
 version = "0.0.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.88"
 publish = false
 description = "Proof: grpc + grpc-protobuf with crates.io protobuf remapped to pbrs"

@@ -48,10 +48,12 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
     assert_eq!(report["mode"], "diagnostic_smoke");
     assert_eq!(report["peer_combination"], "native/native");
     assert_eq!(report["qualification"]["qualified"], false);
-    assert!(!report["qualification"]["blockers"]
-        .as_array()
-        .unwrap()
-        .is_empty());
+    assert!(
+        !report["qualification"]["blockers"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
     assert!(count(&report, "small_calls_while_bulk_in_flight") > 0);
 
     let classes = &report["per_workload_class"];

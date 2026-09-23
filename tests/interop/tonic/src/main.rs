@@ -94,13 +94,10 @@ where
                     Poll::Ready(Some(Ok(frame)))
                 }
             }
-            Poll::Ready(None) => {
-                if let Some(extra) = this.trailing.take() {
-                    Poll::Ready(Some(Ok(Frame::trailers(extra))))
-                } else {
-                    Poll::Ready(None)
-                }
-            }
+            Poll::Ready(None) => match this.trailing.take() {
+                Some(extra) => Poll::Ready(Some(Ok(Frame::trailers(extra)))),
+                None => Poll::Ready(None),
+            },
             other => other,
         }
     }
@@ -155,7 +152,8 @@ where
                     struct Svc(Option<HeaderValue>);
                     impl UnaryService<Empty> for Svc {
                         type Response = Empty;
-                        type Future = Pin<Box<dyn Future<Output = Result<Response<Empty>, Status>> + Send>>;
+                        type Future =
+                            Pin<Box<dyn Future<Output = Result<Response<Empty>, Status>> + Send>>;
                         fn call(&mut self, _req: Request<Empty>) -> Self::Future {
                             let initial = self.0.clone();
                             Box::pin(async move {
@@ -175,11 +173,17 @@ where
                     let res = grpc.unary(Svc(initial_md), req).await;
                     Ok(wrap_body(res))
                 }
-                "/grpc.testing.TestService/UnaryCall" | "/grpc.testing.TestService/CacheableUnaryCall" => {
+                "/grpc.testing.TestService/UnaryCall"
+                | "/grpc.testing.TestService/CacheableUnaryCall" => {
                     struct Svc(Option<HeaderValue>);
                     impl UnaryService<SimpleRequest> for Svc {
                         type Response = SimpleResponse;
-                        type Future = Pin<Box<dyn Future<Output = Result<Response<SimpleResponse>, Status>> + Send>>;
+                        type Future = Pin<
+                            Box<
+                                dyn Future<Output = Result<Response<SimpleResponse>, Status>>
+                                    + Send,
+                            >,
+                        >;
                         fn call(&mut self, req: Request<SimpleRequest>) -> Self::Future {
                             let initial = self.0.clone();
                             Box::pin(async move {
@@ -208,7 +212,8 @@ where
                             })
                         }
                     }
-                    let mut grpc = ServerGrpc::new(ProtobufCodec::<SimpleResponse, SimpleRequest>::default());
+                    let mut grpc =
+                        ServerGrpc::new(ProtobufCodec::<SimpleResponse, SimpleRequest>::default());
                     let res = grpc.unary(Svc(initial_md), req).await;
                     Ok(wrap_body(res))
                 }
@@ -216,8 +221,20 @@ where
                     struct Svc(Option<HeaderValue>);
                     impl ClientStreamingService<StreamingInputCallRequest> for Svc {
                         type Response = StreamingInputCallResponse;
-                        type Future = Pin<Box<dyn Future<Output = Result<Response<StreamingInputCallResponse>, Status>> + Send>>;
-                        fn call(&mut self, req: Request<tonic::Streaming<StreamingInputCallRequest>>) -> Self::Future {
+                        type Future = Pin<
+                            Box<
+                                dyn Future<
+                                        Output = Result<
+                                            Response<StreamingInputCallResponse>,
+                                            Status,
+                                        >,
+                                    > + Send,
+                            >,
+                        >;
+                        fn call(
+                            &mut self,
+                            req: Request<tonic::Streaming<StreamingInputCallRequest>>,
+                        ) -> Self::Future {
                             let initial = self.0.clone();
                             Box::pin(async move {
                                 let mut stream = req.into_inner();
@@ -241,7 +258,10 @@ where
                             })
                         }
                     }
-                    let mut grpc = ServerGrpc::new(ProtobufCodec::<StreamingInputCallResponse, StreamingInputCallRequest>::default());
+                    let mut grpc = ServerGrpc::new(ProtobufCodec::<
+                        StreamingInputCallResponse,
+                        StreamingInputCallRequest,
+                    >::default());
                     let res = grpc.client_streaming(Svc(initial_md), req).await;
                     Ok(wrap_body(res))
                 }
@@ -249,9 +269,18 @@ where
                     struct Svc(Option<HeaderValue>);
                     impl ServerStreamingService<StreamingOutputCallRequest> for Svc {
                         type Response = StreamingOutputCallResponse;
-                        type ResponseStream = ReceiverStream<Result<StreamingOutputCallResponse, Status>>;
-                        type Future = Pin<Box<dyn Future<Output = Result<Response<Self::ResponseStream>, Status>> + Send>>;
-                        fn call(&mut self, req: Request<StreamingOutputCallRequest>) -> Self::Future {
+                        type ResponseStream =
+                            ReceiverStream<Result<StreamingOutputCallResponse, Status>>;
+                        type Future = Pin<
+                            Box<
+                                dyn Future<Output = Result<Response<Self::ResponseStream>, Status>>
+                                    + Send,
+                            >,
+                        >;
+                        fn call(
+                            &mut self,
+                            req: Request<StreamingOutputCallRequest>,
+                        ) -> Self::Future {
                             let initial = self.0.clone();
                             Box::pin(async move {
                                 let inner = req.into_inner();
@@ -272,7 +301,10 @@ where
                                 tokio::spawn(async move {
                                     for (size, interval_us) in params {
                                         if interval_us > 0 {
-                                            tokio::time::sleep(Duration::from_micros(interval_us as u64)).await;
+                                            tokio::time::sleep(Duration::from_micros(
+                                                interval_us as u64,
+                                            ))
+                                            .await;
                                         }
                                         let mut msg = StreamingOutputCallResponse::new();
                                         let mut p = Payload::new();
@@ -295,17 +327,30 @@ where
                             })
                         }
                     }
-                    let mut grpc = ServerGrpc::new(ProtobufCodec::<StreamingOutputCallResponse, StreamingOutputCallRequest>::default());
+                    let mut grpc = ServerGrpc::new(ProtobufCodec::<
+                        StreamingOutputCallResponse,
+                        StreamingOutputCallRequest,
+                    >::default());
                     let res = grpc.server_streaming(Svc(initial_md), req).await;
                     Ok(wrap_body(res))
                 }
-                "/grpc.testing.TestService/FullDuplexCall" | "/grpc.testing.TestService/HalfDuplexCall" => {
+                "/grpc.testing.TestService/FullDuplexCall"
+                | "/grpc.testing.TestService/HalfDuplexCall" => {
                     struct Svc(Option<HeaderValue>);
                     impl StreamingService<StreamingOutputCallRequest> for Svc {
                         type Response = StreamingOutputCallResponse;
-                        type ResponseStream = ReceiverStream<Result<StreamingOutputCallResponse, Status>>;
-                        type Future = Pin<Box<dyn Future<Output = Result<Response<Self::ResponseStream>, Status>> + Send>>;
-                        fn call(&mut self, req: Request<tonic::Streaming<StreamingOutputCallRequest>>) -> Self::Future {
+                        type ResponseStream =
+                            ReceiverStream<Result<StreamingOutputCallResponse, Status>>;
+                        type Future = Pin<
+                            Box<
+                                dyn Future<Output = Result<Response<Self::ResponseStream>, Status>>
+                                    + Send,
+                            >,
+                        >;
+                        fn call(
+                            &mut self,
+                            req: Request<tonic::Streaming<StreamingOutputCallRequest>>,
+                        ) -> Self::Future {
                             let initial = self.0.clone();
                             Box::pin(async move {
                                 let mut inbound = req.into_inner();
@@ -316,10 +361,12 @@ where
                                             Ok(req_msg) => {
                                                 if req_msg.has_response_status() {
                                                     let st = req_msg.response_status();
-                                                    let _ = tx.send(Err(Status::new(
-                                                        Code::from_i32(st.code()),
-                                                        st.message().to_string(),
-                                                    ))).await;
+                                                    let _ = tx
+                                                        .send(Err(Status::new(
+                                                            Code::from_i32(st.code()),
+                                                            st.message().to_string(),
+                                                        )))
+                                                        .await;
                                                     return;
                                                 }
                                                 let params: Vec<(i32, i32)> = req_msg
@@ -329,9 +376,13 @@ where
                                                     .collect();
                                                 for (size, interval_us) in params {
                                                     if interval_us > 0 {
-                                                        tokio::time::sleep(Duration::from_micros(interval_us as u64)).await;
+                                                        tokio::time::sleep(Duration::from_micros(
+                                                            interval_us as u64,
+                                                        ))
+                                                        .await;
                                                     }
-                                                    let mut out = StreamingOutputCallResponse::new();
+                                                    let mut out =
+                                                        StreamingOutputCallResponse::new();
                                                     let mut p = Payload::new();
                                                     p.set_body(vec![0u8; size.max(0) as usize]);
                                                     out.set_payload(p);
@@ -359,7 +410,10 @@ where
                             })
                         }
                     }
-                    let mut grpc = ServerGrpc::new(ProtobufCodec::<StreamingOutputCallResponse, StreamingOutputCallRequest>::default());
+                    let mut grpc = ServerGrpc::new(ProtobufCodec::<
+                        StreamingOutputCallResponse,
+                        StreamingOutputCallRequest,
+                    >::default());
                     let res = grpc.streaming(Svc(initial_md), req).await;
                     Ok(wrap_body(res))
                 }
@@ -367,14 +421,20 @@ where
                     let mut response = HttpResponse::new(Body::default());
                     let headers = response.headers_mut();
                     headers.insert(Status::GRPC_STATUS, (Code::Unimplemented as i32).into());
-                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
                     Ok(response)
                 }
                 _ => {
                     let mut response = HttpResponse::new(Body::default());
                     let headers = response.headers_mut();
                     headers.insert(Status::GRPC_STATUS, (Code::Unimplemented as i32).into());
-                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
                     Ok(response)
                 }
             }
@@ -479,9 +539,7 @@ impl TestServiceClient {
             .ready()
             .await
             .map_err(|e| Status::unknown(e.to_string()))?;
-        let path = "/grpc.testing.TestService/FullDuplexCall"
-            .parse()
-            .unwrap();
+        let path = "/grpc.testing.TestService/FullDuplexCall".parse().unwrap();
         self.grpc
             .streaming(
                 req,
@@ -590,7 +648,9 @@ pub async fn client_streaming(
         .await?;
     let agg_size = resp.into_inner().aggregated_payload_size();
     if agg_size != 74922 {
-        return Err(format!("client_streaming: expected aggregated size 74922, got {agg_size}").into());
+        return Err(
+            format!("client_streaming: expected aggregated size 74922, got {agg_size}").into(),
+        );
     }
     Ok(())
 }
@@ -641,12 +701,7 @@ pub async fn ping_pong(client: &mut TestServiceClient) -> Result<(), Box<dyn std
         .await?;
     let mut inbound = resp.into_inner();
 
-    let steps = [
-        (31415i32, 27182i32),
-        (9, 8),
-        (2653, 1828),
-        (58979, 45904),
-    ];
+    let steps = [(31415i32, 27182i32), (9, 8), (2653, 1828), (58979, 45904)];
 
     for (resp_size, req_size) in steps {
         let mut req = StreamingOutputCallRequest::new();
@@ -671,7 +726,9 @@ pub async fn ping_pong(client: &mut TestServiceClient) -> Result<(), Box<dyn std
     Ok(())
 }
 
-pub async fn empty_stream(client: &mut TestServiceClient) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn empty_stream(
+    client: &mut TestServiceClient,
+) -> Result<(), Box<dyn std::error::Error>> {
     let (tx, rx) = tokio::sync::mpsc::channel::<StreamingOutputCallRequest>(1);
     drop(tx); // immediate half-close
     let resp = client
@@ -690,7 +747,8 @@ pub async fn cancel_after_begin(
     let (tx, rx) = tokio::sync::mpsc::channel::<StreamingInputCallRequest>(1);
     let mut cl = client.clone();
     let handle = tokio::spawn(async move {
-        cl.client_streaming(Request::new(ReceiverStream::new(rx))).await
+        cl.client_streaming(Request::new(ReceiverStream::new(rx)))
+            .await
     });
     tokio::time::sleep(Duration::from_millis(30)).await;
     handle.abort();
@@ -740,7 +798,9 @@ pub async fn timeout_on_sleeping_server(
                         .into())
                     }
                 }
-                Some(Ok(_)) => Err("timeout_on_sleeping_server: received message from sleeping server".into()),
+                Some(Ok(_)) => {
+                    Err("timeout_on_sleeping_server: received message from sleeping server".into())
+                }
                 None => Err("timeout_on_sleeping_server: stream ended without error".into()),
             }
         }
@@ -880,7 +940,10 @@ pub async fn status_code_and_message(
     tx.send(m).await?;
     drop(tx);
 
-    match client.full_duplex_call(Request::new(ReceiverStream::new(rx))).await {
+    match client
+        .full_duplex_call(Request::new(ReceiverStream::new(rx)))
+        .await
+    {
         Err(status) => {
             if status.code() != want_code || status.message() != want_msg {
                 return Err(format!(
@@ -910,8 +973,14 @@ pub async fn status_code_and_message(
                         .into());
                     }
                 }
-                Some(Ok(_)) => return Err("status_code_and_message duplex: expected error, got message".into()),
-                None => return Err("status_code_and_message duplex: stream ended without error".into()),
+                Some(Ok(_)) => {
+                    return Err(
+                        "status_code_and_message duplex: expected error, got message".into(),
+                    );
+                }
+                None => {
+                    return Err("status_code_and_message duplex: stream ended without error".into());
+                }
             }
         }
     }
@@ -958,7 +1027,10 @@ pub async fn unimplemented_method(
 pub async fn unimplemented_service(
     client: &mut TestServiceClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    match client.unimplemented_service_call(Request::new(Empty::new())).await {
+    match client
+        .unimplemented_service_call(Request::new(Empty::new()))
+        .await
+    {
         Err(status) if status.code() == Code::Unimplemented => Ok(()),
         Err(status) => Err(format!("expected Unimplemented, got {status}").into()),
         Ok(_) => Err("expected Unimplemented, got Ok".into()),
@@ -1143,11 +1215,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// prost 0.14 messages (vendored below) instead of the pbrs adapter.
 pub mod prost_mode {
     use super::{
-        Body, Bytes, Channel, ClientStreamingService, Code, Context, Duration, Future, Grpc,
-        HeaderMap, HeaderName, HeaderValue, HttpRequest, HttpResponse, Infallible, NamedService,
-        Pin, Poll, ReceiverStream, Request, Response, ServerGrpc, ServerStreamingService, Service,
-        Status, StreamingService, TrailersBody, UnaryService, ECHO_INITIAL, ECHO_INITIAL_VAL,
-        ECHO_TRAILING_BIN, ECHO_TRAILING_BIN_VAL, LARGE_REQ, LARGE_RESP,
+        Body, Bytes, Channel, ClientStreamingService, Code, Context, Duration, ECHO_INITIAL,
+        ECHO_INITIAL_VAL, ECHO_TRAILING_BIN, ECHO_TRAILING_BIN_VAL, Future, Grpc, HeaderMap,
+        HeaderName, HeaderValue, HttpRequest, HttpResponse, Infallible, LARGE_REQ, LARGE_RESP,
+        NamedService, Pin, Poll, ReceiverStream, Request, Response, ServerGrpc,
+        ServerStreamingService, Service, Status, StreamingService, TrailersBody, UnaryService,
     };
     use bytes::Buf;
     use futures_util::StreamExt as _;
@@ -2285,12 +2357,12 @@ pub mod prost_mode {
                     Some(Ok(_)) => {
                         return Err(
                             "status_code_and_message duplex: expected error, got message".into(),
-                        )
+                        );
                     }
                     None => {
                         return Err(
                             "status_code_and_message duplex: stream ended without error".into()
-                        )
+                        );
                     }
                 }
             }

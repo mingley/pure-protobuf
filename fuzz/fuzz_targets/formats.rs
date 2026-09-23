@@ -2,7 +2,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use pbrs::gencode::{
-    conformance_pool, TestAllTypesEdition2023, TestAllTypesProto2, TestAllTypesProto3,
+    TestAllTypesEdition2023, TestAllTypesProto2, TestAllTypesProto3, conformance_pool,
 };
 use pbrs::{DescriptorPool, DynamicMessage, MessageDescriptor};
 use std::sync::{Arc, OnceLock};
@@ -74,7 +74,10 @@ pub fn fuzz_formats_str(text: &str) {
             if let Ok(json_out) = msg.to_json() {
                 if json_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                     let reparsed = DynamicMessage::from_json(desc.clone(), &json_out);
-                    assert!(reparsed.is_ok(), "re-parsing valid json_output must succeed");
+                    assert!(
+                        reparsed.is_ok(),
+                        "re-parsing valid json_output must succeed"
+                    );
                 }
             }
             if let Ok(text_out) = msg.to_text() {
@@ -90,19 +93,18 @@ pub fn fuzz_formats_str(text: &str) {
             text,
             false,
         );
-        let _ = DynamicMessage::from_json_with_pool(
-            desc.clone(),
-            Some(descs.pool.clone()),
-            text,
-            true,
-        );
+        let _ =
+            DynamicMessage::from_json_with_pool(desc.clone(), Some(descs.pool.clone()), text, true);
 
         // from_text variants
         if let Ok(msg) = DynamicMessage::from_text(desc.clone(), text) {
             if let Ok(text_out) = msg.to_text() {
                 if text_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                     let reparsed = DynamicMessage::from_text(desc.clone(), &text_out);
-                    assert!(reparsed.is_ok(), "re-parsing valid text_output must succeed");
+                    assert!(
+                        reparsed.is_ok(),
+                        "re-parsing valid text_output must succeed"
+                    );
                 }
             }
             if let Ok(json_out) = msg.to_json() {
@@ -111,11 +113,7 @@ pub fn fuzz_formats_str(text: &str) {
                 }
             }
         }
-        let _ = DynamicMessage::from_text_with_pool(
-            desc.clone(),
-            Some(descs.pool.clone()),
-            text,
-        );
+        let _ = DynamicMessage::from_text_with_pool(desc.clone(), Some(descs.pool.clone()), text);
     }
 
     // 3. Generated typed message format parsers (conformance_json_output paths)
@@ -124,7 +122,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(json_out) = msg.to_json() {
             if json_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesProto3::from_json(&json_out);
-                assert!(reparsed.is_ok(), "re-parsing generated proto3 json output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated proto3 json output must succeed"
+                );
             }
         }
     }
@@ -133,7 +134,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(text_out) = msg.to_text() {
             if text_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesProto3::from_text(&text_out);
-                assert!(reparsed.is_ok(), "re-parsing generated proto3 text output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated proto3 text output must succeed"
+                );
             }
         }
     }
@@ -143,7 +147,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(json_out) = msg.to_json() {
             if json_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesProto2::from_json(&json_out);
-                assert!(reparsed.is_ok(), "re-parsing generated proto2 json output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated proto2 json output must succeed"
+                );
             }
         }
     }
@@ -152,7 +159,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(text_out) = msg.to_text() {
             if text_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesProto2::from_text(&text_out);
-                assert!(reparsed.is_ok(), "re-parsing generated proto2 text output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated proto2 text output must succeed"
+                );
             }
         }
     }
@@ -162,7 +172,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(json_out) = msg.to_json() {
             if json_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesEdition2023::from_json(&json_out);
-                assert!(reparsed.is_ok(), "re-parsing generated edition2023 json output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated edition2023 json output must succeed"
+                );
             }
         }
     }
@@ -171,7 +184,10 @@ pub fn fuzz_formats_str(text: &str) {
         if let Ok(text_out) = msg.to_text() {
             if text_out.len() <= MAX_OUTPUT_RECHECK_BYTES {
                 let reparsed = TestAllTypesEdition2023::from_text(&text_out);
-                assert!(reparsed.is_ok(), "re-parsing generated edition2023 text output must succeed");
+                assert!(
+                    reparsed.is_ok(),
+                    "re-parsing generated edition2023 text output must succeed"
+                );
             }
         }
     }

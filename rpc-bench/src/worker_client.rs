@@ -404,7 +404,10 @@ pub async fn run_client(
             .collect();
         let mut channels = Vec::with_capacity(num_channels);
         for i in 0..num_channels {
-            let target_str = targets.get(i % targets.len()).map(|s| s.as_str()).unwrap_or("");
+            let target_str = targets
+                .get(i % targets.len())
+                .map(|s| s.as_str())
+                .unwrap_or("");
             let clean_target = target_str
                 .strip_prefix("dns:///")
                 .or_else(|| target_str.strip_prefix("ipv4:"))
@@ -579,7 +582,9 @@ pub async fn run_client(
             // Reject duplicate setup
             if arg.has_setup() {
                 let _ = tx
-                    .fail(Status::invalid_argument("duplicate ClientConfig setup received"))
+                    .fail(Status::invalid_argument(
+                        "duplicate ClientConfig setup received",
+                    ))
                     .await;
                 let _ = cancel_tx.send(true);
                 gen_handle.abort();
@@ -589,7 +594,9 @@ pub async fn run_client(
 
             if !arg.has_mark() {
                 let _ = tx
-                    .fail(Status::invalid_argument("expected Mark in subsequent ClientArgs"))
+                    .fail(Status::invalid_argument(
+                        "expected Mark in subsequent ClientArgs",
+                    ))
                     .await;
                 let _ = cancel_tx.send(true);
                 gen_handle.abort();

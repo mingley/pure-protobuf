@@ -29,13 +29,13 @@ pub mod proto {
 
 pub use proto::{
     ClientArgs, ClientConfig, ClientStatus, CoreRequest, CoreResponse, Mark, ServerArgs,
-    ServerConfig, ServerStats, ServerStatus, ServerType, Void, WorkerService,
-    WorkerServiceClient, WorkerServiceServer,
+    ServerConfig, ServerStats, ServerStatus, ServerType, Void, WorkerService, WorkerServiceClient,
+    WorkerServiceServer,
 };
 
+use pbrs_grpc::{Request, Response, Status, Streaming};
 use std::time::Duration;
 use tokio::net::TcpListener;
-use pbrs_grpc::{Request, Response, Status, Streaming};
 
 use crate::benchmark_service::{BenchmarkServiceImpl, BenchmarkServiceServer};
 use crate::resources::ResourceSnapshot;
@@ -43,7 +43,9 @@ use crate::resources::ResourceSnapshot;
 /// Create a router mounting the benchmark and test services.
 pub fn create_benchmark_router() -> pbrs_grpc::Router {
     pbrs_grpc::Router::new()
-        .add_service(pbrs_grpc::TestServiceServer::new(pbrs_grpc::InteropTestService))
+        .add_service(pbrs_grpc::TestServiceServer::new(
+            pbrs_grpc::InteropTestService,
+        ))
         .add_service(BenchmarkServiceServer::new(BenchmarkServiceImpl))
 }
 
@@ -246,7 +248,9 @@ impl WorkerService for WorkerServiceImpl {
                 // Reject duplicate setup
                 if arg.has_setup() {
                     let _ = tx
-                        .fail(Status::invalid_argument("duplicate ServerConfig setup received"))
+                        .fail(Status::invalid_argument(
+                            "duplicate ServerConfig setup received",
+                        ))
                         .await;
                     let _ = shutdown_tx.send(());
                     if tokio::time::timeout(Duration::from_secs(5), &mut server_handle)
@@ -260,7 +264,9 @@ impl WorkerService for WorkerServiceImpl {
 
                 if !arg.has_mark() {
                     let _ = tx
-                        .fail(Status::invalid_argument("expected Mark in subsequent ServerArgs"))
+                        .fail(Status::invalid_argument(
+                            "expected Mark in subsequent ServerArgs",
+                        ))
                         .await;
                     let _ = shutdown_tx.send(());
                     if tokio::time::timeout(Duration::from_secs(5), &mut server_handle)

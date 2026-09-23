@@ -277,11 +277,7 @@ pub fn parse_cpu_list_count(list: &str) -> Option<usize> {
             count = count.saturating_add(1);
         }
     }
-    if count == 0 {
-        None
-    } else {
-        Some(count)
-    }
+    if count == 0 { None } else { Some(count) }
 }
 
 /// Parse cgroup v2 `cpu.max` contents (`"$MAX $PERIOD"` or `"max $PERIOD"`)
@@ -707,7 +703,7 @@ mod macos_ffi {
     pub const MACH_TASK_BASIC_INFO: i32 = 20;
     pub const KERN_SUCCESS: i32 = 0;
 
-    extern "C" {
+    unsafe extern "C" {
         pub fn getrusage(who: i32, usage: *mut Rusage) -> i32;
         pub fn mach_task_self() -> u32;
         pub fn task_info(

@@ -1,26 +1,26 @@
 //! Integration tests for WorkerService server lifecycle, marks, and core count.
 
-#[path = "../src/resources.rs"]
-pub mod resources;
 #[path = "../src/benchmark_service.rs"]
 pub mod benchmark_service;
-#[path = "../src/worker_server.rs"]
-pub mod worker_server;
 #[path = "../src/load.rs"]
 pub mod load;
 #[path = "../src/report.rs"]
 pub mod report;
+#[path = "../src/resources.rs"]
+pub mod resources;
 #[path = "../src/worker_client.rs"]
 pub mod worker_client;
+#[path = "../src/worker_server.rs"]
+pub mod worker_server;
 
+use pbrs_grpc::Request;
 use std::time::Duration;
 use tokio::net::TcpListener;
-use pbrs_grpc::Request;
 
 use worker_client::{
     ClientArgs, ClientConfig, ClientType, ClosedLoopParams, CoreRequest, Histogram,
-    HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType,
-    ServerArgs, ServerConfig, SimpleProtoParams, Void, WorkerServiceClient, WorkerServiceImpl,
+    HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType, ServerArgs,
+    ServerConfig, SimpleProtoParams, Void, WorkerServiceClient, WorkerServiceImpl,
     WorkerServiceServer,
 };
 
@@ -72,7 +72,10 @@ async fn test_core_count() {
     let expected = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1) as i32;
-    assert_eq!(core_count, expected, "core count should match host parallelism");
+    assert_eq!(
+        core_count, expected,
+        "core count should match host parallelism"
+    );
 }
 
 #[tokio::test]
@@ -281,7 +284,10 @@ async fn test_duplicate_setup_rejected() {
 
     // Stream should return gRPC error status (InvalidArgument)
     let next_msg = out_stream.message().await;
-    assert!(next_msg.is_err(), "duplicate setup must return gRPC error status");
+    assert!(
+        next_msg.is_err(),
+        "duplicate setup must return gRPC error status"
+    );
     let status = next_msg.unwrap_err();
     assert_eq!(status.code(), pbrs_grpc::Code::InvalidArgument);
 }
@@ -470,11 +476,7 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     mark_arg1.set_mark(mark1);
     client_tx.send(mark_arg1).await.unwrap();
 
-    let status1 = client_out
-        .message()
-        .await
-        .unwrap()
-        .expect("mark 1 status");
+    let status1 = client_out.message().await.unwrap().expect("mark 1 status");
     assert!(status1.has_stats());
     let stats1 = status1.stats();
     let count1 = stats1.latencies().count();
@@ -486,7 +488,10 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
         "min_seen must be positive"
     );
     assert!(stats1.latencies().max_seen() >= stats1.latencies().min_seen());
-    assert!(elapsed1 > 0.0, "elapsed time must be positive: got {elapsed1}");
+    assert!(
+        elapsed1 > 0.0,
+        "elapsed time must be positive: got {elapsed1}"
+    );
     assert!(stats1.time_user() >= 0.0);
     assert!(stats1.time_system() >= 0.0);
     assert!(
@@ -504,11 +509,7 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     mark_arg2.set_mark(mark2);
     client_tx.send(mark_arg2).await.unwrap();
 
-    let status2 = client_out
-        .message()
-        .await
-        .unwrap()
-        .expect("mark 2 status");
+    let status2 = client_out.message().await.unwrap().expect("mark 2 status");
     let stats2 = status2.stats();
     let count2 = stats2.latencies().count();
     let elapsed2 = stats2.time_elapsed();
@@ -528,11 +529,7 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     mark_arg3.set_mark(mark3);
     client_tx.send(mark_arg3).await.unwrap();
 
-    let status3 = client_out
-        .message()
-        .await
-        .unwrap()
-        .expect("mark 3 status");
+    let status3 = client_out.message().await.unwrap().expect("mark 3 status");
     let stats3 = status3.stats();
     let count3 = stats3.latencies().count();
     assert!(count3 >= count2);
@@ -545,11 +542,7 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     mark_arg4.set_mark(mark4);
     client_tx.send(mark_arg4).await.unwrap();
 
-    let status4 = client_out
-        .message()
-        .await
-        .unwrap()
-        .expect("mark 4 status");
+    let status4 = client_out.message().await.unwrap().expect("mark 4 status");
     let stats4 = status4.stats();
     let count4 = stats4.latencies().count();
     assert!(

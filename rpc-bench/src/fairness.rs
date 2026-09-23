@@ -28,7 +28,7 @@ use tokio::process::Command;
 use crate::load::{LoadConfig, LoadGenerator, LoadRecord, RpcCallError};
 use crate::process::stream_kernel_req;
 use crate::report::{
-    detect_git_commit, HostInfo, LatencyDistribution, SchedulingLagNanos, ToolPins, TransportMode,
+    HostInfo, LatencyDistribution, SchedulingLagNanos, ToolPins, TransportMode, detect_git_commit,
 };
 use crate::resources::ResourceSnapshot;
 

@@ -18,17 +18,17 @@
 use std::collections::HashSet;
 use std::io::Write as _;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::net::TcpListener;
 use tonic::transport::{Channel, Server};
 use tonic::{Request, Response, Status};
 
 use crate::report::{
-    detect_git_commit, format_rfc3339, BenchmarkConfig, BenchmarkReport, BenchmarkRun, HostInfo,
-    LatencyDistribution, RpcMetrics, ScenarioInfo, StartEndConditions, ToolPins, TransportMode,
-    REPORT_SCHEMA_VERSION,
+    BenchmarkConfig, BenchmarkReport, BenchmarkRun, HostInfo, LatencyDistribution,
+    REPORT_SCHEMA_VERSION, RpcMetrics, ScenarioInfo, StartEndConditions, ToolPins, TransportMode,
+    detect_git_commit, format_rfc3339,
 };
 use crate::tonic_gen;
 
@@ -730,7 +730,9 @@ pub async fn ping_pong_kernel(
                 .ok_or_else(|| format!("kernel ping_pong ended early round {round} pair {i}"))?;
             let len = reply.payload().body().len();
             if len != 0 {
-                return Err(format!("kernel ping_pong payload mismatch: got {len}, want 0"));
+                return Err(format!(
+                    "kernel ping_pong payload mismatch: got {len}, want 0"
+                ));
             }
         }
         tx.close();
@@ -779,7 +781,9 @@ pub async fn ping_pong_tonic(
                 .ok_or_else(|| format!("tonic ping_pong ended early round {round} pair {i}"))?;
             let len = reply.payload().body().len();
             if len != 0 {
-                return Err(format!("tonic ping_pong payload mismatch: got {len}, want 0"));
+                return Err(format!(
+                    "tonic ping_pong payload mismatch: got {len}, want 0"
+                ));
             }
         }
         drop(tx);
@@ -1233,9 +1237,15 @@ pub fn make_streaming_run(
 pub async fn run_server(
     config: ServerConfig,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let bind_addr: SocketAddr = format!("{}:{}", config.host, config.port)
-        .parse()
-        .map_err(|e| format!("invalid bind address '{}:{}': {e}", config.host, config.port))?;
+    let bind_addr: SocketAddr =
+        format!("{}:{}", config.host, config.port)
+            .parse()
+            .map_err(|e| {
+                format!(
+                    "invalid bind address '{}:{}': {e}",
+                    config.host, config.port
+                )
+            })?;
 
     let listener = TcpListener::bind(bind_addr)
         .await
@@ -1297,7 +1307,12 @@ pub async fn run_client(
 ) -> Result<BenchmarkReport, Box<dyn std::error::Error + Send + Sync>> {
     let addrs: Vec<SocketAddr> = tokio::net::lookup_host(&config.server_addr)
         .await
-        .map_err(|e| format!("failed to resolve server_addr '{}': {e}", config.server_addr))?
+        .map_err(|e| {
+            format!(
+                "failed to resolve server_addr '{}': {e}",
+                config.server_addr
+            )
+        })?
         .collect();
     let addr = addrs
         .first()
@@ -2009,7 +2024,8 @@ fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
 }
 
 fn has_flag(args: &[String], flag: &str) -> bool {
-    args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
+    args.iter()
+        .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 
 fn parse_transport(args: &[String]) -> Result<TransportMode, String> {
@@ -2023,12 +2039,17 @@ fn parse_transport(args: &[String]) -> Result<TransportMode, String> {
     match raw.to_ascii_lowercase().as_str() {
         "native" | "kernel" | "pbrs" => Ok(TransportMode::Native),
         "tonic" => Ok(TransportMode::Tonic),
-        other => Err(format!("unknown transport mode '{other}': expected 'native' or 'tonic'")),
+        other => Err(format!(
+            "unknown transport mode '{other}': expected 'native' or 'tonic'"
+        )),
     }
 }
 
 pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
-    if args.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+    if args
+        .iter()
+        .any(|a| a == "--help" || a == "-h" || a == "help")
+    {
         println!("{}", usage());
         std::process::exit(0);
     }
@@ -2091,13 +2112,17 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             .or_else(|| std::env::var("BENCH_REPORT_PATH").ok());
 
         let mut shapes = HashSet::new();
-        if let Some(shape_str) = get_arg_val(args, "--shape").or_else(|| get_arg_val(args, "--scenario")) {
+        if let Some(shape_str) =
+            get_arg_val(args, "--shape").or_else(|| get_arg_val(args, "--scenario"))
+        {
             for part in shape_str.split(',') {
                 let part = part.trim();
                 if let Some(cs) = CallShape::parse(part) {
                     shapes.insert(cs);
                 } else {
-                    return Err(format!("unknown call shape '{part}': expected unary, stream, ping_pong, upload, qps, all"));
+                    return Err(format!(
+                        "unknown call shape '{part}': expected unary, stream, ping_pong, upload, qps, all"
+                    ));
                 }
             }
         } else {

@@ -65,10 +65,10 @@ fn timer_budget(payload: usize) -> (u32, usize) {
 struct Row {
     name: &'static str,
     payload: usize,
-    pbrs_enc: f64,        // cached encode (pre-warmed length/canonical cache)
-    pbrs_fresh_enc: f64,  // fresh encode (first encode before canonical cache)
-    pbrs_dec: f64,        // parse only (message dropped)
-    pbrs_touch: f64,      // parse-and-touch (reading parsed fields)
+    pbrs_enc: f64,       // cached encode (pre-warmed length/canonical cache)
+    pbrs_fresh_enc: f64, // fresh encode (first encode before canonical cache)
+    pbrs_dec: f64,       // parse only (message dropped)
+    pbrs_touch: f64,     // parse-and-touch (reading parsed fields)
     prost_enc: f64,
     prost_dec: f64,
     prost_touch: f64,
@@ -263,7 +263,9 @@ fn touch_node_v4(n: &v4_cases::Node) -> usize {
 fn print_table(title: &str, rows: &[Row]) {
     println!("{title}");
     println!();
-    println!("| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |");
+    println!(
+        "| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |"
+    );
     println!("|---|---:|---:|---:|---:|---:|---|---|");
     for r in rows {
         let vs_prost = if r.pbrs_enc + r.pbrs_dec < r.prost_enc + r.prost_dec {
@@ -682,8 +684,18 @@ fn main() {
             &r_env,
             &v_env,
             true,
-            |m| m.meta().id() as usize + m.meta().trace().as_bytes().len() + m.body().as_bytes().len(),
-            |m| m.meta.as_ref().map(|x| x.id as usize + x.trace.len()).unwrap_or(0) + m.body.len(),
+            |m| {
+                m.meta().id() as usize
+                    + m.meta().trace().as_bytes().len()
+                    + m.body().as_bytes().len()
+            },
+            |m| {
+                m.meta
+                    .as_ref()
+                    .map(|x| x.id as usize + x.trace.len())
+                    .unwrap_or(0)
+                    + m.body.len()
+            },
             |m| m.meta().id() as usize + m.meta().trace().len() + m.body().len(),
         ),
         run(
@@ -742,7 +754,12 @@ fn main() {
             &r_map,
             &v_map,
             false,
-            |m| m.h().iter().map(|(k, v)| k.as_bytes().len() + v.as_bytes().len()).sum(),
+            |m| {
+                m.h()
+                    .iter()
+                    .map(|(k, v)| k.as_bytes().len() + v.as_bytes().len())
+                    .sum()
+            },
             |m| m.h.iter().map(|(k, v)| k.len() + v.len()).sum(),
             |m| m.h().iter().map(|(k, v)| k.len() + v.len()).sum(),
         ),
@@ -773,7 +790,10 @@ fn main() {
                     + m.meta().id() as usize
                     + m.ids().iter().sum::<i64>() as usize
                     + m.tags().iter().map(|s| s.as_bytes().len()).sum::<usize>()
-                    + m.headers().iter().map(|(k, v)| k.as_bytes().len() + v.as_bytes().len()).sum::<usize>()
+                    + m.headers()
+                        .iter()
+                        .map(|(k, v)| k.as_bytes().len() + v.as_bytes().len())
+                        .sum::<usize>()
                     + m.extra().len()
             },
             |m| {
@@ -784,7 +804,10 @@ fn main() {
                     + m.meta.as_ref().map(|x| x.id as usize).unwrap_or(0)
                     + m.ids.iter().sum::<i64>() as usize
                     + m.tags.iter().map(|s| s.len()).sum::<usize>()
-                    + m.headers.iter().map(|(k, v)| k.len() + v.len()).sum::<usize>()
+                    + m.headers
+                        .iter()
+                        .map(|(k, v)| k.len() + v.len())
+                        .sum::<usize>()
                     + m.extra.len()
             },
             |m| {
@@ -795,7 +818,10 @@ fn main() {
                     + m.meta().id() as usize
                     + m.ids().iter().sum::<i64>() as usize
                     + m.tags().iter().map(|s| s.len()).sum::<usize>()
-                    + m.headers().iter().map(|(k, v)| k.len() + v.len()).sum::<usize>()
+                    + m.headers()
+                        .iter()
+                        .map(|(k, v)| k.len() + v.len())
+                        .sum::<usize>()
                     + m.extra().len()
             },
         ),

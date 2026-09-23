@@ -65,7 +65,8 @@ pub fn fuzz_wire(data: &[u8]) {
 
     if let Ok(msg) = DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), data) {
         if let Ok(bytes) = msg.serialize() {
-            let reparsed = DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &bytes);
+            let reparsed =
+                DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &bytes);
             assert!(
                 reparsed.is_ok(),
                 "re-parsing serialized DynamicMessage must succeed"
@@ -96,8 +97,8 @@ mod tests {
             b"",
             &[0x08, 0xff],
             &[
-                0x08, 0x01, 0x12, 0x03, b'a', b'd', b'a', 0x1a, 0x06, b'a', b'd', b'a', b'@',
-                b'e', b'x', 0x32, 0x05, 0x0a, 0x03, b'n', b'y', b'c',
+                0x08, 0x01, 0x12, 0x03, b'a', b'd', b'a', 0x1a, 0x06, b'a', b'd', b'a', b'@', b'e',
+                b'x', 0x32, 0x05, 0x0a, 0x03, b'n', b'y', b'c',
             ],
             &[0x08, 0x07, 0x72, 0x03, b'a', b'd', b'a'],
         ];

@@ -45,10 +45,10 @@ fn gen_v4(proto: &Path, proto_dir: &Path, out: &Path) {
         .status()
         .expect("protoc --rust_out");
     assert!(status.success(), "protoc --rust_out failed: {status}");
-    let gen = out.join("generated.rs");
-    let mut src = fs::read_to_string(&gen)
+    let r#gen = out.join("generated.rs");
+    let mut src = fs::read_to_string(&r#gen)
         .unwrap_or_else(|_| panic!("missing v4 generated.rs in {}", out.display()));
     let dir = out.display().to_string();
     src = src.replace("#[path=\"", &format!("#[path=\"{dir}/"));
-    fs::write(gen, src).expect("rewrite v4 generated.rs path");
+    fs::write(r#gen, src).expect("rewrite v4 generated.rs path");
 }

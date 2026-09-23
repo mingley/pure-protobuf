@@ -182,7 +182,8 @@ impl BenchmarkService for BenchmarkServiceImpl {
                     && req.expect_compressed().value()
                     && !item.compressed
                 {
-                    tx.fail(Status::invalid_argument("request not compressed")).await;
+                    tx.fail(Status::invalid_argument("request not compressed"))
+                        .await;
                     return;
                 }
                 let resp_msg = match make_response(&req) {
@@ -192,8 +193,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
                         return;
                     }
                 };
-                let send_res = if req.has_response_compressed()
-                    && req.response_compressed().value()
+                let send_res = if req.has_response_compressed() && req.response_compressed().value()
                 {
                     tx.send_compressed(resp_msg).await
                 } else {
@@ -322,7 +322,8 @@ impl BenchmarkService for BenchmarkServiceImpl {
                     && req.expect_compressed().value()
                     && !item.compressed
                 {
-                    tx.fail(Status::invalid_argument("request not compressed")).await;
+                    tx.fail(Status::invalid_argument("request not compressed"))
+                        .await;
                     return;
                 }
                 let resp_msg = match make_response(&req) {
@@ -332,8 +333,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
                         return;
                     }
                 };
-                let send_res = if req.has_response_compressed()
-                    && req.response_compressed().value()
+                let send_res = if req.has_response_compressed() && req.response_compressed().value()
                 {
                     tx.send_compressed(resp_msg).await
                 } else {
@@ -376,13 +376,21 @@ mod tests {
         // Test with requested size = 1234
         let mut req = SimpleRequest::new();
         req.set_response_size(1234);
-        let resp = client.unary_call(Request::new(req)).await.unwrap().into_inner();
+        let resp = client
+            .unary_call(Request::new(req))
+            .await
+            .unwrap()
+            .into_inner();
         assert_eq!(resp.payload().body().len(), 1234);
 
         // Test with requested size = 0
         let mut req_empty = SimpleRequest::new();
         req_empty.set_response_size(0);
-        let resp_empty = client.unary_call(Request::new(req_empty)).await.unwrap().into_inner();
+        let resp_empty = client
+            .unary_call(Request::new(req_empty))
+            .await
+            .unwrap()
+            .into_inner();
         assert_eq!(resp_empty.payload().body().len(), 0);
     }
 
