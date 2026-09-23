@@ -63,10 +63,13 @@ Use `.emit_kernel_stubs(true)` or `.emit_tonic_stubs(true)` instead of
 `.stubs(Stubs::None)` for native or tonic service code; descriptor targets are
 include-relative file names. Missing/malformed descriptors fail explicitly,
 and the descriptor plus available imported `.proto` sources trigger rebuilds.
-The generator path is `protoc`-free, but a **cold** build of the current
-`pbrs-grpc` or `protobuf-tonic` dependency still runs its own `protoc`-based
-build script. See the [support matrix](../../README.md#support-matrix) for
-that boundary.
+The generator path is `protoc`-free. In this checkout, a **cold** build of
+`pbrs-grpc` or `protobuf-tonic` is too: both adapters use checked descriptor
+sets for their own build scripts. Their currently published `0.1.0-alpha.1`
+archives still require `protoc` until new versions are released. Creating or updating
+an application's descriptor set still requires a compiler in an earlier stage.
+Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
+`protoc`. See the [support matrix](../../README.md#support-matrix).
 
 ---
 
@@ -96,6 +99,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | **Native Kernel** | `.emit_kernel_stubs(true)` (Default) | `Foo`, `FooServer`, `FooClient` | `pbrs-grpc` |
 | **Tonic Adapter** | `.emit_tonic_stubs(true)` | `#[tonic::async_trait]` stubs | `tonic` 0.14+ via `protobuf-tonic` |
 | **Messages Only** | `.stubs(Stubs::None)` | Structs, enums, and WKT traits only | Core `pbrs` |
+
+Generated tonic stubs also reference `http` and `tokio-stream` directly. A
+consumer using `.emit_tonic_stubs(true)` needs those direct dependencies, along
+with `tonic` and `protobuf-tonic`:
+
+```toml
+[dependencies]
+pbrs = "0.1"
+protobuf-tonic = "0.1.0-alpha.1"
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+http = "1"
+tokio-stream = "0.1"
+```
 
 ---
 

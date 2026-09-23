@@ -30,15 +30,24 @@ A [tonic 0.14+](https://crates.io/crates/tonic) `Codec` adapter and code generat
 
 ```toml
 [dependencies]
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 pbrs = "0.1"
-protobuf-tonic = { git = "https://github.com/mingley/pure-protobuf" }
+protobuf-tonic = "0.1.0-alpha.1"
+http = "1"
+tokio-stream = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 pbrs = "0.1"
 ```
 
-> **Note on crates.io**: `protobuf-tonic` currently depends on `pbrs` by path/git. It will be published to crates.io following the publication of `pbrs`.
+`protobuf-tonic` is published as a preview crate. This checkout builds from a
+checked descriptor set without `protoc`; the published `0.1.0-alpha.1` archive
+still needs it until a new version ships. The `compile_protos` example
+below still needs `protoc` for your application's `.proto`; for a cold build
+without it, use
+[`Config::compile_descriptor_set`](../docs/guides/codegen.md#generating-from-a-checked-descriptor-set)
+with a previously compiled, checked descriptor set.
 
 ### 2. Code Generation (`build.rs`)
 

@@ -26,10 +26,18 @@ Add `pbrs` and `pbrs-grpc` to your `Cargo.toml`:
 [dependencies]
 pbrs = "0.1"
 pbrs-grpc = "0.1.0-alpha.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
 pbrs = "0.1"
 ```
+
+In this checkout, `pbrs-grpc` builds from checked descriptor sets without
+`protoc`. The published `0.1.0-alpha.1` archive still needs `protoc` for its
+own build until a new version ships. The quickstart `compile_protos` step below still
+requires `protoc` for your own `.proto`. To build application stubs without
+it, check in a descriptor set and use
+[`Config::compile_descriptor_set`](../docs/guides/codegen.md#generating-from-a-checked-descriptor-set).
 
 ---
 

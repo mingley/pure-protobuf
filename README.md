@@ -51,10 +51,13 @@ pbrs = "0.1"
 Generating code directly from `.proto` files requires `protoc` on your
 `PATH`; generation from a previously compiled descriptor set does not.
 Building the core crate alone uses a bundled descriptor set and does not
-require `protoc`. The gRPC crates currently invoke it in their own build
-scripts, so **cold builds of `pbrs-grpc` and `protobuf-tonic` still require
-`protoc`**, even when an application uses descriptor-set generation. There is
-no enforced universal `protoc` version; see the [support matrix](#support-matrix).
+require `protoc`. In **this checkout**, both gRPC crates also build from
+checked descriptor sets, so cold builds of all three crates work without it.
+The crates.io adapter versions `0.1.0-alpha.1` predate this change and still
+require `protoc` until new versions are published.
+Generating or updating those descriptor sets, and compiling an application's
+`.proto` directly, still require it. There is no enforced universal `protoc`
+version; see the [support matrix](#support-matrix).
 
 ### Option A: Using `build.rs` (Recommended)
 
@@ -108,8 +111,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Descriptor targets use their include-relative names (`person.proto` here).
 The descriptor and available source imports are tracked for rebuilds; see the
 [codegen guide](docs/guides/codegen.md) for native, tonic and messages-only
-configuration. This avoids `protoc` for a **messages-only cold build**, not
-for cold builds of the current gRPC adapter crates.
+configuration. Against this checkout, a consumer using a checked descriptor
+set can cold-build messages, native stubs, and tonic stubs with no `protoc` on
+its build PATH. The current crates.io adapter alphas still require it.
 
 ### Option C: Using `protoc-gen-pbrs` Plugin
 
@@ -201,8 +205,8 @@ claimed universal minimum `protoc`. Releases: [release guide](docs/RELEASE.md)
 | Crate | Declared MSRV | Tested | `protoc` | Stub default |
 |---|---|---|---|---|
 | [`pbrs`](.) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to **build** the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | Required (`build.rs` calls `compile_protos`) | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | Required (`build.rs` calls `compile_protos`) | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | **Current source:** no compiler needed to build from checked FileDescriptorSets; required to regenerate descriptors or compile application `.proto`. **Published alpha.1:** still requires `protoc`. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | **Current source:** no compiler needed to build from the checked FileDescriptorSet. **Published alpha.1:** still requires `protoc`. Direct `.proto` compilation needs it in either version. | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
 | [`examples/greeter`](examples/greeter) | 1.85 | rustc 1.98 (this host); CI stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):

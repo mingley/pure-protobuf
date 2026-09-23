@@ -157,6 +157,8 @@ jobs:
           key: conformance-runner-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
       - name: Official conformance_test_runner
         run: ./scripts/conformance.sh
+      - name: Check adapter descriptor drift and codegen parity at pinned protoc
+        run: cargo test -p pbrs --test onboarding adapter_descriptor_sets_match_pinned_protoc_and_generated_output -- --exact --ignored
       - name: Upload conformance artifacts
         if: always()
         uses: actions/upload-artifact@v4

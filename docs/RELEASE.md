@@ -28,7 +28,9 @@ not lockstep and must not be hardcoded as `pbrs/0.1.0`.
 
 Current manifests (check the files, not this table, before tagging): `pbrs`
 `0.1.0`; adapters `0.1.0-alpha.1`. A `v1.0.0` tag does not promote the
-adapters.
+adapters. The current source builds both adapters from checked descriptor sets
+without `protoc`, but the already-published adapter alphas still need it;
+that improvement reaches crates.io only when new versions are published.
 
 ## Required CI
 
@@ -40,7 +42,7 @@ on the **same SHA** and will not publish unless every required job succeeds:
 | `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher contracts, `cargo test --workspace`, docs `-D warnings` |
 | `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
-| `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report |
+| `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then regenerate the adapters' checked descriptor sets with pinned protoc and compare their emitted Rust bytes |
 | `msrv-core` | rustc **1.85**: `cargo test -p pbrs --lib` and `cargo test -p pbrs-grpc --lib` |
 | `msrv-tonic` | rustc **1.88**: `cargo test -p protobuf-tonic` |
 | `macos` | stable, `brew` protoc: `pbrs-grpc` `tcp::tests`, `--test pbrs_build`, `--test onboarding` |
