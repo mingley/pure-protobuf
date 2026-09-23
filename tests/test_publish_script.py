@@ -12,7 +12,10 @@ SCRIPT = ROOT / "scripts/publish-crates.sh"
 
 
 class PublishScriptTest(unittest.TestCase):
-    def run_script(self, *, dry_run: bool | str, curl_code: str, publish_exit: int = 3):
+    def run_script(
+        self, *, dry_run: bool | str, curl_code: str,
+        publish_exit: int = 3, git_dirty: bool = False,
+    ):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bin_dir = root / "bin"
@@ -39,8 +42,15 @@ class PublishScriptTest(unittest.TestCase):
                 "printf 'cargo %s\\n' \"$*\" >> \"$FAKE_CALLS_FILE\"\n"
                 "if [[ \"$1\" == publish ]]; then exit \"${FAKE_PUBLISH_EXIT:-3}\"; fi\n"
             )
+            git = bin_dir / "git"
+            git.write_text(
+                "#!/usr/bin/env bash\n"
+                "printf 'git %s\\n' \"$*\" >> \"$FAKE_CALLS_FILE\"\n"
+                "if [[ \"$1\" == diff && \"$FAKE_GIT_DIRTY\" == 1 ]]; then exit 1; fi\n"
+            )
             curl.chmod(0o755)
             cargo.chmod(0o755)
+            git.chmod(0o755)
             env = os.environ.copy()
             env.update(
                 {
@@ -49,6 +59,7 @@ class PublishScriptTest(unittest.TestCase):
                     "FAKE_CALLS_FILE": str(calls_path),
                     "FAKE_CURL_CODE": curl_code,
                     "FAKE_PUBLISH_EXIT": str(publish_exit),
+                    "FAKE_GIT_DIRTY": "1" if git_dirty else "0",
                     "CARGO_REGISTRY_TOKEN": "not-a-real-token",
                 }
             )
@@ -75,11 +86,20 @@ class PublishScriptTest(unittest.TestCase):
         self.assertEqual(len(packages), 3)
         self.assertNotIn("--config", packages[0])
         for call in packages[1:]:
-            self.assertIn(
-                f'--config patch.crates-io.pbrs.path="{ROOT}"',
+            self.assertRegex(
                 call,
-                "adapter dry-runs must resolve the unpublished core locally",
+                r'--config patch\.crates-io\.pbrs\.path=".*/pbrs-release-stage\.[^"]+"',
             )
+        self.assertTrue(any(call.startswith("git worktree add ") for call in calls))
+        self.assertTrue(any(call.startswith("git worktree remove ") for call in calls))
+
+    def test_dry_run_refuses_dirty_shipping_sources(self):
+        proc, calls = self.run_script(
+            dry_run=True, curl_code="network_error", git_dirty=True,
+        )
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("requires committed crate sources", proc.stderr)
+        self.assertFalse(any(call.startswith("cargo package") for call in calls))
 
     def test_existing_versions_are_skipped_without_upload(self):
         proc, calls = self.run_script(dry_run=False, curl_code="200")

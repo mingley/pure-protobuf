@@ -83,12 +83,14 @@ upload at once.
 **Actions → Release → Run workflow**:
 
 - `dry_run` defaults to **true**: the publisher packs each crate with
-  `cargo package --no-verify --offline`, without querying the crates.io
-  status API. Adapters resolve the matching local `pbrs` while packing, so a
-  fresh offline registry index need not already contain that version; the
-  command-line patch does not change the packaged manifest or real uploads.
-  It requires no token, uploads no crates and creates no GitHub Release;
-  isolated package consumers are checked in CI.
+  `cargo package --no-verify --offline` in a disposable checkout of the
+  committed SHA. Adapters resolve the matching local `pbrs` there without
+  rewriting the source lockfile; the patch does not change packaged manifests
+  or real uploads. A fresh runner first fetches cached dependencies (network
+  required), but the rehearsal never queries the crates.io **version-status
+  API**, uses a registry token, uploads crates or creates a GitHub Release.
+  Uncommitted crate sources fail rather than rehearsing stale code; isolated
+  package consumers are checked in CI.
 - To upload: set `dry_run` to **false** and type `publish` in `confirm`.
   Anything else fails without publishing.
 

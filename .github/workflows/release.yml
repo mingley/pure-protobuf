@@ -72,6 +72,10 @@ jobs:
             exit 1
           fi
 
+      - name: Fetch dependencies for offline package rehearsal
+        if: steps.mode.outputs.mode == 'dry-run'
+        run: cargo fetch --locked
+
       - name: Publish crates
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.mode.outputs.mode == 'publish' && secrets.CRATES_IO_TOKEN || '' }}

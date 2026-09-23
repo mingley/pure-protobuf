@@ -75,6 +75,56 @@ if [[ -n "${RELEASE_TAG:-}" ]]; then
   echo "Tag ${RELEASE_TAG} matches a manifest version"
 fi
 
+if [[ "$DRY_RUN" == "1" ]]; then
+  # A local registry patch rewrites Cargo.lock even when it is unused by this
+  # workspace. Pack on a clean disposable checkout instead of mutating HEAD.
+  shipping_sources=(
+    Cargo.toml Cargo.lock build.rs src README.md LICENSE-APACHE LICENSE-MIT
+    vendor/google protobuf-tonic pbrs-grpc examples/greeter
+  )
+  if ! git diff --quiet HEAD -- "${shipping_sources[@]}" ||
+     [[ -n "$(git ls-files --others --exclude-standard -- "${shipping_sources[@]}")" ]]; then
+    echo "::error::dry-run requires committed crate sources; refusing to package a stale HEAD" >&2
+    exit 1
+  fi
+
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/pbrs-release-stage.XXXXXX")"
+  staging_added=0
+  cleanup_staging() {
+    if [[ "$staging_added" == "1" ]]; then
+      git worktree remove --force "$staging" || {
+        echo "::error::failed to remove dry-run worktree $staging" >&2
+        return 1
+      }
+    fi
+    if [[ -d "$staging" ]]; then
+      rmdir "$staging" || {
+        echo "::error::failed to remove dry-run staging directory $staging" >&2
+        return 1
+      }
+    fi
+  }
+  trap cleanup_staging EXIT
+  git worktree add --quiet --detach "$staging" HEAD
+  staging_added=1
+
+  package_target="${CARGO_TARGET_DIR:-$ROOT/target}"
+  if [[ "$package_target" != /* ]]; then
+    package_target="$ROOT/$package_target"
+  fi
+  for i in "${!NAMES[@]}"; do
+    name="${NAMES[$i]}"
+    ver="${VERS[$i]}"
+    package_args=(package -p "$name" --no-verify --offline --allow-dirty)
+    if [[ "$i" -gt 0 ]]; then
+      package_args+=(--config "patch.crates-io.${NAMES[0]}.path=\"$staging\"")
+    fi
+    (cd "$staging" && CARGO_TARGET_DIR="$package_target" cargo "${package_args[@]}")
+    echo "dry-run packed ${package_target}/package/${name}-${ver}.crate"
+  done
+  exit 0
+fi
+
 already_on_index() {
   local name="$1" ver="$2" code
   if ! code="$(curl --connect-timeout 5 --max-time 20 -sS -o /dev/null -w '%{http_code}' -A "$UA" \
@@ -114,21 +164,6 @@ wait_for_index() {
 for i in "${!NAMES[@]}"; do
   name="${NAMES[$i]}"
   ver="${VERS[$i]}"
-  crate_file="target/package/${name}-${ver}.crate"
-
-  if [[ "$DRY_RUN" == "1" ]]; then
-    # Always pack, even when this version is already on the index.
-    # Adapters resolve the matching local core while packing offline, even
-    # when a fresh registry index has not seen this version of pbrs yet.
-    # The command-line patch is not written into the .crate manifest.
-    package_args=(package -p "$name" --no-verify --offline)
-    if [[ "$i" -gt 0 ]]; then
-      package_args+=(--config "patch.crates-io.${NAMES[0]}.path=\"$ROOT\"")
-    fi
-    cargo "${package_args[@]}"
-    echo "dry-run packed ${crate_file}"
-    continue
-  fi
 
   if already_on_index "$name" "$ver"; then
     echo "${name} ${ver} already on crates.io — skipping (idempotent)"
