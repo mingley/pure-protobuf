@@ -98,6 +98,7 @@ async fn trailers_only_rejection_survives_early_request_body_reset() {
                 .body(())
                 .expect("trailers-only response");
             respond.send_response(response, true).expect("reject");
+            drop(respond);
             drop(request);
             while let Some(Ok(_)) = conn.accept().await {}
         });
@@ -110,13 +111,19 @@ async fn trailers_only_rejection_survives_early_request_body_reset() {
         )
         .await
         .expect("connect");
-        let client = GreeterClient::new(channel);
+        let client = GreeterClient::new(channel.byte_budget(256 * 1024));
         let mut request = Request::new(req(&"x".repeat(128 * 1024)));
         request.set_timeout(Duration::from_secs(3));
         let result = if shape == "unary" {
-            client.say_hello(request).await.map(|_| ())
+            tokio::time::timeout(Duration::from_secs(5), client.say_hello(request))
+                .await
+                .expect("unary rejection timed out")
+                .map(|_| ())
         } else {
-            client.server_hello(request).await.map(|_| ())
+            tokio::time::timeout(Duration::from_secs(5), client.server_hello(request))
+                .await
+                .expect("server-stream rejection timed out")
+                .map(|_| ())
         };
         let status = result.expect_err("server refused the RPC");
         assert_eq!(
@@ -125,6 +132,55 @@ async fn trailers_only_rejection_survives_early_request_body_reset() {
             "{shape}: server status lost to an HTTP/2 send failure: {status}"
         );
         assert_eq!(status.message(), "too many concurrent RPCs");
+        server.abort();
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn request_send_window_stall_obeys_deadline_for_both_single_request_shapes() {
+    for shape in ["unary", "server_stream"] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local_addr");
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept connection");
+            let mut conn = h2::server::handshake(socket).await.expect("handshake");
+            let (request, _respond) = conn
+                .accept()
+                .await
+                .expect("request")
+                .expect("valid request");
+            let _body = request.into_body();
+            while let Some(Ok(_)) = conn.accept().await {}
+        });
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::new()
+                .connections(1)
+                .max_send_buffer_size(1024),
+        )
+        .await
+        .expect("connect");
+        let client = GreeterClient::new(channel.byte_budget(256 * 1024));
+        let mut request = Request::new(req(&"x".repeat(128 * 1024)));
+        request.set_timeout(Duration::from_millis(120));
+        let started = std::time::Instant::now();
+        let result = if shape == "unary" {
+            tokio::time::timeout(Duration::from_secs(2), client.say_hello(request))
+                .await
+                .expect("unary must not hang behind send flow control")
+                .map(|_| ())
+        } else {
+            tokio::time::timeout(Duration::from_secs(2), client.server_hello(request))
+                .await
+                .expect("server stream must not hang behind send flow control")
+                .map(|_| ())
+        };
+        let status = result.expect_err("peer withheld request send credit");
+        assert_eq!(status.code(), Code::DeadlineExceeded, "{shape}: {status}");
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "{shape}: request send exceeded the deadline"
+        );
         server.abort();
     }
 }

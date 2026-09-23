@@ -2904,6 +2904,31 @@ async fn prefer_peer_rejection_after_send<T>(
     Err(send_error)
 }
 
+async fn send_request_frame(
+    send: &mut h2::SendStream<Bytes>,
+    frame: Bytes,
+    send_buffer: usize,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+) -> Result<(), Status> {
+    let result = prefer_deadline(
+        first_of(
+            send_bytes(send, frame, true, send_buffer),
+            cancel_rx,
+            deadline,
+        )
+        .await,
+        deadline,
+    );
+    if matches!(
+        &result,
+        Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
+    ) {
+        send.send_reset(Reason::CANCEL);
+    }
+    result
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "one transport handle plus request, cancel, limits, and scheme"
@@ -2943,9 +2968,19 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
-    let sent = send_bytes(&mut send_stream, frame, true, wire.send_buffer).await;
+    let sent = send_request_frame(
+        &mut send_stream,
+        frame,
+        wire.send_buffer,
+        cancel_rx.clone(),
+        deadline,
+    )
+    .await;
     drop(permit);
     if let Err(status) = sent {
+        if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
+            return Err(status);
+        }
         return race(
             prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
             cancel_rx,
@@ -3008,9 +3043,19 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
-    let sent = send_bytes(&mut send_stream, frame, true, wire.send_buffer).await;
+    let sent = send_request_frame(
+        &mut send_stream,
+        frame,
+        wire.send_buffer,
+        cancel_rx.clone(),
+        deadline,
+    )
+    .await;
     drop(permit);
     if let Err(status) = sent {
+        if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
+            return Err(status);
+        }
         return race(
             prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
             cancel_rx,
