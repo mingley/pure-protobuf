@@ -223,6 +223,31 @@ fn assert_licenses(pkg: &str, list: &[String]) {
 }
 
 #[test]
+fn core_package_contains_only_shipped_files() {
+    let target = repo_root().join("target/package-consumer-inventory");
+    let list = cargo_package_list("pbrs", &target);
+    assert!(list.iter().any(|name| name == "README.md"));
+    assert!(list
+        .iter()
+        .any(|name| name == "vendor/google/conformance_fds.bin"));
+    let unrelated: Vec<_> = list
+        .iter()
+        .filter(|name| {
+            name.starts_with("third_party/")
+                || name.starts_with("docs/")
+                || name.starts_with("tests/")
+                || name.as_str() == "vendor/google/README.md"
+        })
+        .collect();
+    assert!(
+        unrelated.is_empty(),
+        "core crate includes {} unrelated files (first five: {:?})",
+        unrelated.len(),
+        unrelated.iter().take(5).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn unpacked_crates_build_isolated_consumers() {
     let (pbrs_name, pbrs_ver) = package_ident(&repo_root().join("Cargo.toml"));
     let (grpc_name, grpc_ver) = package_ident(&repo_root().join("pbrs-grpc/Cargo.toml"));

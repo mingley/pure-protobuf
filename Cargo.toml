@@ -31,15 +31,15 @@ readme = "README.md"
 keywords = ["protobuf", "serialization", "proto"]
 categories = ["encoding"]
 include = [
-    "src/**",
-    "build.rs",
-    "Cargo.toml",
-    "README.md",
-    "LICENSE-APACHE",
-    "LICENSE-MIT",
-    "clippy.toml",
-    "rustfmt.toml",
-    "vendor/google/conformance_fds.bin",
+    "/src/**",
+    "/build.rs",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/clippy.toml",
+    "/rustfmt.toml",
+    "/vendor/google/conformance_fds.bin",
 ]
 
 [lib]

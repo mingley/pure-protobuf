@@ -15,6 +15,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 DRY_RUN="${DRY_RUN:-0}"
+case "$DRY_RUN" in
+  0|1) ;;
+  *)
+    echo "::error::DRY_RUN must be 0 (publish) or 1 (offline package only)" >&2
+    exit 2
+    ;;
+esac
 UA="pure-protobuf-release/1"
 
 pkg_field() {
@@ -70,17 +77,32 @@ fi
 
 already_on_index() {
   local name="$1" ver="$2" code
-  code="$(curl -sS -o /dev/null -w '%{http_code}' -A "$UA" \
-    "https://crates.io/api/v1/crates/${name}/${ver}")"
-  [[ "$code" == "200" ]]
+  if ! code="$(curl --connect-timeout 5 --max-time 20 -sS -o /dev/null -w '%{http_code}' -A "$UA" \
+    "https://crates.io/api/v1/crates/${name}/${ver}")"; then
+    echo "::error::crates.io API request failed for ${name} ${ver}; refusing to publish without an index check" >&2
+    return 2
+  fi
+  case "$code" in
+    200) return 0 ;;
+    404) return 1 ;;
+    *)
+      echo "::error::crates.io API returned HTTP ${code} for ${name} ${ver}; refusing to publish" >&2
+      return 2
+      ;;
+  esac
 }
 
 wait_for_index() {
-  local name="$1" ver="$2" i
+  local name="$1" ver="$2" i status
   for i in $(seq 1 30); do
     if already_on_index "$name" "$ver"; then
       echo "${name} ${ver} is live on crates.io"
       return 0
+    else
+      status=$?
+      if [[ "$status" -ne 1 ]]; then
+        return "$status"
+      fi
     fi
     echo "Waiting for crates.io index ${name} ${ver} (${i}/30)..."
     sleep 10
@@ -96,13 +118,9 @@ for i in "${!NAMES[@]}"; do
 
   if [[ "$DRY_RUN" == "1" ]]; then
     # Always pack, even when this version is already on the index.
-    # `cargo publish --dry-run` queries crates.io; hosts that replace
-    # crates-io (and offline CI after `cargo fetch`) cannot. Packing
-    # `--offline` uses CARGO_HOME populated from the workspace lockfile.
+    # Dry runs do not query crates.io: packing uses CARGO_HOME populated
+    # from the workspace lockfile and works when the registry is unavailable.
     # Isolated package-consumers compile the unpacked path; skip verify.
-    if already_on_index "$name" "$ver"; then
-      echo "${name} ${ver} already on crates.io — packing anyway (dry-run)"
-    fi
     cargo package -p "$name" --no-verify --offline
     echo "dry-run packed ${crate_file}"
     continue
@@ -111,6 +129,11 @@ for i in "${!NAMES[@]}"; do
   if already_on_index "$name" "$ver"; then
     echo "${name} ${ver} already on crates.io — skipping (idempotent)"
     continue
+  else
+    status=$?
+    if [[ "$status" -ne 1 ]]; then
+      exit "$status"
+    fi
   fi
 
   if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
