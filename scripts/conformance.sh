@@ -42,98 +42,19 @@ OUT_REC="$OUT/recommended"
 mkdir -p "$OUT" "$OUT_REQ1" "$OUT_REQ2" "$OUT_REC"
 
 GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-unknown}")"
+GIT_DIRTY=0
+if ! git diff --quiet HEAD --; then
+  GIT_DIRTY=1
+fi
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 EDITION="2023"
 
 write_summary() {
-  python3 -c '
-import json, os, re, sys
-
-out_dir = sys.argv[1]
-pin = sys.argv[2]
-sha = sys.argv[3]
-git_commit = sys.argv[4]
-timestamp = sys.argv[5]
-edition = sys.argv[6]
-
-summary_file = os.path.join(out_dir, "summary.json")
-
-runs = {}
-total_successes = 0
-total_unexpected_failures = 0
-
-for run_key, log_name in [("required_run_1", "required_1/runner.log"),
-                          ("required_run_2", "required_2/runner.log"),
-                          ("recommended", "recommended/runner.log")]:
-    log_path = os.path.join(out_dir, log_name)
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-        m = re.search(r"CONFORMANCE SUITE (PASSED|FAILED):\s*(\d+)\s+successes,\s*(\d+)\s+skipped,\s*(\d+)\s+expected failures,\s*(\d+)\s+unexpected failures", content)
-        if m:
-            status = m.group(1).lower()
-            succ = int(m.group(2))
-            skip = int(m.group(3))
-            exp_fail = int(m.group(4))
-            unexp_fail = int(m.group(5))
-            runs[run_key] = {
-                "status": status,
-                "successes": succ,
-                "skipped": skip,
-                "expected_failures": exp_fail,
-                "unexpected_failures": unexp_fail,
-            }
-            total_successes += succ
-            total_unexpected_failures += unexp_fail
-        else:
-            runs[run_key] = {
-                "status": "failed",
-                "error": "No conformance suite summary line found in output",
-                "successes": 0,
-                "skipped": 0,
-                "expected_failures": 0,
-                "unexpected_failures": 1,
-            }
-            total_unexpected_failures += 1
-    else:
-        runs[run_key] = {
-            "status": "not_run",
-            "successes": 0,
-            "skipped": 0,
-            "expected_failures": 0,
-            "unexpected_failures": 0,
-        }
-
-all_passed = (
-    len(runs) == 3
-    and all(r.get("status") == "passed" for r in runs.values())
-    and total_unexpected_failures == 0
-)
-
-summary = {
-    "runner_pin": pin,
-    "runner_sha": sha,
-    "git_commit": git_commit,
-    "timestamp": timestamp,
-    "maximum_edition": edition,
-    "test_counts": {
-        "required_run_1": runs.get("required_run_1", {}).get("successes", 0),
-        "required_run_2": runs.get("required_run_2", {}).get("successes", 0),
-        "recommended": runs.get("recommended", {}).get("successes", 0),
-        "total_failures": total_unexpected_failures,
-    },
-    "runs": runs,
-    "overall_status": "passed" if all_passed else "failed",
-    "overall_passed": all_passed,
+  python3 "$ROOT/scripts/conformance-report.py" \
+    "$OUT" "$PIN" "$SHA" "$GIT_COMMIT" "$TIMESTAMP" "$EDITION" "$GIT_DIRTY"
 }
 
-with open(summary_file, "w", encoding="utf-8") as f:
-    json.dump(summary, f, indent=2)
-print(f"Conformance summary written to {summary_file}")
-' "$OUT" "$PIN" "$SHA" "$GIT_COMMIT" "$TIMESTAMP" "$EDITION"
-}
-
-trap 'write_summary' EXIT
+trap 'write_summary || echo "::error::conformance report incomplete" >&2' EXIT
 
 cargo build --release --bin conformance
 BIN="$ROOT/target/release/conformance"
@@ -169,4 +90,9 @@ if [[ $OVERALL_FAILED -ne 0 ]]; then
   exit 1
 fi
 
+trap - EXIT
+if ! write_summary; then
+  echo "FAIL: binary/JSON or text conformance evidence missing or inconsistent" >&2
+  exit 1
+fi
 echo "PASS: all conformance passes completed successfully"
