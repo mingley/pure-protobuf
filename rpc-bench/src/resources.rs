@@ -750,11 +750,12 @@ fn capture_platform() -> std::io::Result<ResourceSnapshot> {
         let mut count =
             (std::mem::size_of::<MachTaskBasicInfo>() / std::mem::size_of::<u32>()) as u32;
         let kr = task_info(task, MACH_TASK_BASIC_INFO, &mut info, &mut count);
-        let current_rss_bytes = if kr == KERN_SUCCESS {
-            info.resident_size
-        } else {
-            peak_rss_bytes
-        };
+        if kr != KERN_SUCCESS {
+            return Err(std::io::Error::other(format!(
+                "mach task_info(MACH_TASK_BASIC_INFO) failed: {kr}"
+            )));
+        }
+        let current_rss_bytes = info.resident_size;
 
         let mut thread_list: *mut u32 = std::ptr::null_mut();
         let mut thread_count: u32 = 0;
@@ -823,6 +824,40 @@ mod linux_ffi {
 }
 
 #[cfg(target_os = "linux")]
+fn parse_linux_status_rss(status: &str) -> std::io::Result<(u64, Option<u64>, u32)> {
+    let mut current_rss_bytes = None;
+    let mut high_water_rss_bytes = None;
+    let mut thread_count = 1u32;
+    for line in status.lines() {
+        if let Some(rest) = line.strip_prefix("VmRSS:") {
+            current_rss_bytes = rest
+                .trim()
+                .strip_suffix("kB")
+                .and_then(|s| s.trim().parse::<u64>().ok())
+                .map(|v| v.saturating_mul(1024));
+        } else if let Some(rest) = line.strip_prefix("VmHWM:") {
+            high_water_rss_bytes = rest
+                .trim()
+                .strip_suffix("kB")
+                .and_then(|s| s.trim().parse::<u64>().ok())
+                .map(|v| v.saturating_mul(1024));
+        } else if let Some(rest) = line.strip_prefix("Threads:") {
+            if let Ok(val) = rest.trim().parse::<u32>() {
+                thread_count = val;
+            }
+        }
+    }
+    current_rss_bytes
+        .map(|rss| (rss, high_water_rss_bytes, thread_count))
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "/proc/self/status contains no valid VmRSS",
+            )
+        })
+}
+
+#[cfg(target_os = "linux")]
 fn capture_platform() -> std::io::Result<ResourceSnapshot> {
     use linux_ffi::*;
     unsafe {
@@ -838,36 +873,12 @@ fn capture_platform() -> std::io::Result<ResourceSnapshot> {
         let system_cpu_nanos = (ru.ru_stime.tv_sec.max(0) as u64)
             .saturating_mul(1_000_000_000)
             .saturating_add((ru.ru_stime.tv_usec.max(0) as u64).saturating_mul(1_000));
-        // On Linux, ru_maxrss is in KiB
-        let mut peak_rss_bytes = (ru.ru_maxrss.max(0) as u64).saturating_mul(1024);
-        let mut current_rss_bytes = peak_rss_bytes;
-        let mut thread_count = 1u32;
-
-        if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
-            for line in status.lines() {
-                if let Some(rest) = line.strip_prefix("VmRSS:") {
-                    if let Some(val) = rest
-                        .trim()
-                        .strip_suffix("kB")
-                        .and_then(|s| s.trim().parse::<u64>().ok())
-                    {
-                        current_rss_bytes = val.saturating_mul(1024);
-                    }
-                } else if let Some(rest) = line.strip_prefix("VmPeak:") {
-                    if let Some(val) = rest
-                        .trim()
-                        .strip_suffix("kB")
-                        .and_then(|s| s.trim().parse::<u64>().ok())
-                    {
-                        peak_rss_bytes = peak_rss_bytes.max(val.saturating_mul(1024));
-                    }
-                } else if let Some(rest) = line.strip_prefix("Threads:") {
-                    if let Ok(val) = rest.trim().parse::<u32>() {
-                        thread_count = val;
-                    }
-                }
-            }
-        }
+        // On Linux, ru_maxrss is in KiB. VmPeak is virtual address space,
+        // not RSS; the resident high-water mark is VmHWM.
+        let peak_rss_bytes = (ru.ru_maxrss.max(0) as u64).saturating_mul(1024);
+        let status = std::fs::read_to_string("/proc/self/status")?;
+        let (current_rss_bytes, high_water, thread_count) = parse_linux_status_rss(&status)?;
+        let peak_rss_bytes = high_water.map_or(peak_rss_bytes, |rss| peak_rss_bytes.max(rss));
 
         Ok(ResourceSnapshot {
             user_cpu_nanos,
@@ -1008,6 +1019,17 @@ mod tests {
                 .expect_err("unsupported platforms must fail capture explicitly");
             assert_eq!(err.kind(), std::io::ErrorKind::Unsupported);
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_linux_rss_is_resident_not_virtual_high_water() {
+        let status = "VmPeak:\t999999 kB\nVmHWM:\t200 kB\nVmRSS:\t100 kB\nThreads:\t3\n";
+        assert_eq!(
+            parse_linux_status_rss(status).unwrap(),
+            (102_400, Some(204_800), 3)
+        );
+        assert!(parse_linux_status_rss("VmPeak:\t999999 kB\n").is_err());
     }
 
     #[test]

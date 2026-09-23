@@ -46,12 +46,13 @@
     reason = "bench binary"
 )]
 
+pub mod benchmark_service;
+pub mod fairness;
 pub mod load;
 pub mod report;
-pub mod benchmark_service;
 pub mod resources;
-pub mod worker_server;
 pub mod worker_client;
+pub mod worker_server;
 
 pub mod tonic_gen {
     #![allow(missing_docs, unused, reason = "generated tonic TestService")]
@@ -67,7 +68,9 @@ use tokio::net::TcpListener;
 /// Create a router mounting both `TestService` and `BenchmarkService`.
 pub fn create_dual_server() -> pbrs_grpc::Router {
     pbrs_grpc::Router::new()
-        .add_service(pbrs_grpc::TestServiceServer::new(pbrs_grpc::InteropTestService))
+        .add_service(pbrs_grpc::TestServiceServer::new(
+            pbrs_grpc::InteropTestService,
+        ))
         .add_service(benchmark_service::BenchmarkServiceServer::new(
             benchmark_service::BenchmarkServiceImpl,
         ))
@@ -101,7 +104,8 @@ fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
 }
 
 fn has_flag(args: &[String], flag: &str) -> bool {
-    args.iter().any(|a| a == flag || a.starts_with(&format!("{flag}=")))
+    args.iter()
+        .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 
 /// Parse load generator options from command-line arguments.
@@ -113,7 +117,9 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     };
 
     let rate = if let Some(val) = get_arg_val(args, "--rate") {
-        let r: f64 = val.parse().map_err(|e| format!("invalid --rate '{val}': {e}"))?;
+        let r: f64 = val
+            .parse()
+            .map_err(|e| format!("invalid --rate '{val}': {e}"))?;
         if r <= 0.0 {
             return Err(format!("invalid --rate '{val}': must be strictly positive"));
         }
@@ -123,16 +129,24 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     };
 
     let seed = if let Some(val) = get_arg_val(args, "--seed") {
-        let s: u64 = val.parse().map_err(|e| format!("invalid --seed '{val}': {e}"))?;
+        let s: u64 = val
+            .parse()
+            .map_err(|e| format!("invalid --seed '{val}': {e}"))?;
         Some(s)
     } else {
         None
     };
 
-    let max_in_flight = if let Some(val) = get_arg_val(args, "--max-in-flight").or_else(|| get_arg_val(args, "--max_in_flight")) {
-        let m: usize = val.parse().map_err(|e| format!("invalid --max-in-flight '{val}': {e}"))?;
+    let max_in_flight = if let Some(val) =
+        get_arg_val(args, "--max-in-flight").or_else(|| get_arg_val(args, "--max_in_flight"))
+    {
+        let m: usize = val
+            .parse()
+            .map_err(|e| format!("invalid --max-in-flight '{val}': {e}"))?;
         if m == 0 {
-            return Err(format!("invalid --max-in-flight '{val}': must be at least 1"));
+            return Err(format!(
+                "invalid --max-in-flight '{val}': must be at least 1"
+            ));
         }
         Some(m)
     } else {
@@ -143,9 +157,13 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         .or_else(|| get_arg_val(args, "--duration_secs"))
         .or_else(|| get_arg_val(args, "--duration"))
     {
-        let d: f64 = val.parse().map_err(|e| format!("invalid duration '{val}': {e}"))?;
+        let d: f64 = val
+            .parse()
+            .map_err(|e| format!("invalid duration '{val}': {e}"))?;
         if d <= 0.0 {
-            return Err(format!("invalid duration '{val}': must be strictly positive"));
+            return Err(format!(
+                "invalid duration '{val}': must be strictly positive"
+            ));
         }
         Some(d)
     } else {
@@ -193,7 +211,10 @@ pub fn extended_usage() -> String {
            --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.EmptyCall\n\
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
-           --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n",
+           --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
+         RT-07 diagnostic:\n  \
+           fairness --scenario rpc-bench/scenarios/fairness.json [--smoke] [--output <PATH>] [--require-qualified]\n  \
+                                    Separate-process native/native bulk + scheduled unary; never a qualification pass\n",
         process::usage()
     )
 }
@@ -212,10 +233,16 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
         }
     };
 
-    let duration = Duration::from_secs_f64(opts.duration_secs.unwrap_or(if opts.quick { 0.5 } else { 2.0 }));
+    let duration =
+        Duration::from_secs_f64(
+            opts.duration_secs
+                .unwrap_or(if opts.quick { 0.5 } else { 2.0 }),
+        );
     let mut cfg = match distribution {
         load::LoadDistribution::Closed => load::LoadConfig::closed(4, duration),
-        load::LoadDistribution::Constant => load::LoadConfig::open_constant(rate.unwrap(), duration),
+        load::LoadDistribution::Constant => {
+            load::LoadConfig::open_constant(rate.unwrap(), duration)
+        }
         load::LoadDistribution::Poisson => {
             let seed = opts.seed.unwrap_or(0x5eed_2026_0918);
             load::LoadConfig::open_poisson(rate.unwrap(), seed, duration)
@@ -282,10 +309,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
             .local_addr()
             .map_err(|e| format!("failed to get local addr: {e}"))?;
         tokio::spawn(async move {
-            create_dual_server()
-                .serve_listener(listener)
-                .await
-                .ok();
+            create_dual_server().serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -367,8 +391,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
     if let Some(ref path) = opts.output_file {
         let json = serde_json::to_string_pretty(&metrics)
             .map_err(|e| format!("serialization error: {e}"))?;
-        std::fs::write(path, json)
-            .map_err(|e| format!("failed to write output to {path}: {e}"))?;
+        std::fs::write(path, json).map_err(|e| format!("failed to write output to {path}: {e}"))?;
         println!("saved metrics to {path}");
     }
 
@@ -379,9 +402,34 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
 
-    if args.iter().any(|a| a == "--help" || a == "-h" || a == "help") {
+    if args
+        .iter()
+        .any(|a| a == "--help" || a == "-h" || a == "help")
+    {
         println!("{}", extended_usage());
         std::process::exit(0);
+    }
+
+    if matches!(
+        args.get(1).map(String::as_str),
+        Some("fairness" | "fairness-server")
+    ) {
+        let server = args.get(1).map(String::as_str) == Some("fairness-server");
+        let result = match fairness::parse_options(&args, server) {
+            Ok(options) => {
+                if server {
+                    fairness::run_server(options).await
+                } else {
+                    fairness::run(options).await
+                }
+            }
+            Err(err) => Err(err),
+        };
+        if let Err(err) = result {
+            eprintln!("fairness diagnostic failed: {err}");
+            std::process::exit(1);
+        }
+        return;
     }
 
     let load_opts = match parse_load_cli_args(&args) {
@@ -554,15 +602,18 @@ mod tests {
         ];
         let opts_space = parse_load_cli_args(&args_space).unwrap();
         assert_eq!(opts_space.rate, Some(2000.0));
-        assert_eq!(opts_space.distribution, Some(load::LoadDistribution::Constant));
+        assert_eq!(
+            opts_space.distribution,
+            Some(load::LoadDistribution::Constant)
+        );
         assert_eq!(opts_space.seed, Some(123));
 
-        let args_closed = vec![
-            "rpc-bench".to_string(),
-            "--distribution=closed".to_string(),
-        ];
+        let args_closed = vec!["rpc-bench".to_string(), "--distribution=closed".to_string()];
         let opts_closed = parse_load_cli_args(&args_closed).unwrap();
-        assert_eq!(opts_closed.distribution, Some(load::LoadDistribution::Closed));
+        assert_eq!(
+            opts_closed.distribution,
+            Some(load::LoadDistribution::Closed)
+        );
     }
 
     #[test]
@@ -576,7 +627,10 @@ mod tests {
         assert!(parse_load_cli_args(&args).is_err());
 
         // Invalid distribution
-        let args = vec!["rpc-bench".to_string(), "--distribution=gaussian".to_string()];
+        let args = vec![
+            "rpc-bench".to_string(),
+            "--distribution=gaussian".to_string(),
+        ];
         assert!(parse_load_cli_args(&args).is_err());
 
         // Invalid seed
@@ -595,10 +649,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         tokio::spawn(async move {
-            create_dual_server()
-                .serve_listener(listener)
-                .await
-                .ok();
+            create_dual_server().serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -615,11 +666,8 @@ mod tests {
         let bench_client = benchmark_service::BenchmarkServiceClient::new(channel);
         let mut req = benchmark_service::SimpleRequest::new();
         req.set_response_size(256);
-        let bench_resp = bench_client
-            .unary_call(pbrs_grpc::Request::new(req))
-            .await;
+        let bench_resp = bench_client.unary_call(pbrs_grpc::Request::new(req)).await;
         assert!(bench_resp.is_ok());
         assert_eq!(bench_resp.unwrap().into_inner().payload().body().len(), 256);
     }
 }
-

@@ -361,6 +361,16 @@ impl GeneratorState {
         *errs.entry(code.to_string()).or_insert(0) += count;
     }
 
+    fn record_scheduling_lag(&self, scheduled: Instant) -> Instant {
+        let actual = Instant::now();
+        let nanos = actual
+            .saturating_duration_since(scheduled)
+            .as_nanos()
+            .min(u64::MAX as u128) as u64;
+        self.scheduling_lags.lock().unwrap().push(nanos);
+        actual
+    }
+
     fn record_call_outcome(
         &self,
         t_sched: Instant,
@@ -370,7 +380,6 @@ impl GeneratorState {
         call_timeout: Option<Duration>,
     ) {
         let t_finish = Instant::now();
-        self.active_in_flight.fetch_sub(1, Ordering::SeqCst);
         self.completed_calls.fetch_add(1, Ordering::Relaxed);
 
         let service_nanos = if timed_out {
@@ -431,6 +440,8 @@ impl GeneratorState {
                 }
             }
         }
+        // Drain must not observe a free slot before its outcome is recorded.
+        self.active_in_flight.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -526,7 +537,10 @@ impl LoadGenerator {
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
     {
-        let rate_qps = self.cfg.rate_qps.expect("rate_qps is required for open-loop constant load");
+        let rate_qps = self
+            .cfg
+            .rate_qps
+            .expect("rate_qps is required for open-loop constant load");
         assert!(rate_qps > 0.0, "rate_qps must be strictly positive");
 
         let state = Arc::new(GeneratorState::new());
@@ -559,13 +573,6 @@ impl LoadGenerator {
                 tokio::time::sleep(t_sched - now).await;
             }
 
-            let t_actual = Instant::now();
-            let lag_nanos = t_actual
-                .saturating_duration_since(t_sched)
-                .as_nanos()
-                .min(u64::MAX as u128) as u64;
-            state.scheduling_lags.lock().unwrap().push(lag_nanos);
-
             // Bounded in-flight queue: verify permit availability
             match semaphore.clone().try_acquire_owned() {
                 Ok(permit) => {
@@ -578,6 +585,7 @@ impl LoadGenerator {
 
                     tokio::spawn(async move {
                         let _permit = permit;
+                        let t_actual = state.record_scheduling_lag(t_sched);
                         let fut = invoke();
                         let (res, timed_out) = if let Some(t) = timeout {
                             match tokio::time::timeout(t, fut).await {
@@ -593,6 +601,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
+                    state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
                     state.record_status_error("QUEUE_OVERFLOW", 1);
@@ -610,7 +619,10 @@ impl LoadGenerator {
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
     {
-        let rate_qps = self.cfg.rate_qps.expect("rate_qps is required for open-loop Poisson load");
+        let rate_qps = self
+            .cfg
+            .rate_qps
+            .expect("rate_qps is required for open-loop Poisson load");
         assert!(rate_qps > 0.0, "rate_qps must be strictly positive");
 
         let mut rng = SeededRng::new(self.cfg.seed);
@@ -646,13 +658,6 @@ impl LoadGenerator {
                 tokio::time::sleep(t_sched - now).await;
             }
 
-            let t_actual = Instant::now();
-            let lag_nanos = t_actual
-                .saturating_duration_since(t_sched)
-                .as_nanos()
-                .min(u64::MAX as u128) as u64;
-            state.scheduling_lags.lock().unwrap().push(lag_nanos);
-
             // Bounded in-flight queue: verify permit availability
             match semaphore.clone().try_acquire_owned() {
                 Ok(permit) => {
@@ -665,6 +670,7 @@ impl LoadGenerator {
 
                     tokio::spawn(async move {
                         let _permit = permit;
+                        let t_actual = state.record_scheduling_lag(t_sched);
                         let fut = invoke();
                         let (res, timed_out) = if let Some(t) = timeout {
                             match tokio::time::timeout(t, fut).await {
@@ -680,6 +686,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
+                    state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
                     state.record_status_error("QUEUE_OVERFLOW", 1);
@@ -690,7 +697,11 @@ impl LoadGenerator {
         self.drain_and_finalize(state, start_time.elapsed()).await
     }
 
-    async fn drain_and_finalize(&self, state: Arc<GeneratorState>, measurement_dur: Duration) -> LoadRecord {
+    async fn drain_and_finalize(
+        &self,
+        state: Arc<GeneratorState>,
+        measurement_dur: Duration,
+    ) -> LoadRecord {
         let drain_deadline = Instant::now() + self.cfg.drain_timeout;
         while state.active_in_flight.load(Ordering::SeqCst) > 0 && Instant::now() < drain_deadline {
             tokio::time::sleep(Duration::from_millis(2)).await;
@@ -771,6 +782,57 @@ mod tests {
         assert!(
             relative_error < 0.03,
             "mean {mean} differs from expected {expected} by {relative_error:.3}"
+        );
+    }
+
+    #[test]
+    fn test_dispatch_lag_is_measured_at_task_start() {
+        let state = GeneratorState::new();
+        let scheduled = Instant::now() - Duration::from_millis(10);
+        let actual = state.record_scheduling_lag(scheduled);
+        let samples = state.scheduling_lags.lock().unwrap().clone();
+        assert_eq!(samples.len(), 1);
+        assert!(samples[0] >= 10_000_000);
+        assert!(actual >= scheduled + Duration::from_millis(10));
+    }
+
+    #[test]
+    fn test_drain_waits_until_outcome_samples_are_committed() {
+        let state = Arc::new(GeneratorState::new());
+        state.active_in_flight.store(1, Ordering::SeqCst);
+        let hold_samples = state.service_latencies.lock().unwrap();
+        let worker_state = state.clone();
+        let worker = std::thread::spawn(move || {
+            let scheduled = Instant::now();
+            worker_state.record_call_outcome(
+                scheduled,
+                scheduled,
+                Err(RpcCallError::Status("RESOURCE_EXHAUSTED".into())),
+                false,
+                Some(Duration::from_millis(50)),
+            );
+        });
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while state.completed_calls.load(Ordering::SeqCst) == 0 && Instant::now() < deadline {
+            std::thread::yield_now();
+        }
+        assert_eq!(state.completed_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state.active_in_flight.load(Ordering::SeqCst),
+            1,
+            "drain must not return before latency and status samples are committed"
+        );
+        drop(hold_samples);
+        worker.join().expect("call outcome worker");
+        assert_eq!(state.active_in_flight.load(Ordering::SeqCst), 0);
+        assert_eq!(state.e2e_latencies.lock().unwrap().len(), 1);
+        assert_eq!(
+            state
+                .status_errors
+                .lock()
+                .unwrap()
+                .get("RESOURCE_EXHAUSTED"),
+            Some(&1)
         );
     }
 
@@ -926,7 +988,10 @@ mod tests {
 
         // Never drop timed-out calls from latency measurements:
         // Latency must be at least timeout (10 ms = 10,000,000 ns)
-        assert_eq!(record.service_latencies_nanos.len(), record.completed_calls as usize);
+        assert_eq!(
+            record.service_latencies_nanos.len(),
+            record.completed_calls as usize
+        );
         for &lat in &record.service_latencies_nanos {
             assert!(lat >= 10_000_000, "latency {lat} < timeout 10ms");
         }
@@ -949,10 +1014,20 @@ mod tests {
 
         assert_eq!(record.failed_calls, record.completed_calls);
         assert_eq!(record.successful_calls, 0);
-        assert_eq!(record.status_errors.get("UNAVAILABLE").copied().unwrap_or(0), record.failed_calls);
+        assert_eq!(
+            record
+                .status_errors
+                .get("UNAVAILABLE")
+                .copied()
+                .unwrap_or(0),
+            record.failed_calls
+        );
 
         // Latencies must still be recorded for failed calls
-        assert_eq!(record.e2e_latencies_nanos.len(), record.completed_calls as usize);
+        assert_eq!(
+            record.e2e_latencies_nanos.len(),
+            record.completed_calls as usize
+        );
     }
 
     #[tokio::test]

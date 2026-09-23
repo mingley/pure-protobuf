@@ -419,6 +419,13 @@ The 90% gate passed. These numbers are not the Xeon tables.
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
 
+The separate-process RT-07 [mixed-load diagnostic](../rpc-bench/README.md#5-rt-07-mixed-load-diagnostic)
+now runs scheduled small unary calls alongside repeating bulk streams in the
+`bulk_vs_small_streams` scenario. It reports per-class outcomes and actual
+endpoint RSS, but its sampled budget peaks are lower bounds and the transport
+exposes no permit gauges or full queue wait. The report is explicitly
+unqualified; it does not replace paired dedicated-host fairness evidence.
+
 ## pbrs-grpc vs grpc-go (server)
 
 `rpc-bench` puts client and both servers in one process, which makes it

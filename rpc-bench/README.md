@@ -126,11 +126,52 @@ local smoke run establishes the paired, dedicated-host performance gate.
 - **`src/worker_client.rs`**: Implements `WorkerService.RunClient`. Connects to target servers, configures `LoadGenerator` under closed-loop or Poisson distributions, tracks latencies in exponential `Histogram` buckets, records status code distributions, and responds with `ClientStatus` on `Mark` requests.
 - **`src/benchmark_service.rs`**: Implements `grpc.testing.BenchmarkService` procedures (`UnaryCall`, `StreamingCall`, `StreamingFromClient`, `StreamingFromServer`, `StreamingBothWays`).
 - **`src/load.rs`**: High-performance load engine supporting bounded in-flight queuing, open-loop Poisson arrival intervals, and scheduling lag measurements.
-- **`src/resources.rs`**: Cross-platform process resource inspection using native OS APIs (`libproc` on macOS, `/proc` on Linux) to record user/system CPU seconds and RSS.
+- **`src/resources.rs`**: Cross-platform process resource inspection using `getrusage` and Mach on macOS, and `getrusage` plus `/proc` on Linux to record user/system CPU seconds and resident RSS (not virtual address-space `VmPeak`).
 
 ---
 
-## 5. Artifacts and Local Proof
+## 5. RT-07 Mixed-Load Diagnostic
+
+From the repository root, run the single supported native/native fairness
+cell (the short smoke override changes duration, warmup and unary offered QPS):
+
+```bash
+CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR="$PWD/target" \
+  cargo run --manifest-path rpc-bench/Cargo.toml -- fairness \
+  --scenario rpc-bench/scenarios/fairness.json --smoke \
+  --output target/rt07-smoke.json
+```
+
+Omit `--smoke` to use the scenario's 15-second warmup and 60-second
+measurement. `--require-qualified` writes the report and then exits nonzero
+while any qualification field or peer comparison is unavailable; **neither
+mode qualifies RT-07 today**. This command runs a separate native server
+process with the configured connection, RPC and byte limits, and two client
+classes on separate connections: repeating finite 64 × 64 KiB streams and
+scheduled Poisson 128-byte unary probes. The report retains per-class raw
+latency/scheduling samples, canonical status and queue-overflow counts, actual
+client pool waits, client/server CPU and RSS, real sampled byte-budget
+allocations, post-drain accounting and observed call overlap. A failed
+resource capture or incomplete accounting fails the run, not a zero-filled
+report. The configured request sizes are protobuf payload-body bytes; each
+bulk request also carries 64 response-parameter entries. Peak RSS is a
+process-lifetime high-water mark, including warmup.
+
+`qualification.qualified` is always `false` for this diagnostic. The
+`unsupported_metrics` map explains every required `null`: client pool wait
+is not the entire outbound-to-TCP or server queue, the transport has no
+public active-permit or exact byte-budget peak gauge (the sampled peaks are
+**lower bounds**), and bulk calls use fixed concurrent workers rather than
+scheduled arrivals. A successful post-drain probe is not a permit count.
+Unstarted `QUEUE_OVERFLOW` lacks a valid latency sample, so the small-class
+p99 is `null` if any overflow occurs; early non-timeout transport failures
+also force per-class p99 to `null` rather than flattering a latency tail.
+The other five `fairness.json` cells,
+reference peers, dedicated hosts and randomized paired runs remain open.
+
+---
+
+## 6. Artifacts and Local Proof
 
 Every benchmark run produces verifiable, immutable evidence in `target/qps-logs/<timestamp>_<pid>/`:
 
