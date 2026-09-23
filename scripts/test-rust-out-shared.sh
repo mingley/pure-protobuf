@@ -34,11 +34,22 @@ echo "============================================================"
 echo " pure-protobuf: Original Upstream Shared Consumer Test Suite"
 echo "============================================================"
 echo "Upstream generator pin: $PIN ($SHA)"
-if command -v protoc >/dev/null 2>&1; then
-  echo "Local protoc:           $(protoc --version)"
-else
-  echo "Local protoc:           not found on PATH (build will fail if generated files missing)"
+PROTOC_BIN="${PROTOC:-$(command -v protoc || true)}"
+if [[ -z "$PROTOC_BIN" ]] || ! command -v "$PROTOC_BIN" >/dev/null 2>&1; then
+  echo "Pinned protoc not found; run ./scripts/build-pinned-protoc.sh first" >&2
+  exit 1
 fi
+PROTOC_BIN="$(command -v "$PROTOC_BIN")"
+PROTOC_BIN="$(cd "$(dirname "$PROTOC_BIN")" && pwd)/$(basename "$PROTOC_BIN")"
+PROTOC_VERSION="$("$PROTOC_BIN" --version)"
+if [[ "$PROTOC_VERSION" != "libprotoc ${PIN#v}" ]] ||
+   [[ "$("$PROTOC_BIN" --help)" != *'--rust_out=OUT_DIR'* ]]; then
+  echo "Expected protoc $PIN with built-in Rust output, got $PROTOC_VERSION ($PROTOC_BIN)" >&2
+  echo "Run ./scripts/build-pinned-protoc.sh and set PROTOC to its output binary" >&2
+  exit 1
+fi
+export PROTOC="$PROTOC_BIN"
+echo "Pinned protoc:          $PROTOC_VERSION ($PROTOC)"
 echo "Runtime target:         pbrs v$PBRS_VERSION (remapped as protobuf) @ $REPO_SHA$REPO_DIRTY"
 echo "Generator flags:        --rust_out with --rust_opt=experimental-codegen=enabled,kernel=upb"
 echo "------------------------------------------------------------"

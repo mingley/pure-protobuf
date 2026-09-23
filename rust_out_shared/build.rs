@@ -184,6 +184,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", proto_root.display());
+    println!("cargo:rerun-if-env-changed=PROTOC");
     if let Some(ref s) = src_include {
         println!("cargo:rerun-if-changed={}", s.display());
     }

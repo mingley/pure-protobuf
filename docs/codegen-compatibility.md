@@ -136,13 +136,14 @@ The following files from `vendor/google/rust-tests/shared/` are explicitly exclu
 
 1. **Local Execution**:
    ```bash
-   ./scripts/test-rust-out-shared.sh
+   ./scripts/build-pinned-protoc.sh
+   PROTOC="$PWD/target/pinned-protoc-build/protoc" ./scripts/test-rust-out-shared.sh
    ```
-   Runs `cargo test` across all 19 crates in `rust_out_shared/` using `--offline` where appropriate, validates `grpc_remap/protobuf-shim`, and fails if 0 tests run or any crate fails. The script derives exact pins at run time (protoc `vendor/google/PIN` @ `vendor/google/SHA`, local `protoc --version`, generator flags `--rust_opt=experimental-codegen=enabled,kernel=upb`, pbrs version from the root `Cargo.toml`, repo SHA with a dirty-worktree marker when needed), reports per-crate results, prints every exclusion with owner/reason/task, and verifies the upstream `rust/test/shared` inventory is fully accounted for (19 included + 5 excluded files) so new upstream suites cannot be silently skipped.
+   The first command verifies the upstream source SHA and reuses the cached CMake compiler when available. The runner requires that compiler's pinned version and built-in `--rust_out`; Ubuntu's `protobuf-compiler` 3.21 has neither. It runs `cargo test` across all 19 crates in `rust_out_shared/` using `--offline` where appropriate, validates `grpc_remap/protobuf-shim`, and fails if 0 tests run or any crate fails. The script derives exact pins at run time (protoc `vendor/google/PIN` @ `vendor/google/SHA`, generator flags `--rust_opt=experimental-codegen=enabled,kernel=upb`, pbrs version from the root `Cargo.toml`, repo SHA with a dirty-worktree marker when needed), reports per-crate results, prints every exclusion with owner/reason/task, and verifies the upstream `rust/test/shared` inventory is fully accounted for (19 included + 5 excluded files) so new upstream suites cannot be silently skipped.
 
 2. **Automated CI Workflow**:
    `.github/workflows/compatibility.yml` runs weekly on schedule (Sunday at 04:00 UTC) and on manual `workflow_dispatch`:
-   - Runs `./scripts/test-rust-out-shared.sh` across all 19 crates.
+   - Builds or restores the pinned protoc with built-in Rust output before running `./scripts/test-rust-out-shared.sh` across all 19 crates, including the scheduled Miri lane's shared-consumer subset.
    - Verifies upstream pin integrity (`vendor/google/PIN`, `vendor/google/SHA`).
    - Verifies proto schema and shared test source drift against the upstream pin.
    - Runs committed output and stub flavour drift checks.

@@ -38,15 +38,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - run: protoc --version
+      - name: Install C++ compiler and cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
       - name: Cache protobuf pin source
         uses: actions/cache@v4
         with:
           path: third_party/protobuf
           key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Cache pinned protoc with built-in Rust output
+        uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Build pinned protoc
+        run: ./scripts/build-pinned-protoc.sh
       - name: Run original shared consumer tests (19 crates)
+        env:
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
         run: ./scripts/test-rust-out-shared.sh
 
   # Verify upstream pin integrity, proto schema/test drift, and generated stub drift.
@@ -145,18 +153,31 @@ jobs:
   # Exercises pure-protobuf core parsing and runtime under memory sanitizers.
   miri-sanitizers:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri, rust-src
-      - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install C++ compiler and cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Cache pinned protoc with built-in Rust output
+        uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Build pinned protoc
+        run: ./scripts/build-pinned-protoc.sh
       - name: Run Miri on pbrs core parsing and runtime
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
         run: |
           set -euo pipefail
           mkdir -p target/sanitizer-logs
@@ -174,6 +195,7 @@ jobs:
           RUSTFLAGS: "-Zsanitizer=address"
           RUSTDOCFLAGS: "-Zsanitizer=address"
           ASAN_OPTIONS: "detect_leaks=1:detect_stack_use_after_return=1"
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
         run: |
           set -euo pipefail
           mkdir -p target/sanitizer-logs
