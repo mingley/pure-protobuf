@@ -5,9 +5,10 @@
 # the pure-protobuf (pbrs) kernel via `extern crate pbrs as protobuf` and
 # `grpc_remap/protobuf-shim`.
 #
-# Pinned generator / runtime:
-#   - protoc: v35.1 (SHA: 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03)
-#   - kernel runtime: pbrs v0.1.0 (pure-protobuf)
+# Pinned generator / runtime (derived at run time, never hardcoded):
+#   - protoc pin: vendor/google/PIN @ vendor/google/SHA (v35.1 baseline)
+#   - generator flags: --rust_out with --rust_opt=experimental-codegen=enabled,kernel=upb
+#   - kernel runtime: pbrs version from root Cargo.toml (pure-protobuf)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,26 +17,16 @@ PIN_FILE="$ROOT/vendor/google/PIN"
 SHA_FILE="$ROOT/vendor/google/SHA"
 PIN="$(cat "$PIN_FILE" 2>/dev/null || echo "unknown")"
 SHA="$(cat "$SHA_FILE" 2>/dev/null || echo "unknown")"
-
-# Track whether lockfiles were clean initially so we can restore them if cargo modified them
-RESTORE_SHARED_LOCK=0
-if git -C "$ROOT" diff --quiet rust_out_shared/Cargo.lock 2>/dev/null; then
-  RESTORE_SHARED_LOCK=1
-fi
-RESTORE_GRPC_LOCK=0
-if git -C "$ROOT" diff --quiet grpc_remap/Cargo.lock 2>/dev/null; then
-  RESTORE_GRPC_LOCK=1
+PBRS_VERSION="$(grep -m1 '^version = ' "$ROOT/Cargo.toml" | cut -d'"' -f2 || echo "unknown")"
+REPO_SHA="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")"
+REPO_DIRTY=""
+if ! git -C "$ROOT" diff --quiet HEAD --; then
+  REPO_DIRTY=" (dirty tracked worktree; not reproducible from the SHA alone)"
 fi
 
 TMP_OUT="$(mktemp)"
 cleanup() {
   rm -f "$TMP_OUT"
-  if [[ "$RESTORE_SHARED_LOCK" -eq 1 ]]; then
-    git -C "$ROOT" checkout -- rust_out_shared/Cargo.lock 2>/dev/null || true
-  fi
-  if [[ "$RESTORE_GRPC_LOCK" -eq 1 ]]; then
-    git -C "$ROOT" checkout -- grpc_remap/Cargo.lock 2>/dev/null || true
-  fi
 }
 trap cleanup EXIT
 
@@ -48,7 +39,8 @@ if command -v protoc >/dev/null 2>&1; then
 else
   echo "Local protoc:           not found on PATH (build will fail if generated files missing)"
 fi
-echo "Runtime target:         pbrs v0.1.0 (remapped as protobuf)"
+echo "Runtime target:         pbrs v$PBRS_VERSION (remapped as protobuf) @ $REPO_SHA$REPO_DIRTY"
+echo "Generator flags:        --rust_out with --rust_opt=experimental-codegen=enabled,kernel=upb"
 echo "------------------------------------------------------------"
 
 # Ensure upstream protobuf source is fetched if missing
@@ -57,12 +49,43 @@ if [[ ! -d "$ROOT/third_party/protobuf/rust/test" ]]; then
   "$ROOT/scripts/fetch-protobuf.sh"
 fi
 
+# Verify the upstream shared inventory is fully accounted for: every
+# *_test.rs file must be either an included crate or a documented exclusion.
+# This fails loudly on upstream drift instead of silently skipping new suites.
+SHARED_DIR="$ROOT/third_party/protobuf/rust/test/shared"
+INCLUDED_TESTS="accessors_map_test accessors_proto3_test accessors_repeated_test accessors_test bad_names_test child_parent_test edition2023_test enum_test fields_with_imported_types_test import_public_test message_copy_merge_test message_generics_test nested_types_test package_test proto_macro_test serialization_test simple_nested_test threading_test utf8_test"
+EXCLUDED_TESTS="ctype_cord_test extensions_test gtest_matchers_test no_internal_access_test package_disambiguation_test"
+echo "Verifying upstream shared inventory is fully accounted for..."
+UNACCOUNTED=0
+for uf in "$SHARED_DIR"/*_test.rs "$SHARED_DIR"/utf8/utf8_test.rs; do
+  [[ -f "$uf" ]] || continue
+  stem="$(basename "$uf" .rs)"
+  case " $INCLUDED_TESTS $EXCLUDED_TESTS " in
+    *" $stem "*) ;;
+    *)
+      echo "ERROR: upstream shared test '$stem' is neither included nor a documented exclusion" >&2
+      UNACCOUNTED=1
+      ;;
+  esac
+done
+for stem in $INCLUDED_TESTS; do
+  if [[ ! -f "$ROOT/rust_out_shared/tests/$stem.rs" ]]; then
+    echo "ERROR: expected included test crate '$stem' missing from rust_out_shared/tests/" >&2
+    UNACCOUNTED=1
+  fi
+done
+if [[ "$UNACCOUNTED" -ne 0 ]]; then
+  echo "ERROR: upstream shared inventory changed; update the included/excluded lists and docs/codegen-compatibility.md" >&2
+  exit 1
+fi
+echo "Inventory OK: 19 included crates + 5 documented file exclusions cover all upstream shared tests."
+
 # Validate grpc_remap/protobuf-shim compiles against pbrs
 echo "Validating grpc_remap/protobuf-shim..."
-cargo check -p protobuf --manifest-path "$ROOT/grpc_remap/Cargo.toml" --quiet
+cargo check -p protobuf --manifest-path "$ROOT/grpc_remap/Cargo.toml" --locked --quiet
 
 # Prepare cargo test flags
-CARGO_FLAGS=()
+CARGO_FLAGS=(--locked)
 HAS_OFFLINE_OR_LOCKED=0
 USER_ARGS=()
 
@@ -75,7 +98,7 @@ done
 
 if [[ "$HAS_OFFLINE_OR_LOCKED" -eq 0 ]]; then
   # Test if offline check works; if so, prefer --offline for hermetic runs
-  if cargo check --manifest-path "$ROOT/rust_out_shared/Cargo.toml" --offline --quiet 2>/dev/null; then
+  if cargo check --manifest-path "$ROOT/rust_out_shared/Cargo.toml" --offline --locked --quiet 2>/dev/null; then
     CARGO_FLAGS+=("--offline")
   fi
 fi
@@ -137,27 +160,29 @@ echo " Documented Skipped Files & Exclusions"
 echo "============================================================"
 cat << 'SKIPS'
   - ctype_cord_test.rs:
-      Reason: Google C++ Cord string type (ctype=CORD); internal C++ representation.
-      Status: Excluded (pure Rust uses ProtoString / ProtoBytes).
+      Owner: Kernel. Reason: Google C++ Cord string type (ctype=CORD); internal C++ rope.
+      Task: N/A (kernel-layout exclusion, not missing application behavior; cord fields use ProtoString/ProtoBytes).
   - gtest_matchers_test.rs:
-      Reason: protobuf_gtest_matchers internal C++ test framework integration.
-      Status: Excluded (pure Rust uses standard assertions / googletest Rust).
+      Owner: Test Infra. Reason: protobuf_gtest_matchers internal C++ test framework integration.
+      Task: N/A (tests C++ matcher plumbing, not the application trait API).
   - no_internal_access_test.rs:
-      Reason: Asserts __internal == (); pbrs uses a module with SealedInternal trait.
-      Status: Excluded by design (sealed module pattern).
+      Owner: Kernel. Reason: Asserts __internal == (); pbrs uses a module with SealedInternal trait.
+      Task: N/A (excluded by design; sealed module pattern).
   - package_disambiguation_test.rs:
-      Reason: Empty test file in pinned upstream Google protobuf v35.1 release.
-      Status: Excluded (no tests).
+      Owner: Upstream. Reason: Empty test stub in pinned upstream Google protobuf v35.1 release.
+      Task: N/A (no tests present).
   - extensions_test.rs:
-      Reason: Tests Edition 2024 custom extensions (extensions.proto).
-      Status: Pending Edition 2024 descriptor/extension support (tasks CG-13, CG-14).
+      Owner: Codegen. Reason: Tests Edition 2024 custom extensions (extensions.proto).
+      Task: CG-13, CG-14 (pending Edition 2024 descriptor/extension support).
   - edition2023 str_view cpp VIEW:
-      Reason: C++ string_view (pb.cpp.string_type=VIEW); tested as standard string.
-      Status: Excluded (C++-specific).
+      Owner: Codegen. Reason: C++ string_view (pb.cpp.string_type=VIEW); tested as standard string.
+      Task: N/A (C++-specific layout; application view API covered via as_view()/ProtoStr).
   - proto! #[cfg(bzl)] qualified paths:
-      Reason: Bazel-specific package path qualification (::crate::Type).
-      Status: Excluded (Cargo workspace build).
+      Owner: Build Tooling. Reason: Bazel-specific package path qualification (::crate::Type).
+      Task: N/A (Bazel-specific; Cargo workspace build).
 SKIPS
+echo "  (Kernel-layout exclusions assert C++/arena implementation internals,"
+echo "   not application API behavior; see docs/codegen-compatibility.md sections 4-5.)"
 
 echo "============================================================"
 echo " Summary"
@@ -165,6 +190,7 @@ echo "============================================================"
 echo "  Crates tested: $CRATES_COUNT / 19"
 echo "  Total passed:  $TOTAL_PASSED"
 echo "  Total failed:  $TOTAL_FAILED"
+echo "  Exclusions documented: 7 (5 files + 2 scoped; each with owner/reason/task)"
 echo "============================================================"
 
 if [[ "$TEST_STATUS" -ne 0 || "$TOTAL_FAILED" -gt 0 ]]; then

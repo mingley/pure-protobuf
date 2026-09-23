@@ -138,7 +138,7 @@ The following files from `vendor/google/rust-tests/shared/` are explicitly exclu
    ```bash
    ./scripts/test-rust-out-shared.sh
    ```
-   Runs `cargo test` across all 19 crates in `rust_out_shared/` using `--offline` where appropriate, validates `grpc_remap/protobuf-shim`, and fails if 0 tests run or any crate fails.
+   Runs `cargo test` across all 19 crates in `rust_out_shared/` using `--offline` where appropriate, validates `grpc_remap/protobuf-shim`, and fails if 0 tests run or any crate fails. The script derives exact pins at run time (protoc `vendor/google/PIN` @ `vendor/google/SHA`, local `protoc --version`, generator flags `--rust_opt=experimental-codegen=enabled,kernel=upb`, pbrs version from the root `Cargo.toml`, repo SHA with a dirty-worktree marker when needed), reports per-crate results, prints every exclusion with owner/reason/task, and verifies the upstream `rust/test/shared` inventory is fully accounted for (19 included + 5 excluded files) so new upstream suites cannot be silently skipped.
 
 2. **Automated CI Workflow**:
    `.github/workflows/compatibility.yml` runs weekly on schedule (Sunday at 04:00 UTC) and on manual `workflow_dispatch`:
@@ -207,4 +207,3 @@ Both native `pbrs-grpc` (kernel) and `protobuf-tonic` (tonic) stub flavours gene
 - **Application Trait Contract**: Code written against the Google protobuf v4 application API (`Parse`, `Serialize`, `Clear`, `CopyFrom`, `MergeFrom`, `as_view()`, `as_mut()`, `proto!`) compiles and behaves identically on `pure-protobuf`.
 - **No C/upb ABI Leakage**: Code that relies on C arena pointers, `upb_Arena_Fuse`, raw memory offsets, or private upb struct representations is fundamentally incompatible with pure-protobuf's memory-safe, RAII-based architecture.
 - **Gencode Version Assertion**: The runtime provides `pbrs::__internal::assert_compatible_gencode_version(&str)` as a non-failing compatibility assertion for official `protoc --rust_out` generated code, acknowledging application-level v4 compatibility while avoiding false couplings to Google internal release trains.
-
