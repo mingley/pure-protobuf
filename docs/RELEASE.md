@@ -37,17 +37,22 @@ on the **same SHA** and will not publish unless every required job succeeds:
 
 | Job | What it runs |
 |---|---|
-| `test` | fmt, clippy `-D warnings`, `cargo test --workspace`, docs `-D warnings` |
-| `grpc-interop` | `./scripts/grpc-interop.sh` |
-| `conformance` | `./scripts/conformance.sh` |
+| `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher contracts, `cargo test --workspace`, docs `-D warnings` |
+| `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
+| `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
+| `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report |
 | `msrv-core` | rustc **1.85**: `cargo test -p pbrs --lib` and `cargo test -p pbrs-grpc --lib` |
 | `msrv-tonic` | rustc **1.88**: `cargo test -p protobuf-tonic` |
 | `macos` | stable, `brew` protoc: `pbrs-grpc` `tcp::tests`, `--test pbrs_build`, `--test onboarding` |
-| `package-consumers` | `cargo test --test package_consumer` (unpack `.crate` outside the workspace) |
+| `package-consumers` | `cargo test --test package_consumer`: assert the core archive excludes unrelated `third_party/`, docs and tests, then unpack all `.crate` archives outside the workspace and build consumers |
 | `generated-output` | onboarding `committed_hello_and_wkt_copies_match` and `codegen_stub_flavours_are_explicit` |
 
 A failed or skipped required job blocks publish. Do not treat a previous green
 `main` run as sufficient.
+
+Superseded direct `main`/PR CI runs cancel to avoid spending runner time on
+outdated SHAs. The reusable CI invoked by `Release` is not cancelled by a later
+development push; the publisher still requires every job on its exact SHA.
 
 ## Cutting a release
 
@@ -75,8 +80,10 @@ upload at once.
 
 **Actions → Release → Run workflow**:
 
-- `dry_run` defaults to **true**: `cargo publish --dry-run` only. No token,
-  no crates.io upload, no GitHub Release.
+- `dry_run` defaults to **true**: the publisher packs each crate with
+  `cargo package --no-verify --offline`, without querying the crates.io
+  status API. It requires no token, uploads no crates and creates no GitHub
+  Release; isolated package consumers are checked in CI.
 - To upload: set `dry_run` to **false** and type `publish` in `confirm`.
   Anything else fails without publishing.
 
@@ -90,6 +97,8 @@ If `pbrs` reached crates.io and an adapter failed (index lag, token, network):
 3. The script probes `https://crates.io/api/v1/crates/<name>/<version>` from
    the manifests. Versions already on the index succeed without
    `cargo publish`. Missing versions are published and waited on.
+   Only an explicit HTTP 404 means a version is missing: network failures,
+   rate limits and other HTTP responses stop the publisher before any upload.
 
 `cargo publish` of a version that already exists would error; the probe makes
 the retry idempotent.

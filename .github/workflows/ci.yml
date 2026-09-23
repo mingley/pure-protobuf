@@ -8,6 +8,12 @@ on:
   # whose required lane failed or was skipped.
   workflow_call:
 
+# Superseded development SHAs need no CI; a release's reusable CI must never
+# cancel the publisher running on its exact SHA.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.workflow == 'ci' }}
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -27,6 +33,10 @@ jobs:
       - run: protoc --version
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Lint native gRPC, tonic adapter, and example libraries
+        run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
+      - name: Interop proof and benchmark accounting contracts
+        run: python3 -m unittest tests.interop.test_report tests.interop.test_bench_matrix tests.interop.test_cpp_runner tests.interop.test_qps_proof tests.interop.test_conformance_summary tests.test_publish_script -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
       - run: cargo test --workspace
@@ -46,11 +56,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: tests/interop/go/go.mod
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Official interop cases, three ways
         run: ./scripts/grpc-interop.sh
+      - name: HTTP/2 negative and recovery adapters
+        run: ./scripts/grpc-http2-interop.sh --log-dir=target/interop-logs/http2-negative
       - name: Server framing and TLS probes
         run: ./scripts/grpc-http2-server-interop.sh
       - name: Prepare interop report artifact
