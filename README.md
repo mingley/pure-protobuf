@@ -48,11 +48,13 @@ pbrs = "0.1"
 
 ## Code Generation
 
-Generating code from `.proto` files requires `protoc` on your `PATH`.
+Generating code directly from `.proto` files requires `protoc` on your
+`PATH`; generation from a previously compiled descriptor set does not.
 Building the core crate alone uses a bundled descriptor set and does not
-require it. The gRPC crates currently run code generation in their own build
-scripts, so their builds also require `protoc`. There is no enforced
-universal `protoc` version; see the [support matrix](#support-matrix).
+require `protoc`. The gRPC crates currently invoke it in their own build
+scripts, so **cold builds of `pbrs-grpc` and `protobuf-tonic` still require
+`protoc`**, even when an application uses descriptor-set generation. There is
+no enforced universal `protoc` version; see the [support matrix](#support-matrix).
 
 ### Option A: Using `build.rs` (Recommended)
 
@@ -82,7 +84,34 @@ This generates the message used in the quickstart below. For protos defining
 services, the default is native `pbrs-grpc` stubs; tonic users must explicitly
 select `Config::emit_tonic_stubs(true)`.
 
-### Option B: Using `protoc-gen-pbrs` Plugin
+### Option B: From a Checked Descriptor Set
+
+`Config::compile_descriptor_set` uses the same output layout and stub settings
+without running `protoc` during the application build. Create and check in a
+descriptor set with imports included, for example:
+
+```bash
+protoc -I proto --include_imports --descriptor_set_out=proto/person.fds proto/person.proto
+```
+
+Replace the `compile_protos` call in `build.rs` with:
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pbrs::codegen::Config::new()
+        .out_dir(std::env::var("OUT_DIR")?)
+        .compile_descriptor_set("proto/person.fds", &["person.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+Descriptor targets use their include-relative names (`person.proto` here).
+The descriptor and available source imports are tracked for rebuilds; see the
+[codegen guide](docs/guides/codegen.md) for native, tonic and messages-only
+configuration. This avoids `protoc` for a **messages-only cold build**, not
+for cold builds of the current gRPC adapter crates.
+
+### Option C: Using `protoc-gen-pbrs` Plugin
 
 Install or build the plugin binary:
 

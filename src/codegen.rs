@@ -841,10 +841,7 @@ pub fn generate_from_code_generator_request(
     for target in &targets {
         let norm_target = normalize_proto_path_str(target);
         CURRENT_TARGET.with(|c| *c.borrow_mut() = norm_target.clone());
-        let safe_target = norm_target
-            .replace('/', "_")
-            .replace('.', "_")
-            .replace('-', "_");
+        let safe_target = norm_target.replace(['/', '.', '-'], "_");
         let gen_mod = format!("__gen_{safe_target}");
         let wanted: std::collections::BTreeSet<String> = std::iter::once(target.clone()).collect();
         let target_is_wkt = wanted.iter().any(|w| {
@@ -894,10 +891,10 @@ use pbrs::UnknownFields;\n\n"
         } else {
             emit_fds(&mut src, &fds);
             src.push_str(
-                "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    static P: std::sync::OnceLock<std::sync::Arc<pbrs::DescriptorPool>> = std::sync::OnceLock::new();\n    P.get_or_init(|| {\n        std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }).clone()\n}\n\n",
+                "#[allow(clippy::expect_used, reason = \"embedded descriptor bytes were validated during code generation\")]\nfn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    static P: std::sync::OnceLock<std::sync::Arc<pbrs::DescriptorPool>> = std::sync::OnceLock::new();\n    P.get_or_init(|| {\n        std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }).clone()\n}\n\n",
             );
         }
-        let direct_pub_files = pool.public_import_files(&[target.clone()]);
+        let direct_pub_files = pool.public_import_files(std::slice::from_ref(target));
         let transitive_pub_files = transitive_public_imports(&pool, target);
         let mut emit_names = Vec::new();
         for name in &names {
@@ -1134,13 +1131,14 @@ pub fn generate_from_file_descriptor_set(
     fds: &[u8],
     files_to_generate: &[String],
 ) -> Result<Vec<(String, String)>, CodegenError> {
-    generate_from_file_descriptor_set_with_parameter(fds, files_to_generate, None)
+    generate_from_file_descriptor_set_with_parameter(fds, files_to_generate, None, false)
 }
 
 fn generate_from_file_descriptor_set_with_parameter(
     fds: &[u8],
     files_to_generate: &[String],
     parameter: Option<&str>,
+    require_files: bool,
 ) -> Result<Vec<(String, String)>, CodegenError> {
     let mut req = Vec::new();
     for f in files_to_generate {
@@ -1152,6 +1150,7 @@ fn generate_from_file_descriptor_set_with_parameter(
         }
     }
     let mut pos = 0;
+    let mut has_file = false;
     while pos < fds.len() {
         let (n, w) = decode_tag(fds, &mut pos).map_err(|_| CodegenError::MalformedDescriptor {
             detail: "failed to decode FileDescriptorSet wire tag".to_string(),
@@ -1163,6 +1162,13 @@ fn generate_from_file_descriptor_set_with_parameter(
                     detail: "failed to read FileDescriptorProto in FileDescriptorSet".to_string(),
                     path: None,
                 })?;
+            if require_files && extract_proto_file_name_from_blob(blob).is_empty() {
+                return Err(CodegenError::MalformedDescriptor {
+                    detail: "FileDescriptorProto is malformed or has no file name".to_string(),
+                    path: None,
+                });
+            }
+            has_file = true;
             encode_len_field(&mut req, 15, blob);
         } else {
             wire::skip_field(fds, &mut pos, w).map_err(|_| CodegenError::MalformedDescriptor {
@@ -1170,6 +1176,12 @@ fn generate_from_file_descriptor_set_with_parameter(
                 path: None,
             })?;
         }
+    }
+    if require_files && !has_file {
+        return Err(CodegenError::MalformedDescriptor {
+            detail: "FileDescriptorSet contains no file descriptors".to_string(),
+            path: None,
+        });
     }
     generate_from_code_generator_request(&req)
 }
@@ -1258,7 +1270,7 @@ fn parse_missing_import(stderr: &str) -> Option<(String, PathBuf)> {
     None
 }
 
-/// Options for [`compile_protos`].
+/// Options for [`compile_protos`] and [`Config::compile_descriptor_set`].
 ///
 /// # Configuration precedence
 ///
@@ -1547,6 +1559,85 @@ impl Config {
         opts.join(",")
     }
 
+    fn output_dir(&self) -> Result<PathBuf, CodegenError> {
+        let out = match &self.out_dir {
+            Some(p) => p.clone(),
+            None => {
+                let var = std::env::var("OUT_DIR").map_err(|_| CodegenError::MissingOutDir)?;
+                PathBuf::from(var)
+            }
+        };
+        std::fs::create_dir_all(&out).map_err(|source| CodegenError::UnwritableOutput {
+            path: out.clone(),
+            source,
+        })?;
+        Ok(out)
+    }
+
+    /// Write Rust output from a precompiled `FileDescriptorSet`, without invoking `protoc`.
+    ///
+    /// `descriptor_set` is a path to a checked-in or prebuilt descriptor set
+    /// containing the requested proto files and their imports (for example,
+    /// produced with `protoc --include_imports`). `files_to_generate` accepts
+    /// proto names in the set or paths under `includes`, just like
+    /// [`Self::compile_protos`]. The descriptor set is always tracked for Cargo
+    /// rebuilds; any available source and imported proto files under `includes`
+    /// are also tracked, but are not required at generation time.
+    ///
+    /// Configuration, output layout, and errors match [`Self::compile_protos`].
+    /// Source locations and comments must already be present in the descriptor
+    /// set; [`Self::include_source_info`] cannot add them after compilation.
+    ///
+    /// ```no_run
+    /// pbrs::codegen::Config::new()
+    ///     .emit_kernel_stubs(false)
+    ///     .compile_descriptor_set("proto/schema.fds", &["message.proto"], &["proto"])
+    ///     .expect("generate from descriptor set");
+    /// ```
+    pub fn compile_descriptor_set(
+        &self,
+        descriptor_set: impl AsRef<Path>,
+        files_to_generate: &[impl AsRef<Path>],
+        includes: &[impl AsRef<Path>],
+    ) -> Result<(), CodegenError> {
+        let param = self.to_parameter_string();
+        if !param.is_empty() {
+            parse_plugin_parameter(&param)?;
+        }
+        let out = self.output_dir()?;
+        let descriptor_set = descriptor_set.as_ref();
+        let bytes = std::fs::read(descriptor_set).map_err(|source| CodegenError::Io {
+            path: descriptor_set.to_path_buf(),
+            source,
+        })?;
+        let names: Vec<String> = files_to_generate
+            .iter()
+            .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
+            .collect();
+        let files = generate_from_file_descriptor_set_with_parameter(
+            &bytes,
+            &names,
+            if param.is_empty() { None } else { Some(&param) },
+            true,
+        )
+        .map_err(|error| match error {
+            CodegenError::MalformedDescriptor { detail, .. } => CodegenError::MalformedDescriptor {
+                detail,
+                path: Some(descriptor_set.to_path_buf()),
+            },
+            other => other,
+        })?;
+
+        emit_codegen_config_rerun_if_env_changed();
+        let mut seen_canonical = std::collections::BTreeSet::new();
+        emit_rerun_if_changed(descriptor_set, &mut seen_canonical);
+        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        for (name, src) in files {
+            write_file_atomic_if_changed(&out.join(name), &src)?;
+        }
+        Ok(())
+    }
+
     pub fn compile_protos(
         &self,
         protos: &[impl AsRef<Path>],
@@ -1556,51 +1647,19 @@ impl Config {
         if !param.is_empty() {
             parse_plugin_parameter(&param)?;
         }
-        let out = match &self.out_dir {
-            Some(p) => p.clone(),
-            None => {
-                let var = std::env::var("OUT_DIR").map_err(|_| CodegenError::MissingOutDir)?;
-                PathBuf::from(var)
-            }
-        };
-        std::fs::create_dir_all(&out).map_err(|e| CodegenError::UnwritableOutput {
-            path: out.clone(),
-            source: e,
-        })?;
+        let out = self.output_dir()?;
 
         println!("cargo:rerun-if-env-changed=PROTOC");
-        println!("cargo:rerun-if-env-changed=PURE_PROTOBUF_*");
-        for var in &[
-            "PURE_PROTOBUF_STUBS",
-            "PURE_PROTOBUF_EMIT_DEPS",
-            "PURE_PROTOBUF_NO_WKT",
-            "PURE_PROTOBUF_SHARED_POOL",
-            "PURE_PROTOBUF_NO_REFLECT",
-            "PURE_PROTOBUF_RUNTIME_CRATE",
-            "PURE_PROTOBUF_GRPC_CRATE",
-            "PURE_PROTOBUF_TONIC_CRATE",
-            "PURE_PROTOBUF_INCLUDE_SOURCE_INFO",
-        ] {
-            println!("cargo:rerun-if-env-changed={var}");
-        }
+        emit_codegen_config_rerun_if_env_changed();
 
         let mut seen_canonical = std::collections::BTreeSet::new();
-        let mut emit_rerun_if_changed = |path: &Path| {
-            let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            if seen_canonical.insert(canon) {
-                println!("cargo:rerun-if-changed={}", path.display());
-            }
-        };
-
-        let mut sorted_protos: Vec<PathBuf> = protos
-            .iter()
-            .map(|p| p.as_ref().to_path_buf())
-            .collect();
+        let mut sorted_protos: Vec<PathBuf> =
+            protos.iter().map(|p| p.as_ref().to_path_buf()).collect();
         sorted_protos.sort();
         sorted_protos.dedup();
 
         for p in &sorted_protos {
-            emit_rerun_if_changed(p);
+            emit_rerun_if_changed(p, &mut seen_canonical);
         }
 
         let protoc_bin = self.resolve_protoc_path();
@@ -1692,40 +1751,16 @@ impl Config {
             source: e,
         })?;
 
-        let fds_file_names = extract_fds_file_names(&bytes);
-        for name in &fds_file_names {
-            let clean_name = name.trim_start_matches('/').trim_start_matches("./");
-            let mut resolved = None;
-            if Path::new(name).is_absolute() && Path::new(name).exists() {
-                resolved = Some(PathBuf::from(name));
-            } else {
-                for inc in includes {
-                    let candidate = inc.as_ref().join(clean_name);
-                    if candidate.exists() {
-                        resolved = Some(candidate);
-                        break;
-                    }
-                }
-                if resolved.is_none() {
-                    let direct = Path::new(clean_name);
-                    if direct.exists() {
-                        resolved = Some(direct.to_path_buf());
-                    }
-                }
-            }
-            if let Some(r) = resolved {
-                emit_rerun_if_changed(&r);
-            }
-        }
+        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
         let names: Vec<String> = sorted_protos
             .iter()
             .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
             .collect();
-        let param = self.to_parameter_string();
         let files = generate_from_file_descriptor_set_with_parameter(
             &bytes,
             &names,
             if param.is_empty() { None } else { Some(&param) },
+            false,
         );
         let files = match files {
             Ok(f) => f,
@@ -1748,6 +1783,61 @@ impl Config {
         }
         let _ = std::fs::remove_file(&fds_path);
         Ok(())
+    }
+}
+
+fn emit_codegen_config_rerun_if_env_changed() {
+    println!("cargo:rerun-if-env-changed=PURE_PROTOBUF_*");
+    for var in &[
+        "PURE_PROTOBUF_STUBS",
+        "PURE_PROTOBUF_EMIT_DEPS",
+        "PURE_PROTOBUF_NO_WKT",
+        "PURE_PROTOBUF_SHARED_POOL",
+        "PURE_PROTOBUF_NO_REFLECT",
+        "PURE_PROTOBUF_RUNTIME_CRATE",
+        "PURE_PROTOBUF_GRPC_CRATE",
+        "PURE_PROTOBUF_TONIC_CRATE",
+        "PURE_PROTOBUF_INCLUDE_SOURCE_INFO",
+    ] {
+        println!("cargo:rerun-if-env-changed={var}");
+    }
+}
+
+fn emit_rerun_if_changed(path: &Path, seen_canonical: &mut std::collections::BTreeSet<PathBuf>) {
+    let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if seen_canonical.insert(canon) {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+}
+
+fn emit_descriptor_source_rerun_if_changed(
+    bytes: &[u8],
+    includes: &[impl AsRef<Path>],
+    seen_canonical: &mut std::collections::BTreeSet<PathBuf>,
+) {
+    for name in extract_fds_file_names(bytes) {
+        let clean_name = name.trim_start_matches('/').trim_start_matches("./");
+        let mut resolved = None;
+        if Path::new(&name).is_absolute() && Path::new(&name).exists() {
+            resolved = Some(PathBuf::from(&name));
+        } else {
+            for inc in includes {
+                let candidate = inc.as_ref().join(clean_name);
+                if candidate.exists() {
+                    resolved = Some(candidate);
+                    break;
+                }
+            }
+            if resolved.is_none() {
+                let direct = Path::new(clean_name);
+                if direct.exists() {
+                    resolved = Some(direct.to_path_buf());
+                }
+            }
+        }
+        if let Some(path) = resolved {
+            emit_rerun_if_changed(&path, seen_canonical);
+        }
     }
 }
 
@@ -2085,7 +2175,7 @@ fn match_extern_type(s: &str) -> Option<String> {
                 let len = prefix.len();
                 if best_match
                     .as_ref()
-                    .map_or(true, |(best_len, _)| len > *best_len)
+                    .is_none_or(|(best_len, _)| len > *best_len)
                 {
                     best_match = Some((len, rust_path.clone()));
                 }
@@ -2095,7 +2185,7 @@ fn match_extern_type(s: &str) -> Option<String> {
                 let resolved = format_extern_rel_path(prefix, rust_path, rel);
                 if best_match
                     .as_ref()
-                    .map_or(true, |(best_len, _)| len > *best_len)
+                    .is_none_or(|(best_len, _)| len > *best_len)
                 {
                     best_match = Some((len, resolved));
                 }
@@ -2723,11 +2813,11 @@ fn sanitize_doc_line(line: &str) -> String {
     while run_idx < runs.len() {
         let open = runs[run_idx];
         let mut matched = false;
-        for j in (run_idx + 1)..runs.len() {
-            if runs[j].len == open.len {
+        for (j, close) in runs.iter().enumerate().skip(run_idx + 1) {
+            if close.len == open.len {
                 code_spans.push(CodeSpan {
                     start: open.start,
-                    end: runs[j].start + runs[j].len,
+                    end: close.start + close.len,
                 });
                 run_idx = j + 1;
                 matched = true;
@@ -6026,10 +6116,7 @@ fn to_snake(s: &str) -> String {
             out.push(c);
         }
     }
-    if matches!(
-        out.as_str(),
-        "crate" | "self" | "Self" | "super" | "_"
-    ) {
+    if matches!(out.as_str(), "crate" | "self" | "Self" | "super" | "_") {
         format!("{out}_")
     } else if is_rust_keyword(&out) {
         format!("r#{out}")
@@ -8264,7 +8351,7 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
         (false, false) => {
             let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{");
             let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.unary(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(src, "        self.inner.unary(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
         (true, true) => {
@@ -8274,7 +8361,7 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
             let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(src, "        self.inner.streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
         (true, false) => {
@@ -8284,13 +8371,13 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
             let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.client_streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(src, "        self.inner.client_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
         (false, true) => {
             let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status> {{");
             let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.server_streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(src, "        self.inner.server_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
     }

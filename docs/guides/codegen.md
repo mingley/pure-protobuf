@@ -35,6 +35,39 @@ pub mod pb {
 }
 ```
 
+### Generating from a checked descriptor set
+
+When `.proto` compilation runs in an earlier build stage, include imports in
+the checked descriptor set:
+
+```bash
+protoc -I proto --include_imports --descriptor_set_out=proto/service.fds proto/service.proto
+```
+
+The application `build.rs` can generate the same layout without `protoc` on
+its PATH:
+
+```rust
+use pbrs::codegen::{Config, Stubs};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    Config::new()
+        .out_dir(std::env::var("OUT_DIR")?)
+        .stubs(Stubs::None)
+        .compile_descriptor_set("proto/service.fds", &["service.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+Use `.emit_kernel_stubs(true)` or `.emit_tonic_stubs(true)` instead of
+`.stubs(Stubs::None)` for native or tonic service code; descriptor targets are
+include-relative file names. Missing/malformed descriptors fail explicitly,
+and the descriptor plus available imported `.proto` sources trigger rebuilds.
+The generator path is `protoc`-free, but a **cold** build of the current
+`pbrs-grpc` or `protobuf-tonic` dependency still runs its own `protoc`-based
+build script. See the [support matrix](../../README.md#support-matrix) for
+that boundary.
+
 ---
 
 ## 2. Configuring Stub Flavours

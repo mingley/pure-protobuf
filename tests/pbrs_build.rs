@@ -1,4 +1,4 @@
-//! Downstream `build.rs` uses `pbrs::codegen::compile_protos` (not `scripts/gen.sh`).
+//! Downstream `build.rs` uses configured `pbrs::codegen` build APIs (not `scripts/gen.sh`).
 
 #![allow(
     clippy::disallowed_methods,
@@ -20,6 +20,10 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[allow(
+    clippy::disallowed_types,
+    reason = "synchronous tests serialize process-wide environment changes"
+)]
 static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn repo_root() -> PathBuf {
@@ -233,6 +237,42 @@ fn test_temp_dir(name: &str) -> PathBuf {
     dir
 }
 
+fn write_descriptor_set(path: &Path, protos: &[&Path], includes: &[&Path], source_info: bool) {
+    let mut cmd = Command::new("protoc");
+    cmd.arg("--include_imports")
+        .arg(format!("--descriptor_set_out={}", path.display()));
+    if source_info {
+        cmd.arg("--include_source_info");
+    }
+    for include in includes {
+        cmd.arg("-I").arg(include);
+    }
+    for proto in protos {
+        cmd.arg(proto);
+    }
+    let out = cmd.output().expect("protoc descriptor set");
+    assert!(out.status.success(), "protoc failed:\n{}", dump(&out));
+}
+
+fn generated_files(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    let mut pending = vec![dir.to_path_buf()];
+    let mut files = std::collections::BTreeMap::new();
+    while let Some(next) = pending.pop() {
+        for entry in std::fs::read_dir(next).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                files.insert(
+                    path.strip_prefix(dir).unwrap().to_path_buf(),
+                    std::fs::read(&path).unwrap(),
+                );
+            }
+        }
+    }
+    files
+}
+
 fn plugin_bin() -> PathBuf {
     if let Ok(p) = std::env::var("CARGO_BIN_EXE_protoc-gen-pbrs") {
         return PathBuf::from(p);
@@ -347,6 +387,111 @@ fn error_malformed_descriptor_identifies_cause() {
         err_fds,
         pbrs::codegen::CodegenError::MalformedDescriptor { .. }
     ));
+}
+
+#[test]
+fn descriptor_set_errors_identify_input_and_preserve_output() {
+    let tmp = test_temp_dir("descriptor-errors");
+    let out_dir = tmp.join("out");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let prior = out_dir.join("hello.rs");
+    std::fs::write(&prior, "prior complete output").unwrap();
+
+    let missing = tmp.join("missing.fds");
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&missing, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::Io { path, source }
+            if path == &missing && source.kind() == std::io::ErrorKind::NotFound
+    ));
+    assert_eq!(err.path(), Some(missing.as_path()));
+    assert!(err.source().is_some());
+    assert!(err.to_string().contains(&missing.display().to_string()));
+
+    let malformed = tmp.join("malformed.fds");
+    std::fs::write(&malformed, [0x0a, 0x05, 0xff]).unwrap();
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&malformed, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::MalformedDescriptor { path: Some(path), detail }
+            if path == &malformed && !detail.is_empty()
+    ));
+    assert_eq!(err.path(), Some(malformed.as_path()));
+    assert!(err.to_string().contains(&malformed.display().to_string()));
+
+    let malformed_file = tmp.join("malformed_file.fds");
+    std::fs::write(&malformed_file, [0x0a, 0x01, 0xff]).unwrap();
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&malformed_file, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::MalformedDescriptor { path: Some(path), .. }
+            if path == &malformed_file
+    ));
+
+    let empty = tmp.join("empty.fds");
+    std::fs::write(&empty, []).unwrap();
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&empty, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::MalformedDescriptor { path: Some(path), .. }
+            if path == &empty
+    ));
+
+    let no_files = tmp.join("no_files.fds");
+    std::fs::write(&no_files, [0x10, 0x01]).unwrap();
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&no_files, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::MalformedDescriptor { path: Some(path), .. }
+            if path == &no_files
+    ));
+
+    let nameless = tmp.join("nameless.fds");
+    std::fs::write(&nameless, [0x0a, 0x00]).unwrap();
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&nameless, &["hello.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::MalformedDescriptor { path: Some(path), .. }
+            if path == &nameless
+    ));
+
+    let known = repo_root().join("tests/fixtures/differential/differential.fds");
+    let err = pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .compile_descriptor_set(&known, &["missing_target.proto"], &["."])
+        .unwrap_err();
+    assert!(matches!(
+        &err,
+        pbrs::codegen::CodegenError::UnknownFile { file, available }
+            if file == "missing_target.proto"
+                && available.iter().any(|(name, _)| name == "differential_proto3.proto")
+    ));
+    assert_eq!(
+        std::fs::read_to_string(&prior).unwrap(),
+        "prior complete output"
+    );
+    assert!(!out_dir.join("mod.rs").exists());
+    assert!(generated_files(&out_dir)
+        .keys()
+        .all(|p| !p.to_string_lossy().contains(".tmp")));
 }
 
 #[test]
@@ -744,11 +889,14 @@ fn find_real_protoc() -> PathBuf {
     PathBuf::from("protoc")
 }
 
-fn cargo_build_verbose(dir: &Path) -> Output {
+fn cargo_build_verbose(dir: &Path, path: Option<&OsStr>) -> Output {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--offline").arg("-vv");
     cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
+    if let Some(p) = path {
+        cmd.env("PATH", p);
+    }
     cmd.output().expect("cargo build -vv")
 }
 
@@ -1005,7 +1153,7 @@ fn main() {
     .unwrap();
 
     // 1. Initial build: build with verbose output to inspect cargo rerun directives.
-    let build_out = cargo_build_verbose(&consumer);
+    let build_out = cargo_build_verbose(&consumer, None);
     assert!(
         build_out.status.success(),
         "consumer initial build failed:\n{}",
@@ -1379,17 +1527,26 @@ enum BetaEnum {
         .expect("compile order 2");
 
     // Read generated files
-    let alpha1 = std::fs::read(&out1.join("alpha.rs")).expect("read alpha1");
-    let alpha2 = std::fs::read(&out2.join("alpha.rs")).expect("read alpha2");
-    assert_eq!(alpha1, alpha2, "alpha.rs must be byte-for-byte identical across input permutations");
+    let alpha1 = std::fs::read(out1.join("alpha.rs")).expect("read alpha1");
+    let alpha2 = std::fs::read(out2.join("alpha.rs")).expect("read alpha2");
+    assert_eq!(
+        alpha1, alpha2,
+        "alpha.rs must be byte-for-byte identical across input permutations"
+    );
 
-    let beta1 = std::fs::read(&out1.join("beta.rs")).expect("read beta1");
-    let beta2 = std::fs::read(&out2.join("beta.rs")).expect("read beta2");
-    assert_eq!(beta1, beta2, "beta.rs must be byte-for-byte identical across input permutations");
+    let beta1 = std::fs::read(out1.join("beta.rs")).expect("read beta1");
+    let beta2 = std::fs::read(out2.join("beta.rs")).expect("read beta2");
+    assert_eq!(
+        beta1, beta2,
+        "beta.rs must be byte-for-byte identical across input permutations"
+    );
 
-    let mod1 = std::fs::read(&out1.join("mod.rs")).expect("read mod1");
-    let mod2 = std::fs::read(&out2.join("mod.rs")).expect("read mod2");
-    assert_eq!(mod1, mod2, "mod.rs must be byte-for-byte identical across input permutations");
+    let mod1 = std::fs::read(out1.join("mod.rs")).expect("read mod1");
+    let mod2 = std::fs::read(out2.join("mod.rs")).expect("read mod2");
+    assert_eq!(
+        mod1, mod2,
+        "mod.rs must be byte-for-byte identical across input permutations"
+    );
 
     // Verify no absolute host paths in output
     let alpha_str = String::from_utf8(alpha1).unwrap();
@@ -1404,10 +1561,319 @@ enum BetaEnum {
     );
 
     // Verify method sorting in service
-    let pos_a = alpha_str.find("fn a_method").expect("must contain a_method");
-    let pos_z = alpha_str.find("fn z_method").expect("must contain z_method");
+    let pos_a = alpha_str
+        .find("fn a_method")
+        .expect("must contain a_method");
+    let pos_z = alpha_str
+        .find("fn z_method")
+        .expect("must contain z_method");
     assert!(
         pos_a < pos_z,
         "service methods must be emitted in deterministic sorted order"
     );
+}
+
+#[test]
+fn descriptor_set_matches_compile_protos_layout_and_stub_modes() {
+    let tmp = test_temp_dir("descriptor-equivalence");
+    let proto_dir = repo_root().join("proto");
+    let proto = proto_dir.join("hello.proto");
+    let fds = tmp.join("hello.fds");
+    write_descriptor_set(&fds, &[&proto], &[&proto_dir], true);
+
+    for (mode, stubs) in [
+        ("messages", pbrs::codegen::Stubs::None),
+        ("native", pbrs::codegen::Stubs::Kernel),
+        ("tonic", pbrs::codegen::Stubs::Tonic),
+    ] {
+        let from_protos = tmp.join(format!("{mode}-protos"));
+        let from_descriptor = tmp.join(format!("{mode}-descriptor"));
+        pbrs::codegen::Config::new()
+            .out_dir(&from_protos)
+            .stubs(stubs)
+            .include_source_info(true)
+            .compile_protos(&[&proto], &[&proto_dir])
+            .expect("compile_protos");
+        pbrs::codegen::Config::new()
+            .out_dir(&from_descriptor)
+            .stubs(stubs)
+            .include_source_info(true)
+            .compile_descriptor_set(&fds, &[&proto], &[&proto_dir])
+            .expect("compile_descriptor_set");
+
+        let expected = generated_files(&from_protos);
+        let actual = generated_files(&from_descriptor);
+        assert!(actual.contains_key(&PathBuf::from("hello.rs")), "{mode}");
+        assert!(actual.contains_key(&PathBuf::from("mod.rs")), "{mode}");
+        assert_eq!(
+            actual, expected,
+            "{mode}: descriptor output differs from protoc"
+        );
+        let hello = std::fs::read_to_string(from_descriptor.join("hello.rs")).unwrap();
+        assert_eq!(
+            hello.contains("pub struct GreeterClient"),
+            stubs != pbrs::codegen::Stubs::None
+        );
+        assert_eq!(
+            hello.contains("::pbrs_grpc"),
+            stubs == pbrs::codegen::Stubs::Kernel
+        );
+        assert_eq!(
+            hello.contains("ProtobufCodec"),
+            stubs == pbrs::codegen::Stubs::Tonic
+        );
+        assert!(
+            hello.contains("FILE_DESCRIPTOR_SET"),
+            "{mode}: reflection lost"
+        );
+    }
+
+    let fixture = repo_root().join("tests/fixtures/codegen-layout/proto");
+    let protos = [
+        fixture.join("pkg_a/common.proto"),
+        fixture.join("pkg_b/common.proto"),
+        fixture.join("pkg_b/service.proto"),
+    ];
+    let fds = tmp.join("multi.fds");
+    write_descriptor_set(
+        &fds,
+        &[&protos[0], &protos[1], &protos[2]],
+        &[&fixture],
+        true,
+    );
+    let from_protos = tmp.join("multi-protos");
+    let from_descriptor = tmp.join("multi-descriptor");
+    pbrs::codegen::Config::new()
+        .out_dir(&from_protos)
+        .stubs(pbrs::codegen::Stubs::None)
+        .include_source_info(true)
+        .compile_protos(&protos, &[&fixture])
+        .expect("compile_protos with colliding stems");
+    pbrs::codegen::Config::new()
+        .out_dir(&from_descriptor)
+        .stubs(pbrs::codegen::Stubs::None)
+        .include_source_info(true)
+        .compile_descriptor_set(&fds, &protos, &[&fixture])
+        .expect("compile_descriptor_set with colliding stems");
+    let expected = generated_files(&from_protos);
+    let actual = generated_files(&from_descriptor);
+    assert!(actual.contains_key(&PathBuf::from("pkg_a/common.rs")));
+    assert!(actual.contains_key(&PathBuf::from("pkg_b/common.rs")));
+    assert!(actual.contains_key(&PathBuf::from("pkg_b/service.rs")));
+    assert!(!actual.contains_key(&PathBuf::from("common.rs")));
+    assert_eq!(actual, expected, "hierarchical layout differs from protoc");
+}
+
+#[test]
+fn checked_descriptor_messages_consumer_builds_without_protoc() {
+    let tmp = test_temp_dir("descriptor-messages-consumer");
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let root = repo_root();
+    let fds = root.join("tests/fixtures/differential/differential.fds");
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-descriptor-messages-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        format!(
+            r#"fn main() {{
+    pbrs::codegen::Config::new()
+        .protoc_path("nonexistent-protoc")
+        .stubs(pbrs::codegen::Stubs::None)
+        .compile_descriptor_set(r"{fds}", &["differential_proto3.proto"], &["."])
+        .expect("generate from checked-in descriptor");
+}}
+"#,
+            fds = fds.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/differential_proto3.rs"));
+use pbrs::Parse;
+fn main() {
+    let message = Proto3Presence::parse(&[0x08, 0x2a]).expect("parse");
+    assert_eq!(message.implicit_int32(), 42);
+    println!("descriptor messages ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let no_protoc = path_without_protoc();
+    assert_filtered_path(&no_protoc);
+    let build = cargo_build_verbose(&tmp, Some(&no_protoc));
+    let log = dump(&build);
+    assert!(
+        build.status.success(),
+        "fresh messages build failed:\n{log}"
+    );
+    assert!(
+        log.contains(&format!("cargo:rerun-if-changed={}", fds.display())),
+        "descriptor path missing from Cargo rebuild metadata:\n{log}"
+    );
+    let run = cargo_run(&tmp, Some(&no_protoc), true);
+    assert!(
+        run.status.success(),
+        "messages consumer failed:\n{}",
+        dump(&run)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "descriptor messages ok"
+    );
+}
+
+#[test]
+fn descriptor_set_native_and_tonic_consumers_build_without_protoc() {
+    let tmp = test_temp_dir("descriptor-stubs-consumer");
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let root = repo_root();
+    let proto_dir = root.join("proto");
+    let proto = proto_dir.join("hello.proto");
+    let fds = tmp.join("hello.fds");
+    write_descriptor_set(&fds, &[&proto], &[&proto_dir], true);
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-descriptor-stubs-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\npbrs-grpc = {{ path = \"{root}/pbrs-grpc\" }}\nprotobuf-tonic = {{ path = \"{root}/protobuf-tonic\" }}\ntonic = {{ version = \"0.14\", default-features = false, features = [\"transport\", \"codegen\", \"router\", \"gzip\"] }}\ntokio = {{ version = \"1\", features = [\"rt-multi-thread\", \"macros\", \"net\", \"time\", \"sync\"] }}\ntokio-stream = {{ version = \"0.1\", features = [\"net\"] }}\nhttp = \"1\"\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(tmp.join("build.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(tmp.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    // These existing adapters compile their own protos in build.rs. Warm them
+    // before hiding protoc; this card only removes the consumer's protoc need.
+    let warm = cargo_run(&tmp, None, true);
+    assert!(
+        warm.status.success(),
+        "adapter prebuild failed:\n{}",
+        dump(&warm)
+    );
+
+    std::fs::write(
+        tmp.join("build.rs"),
+        r#"fn main() {
+    let out = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
+    for (mode, stubs) in [
+        ("native", pbrs::codegen::Stubs::Kernel),
+        ("tonic", pbrs::codegen::Stubs::Tonic),
+    ] {
+        pbrs::codegen::Config::new()
+            .out_dir(out.join(mode))
+            .protoc_path("nonexistent-protoc")
+            .stubs(stubs)
+            .compile_descriptor_set("hello.fds", &["hello.proto"], &["."])
+            .expect("generate stubs from descriptor");
+    }
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"mod native {
+    include!(concat!(env!("OUT_DIR"), "/native/hello.rs"));
+}
+mod tonic_mode {
+    include!(concat!(env!("OUT_DIR"), "/tonic/hello.rs"));
+}
+use pbrs::Parse;
+fn main() {
+    let wire = [0x0a, 0x03, b'a', b'd', b'a'];
+    assert_eq!(native::HelloRequest::parse(&wire).expect("native").name(), "ada");
+    assert_eq!(tonic_mode::HelloRequest::parse(&wire).expect("tonic").name(), "ada");
+    let _ = std::any::type_name::<native::GreeterClient>();
+    let _ = std::any::type_name::<tonic_mode::GreeterClient<tonic::transport::Channel>>();
+    println!("descriptor native and tonic ok");
+}
+"#,
+    )
+    .unwrap();
+
+    let no_protoc = path_without_protoc();
+    assert_filtered_path(&no_protoc);
+    let build = cargo_build_verbose(&tmp, Some(&no_protoc));
+    let log = dump(&build);
+    assert!(
+        build.status.success(),
+        "stubs build without protoc failed:\n{log}"
+    );
+    assert!(
+        log.contains("cargo:rerun-if-changed=hello.fds"),
+        "descriptor rebuild metadata missing:\n{log}"
+    );
+    let run = cargo_run(&tmp, Some(&no_protoc), true);
+    assert!(
+        run.status.success(),
+        "stubs consumer failed:\n{}",
+        dump(&run)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&run.stdout).trim(),
+        "descriptor native and tonic ok"
+    );
+}
+
+#[test]
+fn descriptor_set_tracks_transitive_source_provenance() {
+    let tmp = test_temp_dir("descriptor-provenance");
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = repo_root();
+    let fixture = root.join("tests/fixtures/codegen-layout/proto");
+    let child = fixture.join("reexport/child.proto");
+    let parent = fixture.join("reexport/parent.proto");
+    let grandparent = fixture.join("reexport/grandparent.proto");
+    let fds = consumer.join("reexport.fds");
+    write_descriptor_set(&fds, &[&child], &[&fixture], true);
+
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-descriptor-provenance-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("build.rs"),
+        format!(
+            r#"fn main() {{
+    pbrs::codegen::Config::new()
+        .stubs(pbrs::codegen::Stubs::None)
+        .compile_descriptor_set("reexport.fds", &["reexport/child.proto"], &[r"{fixture}"])
+        .expect("descriptor with transitive imports");
+}}
+"#,
+            fixture = fixture.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(consumer.join("src/main.rs"), "fn main() {}\n").unwrap();
+
+    let no_protoc = path_without_protoc();
+    assert_filtered_path(&no_protoc);
+    let build = cargo_build_verbose(&consumer, Some(&no_protoc));
+    let log = dump(&build);
+    assert!(build.status.success(), "provenance consumer failed:\n{log}");
+    for path in [&fds, &child, &parent, &grandparent] {
+        let entry = if path == &fds {
+            "cargo:rerun-if-changed=reexport.fds".to_string()
+        } else {
+            format!("cargo:rerun-if-changed={}", path.display())
+        };
+        assert!(
+            log.contains(&entry),
+            "missing {entry} in build output:\n{log}"
+        );
+    }
 }

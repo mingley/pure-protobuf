@@ -368,6 +368,18 @@ fn plugin_generates_tonic_stubs_when_env_is_tonic() {
         generated.contains("ProtobufCodec"),
         "tonic stubs must use protobuf-tonic codec, not tonic-prost"
     );
+    for method in ["SayHello", "ClientHello", "ServerHello", "StreamHello"] {
+        let path =
+            format!("http::uri::PathAndQuery::from_static(\"/helloworld.Greeter/{method}\")");
+        assert!(
+            generated.contains(&path),
+            "missing static tonic path: {path}"
+        );
+    }
+    assert!(
+        !generated.contains(".parse().unwrap()"),
+        "tonic stubs must not unwrap a static gRPC path"
+    );
     assert!(
         !generated.contains("::pbrs_grpc::Channel"),
         "tonic stubs must not name the kernel Channel"
@@ -2049,15 +2061,22 @@ message Beta {
     // Permutation 2: [beta, alpha] with permuted blobs
     let req2 = build_req(&["beta.proto", "alpha.proto"], &[blobs[1], blobs[0]]);
 
-    let files1 = pbrs::codegen::generate_from_code_generator_request(&req1)
-        .expect("generate permutation 1");
-    let files2 = pbrs::codegen::generate_from_code_generator_request(&req2)
-        .expect("generate permutation 2");
+    let files1 =
+        pbrs::codegen::generate_from_code_generator_request(&req1).expect("generate permutation 1");
+    let files2 =
+        pbrs::codegen::generate_from_code_generator_request(&req2).expect("generate permutation 2");
 
     assert_eq!(files1.len(), files2.len(), "file counts must match");
     for (f1, f2) in files1.iter().zip(files2.iter()) {
-        assert_eq!(f1.0, f2.0, "file names must match in deterministic sorted order");
-        assert_eq!(f1.1, f2.1, "file content must be byte-identical for {}", f1.0);
+        assert_eq!(
+            f1.0, f2.0,
+            "file names must match in deterministic sorted order"
+        );
+        assert_eq!(
+            f1.1, f2.1,
+            "file content must be byte-identical for {}",
+            f1.0
+        );
     }
 
     let resp1 = pbrs::codegen::encode_code_generator_response(&files1);
@@ -2108,7 +2127,10 @@ message SvcBMsg {
 
     // Process 1: protoc invocation with input order: p_a, p_b
     let status1 = Command::new("protoc")
-        .arg(format!("--plugin=protoc-gen-pbrs={}", plugin_bin().display()))
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
         .arg(format!("--pbrs_out={}", out1.display()))
         .arg("--pbrs_opt=stubs=kernel")
         .arg("-I")
@@ -2121,7 +2143,10 @@ message SvcBMsg {
 
     // Process 2: separate protoc process invocation with permuted input order: p_b, p_a
     let status2 = Command::new("protoc")
-        .arg(format!("--plugin=protoc-gen-pbrs={}", plugin_bin().display()))
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
         .arg(format!("--pbrs_out={}", out2.display()))
         .arg("--pbrs_opt=stubs=kernel")
         .arg("-I")
@@ -2135,15 +2160,24 @@ message SvcBMsg {
     // Compare bytes between the two separate processes
     let bytes_a1 = std::fs::read(out1.join("svc_a.rs")).unwrap();
     let bytes_a2 = std::fs::read(out2.join("svc_a.rs")).unwrap();
-    assert_eq!(bytes_a1, bytes_a2, "svc_a.rs must be byte-identical between separate processes");
+    assert_eq!(
+        bytes_a1, bytes_a2,
+        "svc_a.rs must be byte-identical between separate processes"
+    );
 
     let bytes_b1 = std::fs::read(out1.join("svc_b.rs")).unwrap();
     let bytes_b2 = std::fs::read(out2.join("svc_b.rs")).unwrap();
-    assert_eq!(bytes_b1, bytes_b2, "svc_b.rs must be byte-identical between separate processes");
+    assert_eq!(
+        bytes_b1, bytes_b2,
+        "svc_b.rs must be byte-identical between separate processes"
+    );
 
     let bytes_mod1 = std::fs::read(out1.join("mod.rs")).unwrap();
     let bytes_mod2 = std::fs::read(out2.join("mod.rs")).unwrap();
-    assert_eq!(bytes_mod1, bytes_mod2, "mod.rs must be byte-identical between separate processes");
+    assert_eq!(
+        bytes_mod1, bytes_mod2,
+        "mod.rs must be byte-identical between separate processes"
+    );
 
     // Also assert that identical re-run preserves mtime
     let out3 = tmp.join("proc_out3");
@@ -2154,9 +2188,18 @@ message SvcBMsg {
         .compile_protos(&[&p_a, &p_b], &[&tmp])
         .expect("initial compile out3");
 
-    let mtime_b1 = std::fs::metadata(out3.join("svc_b.rs")).unwrap().modified().unwrap();
-    let mtime_a1 = std::fs::metadata(out3.join("svc_a.rs")).unwrap().modified().unwrap();
-    let mtime_mod1 = std::fs::metadata(out3.join("mod.rs")).unwrap().modified().unwrap();
+    let mtime_b1 = std::fs::metadata(out3.join("svc_b.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let mtime_a1 = std::fs::metadata(out3.join("svc_a.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let mtime_mod1 = std::fs::metadata(out3.join("mod.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
     std::thread::sleep(std::time::Duration::from_millis(50));
 
     // Re-run compilation into out3 with identical inputs using Config
@@ -2166,12 +2209,30 @@ message SvcBMsg {
         .compile_protos(&[&p_a, &p_b], &[&tmp])
         .expect("recompile out3 with identical inputs");
 
-    let mtime_b2 = std::fs::metadata(out3.join("svc_b.rs")).unwrap().modified().unwrap();
-    let mtime_a2 = std::fs::metadata(out3.join("svc_a.rs")).unwrap().modified().unwrap();
-    let mtime_mod2 = std::fs::metadata(out3.join("mod.rs")).unwrap().modified().unwrap();
-    assert_eq!(mtime_b1, mtime_b2, "svc_b.rs mtime must be preserved on identical inputs");
-    assert_eq!(mtime_a1, mtime_a2, "svc_a.rs mtime must be preserved on identical inputs");
-    assert_eq!(mtime_mod1, mtime_mod2, "mod.rs mtime must be preserved on identical inputs");
+    let mtime_b2 = std::fs::metadata(out3.join("svc_b.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let mtime_a2 = std::fs::metadata(out3.join("svc_a.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let mtime_mod2 = std::fs::metadata(out3.join("mod.rs"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    assert_eq!(
+        mtime_b1, mtime_b2,
+        "svc_b.rs mtime must be preserved on identical inputs"
+    );
+    assert_eq!(
+        mtime_a1, mtime_a2,
+        "svc_a.rs mtime must be preserved on identical inputs"
+    );
+    assert_eq!(
+        mtime_mod1, mtime_mod2,
+        "mod.rs mtime must be preserved on identical inputs"
+    );
 }
 
 fn tempfile_dir_lints() -> PathBuf {
@@ -2205,8 +2266,7 @@ fn protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_re
         .expect("run protoc");
     assert!(status.success(), "protoc plugin failed on lint_cases.proto");
 
-    let generated =
-        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+    let generated = std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
 
     // Assert that clippy::restriction is NOT present
     assert!(
@@ -2222,6 +2282,21 @@ fn protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_re
     assert!(
         generated.contains(r#"#[allow(clippy::pedantic, reason = "#),
         "clippy::pedantic must have an explicit reason attribute:\n{generated}"
+    );
+
+    assert_eq!(
+        generated.matches("clippy::expect_used").count(),
+        1,
+        "expect_used must only be allowed on the validated descriptor pool helper"
+    );
+    assert!(
+        generated
+            .lines()
+            .zip(generated.lines().skip(1))
+            .any(|(attribute, next)| attribute
+                .starts_with("#[allow(clippy::expect_used, reason = \"")
+                && next.starts_with("fn generated_pool()")),
+        "expect_used allowance must be scoped to generated_pool"
     );
 
     // Verify all #[allow(...)] and #![allow(...)] occurrences have an explicit reason = "..."
@@ -2255,8 +2330,7 @@ fn protoc_plugin_generated_messages_compile_under_strict_consumer_lint_policy() 
         .expect("run protoc with stubs=none");
     assert!(status.success(), "protoc plugin failed");
 
-    let generated =
-        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+    let generated = std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
 
     let consumer = tmp.join("consumer");
     std::fs::create_dir_all(consumer.join("src")).unwrap();
@@ -2287,8 +2361,9 @@ pbrs = {{ path = "{root}" }}
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
+            #![deny(clippy::expect_used)]
 
-{generated}
+            {generated}
 
 #[test]
 fn test_message_keywords_and_non_standard_casings() {{
@@ -2445,8 +2520,7 @@ fn protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_pol
         .expect("run protoc with stubs=kernel");
     assert!(status.success(), "protoc plugin failed");
 
-    let generated =
-        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+    let generated = std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
 
     let consumer = tmp.join("consumer");
     std::fs::create_dir_all(consumer.join("src")).unwrap();
@@ -2610,8 +2684,7 @@ fn protoc_plugin_generated_tonic_compiles_under_strict_consumer_lint_policy() {
         .expect("run protoc with stubs=tonic");
     assert!(status.success(), "protoc plugin failed");
 
-    let generated =
-        std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
+    let generated = std::fs::read_to_string(tmp.join("lint_cases.rs")).expect("read lint_cases.rs");
 
     let consumer = tmp.join("consumer");
     std::fs::create_dir_all(consumer.join("src")).unwrap();
