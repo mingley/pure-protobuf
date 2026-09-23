@@ -108,7 +108,11 @@ async fn unix_client(path: &std::path::Path) -> ServerReflectionClient {
 fn unix_sock(prefix: &str) -> std::path::PathBuf {
     static N: AtomicUsize = AtomicUsize::new(0);
     let mut path = std::env::temp_dir();
-    let short_prefix = if prefix.len() > 8 { &prefix[..8] } else { prefix };
+    let short_prefix = if prefix.len() > 8 {
+        &prefix[..8]
+    } else {
+        prefix
+    };
     path.push(format!(
         "pbrs-rfl-{short_prefix}-{}-{}.sock",
         std::process::id(),

@@ -302,7 +302,7 @@ fn test_wkt_wrappers_direct_value_differential() {
         "google.protobuf.DoubleValue",
         "wkt_double_wrapper.json",
         "wkt_double_wrapper.textproto",
-        Value::Double(d) => assert_eq!(*d, 2.718281828)
+        Value::Double(d) => assert_eq!(*d, "2.718281828".parse::<f64>().expect("fixture double"))
     );
     check_wrapper!(
         StringValue,
@@ -867,9 +867,9 @@ fn test_maps_key_types_differential() {
     // 2. Integer keys: map_int32_int32 ("-1": 200, "0": 0, "42": 100)
     let json_int = include_str!("fixtures/differential/map_integer_key.json").trim();
     let gen_int = TestAllTypesProto3::from_json(json_int).unwrap();
-    assert_eq!(gen_int.map_int32_int32().get(&42), Some(100));
-    assert_eq!(gen_int.map_int32_int32().get(&-1), Some(200));
-    assert_eq!(gen_int.map_int32_int32().get(&0), Some(0));
+    assert_eq!(gen_int.map_int32_int32().get(42), Some(100));
+    assert_eq!(gen_int.map_int32_int32().get(-1), Some(200));
+    assert_eq!(gen_int.map_int32_int32().get(0), Some(0));
 
     let dyn_int =
         DynamicMessage::from_json_with_pool(desc.clone(), Some(pool.clone()), json_int, false)
@@ -881,8 +881,8 @@ fn test_maps_key_types_differential() {
     // 3. Boolean keys: map_bool_bool ("false": false, "true": true)
     let json_bool = include_str!("fixtures/differential/map_bool_key.json").trim();
     let gen_bool = TestAllTypesProto3::from_json(json_bool).unwrap();
-    assert_eq!(gen_bool.map_bool_bool().get(&true), Some(true));
-    assert_eq!(gen_bool.map_bool_bool().get(&false), Some(false));
+    assert_eq!(gen_bool.map_bool_bool().get(true), Some(true));
+    assert_eq!(gen_bool.map_bool_bool().get(false), Some(false));
 
     let dyn_bool =
         DynamicMessage::from_json_with_pool(desc.clone(), Some(pool.clone()), json_bool, false)
@@ -900,8 +900,8 @@ fn test_maps_key_types_differential() {
     // 4. Text format parsing for maps
     let text_maps = include_str!("fixtures/differential/map_cases.textproto");
     let gen_txt = TestAllTypesProto3::from_text(text_maps).unwrap();
-    assert_eq!(gen_txt.map_int32_int32().get(&42), Some(100));
-    assert_eq!(gen_txt.map_bool_bool().get(&true), Some(true));
+    assert_eq!(gen_txt.map_int32_int32().get(42), Some(100));
+    assert_eq!(gen_txt.map_bool_bool().get(true), Some(true));
     assert_eq!(
         gen_txt
             .map_string_string()

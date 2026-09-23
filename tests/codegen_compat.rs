@@ -358,10 +358,7 @@ fn test_codegen_stub_signatures_all_four_call_shapes() {
         "missing CompatService trait"
     );
     // Unary:
-    assert!(
-        v1_src.contains("fn unary_call"),
-        "missing unary_call in v1"
-    );
+    assert!(v1_src.contains("fn unary_call"), "missing unary_call in v1");
     assert!(
         v1_src.contains("request: ::pbrs_grpc::Request<CompatRequest>"),
         "missing unary request signature"
@@ -728,10 +725,7 @@ fn test_incompatible_generated_runtime_pairs_fail_clearly() {
     let res_missing = Config::new()
         .out_dir(&out_dir)
         .compile_protos(&["nonexistent_schema.proto"], &[proto.parent().unwrap()]);
-    assert!(
-        res_missing.is_err(),
-        "missing proto must fail compilation"
-    );
+    assert!(res_missing.is_err(), "missing proto must fail compilation");
 
     // Malformed descriptors fail cleanly:
     let bad_fds = [0xFF, 0xFF, 0xFF, 0xFF];
@@ -763,8 +757,9 @@ fn test_crate_names_and_application_level_v4_vs_universal_c_abi() {
     let msg = v1::CompatMessage::new();
 
     // Application traits are implemented:
-    fn assert_app_traits<T: Message + Parse + Serialize + Clear + Default + Clone + std::fmt::Debug>(
-    ) {
+    fn assert_app_traits<
+        T: Message + Parse + Serialize + Clear + Default + Clone + std::fmt::Debug,
+    >() {
     }
     assert_app_traits::<v1::CompatMessage>();
     assert_app_traits::<v2::CompatMessage>();
@@ -777,4 +772,3 @@ fn test_crate_names_and_application_level_v4_vs_universal_c_abi() {
     assert!(std::mem::size_of_val(&msg) > 0);
     assert_eq!(v1::CompatMessage::FULL_NAME, "compat.CompatMessage");
 }
-
