@@ -14,7 +14,7 @@ This document specifies the authoritative semantic contract for **Protocol Buffe
 6. **Implementation Mapping & Task Decomposition**: Mapping of every upstream feature to existing code, bounded implementation slices (`CG-13`, `CG-14`), or explicit blockers.
 7. **Approved Fixtures & Oracles**: Test schemas, compiled descriptor sets (`.fds`), wire-format vectors (`.bin`), and negative rejection suites in `tests/fixtures/edition2024/`.
 
-> **Constraint Invariant**: `maximum_edition` in `src/codegen.rs` is **not** raised in this task (`CG-12`). It remains frozen at `1000` (`EDITION_2023`). Raising `maximum_edition` to `1001` is strictly reserved for `CG-14`, only after descriptor resolution semantics (`CG-13`) and differential test evidence are complete.
+> **Constraint Invariant**: `maximum_edition` in `src/codegen.rs` remains frozen at `1000` (`EDITION_2023`) through `CG-13`. Raising it to `1001` is strictly reserved for `CG-14`, only after descriptor resolution semantics and differential test evidence are complete.
 
 ---
 
@@ -94,7 +94,8 @@ Protocol Buffers Edition 2024 represents the second official edition release. It
 - **Semantics**:
   - Enforces strict canonical protobuf casing:
     - Messages, Enums, Services: `PascalCase`.
-    - Fields, Methods: `lower_snake_case`.
+    - Fields, Oneofs: `lower_snake_case`.
+    - RPC Methods: `TitleCase`.
     - Enum Values: `SCREAMING_SNAKE_CASE`.
   - Non-conformant identifiers (e.g. `message badName { int32 BadField = 1; }`) are rejected at compile time unless explicitly opted out with `features.enforce_naming_style = STYLE_LEGACY`.
 
@@ -226,9 +227,17 @@ In Edition 2024, symbol visibility controls cross-file encapsulation.
 
 Under `enforce_naming_style = STYLE2024`:
 - Messages, Enums, Services: `PascalCase`.
-- Fields, Methods: `lower_snake_case`.
+- Fields, Oneofs: `lower_snake_case`.
+- RPC Methods: `TitleCase`.
 - Enum Values: `SCREAMING_SNAKE_CASE`.
-- `pure-protobuf`'s code generator (`src/codegen.rs`) already maps identifiers through `sanitize_ident` and `snake_case` helpers. `STYLE2024` guarantees that incoming descriptor names are cleanly normalized without conflicting collisions.
+- `DescriptorPool` validates inherited naming options in Edition 2024
+  descriptors. The generator still advertises Edition 2023 as its maximum;
+  generated Edition 2024 consumers remain a separate `CG-14` qualification.
+
+The RPC method rule was verified with `libprotoc 36.1` on 2026-09-23:
+`bad_method` is rejected with a `TitleCase` diagnostic, while `GoodMethod`
+is accepted. The independently runnable Edition 2023 conformance baseline
+remains pinned to v35.1.
 
 ---
 
@@ -317,17 +326,17 @@ Protocol Buffers defines several language-specific feature extensions in `descri
 | `field_presence = IMPLICIT` | `src/dynamic.rs` | Supported in `parse_field_options()` (`presence = 2`) | Existing | Verified by `tests/fixtures/edition2024/bin/overrides_implicit_zero.bin` |
 | `field_presence = LEGACY_REQUIRED` | `src/dynamic.rs` | Supported (`cardinality = Required`, `presence = Explicit`) | Existing | Verified by `tests/fixtures/edition2024/proto/overrides.proto` |
 | `enum_type = OPEN` | `src/dynamic.rs` | Supported in `edition_defaults()` (`enum_type = 1`) | Existing | Open enum integer round-trip verified |
-| `enum_type = CLOSED` (Enum-level) | `src/dynamic.rs` | **Missing**: `parse_enum_options` ignores tag 7 | **CG-13** | Must parse `EnumOptions.features` and set `e.closed = true` |
+| `enum_type = CLOSED` (Enum-level) | `src/dynamic.rs` | Resolved from `EnumOptions.features`; unknown integers stay in unknown fields | **CG-13** | Checked descriptor and wire fixture tests in `tests/dynamic.rs` |
 | `repeated_field_encoding = PACKED` | `src/dynamic.rs` | Supported (`repeated_encoding = 1`) | Existing | Verified by `tests/fixtures/edition2024/bin/defaults_populated.bin` |
 | `repeated_field_encoding = EXPANDED`| `src/dynamic.rs` | Supported (`repeated_encoding = 2`) | Existing | Verified by `tests/fixtures/edition2024/bin/overrides_expanded_repeated.bin` |
 | `utf8_validation = VERIFY` | `src/dynamic.rs` | Supported (`utf8 = 2`) | Existing | UTF-8 verify on parse active |
 | `utf8_validation = NONE` | `src/dynamic.rs` | Supported (`utf8 = 3`, sets `utf8_validate = false`) | Existing | Raw string bytes accepted |
 | `message_encoding = LENGTH_PREFIXED`| `src/dynamic.rs` | Supported (`message_encoding = 1`) | Existing | Standard length-delimited wire encoding |
 | `message_encoding = DELIMITED` | `src/dynamic.rs` | Supported (`message_encoding = 2`, `delimited = true`)| Existing | Verified by `tests/fixtures/edition2024/bin/overrides_delimited_message.bin` |
-| `json_format` | `src/dynamic.rs` | **Missing**: Tag 6 ignored in `parse_features` | **CG-13** | Must parse tag 6 and attach to Message/Enum descriptors |
-| `enforce_naming_style = STYLE2024` | `src/codegen.rs` | Supported via `sanitize_ident` and naming helpers | Existing | protoc validates upstream; codegen hygiene intact |
-| `default_symbol_visibility` | `src/dynamic.rs` | **Missing**: Tag 8 ignored in `parse_features` | **CG-13** | Must parse tag 8 and attach to file descriptors |
-| `export` / `local` keywords | `src/dynamic.rs` | **Missing**: `visibility` tag on Message/Enum ignored | **CG-13** | Must parse tag 11 on Message and tag 6 on Enum |
+| `json_format` | `src/dynamic.rs` | Resolved from File/Message/Enum feature options | **CG-13** | Inheritance and fixture oracles in `tests/dynamic.rs` |
+| `enforce_naming_style = STYLE2024` | `src/dynamic.rs` | Descriptor names validated with inherited overrides; generated consumers pending | **CG-13**, **CG-14** | The plugin still advertises maximum Edition 2023 |
+| `default_symbol_visibility` | `src/dynamic.rs` | Resolved from file features | **CG-13** | Nested defaults and file overrides checked in `tests/dynamic.rs` |
+| `export` / `local` keywords | `src/dynamic.rs` | Parsed on Message/Enum and enforced for cross-file references | **CG-13** | Local imports rejected by fixture tests |
 | Extension Ranges & Declarations | `src/dynamic.rs` | Supported (`parse_extension_range`, `collect_raw`) | Existing | Fully parsed into `MessageDescriptor.extension_ranges` |
 | Dynamic Extension Access | `src/dynamic.rs` | Supported (`get_extension`, `set_extension`) | Existing | Verified by `tests/json_text_ext.rs` |
 | Typed Extension Codegen | `src/codegen.rs` | Not implemented (matches upstream rust_upb stub) | **CG-14b** | Split task card for typed extension accessors |

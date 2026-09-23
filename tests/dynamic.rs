@@ -804,6 +804,256 @@ fn edition2024_wire(name: &str) -> Vec<u8> {
         .expect("pinned Edition 2024 wire vector")
 }
 
+fn edition2024_assert_field_oracle(field: &FieldDescriptor, expected: &serde_json::Value) {
+    assert_eq!(field.name, expected["name"].as_str().expect("field name"));
+    assert_eq!(
+        u64::from(field.number),
+        expected["number"],
+        "{}",
+        field.name
+    );
+    let expected_type = match expected["type"].as_str().expect("field type") {
+        "TYPE_INT32" => FieldType::Int32,
+        "TYPE_INT64" => FieldType::Int64,
+        "TYPE_UINT32" => FieldType::Uint32,
+        "TYPE_UINT64" => FieldType::Uint64,
+        "TYPE_BOOL" => FieldType::Bool,
+        "TYPE_STRING" => FieldType::String,
+        "TYPE_BYTES" => FieldType::Bytes,
+        "TYPE_MESSAGE" => FieldType::Message,
+        "TYPE_ENUM" => FieldType::Enum,
+        other => panic!("unhandled reference field type {other}"),
+    };
+    assert_eq!(field.field_type, expected_type, "{}", field.name);
+    if let Some(name) = expected["type_name"].as_str() {
+        assert_eq!(
+            field
+                .type_name
+                .as_deref()
+                .map(|name| name.trim_start_matches('.')),
+            Some(name),
+            "{}",
+            field.name
+        );
+    }
+    if let Some(cardinality) = expected["cardinality"].as_str() {
+        assert_eq!(
+            field.cardinality,
+            match cardinality {
+                "OPTIONAL" => Cardinality::Optional,
+                "REQUIRED" => Cardinality::Required,
+                "REPEATED" => Cardinality::Repeated,
+                other => panic!("unhandled reference cardinality {other}"),
+            },
+            "{}",
+            field.name
+        );
+    }
+    if let Some(presence) = expected["presence"].as_str() {
+        assert_eq!(
+            field.presence,
+            match presence {
+                "EXPLICIT" => Presence::Explicit,
+                "IMPLICIT" => Presence::Implicit,
+                other => panic!("unhandled reference presence {other}"),
+            },
+            "{}",
+            field.name
+        );
+    }
+    for (actual, key) in [
+        (field.packed, "packed"),
+        (field.utf8_validate, "utf8_validate"),
+        (field.delimited, "delimited"),
+        (field.is_map, "is_map"),
+    ] {
+        if let Some(value) = expected.get(key) {
+            assert_eq!(
+                actual,
+                value.as_bool().expect("boolean oracle"),
+                "{}.{key}",
+                field.name
+            );
+        }
+    }
+    if let Some(default) = expected["default_value"].as_str() {
+        assert_eq!(field.default.as_deref(), Some(default), "{}", field.name);
+    }
+    if let Some(extendee) = expected["extendee"].as_str() {
+        assert_eq!(
+            field
+                .extendee
+                .as_deref()
+                .map(|name| name.trim_start_matches('.')),
+            Some(extendee),
+            "{}",
+            field.name
+        );
+    }
+}
+
+fn edition2024_assert_symbol_oracle(
+    pool: &DescriptorPool,
+    expected: &serde_json::Value,
+    name: &str,
+) {
+    if let Some(visibility) = expected["visibility"]
+        .as_str()
+        .or_else(|| expected["effective_visibility"].as_str())
+    {
+        let visibility = match visibility {
+            "LOCAL" => 1,
+            "EXPORT" => 2,
+            other => panic!("unhandled effective visibility {other}"),
+        };
+        assert_eq!(
+            pool.effective_symbol_visibility(name),
+            Some(visibility),
+            "{name}"
+        );
+    }
+    if let Some(declared) = expected["declared_visibility"].as_str() {
+        let value = match declared {
+            "UNSET" => 0,
+            "LOCAL" => 1,
+            "EXPORT" => 2,
+            other => panic!("unhandled declared visibility {other}"),
+        };
+        assert_eq!(pool.declared_symbol_visibility(name), Some(value), "{name}");
+    }
+    if let Some(json_format) = expected["json_format"].as_str() {
+        let value = match json_format {
+            "ALLOW" => 1,
+            "LEGACY_BEST_EFFORT" => 2,
+            other => panic!("unhandled JSON format {other}"),
+        };
+        assert_eq!(pool.symbol_json_format(name), Some(value), "{name}");
+    }
+    assert_eq!(pool.symbol_naming_style(name), Some(1), "{name}");
+}
+
+fn edition2024_assert_enum_oracle(
+    pool: &DescriptorPool,
+    expected: &serde_json::Value,
+    parent: &str,
+) {
+    let name = expected["full_name"]
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("{parent}.{}", expected["name"].as_str().expect("enum name")));
+    let en = pool.get_enum(&name).expect("reference enum");
+    edition2024_assert_symbol_oracle(pool, expected, &name);
+    if let Some(closed) = expected.get("closed") {
+        assert_eq!(
+            en.closed,
+            closed.as_bool().expect("enum openness"),
+            "{name}"
+        );
+    }
+    if let Some(values) = expected["values"].as_array() {
+        assert_eq!(en.listed.len(), values.len(), "{name}");
+        for ((number, enum_name), value) in en.listed.iter().zip(values) {
+            assert_eq!(i64::from(*number), value["number"], "{name}");
+            assert_eq!(
+                enum_name,
+                value["name"].as_str().expect("enum value"),
+                "{name}"
+            );
+        }
+    }
+}
+
+fn edition2024_assert_message_oracle(
+    pool: &DescriptorPool,
+    expected: &serde_json::Value,
+    parent: &str,
+) {
+    let name = expected["full_name"]
+        .as_str()
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            format!(
+                "{parent}.{}",
+                expected["name"].as_str().expect("message name")
+            )
+        });
+    let msg = pool.get_message(&name).expect("reference message");
+    edition2024_assert_symbol_oracle(pool, expected, &name);
+    if let Some(fields) = expected["fields"].as_array() {
+        for field in fields {
+            let number = u32::try_from(field["number"].as_u64().expect("field number"))
+                .expect("valid field number");
+            edition2024_assert_field_oracle(msg.field(number).expect("reference field"), field);
+        }
+    }
+    if let Some(ranges) = expected["extension_ranges"].as_array() {
+        assert_eq!(msg.extension_ranges.len(), ranges.len(), "{name}");
+        for ((start, end), range) in msg.extension_ranges.iter().zip(ranges) {
+            assert_eq!(u64::from(*start), range[0], "{name}");
+            assert_eq!(u64::from(end - 1), range[1], "{name}");
+        }
+    }
+    if let Some(extensions) = expected["nested_extensions"].as_array() {
+        for ext in extensions {
+            let full_name = format!("{name}.{}", ext["name"].as_str().expect("extension name"));
+            let (owner, field) = pool.get_extension(&full_name).expect("nested extension");
+            assert_eq!(owner.full_name, ext["extendee"].as_str().unwrap(), "{name}");
+            edition2024_assert_field_oracle(&field, ext);
+        }
+    }
+    if let Some(nested) = expected["nested_messages"].as_array() {
+        for child in nested {
+            edition2024_assert_message_oracle(pool, child, &name);
+        }
+    }
+    if let Some(nested) = expected["nested_enums"].as_array() {
+        for child in nested {
+            edition2024_assert_enum_oracle(pool, child, &name);
+        }
+    }
+}
+
+#[test]
+fn edition2024_resolved_descriptors_match_complete_fixture_oracles() {
+    for name in [
+        "defaults",
+        "overrides",
+        "inheritance",
+        "visibility",
+        "extensions",
+    ] {
+        let path = format!("tests/fixtures/edition2024/expectations/{name}.json");
+        let expected: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path))
+                .expect("reference expectation"),
+        )
+        .expect("reference JSON");
+        let pool = edition2024_fds(name);
+        let package = expected["package"].as_str().expect("package");
+        assert_eq!(
+            file_feature_values(&pool, expected["file"].as_str().expect("file name")),
+            (1001, 1, 1, 2),
+            "{name}"
+        );
+        for message in expected["messages"].as_array().expect("messages") {
+            edition2024_assert_message_oracle(&pool, message, package);
+        }
+        if let Some(enums) = expected["enums"].as_array() {
+            for en in enums {
+                edition2024_assert_enum_oracle(&pool, en, package);
+            }
+        }
+        if let Some(extensions) = expected["file_extensions"].as_array() {
+            for ext in extensions {
+                let full_name = format!("{package}.{}", ext["name"].as_str().expect("extension"));
+                let (owner, field) = pool.get_extension(&full_name).expect("reference extension");
+                assert_eq!(owner.full_name, ext["extendee"].as_str().unwrap());
+                edition2024_assert_field_oracle(&field, ext);
+            }
+        }
+    }
+}
+
 #[test]
 fn edition2024_field_defaults_and_wire_match_pinned_fixture() {
     let pool = std::sync::Arc::new(edition2024_fds("defaults"));
@@ -837,10 +1087,23 @@ fn edition2024_field_defaults_and_wire_match_pinned_fixture() {
     assert!(parsed.has(6), "empty string still has explicit presence");
     assert_eq!(parsed.serialize().expect("serialize zero"), zero_set);
     let populated = edition2024_wire("defaults_populated");
-    let parsed = DynamicMessage::parse_with_pool(desc, Some(pool), &populated)
+    let parsed = DynamicMessage::parse_with_pool(desc.clone(), Some(pool), &populated)
         .expect("populated reference vector");
     assert_eq!(parsed.get_repeated(10).map(|items| items.len()), Some(3));
     assert_eq!(parsed.serialize().expect("serialize populated"), populated);
+    assert!(
+        DynamicMessage::parse_with(desc.clone(), &[0x6a, 0x05, 0x0a, 0x01, 0xff, 0x10, 0x01])
+            .is_err(),
+        "the map entry's string key must still validate UTF-8"
+    );
+
+    let unknown_enum = [0x40, 0x63];
+    let parsed = DynamicMessage::parse_with(desc, &unknown_enum).expect("open enum");
+    assert_eq!(parsed.get_singular(8), Some(&Value::Enum(99)));
+    assert_eq!(
+        parsed.serialize().expect("serialize open enum"),
+        unknown_enum
+    );
 }
 
 #[test]
@@ -864,6 +1127,28 @@ fn edition2024_field_and_enum_overrides_match_pinned_descriptors() {
         pool.get_enum("edition2024.overrides.ClosedEnum")
             .expect("ClosedEnum")
             .closed
+    );
+
+    let mut implicit = DynamicMessage::new(desc.clone());
+    implicit.set(2, Value::Int32(1));
+    implicit.set(1, Value::Int32(0));
+    let mut expected = edition2024_wire("overrides_implicit_zero");
+    expected.extend([0x10, 0x01]);
+    assert_eq!(implicit.serialize().expect("implicit zero"), expected);
+    implicit.set(1, Value::Int32(42));
+    let mut expected = edition2024_wire("overrides_implicit_set");
+    expected.extend([0x10, 0x01]);
+    assert_eq!(implicit.serialize().expect("implicit value"), expected);
+    assert_eq!(
+        DynamicMessage::parse_with(desc.clone(), &expected)
+            .expect("implicit wire")
+            .get_singular(1),
+        Some(&Value::Int32(42))
+    );
+    assert!(
+        DynamicMessage::parse_with(desc.clone(), &edition2024_wire("overrides_implicit_zero"))
+            .is_err(),
+        "LEGACY_REQUIRED must reject a missing field"
     );
 
     let mut expanded = vec![0x10, 0x01];
@@ -931,6 +1216,46 @@ fn edition2024_field_and_enum_overrides_match_pinned_descriptors() {
     assert!(edition2024_fds("visibility")
         .get_message("edition2024.visibility.DefaultTopLevelMessage.ExportedNestedMessage")
         .is_some());
+}
+
+#[test]
+fn edition2024_extensions_match_pinned_wire_and_closed_enum() {
+    let pool = std::sync::Arc::new(edition2024_fds("extensions"));
+    let desc = pool
+        .get_message("edition2024.extensions.ExtendableMessage")
+        .expect("extension host");
+    let bytes = edition2024_wire("extensions_populated");
+    let parsed = DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &bytes)
+        .expect("reference extension vector");
+    assert_eq!(parsed.get_singular(1), Some(&Value::Int32(1)));
+    assert_eq!(parsed.get_extension(101), Some(&Value::Int32(101)));
+    match parsed.get_extension(102) {
+        Some(Value::String(value)) => assert_eq!(value.as_view(), "ext"),
+        other => panic!("missing string extension: {other:?}"),
+    }
+    assert_eq!(
+        parsed.get_repeated(103),
+        Some(&[Value::Int32(7), Value::Int32(8)][..])
+    );
+    match parsed.get_extension(104) {
+        Some(Value::Message(value)) => match value.get_singular(1) {
+            Some(Value::String(detail)) => assert_eq!(detail.as_view(), "ext_sub"),
+            other => panic!("missing submessage extension detail: {other:?}"),
+        },
+        other => panic!("missing submessage extension: {other:?}"),
+    }
+    assert_eq!(parsed.get_extension(105), Some(&Value::Enum(1)));
+    assert_eq!(parsed.get_extension(106), Some(&Value::Int32(99)));
+    assert_eq!(parsed.serialize().expect("serialize extensions"), bytes);
+
+    let unknown_enum = [0x08, 0x01, 0xc8, 0x06, 0x63];
+    let parsed = DynamicMessage::parse_with_pool(desc, Some(pool), &unknown_enum)
+        .expect("closed extension enum");
+    assert!(!parsed.has_extension(105));
+    assert_eq!(
+        parsed.serialize().expect("preserve unknown extension enum"),
+        unknown_enum
+    );
 }
 
 #[test]
@@ -1123,7 +1448,11 @@ fn edition2024_file_metadata_overrides_reach_nested_symbols() {
     }
 }
 
-fn edition2024_visibility_consumer(type_name: &str, field_type: u64) -> Vec<u8> {
+fn edition2024_visibility_consumer(
+    type_name: &str,
+    field_type: u64,
+    dependency: Option<&str>,
+) -> Vec<u8> {
     let mut fds = std::fs::read(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/tests/fixtures/edition2024/fds/visibility.fds"
@@ -1132,7 +1461,9 @@ fn edition2024_visibility_consumer(type_name: &str, field_type: u64) -> Vec<u8> 
     let mut file = Vec::new();
     protobuf_test_encode_string(&mut file, 1, "consumer.proto");
     protobuf_test_encode_string(&mut file, 2, "edition2024.consumer");
-    protobuf_test_encode_string(&mut file, 3, "visibility.proto");
+    if let Some(dependency) = dependency {
+        protobuf_test_encode_string(&mut file, 3, dependency);
+    }
     protobuf_test_encode_string(&mut file, 12, "editions");
     protobuf_test_encode_varint(&mut file, 14, 1001);
     let mut message = Vec::new();
@@ -1177,7 +1508,7 @@ fn edition2024_visibility_service_consumer(input_type: &str) -> Vec<u8> {
     fds
 }
 
-fn edition2024_visibility_extension_consumer(local_type: bool) -> Vec<u8> {
+fn edition2024_visibility_extension_consumer(type_name: &str, extendee: &str) -> Vec<u8> {
     let mut defs = Vec::new();
     protobuf_test_encode_string(&mut defs, 1, "defs.proto");
     protobuf_test_encode_string(&mut defs, 2, "scoped");
@@ -1192,7 +1523,7 @@ fn edition2024_visibility_extension_consumer(local_type: bool) -> Vec<u8> {
     protobuf_test_encode_len(&mut defs, 4, &target);
     let mut extension_type = Vec::new();
     protobuf_test_encode_string(&mut extension_type, 1, "ExtensionType");
-    protobuf_test_encode_varint(&mut extension_type, 11, if local_type { 1 } else { 2 });
+    protobuf_test_encode_varint(&mut extension_type, 11, 1);
     protobuf_test_encode_len(&mut defs, 4, &extension_type);
 
     let mut consumer = Vec::new();
@@ -1203,11 +1534,11 @@ fn edition2024_visibility_extension_consumer(local_type: bool) -> Vec<u8> {
     protobuf_test_encode_varint(&mut consumer, 14, 1001);
     let mut field = Vec::new();
     protobuf_test_encode_string(&mut field, 1, "external");
-    protobuf_test_encode_string(&mut field, 2, ".scoped.Target");
+    protobuf_test_encode_string(&mut field, 2, extendee);
     protobuf_test_encode_varint(&mut field, 3, 101);
     protobuf_test_encode_varint(&mut field, 4, 1);
     protobuf_test_encode_varint(&mut field, 5, 11);
-    protobuf_test_encode_string(&mut field, 6, ".scoped.ExtensionType");
+    protobuf_test_encode_string(&mut field, 6, type_name);
     protobuf_test_encode_len(&mut consumer, 7, &field);
 
     let mut fds = Vec::new();
@@ -1228,7 +1559,9 @@ fn edition2024_cross_file_local_symbols_are_rejected() {
     ] {
         assert!(
             DescriptorPool::from_file_descriptor_set(&edition2024_visibility_consumer(
-                name, field_type
+                name,
+                field_type,
+                Some("visibility.proto"),
             ))
             .is_ok(),
             "cross-file exported symbol {name} must remain accessible"
@@ -1244,7 +1577,9 @@ fn edition2024_cross_file_local_symbols_are_rejected() {
     ] {
         assert!(
             DescriptorPool::from_file_descriptor_set(&edition2024_visibility_consumer(
-                name, field_type
+                name,
+                field_type,
+                Some("visibility.proto"),
             ))
             .is_err(),
             "cross-file local symbol {name} must be rejected"
@@ -1265,15 +1600,33 @@ fn edition2024_cross_file_local_symbols_are_rejected() {
         "service must not reference a cross-file local request type"
     );
     assert!(
-        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(false))
-            .is_ok(),
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(
+            ".scoped.Target",
+            ".scoped.Target",
+        ))
+        .is_ok(),
         "extension may reference an exported cross-file type"
     );
     assert!(
-        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(true))
-            .is_err(),
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(
+            ".scoped.ExtensionType",
+            ".scoped.Target",
+        ))
+        .is_err(),
         "extension must not reference a cross-file local type"
     );
+    for (type_name, extendee) in [
+        (".scoped.MissingType", ".scoped.Target"),
+        (".scoped.Target", ".scoped.MissingTarget"),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_visibility_extension_consumer(
+                type_name, extendee
+            ))
+            .is_err(),
+            "unresolved extension reference {type_name} / {extendee}"
+        );
+    }
 
     let mut file = Vec::new();
     protobuf_test_encode_string(&mut file, 1, "same_file.proto");
@@ -1300,6 +1653,60 @@ fn edition2024_cross_file_local_symbols_are_rejected() {
         DescriptorPool::from_file_descriptor_set(&fds).is_ok(),
         "same-file references to local types remain valid"
     );
+
+    for (type_name, field_type, dependency) in [
+        (
+            ".edition2024.visibility.UnknownMessage",
+            11,
+            Some("visibility.proto"),
+        ),
+        (
+            ".edition2024.visibility.ExportedTopLevelEnum",
+            11,
+            Some("visibility.proto"),
+        ),
+        (".edition2024.visibility.ExportedTopLevelMessage", 11, None),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_visibility_consumer(
+                type_name, field_type, dependency
+            ))
+            .is_err(),
+            "unresolved or unimported 2024 type {type_name} must be rejected"
+        );
+    }
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_visibility_service_consumer(
+            ".edition2024.visibility.MissingRequest"
+        ))
+        .is_err(),
+        "unresolved service request type must not be accepted"
+    );
+}
+
+#[test]
+fn edition2024_visibility_allows_transitive_public_imports_only() {
+    for public in [false, true] {
+        let mut fds = edition2024_visibility_consumer(
+            ".edition2024.visibility.ExportedTopLevelMessage",
+            11,
+            Some("facade.proto"),
+        );
+        let mut facade = Vec::new();
+        protobuf_test_encode_string(&mut facade, 1, "facade.proto");
+        protobuf_test_encode_string(&mut facade, 3, "visibility.proto");
+        protobuf_test_encode_string(&mut facade, 12, "editions");
+        protobuf_test_encode_varint(&mut facade, 14, 1001);
+        if public {
+            protobuf_test_encode_varint(&mut facade, 10, 0);
+        }
+        protobuf_test_encode_len(&mut fds, 1, &facade);
+        assert_eq!(
+            DescriptorPool::from_file_descriptor_set(&fds).is_ok(),
+            public,
+            "only a public transitive import exposes the type"
+        );
+    }
 }
 
 #[test]
@@ -1394,18 +1801,43 @@ fn edition_feature_fds_with_features(target: &str, features: &[u8], edition: u64
     protobuf_test_encode_varint(&mut field, 3, 1);
     protobuf_test_encode_varint(&mut field, 4, 1);
     protobuf_test_encode_varint(&mut field, 5, 5);
+    if target == "oneof" {
+        protobuf_test_encode_varint(&mut field, 9, 0);
+    }
     if target == "field" {
         let mut options = Vec::new();
         protobuf_test_encode_len(&mut options, 21, features);
         protobuf_test_encode_len(&mut field, 8, &options);
     }
     protobuf_test_encode_len(&mut message, 2, &field);
+    if target == "oneof" {
+        let mut oneof = Vec::new();
+        protobuf_test_encode_string(&mut oneof, 1, "choice");
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 1, features);
+        protobuf_test_encode_len(&mut oneof, 2, &options);
+        protobuf_test_encode_len(&mut message, 8, &oneof);
+    }
+    if target == "extension_range" {
+        let mut range = Vec::new();
+        protobuf_test_encode_varint(&mut range, 1, 100);
+        protobuf_test_encode_varint(&mut range, 2, 101);
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 50, features);
+        protobuf_test_encode_len(&mut range, 3, &options);
+        protobuf_test_encode_len(&mut message, 5, &range);
+    }
     protobuf_test_encode_len(&mut file, 4, &message);
     let mut en = Vec::new();
     protobuf_test_encode_string(&mut en, 1, "Kind");
     let mut zero = Vec::new();
     protobuf_test_encode_string(&mut zero, 1, "KIND_ZERO");
     protobuf_test_encode_varint(&mut zero, 2, 0);
+    if target == "enum_value" {
+        let mut options = Vec::new();
+        protobuf_test_encode_len(&mut options, 2, features);
+        protobuf_test_encode_len(&mut zero, 3, &options);
+    }
     protobuf_test_encode_len(&mut en, 2, &zero);
     if target == "enum" {
         let mut options = Vec::new();
@@ -1413,22 +1845,355 @@ fn edition_feature_fds_with_features(target: &str, features: &[u8], edition: u64
         protobuf_test_encode_len(&mut en, 3, &options);
     }
     protobuf_test_encode_len(&mut file, 5, &en);
-    if target == "method" {
+    if matches!(target, "method" | "service") {
         let mut service = Vec::new();
         protobuf_test_encode_string(&mut service, 1, "Service");
         let mut method = Vec::new();
-        protobuf_test_encode_string(&mut method, 1, "call");
+        protobuf_test_encode_string(
+            &mut method,
+            1,
+            if target == "method" { "call" } else { "Call" },
+        );
         protobuf_test_encode_string(&mut method, 2, ".features.Message");
         protobuf_test_encode_string(&mut method, 3, ".features.Message");
         let mut options = Vec::new();
         protobuf_test_encode_len(&mut options, 35, features);
         protobuf_test_encode_len(&mut method, 4, &options);
         protobuf_test_encode_len(&mut service, 2, &method);
+        if target == "service" {
+            let mut options = Vec::new();
+            protobuf_test_encode_len(&mut options, 34, features);
+            protobuf_test_encode_len(&mut service, 3, &options);
+        }
         protobuf_test_encode_len(&mut file, 6, &service);
     }
     let mut fds = Vec::new();
     protobuf_test_encode_len(&mut fds, 1, &file);
     fds
+}
+
+fn edition2024_naming_override(desc: &mut Vec<u8>, options_tag: u32, features_tag: u32) {
+    let mut features = Vec::new();
+    protobuf_test_encode_varint(&mut features, 7, 2);
+    let mut options = Vec::new();
+    protobuf_test_encode_len(&mut options, features_tag, &features);
+    protobuf_test_encode_len(desc, options_tag, &options);
+}
+
+fn edition2024_naming_fds(target: &str, override_at: Option<&str>, edition: u64) -> Vec<u8> {
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "naming.proto");
+    protobuf_test_encode_string(&mut file, 2, "features");
+    protobuf_test_encode_string(&mut file, 12, "editions");
+    protobuf_test_encode_varint(&mut file, 14, edition);
+    if override_at == Some("file") {
+        edition2024_naming_override(&mut file, 8, 50);
+    }
+
+    let mut message = Vec::new();
+    protobuf_test_encode_string(
+        &mut message,
+        1,
+        if target == "message" {
+            "badName"
+        } else {
+            "Message"
+        },
+    );
+    let mut field = Vec::new();
+    protobuf_test_encode_string(
+        &mut field,
+        1,
+        if target == "field" {
+            "badField"
+        } else {
+            "value"
+        },
+    );
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, 5);
+    if target == "oneof" {
+        protobuf_test_encode_varint(&mut field, 9, 0);
+    }
+    if override_at == Some("field") {
+        edition2024_naming_override(&mut field, 8, 21);
+    }
+    protobuf_test_encode_len(&mut message, 2, &field);
+    if target == "oneof" {
+        let mut oneof = Vec::new();
+        protobuf_test_encode_string(&mut oneof, 1, "badName");
+        if override_at == Some("oneof") {
+            edition2024_naming_override(&mut oneof, 2, 1);
+        }
+        protobuf_test_encode_len(&mut message, 8, &oneof);
+    }
+    if target == "nested_message" {
+        let mut nested = Vec::new();
+        protobuf_test_encode_string(&mut nested, 1, "badNested");
+        if override_at == Some("nested_message") {
+            edition2024_naming_override(&mut nested, 7, 12);
+        }
+        protobuf_test_encode_len(&mut message, 3, &nested);
+    }
+    if target == "extension" {
+        let mut range = Vec::new();
+        protobuf_test_encode_varint(&mut range, 1, 100);
+        protobuf_test_encode_varint(&mut range, 2, 101);
+        protobuf_test_encode_len(&mut message, 5, &range);
+    }
+    if override_at == Some("message") {
+        edition2024_naming_override(&mut message, 7, 12);
+    }
+    protobuf_test_encode_len(&mut file, 4, &message);
+    if target == "extension" {
+        let mut ext = Vec::new();
+        protobuf_test_encode_string(&mut ext, 1, "badField");
+        protobuf_test_encode_string(&mut ext, 2, ".features.Message");
+        protobuf_test_encode_varint(&mut ext, 3, 100);
+        protobuf_test_encode_varint(&mut ext, 4, 1);
+        protobuf_test_encode_varint(&mut ext, 5, 5);
+        if override_at == Some("extension") {
+            edition2024_naming_override(&mut ext, 8, 21);
+        }
+        protobuf_test_encode_len(&mut file, 7, &ext);
+    }
+
+    let mut en = Vec::new();
+    protobuf_test_encode_string(
+        &mut en,
+        1,
+        if target == "enum" { "badName" } else { "Kind" },
+    );
+    let mut value = Vec::new();
+    protobuf_test_encode_string(
+        &mut value,
+        1,
+        if target == "enum_value" {
+            "badValue"
+        } else {
+            "KIND_ZERO"
+        },
+    );
+    protobuf_test_encode_varint(&mut value, 2, 0);
+    if override_at == Some("enum_value") {
+        edition2024_naming_override(&mut value, 3, 2);
+    }
+    protobuf_test_encode_len(&mut en, 2, &value);
+    if override_at == Some("enum") {
+        edition2024_naming_override(&mut en, 3, 7);
+    }
+    protobuf_test_encode_len(&mut file, 5, &en);
+
+    let mut service = Vec::new();
+    protobuf_test_encode_string(
+        &mut service,
+        1,
+        if target == "service" {
+            "badName"
+        } else {
+            "Service"
+        },
+    );
+    let mut method = Vec::new();
+    protobuf_test_encode_string(
+        &mut method,
+        1,
+        if target == "method" {
+            "badName"
+        } else {
+            "Call"
+        },
+    );
+    let message_type = if target == "message" {
+        ".features.badName"
+    } else {
+        ".features.Message"
+    };
+    protobuf_test_encode_string(&mut method, 2, message_type);
+    protobuf_test_encode_string(&mut method, 3, message_type);
+    if override_at == Some("method") {
+        edition2024_naming_override(&mut method, 4, 35);
+    }
+    protobuf_test_encode_len(&mut service, 2, &method);
+    if override_at == Some("service") {
+        edition2024_naming_override(&mut service, 3, 34);
+    }
+    protobuf_test_encode_len(&mut file, 6, &service);
+
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    fds
+}
+
+#[test]
+fn edition2024_naming_rejects_invalid_names_and_honors_inheritance() {
+    for target in [
+        "message",
+        "nested_message",
+        "field",
+        "enum",
+        "enum_value",
+        "oneof",
+        "service",
+        "method",
+        "extension",
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_naming_fds(target, None, 1001))
+                .is_err(),
+            "Edition 2024 accepted invalid {target} name"
+        );
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_naming_fds(
+                target,
+                Some(target),
+                1001
+            ))
+            .is_ok(),
+            "{target} STYLE_LEGACY override should opt out"
+        );
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_naming_fds(target, None, 1000))
+                .is_ok(),
+            "Edition 2023 must preserve legacy {target} names"
+        );
+    }
+    for (target, override_at) in [
+        ("field", "file"),
+        ("enum_value", "file"),
+        ("field", "message"),
+        ("nested_message", "message"),
+        ("method", "service"),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_naming_fds(
+                target,
+                Some(override_at),
+                1001
+            ))
+            .is_ok(),
+            "{override_at} STYLE_LEGACY must reach {target}"
+        );
+    }
+}
+
+fn edition2024_single_field_fds(
+    number: u64,
+    label: u64,
+    field_type: u64,
+    option: Option<(u32, u64)>,
+    proto3_optional: bool,
+    edition: u64,
+    syntax: &str,
+) -> Vec<u8> {
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "field.proto");
+    protobuf_test_encode_string(&mut file, 12, syntax);
+    protobuf_test_encode_varint(&mut file, 14, edition);
+    let mut message = Vec::new();
+    protobuf_test_encode_string(&mut message, 1, "Message");
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "value");
+    protobuf_test_encode_varint(&mut field, 3, number);
+    protobuf_test_encode_varint(&mut field, 4, label);
+    protobuf_test_encode_varint(&mut field, 5, field_type);
+    if let Some((number, value)) = option {
+        let mut options = Vec::new();
+        protobuf_test_encode_varint(&mut options, number, value);
+        protobuf_test_encode_len(&mut field, 8, &options);
+    }
+    if proto3_optional {
+        protobuf_test_encode_varint(&mut field, 17, 1);
+    }
+    protobuf_test_encode_len(&mut message, 2, &field);
+    protobuf_test_encode_len(&mut file, 4, &message);
+    let mut fds = Vec::new();
+    protobuf_test_encode_len(&mut fds, 1, &file);
+    fds
+}
+
+#[test]
+fn edition2024_rejects_removed_field_constructs_and_unknown_types() {
+    for (number, label, field_type, option, proto3_optional) in [
+        (1, 0, 5, None, false),
+        (1, 2, 5, None, false),
+        (1, u64::from(u32::MAX) + 2, 5, None, false),
+        (0, 1, 5, None, false),
+        (19_000, 1, 5, None, false),
+        (536_870_912, 1, 5, None, false),
+        (u64::from(u32::MAX) + 2, 1, 5, None, false),
+        (1, 1, 0, None, false),
+        (1, 1, 10, None, false),
+        (1, 1, 19, None, false),
+        (1, 1, u64::from(u32::MAX) + 5, None, false),
+        (1, 3, 5, Some((2, 0)), false),
+        (1, 1, 9, Some((1, 1)), false),
+        (1, 1, 5, None, true),
+    ] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition2024_single_field_fds(
+                number,
+                label,
+                field_type,
+                option,
+                proto3_optional,
+                1001,
+                "editions"
+            ))
+            .is_err(),
+            "accepted Edition 2024 number={number} label={label} type={field_type} option={option:?}"
+        );
+    }
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_single_field_fds(
+            1, 1, 5, None, false, 1001, "proto3"
+        ))
+        .is_err(),
+        "Edition 2024 cannot inherit proto3 defaults"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_single_field_fds(
+            1,
+            3,
+            5,
+            Some((2, 0)),
+            false,
+            1000,
+            "editions"
+        ))
+        .is_ok(),
+        "existing Edition 2023 descriptor handling must stay unchanged"
+    );
+    assert!(
+        DescriptorPool::from_file_descriptor_set(&edition2024_single_field_fds(
+            1, 2, 5, None, false, 998, "proto2"
+        ))
+        .is_ok(),
+        "proto2 required fields must still load"
+    );
+
+    for (file_option, weak_dependency) in [(Some((10, 0)), false), (None, true)] {
+        let mut file = Vec::new();
+        protobuf_test_encode_string(&mut file, 1, "legacy_option.proto");
+        protobuf_test_encode_string(&mut file, 12, "editions");
+        protobuf_test_encode_varint(&mut file, 14, 1001);
+        if let Some((number, value)) = file_option {
+            let mut options = Vec::new();
+            protobuf_test_encode_varint(&mut options, number, value);
+            protobuf_test_encode_len(&mut file, 8, &options);
+        }
+        if weak_dependency {
+            protobuf_test_encode_string(&mut file, 3, "missing.proto");
+            protobuf_test_encode_varint(&mut file, 11, 0);
+        }
+        let mut fds = Vec::new();
+        protobuf_test_encode_len(&mut fds, 1, &file);
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&fds).is_err(),
+            "removed 2024 file option or weak import must be rejected"
+        );
+    }
 }
 
 #[test]
@@ -1450,6 +2215,14 @@ fn edition2024_rejects_unresolved_features_and_invalid_targets() {
         ("enum", 8, 2),
         ("method", 1, 1),
         ("method", 9, 1),
+        ("service", 1, 1),
+        ("service", 9, 1),
+        ("oneof", 1, 1),
+        ("oneof", 9, 1),
+        ("enum_value", 2, 2),
+        ("enum_value", 9, 1),
+        ("extension_range", 1, 1),
+        ("extension_range", 9, 1),
     ] {
         let bytes = edition_feature_fds(target, tag, value, 1001);
         assert!(
@@ -1462,6 +2235,13 @@ fn edition2024_rejects_unresolved_features_and_invalid_targets() {
             .is_ok(),
         "method-level legacy naming style is a supported target"
     );
+    for target in ["service", "oneof", "enum_value", "extension_range"] {
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&edition_feature_fds(target, 7, 2, 1001))
+                .is_ok(),
+            "{target} must accept its supported naming feature"
+        );
+    }
     assert!(
         DescriptorPool::from_file_descriptor_set(&edition_feature_fds("file", 1, 1, 1002)).is_err(),
         "unknown edition must not inherit Edition 2023 semantics"
@@ -1544,6 +2324,14 @@ fn edition2023_and_proto_defaults_remain_unchanged() {
         Presence::Implicit
     );
     assert!(
+        pool.get_message("differential.Proto3Presence")
+            .expect("proto3")
+            .field(1)
+            .expect("implicit int32")
+            .utf8_validate,
+        "pre-2024 descriptors must retain inherited UTF-8 flags"
+    );
+    assert!(
         pool.get_enum("differential.ClosedEnum")
             .expect("closed")
             .closed
@@ -1560,6 +2348,13 @@ fn edition2023_and_proto_defaults_remain_unchanged() {
             .presence,
         Presence::Explicit
     );
+    assert!(
+        pool.get_message("features.Message")
+            .expect("Edition 2023")
+            .field(1)
+            .expect("value")
+            .utf8_validate
+    );
 }
 
 #[test]
@@ -1569,11 +2364,15 @@ fn bundled_reference_pool_preserves_supported_editions() {
         "/vendor/google/conformance_fds.bin"
     ));
     let pool = DescriptorPool::from_file_descriptor_set(fds).expect("bundled reference FDS");
-    for file in [
-        "google/protobuf/test_messages_proto2.proto",
-        "google/protobuf/test_messages_proto3.proto",
-        "conformance/test_protos/test_messages_edition2023.proto",
+    for (file, features) in [
+        ("google/protobuf/test_messages_proto2.proto", (0, 2, 2, 1)),
+        ("google/protobuf/test_messages_proto3.proto", (0, 1, 2, 1)),
+        (
+            "conformance/test_protos/test_messages_edition2023.proto",
+            (1000, 1, 2, 1),
+        ),
     ] {
         assert!(pool.get_file(file).is_some(), "missing {file}");
+        assert_eq!(file_feature_values(&pool, file), features, "{file}");
     }
 }

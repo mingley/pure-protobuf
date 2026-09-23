@@ -811,7 +811,12 @@ impl DescriptorPool {
         for file in &files {
             collect_raw(file, &mut raw, &mut raw_enums, &mut extensions);
         }
-        let mut pool = resolve_pool(raw, raw_enums, extensions)?;
+        let edition2024_files: BTreeSet<String> = files
+            .iter()
+            .filter(|file| file.edition == 1001)
+            .map(|file| file.name.clone())
+            .collect();
+        let mut pool = resolve_pool(raw, raw_enums, extensions, &edition2024_files)?;
         for file in &files {
             pool.file_metadata.insert(
                 file.name.clone(),
@@ -864,6 +869,7 @@ impl DescriptorPool {
                 pool.services.insert(desc.full_name.clone(), desc);
             }
         }
+        validate_edition2024_references(&files, &pool)?;
         Ok(pool)
     }
 }
@@ -2248,6 +2254,7 @@ struct RawFile {
     services: Vec<RawService>,
     dependencies: Vec<String>,
     public_dependency: Vec<i32>,
+    weak_dependency: Vec<i32>,
     options: Vec<DescriptorOption>,
     source_code_info: Option<SourceCodeInfo>,
     comments: Comments,
@@ -2259,6 +2266,8 @@ struct RawService {
     name: String,
     full_name: String,
     methods: Vec<MethodDescriptor>,
+    method_features: Vec<RawFeatures>,
+    features: RawFeatures,
     comments: Comments,
     deprecated: bool,
     options: Vec<DescriptorOption>,
@@ -2293,7 +2302,7 @@ struct RawMessage {
     nested: Vec<RawMessage>,
     is_map_entry: bool,
     syntax_proto3: bool,
-    oneof_count: u32,
+    oneofs: Vec<RawOneof>,
     enums: Vec<RawEnum>,
     features: RawFeatures,
     declared_visibility: u32,
@@ -2309,11 +2318,18 @@ struct RawMessage {
 }
 
 #[derive(Default, Clone)]
+struct RawOneof {
+    name: String,
+    features: RawFeatures,
+}
+
+#[derive(Default, Clone)]
 struct RawEnum {
     name: String,
     full_name: String,
     file_name: String,
     values: Vec<(i32, String)>,
+    value_features: Vec<RawFeatures>,
     closed: bool,
     features: RawFeatures,
     declared_visibility: u32,
@@ -2362,6 +2378,9 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             (10, WIRE_VARINT) => file
                 .public_dependency
                 .push(decode_varint(bytes, &mut pos)? as i32),
+            (11, WIRE_VARINT) => file
+                .weak_dependency
+                .push(decode_varint(bytes, &mut pos)? as i32),
             (4, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 file.messages.push(parse_descriptor(payload, "")?);
@@ -2400,6 +2419,7 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
     // Edition 9999 is the known unstable conformance sentinel, not a future release.
     if (file.edition > 1001 && file.edition != 9999)
         || (file.syntax == "editions" && !matches!(file.edition, 1000 | 1001 | 9999))
+        || (file.edition == 1001 && file.syntax != "editions")
     {
         return Err(ParseError::new("unsupported or missing protobuf edition"));
     }
@@ -2452,7 +2472,168 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             m.output_type = m.output_type.trim_start_matches('.').to_string();
         }
     }
+    if file.edition == 1001 {
+        validate_edition2024_file(&file)?;
+    }
     Ok(file)
+}
+
+#[derive(Clone, Copy)]
+enum Edition2024NameCase {
+    Title,
+    LowerSnake,
+    UpperSnake,
+}
+
+fn validate_edition2024_name(
+    name: &str,
+    naming_style: u32,
+    case: Edition2024NameCase,
+) -> Result<(), ParseError> {
+    if naming_style == 2 {
+        return Ok(());
+    }
+    if naming_style != 1 {
+        return Err(ParseError::new("unresolved Edition 2024 naming style"));
+    }
+    let valid = match case {
+        Edition2024NameCase::Title => {
+            let mut bytes = name.bytes();
+            bytes.next().is_some_and(|c| c.is_ascii_uppercase())
+                && bytes.all(|c| c.is_ascii_alphanumeric())
+        }
+        Edition2024NameCase::LowerSnake => edition2024_snake_case(name, false),
+        Edition2024NameCase::UpperSnake => edition2024_snake_case(name, true),
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(ParseError::new("invalid Edition 2024 identifier"))
+    }
+}
+
+fn edition2024_snake_case(name: &str, upper: bool) -> bool {
+    let is_letter = |c: u8| {
+        if upper {
+            c.is_ascii_uppercase()
+        } else {
+            c.is_ascii_lowercase()
+        }
+    };
+    let mut bytes = name.bytes();
+    if !bytes.next().is_some_and(is_letter) {
+        return false;
+    }
+    let mut underscore = false;
+    for c in bytes {
+        if c == b'_' {
+            if underscore {
+                return false;
+            }
+            underscore = true;
+        } else if is_letter(c) {
+            underscore = false;
+        } else if c.is_ascii_digit() && !underscore {
+            // Digits may follow a word, but not an underscore.
+        } else {
+            return false;
+        }
+    }
+    !underscore
+}
+
+fn validate_edition2024_field(f: &RawField, parent: RawFeatures) -> Result<(), ParseError> {
+    if !matches!(f.label, 1 | 3)
+        || f.number == 0
+        || f.number > 536_870_911
+        || (19_000..=19_999).contains(&f.number)
+        || matches!(FieldType::from_i32(f.ty), None | Some(FieldType::Group))
+        || f.proto3_optional
+        || f.packed.is_some()
+        || f.options.iter().any(|option| option.number == 1)
+    {
+        return Err(ParseError::new("unsupported Edition 2024 field"));
+    }
+    validate_edition2024_name(
+        &f.name,
+        parent.merge(f.features).naming_style,
+        Edition2024NameCase::LowerSnake,
+    )
+}
+
+fn validate_edition2024_enum(en: &RawEnum) -> Result<(), ParseError> {
+    validate_edition2024_name(
+        &en.name,
+        en.features.naming_style,
+        Edition2024NameCase::Title,
+    )?;
+    for ((_, name), features) in en.values.iter().zip(&en.value_features) {
+        validate_edition2024_name(
+            name,
+            en.features.merge(*features).naming_style,
+            Edition2024NameCase::UpperSnake,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_edition2024_message(msg: &RawMessage) -> Result<(), ParseError> {
+    validate_edition2024_name(
+        &msg.name,
+        msg.features.naming_style,
+        Edition2024NameCase::Title,
+    )?;
+    for field in msg.fields.iter().chain(&msg.extensions) {
+        validate_edition2024_field(field, msg.features)?;
+        if field
+            .oneof_index
+            .is_some_and(|index| index as usize >= msg.oneofs.len())
+        {
+            return Err(ParseError::new("unresolved Edition 2024 oneof"));
+        }
+    }
+    for oneof in &msg.oneofs {
+        validate_edition2024_name(
+            &oneof.name,
+            msg.features.merge(oneof.features).naming_style,
+            Edition2024NameCase::LowerSnake,
+        )?;
+    }
+    for en in &msg.enums {
+        validate_edition2024_enum(en)?;
+    }
+    for nested in &msg.nested {
+        validate_edition2024_message(nested)?;
+    }
+    Ok(())
+}
+
+fn validate_edition2024_file(file: &RawFile) -> Result<(), ParseError> {
+    if !file.weak_dependency.is_empty() || file.options.iter().any(|option| option.number == 10) {
+        return Err(ParseError::new("unsupported Edition 2024 file option"));
+    }
+    for msg in &file.messages {
+        validate_edition2024_message(msg)?;
+    }
+    for en in &file.enums {
+        validate_edition2024_enum(en)?;
+    }
+    for ext in &file.extensions {
+        validate_edition2024_field(ext, file.features)?;
+    }
+    for svc in &file.services {
+        let features = file.features.merge(svc.features);
+        validate_edition2024_name(&svc.name, features.naming_style, Edition2024NameCase::Title)?;
+        // protoc uses TitleCase for RPC methods under STYLE2024.
+        for (method, method_features) in svc.methods.iter().zip(&svc.method_features) {
+            validate_edition2024_name(
+                &method.name,
+                features.merge(*method_features).naming_style,
+                Edition2024NameCase::Title,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn attach_source_code_info(file: &mut RawFile) {
@@ -2694,12 +2875,15 @@ fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
             (1, WIRE_LEN) => svc.name = read_string(bytes, &mut pos)?,
             (2, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                svc.methods.push(parse_method(payload)?);
+                let (method, features) = parse_method(payload)?;
+                svc.methods.push(method);
+                svc.method_features.push(features);
             }
             (3, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (deprecated, options) = parse_service_options(payload)?;
+                let (deprecated, features, options) = parse_service_options(payload)?;
                 svc.deprecated = deprecated;
+                svc.features = features;
                 svc.options = options;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
@@ -2708,8 +2892,9 @@ fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
     Ok(svc)
 }
 
-fn parse_method(bytes: &[u8]) -> Result<MethodDescriptor, ParseError> {
+fn parse_method(bytes: &[u8]) -> Result<(MethodDescriptor, RawFeatures), ParseError> {
     let mut m = MethodDescriptor::default();
+    let mut features = RawFeatures::default();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
@@ -2721,14 +2906,15 @@ fn parse_method(bytes: &[u8]) -> Result<MethodDescriptor, ParseError> {
             (6, WIRE_VARINT) => m.server_streaming = decode_varint(bytes, &mut pos)? != 0,
             (4, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (deprecated, options) = parse_method_options(payload)?;
+                let (deprecated, method_features, options) = parse_method_options(payload)?;
                 m.deprecated = deprecated;
+                features = method_features;
                 m.options = options;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
-    Ok(m)
+    Ok((m, features))
 }
 
 fn stamp_file(msgs: &mut [RawMessage], file_name: &str) {
@@ -2792,8 +2978,8 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
                 msg.extensions.push(parse_field(payload)?);
             }
             (8, WIRE_LEN) => {
-                msg.oneof_count += 1;
-                wire::skip_field(bytes, &mut pos, w)?;
+                msg.oneofs
+                    .push(parse_oneof(read_len_bytes(bytes, &mut pos)?)?);
             }
             (7, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
@@ -2816,6 +3002,37 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
     Ok(msg)
 }
 
+fn parse_oneof(bytes: &[u8]) -> Result<RawOneof, ParseError> {
+    let mut oneof = RawOneof::default();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        match (n, w) {
+            (1, WIRE_LEN) => oneof.name = read_string(bytes, &mut pos)?,
+            (2, WIRE_LEN) => {
+                let options = read_len_bytes(bytes, &mut pos)?;
+                let mut options_pos = 0;
+                while options_pos < options.len() {
+                    let (n, w) = decode_tag(options, &mut options_pos)?;
+                    if n == 1 && w == WIRE_LEN {
+                        oneof.features = oneof.features.merge(parse_features(
+                            read_len_bytes(options, &mut options_pos)?,
+                            FeatureTarget::Oneof,
+                        )?);
+                    } else if n == 1 {
+                        return Err(ParseError::new("invalid OneofOptions.features wire type"));
+                    } else {
+                        wire::skip_field(options, &mut options_pos, w)?;
+                    }
+                }
+            }
+            (2, _) => return Err(ParseError::new("invalid oneof options wire type")),
+            _ => wire::skip_field(bytes, &mut pos, w)?,
+        }
+    }
+    Ok(oneof)
+}
+
 fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
     let mut f = RawField::default();
     let mut pos = 0;
@@ -2824,12 +3041,26 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
         match (n, w) {
             (1, WIRE_LEN) => f.name = read_string(bytes, &mut pos)?,
             (2, WIRE_LEN) => f.extendee = read_string(bytes, &mut pos)?,
-            (3, WIRE_VARINT) => f.number = decode_varint(bytes, &mut pos)? as u32,
-            (4, WIRE_VARINT) => f.label = decode_varint(bytes, &mut pos)? as i32,
-            (5, WIRE_VARINT) => f.ty = decode_varint(bytes, &mut pos)? as i32,
+            (3, WIRE_VARINT) => {
+                f.number = u32::try_from(decode_varint(bytes, &mut pos)?)
+                    .map_err(|_| ParseError::new("field number out of range"))?;
+            }
+            (4, WIRE_VARINT) => {
+                f.label = i32::try_from(decode_varint(bytes, &mut pos)?)
+                    .map_err(|_| ParseError::new("field label out of range"))?;
+            }
+            (5, WIRE_VARINT) => {
+                f.ty = i32::try_from(decode_varint(bytes, &mut pos)?)
+                    .map_err(|_| ParseError::new("field type out of range"))?;
+            }
             (6, WIRE_LEN) => f.type_name = read_string(bytes, &mut pos)?,
             (7, WIRE_LEN) => f.default_value = Some(read_string(bytes, &mut pos)?),
-            (9, WIRE_VARINT) => f.oneof_index = Some(decode_varint(bytes, &mut pos)? as u32),
+            (9, WIRE_VARINT) => {
+                f.oneof_index = Some(
+                    u32::try_from(decode_varint(bytes, &mut pos)?)
+                        .map_err(|_| ParseError::new("oneof index out of range"))?,
+                );
+            }
             (10, WIRE_LEN) => f.json_name = read_string(bytes, &mut pos)?,
             (8, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
@@ -2982,8 +3213,11 @@ fn parse_enum_options(
     Ok((deprecated, features, options))
 }
 
-fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+fn parse_method_options(
+    bytes: &[u8],
+) -> Result<(bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut deprecated = false;
+    let mut features = RawFeatures::default();
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
@@ -2992,7 +3226,10 @@ fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), P
             if w != WIRE_LEN {
                 return Err(ParseError::new("invalid MethodOptions.features wire type"));
             }
-            let _ = parse_features(read_len_bytes(bytes, &mut pos)?, FeatureTarget::Method)?;
+            features = features.merge(parse_features(
+                read_len_bytes(bytes, &mut pos)?,
+                FeatureTarget::Method,
+            )?);
         } else if n == 33 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
@@ -3002,16 +3239,26 @@ fn parse_method_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), P
             });
         }
     }
-    Ok((deprecated, options))
+    Ok((deprecated, features, options))
 }
 
-fn parse_service_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), ParseError> {
+fn parse_service_options(
+    bytes: &[u8],
+) -> Result<(bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut deprecated = false;
+    let mut features = RawFeatures::default();
     let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if n == 33 && w == WIRE_VARINT {
+        if n == 34 && w == WIRE_LEN {
+            features = features.merge(parse_features(
+                read_len_bytes(bytes, &mut pos)?,
+                FeatureTarget::Service,
+            )?);
+        } else if n == 34 {
+            return Err(ParseError::new("invalid ServiceOptions.features wire type"));
+        } else if n == 33 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             options.push(DescriptorOption {
@@ -3020,7 +3267,7 @@ fn parse_service_options(bytes: &[u8]) -> Result<(bool, Vec<DescriptorOption>), 
             });
         }
     }
-    Ok((deprecated, options))
+    Ok((deprecated, features, options))
 }
 
 #[derive(Clone, Copy)]
@@ -3029,6 +3276,10 @@ enum FeatureTarget {
     Message,
     Field,
     Enum,
+    EnumValue,
+    Oneof,
+    ExtensionRange,
+    Service,
     Method,
 }
 
@@ -3094,6 +3345,24 @@ fn parse_extension_range(bytes: &[u8]) -> Result<Option<(u32, u32)>, ParseError>
         match (n, w) {
             (1, WIRE_VARINT) => start = decode_varint(bytes, &mut pos)? as u32,
             (2, WIRE_VARINT) => end = decode_varint(bytes, &mut pos)? as u32,
+            (3, WIRE_LEN) => {
+                let options = read_len_bytes(bytes, &mut pos)?;
+                let mut options_pos = 0;
+                while options_pos < options.len() {
+                    let (n, w) = decode_tag(options, &mut options_pos)?;
+                    if n == 50 && w == WIRE_LEN {
+                        let _ = parse_features(
+                            read_len_bytes(options, &mut options_pos)?,
+                            FeatureTarget::ExtensionRange,
+                        )?;
+                    } else if n == 50 {
+                        return Err(ParseError::new("invalid ExtensionRangeOptions.features"));
+                    } else {
+                        wire::skip_field(options, &mut options_pos, w)?;
+                    }
+                }
+            }
+            (3, _) => return Err(ParseError::new("invalid extension range options wire type")),
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
@@ -3116,8 +3385,9 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
             (1, WIRE_LEN) => e.name = read_string(bytes, &mut pos)?,
             (2, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (num, name, dep) = parse_enum_value(payload)?;
+                let (num, name, dep, features) = parse_enum_value(payload)?;
                 e.values.push((num, name));
+                e.value_features.push(features);
                 if dep {
                     e.deprecated_values.insert(num);
                 }
@@ -3139,10 +3409,11 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
     Ok(e)
 }
 
-fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String, bool), ParseError> {
+fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String, bool, RawFeatures), ParseError> {
     let mut name = String::new();
     let mut number = 0i32;
     let mut deprecated = false;
+    let mut features = RawFeatures::default();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
@@ -3151,26 +3422,36 @@ fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String, bool), ParseError> {
             (2, WIRE_VARINT) => number = decode_varint(bytes, &mut pos)? as i32,
             (3, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                deprecated = parse_enum_value_options(payload)?;
+                (deprecated, features) = parse_enum_value_options(payload)?;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
-    Ok((number, name, deprecated))
+    Ok((number, name, deprecated, features))
 }
 
-fn parse_enum_value_options(bytes: &[u8]) -> Result<bool, ParseError> {
+fn parse_enum_value_options(bytes: &[u8]) -> Result<(bool, RawFeatures), ParseError> {
     let mut deprecated = false;
+    let mut features = RawFeatures::default();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
-        if n == 1 && w == WIRE_VARINT {
+        if n == 2 && w == WIRE_LEN {
+            features = features.merge(parse_features(
+                read_len_bytes(bytes, &mut pos)?,
+                FeatureTarget::EnumValue,
+            )?);
+        } else if n == 2 {
+            return Err(ParseError::new(
+                "invalid EnumValueOptions.features wire type",
+            ));
+        } else if n == 1 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             wire::skip_field(bytes, &mut pos, w)?;
         }
     }
-    Ok(deprecated)
+    Ok((deprecated, features))
 }
 
 fn read_string(bytes: &[u8], pos: &mut usize) -> Result<String, ParseError> {
@@ -3266,10 +3547,123 @@ fn check_symbol_visible_from_file(
     check_visible_from_file(source_file, target_file, visibility.effective_visibility)
 }
 
+fn check_edition2024_reference(
+    pool: &DescriptorPool,
+    source_file: &str,
+    imports: &BTreeSet<String>,
+    name: &str,
+    expected_type: FieldType,
+) -> Result<(), ParseError> {
+    let name = name.trim_start_matches('.');
+    let target_file = match expected_type {
+        FieldType::Message => pool.messages.get(name).map(|desc| desc.file_name.as_str()),
+        FieldType::Enum => pool.enums.get(name).map(|desc| desc.file_name.as_str()),
+        _ => return Err(ParseError::new("unsupported Edition 2024 reference type")),
+    }
+    .ok_or_else(|| ParseError::new("unresolved Edition 2024 type reference"))?;
+    if source_file != target_file {
+        if !imports.contains(target_file) {
+            return Err(ParseError::new("Edition 2024 type is not imported"));
+        }
+        check_symbol_visible_from_file(source_file, target_file, name, &pool.symbol_metadata)?;
+    }
+    Ok(())
+}
+
+fn check_edition2024_field_references(
+    field: &RawField,
+    source_file: &str,
+    imports: &BTreeSet<String>,
+    pool: &DescriptorPool,
+) -> Result<(), ParseError> {
+    match FieldType::from_i32(field.ty) {
+        Some(ty @ (FieldType::Message | FieldType::Enum)) => {
+            check_edition2024_reference(pool, source_file, imports, &field.type_name, ty)?;
+        }
+        Some(_) if field.type_name.is_empty() => {}
+        _ => return Err(ParseError::new("invalid Edition 2024 field type reference")),
+    }
+    if !field.extendee.is_empty() {
+        check_edition2024_reference(
+            pool,
+            source_file,
+            imports,
+            &field.extendee,
+            FieldType::Message,
+        )?;
+    }
+    Ok(())
+}
+
+fn check_edition2024_message_references(
+    msg: &RawMessage,
+    source_file: &str,
+    imports: &BTreeSet<String>,
+    pool: &DescriptorPool,
+) -> Result<(), ParseError> {
+    for field in msg.fields.iter().chain(&msg.extensions) {
+        check_edition2024_field_references(field, source_file, imports, pool)?;
+    }
+    for nested in &msg.nested {
+        check_edition2024_message_references(nested, source_file, imports, pool)?;
+    }
+    Ok(())
+}
+
+fn validate_edition2024_references(
+    files: &[RawFile],
+    pool: &DescriptorPool,
+) -> Result<(), ParseError> {
+    let by_name: BTreeMap<&str, &RawFile> = files
+        .iter()
+        .map(|file| (file.name.as_str(), file))
+        .collect();
+    for file in files.iter().filter(|file| file.edition == 1001) {
+        let mut imports = BTreeSet::new();
+        let mut pending = file.dependencies.clone();
+        while let Some(name) = pending.pop() {
+            if !imports.insert(name.clone()) {
+                continue;
+            }
+            if let Some(imported) = by_name.get(name.as_str()) {
+                for index in &imported.public_dependency {
+                    if let Some(dependency) = usize::try_from(*index)
+                        .ok()
+                        .and_then(|index| imported.dependencies.get(index))
+                    {
+                        pending.push(dependency.clone());
+                    }
+                }
+            }
+        }
+        for msg in &file.messages {
+            check_edition2024_message_references(msg, &file.name, &imports, pool)?;
+        }
+        for field in &file.extensions {
+            check_edition2024_field_references(field, &file.name, &imports, pool)?;
+        }
+        for service in &file.services {
+            for method in &service.methods {
+                for name in [&method.input_type, &method.output_type] {
+                    check_edition2024_reference(
+                        pool,
+                        &file.name,
+                        &imports,
+                        name,
+                        FieldType::Message,
+                    )?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn resolve_pool(
     raw: BTreeMap<String, RawMessage>,
     raw_enums: BTreeMap<String, RawEnum>,
     extensions: Vec<(RawFeatures, RawField)>,
+    edition2024_files: &BTreeSet<String>,
 ) -> Result<DescriptorPool, ParseError> {
     // First pass: skeleton descriptors (no nested message arcs).
     let mut skeletons: BTreeMap<String, MessageDescriptor> = BTreeMap::new();
@@ -3284,9 +3678,13 @@ fn resolve_pool(
             },
         );
         let mut b = MessageDescriptor::builder(name.clone()).map_entry(raw_msg.is_map_entry);
-        let mut oneofs: Vec<Vec<u32>> = vec![Vec::new(); raw_msg.oneof_count as usize];
+        let mut oneofs: Vec<Vec<u32>> = vec![Vec::new(); raw_msg.oneofs.len()];
         for f in &raw_msg.fields {
-            let fd = raw_field_to_desc(f, raw_msg.features);
+            let fd = raw_field_to_desc(
+                f,
+                raw_msg.features,
+                edition2024_files.contains(&raw_msg.file_name),
+            );
             if let Some(idx) = fd.oneof_index {
                 if let Some(slot) = oneofs.get_mut(idx as usize) {
                     slot.push(fd.number);
@@ -3338,7 +3736,11 @@ fn resolve_pool(
     }
     let mut ext_index: BTreeMap<String, (String, u32, String)> = BTreeMap::new();
     for (parent_feat, ext) in &extensions {
-        let fd = raw_field_to_desc(ext, *parent_feat);
+        let fd = raw_field_to_desc(
+            ext,
+            *parent_feat,
+            edition2024_files.contains(&ext.file_name),
+        );
         let extendee = fd
             .extendee
             .as_deref()
@@ -3472,7 +3874,7 @@ fn resolve_pool(
     })
 }
 
-fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
+fn raw_field_to_desc(f: &RawField, parent: RawFeatures, edition2024: bool) -> FieldDescriptor {
     let feat = parent.merge(f.features);
     let mut field_type = FieldType::from_i32(f.ty).unwrap_or(FieldType::Message);
     if f.ty == 0 && !f.type_name.is_empty() {
@@ -3522,7 +3924,8 @@ fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
         message: None,
         enum_ty: None,
         oneof_index: f.oneof_index,
-        utf8_validate: feat.utf8 == 2,
+        // Pre-2024 map decoders use the outer field's UTF-8 flag for string entries.
+        utf8_validate: feat.utf8 == 2 && (!edition2024 || field_type == FieldType::String),
         default: f.default_value.clone(),
         extendee: if f.extendee.is_empty() {
             None

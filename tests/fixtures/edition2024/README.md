@@ -81,7 +81,7 @@ tests/fixtures/edition2024/
 | `utf8_validation` | 4 | `VERIFY` | `Utf8Validation::VERIFY = 2` | String fields must contain valid UTF-8 bytes; invalid sequences trigger deserialization error. |
 | `message_encoding` | 5 | `LENGTH_PREFIXED` | `MessageEncoding::LENGTH_PREFIXED = 1` | Submessages are encoded with wire type 2 (`WIRE_LEN`) followed by length varint and message payload. |
 | `json_format` | 6 | `ALLOW` | `JsonFormat::ALLOW = 1` | Canonical Protobuf JSON serialization and deserialization is supported and allowed. |
-| `enforce_naming_style` | 7 | `STYLE2024` | `EnforceNamingStyle::STYLE2024 = 1` | Enforces PascalCase for types and lower_snake_case for fields/methods during compilation. |
+| `enforce_naming_style` | 7 | `STYLE2024` | `EnforceNamingStyle::STYLE2024 = 1` | Enforces PascalCase for types, lower_snake_case for fields/oneofs, and TitleCase for RPC methods during compilation. |
 | `default_symbol_visibility`| 8 | `EXPORT_TOP_LEVEL` | `VisibilityFeature::EXPORT_TOP_LEVEL = 2` | Top-level messages/enums default to exported; nested messages/enums default to local. |
 
 ---
