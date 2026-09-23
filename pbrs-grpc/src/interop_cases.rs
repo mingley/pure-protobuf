@@ -25,6 +25,22 @@ fn zeros(n: i32) -> Payload {
     p
 }
 
+fn incompressible(n: i32) -> Result<Payload, Status> {
+    let n = usize::try_from(n).map_err(|_| Status::invalid_argument("negative payload size"))?;
+    let mut body = Vec::with_capacity(n);
+    let mut state = 0x243f_6a88_85a3_08d3u64;
+    while body.len() < n {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        body.extend_from_slice(&state.to_le_bytes());
+    }
+    body.truncate(n);
+    let mut payload = Payload::new();
+    payload.set_body(body);
+    Ok(payload)
+}
+
 fn bool_val(v: bool) -> BoolValue {
     let mut b = BoolValue::new();
     b.set_value(v);
@@ -474,6 +490,17 @@ pub async fn client_compressed_unary(client: &TestServiceClient) -> Result<(), S
     uncompressed.set_response_size(LARGE_RESP);
     uncompressed.set_payload(zeros(LARGE_REQ));
     let resp = client.unary_call(Request::new(uncompressed)).await?;
+    assert_payload_len(&resp.into_inner(), LARGE_RESP)?;
+
+    // The three calls above are the official procedure. This extra compressed
+    // leg checks a high-entropy body against the independent peer as well.
+    let mut entropy = SimpleRequest::new();
+    entropy.set_expect_compressed(bool_val(true));
+    entropy.set_response_size(LARGE_RESP);
+    entropy.set_payload(incompressible(LARGE_REQ)?);
+    let mut request = Request::new(entropy);
+    request.set_compress(true);
+    let resp = client.unary_call(request).await?;
     assert_payload_len(&resp.into_inner(), LARGE_RESP)
 }
 
@@ -1456,6 +1483,29 @@ pub async fn channel_soak(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn compressed_unary_probes_cover_distinct_payload_entropy() {
+        let low = zeros(LARGE_REQ);
+        let high = incompressible(LARGE_REQ).expect("positive probe length");
+        assert!(incompressible(-1).is_err());
+        assert_eq!(low.body().len(), high.body().len());
+
+        let gzip_size = |body: &[u8]| {
+            let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+            gz.write_all(body).expect("compress probe");
+            gz.finish().expect("finish probe").len()
+        };
+        assert!(
+            gzip_size(low.body().as_ref()) < low.body().len() / 10,
+            "zero payload must compress substantially"
+        );
+        assert!(
+            gzip_size(high.body().as_ref()) > high.body().len() * 9 / 10,
+            "high-entropy payload must not collapse like zeros"
+        );
+    }
 
     #[test]
     fn test_soak_config_validation() {

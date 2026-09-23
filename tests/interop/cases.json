@@ -694,7 +694,7 @@
           "kernel_client_to_cpp_server",
           "cpp_client_to_kernel_server"
         ],
-        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh: the C++ server enforces the request compression bit (INVALID_ARGUMENT when absent). Self-interop also passes; grpc-go cross-peer stays skipped (no expect_compressed/response_compressed flags)."
+        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh: the C++ server enforces the request compression bit (INVALID_ARGUMENT when absent). After the three official calls, the native client adds a separate high-entropy compressed request; this is additional coverage, not a replacement for the specified zero-filled vector. Self-interop also passes; grpc-go cross-peer stays skipped (no expect_compressed/response_compressed flags)."
       },
       "assertion_checklist": [
         {

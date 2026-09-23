@@ -82,7 +82,7 @@ Baseline gRPC RPC patterns and protocol semantics defined in `doc/interop-test-d
 ### 2. Compression Interoperability (`compression_interop`, 4 cases)
 Message-level compression negotiation and framing:
 * `client_compressed_unary`, `server_compressed_unary`, `client_compressed_streaming`, `server_compressed_streaming`.
-* *Status*: Passes the 18-case self-interop pass in `scripts/grpc-interop.sh`, and both cross-peer directions (36 cells) against the pinned C++ reference peer (`grpc/grpc@d1487957`, v1.84.0) via `scripts/grpc-interop-cpp.sh` in task `IO-05`, with wire compression bits asserted by the reference peer. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags.
+* *Status*: Passes the 18-case self-interop pass in `scripts/grpc-interop.sh`, and both cross-peer directions (36 cells) against the pinned C++ reference peer (`grpc/grpc@d1487957`, v1.84.0) via `scripts/grpc-interop-cpp.sh` in task `IO-05`, with wire compression bits asserted by the reference peer. The native client adds a high-entropy compressed unary leg **after** the three official calls; it does not replace the zero-filled official vector. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags.
 
 ### 3. HTTP/2 Negative Tests (`http2_negative`, 8 cases)
 Adversarial framing, stream cancellation, and connection termination defined in `doc/http2-interop-test-descriptions.md`:
@@ -500,4 +500,3 @@ For a build or release to qualify, all required profile test suites must meet th
 #### 3. Release Publication Gating
 * **Reusable CI Gate**: `.github/workflows/release.yml` requires `.github/workflows/ci.yml` via `workflow_call:` before the `publish` job can execute.
 * **Fail-Closed Publishing**: A failure in `grpc-interop`, `conformance`, or any other required CI lane permanently halts publication for that SHA. No dry-run or live publish to crates.io can proceed without verified, retained CI evidence.
-
