@@ -118,10 +118,14 @@ for i in "${!NAMES[@]}"; do
 
   if [[ "$DRY_RUN" == "1" ]]; then
     # Always pack, even when this version is already on the index.
-    # Dry runs do not query crates.io: packing uses CARGO_HOME populated
-    # from the workspace lockfile and works when the registry is unavailable.
-    # Isolated package-consumers compile the unpacked path; skip verify.
-    cargo package -p "$name" --no-verify --offline
+    # Adapters resolve the matching local core while packing offline, even
+    # when a fresh registry index has not seen this version of pbrs yet.
+    # The command-line patch is not written into the .crate manifest.
+    package_args=(package -p "$name" --no-verify --offline)
+    if [[ "$i" -gt 0 ]]; then
+      package_args+=(--config "patch.crates-io.${NAMES[0]}.path=\"$ROOT\"")
+    fi
+    cargo "${package_args[@]}"
     echo "dry-run packed ${crate_file}"
     continue
   fi

@@ -908,7 +908,7 @@ fn adapter_descriptor_sets_match_pinned_protoc_and_generated_output() {
     }
 }
 
-fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str]) -> PathBuf {
+fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str], core: Option<&Path>) -> PathBuf {
     let mut list = Command::new("cargo");
     list.args([
         "package",
@@ -922,6 +922,10 @@ fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str]) -> PathBuf {
     .current_dir(repo_root())
     .env("CARGO_TARGET_DIR", target)
     .env("CARGO_TERM_COLOR", "never");
+    if let Some(core) = core {
+        list.arg("--config")
+            .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
+    }
     apply_cargo_home(&mut list);
     let listed = list.output().expect("cargo package --list");
     assert!(
@@ -950,6 +954,11 @@ fn pack_offline(pkg: &str, target: &Path, descriptors: &[&str]) -> PathBuf {
         .current_dir(repo_root())
         .env("CARGO_TARGET_DIR", target)
         .env("CARGO_TERM_COLOR", "never");
+    if let Some(core) = core {
+        package
+            .arg("--config")
+            .arg(format!("patch.crates-io.pbrs.path=\"{}\"", core.display()));
+    }
     apply_cargo_home(&mut package);
     let packed = package.output().expect("cargo package");
     assert!(
@@ -987,7 +996,11 @@ fn unpack_offline(crate_file: &Path, dest: &Path) -> PathBuf {
 #[test]
 fn packed_core_and_both_adapters_build_cold_without_protoc() {
     let tmp = scratch_unique("pbrs-onboarding-cold-packed");
-    let pbrs = pack_offline("pbrs", &tmp.join("pack-pbrs"), &[]);
+    let pbrs = pack_offline("pbrs", &tmp.join("pack-pbrs"), &[], None);
+    let unpack = tmp.join("unpacked");
+    let pbrs = unpack_offline(&pbrs, &unpack.join("pbrs"));
+    // Adapter archives still depend on the core version in the registry,
+    // which a fresh offline CI index may not contain. Use the packed core.
     let grpc = pack_offline(
         "pbrs-grpc",
         &tmp.join("pack-grpc"),
@@ -1001,14 +1014,14 @@ fn packed_core_and_both_adapters_build_cold_without_protoc() {
             "tests/proto/kv.fds",
             "tests/proto/extend.fds",
         ],
+        Some(&pbrs),
     );
     let tonic = pack_offline(
         "protobuf-tonic",
         &tmp.join("pack-tonic"),
         &["proto/hello.fds"],
+        Some(&pbrs),
     );
-    let unpack = tmp.join("unpacked");
-    let pbrs = unpack_offline(&pbrs, &unpack.join("pbrs"));
     let grpc = unpack_offline(&grpc, &unpack.join("grpc"));
     let tonic = unpack_offline(&tonic, &unpack.join("tonic"));
     let consumer = tmp.join("consumer");

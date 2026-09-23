@@ -71,7 +71,15 @@ class PublishScriptTest(unittest.TestCase):
         proc, calls = self.run_script(dry_run=True, curl_code="network_error")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertFalse(any(call == "curl" for call in calls))
-        self.assertEqual(sum(call.startswith("cargo package") for call in calls), 3)
+        packages = [call for call in calls if call.startswith("cargo package")]
+        self.assertEqual(len(packages), 3)
+        self.assertNotIn("--config", packages[0])
+        for call in packages[1:]:
+            self.assertIn(
+                f'--config patch.crates-io.pbrs.path="{ROOT}"',
+                call,
+                "adapter dry-runs must resolve the unpublished core locally",
+            )
 
     def test_existing_versions_are_skipped_without_upload(self):
         proc, calls = self.run_script(dry_run=False, curl_code="200")
