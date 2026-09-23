@@ -1270,6 +1270,42 @@ fn parse_missing_import(stderr: &str) -> Option<(String, PathBuf)> {
     None
 }
 
+fn missing_import_source(
+    reported: PathBuf,
+    protos: &[impl AsRef<Path>],
+    includes: &[impl AsRef<Path>],
+) -> PathBuf {
+    if reported.as_os_str().is_empty() {
+        return protos
+            .first()
+            .map(|proto| proto.as_ref().to_path_buf())
+            .unwrap_or_default();
+    }
+    if reported.is_absolute() {
+        return reported;
+    }
+    let name = normalize_proto_path_str(&reported.to_string_lossy());
+    let mut requested = protos
+        .iter()
+        .filter(|proto| resolve_proto_rel_path(proto.as_ref(), includes) == name);
+    match (requested.next(), requested.next()) {
+        (Some(proto), None) => return proto.as_ref().to_path_buf(),
+        (Some(_), Some(_)) => return reported,
+        _ => {}
+    }
+    let imported = {
+        let mut candidates = includes
+            .iter()
+            .map(|include| include.as_ref().join(&reported))
+            .filter(|candidate| candidate.is_file());
+        match (candidates.next(), candidates.next()) {
+            (Some(proto), None) => Some(proto),
+            _ => None,
+        }
+    };
+    imported.unwrap_or(reported)
+}
+
 /// Options for [`compile_protos`] and [`Config::compile_descriptor_set`].
 ///
 /// # Configuration precedence
@@ -1726,17 +1762,9 @@ impl Config {
                 });
             }
             if let Some((import_name, proto_file)) = parse_missing_import(&stderr) {
-                let proto = if proto_file.as_os_str().is_empty() {
-                    protos
-                        .first()
-                        .map(|p| p.as_ref().to_path_buf())
-                        .unwrap_or_default()
-                } else {
-                    proto_file
-                };
                 return Err(CodegenError::MissingImport {
                     import: import_name,
-                    proto,
+                    proto: missing_import_source(proto_file, protos, includes),
                     detail: stderr,
                 });
             }
@@ -8489,6 +8517,33 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn missing_import_source_restores_requested_path_from_relative_protoc_error() {
+        let input = PathBuf::from("schemas/failing_import.proto");
+        let includes = [PathBuf::from("schemas")];
+        let (missing, reported) = parse_missing_import(
+            "failing_import.proto:3:1: Import \"nonexistent_dependency.proto\" was not found.",
+        )
+        .expect("missing import diagnostic");
+        assert_eq!(missing, "nonexistent_dependency.proto");
+        assert_eq!(
+            missing_import_source(reported, std::slice::from_ref(&input), &includes),
+            input
+        );
+        assert_eq!(
+            missing_import_source(PathBuf::new(), std::slice::from_ref(&input), &includes),
+            input
+        );
+        assert_eq!(
+            missing_import_source(
+                PathBuf::from("elsewhere.proto"),
+                std::slice::from_ref(&input),
+                &includes,
+            ),
+            PathBuf::from("elsewhere.proto")
+        );
+    }
 
     #[test]
     fn test_sanitize_doc_line_backticks() {
