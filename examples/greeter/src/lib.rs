@@ -101,6 +101,8 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/hello.rs"));
 }
 
+pub mod production;
+
 use pbrs_grpc::health::{service as health_service, HealthReporter, ServingStatus};
 use pbrs_grpc::reflection::service as reflection_service;
 pub use pbrs_grpc::{Call, Request, Response, Router, Status, StreamSender, Streaming};
@@ -118,14 +120,19 @@ pub struct Live {
     server_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
+pub(crate) fn signal_shutdown(tx: tokio::sync::oneshot::Sender<()>) {
+    // A closed receiver has already stopped listening; callers still join or abort the task.
+    tx.send(()).unwrap_or(());
+}
+
 impl Live {
     /// Gracefully shutdown the server and wait for drain to complete.
     pub async fn shutdown(mut self) {
         if let Some(tx) = self.shutdown_tx.take() {
-            let _ = tx.send(());
+            signal_shutdown(tx);
         }
         if let Some(handle) = self.server_handle.take() {
-            let _ = handle.await;
+            drop(handle.await);
         }
     }
 }
@@ -133,7 +140,7 @@ impl Live {
 impl Drop for Live {
     fn drop(&mut self) {
         if let Some(tx) = self.shutdown_tx.take() {
-            let _ = tx.send(());
+            signal_shutdown(tx);
         }
     }
 }
@@ -248,7 +255,7 @@ pub async fn serve() -> Result<Live, Status> {
             .add_service(reflection)
             .add_service(GreeterServer::new(MyGreeter))
             .serve_with_shutdown(listener, async {
-                let _ = shutdown_rx.await;
+                drop(shutdown_rx.await);
             })
             .await
             .ok();
@@ -320,8 +327,8 @@ pub async fn say_hello(client: &GreeterClient, name: &str) -> Result<String, Sta
 }
 
 /// 2. Client-streaming RPC (`SayHelloStream` / `ClientHello`):
-/// client streams requests into a bounded sender, half-closes via `tx.close()`,
-/// and awaits the single server response.
+///    client streams requests into a bounded sender, half-closes via `tx.close()`,
+///    and awaits the single server response.
 pub async fn say_hello_stream<'a>(
     client: &GreeterClient,
     names: impl IntoIterator<Item = &'a str>,
@@ -355,7 +362,7 @@ pub async fn client_hello<'a>(
 }
 
 /// 3. Server-streaming RPC (`SayHelloServerStream` / `ServerHello`):
-/// single request, stream of responses read to EOF (`while let Some(msg) = stream.message().await?`).
+///    single request, stream of responses read to EOF (`while let Some(msg) = stream.message().await?`).
 pub async fn say_hello_server_stream(
     client: &GreeterClient,
     name: &str,
@@ -383,7 +390,7 @@ pub async fn server_hello(client: &GreeterClient, name: &str) -> Result<Vec<Stri
 }
 
 /// 4. Bidirectional streaming RPC (`SayHelloBidiStream` / `StreamHello`):
-/// concurrent full-duplex streams coordinated via `StreamSender` and inbound `Streaming`.
+///    concurrent full-duplex streams coordinated via `StreamSender` and inbound `Streaming`.
 pub async fn say_hello_bidi_stream<'a>(
     client: &GreeterClient,
     names: impl IntoIterator<Item = &'a str>,

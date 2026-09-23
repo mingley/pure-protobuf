@@ -1,201 +1,139 @@
 # Production Service Configuration and Lifecycle
 
-This guide covers operational configurations for running `pbrs-grpc` services in production environments: transport security, deadlines, graceful lifecycle management, and connection topologies.
-
----
+This is a **bounded, loopback-only teaching recipe**, not a deployment preset.
+The executable [greeter TLS service and client](../../examples/greeter/src/production.rs)
+use generated stubs, `rustls` TLS, health and a finite drain. Its
+[binary entry point](../../examples/greeter/src/main.rs) runs the service and
+client in one process; the original no-argument `cargo run` still prints
+`hello world`. The [onboarding consumer](../../tests/onboarding.rs) compiles
+the same recipe from a fresh crate and asserts the outcomes below. The guide
+links to this tested source instead of maintaining separate Rust snippets.
 
 <a id="tls"></a>
-## 1. Transport Security (TLS and mTLS)
+## 1. Run the TLS and mTLS recipes
 
-`pbrs-grpc` uses a pure-Rust TLS implementation via `rustls` and `Graviola`. No external C compiler or OpenSSL installation is required.
+From the repository root, with the existing Rust dependencies and `protoc`
+available, run the two **local-fixture-only** exercises:
 
-### Server TLS Configuration
-```rust
-use pbrs_grpc::{Certificate, Identity, Server, ServerTls};
-
-// Load certificate chain and private key (PEM format)
-let cert_pem = std::fs::read("certs/server.crt")?;
-let key_pem = std::fs::read("certs/server.key")?;
-let identity = Identity::from_pem(cert_pem, key_pem)?;
-
-// Server TLS with mandatory ALPN h2
-let tls = ServerTls::new(identity);
-Server::new(MyService)
-    .serve_tls("0.0.0.0:50051", tls)
-    .await?;
+```bash
+cargo run --offline -p pbrs-grpc-example-greeter -- --tls-demo pbrs-grpc/tests/tls_data
+cargo run --offline -p pbrs-grpc-example-greeter -- --mtls-demo pbrs-grpc/tests/tls_data
 ```
 
-### Mutual TLS (mTLS)
-To enforce client certificate authentication, provide a client CA root:
+The respective output is `[Tls] overload, readiness and bounded drain
+verified` or `[Mtls] overload, readiness and bounded drain verified`; failures
+exit nonzero. The fixture directory contains **public test credentials**,
+including `server.key` and `client.key`. They are read from their original
+paths only when running the demo, never included in the binary, copied into
+the consumer, or printed. Do not reuse the keys, CA, or `localhost` identity
+for a deployment.
 
-```rust
-let client_ca_pem = std::fs::read("certs/client_ca.crt")?;
-let client_ca = Certificate::from_pem(client_ca_pem)?;
+The [actual constructors](../../examples/greeter/src/production.rs) use
+`Identity::from_pem`, `ServerTls::new(identity)` for TLS or
+`ServerTls::mtls(identity, client_ca_pem)` for mTLS, and
+`ClientTls::ca("localhost", ca_pem)` or `ClientTls::ca_mtls` on the client.
+The client verifies the certificate's `localhost` name independently of its
+loopback TCP address; TLS requires ALPN `h2`, and certificate verification
+cannot be disabled. The exercise confirms a wrong CA fails in TLS mode and
+missing client identity fails in mTLS mode with `UNAUTHENTICATED`.
 
-let mtls = ServerTls::mtls(identity, client_ca);
-Server::new(MyService)
-    .serve_tls("0.0.0.0:50051", mtls)
-    .await?;
-```
-
-In your handler, inspect verified client identity via `Rpc::peer_identity` or `Request::peer_identity`:
-```rust
-let client_certs = request.peer_identity();
-```
-
-### Client TLS Dialing
-```rust
-use pbrs_grpc::{Certificate, Channel, ClientTls};
-
-// Standard WebPKI CA roots
-let client = GreeterClient::connect_tls("example.com:443", ClientTls::webpki()).await?;
-
-// Pinned custom root CA
-let ca_pem = std::fs::read("certs/ca.crt")?;
-let ca = Certificate::from_pem(ca_pem)?;
-let client = GreeterClient::connect_tls("internal.service:50051", ClientTls::ca(ca)).await?;
-```
-
----
+**Production trust** is a separate operational decision: supply a
+maintained CA and server identity for the real DNS name, restrict access to
+private keys, and define issuance, renewal and connection-restart procedures.
+This sample has no live certificate-rotation or secret-provisioning API.
+**Authentication** in mTLS verifies possession of a CA-issued client
+certificate; in ordinary TLS no client certificate is required.
+**Authorization** still requires an application policy mapping verified
+`Request::peer_identity` / `Rpc::peer_identity` (DER certificate chain) to
+per-method permissions. Neither trusting a CA nor exposing a certificate
+automatically authorizes its holder. Keep the service on loopback unless that
+policy and network exposure have been reviewed.
 
 <a id="deadlines"></a>
 <a id="timeouts"></a>
 <a id="wait-for-ready"></a>
-## 2. Timeouts, Deadlines, and Cancellation
+## 2. Bound connections, bytes, streams and time
 
-### Setting Timeouts
-Timeouts can be set globally on channels or per-RPC:
+The [server and client configurations](../../examples/greeter/src/production.rs)
+set these explicit **example** limits; size them against the
+[resource-budget model](../resource-budgets.md) and your actual load before
+deployment:
 
-```rust
-use std::time::Duration;
+| Budget | Server | Client |
+|---|---|---|
+| Connections and RPCs | 4 concurrent connections; 1 RPC process-wide; 4 HTTP/2 streams per connection | 1 pooled connection; 4 concurrent RPCs |
+| Transport and messages | 64 KiB process-wide transport byte budget; 1 KiB inbound/outbound uncompressed message caps | 1 KiB inbound/outbound uncompressed message caps |
+| Flow control and metadata | 64 KiB connection / 32 KiB stream windows; 32 KiB send buffer; 4 KiB header list; 1 KiB HPACK table | Same windows, send buffer, header list and HPACK table |
+| Application streams | At most 4 upload/bidi names, 128 bytes each; 3 download replies, channel capacity 2 | 2-message sender buffer; reads terminate at the declared counts and final status |
+| Handshake and RPC | 2 s per TLS/HTTP2 handshake stage; server RPC cap 6 s | 3 s whole dial; 5 s default RPC cap; explicit 1–2 s call timeouts |
+| Lifecycle | 10 s idle connection limit; 250 ms in-flight drain grace | No wait-for-ready queue; failures are explicit |
 
-// 1. Channel-level default timeout overlay
-let channel = Channel::connect("127.0.0.1:50051").await?
-    .timeout(Duration::from_secs(3));
-
-// 2. Call-site per-request timeout
-let mut req = Request::new(payload);
-req.set_timeout(Duration::from_millis(500));
-```
-
-The timeout duration is serialized into the `grpc-timeout` header. The server computes the deadline `Instant` upon dispatch.
-
-### Server Cancellation Detection
-Long-running server tasks can check for client cancellations:
-
-```rust
-tokio::select! {
-    res = do_expensive_work() => {
-        Ok(Response::new(res))
-    }
-    _ = request.cancelled() => {
-        Err(Status::cancelled("client aborted request"))
-    }
-}
-```
-
-### Wait-for-Ready and Connect Timeouts
-- **`ChannelConfig::connect_timeout`**: Bounds the initial TCP dial and HTTP/2 preface handshake.
-- **`Channel::wait_for_ready`**: When enabled, RPCs made while the channel is connecting or reconnecting queue instead of failing immediately with `UNAVAILABLE`.
-
----
+`Request::set_timeout` supplies `grpc-timeout` on individual calls; the
+client/channel and server timeout overlays also bound calls that omit it.
+`ChannelConfig::connect_timeout` bounds dialing, **not** an RPC's handler.
+The demo leaves `wait_for_ready` off; enabling it without a finite deadline
+can queue indefinitely. With one process-wide RPC slot, an in-flight upload
+can also reject a health probe as `RESOURCE_EXHAUSTED`. Real services must
+budget probe capacity separately rather than treating this tiny test cap as
+a universal production value. These are application and transport caps, **not
+a claim of a strict process RSS ceiling**: TLS, socket buffers and unrelated
+application work require separate budgets.
 
 <a id="graceful-shutdown"></a>
 <a id="connection-age"></a>
-## 3. Connection Lifecycle and Graceful Drain
+## 3. Readiness, overload and graceful drain
 
-### Graceful Server Shutdown
-Use `serve_with_shutdown` to drain active requests cleanly:
+The router mounts the generated greeter and `health::service()` on the same
+TLS listener, advertises `SERVING` once bound, and verifies `HealthClient::check`
+over TLS. `ProductionLive::mark_not_ready()` calls
+`HealthReporter::shutdown()`, making both the named service and process `""`
+`NOT_SERVING`; that is **a readiness signal**, not an admission firewall.
+Wait for the environment's load balancer to observe the change before
+triggering shutdown in a real deployment.
 
-```rust
-let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+The demo keeps one upload active, proves the next unary call is rejected by
+the **server** with `RESOURCE_EXHAUSTED: too many concurrent RPCs`, completes
+the upload and proves a subsequent call succeeds. It then marks readiness
+false, leaves an upload in flight and calls `ProductionLive::shutdown()`.
+`Router::serve_tls_with_shutdown` stops accepting, sends HTTP/2 GOAWAY and
+allows existing requests to finish for at most `max_connection_age_grace`
+(250 ms here) before force-closing. The demo asserts termination inside 2 s,
+rejected new connections, zero live application stream tasks and zero tracked
+server transport bytes. Always await `shutdown()` and handle its `Result`;
+dropping the handle instead aborts its server task, not a graceful drain.
 
-// Trigger shutdown on SIGTERM / Ctrl+C
-tokio::spawn(async move {
-    tokio::signal::ctrl_c().await.ok();
-    let _ = shutdown_tx.send(());
-});
-
-Server::new(MyService)
-    .serve_with_shutdown("0.0.0.0:50051", async {
-        shutdown_rx.await.ok();
-    })
-    .await?;
-```
-During shutdown:
-1. The server stops accepting new connections.
-2. An HTTP/2 `GOAWAY` frame is sent on all active connections with the highest processed stream ID.
-3. In-flight requests are permitted to complete before sockets are closed.
-
-### Max Connection Age and Idle Limits
-To balance traffic across backend pods behind L4 balancers:
-- `ServerConfig::max_connection_age`: Sends a graceful `GOAWAY` after a connection reaches maximum age (automatically jittered ±10% to prevent thundering herd).
-- `ServerConfig::max_connection_idle`: Closes connections with no active streams after the idle duration elapses.
-
----
+`ServerConfig::max_connection_idle` is 10 s here; the example does not set
+`max_connection_age`. If you opt into an age limit, connection aging and
+GOAWAY are separate from application readiness and share the configured grace
+policy. Deadlines also bound unending streams, but neither a deadline nor
+GOAWAY automatically cancels unrelated tasks spawned by your application.
 
 <a id="router"></a>
-## 4. Multi-Service Routing
+## 4. Routing and reflection exposure
 
-Mount multiple gRPC services on a single listener using `Router`:
-
-```rust
-use pbrs_grpc::Router;
-
-let router = Router::new()
-    .add_service(GreeterServer::new(MyGreeter))
-    .add_service(EchoServer::new(MyEcho))
-    .add_service(HealthServer::new(health_reporter));
-
-router.serve("0.0.0.0:50051").await?;
-```
-
-Unmatched service requests are answered with `Code::Unimplemented`.
-
----
+The TLS recipe deliberately mounts **greeter plus health, not reflection**.
+The original plaintext [greeter service](../../examples/greeter/src/lib.rs)
+mounts reflection for local learning. Enabling reflection on a reachable
+endpoint exposes service names and protobuf descriptors; decide who may
+discover them and enforce that policy independently of TLS/mTLS. An unmatched
+service returns `UNIMPLEMENTED`.
 
 <a id="unix-sockets"></a>
 <a id="in-process"></a>
-## 5. Local IPC (Unix Domain Sockets & In-Process Pipes)
+## 5. Other transports
 
-### Unix Domain Sockets (UDS)
-UDS provides low-overhead IPC on Linux and macOS:
-
-```rust
-// Server: serve_unix_unlink cleans stale socket files on restart
-Server::new(MyService)
-    .serve_unix_unlink("/tmp/grpc-service.sock")
-    .await?;
-
-// Client
-let client = GreeterClient::connect_unix("/tmp/grpc-service.sock").await?;
-```
-
-On Linux, inspect caller PID/UID via `Rpc::peer_cred` (backed by `SO_PEERCRED`).
-
-### In-Process Duplex Pipes (`from_io`)
-For integration testing and in-memory communication without network overhead:
-
-```rust
-let (client_io, server_io) = tokio::io::duplex(64 * 1024);
-
-tokio::spawn(async move {
-    Server::new(MyService)
-        .serve_connection(server_io)
-        .await
-        .unwrap();
-});
-
-let channel = Channel::from_io(client_io);
-let client = GreeterClient::new(channel);
-```
-
----
+Unix sockets (`serve_unix_unlink` / `connect_unix`) and in-process
+`serve_connection` / `Channel::from_io` are separate, **non-TLS** paths;
+see the [native lifecycle tests](../../pbrs-grpc/tests/lifecycle.rs).
+Do not treat filesystem permissions or Unix peer credentials as equivalent
+to the certificate and authorization policy above.
 
 <a id="compression"></a>
-## 6. Compression Negotiation
+## 6. Compression
 
-`pbrs-grpc` supports message-level gzip compression:
-- **Server**: Inbound gzip is accepted by default. Use `Server::send_compressed(true)` to enable outbound compression on responses.
-- **Client**: Call `Channel::send_compressed(true)` or `Request::set_compress(true)` to compress outbound requests.
-- **Negotiation**: Gzip is only transmitted if the peer advertises support in `grpc-accept-encoding`.
+Inbound gzip is accepted by default; outbound gzip is opt-in through
+`ServerConfig::send_compressed(true)` or
+`ChannelConfig::send_compressed(true)`. The demo leaves outbound compression
+off, and its uncompressed message caps still apply if gzip is enabled. See
+the [native TLS/compression tests](../../pbrs-grpc/tests/tls.rs) for every RPC
+shape.
