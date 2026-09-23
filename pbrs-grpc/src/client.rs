@@ -1046,7 +1046,7 @@ impl Channel {
         self
     }
 
-    /// Attach an existing [`ByteBudgetTracker`] to this channel.
+    /// Attach an existing [`crate::ByteBudgetTracker`] to this channel.
     #[must_use]
     pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
         self.byte_budget = tracker;

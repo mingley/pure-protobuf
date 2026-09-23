@@ -1129,7 +1129,7 @@ pub use http::Extensions;
 pub use interceptor::{
     ClientInterceptor, Intercepted, Interceptor, ResponseInterceptor, ServiceExt,
 };
-pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
+pub use limits::{ByteBudgetTracker, BytePermit, MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response, ResponseParts};

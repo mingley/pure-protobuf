@@ -1805,7 +1805,7 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// Attach an existing [`ByteBudgetTracker`] to this server.
+    /// Attach an existing [`crate::ByteBudgetTracker`] to this server.
     #[must_use]
     pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
         self.byte_budget = tracker;
@@ -2830,7 +2830,7 @@ impl Router {
         self
     }
 
-    /// Attach an existing [`ByteBudgetTracker`] to this router.
+    /// Attach an existing [`crate::ByteBudgetTracker`] to this router.
     #[must_use]
     pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
         self.byte_budget = tracker;

@@ -88,7 +88,6 @@ pub(crate) fn tune(
     target_os = "tvos",
     target_os = "watchos",
     target_os = "windows",
-    target_os = "cygwin",
     target_os = "nuttx",
     all(target_os = "wasi", not(target_env = "p1")),
 ))]
@@ -117,7 +116,6 @@ fn apply_keepalive_interval(
     target_os = "tvos",
     target_os = "watchos",
     target_os = "windows",
-    target_os = "cygwin",
     target_os = "nuttx",
     all(target_os = "wasi", not(target_env = "p1")),
 )))]
@@ -142,7 +140,6 @@ fn apply_keepalive_interval(
     target_os = "netbsd",
     target_os = "tvos",
     target_os = "watchos",
-    target_os = "cygwin",
     target_os = "windows",
     target_os = "nuttx",
     all(target_os = "wasi", not(target_env = "p1")),
@@ -171,7 +168,6 @@ fn apply_keepalive_retries(
     target_os = "netbsd",
     target_os = "tvos",
     target_os = "watchos",
-    target_os = "cygwin",
     target_os = "windows",
     target_os = "nuttx",
     all(target_os = "wasi", not(target_env = "p1")),

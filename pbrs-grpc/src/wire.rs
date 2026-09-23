@@ -429,7 +429,7 @@ async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Sta
         return Ok(());
     }
     send.reserve_capacity(n);
-    while send.capacity() < n {
+    while send.capacity() == 0 {
         match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
             Some(Ok(_)) => {}
             Some(Err(e)) => return Err(Status::from_h2_send(e)),
@@ -439,32 +439,46 @@ async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Sta
     Ok(())
 }
 
-/// Queue one gRPC frame, reserving flow-control capacity only when we have to.
+/// Queue one gRPC frame in chunks no larger than the HTTP/2 send budget.
 ///
-/// `h2` buffers anything up to the connection's send budget without waiting, so
-/// reserving capacity first would cost a needless round trip through the
-/// connection task on every message. A frame larger than the budget, or one
-/// arriving while the budget is already spent, falls back to reserving capacity
-/// and retrying. `Bytes` is reference-counted, so the retry does not copy.
+/// The small-frame fast path avoids a capacity poll. Large frames cannot wait
+/// for full-frame credit when the configured send buffer or peer window is
+/// smaller than the frame, so each chunk waits for only one byte of credit and
+/// uses whatever is available. `Bytes` slices share the original allocation.
 pub(crate) async fn send_bytes(
     send: &mut SendStream<Bytes>,
-    frame: Bytes,
+    mut frame: Bytes,
     end: bool,
     send_buffer: usize,
 ) -> Result<(), Status> {
-    if frame.len() <= send_buffer {
-        match send.send_data(frame.clone(), end) {
-            Ok(()) => return Ok(()),
-            Err(e) => {
-                let status = Status::from_h2_send(e);
-                if status.is_transport() {
-                    return Err(status);
+    if send_buffer == 0 {
+        return Err(Status::invalid_argument(
+            "HTTP/2 send buffer size must be nonzero",
+        ));
+    }
+    if frame.is_empty() {
+        return send.send_data(frame, end).map_err(Status::from_h2_send);
+    }
+    while !frame.is_empty() {
+        if frame.len() <= send_buffer {
+            match send.send_data(frame.clone(), end) {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    let status = Status::from_h2_send(e);
+                    if status.is_transport() {
+                        return Err(status);
+                    }
                 }
             }
         }
+        wait_capacity(send, frame.len().min(send_buffer)).await?;
+        let n = frame.len().min(send.capacity()).min(send_buffer);
+        let last = n == frame.len();
+        send.send_data(frame.slice(..n), end && last)
+            .map_err(Status::from_h2_send)?;
+        frame = frame.slice(n..);
     }
-    wait_capacity(send, frame.len()).await?;
-    send.send_data(frame, end).map_err(Status::from_h2_send)
+    Ok(())
 }
 
 pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {

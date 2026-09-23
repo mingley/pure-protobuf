@@ -68,6 +68,23 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 | **Deserialized Message Struct** | Application (`T: Parse + Default`) | Domain dependent | Rust allocator / struct lifetime | Dropped by application handler |
 | **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original chunk size | Application holding sub-slice of transport `Bytes` | Dropped when last `Bytes` clone drops |
 
+Outbound gRPC messages can be larger than the configured HTTP/2 send buffer or
+the peer's stream window. `wire::send_bytes` queues small frames directly when
+the buffer accepts them; otherwise it slices the encoded frame into DATA chunks
+no larger than the positive send-buffer limit and currently granted credit.
+Only the final chunk carries `END_STREAM` when the caller requests it. The
+writer never waits for credit equal to the entire message, which could
+otherwise stall behind a smaller buffer. The serialized message itself remains
+live while chunks are queued and is separately governed by the outbound
+encoding cap; the send-buffer limit alone is not a total-message memory cap.
+
+The public `pbrs_grpc::ByteBudgetTracker` can share an explicit transport-byte
+cap through `Server::with_byte_budget_tracker` or
+`Channel::with_byte_budget_tracker`. Acquired `BytePermit`s return their bytes
+on drop, and `allocated()` / `is_quiescent()` expose the accounting state.
+This tracks only the buffers it owns, not application allocations or process
+RSS.
+
 ### 2.2 The Backing Buffer Retention Hazard
 
 A critical architectural hazard in zero-copy networking engines is **backing buffer retention**:
