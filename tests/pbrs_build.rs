@@ -529,18 +529,23 @@ fn error_unwritable_output_identifies_cause_and_path() {
 
 #[test]
 fn error_missing_out_dir_identifies_cause() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    if std::env::var_os("PBRS_BUILD_TEST_MISSING_OUT_DIR_CHILD").is_none() {
+        let output = Command::new(std::env::current_exe().expect("test executable"))
+            .args(["--exact", "error_missing_out_dir_identifies_cause"])
+            .env_remove("OUT_DIR")
+            .env("PBRS_BUILD_TEST_MISSING_OUT_DIR_CHILD", "1")
+            .output()
+            .expect("run missing OUT_DIR check in a child");
+        assert!(output.status.success(), "{}", dump(&output));
+        return;
+    }
     // When out_dir is not specified and OUT_DIR is not set.
+    assert!(std::env::var_os("OUT_DIR").is_none());
     let tmp = test_temp_dir("missing-out-dir-test");
     let proto_path = tmp.join("test.proto");
     std::fs::write(&proto_path, "syntax = \"proto3\";\n").unwrap();
 
-    let prev = std::env::var("OUT_DIR").ok();
-    std::env::remove_var("OUT_DIR");
     let res = pbrs::codegen::Config::new().compile_protos(&[&proto_path], &[&tmp]);
-    if let Some(v) = prev {
-        std::env::set_var("OUT_DIR", v);
-    }
     let err = res.unwrap_err();
     assert!(matches!(err, pbrs::codegen::CodegenError::MissingOutDir));
     assert!(err.to_string().contains("OUT_DIR"));
@@ -902,7 +907,23 @@ fn cargo_build_verbose(dir: &Path, path: Option<&OsStr>) -> Output {
 
 #[test]
 fn custom_protoc_path_configuration() {
-    let _lock = ENV_MUTEX.lock().unwrap();
+    if let Some(dir) = std::env::var_os("PBRS_BUILD_TEST_CUSTOM_PROTOC_CHILD") {
+        let tmp = PathBuf::from(dir);
+        let custom_bin = tmp.join("my-custom-protoc");
+        let proto_path = tmp.join("test.proto");
+        let out_dir = tmp.join("out");
+        let res = pbrs::codegen::Config::new()
+            .protoc_path(&custom_bin)
+            .out_dir(&out_dir)
+            .emit_kernel_stubs(false)
+            .compile_protos(&[&proto_path], &[&tmp]);
+        assert!(
+            res.is_ok(),
+            "compile with custom protoc_path must succeed: {:?}",
+            res.err()
+        );
+        return;
+    }
     let tmp = test_temp_dir("custom-protoc-test");
     let real_protoc = find_real_protoc();
     assert!(
@@ -938,24 +959,16 @@ fn custom_protoc_path_configuration() {
     );
 
     let no_protoc_path = path_without_protoc();
-    let prev_path = std::env::var_os("PATH");
-    std::env::set_var("PATH", &no_protoc_path);
-
-    let res = config
-        .out_dir(&out_dir)
-        .emit_kernel_stubs(false)
-        .compile_protos(&[&proto_path], &[&tmp]);
-
-    if let Some(p) = prev_path {
-        std::env::set_var("PATH", p);
-    } else {
-        std::env::remove_var("PATH");
-    }
-
+    let output = Command::new(std::env::current_exe().expect("test executable"))
+        .args(["--exact", "custom_protoc_path_configuration"])
+        .env("PBRS_BUILD_TEST_CUSTOM_PROTOC_CHILD", &tmp)
+        .env("PATH", &no_protoc_path)
+        .output()
+        .expect("run custom protoc check in a child");
     assert!(
-        res.is_ok(),
-        "compile with custom protoc_path must succeed: {:?}",
-        res.err()
+        output.status.success(),
+        "custom protoc subprocess failed:\n{}",
+        dump(&output)
     );
     assert!(out_dir.join("test.rs").exists());
 }
