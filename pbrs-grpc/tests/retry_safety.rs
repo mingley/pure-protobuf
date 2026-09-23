@@ -77,6 +77,58 @@ impl Greeter for CountingGreeter {
     }
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn trailers_only_rejection_survives_early_request_body_reset() {
+    for shape in ["unary", "server_stream"] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local_addr");
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept connection");
+            let mut conn = h2::server::handshake(socket).await.expect("handshake");
+            let (request, mut respond) = conn
+                .accept()
+                .await
+                .expect("request")
+                .expect("valid request");
+            let response = http::Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, "application/grpc")
+                .header("grpc-status", "8")
+                .header("grpc-message", "too%20many%20concurrent%20RPCs")
+                .body(())
+                .expect("trailers-only response");
+            respond.send_response(response, true).expect("reject");
+            drop(request);
+            while let Some(Ok(_)) = conn.accept().await {}
+        });
+
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::new()
+                .connections(1)
+                .max_send_buffer_size(1024),
+        )
+        .await
+        .expect("connect");
+        let client = GreeterClient::new(channel);
+        let mut request = Request::new(req(&"x".repeat(128 * 1024)));
+        request.set_timeout(Duration::from_secs(3));
+        let result = if shape == "unary" {
+            client.say_hello(request).await.map(|_| ())
+        } else {
+            client.server_hello(request).await.map(|_| ())
+        };
+        let status = result.expect_err("server refused the RPC");
+        assert_eq!(
+            status.code(),
+            Code::ResourceExhausted,
+            "{shape}: server status lost to an HTTP/2 send failure: {status}"
+        );
+        assert_eq!(status.message(), "too many concurrent RPCs");
+        server.abort();
+    }
+}
+
 // ============================================================================
 // Scenario A: Failure before headers -> transparent retry is safe and works
 // ============================================================================

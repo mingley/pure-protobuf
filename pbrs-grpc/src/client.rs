@@ -13,8 +13,8 @@ use crate::telemetry::{
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
 use crate::wire::{
-    encode_msg, finish_stream, finish_unary, grpc_request, reset_on_cancel, send_bytes, OutBatch,
-    PumpEnd,
+    encode_msg, finish_stream, finish_unary, grpc_request, reset_on_cancel, send_bytes,
+    status_from, OutBatch, PumpEnd,
 };
 
 #[allow(dead_code, reason = "silence dead code")]
@@ -2880,6 +2880,30 @@ impl AttemptCommitment {
     }
 }
 
+async fn prefer_peer_rejection_after_send<T>(
+    response: h2::client::ResponseFuture,
+    send_error: Status,
+) -> Result<T, Status> {
+    if send_error.is_transport() {
+        if let Ok(response) = response.await {
+            let grpc_code = response
+                .headers()
+                .get("grpc-status")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.parse::<i32>().ok());
+            // An early trailers-only error can close the request body with
+            // RST_STREAM(NO_ERROR). Never turn an incomplete upload into OK.
+            if response.status() == http::StatusCode::OK
+                && response.body().is_end_stream()
+                && grpc_code.is_some_and(|code| code != 0)
+            {
+                return Err(status_from(response.headers(), None));
+            }
+        }
+    }
+    Err(send_error)
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "one transport handle plus request, cancel, limits, and scheme"
@@ -2919,10 +2943,17 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
-    send_bytes(&mut send_stream, frame, true, wire.send_buffer)
-        .await
-        .map_err(|e| commitment.classify(e))?;
+    let sent = send_bytes(&mut send_stream, frame, true, wire.send_buffer).await;
     drop(permit);
+    if let Err(status) = sent {
+        return race(
+            prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
+            cancel_rx,
+            deadline,
+            Some(&mut send_stream),
+        )
+        .await;
+    }
     race(
         async {
             let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
@@ -2977,10 +3008,17 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
-    send_bytes(&mut send_stream, frame, true, wire.send_buffer)
-        .await
-        .map_err(|e| commitment.classify(e))?;
+    let sent = send_bytes(&mut send_stream, frame, true, wire.send_buffer).await;
     drop(permit);
+    if let Err(status) = sent {
+        return race(
+            prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
+            cancel_rx,
+            deadline,
+            Some(&mut send_stream),
+        )
+        .await;
+    }
     let response = race(
         async {
             let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
