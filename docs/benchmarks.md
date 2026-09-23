@@ -34,10 +34,17 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
      (`cached_size`) and canonical packed varint representations
      (`Packed::encoded`) are already computed and reused.
    - *Fresh Encode*: Measures the first serialization of a freshly parsed
-     message before canonical caches are warmed, evaluating true varint encoding
-     and length calculation costs.
-   - *Mutated Encode*: Mutates message fields prior to serialization, verifying
-     dirty-tracking and size recomputation.
+     message before canonical caches are warmed. Parsing and preparation happen
+     outside the timed interval; each prepared message is encoded exactly once.
+     `fresh_encode_iters` is capped at 10,000 and an estimated 32 MiB of prepared
+     inputs per sample, so it can differ from the main row's `iters`. This is a
+     direct measurement, not the difference between parse+encode and parse
+     medians or a result clamped to cached encode.
+   - *Mutated Encode*: Alternates the mutated field between distinct values
+     before every encode to include cache invalidation and size recomputation.
+     Full encoded buffers, rather than only their lengths, are consumed by the
+     benchmark black box. These additional pbrs timings are diagnostic, not
+     apples-to-apples performance gates against competitors' cached encode rows.
 4. **Parse-Only vs. Parse-and-Touch**:
    - *Parse-Only*: Deserializes wire bytes and drops the decoded message
      immediately without inspecting fields.
@@ -103,10 +110,9 @@ Reported, not gated.
 | oneof string | 23 | **39 / 87** | 96 / 143 | 149 / 99 | 82 / 169 | n/a / 122 |
 
 `person_generated` uses compiler-generated layout (`Repeated<LazyStr>`,
-`Map<LazyStr, i32>`). Comparing `person` (35 / 83 ns) against `person_generated`
-(37 / 198 ns) quantifies the exact benefit of inline small-repeat storage:
-`InlineVec` avoids heap allocations for up to 4 elements, providing a ~2.4× decode
-speedup on small structs compared to standard dynamic heap allocations.
+`Map<LazyStr, i32>`). The recorded 83 ns versus 198 ns decode result is for
+these two complete implementations; it does not isolate `InlineVec` as the sole
+cause of the difference.
 
 ## Losses
 
@@ -146,40 +152,20 @@ See `docs/upb.md`.
 
 ## Retained-Memory Footprint
 
-Codec efficiency is not only execution latency; memory residency and allocation
-footprint determine real-world service capacity and allocator pressure.
-Retained memory is evaluated by measuring the resident heap bytes and
-active allocation count per parsed message:
-
-| case | payload | pbrs retained | prost retained | v4 upb arena | buffa owned | buffa view |
-|---|---:|---:|---:|---:|---:|---:|
-| empty | 0 | **0 B (0 allocs)** | 0 B (0 allocs) | 1,024 B (1 alloc) | 0 B (0 allocs) | **0 B (0 allocs)** |
-| person (handwritten) | 62 | **0 B (0 allocs)** | 352 B (6 allocs) | 1,280 B (1 alloc) | 288 B (5 allocs) | **0 B (0 allocs)** |
-| person_generated | 62 | **128 B (2 allocs)** | 352 B (6 allocs) | 1,280 B (1 alloc) | 288 B (5 allocs) | **0 B (0 allocs)** |
-| TAT populated | 87 | **192 B (3 allocs)** | 672 B (11 allocs) | 2,048 B (1 alloc) | 576 B (9 allocs) | **0 B (0 allocs)** |
-| strings | 163 | **64 B (1 alloc)** | 480 B (7 allocs) | 1,536 B (1 alloc) | 416 B (7 allocs) | **0 B (0 allocs)** |
-| blob 4 KiB | 4,099 | **4,160 B (1 alloc)** | 4,128 B (1 alloc) | 5,120 B (1 alloc) | 4,128 B (1 alloc) | **0 B (0 allocs)** |
-
-- **`pbrs`**: Leverages `Wire` (`Arc<[u8]>`) for strings, byte fields, and packed
-  scalars. When parsing length-delimited payloads, `pbrs` captures a shared slice
-  into the input wire buffer rather than allocating distinct `String` and `Vec<u8>`
-  heap buffers for each field. For handwritten `Person`, `InlineVec` stores up to
-  4 items inline in the struct (0 heap allocations). In `person_generated`, dynamic
-  `Repeated` and `Map` collections allocate only when populated.
-- **`prost`**: Eagerly decomposes the payload, allocating individual `String`s,
-  `Vec<u8>`, and collection vectors on the heap for every non-empty field.
-- **`v4 upb`**: Allocates a contiguous `upb_Arena` (typically starting at 1-2 KiB).
-  Small messages pay an initial arena allocation tax, but subsequent allocations are
-  amortized bump-allocations within the arena.
-- **`buffa`**: Owned mode allocates heap `String`s and `Vec`s; View mode borrows
-  directly with lifetime bounds, maintaining true zero-allocation (0 B retained heap).
+Retained heap bytes and allocation counts are **not measured** by the current
+codec harness. Previous byte/allocator-count estimates were not backed by a
+reproducible counter, so they cannot qualify a memory-efficiency claim.
+Measure retained messages in separate processes with identical input-buffer
+lifetimes and report RSS plus allocator-aware counts for both Rust allocations
+and the C/upb arena. Owned and borrowed-view representations need separate
+columns; retaining the input buffer is part of a borrowed view's memory cost.
+Until that evidence is recorded, retained-memory comparisons remain open.
 
 ## Holdout-Schema Coverage
 
-To prevent benchmark overfitting and guarantee that optimization techniques
-generalize beyond the canonical conformance message (`TestAllTypesProto3`), a
-set of holdout schemas representing divergent real-world message topologies is
-maintained and monitored:
+The emitted JSON labels the topology of each measured case. Additional holdout
+schemas below are proposed stress cases, not all measured in the current
+harness; their risks cannot be counted as performance results:
 
 | schema / topology | characteristics | pbrs behavior | regression risk guarded |
 |---|---|---|---|
