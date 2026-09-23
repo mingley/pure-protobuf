@@ -16,16 +16,16 @@ mod common;
 
 use common::reserve_loopback;
 use pbrs_grpc::health::{
-    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthListRequest,
-    HealthListResponse, HealthReporter, HealthServer, ServingStatus,
+    Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthListRequest,
+    HealthListResponse, HealthReporter, HealthServer, ServingStatus, service,
 };
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
     Router, ServerTls, Status,
 };
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 

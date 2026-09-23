@@ -8,8 +8,8 @@
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::Status;
-use futures_core::stream::FusedStream;
 use futures_core::Stream;
+use futures_core::stream::FusedStream;
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -656,13 +656,17 @@ mod tests {
             .expect("item")
             .expect("ok");
         assert_eq!(text(&first), "one");
-        assert!(poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
-            .await
-            .is_none());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
+                .await
+                .is_none()
+        );
         assert!(stream.is_terminated());
-        assert!(poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
-            .await
-            .is_none());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -746,8 +750,8 @@ mod tests {
 
     #[tokio::test]
     async fn streaming_is_fused_after_end() {
-        use futures_core::stream::FusedStream;
         use futures_core::Stream;
+        use futures_core::stream::FusedStream;
         use std::future::poll_fn;
         use std::pin::Pin;
 
@@ -760,9 +764,11 @@ mod tests {
         let shown = format!("{empty:?}");
         assert!(shown.contains("terminated: true"), "{shown}");
         assert!(empty.message().await.expect("fused").is_none());
-        assert!(poll_fn(|cx| Pin::new(&mut empty).poll_next(cx))
-            .await
-            .is_none());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut empty).poll_next(cx))
+                .await
+                .is_none()
+        );
 
         let (tx, mut stream) = Streaming::<HelloReply>::channel(1);
         tx.close();
@@ -780,9 +786,11 @@ mod tests {
         let shown = format!("{fail:?}");
         assert!(shown.contains("terminated: true"), "{shown}");
         assert!(fail.message().await.expect("fused after err").is_none());
-        assert!(poll_fn(|cx| Pin::new(&mut fail).poll_next(cx))
-            .await
-            .is_none());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut fail).poll_next(cx))
+                .await
+                .is_none()
+        );
 
         let (tx, mut via_stream) = Streaming::<HelloReply>::channel(1);
         tx.fail(Status::internal("boom")).await;
@@ -792,8 +800,10 @@ mod tests {
             .expect_err("status");
         assert_eq!(err.code(), Code::Internal);
         assert!(via_stream.is_terminated());
-        assert!(poll_fn(|cx| Pin::new(&mut via_stream).poll_next(cx))
-            .await
-            .is_none());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut via_stream).poll_next(cx))
+                .await
+                .is_none()
+        );
     }
 }

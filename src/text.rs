@@ -6,7 +6,7 @@
 
 use crate::dynamic::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, FieldValue,
-    MapKeyValue, MessageDescriptor, Presence, Value, RECURSION_LIMIT,
+    MapKeyValue, MessageDescriptor, Presence, RECURSION_LIMIT, Value,
 };
 
 use crate::error::{ParseError, SerializeError};

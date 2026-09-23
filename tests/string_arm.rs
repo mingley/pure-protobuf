@@ -16,7 +16,7 @@
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
 use pbrs::gencode::TestAllTypesProto3;
-use pbrs::rt::{require_utf8, LazyBytes, LazyStr, Wire};
+use pbrs::rt::{LazyBytes, LazyStr, Wire, require_utf8};
 use pbrs::{Parse, Serialize};
 use std::time::Instant;
 

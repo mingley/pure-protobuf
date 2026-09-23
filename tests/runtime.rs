@@ -84,9 +84,11 @@ fn generated_wkt_duration_any_empty_mask() {
 
     let mut w = BoolValue::new();
     w.set_value(true);
-    assert!(BoolValue::parse(&Serialize::serialize(&w).unwrap())
-        .unwrap()
-        .value());
+    assert!(
+        BoolValue::parse(&Serialize::serialize(&w).unwrap())
+            .unwrap()
+            .value()
+    );
 
     let s = Struct::new();
     let _ = ListValue::new();

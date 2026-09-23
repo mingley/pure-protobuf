@@ -15,9 +15,9 @@ use crate::message::{
 use crate::proxied::{AsView, IntoProxied, View};
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
 use crate::wire::{
-    decode_tag, decode_varint, decode_zigzag32, decode_zigzag64, encode_len_field, encode_tag,
-    encode_varint, read_fixed32, read_fixed64, read_len_bytes, skip_field, UnknownFields, WIRE_I32,
-    WIRE_I64, WIRE_LEN, WIRE_VARINT,
+    UnknownFields, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_VARINT, decode_tag, decode_varint,
+    decode_zigzag32, decode_zigzag64, encode_len_field, encode_tag, encode_varint, read_fixed32,
+    read_fixed64, read_len_bytes, skip_field,
 };
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -1017,8 +1017,8 @@ pub fn empty_array<T>() -> crate::repeated::RepeatedView<'static, T> {
     crate::repeated::RepeatedView::from_slice(&[])
 }
 
-pub fn empty_map<K: crate::map::MapKey, V: crate::map::MapValue>(
-) -> crate::map::MapView<'static, K, V> {
+pub fn empty_map<K: crate::map::MapKey, V: crate::map::MapValue>()
+-> crate::map::MapView<'static, K, V> {
     crate::map::MapView::from_slice(&[])
 }
 

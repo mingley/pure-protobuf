@@ -25,6 +25,10 @@ mod details_pb {
     include!(concat!(env!("OUT_DIR"), "/error_details.rs"));
 }
 
+/// [`bad_request::FieldViolation`], also available at this module root.
+pub use details_pb::FieldViolation;
+/// [`help::Link`], also available at this module root.
+pub use details_pb::Link;
 /// [`BadRequest`] nested types (`FieldViolation`).
 pub use details_pb::bad_request;
 /// [`Help`] nested types (`Link`).
@@ -33,10 +37,6 @@ pub use details_pb::help;
 pub use details_pb::precondition_failure;
 /// [`QuotaFailure`] nested types (`Violation`).
 pub use details_pb::quota_failure;
-/// [`bad_request::FieldViolation`], also available at this module root.
-pub use details_pb::FieldViolation;
-/// [`help::Link`], also available at this module root.
-pub use details_pb::Link;
 pub use details_pb::{
     BadRequest, DebugInfo, Duration, ErrorInfo, Help, LocalizedMessage, PreconditionFailure,
     QuotaFailure, RequestInfo, ResourceInfo, RetryInfo,
@@ -1709,10 +1709,9 @@ fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Statu
 #[cfg(test)]
 mod tests {
     use super::{
-        bad_request, help, precondition_failure, quota_failure, Any, BadRequest, DebugInfo,
-        Duration, ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage,
-        PreconditionFailure, QuotaFailure, RequestInfo, ResourceInfo, RetryInfo, Status,
-        TYPE_URL_PREFIX,
+        Any, BadRequest, DebugInfo, Duration, ErrorDetails, ErrorInfo, FieldViolation, Help,
+        LocalizedMessage, PreconditionFailure, QuotaFailure, RequestInfo, ResourceInfo, RetryInfo,
+        Status, TYPE_URL_PREFIX, bad_request, help, precondition_failure, quota_failure,
     };
     use crate::Code;
 
@@ -1724,11 +1723,12 @@ mod tests {
         info.metadata_mut().insert("resource", "projects/123");
         let any = Any::pack(&info).expect("pack");
         assert!(any.is::<ErrorInfo>());
-        assert!(any
-            .type_url()
-            .to_str()
-            .unwrap_or("")
-            .starts_with(TYPE_URL_PREFIX));
+        assert!(
+            any.type_url()
+                .to_str()
+                .unwrap_or("")
+                .starts_with(TYPE_URL_PREFIX)
+        );
         let got = any.unpack::<ErrorInfo>().expect("unpack");
         assert_eq!(got.reason().to_str().unwrap_or(""), "API_DISABLED");
         let resource = got
@@ -1755,9 +1755,11 @@ mod tests {
         assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
         assert!(status.retry_delay().is_none());
         assert!(status.bad_request().is_none());
-        assert!(crate::Status::failed_precondition("disabled")
-            .error_info()
-            .is_none());
+        assert!(
+            crate::Status::failed_precondition("disabled")
+                .error_info()
+                .is_none()
+        );
     }
 
     #[test]

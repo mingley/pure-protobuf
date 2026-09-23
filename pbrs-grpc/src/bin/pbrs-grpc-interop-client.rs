@@ -751,8 +751,8 @@ async fn run(args: Args) -> Result<(), Status> {
                         (None, None) => None,
                         _ => {
                             return Err(Status::invalid_argument(
-                                    "--tls_client_cert_file and --tls_client_key_file must be used together",
-                                ));
+                                "--tls_client_cert_file and --tls_client_key_file must be used together",
+                            ));
                         }
                     };
                     let client_tls = match (ca_pem.as_deref(), identity) {
@@ -805,41 +805,41 @@ async fn run(args: Args) -> Result<(), Status> {
             },
             None => None,
         };
-        let identity: Option<Identity> =
-            match (&args.tls_client_cert_file, &args.tls_client_key_file) {
-                (Some(cert_path), Some(key_path)) => {
-                    let cert_pem = match std::fs::read(cert_path) {
-                        Ok(bytes) => bytes,
-                        Err(e) => {
-                            eprintln!(
-                                "failed to read TLS client certificate file {cert_path:?}: {e}"
-                            );
-                            std::process::exit(1);
-                        }
-                    };
-                    let key_pem = match std::fs::read(key_path) {
-                        Ok(bytes) => bytes,
-                        Err(e) => {
-                            eprintln!("failed to read TLS client key file {key_path:?}: {e}");
-                            std::process::exit(1);
-                        }
-                    };
-                    match Identity::from_pem(&cert_pem, &key_pem) {
-                        Ok(id) => Some(id),
-                        Err(e) => {
-                            eprintln!("invalid TLS client certificate or key: {e}");
-                            std::process::exit(1);
-                        }
+        let identity: Option<Identity> = match (
+            &args.tls_client_cert_file,
+            &args.tls_client_key_file,
+        ) {
+            (Some(cert_path), Some(key_path)) => {
+                let cert_pem = match std::fs::read(cert_path) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        eprintln!("failed to read TLS client certificate file {cert_path:?}: {e}");
+                        std::process::exit(1);
+                    }
+                };
+                let key_pem = match std::fs::read(key_path) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        eprintln!("failed to read TLS client key file {key_path:?}: {e}");
+                        std::process::exit(1);
+                    }
+                };
+                match Identity::from_pem(&cert_pem, &key_pem) {
+                    Ok(id) => Some(id),
+                    Err(e) => {
+                        eprintln!("invalid TLS client certificate or key: {e}");
+                        std::process::exit(1);
                     }
                 }
-                (None, None) => None,
-                _ => {
-                    eprintln!(
+            }
+            (None, None) => None,
+            _ => {
+                eprintln!(
                     "error: --tls_client_cert_file and --tls_client_key_file must be used together"
                 );
-                    std::process::exit(1);
-                }
-            };
+                std::process::exit(1);
+            }
+        };
         let client_tls = match (ca_pem.as_deref(), identity) {
             (Some(ca), Some(id)) => match ClientTls::ca_mtls(server_name, ca, id) {
                 Ok(tls) => tls,

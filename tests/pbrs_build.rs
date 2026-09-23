@@ -507,9 +507,11 @@ fn descriptor_set_errors_identify_input_and_preserve_output() {
         "prior complete output"
     );
     assert!(!out_dir.join("mod.rs").exists());
-    assert!(generated_files(&out_dir)
-        .keys()
-        .all(|p| !p.to_string_lossy().contains(".tmp")));
+    assert!(
+        generated_files(&out_dir)
+            .keys()
+            .all(|p| !p.to_string_lossy().contains(".tmp"))
+    );
 }
 
 #[test]
@@ -1062,9 +1064,11 @@ fn error_invalid_protoc_path_diagnostics() {
             }
             other => panic!("expected MissingProtoc for exit 127 shim, got: {other:?}"),
         }
-        assert!(shim_err
-            .to_string()
-            .contains(&failing_shim.display().to_string()));
+        assert!(
+            shim_err
+                .to_string()
+                .contains(&failing_shim.display().to_string())
+        );
     }
 }
 

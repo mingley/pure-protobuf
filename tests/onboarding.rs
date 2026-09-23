@@ -1142,7 +1142,7 @@ fn packed_core_and_both_adapters_build_cold_without_protoc() {
     std::fs::write(
         consumer.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"pbrs-cold-packed-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\npbrs-grpc = {{ path = \"{}\" }}\nprotobuf-tonic = {{ path = \"{}\" }}\nhttp = \"1\"\ntokio-stream = \"0.1\"\ntonic = {{ version = \"0.14\", default-features = false, features = [\"transport\", \"codegen\", \"router\"] }}\n[build-dependencies]\npbrs = {{ path = \"{}\" }}\n[patch.crates-io]\npbrs = {{ path = \"{}\" }}\n",
+            "[package]\nname = \"pbrs-cold-packed-consumer\"\nversion = \"0.0.1\"\nedition = \"2024\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\npbrs-grpc = {{ path = \"{}\" }}\nprotobuf-tonic = {{ path = \"{}\" }}\nhttp = \"1\"\ntokio-stream = \"0.1\"\ntonic = {{ version = \"0.14\", default-features = false, features = [\"transport\", \"codegen\", \"router\"] }}\n[build-dependencies]\npbrs = {{ path = \"{}\" }}\n[patch.crates-io]\npbrs = {{ path = \"{}\" }}\n",
             pbrs.display(),
             grpc.display(),
             tonic.display(),

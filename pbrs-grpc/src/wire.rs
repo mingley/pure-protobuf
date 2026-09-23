@@ -8,14 +8,14 @@ use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status};
 use crate::stream::{Framed, Streaming};
-use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::{BufMut, Bytes, BytesMut};
 use h2::{Reason, RecvStream, SendStream};
 use http::uri::{Authority, PathAndQuery, Scheme};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
 use pbrs::{Parse, Serialize};
-use std::future::{poll_fn, Future};
+use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -51,11 +51,7 @@ pub(crate) fn user_agent_value(prefix: &str) -> Result<HeaderValue, Status> {
 
 /// `grpc-accept-encoding` this process advertises.
 fn accept_encoding_value(gzip: bool) -> HeaderValue {
-    if gzip {
-        IDENTITY_GZIP
-    } else {
-        IDENTITY
-    }
+    if gzip { IDENTITY_GZIP } else { IDENTITY }
 }
 
 /// Headers a gRPC request or response carries before user metadata, rounded to
@@ -1208,9 +1204,9 @@ fn percent_decode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_gzip, effective_timeout, grpc_content_type, grpc_encoding, grpc_encoding_supported,
-        grpc_request, gzip_outbound, gzip_stream_frame, percent_decode, percent_encode, soonest,
-        FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
+        DEFAULT_UA, FrameReader, PBRS_GRPC_UA, accepts_gzip, effective_timeout, grpc_content_type,
+        grpc_encoding, grpc_encoding_supported, grpc_request, gzip_outbound, gzip_stream_frame,
+        percent_decode, percent_encode, soonest,
     };
     use crate::codec;
     use crate::gzip;
@@ -1466,10 +1462,12 @@ mod tests {
         assert_eq!(restored.message(), "gone");
         assert_eq!(restored.details(), &[0x08, 0x05]);
         assert_eq!(restored.metadata().get("x-retry-after"), Some("30"));
-        assert!(restored
-            .metadata()
-            .get_bin("grpc-status-details-bin")
-            .is_none());
+        assert!(
+            restored
+                .metadata()
+                .get_bin("grpc-status-details-bin")
+                .is_none()
+        );
     }
 
     #[test]

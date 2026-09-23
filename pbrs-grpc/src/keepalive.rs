@@ -11,10 +11,10 @@
 //! [`crate::ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`); it does
 //! not turn `SO_KEEPALIVE` on by itself either.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use tokio::sync::{watch, Notify};
+use tokio::sync::{Notify, watch};
 
 /// Drive PINGs until one fails or times out. `None` means keepalive is off.
 pub(crate) fn spawn(

@@ -19,7 +19,7 @@
 mod common;
 
 use bytes::Bytes;
-use common::{name_of, req, Echo};
+use common::{Echo, name_of, req};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer};
 use pbrs_grpc::{
     CallLabels, Channel, ChannelConfig, Code, LifecycleObserver, RejectionEvent, RejectionReason,
@@ -737,8 +737,8 @@ async fn test_mixed_large_small_compressed_byte_budget() {
     // Sanity: the compressible payload gzips well under budget while the
     // incompressible one does not (flate2 fast, matching channel default).
     {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         use std::io::Write;
         let mut enc = GzEncoder::new(Vec::new(), Compression::fast());
         enc.write_all(big_compressible.as_bytes()).expect("gzip");
@@ -1122,11 +1122,13 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
                 progress.fetch_add(1, Ordering::SeqCst);
                 tokio::time::sleep(Duration::from_millis(8)).await;
             }
-            assert!(tokio::time::timeout(PROBE_TIMEOUT, stream.message())
-                .await
-                .expect("bulk stream trailers stalled")
-                .expect("bulk trailers")
-                .is_none());
+            assert!(
+                tokio::time::timeout(PROBE_TIMEOUT, stream.message())
+                    .await
+                    .expect("bulk stream trailers stalled")
+                    .expect("bulk trailers")
+                    .is_none()
+            );
         }));
     }
     permit.wait_for_active(3).await;
@@ -1241,11 +1243,13 @@ async fn test_slow_reader_peer_isolation() {
                 .expect("slow reader lost an accepted message");
             assert_eq!(name_of(&message), *expected);
         }
-        assert!(stream
-            .message()
-            .await
-            .expect("slow reader trailers")
-            .is_none());
+        assert!(
+            stream
+                .message()
+                .await
+                .expect("slow reader trailers")
+                .is_none()
+        );
     })
     .await
     .expect("slow reader never drained");
@@ -1282,11 +1286,13 @@ async fn test_large_stream_frame_exceeding_send_buffer_does_not_stall() {
         .expect("stream status")
         .expect("stream response");
     assert_eq!(name_of(&message), payload);
-    assert!(tokio::time::timeout(PROBE_TIMEOUT, stream.message())
-        .await
-        .expect("trailers stalled after the frame")
-        .expect("stream trailers")
-        .is_none());
+    assert!(
+        tokio::time::timeout(PROBE_TIMEOUT, stream.message())
+            .await
+            .expect("trailers stalled after the frame")
+            .expect("stream trailers")
+            .is_none()
+    );
 }
 
 #[tokio::test]

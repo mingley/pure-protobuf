@@ -33,8 +33,8 @@ use pbrs_grpc::{
 };
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{
-    atomic::{AtomicU32, Ordering},
     Arc,
+    atomic::{AtomicU32, Ordering},
 };
 use std::time::Duration;
 

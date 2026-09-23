@@ -389,7 +389,7 @@ pub fn map_string_i32(
 /// the TestAllTypes wrappers the conformance program drives.
 #[macro_export]
 macro_rules! impl_generated_message {
-    ($Owned:ident, $View:ident, $Mut:ident, $full:expr, $pool:expr) => {
+    ($Owned:ident, $View:ident, $Mut:ident, $full:expr_2021, $pool:expr_2021) => {
         #[derive(Clone, Debug, PartialEq)]
         pub struct $Owned {
             inner: $crate::DynamicMessage,

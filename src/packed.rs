@@ -24,7 +24,7 @@ pub trait PackedCodec: Sized {
 }
 
 macro_rules! varint_codec {
-    ($name:ident, $elem:ty, $from:expr, $to:expr) => {
+    ($name:ident, $elem:ty, $from:expr_2021, $to:expr_2021) => {
         #[derive(Clone, Copy, Debug)]
         pub enum $name {}
         impl PackedCodec for $name {
@@ -77,7 +77,7 @@ impl PackedCodec for Bools {
 }
 
 macro_rules! fixed_codec {
-    ($name:ident, $elem:ty, $width:expr, $read:expr) => {
+    ($name:ident, $elem:ty, $width:expr_2021, $read:expr_2021) => {
         #[derive(Clone, Copy, Debug)]
         pub enum $name {}
         impl PackedCodec for $name {

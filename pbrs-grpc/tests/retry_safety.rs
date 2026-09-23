@@ -36,10 +36,10 @@ use pbrs::Serialize;
 use pbrs_grpc::hello::{Greeter, GreeterClient, HelloReply, HelloRequest};
 use pbrs_grpc::timeout::parse_timeout;
 use pbrs_grpc::{
-    codec, Channel, ChannelConfig, Code, Request, Response, ServerConfig, Status, Streaming,
+    Channel, ChannelConfig, Code, Request, Response, ServerConfig, Status, Streaming, codec,
 };
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpListener;
 

@@ -103,11 +103,11 @@ mod proto {
 
 pub mod production;
 
-use pbrs_grpc::health::{service as health_service, HealthReporter, ServingStatus};
+use pbrs_grpc::health::{HealthReporter, ServingStatus, service as health_service};
 use pbrs_grpc::reflection::service as reflection_service;
 pub use pbrs_grpc::{Call, Request, Response, Router, Status, StreamSender, Streaming};
 pub use proto::{
-    Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET,
+    FILE_DESCRIPTOR_SET, Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest,
 };
 use std::net::SocketAddr;
 use std::time::Duration;

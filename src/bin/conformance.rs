@@ -153,7 +153,7 @@ fn handle_inner(req: &[u8]) -> Result<Vec<u8>, ParseError> {
         other => {
             return Ok(encode_response_parse_error(&format!(
                 "unknown type {other}"
-            )))
+            )));
         }
     })
 }
@@ -175,7 +175,7 @@ struct Request {
 }
 
 fn parse_request(bytes: &[u8]) -> Result<Request, ParseError> {
-    use pbrs::rt::{decode_tag, decode_varint, read_len_bytes, skip_field, WIRE_LEN, WIRE_VARINT};
+    use pbrs::rt::{WIRE_LEN, WIRE_VARINT, decode_tag, decode_varint, read_len_bytes, skip_field};
     let mut req = Request {
         payload: Payload::None,
         output: 0,

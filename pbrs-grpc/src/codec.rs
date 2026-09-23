@@ -208,9 +208,11 @@ mod tests {
             .expect("pop")
             .expect("frame");
         assert_eq!(&second.payload[..], b"two");
-        assert!(pop_from_chunk(&mut chunk, MessageLimits::unlimited())
-            .expect("pop")
-            .is_none());
+        assert!(
+            pop_from_chunk(&mut chunk, MessageLimits::unlimited())
+                .expect("pop")
+                .is_none()
+        );
         assert!(chunk.is_empty());
     }
 
@@ -218,9 +220,11 @@ mod tests {
     fn chunk_pop_leaves_partial_frames_intact() {
         let wire = encode(b"partial", false).expect("encode");
         let mut chunk = wire.slice(..6);
-        assert!(pop_from_chunk(&mut chunk, MessageLimits::unlimited())
-            .expect("pop")
-            .is_none());
+        assert!(
+            pop_from_chunk(&mut chunk, MessageLimits::unlimited())
+                .expect("pop")
+                .is_none()
+        );
         assert_eq!(chunk.len(), 6);
     }
 }

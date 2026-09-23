@@ -9,10 +9,10 @@ use crate::message::{
 use crate::proxied::{AsMut, AsView, IntoMut, IntoView, MutProxied, Proxied};
 use crate::string::{ProtoBytes, ProtoString};
 use crate::wire::{
-    self, decode_tag, decode_varint, encode_len_field, encode_tag, encode_varint, encode_zigzag32,
-    encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, tag_len,
-    varint_len, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN,
-    WIRE_SGROUP, WIRE_VARINT,
+    self, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP,
+    WIRE_VARINT, decode_tag, decode_varint, encode_len_field, encode_tag, encode_varint,
+    encode_zigzag32, encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64,
+    read_len_bytes, tag_len, varint_len,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

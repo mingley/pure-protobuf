@@ -17,25 +17,25 @@ use crate::telemetry::{
 };
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, gzip_outbound, gzip_stream_frame,
-    let_producer_catch_up, read_one_message, reject, reject_request, send_bytes, send_ok_headers,
-    send_trailers_only, wrap_timeout, OutBatch, WireStream,
+    OutBatch, WireStream, check_request, encode_msg, grpc_trailers, gzip_outbound,
+    gzip_stream_frame, let_producer_catch_up, read_one_message, reject, reject_request, send_bytes,
+    send_ok_headers, send_trailers_only, wrap_timeout,
 };
 use bytes::Bytes;
 use h2::RecvStream;
 use pbrs::{Parse, Serialize};
 use std::collections::HashMap;
-use std::future::{poll_fn, Future};
+use std::future::{Future, poll_fn};
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::net::TcpListener;
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::{mpsc, watch, Semaphore};
+use tokio::sync::{Semaphore, mpsc, watch};
 
 /// A gRPC service that can be served.
 ///

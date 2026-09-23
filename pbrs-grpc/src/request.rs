@@ -2,7 +2,7 @@
 
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
-use crate::server::{split_path, PeerCred};
+use crate::server::{PeerCred, split_path};
 use crate::status::Status;
 use crate::tls::PeerIdentity;
 use futures_core::future::FusedFuture;
@@ -743,7 +743,7 @@ impl<T> Request<T> {
     /// [`crate::StreamSender::closed`]) resolve without another send. On a
     /// request you built to send this never resolves.
     #[must_use = "cancelled does nothing unless awaited"]
-    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static + use<T> {
         when_cancelled(self.cancel.clone())
     }
 
@@ -1964,7 +1964,7 @@ impl Parts {
     /// Resolves when this inbound RPC is cancelled.
     /// See [`Request::cancelled`].
     #[must_use = "cancelled does nothing unless awaited"]
-    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
+    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static + use<> {
         when_cancelled(self.cancel.clone())
     }
 
@@ -3438,10 +3438,12 @@ mod tests {
         assert_eq!(mapped.metadata().get("k"), Some("v"));
         assert!(mapped.compress());
         assert!(mapped.user_agent_is_set());
-        assert!(mapped
-            .user_agent()
-            .expect("override")
-            .starts_with("call-site/1.0 "));
+        assert!(
+            mapped
+                .user_agent()
+                .expect("override")
+                .starts_with("call-site/1.0 ")
+        );
         assert_eq!(mapped.authority(), Some("svc"));
         assert_eq!(mapped.scheme(), Some("https"));
         assert_eq!(mapped.path(), Some("/svc/Ping"));

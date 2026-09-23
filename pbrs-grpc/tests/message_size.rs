@@ -18,7 +18,7 @@
 
 mod common;
 
-use common::{name_of, req, Echo};
+use common::{Echo, name_of, req};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{Channel, Code, Request, Status};
 use std::net::SocketAddr;

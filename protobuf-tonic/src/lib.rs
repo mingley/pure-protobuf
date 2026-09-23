@@ -8,8 +8,8 @@ extern crate self as protobuf_tonic;
 use bytes::Buf;
 use pbrs::{ClearAndParse, Parse, Serialize};
 use std::marker::PhantomData;
-use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::Status;
+use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 
 /// tonic [`Codec`] using pbrs [`Serialize`] / [`Parse`] (not `prost::Message`).
 #[derive(Clone, Copy, Debug, Default)]

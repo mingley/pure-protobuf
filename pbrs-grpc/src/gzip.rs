@@ -9,9 +9,9 @@
 
 use crate::limits::MessageLimits;
 use crate::status::Status;
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::io::{Read, Write};
 
 /// Initial output reservation as a multiple of the compressed size.

@@ -16,7 +16,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use crate::metadata::{is_sensitive_key, MetadataMap, SafeMetadataDebug};
+pub use crate::metadata::{MetadataMap, SafeMetadataDebug, is_sensitive_key};
 
 /// The endpoint perspective of a call (client or server).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -589,6 +589,11 @@ To guarantee that no detached task, stalled peer, unending stream, or slow uploa
   - Inbound stream readers (`WireStream`) yield `Status::cancelled`.
   - Outbound stream senders (`drain_to_wire`) abort on `send.poll_reset`, terminating the dispatch task.
   - The server's `_permit` and `_lease` are dropped immediately on task exit, releasing concurrency slots and decrementing byte budget allocation to 0.
+- **Seeded Fault Probe:** A handler activity counter can reach zero one
+  scheduler turn before its outer dispatch task drops the server permit. The
+  lifecycle harness retries probe admission for at most 300 ms; persistent
+  `RESOURCE_EXHAUSTED` still fails. The separate direct call-drop check above
+  continues to require immediate client permit reclaim.
 - **Zero Background Task Leaks:** All auxiliary tasks (ping-pong drivers, response producers, frame writers) monitor stream cancellation channels (`watch::Receiver<bool>`) or select on `poll_reset`, guaranteeing zero detached task leaks.
 
 #### 3. Measurable Overload, Fairness, and Cleanup Bounds (RT-06/RT-07/RT-08 Contract)

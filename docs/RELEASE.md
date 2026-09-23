@@ -26,6 +26,11 @@ not lockstep and must not be hardcoded as `pbrs/0.1.0`.
 
 `examples/greeter` is `publish = false`.
 
+Current source crates declare Rust language Edition 2024; their existing
+`rust-version` floors (1.85 for core/native, 1.88 for tonic) still require
+the corresponding MSRV CI jobs. Protobuf Edition 2024 generation is a separate,
+unqualified feature and must not be inferred from the Cargo manifests.
+
 Current manifests (check the files, not this table, before tagging): `pbrs`
 `0.1.0`; adapters `0.1.0-alpha.1`. A `v1.0.0` tag does not promote the
 adapters. The current source builds both adapters from checked descriptor sets

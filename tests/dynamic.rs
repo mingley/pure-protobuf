@@ -1213,9 +1213,11 @@ fn edition2024_field_and_enum_overrides_match_pinned_descriptors() {
             .expect("extension enum")
             .closed
     );
-    assert!(edition2024_fds("visibility")
-        .get_message("edition2024.visibility.DefaultTopLevelMessage.ExportedNestedMessage")
-        .is_some());
+    assert!(
+        edition2024_fds("visibility")
+            .get_message("edition2024.visibility.DefaultTopLevelMessage.ExportedNestedMessage")
+            .is_some()
+    );
 }
 
 #[test]

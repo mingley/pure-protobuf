@@ -29,9 +29,12 @@ use pbrs::{Clear, Message, Parse, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+// Keep frozen generated consumers as evidence of their original output.
+#[rustfmt::skip]
 #[path = "fixtures/codegen-compat/v1_generated.rs"]
 mod v1;
 
+#[rustfmt::skip]
 #[path = "fixtures/codegen-compat/v2_generated.rs"]
 mod v2;
 
@@ -132,10 +135,11 @@ fn test_forward_compatibility_preserves_unknown_fields() {
     );
     assert_eq!(msg1.scores().iter().collect::<Vec<_>>(), vec![100, 200]);
     assert!(msg1.properties().get("env").is_some_and(|s| s == "prod"));
-    assert!(msg1
-        .properties()
-        .get("tier")
-        .is_some_and(|s| s == "frontend"));
+    assert!(
+        msg1.properties()
+            .get("tier")
+            .is_some_and(|s| s == "frontend")
+    );
     assert_eq!(msg1.status().0, 3); // Raw value preserved in open proto3 enum
     assert_eq!(msg1.text_payload(), "payload-data");
 

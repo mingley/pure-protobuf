@@ -14,19 +14,20 @@
 
 mod common;
 
-use common::{reserve_loopback, Echo, ServerGuard};
-use pbrs_grpc::hello::{GreeterServer, FILE_DESCRIPTOR_SET};
+use common::{Echo, ServerGuard, reserve_loopback};
+use pbrs_grpc::hello::{FILE_DESCRIPTOR_SET, GreeterServer};
 use pbrs_grpc::reflection::{
-    service, ExtensionRequest, ListServiceResponse, ServerReflection, ServerReflectionClient,
+    ExtensionRequest, ListServiceResponse, ServerReflection, ServerReflectionClient,
     ServerReflectionRequest, ServerReflectionResponse, ServerReflectionServer, ServiceResponse,
+    service,
 };
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
     Router, ServerTls, Status,
 };
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
@@ -851,10 +852,12 @@ async fn file_by_filename_round_trips_hello_proto() {
         "hello.proto: {:?}",
         resp.error_response().error_message()
     );
-    assert!(!resp
-        .file_descriptor_response()
-        .file_descriptor_proto()
-        .is_empty());
+    assert!(
+        !resp
+            .file_descriptor_response()
+            .file_descriptor_proto()
+            .is_empty()
+    );
     assert!(!first.as_bytes().is_empty());
 }
 
@@ -904,10 +907,12 @@ async fn file_containing_extension_returns_the_declaring_file() {
         "expected file, got error {:?}",
         resp.error_response().error_message()
     );
-    assert!(!resp
-        .file_descriptor_response()
-        .file_descriptor_proto()
-        .is_empty());
+    assert!(
+        !resp
+            .file_descriptor_response()
+            .file_descriptor_proto()
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -3761,10 +3766,12 @@ async fn assert_reflection_file_lookups(client: &ServerReflectionClient) {
         "hello.proto: {:?}",
         by_name.error_response().error_message()
     );
-    assert!(!by_name
-        .file_descriptor_response()
-        .file_descriptor_proto()
-        .is_empty());
+    assert!(
+        !by_name
+            .file_descriptor_response()
+            .file_descriptor_proto()
+            .is_empty()
+    );
     assert!(!first.as_bytes().is_empty());
 }
 
@@ -3775,10 +3782,12 @@ async fn assert_reflection_extensions(client: &ServerReflectionClient) {
         "expected file, got error {:?}",
         resp.error_response().error_message()
     );
-    assert!(!resp
-        .file_descriptor_response()
-        .file_descriptor_proto()
-        .is_empty());
+    assert!(
+        !resp
+            .file_descriptor_response()
+            .file_descriptor_proto()
+            .is_empty()
+    );
 
     let missing = ask(client, ext_req("demo.ext.Host", 199)).await;
     assert!(missing.has_error_response());

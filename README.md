@@ -201,6 +201,10 @@ Recorded against this repository on stable `rustc` 1.98. Declared
 `rust-version` is the CI MSRV job, not this host's toolchain. There is no
 claimed universal minimum `protoc`. Releases: [release guide](docs/RELEASE.md)
 (tag/dispatch only; `main` pushes do not publish).
+The maintained crates and tools use **Rust language Edition 2024** (available
+from rustc 1.85); frozen reference/comparator and discarded-experiment
+manifests retain their original edition for reproducibility. This is
+independent of **Protocol Buffers Edition 2024**.
 
 | Crate | Declared MSRV | Tested | `protoc` | Stub default |
 |---|---|---|---|---|
@@ -212,7 +216,8 @@ claimed universal minimum `protoc`. Releases: [release guide](docs/RELEASE.md)
 **Untested / unsupported** (not a support commitment):
 
 - tonic 0.12 and 0.13 are **unsupported**.
-- Edition 2024 is **untested**.
+- Protocol Buffers Edition 2024 descriptor fixtures are tested, but generated
+  consumers and conformance beyond Edition 2023 are **not qualified**.
 - Windows CI is **untested**.
 
 ## Choosing a Stack

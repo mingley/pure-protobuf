@@ -23,56 +23,81 @@
     unreachable_pub,
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
+// Preserve byte-for-byte generated fixtures across Rustfmt editions.
+#[rustfmt::skip]
 #[path = "google_gen/bad_names.rs"]
 mod bad_names;
+#[rustfmt::skip]
 #[path = "google_gen/child.rs"]
 mod child;
+#[rustfmt::skip]
 #[path = "google_gen/edition2023.rs"]
 mod edition2023;
+#[rustfmt::skip]
 #[path = "google_gen/enums.rs"]
 mod enums;
+#[rustfmt::skip]
 #[path = "google_gen/feature_verify.rs"]
 mod feature_verify;
+#[rustfmt::skip]
 #[path = "google_gen/fields_with_imported_types.rs"]
 mod fields_with_imported_types;
+#[rustfmt::skip]
 #[path = "google_gen/import_public2.rs"]
 mod import_public2;
+#[rustfmt::skip]
 #[path = "google_gen/import_public.rs"]
 mod import_public_file;
+#[rustfmt::skip]
 #[path = "google_gen/import_public_grandparent.rs"]
 mod import_public_grandparent;
+#[rustfmt::skip]
 #[path = "google_gen/import_public_non_primary_src1.rs"]
 mod import_public_non_primary_src1;
+#[rustfmt::skip]
 #[path = "google_gen/import_public_non_primary_src2.rs"]
 mod import_public_non_primary_src2;
+#[rustfmt::skip]
 #[path = "google_gen/import_public_primary_src.rs"]
 mod import_public_primary_src;
 mod import_public {
-    pub use super::import_public2::*;
     pub use super::import_public_file::*;
+    pub use super::import_public2::*;
 }
+#[rustfmt::skip]
 #[path = "google_gen/map_unittest.rs"]
 mod map_unittest;
+#[rustfmt::skip]
 #[path = "google_gen/nested.rs"]
 mod nested;
+#[rustfmt::skip]
 #[path = "google_gen/no_features_proto2.rs"]
 mod no_features_proto2;
+#[rustfmt::skip]
 #[path = "google_gen/no_features_proto3.rs"]
 mod no_features_proto3;
+#[rustfmt::skip]
 #[path = "google_gen/no_package.rs"]
 mod no_package;
+#[rustfmt::skip]
 #[path = "google_gen/no_package_import.rs"]
 mod no_package_import;
+#[rustfmt::skip]
 #[path = "google_gen/package.rs"]
 mod package;
+#[rustfmt::skip]
 #[path = "google_gen/package_import.rs"]
 mod package_import;
+#[rustfmt::skip]
 #[path = "google_gen/parent.rs"]
 mod parent;
+#[rustfmt::skip]
 #[path = "google_gen/unittest.rs"]
 mod unittest;
+#[rustfmt::skip]
 #[path = "google_gen/unittest_proto3.rs"]
 mod unittest_proto3;
+#[rustfmt::skip]
 #[path = "google_gen/unittest_proto3_optional.rs"]
 mod unittest_proto3_optional;
 
@@ -232,9 +257,9 @@ fn test_string_accessors() {
     assert_eq!(msg.optional_string(), "accessors_test");
 }
 
-use pbrs::{message_eq, Enum, Parse, ParseError, ProtoStr, Serialize, View};
+use pbrs::{Enum, Parse, ParseError, ProtoStr, Serialize, View, message_eq};
 use unittest::TestAllTypes as Proto2;
-use unittest::{test_all_types, NestedMessage, NestedTestAllTypes};
+use unittest::{NestedMessage, NestedTestAllTypes, test_all_types};
 
 #[test]
 fn serialization_zero_length_proto2() {
@@ -423,9 +448,10 @@ fn maps_insert_get_keys() {
     msg.map_string_string_mut().clear();
     assert!(msg.map_string_string().is_empty());
 
-    assert!(msg
-        .map_int32_enum_mut()
-        .insert(1, i32::from(map_unittest::MapEnum::Baz)));
+    assert!(
+        msg.map_int32_enum_mut()
+            .insert(1, i32::from(map_unittest::MapEnum::Baz))
+    );
 }
 
 #[test]

@@ -1108,28 +1108,28 @@ pub mod codegen_support {
 
 pub use client::{Channel, Target};
 pub use config::{
-    ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,
+    ChannelConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,
     DEFAULT_GZIP_COMPRESSION_LEVEL, DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT,
     DEFAULT_MAX_CONCURRENT_RESET_STREAMS, DEFAULT_MAX_CONCURRENT_STREAMS,
     DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
     DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
     DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_RESET_STREAM_DURATION, DEFAULT_STREAM_BUFFER,
-    DEFAULT_WINDOW_SIZE,
+    DEFAULT_WINDOW_SIZE, ServerConfig,
 };
+/// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
+pub use futures_core::Stream;
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.
 pub use futures_core::future::FusedFuture;
 /// `futures_core::stream::FusedStream`, so a finished [`Streaming`] is skipped by
 /// combinators that honour termination.
 pub use futures_core::stream::FusedStream;
-/// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
-pub use futures_core::Stream;
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.
 pub use http::Extensions;
 pub use interceptor::{
     ClientInterceptor, Intercepted, Interceptor, ResponseInterceptor, ServiceExt,
 };
-pub use limits::{ByteBudgetTracker, BytePermit, MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
+pub use limits::{ByteBudgetTracker, BytePermit, DEFAULT_MAX_DECODING_MESSAGE_SIZE, MessageLimits};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response, ResponseParts};

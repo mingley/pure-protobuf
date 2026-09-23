@@ -215,8 +215,8 @@ use crate::proxied::IntoProxied;
 use crate::repeated::{Repeated, RepeatedMut, RepeatedView};
 use crate::string::ProtoString;
 use crate::wire::{
-    self, decode_tag, encode_len_field, encode_tag, encode_varint, key_len_value_len,
-    read_len_bytes, tag_len, varint_len, UnknownFields, WIRE_LEN, WIRE_VARINT,
+    self, UnknownFields, WIRE_LEN, WIRE_VARINT, decode_tag, encode_len_field, encode_tag,
+    encode_varint, key_len_value_len, read_len_bytes, tag_len, varint_len,
 };
 use std::mem::MaybeUninit;
 use std::sync::OnceLock;

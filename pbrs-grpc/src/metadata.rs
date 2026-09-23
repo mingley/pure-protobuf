@@ -1,8 +1,8 @@
 //! gRPC metadata: ASCII headers and base64 `-bin` headers.
 
 use crate::status::Status;
-use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use base64::Engine;
+use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use http::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::BTreeSet;
 use std::fmt;
@@ -349,7 +349,7 @@ impl Metadata {
     /// interceptor that adds a second `x-forwarded-for`) is visible here.
     /// [`Self::set`] replaces every value. [`Self::get`] is the first of
     /// these. Reserved keys yield nothing.
-    pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ {
+    pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ + use<'_> {
         let skip = is_reserved(key);
         self.map
             .get_all(key)
@@ -362,7 +362,7 @@ impl Metadata {
     ///
     /// [`Self::insert_bin`] appends; [`Self::set_bin`] replaces.
     /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
-    pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
+    pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ + use<'_> {
         let skip = is_reserved(key);
         self.map
             .get_all(key)
@@ -391,11 +391,7 @@ impl Metadata {
     pub fn keys(&self) -> impl Iterator<Item = &str> + '_ {
         self.map.keys().filter_map(|name| {
             let key = name.as_str();
-            if is_reserved(key) {
-                None
-            } else {
-                Some(key)
-            }
+            if is_reserved(key) { None } else { Some(key) }
         })
     }
 

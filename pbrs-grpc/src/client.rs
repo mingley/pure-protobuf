@@ -13,8 +13,8 @@ use crate::telemetry::{
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
 use crate::wire::{
-    encode_msg, finish_stream, finish_unary, grpc_request, reset_on_cancel, send_bytes,
-    status_from, OutBatch, PumpEnd,
+    OutBatch, PumpEnd, encode_msg, finish_stream, finish_unary, grpc_request, reset_on_cancel,
+    send_bytes, status_from,
 };
 
 #[allow(dead_code, reason = "silence dead code")]
@@ -23,8 +23,8 @@ fn _silence_dead_code() {
 }
 use bytes::Bytes;
 use h2::Reason;
-use http::uri::Authority;
 use http::HeaderValue;
+use http::uri::Authority;
 use pbrs::{Parse, Serialize};
 use std::fmt;
 use std::future::Future;
@@ -32,13 +32,13 @@ use std::net::SocketAddr;
 #[cfg(unix)]
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::task::Poll;
 use std::time::Duration;
 #[cfg(unix)]
 use tokio::net::UnixStream;
-use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, watch};
 
 /// Where a [`Channel`] should dial.
 ///
@@ -238,7 +238,7 @@ impl From<&String> for Target {
 /// handshake on a lazy channel, and after a dead handle is discarded or the
 /// slot idle-closes.
 struct ConnSlot {
-    gen: u64,
+    r#gen: u64,
     send: Option<h2::client::SendRequest<Bytes>>,
     /// Stops the connection driver (idle close, age close, lost-race handshake, drop).
     stop: Option<watch::Sender<bool>>,
@@ -264,7 +264,7 @@ struct LiveConn {
     /// connection under an in-flight stream.
     driver: Option<watch::Sender<bool>>,
     slot: usize,
-    gen: u64,
+    r#gen: u64,
 }
 
 /// HEADERS sent; request DATA has not started. Transparent retry stops here.
@@ -1451,11 +1451,7 @@ impl Channel {
     /// call shape.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
-        if self.https {
-            "https"
-        } else {
-            "http"
-        }
+        if self.https { "https" } else { "http" }
     }
 
     /// Wait for a live HTTP/2 sender, redialing this slot if the current one
@@ -1507,7 +1503,7 @@ impl Channel {
         loop {
             let _ = remaining_timeout(deadline)?;
             let live = self.grab(cancel_rx.clone(), deadline, wait).await?;
-            let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
+            let (slot, r#gen, lease, driver) = (live.slot, live.r#gen, live.lease, live.driver);
             match open(
                 live.send,
                 &self.authority,
@@ -1537,11 +1533,11 @@ impl Channel {
                         && self.inner.endpoint.can_redial() =>
                 {
                     retried = true;
-                    self.inner.discard(slot, gen).await;
+                    self.inner.discard(slot, r#gen).await;
                 }
                 Err(status) => {
                     if status.is_transport() {
-                        self.inner.discard(slot, gen).await;
+                        self.inner.discard(slot, r#gen).await;
                     }
                     return Err(status);
                 }
@@ -1678,7 +1674,7 @@ impl Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, gen) = (live.slot, live.gen);
+                    let (slot, r#gen) = (live.slot, live.r#gen);
                     let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -1715,13 +1711,13 @@ impl Channel {
                         {
                             retried = true;
                             attempt_guard.finish(&status);
-                            channel.inner.discard(slot, gen).await;
+                            channel.inner.discard(slot, r#gen).await;
                             attempt_idx += 1;
                         }
                         result => {
                             if let Err(status) = &result {
                                 if status.is_transport() {
-                                    channel.inner.discard(slot, gen).await;
+                                    channel.inner.discard(slot, r#gen).await;
                                 }
                             }
                             let final_result: Result<Response<Resp>, Status> = result
@@ -1899,7 +1895,8 @@ impl Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
+                    let (slot, r#gen, lease, driver) =
+                        (live.slot, live.r#gen, live.lease, live.driver);
                     let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -1942,12 +1939,12 @@ impl Channel {
                         {
                             retried = true;
                             attempt_guard.finish(&status);
-                            channel.inner.discard(slot, gen).await;
+                            channel.inner.discard(slot, r#gen).await;
                             attempt_idx += 1;
                         }
                         Err(status) => {
                             if status.is_transport() {
-                                channel.inner.discard(slot, gen).await;
+                                channel.inner.discard(slot, r#gen).await;
                             }
                             if *cancel_rx.borrow() {
                                 attempt_guard.cancel(CancellationReason::CallerCancelled);
@@ -2436,7 +2433,7 @@ fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
         .into_iter()
         .map(|d| {
             Mutex::new(ConnSlot {
-                gen: 0,
+                r#gen: 0,
                 send: Some(d.send),
                 stop: Some(d.stop),
                 busy: d.busy,
@@ -2449,7 +2446,7 @@ fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
     (0..n)
         .map(|_| {
             Mutex::new(ConnSlot {
-                gen: 0,
+                r#gen: 0,
                 send: None,
                 stop: None,
                 busy: None,
@@ -2498,10 +2495,10 @@ impl ChannelInner {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
-            let (handle, lease, gen, driver) = {
+            let (handle, lease, r#gen, driver) = {
                 let slot = self.slot(i)?.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.gen, slot.stop.clone())
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -2510,7 +2507,7 @@ impl ChannelInner {
                         lease,
                         driver,
                         slot: i,
-                        gen,
+                        r#gen,
                     });
                 }
             }
@@ -2519,7 +2516,7 @@ impl ChannelInner {
             match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
                 Ok(dialed) => {
                     if let Some(obs) = observer {
-                        if gen > 0 || attempt > 0 {
+                        if r#gen > 0 || attempt > 0 {
                             let target_desc = self.endpoint.describe();
                             let attempt_u32 =
                                 u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
@@ -2532,11 +2529,11 @@ impl ChannelInner {
                         }
                     }
                     let mut slot = self.slot(i)?.lock().await;
-                    if slot.gen == gen {
+                    if slot.r#gen == r#gen {
                         let send = store_dialed(&mut slot, dialed);
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
-                        let gen = slot.gen;
+                        let r#gen = slot.r#gen;
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
                         spawn_age_watch(Arc::clone(self), i);
@@ -2545,14 +2542,14 @@ impl ChannelInner {
                             lease,
                             driver,
                             slot: i,
-                            gen,
+                            r#gen,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     if let Some(obs) = observer {
-                        if gen > 0 || attempt > 0 {
+                        if r#gen > 0 || attempt > 0 {
                             let target_desc = self.endpoint.describe();
                             let attempt_u32 =
                                 u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
@@ -2584,12 +2581,12 @@ impl ChannelInner {
     /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
     /// same dying sender would be handed out again. A reconnect that already
     /// stored a newer `gen` is left alone.
-    async fn discard(&self, i: usize, gen: u64) {
+    async fn discard(&self, i: usize, r#gen: u64) {
         let Ok(lock) = self.slot(i) else {
             return;
         };
         let mut slot = lock.lock().await;
-        if slot.gen != gen {
+        if slot.r#gen != r#gen {
             return;
         }
         slot.send = None;
@@ -2597,7 +2594,7 @@ impl ChannelInner {
         if let Some(stop) = slot.stop.take() {
             stop.send(true).ok();
         }
-        slot.gen = slot.gen.wrapping_add(1);
+        slot.r#gen = slot.r#gen.wrapping_add(1);
     }
 }
 
@@ -2605,7 +2602,7 @@ fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<
     if let Some(stop) = slot.stop.take() {
         stop.send(true).ok();
     }
-    slot.gen = slot.gen.wrapping_add(1);
+    slot.r#gen = slot.r#gen.wrapping_add(1);
     slot.send = Some(dialed.send.clone());
     slot.stop = Some(dialed.stop);
     slot.busy = dialed.busy;
@@ -2617,17 +2614,17 @@ fn spawn_idle_watch(inner: Arc<ChannelInner>, i: usize) {
         return;
     };
     drop(tokio::spawn(async move {
-        let (gen, busy) = {
+        let (r#gen, busy) = {
             let Ok(slot) = inner.slot(i) else {
                 return;
             };
             let slot = slot.lock().await;
             match slot.busy.as_ref() {
-                Some(busy) => (slot.gen, Arc::clone(busy)),
+                Some(busy) => (slot.r#gen, Arc::clone(busy)),
                 None => return,
             }
         };
-        idle_watch(inner, i, gen, busy, idle).await;
+        idle_watch(inner, i, r#gen, busy, idle).await;
     }));
 }
 
@@ -2637,7 +2634,7 @@ fn spawn_age_watch(inner: Arc<ChannelInner>, i: usize) {
     };
     let grace = inner.dial.age_grace();
     drop(tokio::spawn(async move {
-        let gen = {
+        let r#gen = {
             let Ok(slot) = inner.slot(i) else {
                 return;
             };
@@ -2646,27 +2643,27 @@ fn spawn_age_watch(inner: Arc<ChannelInner>, i: usize) {
             if slot.send.is_none() {
                 return;
             }
-            slot.gen
+            slot.r#gen
         };
-        let seed = (i as u64).wrapping_shl(32).wrapping_add(gen);
+        let seed = (i as u64).wrapping_shl(32).wrapping_add(r#gen);
         tokio::time::sleep(crate::config::jitter_age(age, seed)).await;
-        age_close(inner, i, gen, grace).await;
+        age_close(inner, i, r#gen, grace).await;
     }));
 }
 
-async fn age_close(inner: Arc<ChannelInner>, i: usize, gen: u64, grace: Duration) {
+async fn age_close(inner: Arc<ChannelInner>, i: usize, r#gen: u64, grace: Duration) {
     let (old_stop, old_busy) = {
         let Ok(lock) = inner.slot(i) else {
             return;
         };
         let mut slot = lock.lock().await;
-        if slot.gen != gen {
+        if slot.r#gen != r#gen {
             return;
         }
         slot.send = None;
         let busy = slot.busy.take();
         let stop = slot.stop.take();
-        slot.gen = slot.gen.wrapping_add(1);
+        slot.r#gen = slot.r#gen.wrapping_add(1);
         (stop, busy)
     };
     if let Some(busy) = old_busy {
@@ -2683,7 +2680,7 @@ async fn age_close(inner: Arc<ChannelInner>, i: usize, gen: u64, grace: Duration
 async fn idle_watch(
     inner: Arc<ChannelInner>,
     i: usize,
-    gen: u64,
+    r#gen: u64,
     busy: Arc<crate::keepalive::Busy>,
     idle: Duration,
 ) {
@@ -2695,7 +2692,7 @@ async fn idle_watch(
                     return;
                 };
                 let mut slot = slot.lock().await;
-                if slot.gen != gen {
+                if slot.r#gen != r#gen {
                     return;
                 }
                 if busy.count() != 0 {
@@ -2706,7 +2703,7 @@ async fn idle_watch(
                 if let Some(stop) = slot.stop.take() {
                     stop.send(true).ok();
                 }
-                slot.gen = slot.gen.wrapping_add(1);
+                slot.r#gen = slot.r#gen.wrapping_add(1);
                 return;
             }
             () = busy.wait_busy() => {}

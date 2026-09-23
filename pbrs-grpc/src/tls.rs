@@ -484,7 +484,7 @@ fn build_client(
 
 #[cfg(test)]
 mod tests {
-    use super::{certs_from_pem, key_from_pem, Identity};
+    use super::{Identity, certs_from_pem, key_from_pem};
     use crate::status::Code;
 
     #[test]

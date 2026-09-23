@@ -176,12 +176,16 @@ fn json_float_double_shipped_helpers_pure_rust() {
     assert_eq!(val_f32.to_bits(), (-0.0f32).to_bits());
 
     let neg_zero_str = pbrs::json::parse(r#""-0.0""#).unwrap();
-    assert!(pbrs::json::as_f64(&neg_zero_str)
-        .unwrap()
-        .is_sign_negative());
-    assert!(pbrs::json::as_f32(&neg_zero_str)
-        .unwrap()
-        .is_sign_negative());
+    assert!(
+        pbrs::json::as_f64(&neg_zero_str)
+            .unwrap()
+            .is_sign_negative()
+    );
+    assert!(
+        pbrs::json::as_f32(&neg_zero_str)
+            .unwrap()
+            .is_sign_negative()
+    );
 
     // Valid special values
     let nan_val = pbrs::json::as_f64(&pbrs::json::parse(r#""NaN""#).unwrap()).unwrap();

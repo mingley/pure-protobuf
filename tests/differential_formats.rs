@@ -30,9 +30,9 @@
 )]
 
 use pbrs::gencode::{
-    conformance_pool, BoolValue, BytesValue, DoubleValue, Duration, Empty, FieldMask, FloatValue,
-    Int32Value, Int64Value, ListValue, PbValue, StringValue, Struct, TestAllTypesProto3, Timestamp,
-    UInt32Value, UInt64Value,
+    BoolValue, BytesValue, DoubleValue, Duration, Empty, FieldMask, FloatValue, Int32Value,
+    Int64Value, ListValue, PbValue, StringValue, Struct, TestAllTypesProto3, Timestamp,
+    UInt32Value, UInt64Value, conformance_pool,
 };
 use pbrs::{DescriptorPool, DynamicMessage, MapKeyValue, MessageDescriptor, Value};
 use std::sync::Arc;
@@ -227,7 +227,7 @@ fn test_wkt_wrappers_direct_value_differential() {
     let pool = conformance_pool();
 
     macro_rules! check_wrapper {
-        ($gen_ty:ident, $desc_name:expr, $json_file:expr, $text_file:expr, $val_match:pat => $assert_expr:expr) => {{
+        ($gen_ty:ident, $desc_name:expr_2021, $json_file:expr_2021, $text_file:expr_2021, $val_match:pat => $assert_expr:expr_2021) => {{
             let desc = pool.get_message($desc_name).expect($desc_name);
             let json_pinned = include_str!(concat!("fixtures/differential/", $json_file)).trim();
             let text_pinned = include_str!(concat!("fixtures/differential/", $text_file));
@@ -617,11 +617,11 @@ fn test_numeric_signed_zero_differential() {
     let text = include_str!("fixtures/differential/numeric_signed_zero.textproto");
 
     // 1. Parse from JSON number: -0.0
-    let gen = TestAllTypesProto3::from_json(json).unwrap();
-    assert!(gen.optional_float().is_sign_negative());
-    assert!(gen.optional_double().is_sign_negative());
-    assert_eq!(gen.optional_float().to_bits(), (-0.0f32).to_bits());
-    assert_eq!(gen.optional_double().to_bits(), (-0.0f64).to_bits());
+    let r#gen = TestAllTypesProto3::from_json(json).unwrap();
+    assert!(r#gen.optional_float().is_sign_negative());
+    assert!(r#gen.optional_double().is_sign_negative());
+    assert_eq!(r#gen.optional_float().to_bits(), (-0.0f32).to_bits());
+    assert_eq!(r#gen.optional_double().to_bits(), (-0.0f64).to_bits());
 
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json).unwrap();
     match dyn_msg.get_singular(11) {
@@ -676,9 +676,9 @@ fn test_numeric_subnormals_and_large_exponents_differential() {
 
     // 1. Subnormals positive
     let json_sub = include_str!("fixtures/differential/numeric_subnormals.json").trim();
-    let gen = TestAllTypesProto3::from_json(json_sub).unwrap();
-    assert_eq!(gen.optional_float().to_bits(), 1); // min positive subnormal float32
-    assert_eq!(gen.optional_double().to_bits(), 1); // min positive subnormal float64
+    let r#gen = TestAllTypesProto3::from_json(json_sub).unwrap();
+    assert_eq!(r#gen.optional_float().to_bits(), 1); // min positive subnormal float32
+    assert_eq!(r#gen.optional_double().to_bits(), 1); // min positive subnormal float64
 
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json_sub).unwrap();
     match dyn_msg.get_singular(11) {
@@ -716,8 +716,8 @@ fn test_numeric_float32_bounds_and_overflow_differential() {
 
     // Float32 max bound: 3.402823e+38 is valid
     let json_max = include_str!("fixtures/differential/numeric_float32_max.json").trim();
-    let gen = TestAllTypesProto3::from_json(json_max).unwrap();
-    assert!((gen.optional_float() - 3.402823e+38_f32).abs() < 1e32);
+    let r#gen = TestAllTypesProto3::from_json(json_max).unwrap();
+    assert!((r#gen.optional_float() - 3.402823e+38_f32).abs() < 1e32);
 
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json_max).unwrap();
     match dyn_msg.get_singular(11) {
@@ -763,9 +763,9 @@ fn test_numeric_nan_and_infinity_differential() {
     let text_neg_inf = include_str!("fixtures/differential/numeric_neg_inf.textproto");
 
     // JSON NaN and Infinity
-    let gen = TestAllTypesProto3::from_json(json_specials).unwrap();
-    assert!(gen.optional_float().is_nan());
-    assert_eq!(gen.optional_double(), f64::INFINITY);
+    let r#gen = TestAllTypesProto3::from_json(json_specials).unwrap();
+    assert!(r#gen.optional_float().is_nan());
+    assert_eq!(r#gen.optional_double(), f64::INFINITY);
 
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json_specials).unwrap();
     match dyn_msg.get_singular(11) {
@@ -940,9 +940,10 @@ fn test_maps_duplicate_keys_json_rejection_vs_text_last_wins() {
 
     // In text format, duplicate map entries are allowed and follow last-wins semantics
     let text_dup = include_str!("fixtures/differential/map_duplicate_keys.textproto");
-    let gen = TestAllTypesProto3::from_text(text_dup).expect("parse gen text with dup keys");
+    let r#gen = TestAllTypesProto3::from_text(text_dup).expect("parse gen text with dup keys");
     assert_eq!(
-        gen.map_string_string()
+        r#gen
+            .map_string_string()
             .get("dupKey")
             .unwrap()
             .to_str()
@@ -1080,8 +1081,8 @@ fn test_roundtrip_json_canonical_equality() {
     let pinned_tree = pbrs::json::parse(json_pinned).expect("parse pinned json tree");
 
     // 1. Generated message round-trip: json -> parse -> to_json -> verify canonical equality
-    let gen = TestAllTypesProto3::from_json(json_pinned).expect("parse gen TestAllTypesProto3");
-    let gen_json = gen.to_json().expect("gen to_json");
+    let r#gen = TestAllTypesProto3::from_json(json_pinned).expect("parse gen TestAllTypesProto3");
+    let gen_json = r#gen.to_json().expect("gen to_json");
     let gen_tree = pbrs::json::parse(&gen_json).expect("parse gen json tree");
     assert_eq!(
         gen_tree, pinned_tree,
@@ -1089,7 +1090,7 @@ fn test_roundtrip_json_canonical_equality() {
     );
 
     let gen_reparsed = TestAllTypesProto3::from_json(&gen_json).expect("reparse gen");
-    assert_eq!(gen, gen_reparsed, "gen message must round-trip exactly");
+    assert_eq!(r#gen, gen_reparsed, "gen message must round-trip exactly");
 
     // 2. Dynamic message round-trip: json -> parse -> to_json -> verify canonical equality
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json_pinned).expect("parse dyn message");
@@ -1118,13 +1119,13 @@ fn test_roundtrip_text_equality() {
     let text_pinned = include_str!("fixtures/differential/format_roundtrip.textproto");
 
     // 1. Generated message round-trip: text -> parse -> to_text -> verify exact equality
-    let gen = TestAllTypesProto3::from_text(text_pinned).expect("parse gen text");
-    let gen_text = gen.to_text().expect("gen to_text");
+    let r#gen = TestAllTypesProto3::from_text(text_pinned).expect("parse gen text");
+    let gen_text = r#gen.to_text().expect("gen to_text");
     assert_eq!(gen_text, text_pinned, "gen text must match pinned text");
 
     let gen_reparsed = TestAllTypesProto3::from_text(&gen_text).expect("reparse gen text");
     assert_eq!(
-        gen, gen_reparsed,
+        r#gen, gen_reparsed,
         "gen message must round-trip text exactly"
     );
     assert_eq!(gen_reparsed.to_text().unwrap(), gen_text);

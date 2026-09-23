@@ -1088,7 +1088,10 @@ pub mod lifecycle {
                 }
                 FaultKind::FutureDropServer => {
                     assert!(
-                        result.as_ref().is_err_and(|s| matches!(s.code(), Code::Unavailable | Code::Internal | Code::Cancelled)),
+                        result.as_ref().is_err_and(|s| matches!(
+                            s.code(),
+                            Code::Unavailable | Code::Internal | Code::Cancelled
+                        )),
                         "Expected UNAVAILABLE, INTERNAL, or CANCELLED on server drop, got {result:?}"
                     );
                 }
@@ -1100,7 +1103,11 @@ pub mod lifecycle {
                 }
                 FaultKind::RstStream(RstReason::RefusedStream) => {
                     assert!(
-                        result.is_ok() || result.as_ref().is_err_and(|s| matches!(s.code(), Code::Unavailable | Code::Cancelled)),
+                        result.is_ok()
+                            || result.as_ref().is_err_and(|s| matches!(
+                                s.code(),
+                                Code::Unavailable | Code::Cancelled
+                            )),
                         "Expected OK (transparent retry), UNAVAILABLE or CANCELLED on REFUSED_STREAM, got {result:?}"
                     );
                 }
@@ -1115,7 +1122,10 @@ pub mod lifecycle {
                 }
                 FaultKind::RstStream(RstReason::InternalError) => {
                     assert!(
-                        result.as_ref().is_err_and(|s| matches!(s.code(), Code::Internal | Code::Unavailable | Code::Cancelled)),
+                        result.as_ref().is_err_and(|s| matches!(
+                            s.code(),
+                            Code::Internal | Code::Unavailable | Code::Cancelled
+                        )),
                         "Expected INTERNAL, UNAVAILABLE, or CANCELLED on RST INTERNAL_ERROR, got {result:?}"
                     );
                 }
@@ -1157,14 +1167,26 @@ pub mod lifecycle {
         }
 
         pub async fn assert_permit_release(&self, probe_client: &GreeterClient) {
-            let probe_res = probe_client.say_hello(Request::new(req("probe"))).await;
-            if let Err(status) = &probe_res {
-                assert_ne!(
-                    status.code(),
-                    Code::ResourceExhausted,
-                    "Permit leak detected! Probe failed with RESOURCE_EXHAUSTED: {status}"
-                );
+            // The handler guard can drop before the outer dispatch task drops
+            // its semaphore permit. A persistent rejection still fails.
+            let deadline = tokio::time::Instant::now() + Duration::from_millis(300);
+            let mut last_rejection = None;
+            while tokio::time::Instant::now() < deadline {
+                let probe = tokio::time::timeout_at(
+                    deadline,
+                    probe_client.say_hello(Request::new(req("probe"))),
+                )
+                .await;
+                match probe {
+                    Ok(Err(status)) if status.code() == Code::ResourceExhausted => {
+                        last_rejection = Some(status);
+                    }
+                    Ok(_) => return,
+                    Err(_) => break,
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
+            panic!("Permit leak detected after 300ms: {last_rejection:?}");
         }
     }
 

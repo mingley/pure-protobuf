@@ -2156,12 +2156,16 @@ mod tests {
         assert!(!ChannelConfig::new().waits_for_ready());
         assert!(ChannelConfig::new().wait_for_ready(true).waits_for_ready());
         assert!(ChannelConfig::new().accepts_compressed());
-        assert!(!ChannelConfig::new()
-            .accept_compressed(false)
-            .accepts_compressed());
-        assert!(!ServerConfig::new()
-            .accept_compressed(false)
-            .accepts_compressed());
+        assert!(
+            !ChannelConfig::new()
+                .accept_compressed(false)
+                .accepts_compressed()
+        );
+        assert!(
+            !ServerConfig::new()
+                .accept_compressed(false)
+                .accepts_compressed()
+        );
         assert_eq!(config.gzip_level(), super::DEFAULT_GZIP_COMPRESSION_LEVEL);
         assert_eq!(
             ChannelConfig::new().gzip_level(),
@@ -2410,12 +2414,16 @@ mod tests {
         assert_eq!(channel.concurrent_reset_streams(), 17);
         assert_eq!(channel.reset_stream_ttl(), Duration::from_secs(4));
         assert!(!ChannelConfig::new().compresses_outbound());
-        assert!(ChannelConfig::new()
-            .send_compressed(true)
-            .compresses_outbound());
-        assert!(ServerConfig::new()
-            .send_compressed(true)
-            .compresses_outbound());
+        assert!(
+            ChannelConfig::new()
+                .send_compressed(true)
+                .compresses_outbound()
+        );
+        assert!(
+            ServerConfig::new()
+                .send_compressed(true)
+                .compresses_outbound()
+        );
         assert!(ChannelConfig::new().wire().accept_gzip);
         assert!(
             !ChannelConfig::new()

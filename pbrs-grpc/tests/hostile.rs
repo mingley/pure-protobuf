@@ -30,8 +30,8 @@ mod common;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use common::{serve, spawn_greeter_server};
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use http::{HeaderValue, Method, Request as HttpRequest, StatusCode};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
 use pbrs_grpc::{Code, Request, Response, ServerConfig, Status, Streaming};
@@ -1126,16 +1126,20 @@ fn regression_invalid_frame_lengths_and_flags_safely_rejected() {
     // 5. Truncation: 1..=4 bytes header
     for len in 1..5 {
         let mut buf = BytesMut::from(&vec![0u8; len][..]);
-        assert!(pbrs_grpc::codec::pop_limited(&mut buf, limits)
-            .expect("pop")
-            .is_none());
+        assert!(
+            pbrs_grpc::codec::pop_limited(&mut buf, limits)
+                .expect("pop")
+                .is_none()
+        );
     }
 
     // 6. Truncation: 5-byte header claiming 10 bytes, but only 9 present
     let mut buf = BytesMut::from(&[0x00, 0x00, 0x00, 0x00, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8, 9][..]);
-    assert!(pbrs_grpc::codec::pop_limited(&mut buf, limits)
-        .expect("pop")
-        .is_none());
+    assert!(
+        pbrs_grpc::codec::pop_limited(&mut buf, limits)
+            .expect("pop")
+            .is_none()
+    );
 }
 
 /// Bad metadata encodings regression: reserved keys, mis-suffixed -bin keys,

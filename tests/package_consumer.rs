@@ -227,9 +227,10 @@ fn core_package_contains_only_shipped_files() {
     let target = repo_root().join("target/package-consumer-inventory");
     let list = cargo_package_list("pbrs", &target);
     assert!(list.iter().any(|name| name == "README.md"));
-    assert!(list
-        .iter()
-        .any(|name| name == "vendor/google/conformance_fds.bin"));
+    assert!(
+        list.iter()
+            .any(|name| name == "vendor/google/conformance_fds.bin")
+    );
     let unrelated: Vec<_> = list
         .iter()
         .filter(|name| {

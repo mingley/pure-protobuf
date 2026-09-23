@@ -80,7 +80,6 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         required_all: &["xDS", "channelz", "hedging"],
         description: "Status documentation must catalogue explicit feature omissions (xDS, channelz, hedging).",
     },
-
     // ------------------------------------------------------------------------
     // 2. Transparent retry boundaries
     // ------------------------------------------------------------------------
@@ -112,7 +111,6 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         required_all: &["from_io", "no transparent retry"],
         description: "Documentation must state that in-process from_io connections do not perform transparent retry.",
     },
-
     // ------------------------------------------------------------------------
     // 3. Security / TLS verifier and ALPN requirements
     // ------------------------------------------------------------------------
@@ -137,7 +135,6 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         required_all: &["mTLS", "peer_identity"],
         description: "Architecture documentation must note mTLS client identity verification on peer_identity.",
     },
-
     // ------------------------------------------------------------------------
     // 4. HTTP/2 transport mapping caveats
     // ------------------------------------------------------------------------
@@ -152,7 +149,10 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "http2_transport",
         title: "rapid_reset_cve_mitigation",
         doc_path: "docs/grpc.md",
-        required_all: &["rapid reset", "ServerConfig::max_pending_accept_reset_streams"],
+        required_all: &[
+            "rapid reset",
+            "ServerConfig::max_pending_accept_reset_streams",
+        ],
         description: "gRPC documentation must document mitigation for HTTP/2 Rapid Reset (CVE-2023-44487).",
     },
     CaveatRequirement {
@@ -162,7 +162,6 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         required_all: &["CONTINUATION", "max_header_list_size"],
         description: "gRPC documentation must document CONTINUATION flood defense and header list caps.",
     },
-
     // ------------------------------------------------------------------------
     // 5. License and crate naming notes
     // ------------------------------------------------------------------------
@@ -184,7 +183,12 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "license_and_naming",
         title: "workspace_crate_and_repo_naming",
         doc_path: "docs/architecture.md",
-        required_all: &["`pbrs`", "`protobuf-tonic`", "`pbrs-grpc`", "mingley/pure-protobuf"],
+        required_all: &[
+            "`pbrs`",
+            "`protobuf-tonic`",
+            "`pbrs-grpc`",
+            "mingley/pure-protobuf",
+        ],
         description: "Architecture must name workspace crates and GitHub repository.",
     },
     CaveatRequirement {
@@ -498,7 +502,7 @@ pub fn validate_documentation_map_references() -> Result<(), Vec<String>> {
         Err(e) => {
             return Err(vec![format!(
                 "failed to read docs/documentation-map.md: {e}"
-            )])
+            )]);
         }
     };
 
@@ -605,7 +609,7 @@ pub fn extract_code_blocks(content: &str) -> Vec<CodeBlock> {
 fn run_rustfmt(input: &str) -> Result<(), String> {
     let mut child = Command::new("rustfmt")
         .arg("--edition")
-        .arg("2021")
+        .arg("2024")
         .arg("--emit")
         .arg("stdout")
         .stdin(Stdio::piped())
@@ -995,6 +999,8 @@ fn test_guide_code_blocks_are_syntactically_valid() {
 fn test_rust_snippet_syntax_validator_detects_errors() {
     // Valid item
     assert!(check_rust_snippet_syntax("fn hello() { println!(\"world\"); }").is_ok());
+    assert!(check_rust_snippet_syntax("fn r#gen() {}").is_ok());
+    assert!(check_rust_snippet_syntax("fn gen() {}").is_err());
     // Valid statement
     assert!(check_rust_snippet_syntax("let x = 42;").is_ok());
     // Valid module

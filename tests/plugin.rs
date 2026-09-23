@@ -813,7 +813,7 @@ fn plugin_rejects_invalid_parameter_value() {
 
 #[test]
 fn direct_parameter_parsing_and_error_variants() {
-    use pbrs::codegen::{generate_from_code_generator_request, CodegenError};
+    use pbrs::codegen::{CodegenError, generate_from_code_generator_request};
 
     fn make_req(parameter: Option<&str>) -> Vec<u8> {
         let mut req = Vec::new();
@@ -920,6 +920,26 @@ fn plugin_parameter_shared_pool_and_no_reflect() {
 
 #[test]
 fn config_options_take_precedence_over_ambient_env() {
+    if std::env::var_os("PBRS_PLUGIN_CONFIG_ENV_CHILD").is_none() {
+        let output = Command::new(std::env::current_exe().expect("test executable"))
+            .args(["--exact", "config_options_take_precedence_over_ambient_env"])
+            .env("PBRS_PLUGIN_CONFIG_ENV_CHILD", "1")
+            .env("PURE_PROTOBUF_STUBS", "kernel")
+            .output()
+            .expect("run config/env precedence in a child");
+        assert!(
+            output.status.success(),
+            "child generation failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    assert_eq!(
+        std::env::var("PURE_PROTOBUF_STUBS").as_deref(),
+        Ok("kernel")
+    );
+
     let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")
         .join("plugin-config-prec");
@@ -927,20 +947,10 @@ fn config_options_take_precedence_over_ambient_env() {
     std::fs::create_dir_all(&tmp).unwrap();
     let proto_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto");
 
-    // Ambient env says PURE_PROTOBUF_STUBS=kernel
-    let prev = std::env::var("PURE_PROTOBUF_STUBS").ok();
-    std::env::set_var("PURE_PROTOBUF_STUBS", "kernel");
-
     let res = pbrs::codegen::Config::new()
         .out_dir(&tmp)
         .emit_tonic_stubs(true)
         .compile_protos(&[proto_dir.join("hello.proto")], &[&proto_dir]);
-
-    if let Some(v) = prev {
-        std::env::set_var("PURE_PROTOBUF_STUBS", v);
-    } else {
-        std::env::remove_var("PURE_PROTOBUF_STUBS");
-    }
 
     res.expect("compile_protos with explicit tonic stubs");
     let generated = std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs");
@@ -1597,7 +1607,7 @@ fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
 
 #[test]
 fn protoc_plugin_conflicting_and_malformed_mappings_diagnostics() {
-    use pbrs::codegen::{generate_from_code_generator_request, CodegenError, Config};
+    use pbrs::codegen::{CodegenError, Config, generate_from_code_generator_request};
 
     fn make_req(parameter: Option<&str>) -> Vec<u8> {
         let mut req = Vec::new();
@@ -2531,7 +2541,7 @@ fn protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_pol
             r#"[package]
 name = "native-strict-consumer"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 
 [workspace]
 
@@ -2695,7 +2705,7 @@ fn protoc_plugin_generated_tonic_compiles_under_strict_consumer_lint_policy() {
             r#"[package]
 name = "tonic-strict-consumer"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 
 [workspace]
 

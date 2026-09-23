@@ -18,7 +18,7 @@
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
 use pbrs::gencode::{
-    conformance_pool, TestAllTypesEdition2023, TestAllTypesProto2, TestAllTypesProto3,
+    TestAllTypesEdition2023, TestAllTypesProto2, TestAllTypesProto3, conformance_pool,
 };
 
 #[test]

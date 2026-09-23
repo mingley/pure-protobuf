@@ -23,8 +23,8 @@
 mod common;
 
 use common::{
-    name_of, name_of_request, req, reserve_loopback, serve_at, serve_on, spawn_greeter, until_ok,
-    Echo,
+    Echo, name_of, name_of_request, req, reserve_loopback, serve_at, serve_on, spawn_greeter,
+    until_ok,
 };
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
@@ -5401,9 +5401,7 @@ fn channel_call_apis_document_hand_written_services() {
         "hello GreeterClient::intercept rustdoc must Distinct on_response after-receive from outbound-before-stream"
     );
     assert!(
-        hello.contains(
-            "//!         call.connected(),\n//!         call.extensions(),"
-        ),
+        hello.contains("//!         call.connected(),\n//!         call.extensions(),"),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
     );
     assert!(
@@ -7910,8 +7908,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::max_concurrent_reset_streams must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
-        src.matches("at this memory cap")
-            .count(),
+        src.matches("at this memory cap").count(),
         2,
         "ServerConfig and ChannelConfig max_concurrent_reset_streams must still-serve at this memory cap"
     );
@@ -7936,8 +7933,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::reset_stream_duration must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
-        src.matches("at this reset duration")
-            .count(),
+        src.matches("at this reset duration").count(),
         2,
         "ServerConfig and ChannelConfig reset_stream_duration must still-serve at this reset duration"
     );
@@ -8482,23 +8478,30 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_debug_info next to ErrorDetails::with_retry_info"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_debug_info`], [`ErrorDetails::with_quota_failure`]"),
+        crate_src
+            .contains("[`ErrorDetails::with_debug_info`], [`ErrorDetails::with_quota_failure`]"),
         "crate map must name ErrorDetails::with_quota_failure next to ErrorDetails::with_debug_info"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_quota_failure`], [`ErrorDetails::with_precondition_failure`]"),
+        crate_src.contains(
+            "[`ErrorDetails::with_quota_failure`], [`ErrorDetails::with_precondition_failure`]"
+        ),
         "crate map must name ErrorDetails::with_precondition_failure next to ErrorDetails::with_quota_failure"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_precondition_failure`], [`ErrorDetails::with_bad_request`]"),
+        crate_src.contains(
+            "[`ErrorDetails::with_precondition_failure`], [`ErrorDetails::with_bad_request`]"
+        ),
         "crate map must name ErrorDetails::with_bad_request next to ErrorDetails::with_precondition_failure"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_bad_request`], [`ErrorDetails::with_request_info`]"),
+        crate_src
+            .contains("[`ErrorDetails::with_bad_request`], [`ErrorDetails::with_request_info`]"),
         "crate map must name ErrorDetails::with_request_info next to ErrorDetails::with_bad_request"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_request_info`], [`ErrorDetails::with_resource_info`]"),
+        crate_src
+            .contains("[`ErrorDetails::with_request_info`], [`ErrorDetails::with_resource_info`]"),
         "crate map must name ErrorDetails::with_resource_info next to ErrorDetails::with_request_info"
     );
     assert!(
@@ -8510,7 +8513,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_localized_message next to ErrorDetails::with_help"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_localized_message`], [`ErrorDetails::with_unknown`]"),
+        crate_src
+            .contains("[`ErrorDetails::with_localized_message`], [`ErrorDetails::with_unknown`]"),
         "crate map must name ErrorDetails::with_unknown next to ErrorDetails::with_localized_message"
     );
     assert!(
@@ -10392,8 +10396,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name FieldViolation::with_reason next to FieldViolation::with_field"
     );
     assert!(
-        crate_src
-            .contains("[`pb::FieldViolation::with_reason`], [`pb::FieldViolation::with_localized_message`]"),
+        crate_src.contains(
+            "[`pb::FieldViolation::with_reason`], [`pb::FieldViolation::with_localized_message`]"
+        ),
         "crate map must name FieldViolation::with_localized_message next to FieldViolation::with_reason"
     );
     assert!(
@@ -10409,7 +10414,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name QuotaFailure::with_violation next to Status::quota_failure"
     );
     assert!(
-        crate_src.contains("[`pb::QuotaFailure::with_violation`], [`pb::QuotaFailure::with_violation_entry`]"),
+        crate_src.contains(
+            "[`pb::QuotaFailure::with_violation`], [`pb::QuotaFailure::with_violation_entry`]"
+        ),
         "crate map must name QuotaFailure::with_violation_entry next to QuotaFailure::with_violation"
     );
     assert!(
@@ -10441,7 +10448,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name quota_failure::Violation::with_future_quota_value next to quota_failure::Violation::with_quota_value"
     );
     assert!(
-        crate_src.contains("[`pb::quota_failure::Violation::with_future_quota_value`], [`pb::quota_failure`]"),
+        crate_src.contains(
+            "[`pb::quota_failure::Violation::with_future_quota_value`], [`pb::quota_failure`]"
+        ),
         "crate map must name pb::quota_failure next to quota_failure::Violation::with_future_quota_value"
     );
     assert!(
@@ -10449,7 +10458,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::precondition_failure next to pb::quota_failure"
     );
     assert!(
-        crate_src.contains("[`Status::precondition_failure`], [`pb::PreconditionFailure::with_violation`]"),
+        crate_src.contains(
+            "[`Status::precondition_failure`], [`pb::PreconditionFailure::with_violation`]"
+        ),
         "crate map must name PreconditionFailure::with_violation next to Status::precondition_failure"
     );
     assert!(
@@ -10461,7 +10472,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation_entry"
     );
     assert!(
-        crate_src.contains("[`pb::precondition_failure::Violation::with_type`], [`pb::precondition_failure`]"),
+        crate_src.contains(
+            "[`pb::precondition_failure::Violation::with_type`], [`pb::precondition_failure`]"
+        ),
         "crate map must name pb::precondition_failure next to precondition_failure::Violation::with_type"
     );
     assert!(
@@ -12310,7 +12323,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct locally-reset stream memory eviction from GOAWAY floods"
     );
     assert!(
-        crate_src.contains("[`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap."),
+        crate_src.contains(
+            "[`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap."
+        ),
         "crate docs must Distinct ChannelConfig concurrent-reset memory as the client handshake cap"
     );
     assert!(
@@ -12507,8 +12522,10 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::max_concurrent_rpcs and Router::max_concurrent_rpcs must name every transport"
     );
     assert_eq!(
-        src.matches("Concurrent RPCs allowed per HTTP/2 connection. Applies to every call\n    /// shape.")
-            .count(),
+        src.matches(
+            "Concurrent RPCs allowed per HTTP/2 connection. Applies to every call\n    /// shape."
+        )
+        .count(),
         2,
         "Server::max_concurrent_streams and Router::max_concurrent_streams must name every call shape"
     );

@@ -6,7 +6,7 @@
 
 use crate::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::health::{
-    service as health_service, HealthCheckRequest, HealthClient, HealthReporter, ServingStatus,
+    HealthCheckRequest, HealthClient, HealthReporter, ServingStatus, service as health_service,
 };
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, Request, Response, Router, ServerConfig,
@@ -14,8 +14,8 @@ use pbrs_grpc::{
 };
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::task::{JoinHandle, JoinSet};
@@ -587,7 +587,7 @@ pub async fn run_local_fixture_demo(
         Err(status) => {
             return Err(Status::internal(format!(
                 "unexpected drain status: {status}"
-            )))
+            )));
         }
         Ok(_) => return Err(Status::internal("unending upload succeeded after drain")),
     };

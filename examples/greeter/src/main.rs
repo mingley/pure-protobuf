@@ -10,7 +10,7 @@
 
 #[tokio::main]
 async fn main() {
-    use pbrs_grpc_example_greeter::production::{run_local_fixture_demo, FixtureMode};
+    use pbrs_grpc_example_greeter::production::{FixtureMode, run_local_fixture_demo};
     use std::ffi::OsStr;
 
     let args: Vec<_> = std::env::args_os().collect();

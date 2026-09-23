@@ -4,6 +4,10 @@
 
 This document specifies the authoritative semantic contract for **Protocol Buffers Edition 2024** (`edition = "2024";`, edition number `1001`) in `pure-protobuf` (`pbrs`). It establishes the exact defaults, inheritance rules, visibility mechanics, naming constraints, extension behaviors, and language-option policies required to achieve complete conformance with upstream Protocol Buffers (`protocolbuffers/protobuf@v35.1` / `v36.1`) without relying on the C++ / upb kernel.
 
+This is distinct from the Rust language's Edition 2024 in `Cargo.toml`.
+Switching a crate's Rust edition does **not** enable Protobuf Edition 2024
+generation; the plugin's advertised maximum remains Edition 2023.
+
 ### Deliverables & Contract Boundary
 
 1. **Pinned Edition Defaults**: Complete specification of all global features for Edition 2024 compared to Proto2, Proto3, and Edition 2023.

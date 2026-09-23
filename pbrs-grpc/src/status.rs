@@ -2072,10 +2072,12 @@ mod tests {
             Status::from_error_details(Code::Unavailable, "now", &zero).expect("encode");
         assert_eq!(zero_status.retry_delay(), Some(std::time::Duration::ZERO));
         assert!(Status::unavailable("gone").retry_delay().is_none());
-        assert!(Status::unavailable("gone")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
-            .retry_delay()
-            .is_none());
+        assert!(
+            Status::unavailable("gone")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .retry_delay()
+                .is_none()
+        );
     }
 
     #[test]
@@ -2112,17 +2114,21 @@ mod tests {
         assert!(retry_status.retry_delay().is_some());
 
         assert!(Status::not_found("row").error_info().is_none());
-        assert!(Status::not_found("row")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::not_found("row")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .error_info()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .error_info()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .error_info()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2155,17 +2161,21 @@ mod tests {
         assert!(info_status.error_info().is_some());
 
         assert!(Status::invalid_argument("name").bad_request().is_none());
-        assert!(Status::invalid_argument("name")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::invalid_argument("name")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .bad_request()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .bad_request()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .bad_request()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2210,20 +2220,26 @@ mod tests {
         assert!(bad_status.quota_failure().is_none());
         assert!(bad_status.bad_request().is_some());
 
-        assert!(Status::resource_exhausted("tokens")
+        assert!(
+            Status::resource_exhausted("tokens")
+                .quota_failure()
+                .is_none()
+        );
+        assert!(
+            Status::resource_exhausted("tokens")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .quota_failure()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .quota_failure()
-            .is_none());
-        assert!(Status::resource_exhausted("tokens")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
-            .quota_failure()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .quota_failure()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2290,20 +2306,26 @@ mod tests {
         assert!(bad_status.precondition_failure().is_none());
         assert!(bad_status.bad_request().is_some());
 
-        assert!(Status::failed_precondition("tos")
+        assert!(
+            Status::failed_precondition("tos")
+                .precondition_failure()
+                .is_none()
+        );
+        assert!(
+            Status::failed_precondition("tos")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .precondition_failure()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .precondition_failure()
-            .is_none());
-        assert!(Status::failed_precondition("tos")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
-            .precondition_failure()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .precondition_failure()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2365,17 +2387,21 @@ mod tests {
         assert!(!pre_status.is_retryable());
 
         assert!(Status::unavailable("backend").help().is_none());
-        assert!(Status::unavailable("backend")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::unavailable("backend")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .help()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .help()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .help()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2413,17 +2439,21 @@ mod tests {
         assert_eq!(help_status.message(), "not found");
 
         assert!(Status::not_found("row").localized_message().is_none());
-        assert!(Status::not_found("row")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::not_found("row")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .localized_message()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .localized_message()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .localized_message()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2466,17 +2496,21 @@ mod tests {
         assert!(error_status.error_info().is_some());
 
         assert!(Status::internal("boom").request_info().is_none());
-        assert!(Status::internal("boom")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::internal("boom")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .request_info()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .request_info()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .request_info()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2522,17 +2556,21 @@ mod tests {
         assert!(quota_status.quota_failure().is_some());
 
         assert!(Status::not_found("gone").resource_info().is_none());
-        assert!(Status::not_found("gone")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::not_found("gone")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .resource_info()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .resource_info()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .resource_info()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]
@@ -2574,17 +2612,21 @@ mod tests {
         assert!(local_status.localized_message().is_some());
 
         assert!(Status::internal("boom").debug_info().is_none());
-        assert!(Status::internal("boom")
-            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+        assert!(
+            Status::internal("boom")
+                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .debug_info()
+                .is_none()
+        );
+        assert!(
+            Status::with_details(
+                Code::Internal,
+                "junk",
+                bytes::Bytes::from_static(b"not-protobuf")
+            )
             .debug_info()
-            .is_none());
-        assert!(Status::with_details(
-            Code::Internal,
-            "junk",
-            bytes::Bytes::from_static(b"not-protobuf")
-        )
-        .debug_info()
-        .is_none());
+            .is_none()
+        );
     }
 
     #[test]

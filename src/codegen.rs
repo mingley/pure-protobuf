@@ -11,7 +11,7 @@ use crate::dynamic::{
 };
 pub use crate::dynamic::{Comments, SourceCodeInfo, SourceLocation};
 use crate::error::ParseError;
-use crate::wire::{self, decode_tag, encode_len_field, encode_varint, read_len_bytes, WIRE_LEN};
+use crate::wire::{self, WIRE_LEN, decode_tag, encode_len_field, encode_varint, read_len_bytes};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -424,8 +424,8 @@ fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions, CodegenErr
                         .ok_or_else(|| CodegenError::InvalidParameter {
                             key: "extern_path".to_string(),
                             detail: format!(
-                            "expected 'proto_path=rust_path' for 'extern_path', got '{val_str}'"
-                        ),
+                                "expected 'proto_path=rust_path' for 'extern_path', got '{val_str}'"
+                            ),
                         })?;
                 let proto_path = proto_path.trim();
                 let rust_path = rust_path.trim();
@@ -3065,11 +3065,18 @@ fn emit_field_getter_doc(src: &mut String, desc: &MessageDescriptor, f: &FieldDe
             "    /// Repeated field of `{t}`{packed_note}. Empty by default."
         );
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
-        let _ = writeln!(src, "    /// Message field with explicit presence. Returns a reference to the message, or the default instance if unset.");
+        let _ = writeln!(
+            src,
+            "    /// Message field with explicit presence. Returns a reference to the message, or the default instance if unset."
+        );
     } else if f.field_type == FieldType::String {
         let def = f.default.as_deref().unwrap_or("");
         if is_option(f) {
-            let _ = writeln!(src, "    /// Explicit optional string. Returns the string value, or the default (\"{}\") if unset.", def.escape_default());
+            let _ = writeln!(
+                src,
+                "    /// Explicit optional string. Returns the string value, or the default (\"{}\") if unset.",
+                def.escape_default()
+            );
         } else {
             let _ = writeln!(
                 src,
@@ -3096,7 +3103,11 @@ fn emit_field_getter_doc(src: &mut String, desc: &MessageDescriptor, f: &FieldDe
                     f.name
                 );
             } else {
-                let _ = writeln!(src, "    /// Explicit optional field. Returns the value of `{}` or the default (`{def}`) if unset.", f.name);
+                let _ = writeln!(
+                    src,
+                    "    /// Explicit optional field. Returns the value of `{}` or the default (`{def}`) if unset.",
+                    f.name
+                );
             }
         } else {
             let _ = writeln!(src, "    /// Implicit presence field (default: `{def}`).");
@@ -3135,7 +3146,11 @@ fn emit_opt_doc(src: &mut String, f: &FieldDescriptor) {
 
 fn emit_mut_doc(src: &mut String, f: &FieldDescriptor, is_msg: bool) {
     if is_msg {
-        let _ = writeln!(src, "    /// Returns a mutable reference to `{}`, initializing it with default values if unset.", f.name);
+        let _ = writeln!(
+            src,
+            "    /// Returns a mutable reference to `{}`, initializing it with default values if unset.",
+            f.name
+        );
     } else {
         let _ = writeln!(src, "    /// Returns a mutable view of field `{}`.", f.name);
     }
@@ -4657,13 +4672,19 @@ fn emit_dynamic_json(src: &mut String, full_name: &str) {
         src,
         "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
     );
-    let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"json\"))?;");
+    let _ = writeln!(
+        src,
+        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"json\"))?;"
+    );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
         "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
     );
-    let _ = writeln!(src, "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"json\"))?.to_json()");
+    let _ = writeln!(
+        src,
+        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"json\"))?.to_json()"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
@@ -4678,8 +4699,14 @@ fn emit_dynamic_json(src: &mut String, full_name: &str) {
         src,
         "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| ParseError::owned(\"missing desc\".into()))?;"
     );
-    let _ = writeln!(src, "        let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;");
-    let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;");
+    let _ = writeln!(
+        src,
+        "        let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;"
+    );
+    let _ = writeln!(
+        src,
+        "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;"
+    );
     let _ = writeln!(src, "        <Self as pbrs::Parse>::parse(&b)");
     let _ = writeln!(src, "    }}");
 }
@@ -4689,25 +4716,37 @@ fn emit_dynamic_text(src: &mut String, full_name: &str) {
         src,
         "    pub fn to_text(&self) -> Result<String, SerializeError> {{"
     );
-    let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;");
+    let _ = writeln!(
+        src,
+        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;"
+    );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
         "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
     );
-    let _ = writeln!(src, "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text()");
+    let _ = writeln!(
+        src,
+        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text()"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
         "    pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {{"
     );
-    let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;");
+    let _ = writeln!(
+        src,
+        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;"
+    );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
         "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
     );
-    let _ = writeln!(src, "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text_with_unknown()");
+    let _ = writeln!(
+        src,
+        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text_with_unknown()"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
@@ -4722,7 +4761,10 @@ fn emit_dynamic_text(src: &mut String, full_name: &str) {
         src,
         "        let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;"
     );
-    let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;");
+    let _ = writeln!(
+        src,
+        "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;"
+    );
     let _ = writeln!(src, "        <Self as pbrs::Parse>::parse(&b)");
     let _ = writeln!(src, "    }}");
 }
@@ -4824,7 +4866,10 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         src,
         "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
     );
-    let _ = writeln!(src, "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
+    let _ = writeln!(
+        src,
+        "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}"
+    );
     if split_heavy {
         for f in &lights {
             let _ = writeln!(src, "            if n == {} {{", f.number);
@@ -4919,7 +4964,10 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         src,
         "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
     );
-    let _ = writeln!(src, "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
+    let _ = writeln!(
+        src,
+        "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}"
+    );
     let _ = writeln!(src, "            match n {{");
     for f in desc.fields.values() {
         let bit = required.iter().position(|r| r.number == f.number);
@@ -5006,19 +5054,31 @@ fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor) {
         src,
         "                    let mut type_id = 0u32; let mut payload: Vec<u8> = Vec::new();"
     );
-    let _ = writeln!(src, "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field(inner, &mut p, ww)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field(data, pos, ww)?, }} }} }}");
+    let _ = writeln!(
+        src,
+        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field(inner, &mut p, ww)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field(data, pos, ww)?, }} }} }}"
+    );
     let _ = writeln!(src, "                    match type_id {{");
     for f in desc.fields.values() {
         let id = field_id(f);
         let t = scalar_type(f);
         let num = f.number;
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().merge_bytes(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}");
+            let _ = writeln!(
+                src,
+                "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().merge_bytes(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}"
+            );
         } else {
-            let _ = writeln!(src, "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.merge_bytes(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}");
+            let _ = writeln!(
+                src,
+                "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.merge_bytes(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}"
+            );
         }
     }
-    let _ = writeln!(src, "                        _ => {{ let mut u = pbrs::UnknownFields::default(); u.fields.push(pbrs::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(pbrs::rt::UnknownField::LengthDelimited {{ number: 3, value: payload }}); self.unknown.fields.push(pbrs::rt::UnknownField::Group {{ number: 1, fields: u }}); }}");
+    let _ = writeln!(
+        src,
+        "                        _ => {{ let mut u = pbrs::UnknownFields::default(); u.fields.push(pbrs::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(pbrs::rt::UnknownField::LengthDelimited {{ number: 3, value: payload }}); self.unknown.fields.push(pbrs::rt::UnknownField::Group {{ number: 1, fields: u }}); }}"
+    );
     let _ = writeln!(src, "                    }}");
     let _ = writeln!(src, "                }}");
     let _ = writeln!(
@@ -5032,7 +5092,10 @@ fn emit_message_set_size(src: &mut String, desc: &MessageDescriptor) {
     for f in desc.fields.values() {
         let id = field_id(f);
         let num = f.number;
-        let _ = writeln!(src, "        if let Some(m) = self.{id}.as_deref() {{ let inner = m.compute_size(); let item = pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len({num} as u64) + pbrs::rt::key_len_value_len(3, inner); n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_SGROUP) + item + pbrs::rt::tag_len(1, pbrs::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(
+            src,
+            "        if let Some(m) = self.{id}.as_deref() {{ let inner = m.compute_size(); let item = pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len({num} as u64) + pbrs::rt::key_len_value_len(3, inner); n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_SGROUP) + item + pbrs::rt::tag_len(1, pbrs::rt::WIRE_EGROUP); }}"
+        );
     }
 }
 
@@ -5040,7 +5103,10 @@ fn emit_message_set_write(src: &mut String, desc: &MessageDescriptor) {
     for f in desc.fields.values() {
         let id = field_id(f);
         let num = f.number;
-        let _ = writeln!(src, "        if let Some(m) = self.{id}.as_deref() {{ pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_SGROUP); pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, {num} as u64); pbrs::rt::encode_len_header(out, 3, m.compute_size()); m.write_to(out); pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(
+            src,
+            "        if let Some(m) = self.{id}.as_deref() {{ pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_SGROUP); pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, {num} as u64); pbrs::rt::encode_len_header(out, 3, m.compute_size()); m.write_to(out); pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_EGROUP); }}"
+        );
     }
 }
 
@@ -5074,7 +5140,10 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
         String::new()
     };
     if f.is_map {
-        let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice(); while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field(d, &mut ip, ww)?; }}{mark} }}");
+        let _ = writeln!(
+            src,
+            "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice(); while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field(d, &mut ip, ww)?; }}{mark} }}"
+        );
         return;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -5084,20 +5153,35 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
             } else {
                 ""
             };
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {utf}{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {utf}{mark} }}"
+            );
         } else if f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ pbrs::rt::read_len_span(data, pos)?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ pbrs::rt::read_len_span(data, pos)?;{mark} }}"
+            );
         } else if f.field_type == FieldType::Message {
             let t = scalar_type(f);
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
+            );
         } else if f.field_type == FieldType::Group || f.delimited {
             let t = scalar_type(f);
-            let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}"
+            );
         } else if f.field_type.is_packable() {
             let packed_ty = packed_storage_ty(f);
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
             let packed_wire = wire_const(f.field_type);
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {packed_ty}::validate_bytes(&data[s..e])?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {packed_ty}::validate_bytes(&data[s..e])?;{mark} }}"
+            );
             let _ = writeln!(
                 src,
                 "                {packed_wire} => {{ let _ = {unpacked};{mark} }}"
@@ -5115,15 +5199,24 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
     if f.field_type == FieldType::Message {
         let t = scalar_type(f);
         if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}"
+            );
         } else {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
+            );
         }
         return;
     }
     if f.field_type == FieldType::Group || f.delimited {
         let t = scalar_type(f);
-        let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+        let _ = writeln!(
+            src,
+            "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}"
+        );
         return;
     }
     if f.field_type == FieldType::String {
@@ -5132,11 +5225,17 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
         } else {
             ""
         };
-        let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {utf}{mark} }}");
+        let _ = writeln!(
+            src,
+            "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {utf}{mark} }}"
+        );
         return;
     }
     if f.field_type == FieldType::Bytes {
-        let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ pbrs::rt::read_len_span(data, pos)?;{mark} }}");
+        let _ = writeln!(
+            src,
+            "                pbrs::rt::WIRE_LEN => {{ pbrs::rt::read_len_span(data, pos)?;{mark} }}"
+        );
         return;
     }
     let expr = read_scalar_expr(f.field_type, "data", "pos");
@@ -5193,7 +5292,10 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
             if f.field_type == FieldType::Group || f.delimited {
-                let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st}.push(inner); }}");
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st}.push(inner); }}"
+                );
             } else {
                 let _ = writeln!(
                     src,
@@ -5207,13 +5309,22 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 if is_memcpy_packed(f) {
                     // Payload-only Arc. Do not Arc the parent message and do
                     // not eager-decode the Vec on parse.
-                    let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?; }}");
+                    let _ = writeln!(
+                        src,
+                        "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?; }}"
+                    );
                 } else {
-                    let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?; }}");
+                    let _ = writeln!(
+                        src,
+                        "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?; }}"
+                    );
                 }
             } else {
                 let expr = read_scalar_expr(f.field_type, "p", "&mut i");
-                let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let p = pbrs::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ {st}.push({expr}); }} }}");
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let p = pbrs::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ {st}.push({expr}); }} }}"
+                );
             }
             let _ = writeln!(
                 src,
@@ -5231,7 +5342,10 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         if f.field_type == FieldType::Group || f.delimited {
             let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{");
             emit_oneof_clear(src, desc, f);
-            let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}");
+            let _ = writeln!(
+                src,
+                "                    match &mut {st} {{ Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}"
+            );
             let _ = writeln!(src, "                    }}");
         } else {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
@@ -5241,9 +5355,15 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
             );
             if is_lazy_msg(f) {
-                let _ = writeln!(src, "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}");
+                let _ = writeln!(
+                    src,
+                    "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
+                );
             } else {
-                let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}");
+                let _ = writeln!(
+                    src,
+                    "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}"
+                );
             }
             let _ = writeln!(src, "                    }}");
         }
@@ -5267,9 +5387,13 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.field_type == FieldType::Bytes {
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))))")
+            format!(
+                "{st} = Some(Box::new(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))))"
+            )
         } else {
-            format!("{st} = pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))")
+            format!(
+                "{st} = pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))"
+            )
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
@@ -5349,14 +5473,26 @@ fn emit_size(src: &mut String, f: &FieldDescriptor, p: &str) {
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += pbrs::rt::key_len_value_len({num}, t.as_bytes().len() as u64); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ n += pbrs::rt::key_len_value_len({num}, t.as_bytes().len() as u64); }}"
+            );
         } else if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += pbrs::rt::tag_len({num}, pbrs::rt::WIRE_SGROUP) + t.compute_size() + pbrs::rt::tag_len({num}, pbrs::rt::WIRE_EGROUP); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ n += pbrs::rt::tag_len({num}, pbrs::rt::WIRE_SGROUP) + t.compute_size() + pbrs::rt::tag_len({num}, pbrs::rt::WIRE_EGROUP); }}"
+            );
         } else if f.field_type == FieldType::Message {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += pbrs::rt::key_len_value_len({num}, t.compute_size()); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ n += pbrs::rt::key_len_value_len({num}, t.compute_size()); }}"
+            );
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
-            let _ = writeln!(src, "        if let Some(p) = {fld}.packed_bytes() {{ n += pbrs::rt::key_len_value_len({num}, p.len() as u64); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} n += pbrs::rt::key_len_value_len({num}, payload); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(p) = {fld}.packed_bytes() {{ n += pbrs::rt::key_len_value_len({num}, p.len() as u64); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} n += pbrs::rt::key_len_value_len({num}, payload); }}"
+            );
         } else {
             let plen = packed_len_expr("*t", f.field_type);
             let w = wire_const(f.field_type);
@@ -5368,22 +5504,37 @@ fn emit_size(src: &mut String, f: &FieldDescriptor, p: &str) {
         return;
     }
     if f.field_type == FieldType::Group || f.delimited {
-        let _ = writeln!(src, "        if let Some(m) = &{fld} {{ n += pbrs::rt::tag_len({num}, pbrs::rt::WIRE_SGROUP) + m.compute_size() + pbrs::rt::tag_len({num}, pbrs::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(
+            src,
+            "        if let Some(m) = &{fld} {{ n += pbrs::rt::tag_len({num}, pbrs::rt::WIRE_SGROUP) + m.compute_size() + pbrs::rt::tag_len({num}, pbrs::rt::WIRE_EGROUP); }}"
+        );
         return;
     }
     if f.field_type == FieldType::Message {
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "        if let Some(p) = {fld}.wire_bytes() {{ n += pbrs::rt::key_len_value_len({num}, p.len() as u64); }} else if let Some(m) = {fld}.as_deref() {{ n += pbrs::rt::key_len_value_len({num}, m.compute_size()); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(p) = {fld}.wire_bytes() {{ n += pbrs::rt::key_len_value_len({num}, p.len() as u64); }} else if let Some(m) = {fld}.as_deref() {{ n += pbrs::rt::key_len_value_len({num}, m.compute_size()); }}"
+            );
         } else {
-            let _ = writeln!(src, "        if let Some(m) = &{fld} {{ n += pbrs::rt::key_len_value_len({num}, m.compute_size()); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(m) = &{fld} {{ n += pbrs::rt::key_len_value_len({num}, m.compute_size()); }}"
+            );
         }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
         if is_option(f) {
-            let _ = writeln!(src, "        if let Some(s) = &{fld} {{ n += pbrs::rt::key_len_value_len({num}, s.as_bytes().len() as u64); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(s) = &{fld} {{ n += pbrs::rt::key_len_value_len({num}, s.as_bytes().len() as u64); }}"
+            );
         } else {
-            let _ = writeln!(src, "        if !{fld}.is_empty() {{ n += pbrs::rt::key_len_value_len({num}, {fld}.as_bytes().len() as u64); }}");
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ n += pbrs::rt::key_len_value_len({num}, {fld}.as_bytes().len() as u64); }}"
+            );
         }
         return;
     }
@@ -5432,9 +5583,9 @@ fn map_key_size(ty: FieldType, var: &str) -> String {
         FieldType::Uint32 => format!(
             "pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(u64::from(*{var}))"
         ),
-        FieldType::Uint64 => format!(
-            "pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(*{var})"
-        ),
+        FieldType::Uint64 => {
+            format!("pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(*{var})")
+        }
         _ => format!(
             "pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((*{var}) as u64)"
         ),
@@ -5450,7 +5601,9 @@ fn map_val_size(ty: FieldType, var: &str) -> String {
             format!("pbrs::rt::key_len_value_len(2, {var}.compute_size())")
         }
         FieldType::Bool => {
-            format!("pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(u64::from(*{var}))")
+            format!(
+                "pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(u64::from(*{var}))"
+            )
         }
         FieldType::Float => "pbrs::rt::tag_len(2, pbrs::rt::WIRE_I32) + 4".into(),
         FieldType::Double => "pbrs::rt::tag_len(2, pbrs::rt::WIRE_I64) + 8".into(),
@@ -5469,9 +5622,9 @@ fn map_val_size(ty: FieldType, var: &str) -> String {
         FieldType::Uint32 => format!(
             "pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(u64::from(*{var}))"
         ),
-        FieldType::Uint64 => format!(
-            "pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(*{var})"
-        ),
+        FieldType::Uint64 => {
+            format!("pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len(*{var})")
+        }
         _ => format!(
             "pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((*{var}) as u64)"
         ),
@@ -5493,7 +5646,10 @@ fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
             map_key_size(kty, "k"),
             map_val_size(vty, "v")
         );
-        let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_LEN); pbrs::rt::encode_varint(out, inner);");
+        let _ = writeln!(
+            src,
+            "            pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_LEN); pbrs::rt::encode_varint(out, inner);"
+        );
         emit_map_key_write(src, kty);
         emit_map_val_write(src, vty);
         let _ = writeln!(src, "        }}");
@@ -5502,46 +5658,79 @@ fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ pbrs::rt::encode_len_field(out, {num}, t.as_bytes()); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ pbrs::rt::encode_len_field(out, {num}, t.as_bytes()); }}"
+            );
         } else if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_SGROUP); t.write_to(out); pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_EGROUP); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_SGROUP); t.write_to(out); pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_EGROUP); }}"
+            );
         } else if f.field_type == FieldType::Message {
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ pbrs::rt::encode_len_header(out, {num}, t.compute_size()); t.write_to(out); }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ pbrs::rt::encode_len_header(out, {num}, t.compute_size()); t.write_to(out); }}"
+            );
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
-            let _ = writeln!(src, "        if let Some(p) = {fld}.packed_bytes() {{ pbrs::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} pbrs::rt::encode_len_header(out, {num}, payload); for t in {fld}.iter() {{ {stmt}; }} }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(p) = {fld}.packed_bytes() {{ pbrs::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} pbrs::rt::encode_len_header(out, {num}, payload); for t in {fld}.iter() {{ {stmt}; }} }}"
+            );
         } else {
             let w = wire_const(f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
-            let _ = writeln!(src, "        for t in {fld}.iter() {{ pbrs::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ pbrs::rt::encode_tag(out, {num}, {w}); {stmt}; }}"
+            );
         }
         return;
     }
     if f.field_type == FieldType::Group || f.delimited {
-        let _ = writeln!(src, "        if let Some(m) = &{fld} {{ pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_SGROUP); m.write_to(out); pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(
+            src,
+            "        if let Some(m) = &{fld} {{ pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_SGROUP); m.write_to(out); pbrs::rt::encode_tag(out, {num}, pbrs::rt::WIRE_EGROUP); }}"
+        );
         return;
     }
     if f.field_type == FieldType::Message {
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "        if let Some(p) = {fld}.wire_bytes() {{ pbrs::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let Some(m) = {fld}.as_deref() {{ pbrs::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(p) = {fld}.wire_bytes() {{ pbrs::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let Some(m) = {fld}.as_deref() {{ pbrs::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}"
+            );
         } else {
-            let _ = writeln!(src, "        if let Some(m) = &{fld} {{ pbrs::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(m) = &{fld} {{ pbrs::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}"
+            );
         }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
         if is_option(f) {
-            let _ = writeln!(src, "        if let Some(s) = &{fld} {{ pbrs::rt::encode_len_field(out, {num}, s.as_bytes()); }}");
+            let _ = writeln!(
+                src,
+                "        if let Some(s) = &{fld} {{ pbrs::rt::encode_len_field(out, {num}, s.as_bytes()); }}"
+            );
         } else {
-            let _ = writeln!(src, "        if !{fld}.is_empty() {{ pbrs::rt::encode_len_field(out, {num}, {fld}.as_bytes()); }}");
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ pbrs::rt::encode_len_field(out, {num}, {fld}.as_bytes()); }}"
+            );
         }
         return;
     }
     let w = wire_const(f.field_type);
     if is_option(f) && f.field_type == FieldType::Bool {
         let stmt = write_packed_stmt("out", "v", f.field_type);
-        let _ = writeln!(src, "        if let Some(v) = {fld}.get() {{ pbrs::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
+        let _ = writeln!(
+            src,
+            "        if let Some(v) = {fld}.get() {{ pbrs::rt::encode_tag(out, {num}, {w}); {stmt}; }}"
+        );
     } else if is_option(f) {
         let stmt = write_packed_stmt("out", "v", f.field_type);
         let _ = writeln!(
@@ -5575,40 +5764,76 @@ fn emit_map_scalar_write(src: &mut String, n: u32, var: &str, ty: FieldType) {
             );
         }
         FieldType::Message | FieldType::Group => {
-            let _ = writeln!(src, "            pbrs::rt::encode_len_header(out, {n}, {var}.compute_size()); {var}.write_to(out);");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_len_header(out, {n}, {var}.compute_size()); {var}.write_to(out);"
+            );
         }
         FieldType::Float => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&{var}.to_bits().to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&{var}.to_bits().to_le_bytes());"
+            );
         }
         FieldType::Double => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&{var}.to_bits().to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&{var}.to_bits().to_le_bytes());"
+            );
         }
         FieldType::Fixed32 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&{var}.to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&{var}.to_le_bytes());"
+            );
         }
         FieldType::Sfixed32 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&(*{var} as u32).to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I32); out.extend_from_slice(&(*{var} as u32).to_le_bytes());"
+            );
         }
         FieldType::Fixed64 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&{var}.to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&{var}.to_le_bytes());"
+            );
         }
         FieldType::Sfixed64 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&(*{var} as u64).to_le_bytes());");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_I64); out.extend_from_slice(&(*{var} as u64).to_le_bytes());"
+            );
         }
         FieldType::Sint32 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(*{var}));");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(*{var}));"
+            );
         }
         FieldType::Sint64 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*{var}));");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*{var}));"
+            );
         }
         FieldType::Bool => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, u64::from(*{var}));");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, u64::from(*{var}));"
+            );
         }
         FieldType::Uint64 => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, *{var});");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, *{var});"
+            );
         }
         _ => {
-            let _ = writeln!(src, "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, *{var} as u64);");
+            let _ = writeln!(
+                src,
+                "            pbrs::rt::encode_tag(out, {n}, pbrs::rt::WIRE_VARINT); pbrs::rt::encode_varint(out, *{var} as u64);"
+            );
         }
     }
 }
@@ -5629,8 +5854,14 @@ fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
             src,
             "fn decode_map_entry_{msg}_{id}_{num}(wire: &pbrs::rt::Wire, depth: u32) -> Result<({k}, {v}), ParseError> {{"
         );
-        let _ = writeln!(src, "    let _ = depth; let data = wire.as_slice(); let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;");
-        let _ = writeln!(src, "    while pos < data.len() {{ let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?; match (n, w) {{");
+        let _ = writeln!(
+            src,
+            "    let _ = depth; let data = wire.as_slice(); let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;"
+        );
+        let _ = writeln!(
+            src,
+            "    while pos < data.len() {{ let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?; match (n, w) {{"
+        );
         emit_map_scalar_decode(src, 1, "key", kty, f.utf8_validate);
         emit_map_scalar_decode(src, 2, "val", vty, f.utf8_validate);
         let _ = writeln!(
@@ -5647,55 +5878,106 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
     match ty {
         FieldType::String => {
             if utf8 {
-                let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; pbrs::rt::require_utf8(&data[s..e])?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},");
+                let _ = writeln!(
+                    src,
+                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; pbrs::rt::require_utf8(&data[s..e])?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},"
+                );
             } else {
-                let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},");
+                let _ = writeln!(
+                    src,
+                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},"
+                );
             }
         }
         FieldType::Bytes => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire(wire.window(s, e)); }},");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire(wire.window(s, e)); }},"
+            );
         }
         FieldType::Message | FieldType::Group => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; {var}.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?; }},");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; {var}.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?; }},"
+            );
         }
         FieldType::Float => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I32) => {var} = f32::from_bits(pbrs::rt::read_fixed32(data, &mut pos)?),");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I32) => {var} = f32::from_bits(pbrs::rt::read_fixed32(data, &mut pos)?),"
+            );
         }
         FieldType::Double => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I64) => {var} = f64::from_bits(pbrs::rt::read_fixed64(data, &mut pos)?),");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I64) => {var} = f64::from_bits(pbrs::rt::read_fixed64(data, &mut pos)?),"
+            );
         }
         FieldType::Fixed32 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I32) => {var} = pbrs::rt::read_fixed32(data, &mut pos)?,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I32) => {var} = pbrs::rt::read_fixed32(data, &mut pos)?,"
+            );
         }
         FieldType::Sfixed32 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I32) => {var} = pbrs::rt::read_fixed32(data, &mut pos)? as i32,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I32) => {var} = pbrs::rt::read_fixed32(data, &mut pos)? as i32,"
+            );
         }
         FieldType::Fixed64 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I64) => {var} = pbrs::rt::read_fixed64(data, &mut pos)?,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I64) => {var} = pbrs::rt::read_fixed64(data, &mut pos)?,"
+            );
         }
         FieldType::Sfixed64 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I64) => {var} = pbrs::rt::read_fixed64(data, &mut pos)? as i64,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_I64) => {var} = pbrs::rt::read_fixed64(data, &mut pos)? as i64,"
+            );
         }
         FieldType::Sint32 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, &mut pos)?),");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, &mut pos)?),"
+            );
         }
         FieldType::Sint64 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, &mut pos)?),");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, &mut pos)?),"
+            );
         }
         FieldType::Bool => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? != 0,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? != 0,"
+            );
         }
         FieldType::Uint64 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)?,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)?,"
+            );
         }
         FieldType::Int64 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as i64,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as i64,"
+            );
         }
         FieldType::Uint32 => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as u32,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as u32,"
+            );
         }
         _ => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as i32,");
+            let _ = writeln!(
+                src,
+                "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as i32,"
+            );
         }
     }
 }
@@ -6287,7 +6569,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 );
             }
             (true, true) => {
-                let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`."
+                );
             }
         }
         let _ = writeln!(src, "    ///");
@@ -6389,8 +6674,7 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         let _ = writeln!(
             src,
             "            ::core::result::Result::Err({G}::Status::unimplemented(\"method {}/{} not implemented\"))",
-            svc.full_name,
-            m.name
+            svc.full_name, m.name
         );
         let _ = writeln!(src, "        }}");
         let _ = writeln!(src, "    }}");
@@ -8024,7 +8308,10 @@ fn emit_kernel_client(
                 );
             }
             (true, true) => {
-                let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+                let _ = writeln!(
+                    src,
+                    "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`."
+                );
             }
         }
         if m.deprecated {
@@ -8108,7 +8395,10 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "    where");
     let _ = writeln!(src, "        F: tonic::service::Interceptor,");
     let _ = writeln!(src, "        T::ResponseBody: Default,");
-    let _ = writeln!(src, "        T: tonic::codegen::Service<http::Request<tonic::body::Body>, Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>>,");
+    let _ = writeln!(
+        src,
+        "        T: tonic::codegen::Service<http::Request<tonic::body::Body>, Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>>,"
+    );
     let _ = writeln!(
         src,
         "        <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error: Into<tonic::codegen::StdError> + Send + Sync,"
@@ -8241,8 +8531,14 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         "    type Response = http::Response<tonic::body::Body>;"
     );
     let _ = writeln!(src, "    type Error = Infallible;");
-    let _ = writeln!(src, "    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;");
-    let _ = writeln!(src, "    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {{ Poll::Ready(Ok(())) }}");
+    let _ = writeln!(
+        src,
+        "    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;"
+    );
+    let _ = writeln!(
+        src,
+        "    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {{ Poll::Ready(Ok(())) }}"
+    );
     let _ = writeln!(
         src,
         "    fn call(&mut self, req: http::Request<B>) -> Self::Future {{"
@@ -8269,8 +8565,14 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         src,
         "                    let headers = response.headers_mut();"
     );
-    let _ = writeln!(src, "                    headers.insert(tonic::Status::GRPC_STATUS, (tonic::Code::Unimplemented as i32).into());");
-    let _ = writeln!(src, "                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);");
+    let _ = writeln!(
+        src,
+        "                    headers.insert(tonic::Status::GRPC_STATUS, (tonic::Code::Unimplemented as i32).into());"
+    );
+    let _ = writeln!(
+        src,
+        "                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);"
+    );
     let _ = writeln!(src, "                    Ok(response)");
     let _ = writeln!(src, "                }}");
     let _ = writeln!(src, "            }}");
@@ -8310,7 +8612,10 @@ fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) {
             );
         }
         (true, true) => {
-            let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`."
+            );
         }
     }
     if m.deprecated {
@@ -8320,18 +8625,36 @@ fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) {
     }
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
-            let _ = writeln!(src, "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;");
+            let _ = writeln!(
+                src,
+                "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;"
+            );
         }
         (true, true) => {
-            let _ = writeln!(src, "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;");
-            let _ = writeln!(src, "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;");
+            let _ = writeln!(
+                src,
+                "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;"
+            );
+            let _ = writeln!(
+                src,
+                "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;"
+            );
         }
         (true, false) => {
-            let _ = writeln!(src, "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;");
+            let _ = writeln!(
+                src,
+                "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;"
+            );
         }
         (false, true) => {
-            let _ = writeln!(src, "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;");
-            let _ = writeln!(src, "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;");
+            let _ = writeln!(
+                src,
+                "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;"
+            );
+            let _ = writeln!(
+                src,
+                "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;"
+            );
         }
     }
 }
@@ -8367,7 +8690,10 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
             );
         }
         (true, true) => {
-            let _ = writeln!(src, "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`.");
+            let _ = writeln!(
+                src,
+                "    /// Streaming signature: Bidirectional-streaming stream of `{req}` -> stream of `{resp}`."
+            );
         }
     }
     if m.deprecated {
@@ -8377,35 +8703,71 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
     }
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
-            let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{");
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.unary(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(
+                src,
+                "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.unary(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await"
+            );
             let _ = writeln!(src, "    }}");
         }
         (true, true) => {
-            let _ = writeln!(src, "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status>");
+            let _ = writeln!(
+                src,
+                "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status>"
+            );
             let _ = writeln!(
                 src,
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(
+                src,
+                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await"
+            );
             let _ = writeln!(src, "    }}");
         }
         (true, false) => {
-            let _ = writeln!(src, "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<{resp}>, tonic::Status>");
+            let _ = writeln!(
+                src,
+                "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<{resp}>, tonic::Status>"
+            );
             let _ = writeln!(
                 src,
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.client_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(
+                src,
+                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.client_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await"
+            );
             let _ = writeln!(src, "    }}");
         }
         (false, true) => {
-            let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status> {{");
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
-            let _ = writeln!(src, "        self.inner.server_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await");
+            let _ = writeln!(
+                src,
+                "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status> {{"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+            );
+            let _ = writeln!(
+                src,
+                "        self.inner.server_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), ProtobufCodec::<{req}, {resp}>::default()).await"
+            );
             let _ = writeln!(src, "    }}");
         }
     }
@@ -8420,18 +8782,33 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
         (false, false) => {
             let _ = writeln!(src, "                \"{path}\" => {{");
             let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
-            let _ = writeln!(src, "                    impl<T: {svc_ty}> tonic::server::UnaryService<{req}> for Svc<T> {{");
+            let _ = writeln!(
+                src,
+                "                    impl<T: {svc_ty}> tonic::server::UnaryService<{req}> for Svc<T> {{"
+            );
             let _ = writeln!(src, "                        type Response = {resp};");
-            let _ = writeln!(src, "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;");
-            let _ = writeln!(src, "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{");
+            let _ = writeln!(
+                src,
+                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;"
+            );
+            let _ = writeln!(
+                src,
+                "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{"
+            );
             let _ = writeln!(
                 src,
                 "                            let inner = self.0.clone();"
             );
-            let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
+            let _ = writeln!(
+                src,
+                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+            );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
+            let _ = writeln!(
+                src,
+                "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+            );
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.unary(Svc(inner), req).await)"
@@ -8442,22 +8819,37 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let assoc = format!("{}Stream", m.name);
             let _ = writeln!(src, "                \"{path}\" => {{");
             let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
-            let _ = writeln!(src, "                    impl<T: {svc_ty}> tonic::server::StreamingService<{req}> for Svc<T> {{");
+            let _ = writeln!(
+                src,
+                "                    impl<T: {svc_ty}> tonic::server::StreamingService<{req}> for Svc<T> {{"
+            );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
                 src,
                 "                        type ResponseStream = T::{assoc};"
             );
-            let _ = writeln!(src, "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;");
-            let _ = writeln!(src, "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{");
+            let _ = writeln!(
+                src,
+                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;"
+            );
+            let _ = writeln!(
+                src,
+                "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{"
+            );
             let _ = writeln!(
                 src,
                 "                            let inner = self.0.clone();"
             );
-            let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
+            let _ = writeln!(
+                src,
+                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+            );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
+            let _ = writeln!(
+                src,
+                "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+            );
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.streaming(Svc(inner), req).await)"
@@ -8467,18 +8859,33 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
         (true, false) => {
             let _ = writeln!(src, "                \"{path}\" => {{");
             let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
-            let _ = writeln!(src, "                    impl<T: {svc_ty}> tonic::server::ClientStreamingService<{req}> for Svc<T> {{");
+            let _ = writeln!(
+                src,
+                "                    impl<T: {svc_ty}> tonic::server::ClientStreamingService<{req}> for Svc<T> {{"
+            );
             let _ = writeln!(src, "                        type Response = {resp};");
-            let _ = writeln!(src, "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;");
-            let _ = writeln!(src, "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{");
+            let _ = writeln!(
+                src,
+                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;"
+            );
+            let _ = writeln!(
+                src,
+                "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{"
+            );
             let _ = writeln!(
                 src,
                 "                            let inner = self.0.clone();"
             );
-            let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
+            let _ = writeln!(
+                src,
+                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+            );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
+            let _ = writeln!(
+                src,
+                "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+            );
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.client_streaming(Svc(inner), req).await)"
@@ -8489,22 +8896,37 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let assoc = format!("{}Stream", m.name);
             let _ = writeln!(src, "                \"{path}\" => {{");
             let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
-            let _ = writeln!(src, "                    impl<T: {svc_ty}> tonic::server::ServerStreamingService<{req}> for Svc<T> {{");
+            let _ = writeln!(
+                src,
+                "                    impl<T: {svc_ty}> tonic::server::ServerStreamingService<{req}> for Svc<T> {{"
+            );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
                 src,
                 "                        type ResponseStream = T::{assoc};"
             );
-            let _ = writeln!(src, "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;");
-            let _ = writeln!(src, "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{");
+            let _ = writeln!(
+                src,
+                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;"
+            );
+            let _ = writeln!(
+                src,
+                "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{"
+            );
             let _ = writeln!(
                 src,
                 "                            let inner = self.0.clone();"
             );
-            let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
+            let _ = writeln!(
+                src,
+                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+            );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
+            let _ = writeln!(
+                src,
+                "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+            );
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.server_streaming(Svc(inner), req).await)"

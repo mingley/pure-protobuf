@@ -1,12 +1,12 @@
 //! Official `--test_case` procedures driven through the shipped kernel client.
 
+use crate::Request;
 use crate::status::{Code, Status};
 use crate::stream::Framed;
 use crate::testing::{
     BoolValue, Empty, Payload, SimpleRequest, StreamingInputCallRequest,
     StreamingOutputCallRequest, TestServiceClient, UnimplementedServiceClient,
 };
-use crate::Request;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
@@ -1133,7 +1133,8 @@ pub async fn rpc_soak(
                     }
                     Ok(Ok(resp)) => {
                         let inner = resp.into_inner();
-                        if let Err(val_err) = assert_payload_len(&inner, cfg.response_size) {
+                        match assert_payload_len(&inner, cfg.response_size) {
+                            Err(val_err) => {
                             let details = format!("payload validation: {val_err}");
                             eprintln!(
                                 "thread_id: {thread_id} soak iteration: {iteration} elapsed_ms: {elapsed_ms} peer: {uri} server_uri: {uri} failed: {details}"
@@ -1148,7 +1149,8 @@ pub async fn rpc_soak(
                                 )),
                                 details,
                             });
-                        } else if elapsed_ms > cfg.per_rpc_timeout_ms {
+                            }
+                            Ok(()) if elapsed_ms > cfg.per_rpc_timeout_ms => {
                             let details = format!(
                                 "elapsed {elapsed_ms}ms exceeds budget {}ms",
                                 cfg.per_rpc_timeout_ms
@@ -1167,7 +1169,8 @@ pub async fn rpc_soak(
                                 }),
                                 details,
                             });
-                        } else {
+                            }
+                            Ok(()) => {
                             eprintln!(
                                 "thread_id: {thread_id} soak iteration: {iteration} elapsed_ms: {elapsed_ms} peer: {uri} server_uri: {uri} succeeded"
                             );
@@ -1179,6 +1182,7 @@ pub async fn rpc_soak(
                                 failure_class: None,
                                 details: String::new(),
                             });
+                            }
                         }
                     }
                 }
@@ -1360,8 +1364,8 @@ where
                             }
                             Ok(Ok(resp)) => {
                                 let inner = resp.into_inner();
-                                if let Err(val_err) = assert_payload_len(&inner, cfg.response_size)
-                                {
+                                match assert_payload_len(&inner, cfg.response_size) {
+                                    Err(val_err) => {
                                     let details = format!("payload validation: {val_err}");
                                     eprintln!(
                                         "thread_id: {thread_id} soak iteration: {iteration} elapsed_ms: {elapsed_ms} peer: {uri} server_uri: {uri} failed: {details}"
@@ -1376,7 +1380,8 @@ where
                                         )),
                                         details,
                                     });
-                                } else if elapsed_ms > cfg.per_rpc_timeout_ms {
+                                    }
+                                    Ok(()) if elapsed_ms > cfg.per_rpc_timeout_ms => {
                                     let details = format!(
                                         "elapsed {elapsed_ms}ms exceeds budget {}ms",
                                         cfg.per_rpc_timeout_ms
@@ -1397,7 +1402,8 @@ where
                                         ),
                                         details,
                                     });
-                                } else {
+                                    }
+                                    Ok(()) => {
                                     eprintln!(
                                         "thread_id: {thread_id} soak iteration: {iteration} elapsed_ms: {elapsed_ms} peer: {uri} server_uri: {uri} succeeded"
                                     );
@@ -1409,6 +1415,7 @@ where
                                         failure_class: None,
                                         details: String::new(),
                                     });
+                                    }
                                 }
                             }
                         }
@@ -1572,8 +1579,8 @@ mod tests {
         assert_eq!(fb.total(), 11);
     }
 
-    use crate::testing::{InteropTestService, SimpleResponse, TestService, TestServiceServer};
     use crate::Response;
+    use crate::testing::{InteropTestService, SimpleResponse, TestService, TestServiceServer};
     use tokio::net::TcpListener;
     use tokio::task::JoinHandle;
 

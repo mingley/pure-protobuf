@@ -6,8 +6,8 @@
 //! See [the threat model](crate#threat-model).
 
 use crate::status::Status;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Default inbound message cap: 4 MiB, matching gRPC's cross-language default.
 pub const DEFAULT_MAX_DECODING_MESSAGE_SIZE: usize = 4 * 1024 * 1024;

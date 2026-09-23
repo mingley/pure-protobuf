@@ -36,13 +36,13 @@ pub use paste as __paste;
 pub use crate::dynamic::{
     Cardinality, DescriptorOption, DescriptorPool, DynamicMessage, DynamicMessageMut,
     DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, FileDescriptor, MapKeyValue,
-    MessageDescriptor, MethodDescriptor, Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
+    MessageDescriptor, MethodDescriptor, Presence, RECURSION_LIMIT, ServiceDescriptor, Value,
 };
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
 pub use crate::message::{
-    message_eq, Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName,
-    MessageType, MessageView, Parse, Serialize, TakeFrom, UnknownEnumValue,
+    Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName, MessageType,
+    MessageView, Parse, Serialize, TakeFrom, UnknownEnumValue, message_eq,
 };
 pub use crate::proxied::{
     AsMut, AsView, IntoMut, IntoProxied, IntoView, Mut, MutProxied, Proxied, View,
@@ -58,8 +58,8 @@ pub mod prelude;
 #[doc(hidden)]
 pub mod __internal {
     pub use crate::internal::{
-        assert_compatible_gencode_version, entity_tag, EntityType, Enum, MatcherEq, Private,
-        SealedInternal,
+        EntityType, Enum, MatcherEq, Private, SealedInternal, assert_compatible_gencode_version,
+        entity_tag,
     };
     pub use crate::runtime;
 }
@@ -102,7 +102,7 @@ macro_rules! proto {
         $crate::proto!(@spread_owned this, [] $($body)*);
         this
     }};
-    (@spread_owned $this:ident, [$($fs:tt)*] .. $rest:expr $(,)?) => {
+    (@spread_owned $this:ident, [$($fs:tt)*] .. $rest:expr_2021 $(,)?) => {
         $crate::MergeFrom::merge_from(&mut $this, $rest);
         $crate::proto!(@owned $this, $($fs)*);
     };
@@ -112,7 +112,7 @@ macro_rules! proto {
     (@spread_owned $this:ident, [$($fs:tt)*]) => {
         $crate::proto!(@owned $this, $($fs)*);
     };
-    (@spread_mut $this:ident, [$($fs:tt)*] .. $rest:expr $(,)?) => {
+    (@spread_mut $this:ident, [$($fs:tt)*] .. $rest:expr_2021 $(,)?) => {
         $crate::MergeFrom::merge_from($this, $rest);
         $crate::proto!(@mut $this, $($fs)*);
     };
@@ -123,7 +123,7 @@ macro_rules! proto {
         $crate::proto!(@mut $this, $($fs)*);
     };
     (@owned $this:ident, ) => {};
-    (@owned $this:ident, .. $rest:expr $(,)?) => {
+    (@owned $this:ident, .. $rest:expr_2021 $(,)?) => {
         $crate::MergeFrom::merge_from(&mut $this, $rest);
     };
     (@owned $this:ident, $field:ident : __ { $($sub:tt)* } $(, $($rest:tt)*)?) => {
@@ -145,14 +145,14 @@ macro_rules! proto {
         $crate::proto!(@arr $this, $field, $($arr)*);
         $crate::proto!(@owned $this, $($($rest)*)?);
     };
-    (@owned $this:ident, $field:ident : $val:expr $(, $($rest:tt)*)?) => {
+    (@owned $this:ident, $field:ident : $val:expr_2021 $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<set_ $field>]($val);
         }
         $crate::proto!(@owned $this, $($($rest)*)?);
     };
     (@mut $this:ident, ) => {};
-    (@mut $this:ident, .. $rest:expr $(,)?) => {
+    (@mut $this:ident, .. $rest:expr_2021 $(,)?) => {
         $crate::MergeFrom::merge_from($this, $rest);
     };
     (@mut $this:ident, $field:ident : __ { $($sub:tt)* } $(, $($rest:tt)*)?) => {
@@ -174,7 +174,7 @@ macro_rules! proto {
         $crate::proto!(@arr_mut $this, $field, $($arr)*);
         $crate::proto!(@mut $this, $($($rest)*)?);
     };
-    (@mut $this:ident, $field:ident : $val:expr $(, $($rest:tt)*)?) => {
+    (@mut $this:ident, $field:ident : $val:expr_2021 $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<set_ $field>]($val);
         }
@@ -197,7 +197,7 @@ macro_rules! proto {
         }
         $crate::proto!(@arr $this, $field, $($($rest)*)?);
     };
-    (@arr $this:ident, $field:ident, ($k:expr, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
+    (@arr $this:ident, $field:ident, ($k:expr_2021, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
                 let mut __r = $this.[<$field _mut>]();
@@ -208,19 +208,19 @@ macro_rules! proto {
         }
         $crate::proto!(@arr $this, $field, $($($rest)*)?);
     };
-    (@arr $this:ident, $field:ident, ($k:expr, $ty:ident { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
+    (@arr $this:ident, $field:ident, ($k:expr_2021, $ty:ident { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().insert($k, $crate::proto!($ty { $($sub)* }));
         }
         $crate::proto!(@arr $this, $field, $($($rest)*)?);
     };
-    (@arr $this:ident, $field:ident, ($k:expr, $v:expr) $(, $($rest:tt)*)?) => {
+    (@arr $this:ident, $field:ident, ($k:expr_2021, $v:expr_2021) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().insert($k, $v);
         }
         $crate::proto!(@arr $this, $field, $($($rest)*)?);
     };
-    (@arr $this:ident, $field:ident, $val:expr $(, $($rest:tt)*)?) => {
+    (@arr $this:ident, $field:ident, $val:expr_2021 $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().proto_put($val);
         }
@@ -243,7 +243,7 @@ macro_rules! proto {
         }
         $crate::proto!(@arr_mut $this, $field, $($($rest)*)?);
     };
-    (@arr_mut $this:ident, $field:ident, ($k:expr, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
+    (@arr_mut $this:ident, $field:ident, ($k:expr_2021, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
                 let mut __r = $this.[<$field _mut>]();
@@ -254,19 +254,19 @@ macro_rules! proto {
         }
         $crate::proto!(@arr_mut $this, $field, $($($rest)*)?);
     };
-    (@arr_mut $this:ident, $field:ident, ($k:expr, $ty:ident { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
+    (@arr_mut $this:ident, $field:ident, ($k:expr_2021, $ty:ident { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().insert($k, $crate::proto!($ty { $($sub)* }));
         }
         $crate::proto!(@arr_mut $this, $field, $($($rest)*)?);
     };
-    (@arr_mut $this:ident, $field:ident, ($k:expr, $v:expr) $(, $($rest:tt)*)?) => {
+    (@arr_mut $this:ident, $field:ident, ($k:expr_2021, $v:expr_2021) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().insert($k, $v);
         }
         $crate::proto!(@arr_mut $this, $field, $($($rest)*)?);
     };
-    (@arr_mut $this:ident, $field:ident, $val:expr $(, $($rest:tt)*)?) => {
+    (@arr_mut $this:ident, $field:ident, $val:expr_2021 $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             $this.[<$field _mut>]().proto_put($val);
         }

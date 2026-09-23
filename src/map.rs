@@ -864,10 +864,10 @@ pub struct MapViewIter<
 }
 
 impl<
-        'msg,
-        K: MapKey + crate::proxied::Proxied + 'static,
-        V: MapValue + crate::proxied::Proxied + 'static,
-    > MapViewIter<'msg, K, V>
+    'msg,
+    K: MapKey + crate::proxied::Proxied + 'static,
+    V: MapValue + crate::proxied::Proxied + 'static,
+> MapViewIter<'msg, K, V>
 {
     fn from_view(view: MapView<'msg, K, V>) -> Self {
         let mut items = Vec::new();
@@ -926,10 +926,10 @@ where
 }
 
 impl<
-        'msg,
-        K: MapKey + crate::proxied::Proxied + 'static,
-        V: MapValue + crate::proxied::Proxied + 'static,
-    > IntoIterator for MapView<'msg, K, V>
+    'msg,
+    K: MapKey + crate::proxied::Proxied + 'static,
+    V: MapValue + crate::proxied::Proxied + 'static,
+> IntoIterator for MapView<'msg, K, V>
 {
     type Item = (crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>);
     type IntoIter = MapViewIter<'msg, K, V>;

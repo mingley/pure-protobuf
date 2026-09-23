@@ -19,10 +19,10 @@
 mod common;
 
 use common::lifecycle::{
-    CallShape, FaultKind, LifecycleBoundary, LifecycleRunner, LifecycleScenario, RstReason,
-    TransportKind, ALL_TRANSPORTS, QUALIFICATION_CYCLES_PER_TRANSPORT,
+    ALL_TRANSPORTS, CallShape, FaultKind, LifecycleBoundary, LifecycleRunner, LifecycleScenario,
+    QUALIFICATION_CYCLES_PER_TRANSPORT, RstReason, TransportKind,
 };
-use common::{name_of, req, Echo};
+use common::{Echo, name_of, req};
 use pbrs_grpc::hello::GreeterClient;
 use pbrs_grpc::hello::GreeterServer;
 use pbrs_grpc::{Channel, Code, Request, Server, Status};

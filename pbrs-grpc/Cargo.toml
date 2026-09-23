@@ -2,7 +2,7 @@
 name = "pbrs-grpc"
 version = "0.1.0-alpha.1"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 description = "HTTP/2 gRPC client and server kernel over pbrs (preview / pre-release)"

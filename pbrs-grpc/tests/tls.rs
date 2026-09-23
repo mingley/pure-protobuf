@@ -15,7 +15,7 @@
 
 mod common;
 
-use common::{greeter_client, name_of, req, until_ok, Echo, ServerGuard};
+use common::{Echo, ServerGuard, greeter_client, name_of, req, until_ok};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, Outgoing, Request, Response, Rpc, ServerTls,
@@ -359,8 +359,8 @@ async fn serve_tls_until_shutdown_serves_then_drains() {
 
 #[tokio::test]
 async fn tls_requests_use_the_https_scheme() {
-    use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU8, Ordering};
 
     let seen = Arc::new(AtomicU8::new(0));
     let flag = Arc::clone(&seen);
@@ -542,8 +542,8 @@ async fn tls_handlers_see_https_scheme_and_authority() {
 
 #[tokio::test]
 async fn mtls_exposes_the_client_certificate() {
-    use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU8, Ordering};
 
     struct SeesPeerCert {
         want: Vec<u8>,

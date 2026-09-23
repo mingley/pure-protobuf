@@ -19,7 +19,7 @@
 
 mod common;
 
-use common::{name_of, reply, req, Echo};
+use common::{Echo, name_of, reply, req};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::telemetry::{
     AttemptLabels, CallLabels, CallRole, CancellationEvent, CancellationReason, DiagnosticConfig,
