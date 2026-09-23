@@ -42,7 +42,7 @@ Building and running the C++ reference peer requires:
 * **Rust Toolchain**: Stable Rust (for compiling `pbrs-grpc-interop-client` and `pbrs-grpc-interop-server`).
 
 ### Platform Support
-* **Linux (x86_64 / aarch64)**: Native CMake build or prebuilt binaries.
+* **Linux (x86_64 / aarch64)**: Native CMake build or locally cached binaries built from the pinned source.
 * **macOS (arm64 / x86_64)**: Native CMake build (Apple Clang / Homebrew GCC).
 
 ---
@@ -53,8 +53,7 @@ The test runner `scripts/grpc-interop-cpp.sh` automates the discovery, compilati
 
 ### Automatic Acquisition Flow
 1. **Existing Binaries**: Checks if `interop_client` and `interop_server` are already present in `$GRPC_INTEROP_CPP_BIN_DIR` (default: `target/interop-cpp/`), `target/interop-cpp-build/`, `third_party/grpc/cmake/build/`, or configured via environment variables.
-2. **Download Artifact**: If `GRPC_INTEROP_CPP_DOWNLOAD_URL` is set, downloads and extracts the pre-built tarball.
-3. **Build from Source**: If `cmake` and a C++ compiler are available:
+2. **Build from Source**: If `cmake` and a C++ compiler are available:
    - Fetches the pinned commit `d1487957db6658bc532b72871775148229836627` with `--depth 1` into `third_party/grpc`.
    - Initializes required submodules with `--depth 1` (`abseil-cpp`, `protobuf`, `re2`, `zlib`, `cares`).
    - Runs CMake configuration with `-DgRPC_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17`.
@@ -92,7 +91,9 @@ The runner honors the following configuration variables:
 * `GRPC_INTEROP_CPP_CLIENT`: Explicit path to `interop_client`.
 * `GRPC_INTEROP_CPP_SERVER`: Explicit path to `interop_server`.
 * `GRPC_INTEROP_CPP_BIN_DIR`: Directory containing C++ peer binaries (default: `target/interop-cpp`).
-* `GRPC_INTEROP_CPP_DOWNLOAD_URL`: URL to download prebuilt C++ binaries archive.
+* `GRPC_INTEROP_CPP_DOWNLOAD_URL`: Rejected. Unverified binary archives cannot
+  establish the pinned peer's provenance; build from source or use a reviewed
+  local binary with a recorded digest.
 * `GRPC_INTEROP_SKIP_BUILD`: When set to `1`, skips compilation and requires pre-existing binaries.
 * `GRPC_INTEROP_LOG_DIR`: Directory for per-attempt stdout/stderr logs and final `report.json`.
 
@@ -198,3 +199,5 @@ In the gRPC wire protocol, message-level compression is signaled in the 5-byte d
 * **Process Termination**: A comprehensive cleanup trap catches `EXIT`, `INT`, and `TERM`, terminating all spawned child PIDs using `SIGTERM` followed by `SIGKILL` escalation.
 * **Retained Evidence**: Raw stdout/stderr logs for every attempt are stored in `target/interop-logs/<timestamp>_<pid>/`.
 * **Machine-Readable Reports**: Results are recorded into `results.json` and aggregated into `report.json` via `scripts/interop-report.py`.
+* **Required-Cell Gating**: Cross-peer runs validate `results.json` per suite (`--suite standard_interop` and `--suite compression_interop`, each scoped to the two C++ directions with `--require-matrix --required-directions`). Omitting a required case or direction, recording a non-pass, hiding a first-attempt flake, or recording a wrong peer pin fails qualification. Go's separately required directions are checked by `grpc-interop.sh`; one runner cannot substitute for another. A missing C++ binary fails closed (exit 1) unless `--self-only` is explicitly passed, and self-only output is labeled insufficient for cross-language qualification.
+* **Artifact Digests**: Every cross-peer result record carries the pinned source commit (`--peer-pin d1487957...`) plus a notes field with the exact `interop_client`/`interop_server` SHA-256 digests printed at startup, attributing each cell to a specific binary build.

@@ -690,6 +690,13 @@ fi
 
 if [[ $RUN_GO_PASSES -eq 1 ]]; then
 GO_DIR="$ROOT/tests/interop/go"
+PINNED_GO_VERSION="$(awk '$1 == "go" { print "go" $2; exit }' "$GO_DIR/go.mod")"
+ACTUAL_GO_VERSION="$(go env GOVERSION)"
+if [[ -z "$PINNED_GO_VERSION" || "$ACTUAL_GO_VERSION" != "$PINNED_GO_VERSION" ]]; then
+  echo "FAIL: Go toolchain mismatch: expected ${PINNED_GO_VERSION:-missing go directive}, got ${ACTUAL_GO_VERSION}" >&2
+  exit 1
+fi
+echo "== pinned Go toolchain: $ACTUAL_GO_VERSION =="
 GO_BIN_DIR="${GRPC_INTEROP_GO_BIN_DIR:-$ROOT/target/interop-go}"
 mkdir -p "$GO_BIN_DIR"
 GO_SERVER="${GRPC_INTEROP_GO_SERVER:-$GO_BIN_DIR/go-interop-server}"
@@ -811,6 +818,12 @@ fi
 
 echo "== aggregating interop results =="
 AGGREGATE_EXIT=0
+python3 "$INTEROP_REPORT" validate \
+  --results "$RESULTS_JSON" \
+  --suite standard_interop \
+  --profile native \
+  --require-matrix \
+  --required-directions kernel_client_to_kernel_server,kernel_client_to_go_server,go_client_to_kernel_server || AGGREGATE_EXIT=$?
 python3 "$INTEROP_REPORT" aggregate \
   --results "$RESULTS_JSON" \
   --output "$REPORT_JSON" || AGGREGATE_EXIT=$?
@@ -822,4 +835,3 @@ fi
 
 echo "PASS: all interop passes completed successfully"
 exit 0
-

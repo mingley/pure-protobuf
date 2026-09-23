@@ -32,7 +32,8 @@
 #   --port=PORT                Port to bind local simulated server to (default: dynamic)
 #   --skip-build               Skip cargo build step
 #   --log-dir=DIR              Directory for log files (default: temp directory)
-#   --results-json=PATH        Path to write results JSON
+#   --results-json=PATH        Path to write results JSON (default: <log-dir>/results.json)
+#   --report-json=PATH         Path to write report JSON (default: <log-dir>/report.json)
 #   -h, --help                 Show this help message
 set -euo pipefail
 
@@ -59,6 +60,7 @@ LOCAL_BIND_PORT=0
 SKIP_BUILD=0
 LOG_DIR=""
 RESULTS_JSON=""
+REPORT_JSON=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -115,6 +117,14 @@ while [[ $# -gt 0 ]]; do
       RESULTS_JSON="${1#*=}"
       shift
       ;;
+    --report-json)
+      REPORT_JSON="$2"
+      shift 2
+      ;;
+    --report-json=*)
+      REPORT_JSON="${1#*=}"
+      shift
+      ;;
     -h|--help)
       grep '^# ' "$0" | cut -c 3-
       exit 0
@@ -131,6 +141,9 @@ if [[ -z "$LOG_DIR" ]]; then
 else
   mkdir -p "$LOG_DIR"
 fi
+
+RESULTS_JSON="${RESULTS_JSON:-$LOG_DIR/results.json}"
+REPORT_JSON="${REPORT_JSON:-$LOG_DIR/report.json}"
 
 if [[ "$SKIP_BUILD" -ne 1 ]]; then
   echo "== building pbrs-grpc-http2-client =="
@@ -507,7 +520,7 @@ for case in "${CASES[@]}"; do
     status="failed"
   fi
 
-  if [[ -n "$RESULTS_JSON" && -f "$INTEROP_REPORT" ]]; then
+  if [[ -f "$INTEROP_REPORT" ]]; then
     python3 "$INTEROP_REPORT" record \
       --output "$RESULTS_JSON" \
       --case "$case" \
@@ -516,6 +529,8 @@ for case in "${CASES[@]}"; do
       --peer "pbrs-grpc" \
       --direction "client_to_server" \
       --transport "http2_cleartext" \
+      --suite "http2_negative" \
+      --profile "native" \
       --stdout-log "$log_file" \
       --stderr-log "$log_file" \
       --exit-code "$client_exit" \
@@ -527,6 +542,14 @@ echo "=================================================="
 echo "HTTP/2 interop suite summary: $PASSED_COUNT passed, $FAILED_COUNT failed"
 echo "Logs saved to $LOG_DIR"
 echo "=================================================="
+
+if [[ -f "$RESULTS_JSON" && -f "$INTEROP_REPORT" ]]; then
+  echo "== validating interop results =="
+  python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite http2_negative --profile native --require-matrix || OVERALL_FAILED=1
+
+  echo "== aggregating interop results =="
+  python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite http2_negative --profile native --require-matrix || OVERALL_FAILED=1
+fi
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then
   exit 1

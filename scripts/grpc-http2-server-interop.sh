@@ -645,10 +645,10 @@ echo "=================================================="
 
 if [[ -f "$RESULTS_JSON" && -f "$INTEROP_REPORT" ]]; then
   echo "== validating interop results =="
-  python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" || OVERALL_FAILED=1
+  python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
 
   echo "== aggregating interop results =="
-  python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" || OVERALL_FAILED=1
+  python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
 fi
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then

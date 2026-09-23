@@ -234,6 +234,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "${GRPC_INTEROP_CPP_DOWNLOAD_URL:-}" ]]; then
+  echo "::error::unverified C++ peer archives are not accepted; build the pinned source or use a reviewed local binary" >&2
+  exit 2
+fi
+
 if [[ $USE_TLS -eq 1 ]]; then
   DEFAULT_TLS_DIR="$ROOT/pbrs-grpc/tests/tls_data"
   TLS_CA_FILE="${TLS_CA_FILE:-$DEFAULT_TLS_DIR/ca.crt}"
@@ -521,6 +526,9 @@ run_case() {
   fi
   if [[ "$peer" == "$CPP_PEER_NAME" ]]; then
     record_args+=(--peer-pin "$CPP_PEER_PIN")
+    if [[ -n "${CPP_PEER_NOTES:-}" ]]; then
+      record_args+=(--notes "$CPP_PEER_NOTES")
+    fi
   fi
 
   "${record_args[@]}" >/dev/null
@@ -681,16 +689,6 @@ ensure_cpp_peer() {
     return 1
   fi
 
-  # Attempt download from URL if provided
-  if [[ -n "${GRPC_INTEROP_CPP_DOWNLOAD_URL:-}" ]]; then
-    echo "== downloading C++ gRPC interop peer from $GRPC_INTEROP_CPP_DOWNLOAD_URL =="
-    mkdir -p "$CPP_BIN_DIR"
-    curl -fsSL "$GRPC_INTEROP_CPP_DOWNLOAD_URL" | tar -xz -C "$CPP_BIN_DIR"
-    if [[ -x "$CPP_CLIENT" && -x "$CPP_SERVER" ]]; then
-      return 0
-    fi
-  fi
-
   # Attempt build from source using cmake
   if command -v cmake >/dev/null 2>&1 && (command -v g++ >/dev/null 2>&1 || command -v clang++ >/dev/null 2>&1); then
     echo "== building C++ gRPC interop peer ($CPP_PEER_VERSION) =="
@@ -732,6 +730,23 @@ ensure_cpp_peer() {
 if ! ensure_cpp_peer; then
   exit 1
 fi
+
+# Record exact artifact digests alongside the pinned source commit so every
+# cross-peer result is attributable to a specific binary build.
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+CPP_CLIENT_SHA="$(sha256_file "$CPP_CLIENT")"
+CPP_SERVER_SHA="$(sha256_file "$CPP_SERVER")"
+CPP_PEER_NOTES="cpp peer grpc/grpc@${CPP_PEER_PIN}; interop_client sha256:${CPP_CLIENT_SHA}; interop_server sha256:${CPP_SERVER_SHA}"
+echo "== C++ peer artifact digests =="
+echo "  source: grpc/grpc@${CPP_PEER_PIN}"
+echo "  interop_client: $CPP_CLIENT_SHA ($CPP_CLIENT)"
+echo "  interop_server: $CPP_SERVER_SHA ($CPP_SERVER)"
 
 CPP_SERVER_ARGS=(--port "$CPP_PORT")
 if [[ $USE_TLS -eq 1 ]]; then
@@ -777,8 +792,22 @@ fi
 # =========================================================================
 # Step 3: Aggregate Results
 # =========================================================================
-echo "== aggregating C++ interop results =="
+echo "== validating C++ interop results =="
 AGGREGATE_EXIT=0
+python3 "$INTEROP_REPORT" validate \
+  --results "$RESULTS_JSON" \
+  --suite standard_interop \
+  --profile native \
+  --require-matrix \
+  --required-directions kernel_client_to_cpp_server,cpp_client_to_kernel_server || AGGREGATE_EXIT=$?
+python3 "$INTEROP_REPORT" validate \
+  --results "$RESULTS_JSON" \
+  --suite compression_interop \
+  --profile native \
+  --require-matrix \
+  --required-directions kernel_client_to_cpp_server,cpp_client_to_kernel_server || AGGREGATE_EXIT=$?
+
+echo "== aggregating C++ interop results =="
 python3 "$INTEROP_REPORT" aggregate \
   --results "$RESULTS_JSON" \
   --output "$REPORT_JSON" || AGGREGATE_EXIT=$?

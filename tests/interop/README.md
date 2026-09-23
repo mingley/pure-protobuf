@@ -82,7 +82,7 @@ Baseline gRPC RPC patterns and protocol semantics defined in `doc/interop-test-d
 ### 2. Compression Interoperability (`compression_interop`, 4 cases)
 Message-level compression negotiation and framing:
 * `client_compressed_unary`, `server_compressed_unary`, `client_compressed_streaming`, `server_compressed_streaming`.
-* *Status*: Passes 18-case self-interop pass in `scripts/grpc-interop.sh`. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags; cross-peer qualification is deferred to the C++ reference peer in task `IO-05`.
+* *Status*: Passes the 18-case self-interop pass in `scripts/grpc-interop.sh`, and both cross-peer directions (36 cells) against the pinned C++ reference peer (`grpc/grpc@d1487957`, v1.84.0) via `scripts/grpc-interop-cpp.sh` in task `IO-05`, with wire compression bits asserted by the reference peer. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags.
 
 ### 3. HTTP/2 Negative Tests (`http2_negative`, 8 cases)
 Adversarial framing, stream cancellation, and connection termination defined in `doc/http2-interop-test-descriptions.md`:
@@ -106,7 +106,7 @@ Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-int
 Long-running reliability and resource stability from `run_interop_tests.py`:
 * `rpc_soak`: Sustained high-iteration RPC loop measuring latency and error budget over a long window.
 * `channel_soak`: Repeated channel creation, connection churn, and teardown under load.
-* *Status*: Scheduled in task `IO-10`.
+* *Status*: Adapters qualified in task `IO-10` (`pbrs-grpc/src/interop_cases.rs`, `pbrs-grpc-interop-client` soak flags, `tests/interop/test_soak.py` 12/12 deterministic tests plus local qualification-scale runs); the full-duration official campaign remains a scheduled operator run.
 
 ### 7. Stream Scaling (`scaling`, 1 case)
 Concurrent connection scaling under peer stream limits:
@@ -220,6 +220,7 @@ Both servers are managed as background jobs with automatic process tracking, sta
 ./scripts/grpc-http2-server-interop.sh --skip-build --log-dir=target/interop-logs/custom
 ```
 Execution traces and logs are stored under `target/interop-logs/`, recorded into `results.json`, validated against `cases.json`, and aggregated into `report.json`.
+Required-profile gating: validation and aggregation run with `--suite server_probe --profile native --require-matrix`, so a run that omits a probe (e.g. `--cases=server_tls_probe`) or hits an unexpected failure exits non-zero and cannot qualify. Local hostile tests in `pbrs-grpc/tests/hostile.rs` and TLS tests in `pbrs-grpc/tests/tls.rs` are complementary and never substitute for these probe records.
 
 ---
 

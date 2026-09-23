@@ -25,8 +25,11 @@ import unittest
 from typing import Dict, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-CLIENT_BIN = REPO_ROOT / "target" / "debug" / "pbrs-grpc-interop-client"
-SERVER_BIN = REPO_ROOT / "target" / "debug" / "pbrs-grpc-interop-server"
+# Honor CARGO_TARGET_DIR so isolated/lane builds resolve their own binaries;
+# defaults to the in-tree target dir when unset (CI behavior unchanged).
+_TARGET_DIR = Path(os.environ.get("CARGO_TARGET_DIR", str(REPO_ROOT / "target")))
+CLIENT_BIN = _TARGET_DIR / "debug" / "pbrs-grpc-interop-client"
+SERVER_BIN = _TARGET_DIR / "debug" / "pbrs-grpc-interop-server"
 
 
 def pick_unused_port() -> int:

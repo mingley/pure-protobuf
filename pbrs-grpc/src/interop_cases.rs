@@ -532,7 +532,13 @@ pub async fn client_compressed_streaming(client: &TestServiceClient) -> Result<(
             )));
         }
     }
-    let (tx, call) = client.streaming_input_call(Request::new(()));
+    // Negotiate grpc-encoding at the call level (required by reference peers
+    // whenever any message carries the compression bit), but leave the
+    // per-message default off so only the first message is compressed.
+    let mut open = Request::new(());
+    open.set_compress(true);
+    let (mut tx, call) = client.streaming_input_call(open);
+    tx.set_compress(false);
     let mut a = StreamingInputCallRequest::new();
     a.set_expect_compressed(bool_val(true));
     a.set_payload(zeros(27182));

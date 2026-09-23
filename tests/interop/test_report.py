@@ -200,6 +200,44 @@ class TestMatrixAndPinRejection(BaseReportTest):
         self.assertTrue(len(val_report.missing_matrix_rows) > 0)
         self.assertTrue(any("Missing required matrix row" in err for err in val_report.errors))
 
+    def test_require_only_the_cpp_peer_directions(self):
+        directions = {"kernel_client_to_cpp_server", "cpp_client_to_kernel_server"}
+        cases = [
+            c["case"]
+            for c in self.registry.cases_list
+            if c["suite"] == "compression_interop" and c["disposition"] == "passed"
+        ]
+        results = [
+            self.make_valid_case_result(case, "grpc-cpp", direction, peer_pin=self.grpc_pin)
+            for case in cases
+            for direction in sorted(directions)
+        ]
+        validator = ReportValidator(self.registry)
+        kwargs = {
+            "suite": "compression_interop",
+            "profile": "native",
+            "require_matrix": True,
+            "required_directions": directions,
+        }
+        self.assertTrue(validator.validate_results(results, **kwargs).is_valid)
+
+        missing = validator.validate_results(results[1:], **kwargs)
+        self.assertFalse(missing.is_valid)
+        self.assertIn(f"{cases[0]}:{sorted(directions)[0]}", missing.missing_matrix_rows)
+
+        results[0].status = "unsupported"
+        unsupported = validator.validate_results(results, **kwargs)
+        self.assertFalse(unsupported.is_valid)
+        self.assertIn(f"{cases[0]}:{sorted(directions)[0]}", unsupported.missing_matrix_rows)
+
+    def test_reject_unknown_required_direction(self):
+        result = self.make_valid_case_result("empty_unary")
+        report = ReportValidator(self.registry).validate_results(
+            [result], require_matrix=True, required_directions={"not_an_official_direction"}
+        )
+        self.assertFalse(report.is_valid)
+        self.assertTrue(any("Unknown required direction" in err for err in report.errors))
+
     def test_reject_wrong_peer_pin(self):
         res = self.make_valid_case_result(
             "empty_unary",

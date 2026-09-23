@@ -460,6 +460,7 @@ class ReportValidator:
         profile: Optional[str] = None,
         require_all_cases: bool = False,
         require_matrix: bool = False,
+        required_directions: Optional[Set[str]] = None,
         require_peers: bool = False,
         strict_retries: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
@@ -586,6 +587,19 @@ class ReportValidator:
             if require_all_cases or (suite or profile) or c.get("disposition") == ExecutionStatus.PASSED.value:
                 expected_cases.append(c)
 
+        if required_directions is not None:
+            if not require_matrix:
+                errors.append("Required directions need --require-matrix.")
+            if not required_directions:
+                errors.append("At least one required direction must be specified.")
+            applicable = {
+                direction
+                for case in expected_cases
+                for direction in case.get("present_coverage", {}).get("passing_directions", [])
+            }
+            for direction in sorted(required_directions - applicable):
+                errors.append(f"Unknown required direction for the selected suite/profile: '{direction}'")
+
         # 6. Check missing and skipped cases
         for c in expected_cases:
             c_name = c["case"]
@@ -611,7 +625,9 @@ class ReportValidator:
             # 7. Check matrix directions and self-test substitution
             if require_matrix or require_peers:
                 expected_dirs = c.get("present_coverage", {}).get("passing_directions", [])
-                tested_dirs = set(cr.direction for cr in case_results)
+                if required_directions is not None:
+                    expected_dirs = [direction for direction in expected_dirs if direction in required_directions]
+                tested_dirs = {cr.direction for cr in case_results if cr.status == ExecutionStatus.PASSED.value}
 
                 for ed in expected_dirs:
                     if ed not in tested_dirs:
@@ -929,6 +945,7 @@ class ReportAggregator:
         profile: Optional[str] = None,
         require_all_cases: bool = False,
         require_matrix: bool = False,
+        required_directions: Optional[Set[str]] = None,
         require_peers: bool = False,
         strict_retries: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
@@ -940,6 +957,7 @@ class ReportAggregator:
             profile=profile,
             require_all_cases=require_all_cases,
             require_matrix=require_matrix,
+            required_directions=required_directions,
             require_peers=require_peers,
             strict_retries=strict_retries,
             metadata=metadata,
@@ -1094,6 +1112,13 @@ def default_cases_path() -> Path:
     return repo_root / "tests" / "interop" / "cases.json"
 
 
+def parse_required_directions(value: str) -> Set[str]:
+    directions = value.split(",")
+    if any(not direction.strip() for direction in directions):
+        raise argparse.ArgumentTypeError("Specify one or more comma-separated non-empty directions.")
+    return {direction.strip() for direction in directions}
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -1143,6 +1168,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fail if any matrix direction specified in present_coverage is missing",
     )
     parser.add_argument(
+        "--required-directions",
+        type=parse_required_directions,
+        help="With --require-matrix, require only these comma-separated peer directions",
+    )
+    parser.add_argument(
         "--require-peers",
         action="store_true",
         help="Fail if independent peer execution is missing or substituted with self-test",
@@ -1174,6 +1204,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub_val.add_argument("--suite", type=str, help="Suite filter")
     sub_val.add_argument("--profile", type=str, help="Profile filter")
     sub_val.add_argument("--require-matrix", action="store_true", help="Enforce all matrix directions")
+    sub_val.add_argument("--required-directions", type=parse_required_directions, help="Comma-separated peer directions to require")
     sub_val.add_argument("--require-peers", action="store_true", help="Disallow self-test substitution")
     sub_val.add_argument("--strict", action="store_true", default=True, help="Enforce strict retry checking")
 
@@ -1186,6 +1217,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub_agg.add_argument("--suite", type=str, help="Suite filter")
     sub_agg.add_argument("--profile", type=str, help="Profile filter")
     sub_agg.add_argument("--require-matrix", action="store_true", help="Enforce all matrix directions")
+    sub_agg.add_argument("--required-directions", type=parse_required_directions, help="Comma-separated peer directions to require")
     sub_agg.add_argument("--require-peers", action="store_true", help="Disallow self-test substitution")
     sub_agg.add_argument("--strict", action="store_true", default=True, help="Enforce strict retry checking")
     sub_agg.add_argument("--no-color", action="store_true", help="Disable ANSI color")
@@ -1275,6 +1307,7 @@ def handle_validate(args: argparse.Namespace) -> int:
         suite=args.suite,
         profile=args.profile,
         require_matrix=getattr(args, "require_matrix", False),
+        required_directions=getattr(args, "required_directions", None),
         require_peers=getattr(args, "require_peers", False),
         strict_retries=getattr(args, "strict", True),
         metadata=metadata,
@@ -1320,6 +1353,7 @@ def handle_aggregate(args: argparse.Namespace) -> int:
         profile=args.profile,
         require_all_cases=getattr(args, "require_all", False),
         require_matrix=getattr(args, "require_matrix", False),
+        required_directions=getattr(args, "required_directions", None),
         require_peers=getattr(args, "require_peers", False),
         strict_retries=getattr(args, "strict", True),
         metadata=metadata,

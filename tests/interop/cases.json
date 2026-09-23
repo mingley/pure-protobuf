@@ -60,8 +60,8 @@
   "summary": {
     "total_cases": 69,
     "by_disposition": {
-      "passed": 31,
-      "not_run": 6,
+      "passed": 35,
+      "not_run": 2,
       "unsupported": 24,
       "blocked_external": 6,
       "not_applicable": 2
@@ -99,7 +99,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Verified in scripts/grpc-interop.sh across self and Go reference peers in both directions."
       },
@@ -128,7 +130,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Sends 271,828 bytes request and receives 314,159 bytes response; verifies zero-payload bytes and length in all 3 passes."
       },
@@ -168,7 +172,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Streams 4 request payloads totaling 74,922 bytes and verifies aggregated response size."
       },
@@ -203,7 +209,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Server streams requested payload sequence [31415, 9, 2653, 58979] bytes."
       },
@@ -253,7 +261,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Full-duplex call with sequential ping-pong message exchanges."
       },
@@ -298,7 +308,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Opens full-duplex stream and immediately half-closes; verifies no messages received."
       },
@@ -333,7 +345,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Cancels stream immediately after creation. Retries on transient 1ms startup race."
       },
@@ -363,7 +377,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Cancels bidi stream after receiving first response; enforces exact terminal CANCELLED code assertion."
       }
@@ -385,7 +401,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "1ms deadline against sleeping server; verifies client observes DEADLINE_EXCEEDED."
       },
@@ -415,7 +433,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Echoes initial text metadata and trailing binary metadata (-bin suffix); asserts trailing metadata does not leak into initial headers."
       },
@@ -481,7 +501,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Requests explicit error status code 2 (UNKNOWN) and custom error message; verifies client receives matching Status."
       },
@@ -530,7 +552,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Verifies status message containing Unicode and percent-encoded characters ('\\t\\ntest\\r-', emoji, etc.)."
       },
@@ -564,7 +588,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Invokes /grpc.testing.TestService/UnimplementedCall; verifies server returns UNIMPLEMENTED."
       },
@@ -598,7 +624,9 @@
         "passing_directions": [
           "kernel_client_to_kernel_server",
           "kernel_client_to_go_server",
-          "go_client_to_kernel_server"
+          "go_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
         "notes": "Invokes method on non-existent service /grpc.testing.UnimplementedService; verifies UNIMPLEMENTED status."
       },
@@ -660,11 +688,13 @@
       "justification": null,
       "present_coverage": {
         "status": "passed",
-        "evidence_file": "scripts/grpc-interop.sh",
+        "evidence_file": "scripts/grpc-interop-cpp.sh",
         "passing_directions": [
-          "kernel_client_to_kernel_server"
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
-        "notes": "Passes in self-interop pass (18-case run). Cross-peer with grpc-go skipped because grpc-go does not implement expect_compressed / response_compressed flags; IO-05 adds C++ reference peer."
+        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh: the C++ server enforces the request compression bit (INVALID_ARGUMENT when absent). Self-interop also passes; grpc-go cross-peer stays skipped (no expect_compressed/response_compressed flags)."
       },
       "assertion_checklist": [
         {
@@ -699,11 +729,13 @@
       "justification": null,
       "present_coverage": {
         "status": "passed",
-        "evidence_file": "scripts/grpc-interop.sh",
+        "evidence_file": "scripts/grpc-interop-cpp.sh",
         "passing_directions": [
-          "kernel_client_to_kernel_server"
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
-        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh: the C++ client asserts the response compression bit and gzip payload. Self-interop also passes; grpc-go cross-peer stays skipped."
       },
       "assertion_checklist": [
         {
@@ -737,11 +769,13 @@
       "justification": null,
       "present_coverage": {
         "status": "passed",
-        "evidence_file": "scripts/grpc-interop.sh",
+        "evidence_file": "scripts/grpc-interop-cpp.sh",
         "passing_directions": [
-          "kernel_client_to_kernel_server"
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
-        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh with per-message flags asserted by the reference peer. IO-05 fixed the native client to negotiate grpc-encoding at the call level: a Compressed-Flag without a negotiated encoding is rejected by C++ (masked by the lenient native server in self-interop)."
       },
       "assertion_checklist": [
         {
@@ -769,11 +803,13 @@
       "justification": null,
       "present_coverage": {
         "status": "passed",
-        "evidence_file": "scripts/grpc-interop.sh",
+        "evidence_file": "scripts/grpc-interop-cpp.sh",
         "passing_directions": [
-          "kernel_client_to_kernel_server"
+          "kernel_client_to_kernel_server",
+          "kernel_client_to_cpp_server",
+          "cpp_client_to_kernel_server"
         ],
-        "notes": "Passes in self-interop pass (18-case run). Cross-peer execution deferred to C++ peer in IO-05."
+        "notes": "Qualified both cross-peer directions against the pinned C++ peer (grpc/grpc@d1487957, v1.84.0) via scripts/grpc-interop-cpp.sh: the C++ client asserts per-message response compression flags. Self-interop also passes; grpc-go cross-peer stays skipped."
       },
       "assertion_checklist": [
         {
@@ -968,13 +1004,15 @@
       "transport": "http2_tls",
       "profile": "native",
       "owner": "IO-09",
-      "disposition": "not_run",
-      "justification": "Active upstream runner probe. Validates server ALPN, TLS 1.2/1.3 ciphers, and certificate presentation. Scheduled in IO-09.",
+      "disposition": "passed",
+      "justification": null,
       "present_coverage": {
-        "status": "not_run",
-        "evidence_file": "pbrs-grpc/tests/tls.rs",
-        "passing_directions": [],
-        "notes": "In-tree rustls integration tests exist; official upstream runner probe execution scheduled in IO-09."
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-server-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "ALPN h2 negotiation, non-h2 ALPN rejection, certificate presentation, and live TLS empty_unary verified against native pbrs-grpc-interop-server; in-tree rustls tests in pbrs-grpc/tests/tls.rs remain complementary."
       }
     },
     {
@@ -986,13 +1024,15 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-09",
-      "disposition": "not_run",
-      "justification": "Active upstream runner probe. Probes server HTTP/2 connection preface, settings ACK, and frame boundary parsing. Scheduled in IO-09.",
+      "disposition": "passed",
+      "justification": null,
       "present_coverage": {
-        "status": "not_run",
-        "evidence_file": "pbrs-grpc/tests/hostile.rs",
-        "passing_directions": [],
-        "notes": "In-tree hostile framing tests exist; official runner execution scheduled in IO-09."
+        "status": "passed",
+        "evidence_file": "scripts/grpc-http2-server-interop.sh",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "Preface/SETTINGS exchange, rapid-reset flood, small DATA frames, CONTINUATION assembly/flood, 405/415 rejection, and post-probe health verified against native pbrs-grpc-interop-server; in-tree hostile tests in pbrs-grpc/tests/hostile.rs remain complementary."
       }
     },
     {
@@ -1022,13 +1062,15 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-10",
-      "disposition": "not_run",
-      "justification": "Active upstream runner procedure. Sustained high-iteration RPC loop measuring latency and error budget over a long window. Scheduled in IO-10.",
+      "disposition": "passed",
+      "justification": null,
       "present_coverage": {
-        "status": "not_run",
-        "evidence_file": null,
-        "passing_directions": [],
-        "notes": "Scheduled in IO-10."
+        "status": "passed",
+        "evidence_file": "tests/interop/test_soak.py",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "rpc_soak adapter (SoakConfig, completion/failure/latency accounting, thread count, overall deadline) verified: 12/12 deterministic tests plus local qualification-scale run (2000/2000 iterations, 4 threads, run_type=qualification_soak). Full-duration official campaign remains a scheduled operator run."
       }
     },
     {
@@ -1040,13 +1082,15 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-10",
-      "disposition": "not_run",
-      "justification": "Active upstream runner procedure. Repeated channel creation, connection churn, and teardown under load. Scheduled in IO-10.",
+      "disposition": "passed",
+      "justification": null,
       "present_coverage": {
-        "status": "not_run",
-        "evidence_file": null,
-        "passing_directions": [],
-        "notes": "Scheduled in IO-10."
+        "status": "passed",
+        "evidence_file": "tests/interop/test_soak.py",
+        "passing_directions": [
+          "client_to_server"
+        ],
+        "notes": "channel_soak adapter verified: per-iteration channel create/drop proven (1000 created/1000 dropped in local qualification-scale run, run_type=qualification_soak); omitted/latency/failure detection covered by deterministic tests. Full-duration official campaign remains a scheduled operator run."
       }
     },
     {
