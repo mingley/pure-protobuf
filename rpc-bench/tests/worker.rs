@@ -18,10 +18,10 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 use worker_client::{
-    ClientArgs, ClientConfig, ClientType, ClosedLoopParams, CoreRequest, Histogram,
-    HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType, ServerArgs,
-    ServerConfig, SimpleProtoParams, Void, WorkerServiceClient, WorkerServiceImpl,
-    WorkerServiceServer,
+    ByteBufferParams, ClientArgs, ClientConfig, ClientType, ClosedLoopParams, CoreRequest,
+    Histogram, HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType,
+    ServerArgs, ServerConfig, ServerType, SimpleProtoParams, Void, WorkerServiceClient,
+    WorkerServiceImpl, WorkerServiceServer,
 };
 
 fn lazy_targets(targets: &[&str]) -> Vec<pbrs::rt::LazyStr> {
@@ -29,6 +29,12 @@ fn lazy_targets(targets: &[&str]) -> Vec<pbrs::rt::LazyStr> {
         .iter()
         .map(|s| pbrs::rt::LazyStr::from_bytes(s.as_bytes()))
         .collect()
+}
+
+fn async_server_config() -> ServerConfig {
+    let mut config = ServerConfig::new();
+    config.set_server_type(ServerType::AsyncServer);
+    config
 }
 
 async fn spawn_worker_service() -> (std::net::SocketAddr, tokio::sync::watch::Sender<bool>) {
@@ -186,7 +192,7 @@ async fn test_run_server_lifecycle_marks_and_shutdown() {
 
     // 2. Send initial setup specifying ephemeral port 0
     let mut setup_args = ServerArgs::new();
-    let mut config = ServerConfig::new();
+    let mut config = async_server_config();
     config.set_port(0);
     setup_args.set_setup(config);
     tx.send(setup_args).await.unwrap();
@@ -352,7 +358,7 @@ async fn test_duplicate_setup_rejected() {
 
     // First setup
     let mut setup1 = ServerArgs::new();
-    let mut config1 = ServerConfig::new();
+    let mut config1 = async_server_config();
     config1.set_port(0);
     setup1.set_setup(config1);
     tx.send(setup1).await.unwrap();
@@ -362,7 +368,7 @@ async fn test_duplicate_setup_rejected() {
 
     // Duplicate setup
     let mut setup2 = ServerArgs::new();
-    let mut config2 = ServerConfig::new();
+    let mut config2 = async_server_config();
     config2.set_port(0);
     setup2.set_setup(config2);
     tx.send(setup2).await.unwrap();
@@ -387,7 +393,7 @@ async fn test_invalid_config_rejected() {
     let (tx, call) = client.run_server(Request::new(()));
     let mut out_stream = call.await.unwrap().into_inner();
     let mut setup_invalid = ServerArgs::new();
-    let mut config_invalid = ServerConfig::new();
+    let mut config_invalid = async_server_config();
     config_invalid.set_port(-1);
     setup_invalid.set_setup(config_invalid);
     tx.send(setup_invalid).await.unwrap();
@@ -400,7 +406,7 @@ async fn test_invalid_config_rejected() {
     let (tx2, call2) = client.run_server(Request::new(()));
     let mut out_stream2 = call2.await.unwrap().into_inner();
     let mut setup_invalid2 = ServerArgs::new();
-    let mut config_invalid2 = ServerConfig::new();
+    let mut config_invalid2 = async_server_config();
     config_invalid2.set_port(0);
     config_invalid2.set_core_limit(-5);
     setup_invalid2.set_setup(config_invalid2);
@@ -494,7 +500,7 @@ async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     let mut server_out = server_call.await.unwrap().into_inner();
 
     let mut setup_args = ServerArgs::new();
-    let mut server_config = ServerConfig::new();
+    let mut server_config = async_server_config();
     server_config.set_port(0);
     setup_args.set_setup(server_config);
     server_tx.send(setup_args).await.unwrap();
@@ -658,7 +664,7 @@ async fn test_run_client_poisson_load_lifecycle() {
     let (server_tx, server_call) = client.run_server(Request::new(()));
     let mut server_out = server_call.await.unwrap().into_inner();
     let mut setup_args = ServerArgs::new();
-    let mut server_config = ServerConfig::new();
+    let mut server_config = async_server_config();
     server_config.set_port(0);
     setup_args.set_setup(server_config);
     server_tx.send(setup_args).await.unwrap();
@@ -740,6 +746,7 @@ async fn test_run_client_unsupported_options_fail_clearly() {
     let mut cfg2 = ClientConfig::new();
     cfg2.set_client_channels(1);
     cfg2.set_outstanding_rpcs_per_channel(1);
+    cfg2.set_client_type(ClientType::AsyncClient);
     let mut lp2 = LoadParams::new();
     lp2.set_closed_loop(ClosedLoopParams::new());
     cfg2.set_load_params(lp2);
@@ -767,6 +774,7 @@ async fn test_run_client_unsupported_options_fail_clearly() {
     cfg4.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
     cfg4.set_client_channels(1);
     cfg4.set_outstanding_rpcs_per_channel(1);
+    cfg4.set_client_type(ClientType::AsyncClient);
     let mut lp4 = LoadParams::new();
     lp4.set_closed_loop(ClosedLoopParams::new());
     cfg4.set_load_params(lp4);
@@ -786,6 +794,7 @@ async fn test_run_client_unsupported_options_fail_clearly() {
     cfg5.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
     cfg5.set_client_channels(1);
     cfg5.set_outstanding_rpcs_per_channel(1);
+    cfg5.set_client_type(ClientType::AsyncClient);
     let mut lp5 = LoadParams::new();
     lp5.set_closed_loop(ClosedLoopParams::new());
     cfg5.set_load_params(lp5);
@@ -799,7 +808,7 @@ async fn test_run_client_unsupported_options_fail_clearly() {
     let (server_tx, server_call) = client.run_server(Request::new(()));
     let mut server_out = server_call.await.unwrap().into_inner();
     let mut setup_args = ServerArgs::new();
-    let mut server_config = ServerConfig::new();
+    let mut server_config = async_server_config();
     server_config.set_port(0);
     setup_args.set_setup(server_config);
     server_tx.send(setup_args).await.unwrap();
@@ -813,6 +822,7 @@ async fn test_run_client_unsupported_options_fail_clearly() {
     cfg6.set_server_targets(lazy_targets(&[&server_target6]));
     cfg6.set_client_channels(1);
     cfg6.set_outstanding_rpcs_per_channel(1);
+    cfg6.set_client_type(ClientType::AsyncClient);
     let mut lp6 = LoadParams::new();
     lp6.set_closed_loop(ClosedLoopParams::new());
     cfg6.set_load_params(lp6);
@@ -833,6 +843,126 @@ async fn test_run_client_unsupported_options_fail_clearly() {
 }
 
 #[tokio::test]
+async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
+    async fn reject_server(client: &WorkerServiceClient, config: ServerConfig, reason: &str) {
+        let (sender, call) = client.run_server(Request::new(()));
+        let mut output = call.await.expect("server control headers").into_inner();
+        let mut setup = ServerArgs::new();
+        setup.set_setup(config);
+        sender.send(setup).await.expect("server setup");
+        let error = tokio::time::timeout(Duration::from_secs(2), output.message())
+            .await
+            .expect("unsupported server mode did not reject")
+            .expect_err("unsupported server mode cannot report success");
+        assert_eq!(error.code(), pbrs_grpc::Code::InvalidArgument);
+        assert!(error.message().contains(reason), "{error}");
+    }
+
+    async fn reject_client(
+        client: &WorkerServiceClient,
+        config: ClientConfig,
+        code: pbrs_grpc::Code,
+        reason: &str,
+    ) {
+        let (sender, call) = client.run_client(Request::new(()));
+        let mut output = call.await.expect("client control headers").into_inner();
+        let mut setup = ClientArgs::new();
+        setup.set_setup(config);
+        sender.send(setup).await.expect("client setup");
+        let error = tokio::time::timeout(Duration::from_secs(2), output.message())
+            .await
+            .expect("unsupported client mode did not reject")
+            .expect_err("unsupported client mode cannot report success");
+        assert_eq!(error.code(), code, "{error}");
+        assert!(error.message().contains(reason), "{error}");
+    }
+
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let client = WorkerServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+
+    let mut sync = ServerConfig::new();
+    sync.set_server_type(ServerType::SyncServer);
+    reject_server(&client, sync, "unsupported server_type").await;
+    let mut generic = ServerConfig::new();
+    generic.set_server_type(ServerType::AsyncGenericServer);
+    reject_server(&client, generic, "unsupported server_type").await;
+    let mut proto_with_generic_payload = async_server_config();
+    proto_with_generic_payload.set_payload_config(PayloadConfig::new());
+    reject_server(&client, proto_with_generic_payload, "payload_config").await;
+
+    let mut valid = ClientConfig::new();
+    valid.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
+    valid.set_client_channels(1);
+    valid.set_outstanding_rpcs_per_channel(1);
+    valid.set_client_type(ClientType::AsyncClient);
+    let mut load = LoadParams::new();
+    load.set_closed_loop(ClosedLoopParams::new());
+    valid.set_load_params(load);
+
+    let mut sync_client = valid.clone();
+    sync_client.set_client_type(ClientType::SyncClient);
+    reject_client(
+        &client,
+        sync_client,
+        pbrs_grpc::Code::InvalidArgument,
+        "unsupported client_type",
+    )
+    .await;
+
+    let mut bytebuf = valid.clone();
+    let mut payload = PayloadConfig::new();
+    payload.set_bytebuf_params(ByteBufferParams::new());
+    bytebuf.set_payload_config(payload);
+    reject_client(
+        &client,
+        bytebuf,
+        pbrs_grpc::Code::InvalidArgument,
+        "unsupported payload_config",
+    )
+    .await;
+
+    let mut unspecified = valid.clone();
+    unspecified.set_payload_config(PayloadConfig::new());
+    reject_client(
+        &client,
+        unspecified,
+        pbrs_grpc::Code::InvalidArgument,
+        "must specify simple_params",
+    )
+    .await;
+
+    let mut negative = valid.clone();
+    let mut payload = PayloadConfig::new();
+    let mut simple = SimpleProtoParams::new();
+    simple.set_req_size(-1);
+    payload.set_simple_params(simple);
+    negative.set_payload_config(payload);
+    reject_client(
+        &client,
+        negative,
+        pbrs_grpc::Code::InvalidArgument,
+        "negative simple_params",
+    )
+    .await;
+
+    let mut oversize = valid;
+    let mut payload = PayloadConfig::new();
+    let mut simple = SimpleProtoParams::new();
+    simple.set_resp_size(
+        i32::try_from(benchmark_service::MAX_BENCHMARK_PAYLOAD_SIZE).expect("cap fits i32") + 1,
+    );
+    payload.set_simple_params(simple);
+    oversize.set_payload_config(payload);
+    reject_client(
+        &client,
+        oversize,
+        pbrs_grpc::Code::ResourceExhausted,
+        "exceeds the 4 MiB",
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn test_run_client_control_disconnect_cancels_work_without_hangs() {
     let (addr, _quit_tx) = spawn_worker_service().await;
     let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
@@ -841,7 +971,7 @@ async fn test_run_client_control_disconnect_cancels_work_without_hangs() {
     let (server_tx, server_call) = client.run_server(Request::new(()));
     let mut server_out = server_call.await.unwrap().into_inner();
     let mut setup_args = ServerArgs::new();
-    let mut server_config = ServerConfig::new();
+    let mut server_config = async_server_config();
     server_config.set_port(0);
     setup_args.set_setup(server_config);
     server_tx.send(setup_args).await.unwrap();
@@ -856,6 +986,7 @@ async fn test_run_client_control_disconnect_cancels_work_without_hangs() {
     client_config.set_server_targets(lazy_targets(&[&server_target]));
     client_config.set_client_channels(4);
     client_config.set_outstanding_rpcs_per_channel(4);
+    client_config.set_client_type(ClientType::AsyncClient);
     let mut lp = LoadParams::new();
     lp.set_closed_loop(ClosedLoopParams::new());
     client_config.set_load_params(lp);

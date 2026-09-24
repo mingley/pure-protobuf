@@ -334,12 +334,9 @@ pub async fn run_client(
             .await;
             return;
         }
-        // ClientType: SyncClient (0) or AsyncClient (1)
-        if cfg.client_type() != ClientType::SyncClient
-            && cfg.client_type() != ClientType::AsyncClient
-        {
+        if cfg.client_type() != ClientType::AsyncClient {
             tx.fail(Status::invalid_argument(format!(
-                "unsupported client_type {:?}",
+                "unsupported client_type {:?}: only ASYNC_CLIENT is implemented",
                 cfg.client_type()
             )))
             .await;
@@ -388,13 +385,39 @@ pub async fn run_client(
                 return;
             }
         }
-        // PayloadConfig: complex_params is unsupported
-        if cfg.has_payload_config() && cfg.payload_config().has_complex_params() {
-            tx.fail(Status::invalid_argument(
-                "complex_params payload_config unsupported",
-            ))
-            .await;
-            return;
+        if cfg.has_payload_config() {
+            let payload = cfg.payload_config();
+            if payload.has_bytebuf_params() || payload.has_complex_params() {
+                tx.fail(Status::invalid_argument(
+                    "unsupported payload_config: only simple_params proto messages are implemented",
+                ))
+                .await;
+                return;
+            }
+            if !payload.has_simple_params() {
+                tx.fail(Status::invalid_argument(
+                    "payload_config must specify simple_params",
+                ))
+                .await;
+                return;
+            }
+            let simple = payload.simple_params();
+            if simple.req_size() < 0 || simple.resp_size() < 0 {
+                tx.fail(Status::invalid_argument(
+                    "negative simple_params payload size",
+                ))
+                .await;
+                return;
+            }
+            let cap = i32::try_from(crate::benchmark_service::MAX_BENCHMARK_PAYLOAD_SIZE)
+                .expect("benchmark worker body cap fits i32");
+            if simple.req_size() > cap || simple.resp_size() > cap {
+                tx.fail(Status::resource_exhausted(
+                    "simple_params payload exceeds the 4 MiB benchmark worker limit",
+                ))
+                .await;
+                return;
+            }
         }
         // HistogramParams validation
         let (resolution, max_possible) = if cfg.has_histogram_params() {
@@ -477,16 +500,8 @@ pub async fn run_client(
         let stats_tracker = Arc::new(ClientStatsTracker::new(histogram));
 
         let (req_size, resp_size) = if cfg.has_payload_config() {
-            let pc = cfg.payload_config();
-            if pc.has_simple_params() {
-                let sp = pc.simple_params();
-                (sp.req_size(), sp.resp_size())
-            } else if pc.has_bytebuf_params() {
-                let bp = pc.bytebuf_params();
-                (bp.req_size(), bp.resp_size())
-            } else {
-                (0, 0)
-            }
+            let simple = cfg.payload_config().simple_params();
+            (simple.req_size(), simple.resp_size())
         } else {
             (0, 0)
         };

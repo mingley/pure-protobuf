@@ -209,9 +209,19 @@ impl WorkerService for WorkerServiceImpl {
                     .await;
                 return;
             }
-            if i32::from(cfg.server_type()) < 0 {
-                tx.fail(Status::invalid_argument("invalid server_type"))
-                    .await;
+            if cfg.server_type() != ServerType::AsyncServer {
+                tx.fail(Status::invalid_argument(format!(
+                    "unsupported server_type {:?}: only ASYNC_SERVER is implemented",
+                    cfg.server_type()
+                )))
+                .await;
+                return;
+            }
+            if cfg.has_payload_config() {
+                tx.fail(Status::invalid_argument(
+                    "payload_config is only valid for unsupported generic servers",
+                ))
+                .await;
                 return;
             }
 

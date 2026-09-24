@@ -225,6 +225,18 @@ response. A receiving peer's size limit also counts protobuf overhead.
 Comparable official-peer runs must match payload limits explicitly; a
 rejected out-of-policy scenario is incomplete, not a performance win.
 
+The local WorkerService offers **only** `ASYNC_SERVER` with the typed
+`BenchmarkService` and `ASYNC_CLIENT` with optional `simple_params` proto
+messages. Sync/generic server or sync client types, a proto server's
+`payload_config`, and byte-buffer, complex or empty client payload variants
+fail with `INVALID_ARGUMENT` before binding or dialing. Negative simple
+payload sizes fail likewise; sizes above the 4 MiB worker body cap fail with
+`RESOURCE_EXHAUSTED` before allocating a request buffer. This is not
+support for the upstream generic byte-buffer QPS scenarios. Other control
+options, including explicit thread counts, affinity and security settings,
+can still be ignored; do not treat their presence as support for qualified
+scenarios.
+
 WorkerService `CoreCount` and `RunServer` setup require an observed,
 i32-representable system CPU count; a failed probe returns a non-OK status
 instead of claiming one core. `RunServer` and `RunClient` require an actual
