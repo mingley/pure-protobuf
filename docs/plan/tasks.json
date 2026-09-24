@@ -1472,6 +1472,9 @@
       "checks": [
         "shared",
         "parser"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: clean tracked main 141d604c on macOS arm64 with installed rustc 1.100.0-nightly (e7769602a 2026-08-24), MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-strict-provenance', CARGO_BUILD_JOBS=2 and reused isolated target/pb07-miri passed serial --offline --locked Miri pbrs lib 39/39, runtime integration 14/14 and original rust_out_shared 233/233 across 19 suites. Arena map/repeated adoption, lazy lifetime and zeroed-layout regressions are covered by these local checks, not a same-SHA scheduled CI artifact. Linux ASan/LSan, 32-bit and big-endian proof, plus the unapproved 24-CPU-hour-per-target sustained fuzz campaign remain open; PB-07 is not qualified."
       ]
     },
     {

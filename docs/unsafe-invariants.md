@@ -350,3 +350,17 @@ targeted original shared tests under Miri and still needs a successful
 Linux ASan/LSan run. That lane retains both sanitizer logs even on failure;
 it runs on schedule or explicit dispatch, not on every release SHA.
 The proposed 24 CPU-hours per target remain unapproved and unexecuted.
+
+On 2026-09-24, a fresh macOS arm64 run against clean tracked `main` at
+`141d604c` used the same installed nightly
+`rustc 1.100.0-nightly (e7769602a 2026-08-24)` and
+`MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-strict-provenance'`. With
+`CARGO_BUILD_JOBS=2` and one reused, Miri-specific
+`CARGO_TARGET_DIR=target/pb07-miri`, serial `cargo +nightly miri test
+--locked --offline` runs passed `-p pbrs --lib` (39/39),
+`-p pbrs --test runtime` (14/14), and
+`--manifest-path rust_out_shared/Cargo.toml` (233/233 across 19 original
+shared suites), each with `-- --test-threads=1`. This supersedes the older
+dirty-checkout Miri proof for these source files; it is still a local
+one-architecture run, not a same-SHA scheduled Miri CI artifact, a Linux
+ASan/LSan result, a 32-bit/big-endian proof, or approval for sustained fuzzing.
