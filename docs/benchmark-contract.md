@@ -225,6 +225,22 @@ response. A receiving peer's size limit also counts protobuf overhead.
 Comparable official-peer runs must match payload limits explicitly; a
 rejected out-of-policy scenario is incomplete, not a performance win.
 
+WorkerService `CoreCount` and `RunServer` setup require an observed,
+i32-representable system CPU count; a failed probe returns a non-OK status
+instead of claiming one core. `RunServer` and `RunClient` require an actual
+process resource snapshot at setup and on every `Mark`. Unsupported or failed
+capture returns `UNAVAILABLE` (or `INTERNAL` if cleanup also fails), not zero
+CPU/RSS or a reused baseline. Initial
+zero elapsed/CPU statistics describe a new interval **after** the baseline
+was captured. Reset baselines and client histograms advance only after a
+successful Mark capture. On capture failure, the worker shuts down and joins
+its owned benchmark server (five-second grace, then abort) or cancels,
+aborts and joins its owned client generator before reporting the error.
+Synthetic tests cover status mapping and the cleanup helpers; they do not
+inject a platform capture failure into a live control stream or prove
+completion of independently spawned open-loop RPC tasks. These local worker
+checks do not qualify BM-09/BM-10 against an independent official driver.
+
 ---
 
 ## 6. Statistical Rigor and Precision Standards

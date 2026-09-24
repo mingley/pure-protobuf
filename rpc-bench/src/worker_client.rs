@@ -31,6 +31,7 @@ use pbrs_grpc::{Request, Response, Status, Streaming};
 use crate::benchmark_service::BenchmarkServiceClient;
 use crate::load::{LoadConfig, LoadGenerator, RpcCallError};
 use crate::resources::ResourceSnapshot;
+use crate::worker_server::require_snapshot;
 
 /// High-resolution latency histogram based on `grpc/support/histogram.c`.
 ///
@@ -239,6 +240,34 @@ impl ClientStatsTracker {
 
         (hist_data, result_counts)
     }
+}
+
+pub(crate) async fn stop_owned_generator(
+    cancel: &tokio::sync::watch::Sender<bool>,
+    handle: &mut tokio::task::JoinHandle<()>,
+) -> Result<(), Status> {
+    let _ = cancel.send(true);
+    handle.abort();
+    match handle.await {
+        Ok(()) => Ok(()),
+        Err(error) if error.is_cancelled() => Ok(()),
+        Err(error) => Err(Status::internal(format!(
+            "benchmark client generator failed during shutdown: {error}"
+        ))),
+    }
+}
+
+async fn fail_after_client_cleanup(
+    tx: pbrs_grpc::StreamSender<ClientStatus>,
+    status: Status,
+    cancel: &tokio::sync::watch::Sender<bool>,
+    handle: &mut tokio::task::JoinHandle<()>,
+) {
+    let status = match stop_owned_generator(cancel, handle).await {
+        Ok(()) => status,
+        Err(error) => Status::internal(format!("{status}; cleanup failed: {error}")),
+    };
+    tx.fail(status).await;
 }
 
 /// Start and manage the benchmark client workload, marks, and statistics accounting.
@@ -534,18 +563,19 @@ pub async fn run_client(
         };
 
         let generator = LoadGenerator::new(load_cfg);
-        let gen_handle = tokio::spawn(async move {
+        let mut gen_handle = tokio::spawn(async move {
             generator.run(invoke).await;
         });
 
         // 5. Build and send initial ClientStatus
-        let initial_snapshot = ResourceSnapshot::capture().unwrap_or(ResourceSnapshot {
-            user_cpu_nanos: 0,
-            system_cpu_nanos: 0,
-            current_rss_bytes: 0,
-            peak_rss_bytes: 0,
-            thread_count: 0,
-        });
+        let initial_snapshot =
+            match require_snapshot(ResourceSnapshot::capture(), "RunClient initial") {
+                Ok(snapshot) => snapshot,
+                Err(status) => {
+                    fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                    return;
+                }
+            };
 
         let mut initial_status = ClientStatus::new();
         let mut initial_stats = ClientStats::new();
@@ -556,9 +586,9 @@ pub async fn run_client(
         initial_status.set_stats(initial_stats);
 
         if tx.send(initial_status).await.is_err() {
-            let _ = cancel_tx.send(true);
-            gen_handle.abort();
-            let _ = gen_handle.await;
+            if let Err(error) = stop_owned_generator(&cancel_tx, &mut gen_handle).await {
+                eprintln!("{error}");
+            }
             return;
         }
 
@@ -571,36 +601,31 @@ pub async fn run_client(
                 Ok(Some(a)) => a,
                 Ok(None) => break, // Closing inbound stream triggers clean termination
                 Err(e) => {
-                    let _ = tx.fail(e).await;
-                    let _ = cancel_tx.send(true);
-                    gen_handle.abort();
-                    let _ = gen_handle.await;
+                    fail_after_client_cleanup(tx, e, &cancel_tx, &mut gen_handle).await;
                     return;
                 }
             };
 
             // Reject duplicate setup
             if arg.has_setup() {
-                let _ = tx
-                    .fail(Status::invalid_argument(
-                        "duplicate ClientConfig setup received",
-                    ))
-                    .await;
-                let _ = cancel_tx.send(true);
-                gen_handle.abort();
-                let _ = gen_handle.await;
+                fail_after_client_cleanup(
+                    tx,
+                    Status::invalid_argument("duplicate ClientConfig setup received"),
+                    &cancel_tx,
+                    &mut gen_handle,
+                )
+                .await;
                 return;
             }
 
             if !arg.has_mark() {
-                let _ = tx
-                    .fail(Status::invalid_argument(
-                        "expected Mark in subsequent ClientArgs",
-                    ))
-                    .await;
-                let _ = cancel_tx.send(true);
-                gen_handle.abort();
-                let _ = gen_handle.await;
+                fail_after_client_cleanup(
+                    tx,
+                    Status::invalid_argument("expected Mark in subsequent ClientArgs"),
+                    &cancel_tx,
+                    &mut gen_handle,
+                )
+                .await;
                 return;
             }
 
@@ -608,7 +633,14 @@ pub async fn run_client(
             let now = Instant::now();
             let time_elapsed = (now - baseline_time).as_secs_f64();
 
-            let current_snapshot = ResourceSnapshot::capture().unwrap_or(baseline_snapshot);
+            let current_snapshot =
+                match require_snapshot(ResourceSnapshot::capture(), "RunClient Mark") {
+                    Ok(snapshot) => snapshot,
+                    Err(status) => {
+                        fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                        return;
+                    }
+                };
             let delta = baseline_snapshot.delta_to(&current_snapshot);
 
             let (latencies, request_results) = stats_tracker.snapshot(mark.reset());
@@ -634,10 +666,10 @@ pub async fn run_client(
         }
 
         // 7. Clean shutdown: notify cancellation and abort generator
-        let _ = cancel_tx.send(true);
-        gen_handle.abort();
-        let _ = gen_handle.await;
-        // tx is dropped here, closing out_stream cleanly with OK status
+        if let Err(status) = stop_owned_generator(&cancel_tx, &mut gen_handle).await {
+            tx.fail(status).await;
+        }
+        // Dropping tx ends with OK only after the owned generator stops.
     });
 
     Ok(Response::new(out_stream))

@@ -69,13 +69,98 @@ async fn test_core_count() {
     let core_count = resp.into_inner().cores();
     assert!(core_count > 0, "core count must be strictly positive");
 
-    let expected = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1) as i32;
+    let expected = worker_server::checked_system_cores(std::thread::available_parallelism())
+        .expect("system CPU count must be available and representable");
     assert_eq!(
         core_count, expected,
         "core count should match host parallelism"
     );
+}
+
+#[test]
+fn test_worker_snapshot_failure_is_a_status_not_a_zero_sample() {
+    for stage in [
+        "RunServer initial",
+        "RunServer Mark",
+        "RunClient initial",
+        "RunClient Mark",
+    ] {
+        let error = std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "synthetic resource collector unavailable",
+        );
+        let status = worker_server::require_snapshot(Err(error), stage)
+            .expect_err("missing snapshot cannot become a valid sample");
+        assert_eq!(status.code(), pbrs_grpc::Code::Unavailable);
+        assert!(status.message().contains(stage));
+        assert!(
+            status
+                .message()
+                .contains("synthetic resource collector unavailable")
+        );
+    }
+    let snapshot = resources::ResourceSnapshot {
+        user_cpu_nanos: 123,
+        system_cpu_nanos: 45,
+        current_rss_bytes: 4096,
+        peak_rss_bytes: 8192,
+        thread_count: 3,
+    };
+    assert_eq!(
+        worker_server::require_snapshot(Ok(snapshot), "RunClient Mark")
+            .expect("real snapshot must pass through"),
+        snapshot
+    );
+}
+
+#[test]
+fn test_worker_core_count_rejects_missing_or_unrepresentable_values() {
+    let missing = worker_server::checked_system_cores(Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "synthetic CPU probe failure",
+    )))
+    .expect_err("missing CPU count cannot become one core");
+    assert_eq!(missing.code(), pbrs_grpc::Code::Unavailable);
+    assert!(missing.message().contains("synthetic CPU probe failure"));
+    assert_eq!(
+        worker_server::checked_system_cores(Ok(
+            std::num::NonZeroUsize::new(4).expect("positive count")
+        ))
+        .expect("four cores fit"),
+        4
+    );
+    assert_eq!(
+        worker_server::checked_core_count(0)
+            .expect_err("zero cores are invalid")
+            .code(),
+        pbrs_grpc::Code::InvalidArgument
+    );
+    let oversized = worker_server::checked_core_count((i32::MAX as usize) + 1)
+        .expect_err("wire i32 cannot hold system core count");
+    assert_eq!(oversized.code(), pbrs_grpc::Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn test_worker_cleanup_helpers_join_owned_tasks() {
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let mut server = tokio::spawn(async move {
+        let _ = shutdown_rx.await;
+    });
+    worker_server::stop_owned_server(shutdown_tx, &mut server)
+        .await
+        .expect("owned server shuts down and joins");
+    assert!(server.is_finished());
+
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+    let mut generator = tokio::spawn(async move {
+        let _ = cancel_rx.changed().await;
+        std::future::pending::<()>().await;
+    });
+    worker_client::stop_owned_generator(&cancel_tx, &mut generator)
+        .await
+        .expect("owned generator cancels and joins");
+    assert!(generator.is_finished());
+    assert!(*cancel_tx.borrow());
 }
 
 #[tokio::test]
