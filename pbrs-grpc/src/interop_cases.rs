@@ -957,8 +957,13 @@ fn build_soak_summary(
     channels_created: usize,
     channels_dropped: usize,
 ) -> SoakSummary {
-    let iterations_completed = results.len();
+    let iterations_started = results.len();
+    let iterations_completed = results
+        .iter()
+        .filter(|r| !matches!(r.failure_class.as_ref(), Some(SoakFailureClass::Omitted)))
+        .count();
     let iterations_omitted = config.soak_iterations.saturating_sub(iterations_completed);
+    let unstarted_omitted = config.soak_iterations.saturating_sub(iterations_started);
     let mut iterations_succeeded = 0usize;
     let mut failure_breakdown = FailureBreakdown::default();
     let mut failures = Vec::new();
@@ -988,12 +993,11 @@ fn build_soak_summary(
         }
     }
 
-    if iterations_omitted > failure_breakdown.omitted_iterations {
-        let unstarted_omitted = iterations_omitted - failure_breakdown.omitted_iterations;
+    if unstarted_omitted > 0 {
         failure_breakdown.omitted_iterations += unstarted_omitted;
         for idx in 0..unstarted_omitted {
             failures.push(SoakFailure {
-                iteration: iterations_completed + idx,
+                iteration: iterations_started + idx,
                 thread_id: 0,
                 elapsed_ms: 0,
                 class: SoakFailureClass::Omitted,
@@ -1577,6 +1581,49 @@ mod tests {
             omitted_iterations: 4,
         };
         assert_eq!(fb.total(), 11);
+    }
+
+    #[test]
+    fn test_soak_summary_counts_started_timeout_as_omitted() {
+        let config = SoakConfig {
+            soak_iterations: 3,
+            ..SoakConfig::default()
+        };
+        let results = vec![
+            WorkerIterationResult {
+                iteration: 0,
+                thread_id: 0,
+                elapsed_ms: 1,
+                success: true,
+                failure_class: None,
+                details: String::new(),
+            },
+            WorkerIterationResult {
+                iteration: 1,
+                thread_id: 0,
+                elapsed_ms: 5,
+                success: false,
+                failure_class: Some(SoakFailureClass::Omitted),
+                details: "overall deadline expired".to_string(),
+            },
+        ];
+        let summary = build_soak_summary(
+            "rpc_soak",
+            "localhost".to_string(),
+            &config,
+            results,
+            Duration::from_millis(6),
+            1,
+            1,
+        );
+        assert_eq!(summary.iterations_completed, 1);
+        assert_eq!(summary.iterations_omitted, 2);
+        assert_eq!(summary.iterations_succeeded, 1);
+        assert_eq!(summary.failure_breakdown.omitted_iterations, 2);
+        assert_eq!(summary.total_failures, 2);
+        assert_eq!(summary.failures.len(), 2);
+        assert_eq!(summary.failures[0].iteration, 1);
+        assert_eq!(summary.failures[1].iteration, 2);
     }
 
     use crate::Response;

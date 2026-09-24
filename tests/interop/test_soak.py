@@ -327,12 +327,17 @@ class TestSoakExecution(unittest.TestCase):
         self.assertIn("omitted", combined)
 
         summary = parse_soak_summary(combined)
-        if summary:
-            omitted = int(summary.get("iterations_omitted", "0"))
-            completed = int(summary.get("iterations_completed", "0"))
-            self.assertGreater(omitted, 0, "Expected omitted iterations to be greater than 0")
-            self.assertLess(completed, 1000, "Expected completed iterations to be less than 1000")
-            self.assertEqual(omitted + completed, 1000)
+        self.assertTrue(summary, "Failed deadline must retain a machine-readable summary")
+        omitted = int(summary["iterations_omitted"])
+        completed = int(summary["iterations_completed"])
+        self.assertGreater(omitted, 0, "Expected omitted iterations to be greater than 0")
+        self.assertLess(completed, 1000, "Expected completed iterations to be less than 1000")
+        self.assertEqual(omitted + completed, 1000)
+        self.assertEqual(int(summary["omitted_iterations"]), omitted)
+        self.assertEqual(
+            int(summary["iterations_succeeded"]) + int(summary["total_failures"]),
+            1000,
+        )
 
     def test_smoke_is_not_mislabeled_as_qualification_soak(self):
         """Verify that short local smoke tests report 'smoke' run_type and never 'qualification_soak'."""
