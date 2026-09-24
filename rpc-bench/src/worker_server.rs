@@ -72,6 +72,30 @@ pub(crate) fn checked_system_cores(
     checked_core_count(count.get())
 }
 
+pub(crate) fn unsupported_server_option(config: &ServerConfig) -> Option<&'static str> {
+    if config.has_security_params() {
+        Some("security_params")
+    } else if config.async_server_threads() != 0 {
+        Some("async_server_threads")
+    } else if config.core_limit() > 0 {
+        Some("core_limit")
+    } else if !config.core_list().is_empty() {
+        Some("core_list")
+    } else if config.threads_per_cq() != 0 {
+        Some("threads_per_cq")
+    } else if config.resource_quota_size() != 0 {
+        Some("resource_quota_size")
+    } else if !config.channel_args().is_empty() {
+        Some("channel_args")
+    } else if config.server_processes() != 0 {
+        Some("server_processes")
+    } else if !config.other_server_api().as_bytes().is_empty() {
+        Some("other_server_api")
+    } else {
+        None
+    }
+}
+
 pub(crate) async fn stop_owned_server(
     shutdown: tokio::sync::oneshot::Sender<()>,
     handle: &mut tokio::task::JoinHandle<()>,
@@ -221,6 +245,13 @@ impl WorkerService for WorkerServiceImpl {
                 tx.fail(Status::invalid_argument(
                     "payload_config is only valid for unsupported generic servers",
                 ))
+                .await;
+                return;
+            }
+            if let Some(option) = unsupported_server_option(cfg) {
+                tx.fail(Status::invalid_argument(format!(
+                    "unsupported server config option {option}"
+                )))
                 .await;
                 return;
             }

@@ -270,6 +270,38 @@ async fn fail_after_client_cleanup(
     tx.fail(status).await;
 }
 
+pub(crate) fn unsupported_client_option(config: &ClientConfig) -> Option<&'static str> {
+    if config.has_security_params() {
+        Some("security_params")
+    } else if config.async_client_threads() > 0 {
+        Some("async_client_threads")
+    } else if config.core_limit() > 0 {
+        Some("core_limit")
+    } else if !config.core_list().is_empty() {
+        Some("core_list")
+    } else if config.distribute_load_across_threads() {
+        Some("distribute_load_across_threads")
+    } else if config.threads_per_cq() != 0 {
+        Some("threads_per_cq")
+    } else if config.messages_per_stream() != 0 {
+        Some("messages_per_stream")
+    } else if config.use_coalesce_api() {
+        Some("use_coalesce_api")
+    } else if config.median_latency_collection_interval_millis() != 0 {
+        Some("median_latency_collection_interval_millis")
+    } else if config.client_processes() != 0 {
+        Some("client_processes")
+    } else if !config.channel_args().is_empty() {
+        Some("channel_args")
+    } else if config.use_session() {
+        Some("use_session")
+    } else if !config.other_client_api().as_bytes().is_empty() {
+        Some("other_client_api")
+    } else {
+        None
+    }
+}
+
 /// Start and manage the benchmark client workload, marks, and statistics accounting.
 pub async fn run_client(
     request: Request<Streaming<ClientArgs>>,
@@ -342,6 +374,13 @@ pub async fn run_client(
             .await;
             return;
         }
+        if let Some(option) = unsupported_client_option(cfg) {
+            tx.fail(Status::invalid_argument(format!(
+                "unsupported client config option {option}"
+            )))
+            .await;
+            return;
+        }
         // Protocol: only HTTP2 (0) supported
         if cfg.protocol() != Protocol::Http2 {
             tx.fail(Status::invalid_argument(format!(
@@ -377,9 +416,9 @@ pub async fn run_client(
         }
         if cfg.load_params().has_poisson() {
             let offered_load = cfg.load_params().poisson().offered_load();
-            if offered_load <= 0.0 {
+            if !offered_load.is_finite() || offered_load <= 0.0 {
                 tx.fail(Status::invalid_argument(
-                    "poisson offered_load must be strictly positive",
+                    "poisson offered_load must be finite and strictly positive",
                 ))
                 .await;
                 return;
@@ -426,7 +465,7 @@ pub async fn run_client(
             let max_p = hp.max_possible();
             if res == 0.0 && max_p == 0.0 {
                 (0.01, 60_000_000_000.0)
-            } else if res <= 0.0 || max_p <= res {
+            } else if !res.is_finite() || !max_p.is_finite() || res <= 0.0 || max_p <= res {
                 tx.fail(Status::invalid_argument(format!(
                     "invalid histogram_params: resolution={res}, max_possible={max_p}"
                 )))
@@ -449,17 +488,27 @@ pub async fn run_client(
 
         // 3. Connect channels to target servers
         let num_channels = cfg.client_channels() as usize;
-        let targets: Vec<String> = cfg
+        let targets: Vec<String> = match cfg
             .server_targets()
             .iter()
-            .filter_map(|s| s.to_str().ok().map(str::to_string))
-            .collect();
+            .map(|target| target.to_str().map(str::to_string))
+            .collect()
+        {
+            Ok(targets) => targets,
+            Err(error) => {
+                tx.fail(Status::invalid_argument(format!(
+                    "server_targets contains invalid UTF-8: {error}"
+                )))
+                .await;
+                return;
+            }
+        };
         let mut channels = Vec::with_capacity(num_channels);
         for i in 0..num_channels {
             let target_str = targets
                 .get(i % targets.len())
                 .map(|s| s.as_str())
-                .unwrap_or("");
+                .expect("validated server_targets are nonempty");
             let clean_target = target_str
                 .strip_prefix("dns:///")
                 .or_else(|| target_str.strip_prefix("ipv4:"))

@@ -232,10 +232,12 @@ messages. Sync/generic server or sync client types, a proto server's
 fail with `INVALID_ARGUMENT` before binding or dialing. Negative simple
 payload sizes fail likewise; sizes above the 4 MiB worker body cap fail with
 `RESOURCE_EXHAUSTED` before allocating a request buffer. This is not
-support for the upstream generic byte-buffer QPS scenarios. Other control
-options, including explicit thread counts, affinity and security settings,
-can still be ignored; do not treat their presence as support for qualified
-scenarios.
+support for the upstream generic byte-buffer QPS scenarios. Explicit thread
+counts, core affinity, security, channel/session, coalescing and other
+unimplemented control options now fail rather than being silently ignored.
+Requested client channel/outstanding-call counts are positive but do not yet
+have a reviewed upper policy cap; these local checks are not an independent
+official QPS-driver qualification.
 
 WorkerService `CoreCount` and `RunServer` setup require an observed,
 i32-representable system CPU count; a failed probe returns a non-OK status

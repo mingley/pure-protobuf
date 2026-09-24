@@ -18,10 +18,10 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 use worker_client::{
-    ByteBufferParams, ClientArgs, ClientConfig, ClientType, ClosedLoopParams, CoreRequest,
-    Histogram, HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams, Protocol, RpcType,
-    ServerArgs, ServerConfig, ServerType, SimpleProtoParams, Void, WorkerServiceClient,
-    WorkerServiceImpl, WorkerServiceServer,
+    ByteBufferParams, ChannelArg, ClientArgs, ClientConfig, ClientType, ClosedLoopParams,
+    CoreRequest, Histogram, HistogramParams, LoadParams, Mark, PayloadConfig, PoissonParams,
+    Protocol, RpcType, SecurityParams, ServerArgs, ServerConfig, ServerType, SimpleProtoParams,
+    Void, WorkerServiceClient, WorkerServiceImpl, WorkerServiceServer,
 };
 
 fn lazy_targets(targets: &[&str]) -> Vec<pbrs::rt::LazyStr> {
@@ -144,6 +144,85 @@ fn test_worker_core_count_rejects_missing_or_unrepresentable_values() {
     let oversized = worker_server::checked_core_count((i32::MAX as usize) + 1)
         .expect_err("wire i32 cannot hold system core count");
     assert_eq!(oversized.code(), pbrs_grpc::Code::ResourceExhausted);
+}
+
+#[test]
+fn explicit_worker_options_are_not_silently_ignored() {
+    type ServerOption = (&'static str, fn(&mut ServerConfig));
+    let server_options: [ServerOption; 9] = [
+        ("security_params", |cfg| {
+            cfg.set_security_params(SecurityParams::new())
+        }),
+        ("async_server_threads", |cfg| {
+            cfg.set_async_server_threads(2)
+        }),
+        ("core_limit", |cfg| cfg.set_core_limit(2)),
+        ("core_list", |cfg| cfg.core_list_mut().push(1)),
+        ("threads_per_cq", |cfg| cfg.set_threads_per_cq(2)),
+        ("resource_quota_size", |cfg| {
+            cfg.set_resource_quota_size(1024)
+        }),
+        ("channel_args", |cfg| {
+            cfg.channel_args_mut().push(ChannelArg::new())
+        }),
+        ("server_processes", |cfg| cfg.set_server_processes(2)),
+        ("other_server_api", |cfg| {
+            cfg.set_other_server_api("unsupported")
+        }),
+    ];
+    assert_eq!(
+        worker_server::unsupported_server_option(&async_server_config()),
+        None
+    );
+    for (name, set) in server_options {
+        let mut config = async_server_config();
+        set(&mut config);
+        assert_eq!(
+            worker_server::unsupported_server_option(&config),
+            Some(name)
+        );
+    }
+
+    type ClientOption = (&'static str, fn(&mut ClientConfig));
+    let client_options: [ClientOption; 13] = [
+        ("security_params", |cfg| {
+            cfg.set_security_params(SecurityParams::new())
+        }),
+        ("async_client_threads", |cfg| {
+            cfg.set_async_client_threads(2)
+        }),
+        ("core_limit", |cfg| cfg.set_core_limit(2)),
+        ("core_list", |cfg| cfg.core_list_mut().push(1)),
+        ("distribute_load_across_threads", |cfg| {
+            cfg.set_distribute_load_across_threads(true)
+        }),
+        ("threads_per_cq", |cfg| cfg.set_threads_per_cq(2)),
+        ("messages_per_stream", |cfg| cfg.set_messages_per_stream(2)),
+        ("use_coalesce_api", |cfg| cfg.set_use_coalesce_api(true)),
+        ("median_latency_collection_interval_millis", |cfg| {
+            cfg.set_median_latency_collection_interval_millis(10)
+        }),
+        ("client_processes", |cfg| cfg.set_client_processes(2)),
+        ("channel_args", |cfg| {
+            cfg.channel_args_mut().push(ChannelArg::new())
+        }),
+        ("use_session", |cfg| cfg.set_use_session(true)),
+        ("other_client_api", |cfg| {
+            cfg.set_other_client_api("unsupported")
+        }),
+    ];
+    assert_eq!(
+        worker_client::unsupported_client_option(&ClientConfig::new()),
+        None
+    );
+    for (name, set) in client_options {
+        let mut config = ClientConfig::new();
+        set(&mut config);
+        assert_eq!(
+            worker_client::unsupported_client_option(&config),
+            Some(name)
+        );
+    }
 }
 
 #[tokio::test]
@@ -889,6 +968,9 @@ async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
     let mut proto_with_generic_payload = async_server_config();
     proto_with_generic_payload.set_payload_config(PayloadConfig::new());
     reject_server(&client, proto_with_generic_payload, "payload_config").await;
+    let mut server_threads = async_server_config();
+    server_threads.set_async_server_threads(2);
+    reject_server(&client, server_threads, "unsupported server config option").await;
 
     let mut valid = ClientConfig::new();
     valid.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
@@ -898,6 +980,43 @@ async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
     let mut load = LoadParams::new();
     load.set_closed_loop(ClosedLoopParams::new());
     valid.set_load_params(load);
+
+    let mut client_threads = valid.clone();
+    client_threads.set_async_client_threads(2);
+    reject_client(
+        &client,
+        client_threads,
+        pbrs_grpc::Code::InvalidArgument,
+        "unsupported client config option async_client_threads",
+    )
+    .await;
+
+    let mut nonfinite_load = valid.clone();
+    let mut load = LoadParams::new();
+    let mut poisson = PoissonParams::new();
+    poisson.set_offered_load(f64::NAN);
+    load.set_poisson(poisson);
+    nonfinite_load.set_load_params(load);
+    reject_client(
+        &client,
+        nonfinite_load,
+        pbrs_grpc::Code::InvalidArgument,
+        "must be finite",
+    )
+    .await;
+
+    let mut nonfinite_histogram = valid.clone();
+    let mut histogram = HistogramParams::new();
+    histogram.set_resolution(f64::INFINITY);
+    histogram.set_max_possible(f64::INFINITY);
+    nonfinite_histogram.set_histogram_params(histogram);
+    reject_client(
+        &client,
+        nonfinite_histogram,
+        pbrs_grpc::Code::InvalidArgument,
+        "invalid histogram_params",
+    )
+    .await;
 
     let mut sync_client = valid.clone();
     sync_client.set_client_type(ClientType::SyncClient);
