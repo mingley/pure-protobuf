@@ -84,6 +84,9 @@ use pbrs_grpc::{Code, Request, Response, Status, StreamSender, Streaming};
 const ECHO_INITIAL: &str = "x-grpc-test-echo-initial";
 const ECHO_TRAILING: &str = "x-grpc-test-echo-trailing-bin";
 
+/// Maximum response payload for this bounded benchmark worker.
+pub const MAX_BENCHMARK_PAYLOAD_SIZE: usize = pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE;
+
 #[derive(Default)]
 struct Echo {
     initial: Option<String>,
@@ -109,11 +112,33 @@ impl Echo {
 }
 
 /// Create a zero-filled `Payload` with length `size`.
-pub fn zeros_payload(size: i32) -> Payload {
-    let n = usize::try_from(size.max(0)).unwrap_or(0);
+///
+/// Negative sizes fail as invalid arguments; sizes above the benchmark
+/// worker's body cap fail before allocation. Serialized protobuf overhead
+/// still counts toward the receiving client's message-size limit.
+pub fn zeros_payload(size: i32) -> Result<Payload, Status> {
+    let n = usize::try_from(size)
+        .map_err(|_| Status::invalid_argument("negative benchmark payload size"))?;
+    if n > MAX_BENCHMARK_PAYLOAD_SIZE {
+        return Err(Status::resource_exhausted(
+            "benchmark response payload exceeds the 4 MiB worker limit",
+        ));
+    }
     let mut p = Payload::new();
     p.set_body(vec![0u8; n]);
-    p
+    Ok(p)
+}
+
+fn aggregate_response_size(last_response_size: i32, total_bytes: usize) -> Result<i32, Status> {
+    if last_response_size < 0 {
+        return Err(Status::invalid_argument("negative benchmark response size"));
+    }
+    if last_response_size > 0 {
+        Ok(last_response_size)
+    } else {
+        i32::try_from(total_bytes)
+            .map_err(|_| Status::resource_exhausted("benchmark aggregate payload is too large"))
+    }
 }
 
 /// Generate a `SimpleResponse` answering a `SimpleRequest`.
@@ -128,9 +153,17 @@ pub fn make_response(req: &SimpleRequest) -> Result<SimpleResponse, Status> {
 
     let mut resp = SimpleResponse::new();
     let resp_size = req.response_size();
+    if resp_size < 0 {
+        return Err(Status::invalid_argument("negative benchmark response size"));
+    }
     if resp_size > 0 {
-        resp.set_payload(zeros_payload(resp_size));
+        resp.set_payload(zeros_payload(resp_size)?);
     } else if req.has_payload() && !req.payload().body().is_empty() {
+        if req.payload().body().len() > MAX_BENCHMARK_PAYLOAD_SIZE {
+            return Err(Status::resource_exhausted(
+                "benchmark response payload exceeds the 4 MiB worker limit",
+            ));
+        }
         resp.set_payload(req.payload().clone());
     } else {
         resp.set_payload(Payload::new());
@@ -240,22 +273,25 @@ impl BenchmarkService for BenchmarkServiceImpl {
                     st.message().to_string(),
                 ));
             }
+            if req.response_size() < 0 {
+                return Err(Status::invalid_argument("negative benchmark response size"));
+            }
             if req.response_size() > 0 {
                 last_response_size = req.response_size();
             }
             if req.has_response_compressed() && req.response_compressed().value() {
                 compress_response = true;
             }
-            total_bytes = total_bytes.saturating_add(req.payload().body().len());
+            total_bytes = total_bytes
+                .checked_add(req.payload().body().len())
+                .ok_or_else(|| {
+                    Status::resource_exhausted("benchmark aggregate payload counter overflow")
+                })?;
         }
 
         let mut resp_msg = SimpleResponse::new();
-        let final_size = if last_response_size > 0 {
-            last_response_size as usize
-        } else {
-            total_bytes
-        };
-        resp_msg.set_payload(zeros_payload(final_size as i32));
+        let final_size = aggregate_response_size(last_response_size, total_bytes)?;
+        resp_msg.set_payload(zeros_payload(final_size)?);
 
         let mut resp = Response::new(resp_msg);
         echo.apply(&mut resp);
@@ -336,6 +372,69 @@ mod tests {
     use super::*;
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn benchmark_response_sizes_fail_closed_before_allocating() {
+        let max = i32::try_from(MAX_BENCHMARK_PAYLOAD_SIZE).expect("worker cap fits i32");
+        assert_eq!(
+            zeros_payload(-1).expect_err("negative payload").code(),
+            Code::InvalidArgument
+        );
+        assert_eq!(
+            zeros_payload(max + 1).expect_err("oversize payload").code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(
+            zeros_payload(max).expect("at worker cap").body().len(),
+            MAX_BENCHMARK_PAYLOAD_SIZE
+        );
+
+        let mut request = SimpleRequest::new();
+        request.set_response_size(-1);
+        assert_eq!(
+            make_response(&request)
+                .expect_err("negative response size")
+                .code(),
+            Code::InvalidArgument
+        );
+        request.set_response_size(max + 1);
+        assert_eq!(
+            make_response(&request)
+                .expect_err("oversize response size")
+                .code(),
+            Code::ResourceExhausted
+        );
+        request.set_response_size(0);
+        let mut echoed = Payload::new();
+        echoed.set_body(vec![0u8; MAX_BENCHMARK_PAYLOAD_SIZE + 1]);
+        request.set_payload(echoed);
+        assert_eq!(
+            make_response(&request)
+                .expect_err("oversize echoed payload")
+                .code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(
+            aggregate_response_size(0, usize::try_from(i32::MAX).expect("positive i32") + 1)
+                .expect_err("aggregate exceeds wire size")
+                .code(),
+            Code::ResourceExhausted
+        );
+    }
+
+    #[tokio::test]
+    async fn client_stream_rejects_negative_response_size() {
+        let (sender, input) = Streaming::<SimpleRequest>::channel(1);
+        let mut request = SimpleRequest::new();
+        request.set_response_size(-1);
+        sender.send(request).await.expect("client stream item");
+        sender.close();
+        let status = BenchmarkServiceImpl
+            .streaming_from_client(Request::new(input))
+            .await
+            .expect_err("negative response size must fail");
+        assert_eq!(status.code(), Code::InvalidArgument);
+    }
 
     #[tokio::test]
     async fn test_benchmark_service_unary() {
@@ -497,12 +596,12 @@ mod tests {
 
         for _ in 0..4 {
             let mut req = SimpleRequest::new();
-            req.set_payload(zeros_payload(50));
+            req.set_payload(zeros_payload(50).expect("upload payload"));
             tx.send(req).await.unwrap();
         }
         // Last request specifies response_size = 300
         let mut final_req = SimpleRequest::new();
-        final_req.set_payload(zeros_payload(50));
+        final_req.set_payload(zeros_payload(50).expect("final upload payload"));
         final_req.set_response_size(300);
         tx.send(final_req).await.unwrap();
 

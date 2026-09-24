@@ -216,6 +216,15 @@ non-OK response status, not an empty successful stream. Local regressions cover
 `StreamingCall` and `StreamingBothWays`; independent official-peer data-plane
 validation remains part of BM-08.
 
+The native benchmark worker caps a generated or echoed response payload body
+at 4 MiB, using the kernel's default decoded-message size as its local
+resource policy. Negative requested sizes fail with `INVALID_ARGUMENT`;
+larger bodies and unrepresentable stream aggregates fail with
+`RESOURCE_EXHAUSTED`, rather than producing a zero-length or truncated
+response. A receiving peer's size limit also counts protobuf overhead.
+Comparable official-peer runs must match payload limits explicitly; a
+rejected out-of-policy scenario is incomplete, not a performance win.
+
 ---
 
 ## 6. Statistical Rigor and Precision Standards
