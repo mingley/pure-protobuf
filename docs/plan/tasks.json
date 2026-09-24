@@ -483,7 +483,8 @@
         "native-rpc"
       ],
       "evidence": [
-        "Partial 2026-09-23: 14af5af9 requires actual local-peer completion markers for all eight spec-derived HTTP/2 cases; 8/8 passed locally with retained client/peer logs and a fake-success client recorded failed. This purpose-built peer is not the upstream runner binary; independent-peer qualification remains open."
+        "Partial 2026-09-23: 14af5af9 requires actual local-peer completion markers for all eight spec-derived HTTP/2 cases; 8/8 passed locally with retained client/peer logs and a fake-success client recorded failed. This purpose-built peer is not the upstream runner binary; independent-peer qualification remains open.",
+        "Blocker: grpc/grpc@d1487957 test/http2_test/http2_test_server.py imports Twisted and uses Python 2 dict.has_key. No reviewed original-runner toolchain is available; coordinator must review and pin one before a full-profile pass."
       ]
     },
     {
@@ -514,7 +515,8 @@
         "native-tls"
       ],
       "evidence": [
-        "Partial 2026-09-23: 885b6a86 decodes HPACK :status and asserts actual HTTP 405/415 on the local framing probe; the local server probe matrix passed 2/2 with retained reports. The original upstream probe binary has not run, so IO-09 remains pending."
+        "Partial 2026-09-23: 885b6a86 decodes HPACK :status and asserts actual HTTP 405/415 on the local spec-derived framing probe; the local matrix passed 2/2 with retained reports.",
+        "Blocker 2026-09-24: the original grpc/grpc@d1487957 Go HTTP/2 test binary ran locally with Go 1.25.3 and verified upstream test CA: framing 5/6 (small MAX_FRAME_SIZE expected GOAWAY, received EOF), TLS 0/3 (ALPN error-text drift, Go client TLS-version error before connecting, cipher-suite/TLS 1.3 ambiguity). Upstream TestMain exits 0 despite advisory failures; scripts/upstream_http2_probe_report.py fails closed and scripts/grpc-http2-upstream-server-interop.py retains raw logs. Coordinator must separate server behavior from runner-version drift before IO-09/full-profile qualification."
       ]
     },
     {

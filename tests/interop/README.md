@@ -97,6 +97,12 @@ Adversarial framing, stream cancellation, and connection termination defined in 
   failed by `test_http2_peer_proof.py`; reports link both client and local-peer
   logs. In-tree hostile tests are complementary.
 
+The pinned upstream `grpc/grpc@d1487957` HTTP/2 server imports Twisted and
+still calls Python 2's `dict.has_key` in
+`test/http2_test/http2_test_server.py`. Current CI does not have a reviewed,
+pinned toolchain for that original runner. The local spec-derived peer is
+valuable regression coverage but cannot replace its full-profile result.
+
 ### 4. Server Probes (`server_probe`, 2 cases)
 Official server transport verification probes from `tools/run_tests/run_interop_tests.py`:
 * `server_tls_probe`: Verifies ALPN negotiation (`h2`), rejection of invalid ALPN (`http/1.1`), TLS 1.2/1.3 protocol versions and AEAD ciphers, server certificate presentation, and live TLS gRPC RPC.
@@ -107,6 +113,32 @@ Official server transport verification probes from `tools/run_tests/run_interop_
   requires HTTP 405/415, rather than accepting any HEADERS frame. It does not
   invoke the upstream probe binary;
   `IO-09` remains open until that qualification boundary is resolved.
+
+The [original upstream Go probes](../../scripts/grpc-http2-upstream-server-interop.py)
+are a separate, fail-closed local diagnostic. With an existing clean
+`third_party/grpc` checkout at `d1487957db6658bc532b72871775148229836627`,
+Go 1.25.3 and cached Rust dependencies, run:
+
+```bash
+python3 scripts/grpc-http2-upstream-server-interop.py
+```
+
+The harness builds the pinned stdlib-only Go test binary and native debug
+server, verifies the upstream test CA, server name and ALPN `h2`, then retains
+per-mode raw logs, binary hashes and JSON under `target/interop-logs/`. It
+requires all six framing and three TLS subcases to pass; upstream `TestMain`
+can return exit **0** even if advisory `TestSoon*` cases fail. A cached native
+binary selected with `--skip-rust-build` remains explicitly unqualified.
+
+The **2026-09-24 local macOS diagnostic**, using the pinned source and Go
+1.25.3, found framing **5/6** (`TestSoonSmallMaxFrameSize` expected GOAWAY
+but saw EOF) and TLS **0/3**. The TLS errors include a Go 1.25.3 client
+configuration error before connecting for the TLS 1.1 test, a changed
+no-ALPN error message, and a bad-cipher test that reaches HTTP/2 SETTINGS
+under TLS 1.3. These are raw runner outcomes, not conclusions that the
+server accepted TLS 1.1 or insecure ciphers. `IO-09` and the full upstream
+profile stay open until server behavior and runner-version drift are triaged
+and reproduced on the exact release SHA.
 
 ### 5. Connection Backoff (`connection_backoff`, 1 case)
 Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-interop-test-description.md`:

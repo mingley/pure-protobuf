@@ -1,0 +1,73 @@
+"""Original Go TestSoon failures must not become success-shaped exit codes."""
+
+import json
+import unittest
+
+from scripts.upstream_http2_probe_report import CASES, GRPC_SOURCE_SHA, summarize
+
+
+def report(mode: str, failed: str | None = None, skipped: str | None = None) -> str:
+    rows = []
+    for name in CASES["framing"] + CASES["tls"]:
+        selected = name in CASES[mode]
+        is_skipped = not selected or name == skipped
+        rows.append({
+            "name": name,
+            "passed": selected and name != failed and not is_skipped,
+            "skipped": is_skipped,
+        })
+    return "Go test output\n" + json.dumps({"cases": rows}) + "\n"
+
+
+class UpstreamHttp2ReportTest(unittest.TestCase):
+    def test_both_profiles_require_every_applicable_case(self):
+        for mode, expected in (("framing", 6), ("tls", 3)):
+            with self.subTest(mode=mode):
+                result = summarize(report(mode), mode, 0, GRPC_SOURCE_SHA)
+                self.assertTrue(result["qualified"])
+                self.assertEqual(
+                    sum(row["status"] == "passed" for row in result["cases"]),
+                    expected,
+                )
+
+    def test_advisory_go_exit_zero_cannot_hide_failed_or_skipped_probes(self):
+        for failed in (
+            "TestSoonSmallMaxFrameSize",
+            "TestSoonTLSApplicationProtocol",
+        ):
+            mode = "framing" if failed in CASES["framing"] else "tls"
+            with self.subTest(failed=failed):
+                result = summarize(report(mode, failed=failed), mode, 0, GRPC_SOURCE_SHA)
+                self.assertFalse(result["qualified"])
+                self.assertIn(f"{failed}: failed", result["failures"])
+        result = summarize(
+            report("framing", skipped="TestSoonClientShortSettings"),
+            "framing",
+            0,
+            GRPC_SOURCE_SHA,
+        )
+        self.assertFalse(result["qualified"])
+        self.assertIn("TestSoonClientShortSettings: not_run", result["failures"])
+
+    def test_missing_duplicate_extra_or_unpinned_proof_is_rejected(self):
+        good = report("framing")
+        row = {"name": CASES["framing"][0], "passed": True}
+        extra = json.loads(good.splitlines()[-1])
+        extra["cases"].append({"name": "TestUnexpected", "passed": True})
+        for broken in (
+            "no Go result",
+            "Go test output\n" + json.dumps({"cases": []}),
+            good + json.dumps({"cases": [row]}) + "\n",
+            "Go test output\n" + json.dumps({"cases": [row, row]}) + "\n",
+            "Go test output\n" + json.dumps(extra) + "\n",
+        ):
+            with self.subTest(broken=broken[:25]):
+                with self.assertRaises(ValueError):
+                    summarize(broken, "framing", 0, GRPC_SOURCE_SHA)
+        with self.assertRaises(ValueError):
+            summarize(good, "framing", 0, "0" * 40)
+        self.assertFalse(summarize(good, "framing", 1, GRPC_SOURCE_SHA)["qualified"])
+
+
+if __name__ == "__main__":
+    unittest.main()
