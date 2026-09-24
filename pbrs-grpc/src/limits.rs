@@ -26,6 +26,7 @@ pub struct ByteBudgetTracker {
 struct ByteBudgetInner {
     limit: Option<usize>,
     allocated: AtomicUsize,
+    peak_allocated: AtomicUsize,
 }
 
 impl Default for ByteBudgetTracker {
@@ -43,6 +44,7 @@ impl ByteBudgetTracker {
             inner: Arc::new(ByteBudgetInner {
                 limit,
                 allocated: AtomicUsize::new(0),
+                peak_allocated: AtomicUsize::new(0),
             }),
         }
     }
@@ -69,6 +71,15 @@ impl ByteBudgetTracker {
     #[must_use]
     pub fn allocated(&self) -> usize {
         self.inner.allocated.load(Ordering::SeqCst)
+    }
+
+    /// Exact high-water mark of bytes held by permits over this tracker's lifetime.
+    ///
+    /// Includes warmup and earlier calls when a tracker is reused; it is not
+    /// process RSS or an interval-specific memory measurement.
+    #[must_use]
+    pub fn peak_allocated(&self) -> usize {
+        self.inner.peak_allocated.load(Ordering::SeqCst)
     }
 
     /// Remaining bytes before the limit is reached, or `None` if unlimited.
@@ -98,27 +109,35 @@ impl ByteBudgetTracker {
             });
         }
 
-        if let Some(limit) = self.inner.limit {
-            let mut current = self.inner.allocated.load(Ordering::SeqCst);
-            loop {
-                let next = current.saturating_add(bytes);
+        let mut current = self.inner.allocated.load(Ordering::SeqCst);
+        loop {
+            let next = current.checked_add(bytes).ok_or_else(|| {
+                Status::resource_exhausted(format!(
+                    "transport byte budget counter overflow: requested {bytes} bytes, current allocated {current}"
+                ))
+            })?;
+            if let Some(limit) = self.inner.limit {
                 if next > limit {
                     return Err(Status::resource_exhausted(format!(
                         "transport byte budget exceeded: requested {bytes} bytes, current allocated {current}, limit {limit}"
                     )));
                 }
-                match self.inner.allocated.compare_exchange_weak(
-                    current,
-                    next,
-                    Ordering::SeqCst,
-                    Ordering::SeqCst,
-                ) {
-                    Ok(_) => break,
-                    Err(actual) => current = actual,
-                }
             }
-        } else {
-            self.inner.allocated.fetch_add(bytes, Ordering::SeqCst);
+            match self.inner.allocated.compare_exchange_weak(
+                current,
+                next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => {
+                    // A stale low read only causes an extra fetch_max; peaks never decrease.
+                    if next > self.inner.peak_allocated.load(Ordering::Relaxed) {
+                        self.inner.peak_allocated.fetch_max(next, Ordering::SeqCst);
+                    }
+                    break;
+                }
+                Err(actual) => current = actual,
+            }
         }
 
         Ok(BytePermit {
@@ -343,40 +362,52 @@ impl MessageLimits {
 mod tests {
     use super::{ByteBudgetTracker, MessageLimits};
     use crate::status::Code;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
 
     #[test]
     fn byte_budget_tracker_acquire_and_release() {
         let tracker = ByteBudgetTracker::with_limit(100);
         assert_eq!(tracker.limit(), Some(100));
         assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.peak_allocated(), 0);
         assert_eq!(tracker.available(), Some(100));
         assert!(tracker.is_quiescent());
 
         let p1 = tracker.acquire(40).expect("acquire 40");
         assert_eq!(p1.bytes(), 40);
         assert_eq!(tracker.allocated(), 40);
+        assert_eq!(tracker.peak_allocated(), 40);
         assert_eq!(tracker.available(), Some(60));
         assert!(!tracker.is_quiescent());
 
         {
             let p2 = tracker.acquire(50).expect("acquire 50");
             assert_eq!(tracker.allocated(), 90);
+            assert_eq!(tracker.peak_allocated(), 90);
             assert_eq!(tracker.available(), Some(10));
 
             let err = tracker.acquire(20).expect_err("exceed limit");
             assert_eq!(err.code(), Code::ResourceExhausted);
             assert_eq!(tracker.allocated(), 90);
+            assert_eq!(tracker.peak_allocated(), 90);
 
             drop(p2);
         }
 
         assert_eq!(tracker.allocated(), 40);
+        assert_eq!(tracker.peak_allocated(), 90);
         assert_eq!(tracker.available(), Some(60));
 
         p1.release();
         assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.peak_allocated(), 90);
         assert_eq!(tracker.available(), Some(100));
         assert!(tracker.is_quiescent());
+        let reacquired = tracker.acquire(10).expect("below prior high-water mark");
+        assert_eq!(tracker.peak_allocated(), 90);
+        drop(reacquired);
     }
 
     #[test]
@@ -387,8 +418,60 @@ mod tests {
 
         let p1 = tracker.acquire(1_000_000).expect("acquire large");
         assert_eq!(tracker.allocated(), 1_000_000);
+        assert_eq!(tracker.peak_allocated(), 1_000_000);
         drop(p1);
         assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.peak_allocated(), 1_000_000);
+    }
+
+    #[test]
+    fn byte_budget_peak_counts_overlapping_permits_and_rejects_overflow() {
+        let tracker = ByteBudgetTracker::with_limit(100);
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let mut releases = Vec::new();
+        let mut workers = Vec::new();
+        for _ in 0..2 {
+            let (release_tx, release_rx) = mpsc::channel();
+            releases.push(release_tx);
+            let ready_tx = ready_tx.clone();
+            let tracker = tracker.clone();
+            workers.push(thread::spawn(move || {
+                let _permit = tracker.acquire(40).expect("within byte budget");
+                ready_tx.send(()).expect("announce held permit");
+                release_rx
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("release held permit");
+            }));
+        }
+        for _ in 0..2 {
+            ready_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("both acquisitions must complete");
+        }
+        assert_eq!(tracker.allocated(), 80);
+        assert_eq!(tracker.peak_allocated(), 80);
+        for release in releases {
+            release.send(()).expect("release worker");
+        }
+        for worker in workers {
+            worker.join().expect("worker completed");
+        }
+        assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.peak_allocated(), 80);
+
+        let unlimited = ByteBudgetTracker::unlimited();
+        let max = unlimited
+            .acquire(usize::MAX)
+            .expect("largest representable count");
+        let err = unlimited
+            .acquire(1)
+            .expect_err("counter overflow must reject");
+        assert_eq!(err.code(), Code::ResourceExhausted);
+        assert_eq!(unlimited.allocated(), usize::MAX);
+        assert_eq!(unlimited.peak_allocated(), usize::MAX);
+        drop(max);
+        assert_eq!(unlimited.allocated(), 0);
+        assert_eq!(unlimited.peak_allocated(), usize::MAX);
     }
 
     #[test]

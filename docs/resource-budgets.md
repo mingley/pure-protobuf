@@ -81,9 +81,10 @@ encoding cap; the send-buffer limit alone is not a total-message memory cap.
 The public `pbrs_grpc::ByteBudgetTracker` can share an explicit transport-byte
 cap through `Server::with_byte_budget_tracker` or
 `Channel::with_byte_budget_tracker`. Acquired `BytePermit`s return their bytes
-on drop, and `allocated()` / `is_quiescent()` expose the accounting state.
-This tracks only the buffers it owns, not application allocations or process
-RSS.
+on drop. `allocated()` / `is_quiescent()` expose the current state, and
+`peak_allocated()` records the exact lifetime high-water mark of accounted
+permits across clones (including warmup). Counter overflow rejects explicitly;
+neither value measures application allocations or process RSS.
 
 ### 2.2 The Backing Buffer Retention Hazard
 
