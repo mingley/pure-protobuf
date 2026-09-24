@@ -53,6 +53,7 @@ Every entry in `cases` contains:
 * `justification` *(string or null)*: Required explanation for every non-`passed` disposition.
 * `present_coverage` *(object)*:
   * `status`: Current local or original-runner status (`passed`, `failed`, `not_run`, `unsupported`, `blocked_external`, `not_applicable`).
+  * `evidence_scope`: `local_adapter` explicitly marks a local pass that cannot qualify an unresolved original procedure; omitted otherwise.
   * `evidence_file`: Path to the script, harness, or test file providing current evidence.
   * `passing_directions`: Array of verified peer directions currently passing.
   * `notes`: Additional technical context, limitations, or pending work.
@@ -67,7 +68,8 @@ Every active upstream case has an explicit disposition:
 6. `not_applicable`: Explicitly excluded upstream test or kernel internal with approved, documented technical justification (e.g. C/upb internal arena memory layouts).
 
 The eight HTTP/2 client negatives remain `not_run` for the original upstream
-Twisted/Python-2 runner while `present_coverage.status=passed` records the
+Twisted/Python-2 runner while `present_coverage.status=passed` and
+`evidence_scope=local_adapter` record the
 separate 8/8 local peer exercise. Both server probes are `failed` under the
 original Go runner (framing 5/6, TLS 0/3) despite 2/2 separate local probes.
 Both full-duration soaks are `not_run` although their local adapters pass

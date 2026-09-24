@@ -38,6 +38,7 @@ EXIT_USAGE_ERROR = 2
 # Allowed schema enums
 VALID_DISPOSITIONS = {
     "passed",
+    "failed",
     "not_run",
     "unsupported",
     "blocked_external",
@@ -371,6 +372,9 @@ def validate_cases_schema(data: Dict[str, Any]) -> List[str]:
         missing_disps = VALID_DISPOSITIONS - set(disp_defs.keys())
         if missing_disps:
             errors.append(f"disposition_definitions missing required states: {sorted(missing_disps)}")
+        extra_disps = set(disp_defs.keys()) - VALID_DISPOSITIONS
+        if extra_disps:
+            errors.append(f"disposition_definitions contains unknown states: {sorted(extra_disps)}")
 
     # 4. Suites
     suites = data.get("suites")
@@ -448,7 +452,7 @@ def validate_cases_schema(data: Dict[str, Any]) -> List[str]:
 
             # Justification requirement
             justification = c.get("justification")
-            if disp in ("unsupported", "blocked_external", "not_applicable"):
+            if disp != "passed":
                 if not justification or not isinstance(justification, str) or not justification.strip():
                     errors.append(f"Case '{case_id}' with disposition '{disp}' requires a non-empty 'justification'")
 
@@ -458,8 +462,23 @@ def validate_cases_schema(data: Dict[str, Any]) -> List[str]:
             errors.append(f"Case '{case_id}' missing required 'present_coverage' object")
         else:
             cov_status = coverage.get("status")
-            if cov_status != disp:
+            scope = coverage.get("evidence_scope")
+            if scope not in (None, "original_procedure", "local_adapter"):
+                errors.append(f"Case '{case_id}' has invalid evidence_scope '{scope}'")
+            if cov_status not in VALID_DISPOSITIONS:
+                errors.append(f"Case '{case_id}' has invalid coverage status '{cov_status}'")
+            if cov_status != disp and not (
+                cov_status == "passed"
+                and disp in ("not_run", "failed")
+                and scope == "local_adapter"
+            ):
                 errors.append(f"Case '{case_id}' coverage status '{cov_status}' does not match disposition '{disp}'")
+            if scope == "local_adapter" and cov_status == disp:
+                errors.append(f"Case '{case_id}' marks matching coverage as a local_adapter")
+            if cov_status == "passed" and not coverage.get("evidence_file"):
+                errors.append(f"Case '{case_id}' has passing coverage without an evidence file")
+            if scope == "local_adapter" and not coverage.get("passing_directions"):
+                errors.append(f"Case '{case_id}' local_adapter has no passing directions")
             if "passing_directions" not in coverage or not isinstance(coverage["passing_directions"], list):
                 errors.append(f"Case '{case_id}' present_coverage missing 'passing_directions' list")
 

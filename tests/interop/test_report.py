@@ -123,12 +123,15 @@ class TestCasesRegistry(BaseReportTest):
             if case["suite"] == "http2_negative":
                 self.assertEqual(case["disposition"], "not_run", case["case"])
                 self.assertEqual(case["present_coverage"]["status"], "passed")
+                self.assertEqual(case["present_coverage"]["evidence_scope"], "local_adapter")
             elif case["suite"] == "server_probe":
                 self.assertEqual(case["disposition"], "failed", case["case"])
                 self.assertEqual(case["present_coverage"]["status"], "passed")
+                self.assertEqual(case["present_coverage"]["evidence_scope"], "local_adapter")
             elif case["suite"] == "soak":
                 self.assertEqual(case["disposition"], "not_run", case["case"])
                 self.assertEqual(case["present_coverage"]["status"], "passed")
+                self.assertEqual(case["present_coverage"]["evidence_scope"], "local_adapter")
 
     def test_registry_summary_rejects_stale_disposition_and_suite_counts(self):
         for summary_key, item in (("by_disposition", "passed"), ("by_suite", "soak")):
@@ -146,6 +149,13 @@ class TestCasesRegistry(BaseReportTest):
                 data["cases"][0]["present_coverage"]["evidence_file"] = evidence
                 errors = CasesRegistry(data).validate_registry_schema()
                 self.assertTrue(any("coverage" in error for error in errors), errors)
+
+    def test_registry_rejects_local_pass_without_explicit_scope(self):
+        data = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+        local = next(c for c in data["cases"] if c["case"] == "server_tls_probe")
+        del local["present_coverage"]["evidence_scope"]
+        errors = CasesRegistry(data).validate_registry_schema()
+        self.assertTrue(any("does not match disposition" in error for error in errors), errors)
 
 
 class TestValidResultProcessing(BaseReportTest):

@@ -850,6 +850,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -870,6 +871,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -890,6 +892,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -910,6 +913,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -930,6 +934,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -950,6 +955,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -970,6 +976,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -990,6 +997,7 @@
       "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -1010,6 +1018,7 @@
       "justification": "The original pinned Go TLS probe failed 3/3 advisory subcases with Go 1.25.3; runner/version drift is under investigation, not a demonstrated server weakness.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-server-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -1030,6 +1039,7 @@
       "justification": "The original pinned Go framing probe failed 1/6 advisory subcases with Go 1.25.3; the cached-server wire diagnostic observed GOAWAY, so runner drift must be resolved.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "scripts/grpc-http2-server-interop.sh",
         "passing_directions": [
           "client_to_server"
@@ -1068,6 +1078,7 @@
       "justification": "The full-duration official upstream soak has not run; local adapter tests and qualification-scale iterations are not a sustained qualification campaign.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "tests/interop/test_soak.py",
         "passing_directions": [
           "client_to_server"
@@ -1088,6 +1099,7 @@
       "justification": "The full-duration official upstream soak has not run; local adapter tests and qualification-scale iterations are not a sustained qualification campaign.",
       "present_coverage": {
         "status": "passed",
+        "evidence_scope": "local_adapter",
         "evidence_file": "tests/interop/test_soak.py",
         "passing_directions": [
           "client_to_server"

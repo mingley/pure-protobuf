@@ -428,6 +428,22 @@ class CasesRegistry:
                 errors.append(f"Case '{case_id}' has invalid coverage status: '{coverage.get('status')}'")
             elif coverage["status"] == ExecutionStatus.PASSED.value and not coverage.get("evidence_file"):
                 errors.append(f"Case '{case_id}' has passing coverage without an evidence file")
+            if isinstance(coverage, dict):
+                scope = coverage.get("evidence_scope")
+                if scope not in (None, "original_procedure", "local_adapter"):
+                    errors.append(f"Case '{case_id}' has invalid evidence_scope '{scope}'")
+                elif coverage.get("status") != disp and not (
+                    coverage.get("status") == ExecutionStatus.PASSED.value
+                    and disp in (ExecutionStatus.NOT_RUN.value, ExecutionStatus.FAILED.value)
+                    and scope == "local_adapter"
+                ):
+                    errors.append(
+                        f"Case '{case_id}' coverage status '{coverage.get('status')}' does not match disposition '{disp}'"
+                    )
+                elif scope == "local_adapter" and coverage.get("status") == disp:
+                    errors.append(f"Case '{case_id}' marks matching coverage as a local_adapter")
+                if scope == "local_adapter" and not coverage.get("passing_directions"):
+                    errors.append(f"Case '{case_id}' local_adapter has no passing directions")
 
         if self.summary:
             expected_total = self.summary.get("total_cases")

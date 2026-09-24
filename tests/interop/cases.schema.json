@@ -115,7 +115,7 @@
         "suite": {"type": "string"},
         "procedure_source": {"type": "string"},
         "peer_direction": {
-          "enum": ["both", "client_to_server", "runner_to_binary", "driver_to_worker", "internal"]
+          "enum": ["both", "client_to_server", "server_to_client", "runner_to_binary", "driver_to_worker", "internal"]
         },
         "transport": {
           "enum": ["http2_cleartext", "http2_tls", "http2_mtls", "alts", "pipe", "none"]
@@ -131,6 +131,9 @@
           "required": ["status", "evidence_file", "passing_directions", "notes"],
           "properties": {
             "status": {"$ref": "#/$defs/status"},
+            "evidence_scope": {
+              "enum": ["original_procedure", "local_adapter"]
+            },
             "evidence_file": {"type": ["string", "null"]},
             "passing_directions": {
               "type": "array",

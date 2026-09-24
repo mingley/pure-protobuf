@@ -92,14 +92,15 @@ class TestCasesJsonSchema(unittest.TestCase):
         errors = validate_cases_schema(mutated)
         self.assertTrue(any("unknown_disposition" in err for err in errors))
 
-    def test_schema_missing_justification_for_unsupported(self):
-        """unsupported, blocked_external, and not_applicable cases must have a justification."""
-        mutated = json.loads(json.dumps(self.raw_data))
-        # Find first unsupported case and clear its justification
-        target = next(c for c in mutated["cases"] if c["disposition"] == "unsupported")
-        target["justification"] = None
-        errors = validate_cases_schema(mutated)
-        self.assertTrue(any(f"Case '{target['case']}'" in err and "justification" in err for err in errors))
+    def test_schema_missing_justification_for_nonpassing_case(self):
+        """Every nonpassing original procedure needs an explicit explanation."""
+        for disposition in ("failed", "not_run", "unsupported", "blocked_external"):
+            with self.subTest(disposition=disposition):
+                mutated = json.loads(json.dumps(self.raw_data))
+                target = next(c for c in mutated["cases"] if c["disposition"] == disposition)
+                target["justification"] = None
+                errors = validate_cases_schema(mutated)
+                self.assertTrue(any(f"Case '{target['case']}'" in err and "justification" in err for err in errors))
 
     def test_schema_duplicate_case_identifier(self):
         """Duplicate case identifiers must be flagged as schema errors."""
@@ -141,11 +142,24 @@ class TestCasesJsonSchema(unittest.TestCase):
         self.assertTrue(any("by_disposition['passed']" in err for err in errors))
 
     def test_schema_present_coverage_mismatch(self):
-        """Coverage status must match the case's disposition."""
+        """Unscoped coverage cannot replace an original procedure's disposition."""
         mutated = json.loads(json.dumps(self.raw_data))
         mutated["cases"][0]["present_coverage"]["status"] = "unsupported"  # was passed
         errors = validate_cases_schema(mutated)
         self.assertTrue(any("coverage status 'unsupported' does not match" in err for err in errors))
+
+    def test_schema_local_only_pass_requires_explicit_scope_and_evidence(self):
+        for mutation, expected in (
+            (lambda coverage: coverage.pop("evidence_scope"), "does not match disposition"),
+            (lambda coverage: coverage.update(evidence_scope="unknown"), "invalid evidence_scope"),
+            (lambda coverage: coverage.update(evidence_file=None), "without an evidence file"),
+            (lambda coverage: coverage.update(passing_directions=[]), "no passing directions"),
+        ):
+            mutated = json.loads(json.dumps(self.raw_data))
+            local = next(c for c in mutated["cases"] if c["case"] == "rst_after_header")
+            mutation(local["present_coverage"])
+            errors = validate_cases_schema(mutated)
+            self.assertTrue(any(expected in error for error in errors), errors)
 
 
 class TestTargetInventoryLoading(unittest.TestCase):
