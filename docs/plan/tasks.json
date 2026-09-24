@@ -380,6 +380,12 @@
       ],
       "checks": [
         "interop"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-23: 4f1e3241 preserves the three official compressed-unary calls and adds a high-entropy compressed request. CI 35933824552 at 2bb94332 passed all 18 cases in each C++ peer direction; scripts/grpc-interop-cpp.sh records grpc/grpc@d1487957 and SHA-256 digests for both test-only binaries."
       ]
     },
     {
@@ -475,6 +481,9 @@
       "checks": [
         "native-hostile",
         "native-rpc"
+      ],
+      "evidence": [
+        "Partial 2026-09-23: 14af5af9 requires actual local-peer completion markers for all eight spec-derived HTTP/2 cases; 8/8 passed locally with retained client/peer logs and a fake-success client recorded failed. This purpose-built peer is not the upstream runner binary; independent-peer qualification remains open."
       ]
     },
     {
@@ -503,6 +512,9 @@
       "checks": [
         "native-hostile",
         "native-tls"
+      ],
+      "evidence": [
+        "Partial 2026-09-23: 885b6a86 decodes HPACK :status and asserts actual HTTP 405/415 on the local framing probe; the local server probe matrix passed 2/2 with retained reports. The original upstream probe binary has not run, so IO-09 remains pending."
       ]
     },
     {
@@ -955,6 +967,12 @@
         "descriptors",
         "shared",
         "conformance"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-23: 0b6a45ef resolves Edition 2024 descriptor defaults, inheritance, naming and visibility against five checked fixture oracles and rejects unknown or invalid features; local dynamic tests 27/27. CI 35933824552 and compatibility 35933824589 at 2bb94332 passed the workspace, pinned v35.1/max-2023 conformance and original shared consumers. Generator maximum_edition stays 1000; generated Edition 2024 consumers remain CG-14."
       ]
     },
     {
@@ -1038,6 +1056,12 @@
       ],
       "checks": [
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-23: Config::compile_descriptor_set and nine checked FDS inputs generate byte-identical configured output versus pinned protoc, with explicit malformed/missing diagnostics and imported-source rebuild directives. The packaged core and both adapters cold-build native and tonic service stubs without protoc; CI 35933824552 at 2bb94332 passed conformance descriptor parity, package consumers, workspace and macOS onboarding."
       ]
     },
     {
@@ -1063,7 +1087,10 @@
         "Record supported/missing features, reviewed dependency versions and differential fixtures; no dependency is installed before approval.",
         "Provide a bounded adapter contract for CG-17. If no approved frontend covers the profile, record the blocker and decompose missing parser work; do not silently fall back to protoc or commission an unbounded rewrite."
       ],
-      "checks": []
+      "checks": [],
+      "evidence": [
+        "Partial 2026-09-23: docs/rust-frontend.md reviews protox 0.9.1, protobuf-parse 3.7.2 and protofish 0.5.3 from dated source; none covers the full Edition 2023/2024 and import-option contract. No dependency was added. Maintainer approval of any reduced profile and a transitive license/MSRV/FFI review remain necessary before CG-17."
+      ]
     },
     {
       "id": "CG-17",
@@ -1242,6 +1269,12 @@
       ],
       "checks": [
         "shared"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-23: ae73c143 builds pinned Rust-capable protoc; 1705f0f9 counts ANSI-colored Cargo output fail closed. Compatibility CI 35933824589 at 2bb94332 passed all 19 original Google shared consumer crates and 233 tests with zero failures; generator/runtime pins and seven scoped exclusions are explicit and separate from the local behavior port."
       ]
     },
     {
@@ -1653,6 +1686,9 @@
       "checks": [
         "native-hostile",
         "native-rpc"
+      ],
+      "evidence": [
+        "Partial 2026-09-23: 2584e5c1 adds a bounded separate-process native mixed-load diagnostic with scheduled unary probes competing with bulk streams. Benchmark tests passed, but qualification.qualified remains false: full queue delay, exact permit/high-water byte gauges, other five cells and paired dedicated-host evidence are missing."
       ]
     },
     {
@@ -1881,6 +1917,12 @@
         "native-tls",
         "native-discovery",
         "codegen"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-23: examples/greeter/src/production.rs and docs/guides/production-service.md exercise local-fixture-only TLS/mTLS, four RPC shapes, explicit overload, readiness and bounded drain without printing keys. Local TLS and mTLS demos each passed eight repeated overload/drain runs; CI 35933824552 at 2bb94332 passed the macOS onboarding, native TLS and workspace gates."
       ]
     },
     {
