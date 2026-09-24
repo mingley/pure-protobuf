@@ -352,7 +352,8 @@
       "implementer": "wave1a-lane-agent",
       "reviewer": "coordinator",
       "evidence": [
-        "done: cases.json extended (+331) with validated assertions; IO-03/04 suites green."
+        "done: cases.json extended (+331) with validated assertions; IO-03/04 suites green.",
+        "2026-09-24 bounded transport follow-up: a producer that queued a valid server-streaming or bidi reply followed by an error in the same batch previously dropped the valid reply, yielding a non-OK status on the first read. A deterministic TCP regression failed before the fix and passed after the server flushes complete queued frames before error trailers and rolls back any partially encoded failed frame; the full serving suite passed 1097/1097 with strict library Clippy. This is a local transport correction, not original HTTP/2 negative-runner qualification."
       ]
     },
     {
