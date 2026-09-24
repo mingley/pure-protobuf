@@ -50,11 +50,11 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
      historical tonic tables below predate that fix and must not be read as
      direct first-encode measurements. Construction/field assignment is not
      included in this parse-prepared diagnostic.
-   - *Mutated Encode*: Alternates the mutated field between distinct values
-     before every encode to include cache invalidation and size recomputation.
-     Full encoded buffers, rather than only their lengths, are consumed by the
-     benchmark black box. These additional pbrs timings are diagnostic, not
-     apples-to-apples performance gates against competitors' cached encode rows.
+   - *Mutated Encode*: `bench` alternates a field before every pbrs encode to
+     include cache invalidation and size recomputation. `tonic-bench` now
+     reports a separate three-codec `Person` id-mutation comparison; it is
+     not part of the historical rows or gates. Both consume full encoded
+     buffers and are diagnostic, not replacements for the cached encode rows.
 4. **Parse-Only vs. Parse-and-Touch**:
    - *Parse-Only*: Deserializes wire bytes and drops the decoded message
      immediately without inspecting fields.
@@ -295,6 +295,28 @@ numbers do not erase those materialization differences. Borrowed views are
 reported separately in `bench`, not in this survey. The existing touch
 checksums access case-selected fields, not every nested leaf; exhaustive
 parse-and-touch materialization remains BM-03 work.
+
+**Mutation before encode (separate diagnostic, not a gate):**
+`tonic-bench` compares `proto/person.proto` with handwritten
+`pbrs::testdata::Person`, a locally prost-derived matching schema, and the
+checked-in v4 upb binding in `rust_out_person/src/person.u.pb.rs` (pinned to
+4.35.1-release). The shared Person input has one `scores` entry and no
+`extras`; all other populated fields remain unchanged. Each codec parses and
+pre-warms its own message outside the timed interval, then alternates `id`
+between 42 and 43 on that same object **before every encode**. The measured
+time includes the setter/assignment and serialization, not parsing or
+construction. pbrs/prost reuse a `BytesMut`; v4 allocates its upb-backed
+output. Full output buffers are passed through the black box. Before timing,
+both mutated states must produce equal wire bytes and reparse correctly with
+all three codecs; any mismatch fails the run. Iterations per sample share
+the existing 10,000/estimated-32-MiB cap and are reported separately.
+
+`person_generated` is explicitly excluded: the compiler-generated pbrs
+Person binding is wired only in `bench`, not in `tonic-bench`; generating it
+here would require an out-of-scope build-script change. The new result does
+not establish generated-layout parity, other field-mutation parity, retained
+memory, exhaustive touch, or holdout-schema coverage. A single local release
+smoke is unqualified comparative evidence, not a new performance claim.
 
 Historical table columns report:
 - `pbrs enc (fresh / cached)`: older derived fresh estimate alongside cached

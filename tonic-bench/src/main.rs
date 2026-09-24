@@ -7,6 +7,7 @@
 //! not TestAllTypes).
 
 use bytes::BytesMut;
+use pbrs::testdata::{Address as PbrsAddress, Person as PbrsPerson};
 use pbrs::{Parse, Serialize};
 use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
@@ -28,8 +29,42 @@ mod v4_cases {
     #![allow(clippy::all, dead_code, unused, nonstandard_style)]
     include!(concat!(env!("OUT_DIR"), "/v4/generated.rs"));
 }
+mod v4_person {
+    #![allow(clippy::all, dead_code, unused, nonstandard_style)]
+    mod internal_do_not_use_person {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../rust_out_person/src/person.u.pb.rs"
+        ));
+    }
+    pub(crate) use internal_do_not_use_person::*;
+}
 
 use helloworld::HelloRequest as ProstHello;
+
+#[derive(Clone, PartialEq, prost::Message)]
+struct ProstAddress {
+    #[prost(string, tag = "1")]
+    city: String,
+}
+
+#[derive(Clone, PartialEq, prost::Message)]
+struct ProstPerson {
+    #[prost(int32, tag = "1")]
+    id: i32,
+    #[prost(string, tag = "2")]
+    name: String,
+    #[prost(string, optional, tag = "3")]
+    email: Option<String>,
+    #[prost(string, repeated, tag = "4")]
+    tags: Vec<String>,
+    #[prost(map = "string, int32", tag = "5")]
+    scores: std::collections::HashMap<String, i32>,
+    #[prost(message, optional, tag = "6")]
+    address: Option<ProstAddress>,
+    #[prost(map = "string, int32", tag = "16")]
+    extras: std::collections::HashMap<String, i32>,
+}
 
 fn median_ns<F, R>(samples: usize, iters: u32, mut f: F) -> f64
 where
@@ -97,6 +132,61 @@ fn first_encode_budget<P, R, V>(iters: u32, payload: usize) -> u32 {
         "first encode exceeds the 32 MiB preparation budget"
     );
     iters.min(10_000).min(by_memory)
+}
+
+fn median_mutated_encode_ns<M, F, U, E, O>(
+    samples: usize,
+    iters: u32,
+    mut prepare: F,
+    mut mutate: U,
+    mut encode: E,
+) -> f64
+where
+    F: FnMut() -> M,
+    U: FnMut(&mut M, i32),
+    E: FnMut(&M) -> O,
+{
+    assert!(
+        samples > 0 && iters > 0,
+        "mutation samples and iters must be positive"
+    );
+    let mut times = Vec::with_capacity(samples);
+    for _ in 0..samples {
+        let mut message = prepare();
+        let mut last_id = 43;
+        let mut step = || {
+            last_id = if last_id == 42 { 43 } else { 42 };
+            mutate(&mut message, last_id);
+            std::hint::black_box(encode(&message));
+        };
+        for _ in 0..iters / 10 {
+            step();
+        }
+        let start = Instant::now();
+        for _ in 0..iters {
+            step();
+        }
+        times.push(start.elapsed().as_secs_f64() * 1e9 / f64::from(iters));
+    }
+    times.sort_by(|a, b| a.partial_cmp(b).expect("finite mutation timings"));
+    times[samples / 2]
+}
+
+fn assert_person_mutation_output(
+    codec: &str,
+    actual: &[u8],
+    expected_wire: &[u8],
+    expected_id: i32,
+) {
+    assert_eq!(actual, expected_wire, "person mutation: {codec} wire");
+    let parsed = PbrsPerson::parse(actual).expect("person mutation must reparse");
+    let expected = PbrsPerson::parse(expected_wire).expect("checked person reference must parse");
+    assert_eq!(parsed.id(), expected_id, "person mutation: {codec} id");
+    assert_eq!(parsed, expected, "person mutation: {codec} fields");
+    let prost: ProstPerson = prost::Message::decode(actual).expect("prost reparses mutated person");
+    assert_eq!(prost.id, expected_id, "person mutation: {codec} prost id");
+    let v4 = v4_person::Person::parse(actual).expect("v4 reparses mutated person");
+    assert_eq!(v4.id(), expected_id, "person mutation: {codec} v4 id");
 }
 
 fn assert_same_output<P: Parse + PartialEq>(
@@ -441,6 +531,162 @@ fn print_first_encodes(rows: &[Row]) {
         );
     }
     println!();
+}
+
+fn person_input_wire() -> Vec<u8> {
+    let mut address = PbrsAddress::new();
+    address.set_city("nyc");
+    let mut person = PbrsPerson::new();
+    person.set_id(7);
+    person.set_name("ada lovelace");
+    person.set_email("ada@example.com");
+    person.tags_mut().push("math");
+    person.tags_mut().push("eng");
+    person.scores_mut().insert("notes", 12);
+    person.set_address(address);
+    Serialize::serialize(&person).expect("person input wire")
+}
+
+fn encode_pbrs_person(message: &PbrsPerson, dst: &mut BytesMut) {
+    dst.clear();
+    Serialize::encode(message, dst).expect("pbrs person encode");
+}
+
+fn encode_prost_person(message: &ProstPerson, dst: &mut BytesMut) {
+    dst.clear();
+    prost::Message::encode(message, dst).expect("prost person encode");
+}
+
+fn verify_person_mutations(input: &[u8]) {
+    let mut pbrs = PbrsPerson::parse(input).expect("pbrs person input");
+    let mut prost: ProstPerson = prost::Message::decode(input).expect("prost person input");
+    let mut v4 = v4_person::Person::parse(input).expect("v4 person input");
+    let mut pbrs_dst = BytesMut::new();
+    let mut prost_dst = BytesMut::new();
+    encode_pbrs_person(&pbrs, &mut pbrs_dst);
+    assert_eq!(&pbrs_dst[..], input, "person: pbrs input wire");
+    encode_prost_person(&prost, &mut prost_dst);
+    assert_eq!(&prost_dst[..], input, "person: prost input wire");
+    assert_eq!(
+        V4Serialize::serialize(&v4).expect("v4 person input wire"),
+        input,
+        "person: v4 input wire"
+    );
+
+    for id in [42, 43] {
+        let mut expected = PbrsPerson::parse(input).expect("person mutation reference");
+        expected.set_id(id);
+        let expected_wire = Serialize::serialize(&expected).expect("person expected wire");
+        pbrs.set_id(id);
+        prost.id = id;
+        v4.set_id(id);
+
+        encode_pbrs_person(&pbrs, &mut pbrs_dst);
+        assert_person_mutation_output("pbrs", &pbrs_dst, &expected_wire, id);
+        encode_prost_person(&prost, &mut prost_dst);
+        assert_person_mutation_output("prost", &prost_dst, &expected_wire, id);
+        let v4_wire = V4Serialize::serialize(&v4).expect("v4 person mutation wire");
+        assert_person_mutation_output("v4", &v4_wire, &expected_wire, id);
+    }
+}
+
+#[derive(Clone, Copy)]
+struct MutationRow {
+    name: &'static str,
+    payload: usize,
+    iters: u32,
+    samples: usize,
+    pbrs_ns: f64,
+    prost_ns: f64,
+    v4_ns: f64,
+}
+
+fn run_person_mutation() -> MutationRow {
+    let input = person_input_wire();
+    verify_person_mutations(&input);
+    let (iters, samples) = timer_budget(input.len());
+    let iters =
+        first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(iters, input.len());
+    let mut pbrs_dst = BytesMut::new();
+    let mut prost_dst = BytesMut::new();
+    let pbrs_ns = median_mutated_encode_ns(
+        samples,
+        iters,
+        || {
+            let message = PbrsPerson::parse(&input).expect("pbrs mutation parse");
+            let mut warm = BytesMut::new();
+            encode_pbrs_person(&message, &mut warm);
+            std::hint::black_box(&warm[..]);
+            message
+        },
+        |message, id| message.set_id(id),
+        |message| {
+            encode_pbrs_person(message, &mut pbrs_dst);
+            std::hint::black_box(&pbrs_dst[..]);
+        },
+    );
+    let prost_ns = median_mutated_encode_ns(
+        samples,
+        iters,
+        || {
+            let message: ProstPerson =
+                prost::Message::decode(input.as_slice()).expect("prost mutation parse");
+            std::hint::black_box(prost::Message::encode_to_vec(&message));
+            message
+        },
+        |message, id| message.id = id,
+        |message| {
+            encode_prost_person(message, &mut prost_dst);
+            std::hint::black_box(&prost_dst[..]);
+        },
+    );
+    let v4_ns = median_mutated_encode_ns(
+        samples,
+        iters,
+        || {
+            let message = v4_person::Person::parse(&input).expect("v4 mutation parse");
+            std::hint::black_box(V4Serialize::serialize(&message).expect("v4 person warmup"));
+            message
+        },
+        |message, id| message.set_id(id),
+        |message| {
+            std::hint::black_box(V4Serialize::serialize(message).expect("v4 person encode"));
+        },
+    );
+    MutationRow {
+        name: "person_handwritten",
+        payload: input.len(),
+        iters,
+        samples,
+        pbrs_ns,
+        prost_ns,
+        v4_ns,
+    }
+}
+
+fn mutation_report(row: &MutationRow) -> String {
+    assert!(
+        row.iters > 0 && row.samples > 0 && row.payload > 0,
+        "mutation report needs measured work"
+    );
+    for (codec, value) in [
+        ("pbrs", row.pbrs_ns),
+        ("prost", row.prost_ns),
+        ("v4", row.v4_ns),
+    ] {
+        assert!(
+            value.is_finite() && value > 0.0,
+            "mutation report has invalid {codec} time"
+        );
+    }
+    format!(
+        "Mutation before encode (diagnostic; mutation+encode ns, parse/pre-warm excluded):\n\
+         | case | id transition | payload | iterations/sample | samples | pbrs | prost | v4 |\n\
+         |---|---|---:|---:|---:|---:|---:|\n\
+         | {} | 42 <-> 43 | {} | {} | {} | {:.1} | {:.1} | {:.1} |\n\n\
+         Excluded: person_generated (pbrs generated Person is not wired in tonic-bench; adding build.rs generation is outside this slice).\n",
+        row.name, row.payload, row.iters, row.samples, row.pbrs_ns, row.prost_ns, row.v4_ns
+    )
 }
 
 fn main() {
@@ -1001,6 +1247,7 @@ fn main() {
     print_first_encodes(&published);
     print_table("## Common shapes (codec_cases.proto)", &survey);
     print_first_encodes(&survey);
+    println!("{}", mutation_report(&run_person_mutation()));
 
     let mut failed = false;
     for r in survey.iter() {
@@ -1044,7 +1291,13 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{first_encode_budget, median_first_encode_ns};
+    use super::{
+        MutationRow, ProstPerson, assert_person_mutation_output, first_encode_budget,
+        median_first_encode_ns, median_mutated_encode_ns, mutation_report, person_input_wire,
+        v4_person, verify_person_mutations,
+    };
+    use pbrs::testdata::Person as PbrsPerson;
+    use pbrs::{Parse, Serialize};
 
     #[test]
     fn first_encode_prepares_and_encodes_every_sample_once() {
@@ -1086,5 +1339,97 @@ mod tests {
             })
             .is_err()
         );
+    }
+
+    #[test]
+    fn mutation_helper_reuses_each_parsed_message_and_alternates_before_every_encode() {
+        let mut prepared = 0usize;
+        let mut encoded = Vec::new();
+        let measurement = median_mutated_encode_ns(
+            3,
+            10,
+            || {
+                prepared += 1;
+                7
+            },
+            |message, id| *message = id,
+            |message| {
+                encoded.push(*message);
+                vec![*message as u8]
+            },
+        );
+        assert!(measurement.is_finite());
+        assert_eq!(prepared, 3);
+        assert_eq!(encoded.len(), 33);
+        assert_eq!(
+            encoded,
+            [42, 43, 42, 43, 42, 43, 42, 43, 42, 43, 42].repeat(3)
+        );
+    }
+
+    #[test]
+    fn person_mutation_checks_all_codecs_and_rejects_mismatches() {
+        let input = person_input_wire();
+        verify_person_mutations(&input);
+        let iters =
+            first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(40_000, input.len());
+        let footprint = input.len()
+            + size_of::<PbrsPerson>()
+                .max(size_of::<ProstPerson>())
+                .max(size_of::<v4_person::Person>());
+        assert!(iters <= 10_000);
+        assert!(usize::try_from(iters).expect("bounded count") * footprint <= 32 * 1024 * 1024);
+
+        let mut expected = PbrsPerson::parse(&input).expect("reference parse");
+        expected.set_id(42);
+        let expected_wire = Serialize::serialize(&expected).expect("reference wire");
+        let mut wrong = PbrsPerson::parse(&input).expect("wrong parse");
+        wrong.set_id(43);
+        let wrong_wire = Serialize::serialize(&wrong).expect("wrong wire");
+        assert!(
+            std::panic::catch_unwind(|| {
+                assert_person_mutation_output("prost", &wrong_wire, &expected_wire, 42)
+            })
+            .is_err()
+        );
+        assert!(
+            std::panic::catch_unwind(|| assert_person_mutation_output("v4", b"\xff", b"\xff", 42))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn mutation_report_is_separate_and_fails_closed_on_missing_measurements() {
+        let row = MutationRow {
+            name: "person_handwritten",
+            payload: 64,
+            iters: 10,
+            samples: 3,
+            pbrs_ns: 3.5,
+            prost_ns: 4.0,
+            v4_ns: 9.2,
+        };
+        let report = mutation_report(&row);
+        assert_eq!(
+            report.lines().next(),
+            Some(
+                "Mutation before encode (diagnostic; mutation+encode ns, parse/pre-warm excluded):"
+            )
+        );
+        assert_eq!(
+            report.lines().nth(3),
+            Some("| person_handwritten | 42 <-> 43 | 64 | 10 | 3 | 3.5 | 4.0 | 9.2 |")
+        );
+        assert!(report.contains("Excluded: person_generated ("));
+        assert!(!report.contains("First encode after parse"));
+        for value in [0.0, f64::NAN, f64::INFINITY] {
+            assert!(
+                std::panic::catch_unwind(|| mutation_report(&MutationRow {
+                    v4_ns: value,
+                    ..row
+                }))
+                .is_err()
+            );
+        }
     }
 }
