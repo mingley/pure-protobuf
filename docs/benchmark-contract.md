@@ -246,6 +246,12 @@ control stream or prove every canceled child has finished before the control
 response is delivered. These local worker checks do not qualify BM-09/BM-10
 against an independent official driver.
 
+The default CI runs the standalone `rpc-bench` worker/fairness and `tonic-bench`
+codec-survey correctness tests serially after the root workspace suite, using
+the same Cargo target directory and two build jobs. This checks report shape,
+error handling, and workload accounting, **not** release-mode speed or
+paired-host benchmark qualification.
+
 ---
 
 ## 6. Statistical Rigor and Precision Standards

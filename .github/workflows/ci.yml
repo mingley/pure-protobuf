@@ -44,6 +44,12 @@ jobs:
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
       - run: cargo test --workspace
+      - name: Standalone benchmark correctness contracts (no performance gate)
+        run: |
+          cargo test --locked --manifest-path rpc-bench/Cargo.toml --bin rpc-bench --test worker --test fairness
+          cargo test --locked --manifest-path tonic-bench/Cargo.toml --bin tonic-bench
+        env:
+          CARGO_TARGET_DIR: target
       - name: Docs build without warnings
         run: cargo doc --workspace --no-deps
         env:
