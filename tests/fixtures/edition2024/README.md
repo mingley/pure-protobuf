@@ -25,9 +25,11 @@ tests/fixtures/edition2024/
 │   ├── extensions.proto    # Schema exercising Edition 2024 extension syntax and ranges
 │   ├── legacy_style.proto  # CG-14: inherited STYLE_LEGACY naming opt-out
 │   ├── maps.proto          # CG-14: verified string map key and value
-│   └── maps_none.proto     # CG-14: file-level unverified string map entries
+│   ├── maps_none.proto     # CG-14: file-level unverified string map entries
+│   └── closed_enum.proto   # CG-14: repeated/expanded/map CLOSED reference
 ├── fds/                    # Deterministic FileDescriptorSet binaries compiled via protoc 36.1
 │   ├── cg14_preview.fds    # Four supplementary schemas, including vendored original extensions
+│   ├── closed_enum.fds     # Checked repeated and map CLOSED reference descriptor
 │   ├── defaults.fds
 │   ├── overrides.fds
 │   ├── inheritance.fds
@@ -48,6 +50,10 @@ tests/fixtures/edition2024/
 │   ├── inheritance.json
 │   ├── visibility.json
 │   └── extensions.json
+├── reference/              # Opt-in v36.1 generated/dynamic C++ wire reference
+│   ├── roundtrip.cc        # Opt-in generated/dynamic C++ re-encode driver
+│   └── observed.txt        # Generated and dynamic parse/re-encode observations
+├── test_reference.py       # Offline SHA-256 and nine-vector integrity checks
 └── rejected/               # Schemas rejected by upstream protoc & Edition 2024 specification
     ├── README.md
     ├── import_weak.proto
@@ -75,6 +81,7 @@ tests/fixtures/edition2024/
 | `proto/legacy_style.proto` | `edition2024.legacy` | File-level `STYLE_LEGACY` inherited by unconventional message, field, and nested names. |
 | `proto/maps.proto` | `edition2024.map_cases` | `map<string, string>` verifies both key and value UTF-8 independently of the outer map field. |
 | `proto/maps_none.proto` | `edition2024.map_none` | File-level `utf8_validation = NONE` inherited by both map entry strings. |
+| `proto/closed_enum.proto` | `cg14.reference` | Independent C++ v36.1 reference for packed and expanded repeated CLOSED enums, negative/high-bit unknown values and map-entry rejection; generation by pbrs remains unsupported. |
 
 The supplemental `fds/cg14_preview.fds` contains these three schemas and the
 already vendored `vendor/google/rust/test/extensions.proto` (under the descriptor
@@ -96,6 +103,54 @@ that supports Edition 2024. Source-only rejection or regeneration requires
 `edition2024_rejected_source_fixtures_fail_in_protoc` and
 `edition2024_preview_descriptor_matches_pinned_source_compiler` tests in
 `tests/plugin.rs`.
+
+### Repeated CLOSED-enum reference (CG-14 remains pending)
+
+`proto/closed_enum.proto`, `fds/closed_enum.fds`, and `reference/observed.txt`
+are checked to the SHA-256 values in `expectations.json`. The observations
+come from two paths through local C++ `libprotobuf 36.1`: a generated
+`cg14.reference.Cases` and a separate non-delegating
+`DynamicMessageFactory` parser. `reference/roundtrip.cc` checks the edition
+features at runtime and records all nine packed/unpacked/mixed/map cases.
+Upstream source was pinned to
+[`protocolbuffers/protobuf@f377bfefc5e2cfab68b816903c25b23e091c439d`](https://github.com/protocolbuffers/protobuf/tree/f377bfefc5e2cfab68b816903c25b23e091c439d)
+(`v36.1`); the locally installed `protoc` SHA-256 was
+`aba46cd89af664eadb078e74ae717c8ebda0429b0251fc4f428ffe6184c7599b`
+and its linked `libprotobuf.36.1.0.dylib` SHA-256 was
+`33fc0d349f957fd105bdc773d4757ccccf6239248c826dcd1b5f0e20d7f4f104`.
+The local binary was not independently verified as an official-release build.
+
+To reproduce on macOS with those already-installed v36.1 C++ headers and
+libraries, without modifying the checked files:
+
+```sh
+mkdir -p target/cg14-reference-proof
+/opt/homebrew/bin/protoc -I tests/fixtures/edition2024/proto --retain_options \
+  --cpp_out=target/cg14-reference-proof \
+  --descriptor_set_out=target/cg14-reference-proof/closed_enum.fds closed_enum.proto
+cmp tests/fixtures/edition2024/fds/closed_enum.fds target/cg14-reference-proof/closed_enum.fds
+clang++ -std=c++17 -DNDEBUG -Itarget/cg14-reference-proof \
+  -I/opt/homebrew/include -L/opt/homebrew/lib \
+  tests/fixtures/edition2024/reference/roundtrip.cc \
+  target/cg14-reference-proof/closed_enum.pb.cc \
+  -lprotobuf -labsl_log_internal_message -labsl_log_internal_check_op \
+  -o target/cg14-reference-proof/roundtrip
+target/cg14-reference-proof/roundtrip > target/cg14-reference-proof/observed.txt
+cmp tests/fixtures/edition2024/reference/observed.txt \
+  target/cg14-reference-proof/observed.txt
+```
+
+The offline default CI runs `test_reference.py` and refuses changed descriptor
+or observation bytes without matching checked hashes. It does **not** compile
+this optional C++ reference or enable Edition 2024 codegen. Generated and
+dynamic C++ use the same library, not independent runtimes: packed negative
+unknown `-1` re-encodes as a ten-byte unknown varint, while an earlier unpinned
+Python 6.33.1 probe produced five bytes. Unknown packed values also move after
+the known packed field, and unknown CLOSED map entries are retained as entire
+unknown entry bytes. C++ wire output is not established as universal upb/Rust
+behavior; pbrs repeated/map CLOSED codegen and plugin
+`maximum_edition=1000` remain fail-closed pending a reviewed cross-runtime
+contract and original shared/conformance proof.
 
 ---
 

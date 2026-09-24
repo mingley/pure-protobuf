@@ -7,6 +7,7 @@
   "artifacts": {
     "fds_checksums": {
       "cg14_preview.fds": "fb040b94abda740ddd45042fa56b92a820f5385f679c0d8da8b5c3f334f1ec92",
+      "closed_enum.fds": "fc43115ff60f7da467f301cd6fb5895c443c06485db165c27a4b2939c89dd06f",
       "defaults.fds": "cae3b50c6932891359daf2a51f0ab08821269e3172ec20c7328437b4dcfeac95",
       "extensions.fds": "2cc2dad9794c49081b94b4f107bc3307f5ef2b0d68f8085d61d90ff6daf10a1a",
       "inheritance.fds": "5aabe20250ed32c30e609743abb7c8dfbd63717248c25a6348c7cc61774c3ac6",
@@ -22,7 +23,20 @@
       "overrides_expanded_repeated.bin": "0450629df15ed63ddc4d730c0bc756b6df0c70b1bf3ae854fbaef152da1b99ea",
       "overrides_implicit_set.bin": "2ed9501947094c9d2a680b28c39b612fa7fa1b19509667f1d24756c5b81fd513",
       "overrides_implicit_zero.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reference_checksums": {
+      "proto/closed_enum.proto": "a59934503f4df4690d0e84739eadba36e629a2da53bdffeca03de6b5f35c8d3f",
+      "reference/roundtrip.cc": "834444e25501bfcb3a88fb045033a22491f5e29adbc5e86cb65d622ead9a4af2",
+      "reference/observed.txt": "89ca566019a8ca17b0e137c126cec0cd3880e0e5a2368b77c384ae2e09f731ee"
     }
+  },
+  "closed_enum_reference": {
+    "task": "CG-14",
+    "protobuf_revision": "f377bfefc5e2cfab68b816903c25b23e091c439d",
+    "runtime": "local generated and DynamicMessageFactory C++ v36.1",
+    "protoc_sha256": "aba46cd89af664eadb078e74ae717c8ebda0429b0251fc4f428ffe6184c7599b",
+    "libprotobuf_sha256": "33fc0d349f957fd105bdc773d4757ccccf6239248c826dcd1b5f0e20d7f4f104",
+    "qualified": false
   },
   "feature_defaults": {
     "field_presence": {

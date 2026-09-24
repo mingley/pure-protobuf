@@ -1,0 +1,17 @@
+edition = "2024";
+
+package cg14.reference;
+
+enum ClosedEnum {
+  option features.enum_type = CLOSED;
+  VALUE_ZERO = 0;
+  VALUE_ONE = 1;
+}
+
+message Cases {
+  repeated ClosedEnum packed_values = 1;
+  repeated ClosedEnum expanded_values = 2
+      [features.repeated_field_encoding = EXPANDED];
+  map<int32, ClosedEnum> enum_map = 3;
+  uint32 marker = 4;
+}

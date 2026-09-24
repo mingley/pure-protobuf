@@ -3780,3 +3780,20 @@ fn edition2024_closed_enum_collections_fail_closed() {
         );
     }
 }
+
+#[test]
+fn edition2024_checked_closed_enum_reference_remains_fail_closed() {
+    let fds = include_bytes!("fixtures/edition2024/fds/closed_enum.fds");
+    let error =
+        pbrs::codegen::generate_from_file_descriptor_set(fds, &["closed_enum.proto".to_string()])
+            .expect_err("checked repeated and map CLOSED enums are not yet generated");
+    assert!(
+        matches!(
+            error,
+            pbrs::codegen::CodegenError::MalformedDescriptor { .. }
+        ) && error
+            .to_string()
+            .contains("closed enum in repeated/map field"),
+        "{error}"
+    );
+}

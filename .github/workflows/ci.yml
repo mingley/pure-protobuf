@@ -41,6 +41,8 @@ jobs:
         run: python3 -m unittest tests.interop.test_report tests.interop.test_bench_matrix tests.interop.test_cpp_runner tests.interop.test_http2_peer_proof tests.interop.test_http2_probe_status tests.interop.test_upstream_http2_probe_report tests.interop.test_qps_proof tests.interop.test_conformance_summary tests.test_publish_script tests.test_shared_consumer_report -q
       - name: Codegen cost harness contracts (no benchmark run)
         run: python3 -B -m unittest discover -s bench/codegen -p 'test_run.py' -q
+      - name: Checked Edition 2024 CLOSED-enum oracle integrity (no protoc)
+        run: python3 -B -m unittest discover -s tests/fixtures/edition2024 -p 'test_reference.py' -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
       - run: cargo test --workspace
