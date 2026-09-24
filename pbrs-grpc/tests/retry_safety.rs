@@ -29,6 +29,7 @@
 
 mod common;
 
+use bytes::Bytes;
 use common::{name_of, name_of_request, reply, req, reserve_loopback, serve, serve_on};
 use http::header::CONTENT_TYPE;
 use http::{HeaderValue, StatusCode};
@@ -41,7 +42,7 @@ use pbrs_grpc::{
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 
 /// Greeter implementation that tracks invocations with an atomic counter.
 struct CountingGreeter {
@@ -240,6 +241,34 @@ async fn request_send_window_stall_obeys_cancellation() {
     }
 }
 
+async fn read_request_body(
+    conn: &mut h2::server::Connection<TcpStream, Bytes>,
+    body: &mut h2::RecvStream,
+) -> Vec<u8> {
+    let mut received = Vec::new();
+    // RecvStream alone cannot read later DATA unless the connection is also polled.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            tokio::select! {
+                biased;
+                chunk = body.data() => match chunk {
+                    Some(Ok(chunk)) => received.extend_from_slice(&chunk),
+                    Some(Err(error)) => panic!("request DATA failed: {error}"),
+                    None => break,
+                },
+                accepted = conn.accept() => match accepted {
+                    Some(Ok(_)) => panic!("unexpected second request before body completed"),
+                    Some(Err(error)) => panic!("HTTP/2 connection failed: {error}"),
+                    None => panic!("HTTP/2 connection closed before body completed"),
+                },
+            }
+        }
+    })
+    .await
+    .expect("request body stalled while driving HTTP/2");
+    received
+}
+
 // ============================================================================
 // Scenario A: Failure before headers -> transparent retry is safe and works
 // ============================================================================
@@ -310,9 +339,7 @@ async fn scenario_a_refused_stream_retries_safely() {
         let mut conn2 = h2::server::handshake(socket2).await.expect("handshake 2");
         if let Some(Ok((req, mut respond2))) = conn2.accept().await {
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn2, &mut body).await;
             executions_clone.fetch_add(1, Ordering::SeqCst);
 
             let reply_msg = reply("refused_retry_success");
@@ -351,6 +378,57 @@ async fn scenario_a_refused_stream_retries_safely() {
 // Scenario B: Request dispatched to server -> connection drops -> baseline retries
 // ============================================================================
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn request_body_arriving_after_headers_does_not_stall_server() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let (headers_tx, headers_rx) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.expect("accept");
+        let mut conn = h2::server::handshake(socket).await.expect("handshake");
+        let (request, _respond) = conn
+            .accept()
+            .await
+            .expect("request")
+            .expect("valid request");
+        headers_tx.send(()).expect("acknowledge request headers");
+        let mut body = request.into_body();
+        read_request_body(&mut conn, &mut body).await
+    });
+
+    let socket = TcpStream::connect(addr).await.expect("connect");
+    let (mut sender, conn) = h2::client::handshake(socket)
+        .await
+        .expect("client handshake");
+    let client_driver = tokio::spawn(async move {
+        let _ = conn.await;
+    });
+    let (response, mut send) = sender
+        .send_request(
+            http::Request::builder()
+                .method("POST")
+                .uri("http://localhost/test")
+                .body(())
+                .expect("request"),
+            false,
+        )
+        .expect("send request HEADERS");
+    // Force the server to await DATA only after it has accepted the HEADERS.
+    tokio::time::timeout(Duration::from_secs(5), headers_rx)
+        .await
+        .expect("server did not accept HEADERS")
+        .expect("server stopped before receiving HEADERS");
+    send.send_data(Bytes::from_static(b"ready"), true)
+        .expect("send delayed DATA");
+    let received = tokio::time::timeout(Duration::from_secs(5), server)
+        .await
+        .expect("server stalled after delayed DATA")
+        .expect("server task failed");
+    assert_eq!(received, b"ready");
+    drop(response);
+    client_driver.abort();
+}
+
 /// Scenario B (Unary):
 /// Server receives request, increments execution counter to 1, then connection drops
 /// before sending response headers.
@@ -371,9 +449,7 @@ async fn scenario_b_unary_drops_after_request_dispatched_baseline_retries() {
         let mut conn = h2::server::handshake(socket).await.expect("handshake 1");
         if let Some(Ok((req, respond))) = conn.accept().await {
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn, &mut body).await;
             // Application logic started: increment execution counter
             executions_clone.fetch_add(1, Ordering::SeqCst);
             // Abruptly terminate connection: drop respond and conn without headers
@@ -393,7 +469,12 @@ async fn scenario_b_unary_drops_after_request_dispatched_baseline_retries() {
     });
 
     let client = GreeterClient::connect(addr).await.expect("connect");
-    let result = client.say_hello(Request::new(req("test"))).await;
+    let result = tokio::time::timeout(
+        Duration::from_secs(7),
+        client.say_hello(Request::new(req("test"))),
+    )
+    .await
+    .expect("unary post-dispatch drop hung");
 
     assert!(result.is_err(), "Expected error after connection drop");
     let status = result.unwrap_err();
@@ -429,9 +510,7 @@ async fn scenario_b_server_streaming_drops_after_request_dispatched_baseline_ret
         let mut conn = h2::server::handshake(socket).await.expect("handshake 1");
         if let Some(Ok((req, respond))) = conn.accept().await {
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn, &mut body).await;
             executions_clone.fetch_add(1, Ordering::SeqCst);
             drop(respond);
             drop(body);
@@ -449,7 +528,12 @@ async fn scenario_b_server_streaming_drops_after_request_dispatched_baseline_ret
     });
 
     let client = GreeterClient::connect(addr).await.expect("connect");
-    let result = client.server_hello(Request::new(req("test"))).await;
+    let result = tokio::time::timeout(
+        Duration::from_secs(7),
+        client.server_hello(Request::new(req("test"))),
+    )
+    .await
+    .expect("server-stream post-dispatch drop hung");
 
     assert!(result.is_err(), "Expected error after connection drop");
     let status = result.unwrap_err();
@@ -488,9 +572,7 @@ async fn scenario_c_unary_response_headers_committed_no_retry_on_stream_error() 
         let mut conn = h2::server::handshake(socket).await.expect("handshake");
         if let Some(Ok((req, mut respond))) = conn.accept().await {
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn, &mut body).await;
             executions_clone.fetch_add(1, Ordering::SeqCst);
 
             // Send response HEADERS: commits the response to the client!
@@ -541,9 +623,7 @@ async fn scenario_c_server_streaming_response_headers_committed_no_retry() {
         let mut conn = h2::server::handshake(socket).await.expect("handshake");
         if let Some(Ok((req, mut respond))) = conn.accept().await {
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn, &mut body).await;
             executions_clone.fetch_add(1, Ordering::SeqCst);
 
             // Send response HEADERS: commits the response to the client
@@ -642,9 +722,7 @@ async fn scenario_d_deadline_preserved_and_remaining_timeout_decreases_across_re
                 }
             }
             let mut body = req.into_body();
-            while let Some(chunk) = body.data().await {
-                chunk.expect("data chunk");
-            }
+            let _received = read_request_body(&mut conn2, &mut body).await;
             let reply_msg = reply("retry_budget_success");
             let reply_bytes = reply_msg.serialize().expect("serialize");
             let frame = codec::encode(&reply_bytes, false).expect("encode frame");
