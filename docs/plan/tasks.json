@@ -484,7 +484,8 @@
       ],
       "evidence": [
         "Partial 2026-09-23: 14af5af9 requires actual local-peer completion markers for all eight spec-derived HTTP/2 cases; 8/8 passed locally with retained client/peer logs and a fake-success client recorded failed. This purpose-built peer is not the upstream runner binary; independent-peer qualification remains open.",
-        "Blocker: grpc/grpc@d1487957 test/http2_test/http2_test_server.py imports Twisted and uses Python 2 dict.has_key. No reviewed original-runner toolchain is available; coordinator must review and pin one before a full-profile pass."
+        "Blocker: grpc/grpc@d1487957 test/http2_test/http2_test_server.py imports Twisted and uses Python 2 dict.has_key. No reviewed original-runner toolchain is available; coordinator must review and pin one before a full-profile pass.",
+        "2026-09-24: tests/interop/cases.json distinguishes the original eight not_run procedures from passing local-peer coverage. An explicit spec-derived adapter report passed 8/8 with qualification.qualified=false, retained logs, and full native-profile validation rejected its actual results."
       ]
     },
     {
@@ -516,7 +517,8 @@
       ],
       "evidence": [
         "Partial 2026-09-23: 885b6a86 decodes HPACK :status and asserts actual HTTP 405/415 on the local spec-derived framing probe; the local matrix passed 2/2 with retained reports.",
-        "Blocker 2026-09-24: the original grpc/grpc@d1487957 Go HTTP/2 test binary ran locally with Go 1.25.3 and verified upstream test CA: framing 5/6 (small MAX_FRAME_SIZE expected GOAWAY, received EOF), TLS 0/3 (ALPN error-text drift, Go client TLS-version error before connecting, cipher-suite/TLS 1.3 ambiguity). Upstream TestMain exits 0 despite advisory failures; scripts/upstream_http2_probe_report.py fails closed and scripts/grpc-http2-upstream-server-interop.py retains raw logs. Coordinator must separate server behavior from runner-version drift before IO-09/full-profile qualification."
+        "Blocker 2026-09-24: the original grpc/grpc@d1487957 Go HTTP/2 test binary ran locally with Go 1.25.3 and verified upstream test CA: framing 5/6 (small MAX_FRAME_SIZE expected GOAWAY, received EOF), TLS 0/3 (ALPN error-text drift, Go client TLS-version error before connecting, cipher-suite/TLS 1.3 ambiguity). Upstream TestMain exits 0 despite advisory failures; scripts/upstream_http2_probe_report.py fails closed and scripts/grpc-http2-upstream-server-interop.py retains raw logs. Coordinator must separate server behavior from runner-version drift before IO-09/full-profile qualification.",
+        "2026-09-24: a stdlib cached-server wire check observed SETTINGS then GOAWAY PROTOCOL_ERROR for invalid 16383 MAX_FRAME_SIZE, while pinned Go parseFrame cannot decode GOAWAY. The registry records framing and TLS as failed original probes; an explicit spec-derived adapter report passed 2/2 but qualification.qualified=false, and full native-profile validation rejects substitution. Runner-compatible, fresh-build release-SHA proof is still missing."
       ]
     },
     {
@@ -544,6 +546,12 @@
       ],
       "checks": [
         "native-rpc"
+      ],
+      "status": "done",
+      "implementer": "coordinator",
+      "reviewer": "coordinator",
+      "evidence": [
+        "2026-09-24: existing rpc_soak/channel_soak adapters, failure classes, CLI budgets, deadlines and per-iteration channel churn pass tests/interop/test_soak.py 12/12 against freshly rebuilt native debug binaries and pbrs-grpc library soak tests 7/7 against the shared Cargo target. Started RPCs that expire at the overall deadline now count as omitted, not completed; a new unit regression verifies exact success/failure/omission counts. Original full-duration soak procedures remain not_run in cases.json and belong to QL-01's operator campaign, not this adapter card."
       ]
     },
     {
@@ -1006,6 +1014,9 @@
         "codegen",
         "shared",
         "conformance"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: descriptor-set generation compiles five checked Edition 2024 fixtures plus a SHA-256-checked protoc 36.1 preview FDS into a strict Rust-language Edition 2024 consumer (7 cases and Clippy). Eight default Edition 2024 plugin tests pass with protoc absent; two source-compiler cases run only by explicit opt-in with pinned libprotoc 36.1. Singular closed-enum unknowns round-trip in unknown fields; repeated/map closed enums fail explicitly; extension wire bytes survive without typed access. Proto2/proto3/Edition 2023 generated regressions pass and the plugin advertises maximum_edition=1000. Full original shared-consumer, pinned differential and conformance evidence is still missing, so Edition 2024 plugin support and CG-14 remain pending."
       ]
     },
     {
@@ -1988,6 +1999,9 @@
       "checks": [
         "docs",
         "codegen"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: tests/documentation.rs 14/14 proves synthetic broken example/generated references fail, repo links/anchors and snippets resolve offline; strict workspace rustdoc -D warnings passed against the shared target. The documentation map distinguishes published adapter versions from source-only no-protoc builds. Many historical benchmark tables still lack linked dated source and raw result artifacts, so performance-claim qualification and DX-07 remain open."
       ]
     },
     {
