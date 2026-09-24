@@ -383,6 +383,7 @@ struct Endpoint {
     start_rss_bytes: u64,
     peak_rss_bytes: u64,
     cpu_seconds: f64,
+    byte_budget_allocated_bytes_peak: u64,
     sampled_byte_budget_peak_bytes: u64,
     byte_budget_allocated_bytes_post_drain: u64,
     observed_rejections_by_reason: BTreeMap<String, u64>,
@@ -400,6 +401,13 @@ impl Endpoint {
         {
             return Err("inconsistent endpoint RSS or CPU resource snapshots".into());
         }
+        let sampled_peak = probe.sampled_peak.load(Ordering::SeqCst);
+        let exact_peak = probe.tracker.peak_allocated();
+        if sampled_peak > exact_peak {
+            return Err(
+                "sampled transport byte peak exceeds exact lifetime high-water mark".into(),
+            );
+        }
         Ok(Self {
             pid: std::process::id(),
             start_rss_bytes: before.current_rss_bytes,
@@ -408,7 +416,10 @@ impl Endpoint {
                 .total_cpu_nanos()
                 .saturating_sub(before.total_cpu_nanos()) as f64
                 / 1_000_000_000.0,
-            sampled_byte_budget_peak_bytes: probe.sampled_peak.load(Ordering::SeqCst) as u64,
+            byte_budget_allocated_bytes_peak: u64::try_from(exact_peak)
+                .map_err(|_| "transport byte peak is not representable as u64")?,
+            sampled_byte_budget_peak_bytes: u64::try_from(sampled_peak)
+                .map_err(|_| "sampled transport byte peak is not representable as u64")?,
             byte_budget_allocated_bytes_post_drain: probe.tracker.allocated() as u64,
             observed_rejections_by_reason: probe.rejected_by_reason(),
         })
@@ -928,8 +939,8 @@ struct EndpointMetrics {
     server_active_permits_peak: Option<u64>,
     client_active_permits_post_drain: Option<u64>,
     server_active_permits_post_drain: Option<u64>,
-    client_byte_budget_allocated_bytes_peak: Option<u64>,
-    server_byte_budget_allocated_bytes_peak: Option<u64>,
+    client_byte_budget_allocated_bytes_peak: u64,
+    server_byte_budget_allocated_bytes_peak: u64,
     client_byte_budget_allocated_bytes_post_drain: u64,
     server_byte_budget_allocated_bytes_post_drain: u64,
     client_sampled_byte_budget_peak_bytes: u64,
@@ -1072,8 +1083,8 @@ async fn with_server(case: Case, options: &Options) -> Result<FairnessReport, St
             server_active_permits_peak: None,
             client_active_permits_post_drain: None,
             server_active_permits_post_drain: None,
-            client_byte_budget_allocated_bytes_peak: None,
-            server_byte_budget_allocated_bytes_peak: None,
+            client_byte_budget_allocated_bytes_peak: client_endpoint.byte_budget_allocated_bytes_peak,
+            server_byte_budget_allocated_bytes_peak: server.endpoint.byte_budget_allocated_bytes_peak,
             client_byte_budget_allocated_bytes_post_drain: client_endpoint.byte_budget_allocated_bytes_post_drain,
             server_byte_budget_allocated_bytes_post_drain: server.endpoint.byte_budget_allocated_bytes_post_drain,
             client_sampled_byte_budget_peak_bytes: client_endpoint.sampled_byte_budget_peak_bytes,
@@ -1082,26 +1093,28 @@ async fn with_server(case: Case, options: &Options) -> Result<FairnessReport, St
             client_observed_rejections_by_reason: client_endpoint.observed_rejections_by_reason,
             server_observed_rejections_by_reason: server.endpoint.observed_rejections_by_reason,
         };
-        if endpoint.client_sampled_byte_budget_peak_bytes > case.limits.byte_budget_bytes as u64
-            || endpoint.server_sampled_byte_budget_peak_bytes > case.limits.byte_budget_bytes as u64
+        if endpoint.client_byte_budget_allocated_bytes_peak > case.limits.byte_budget_bytes as u64
+            || endpoint.server_byte_budget_allocated_bytes_peak > case.limits.byte_budget_bytes as u64
+            || endpoint.client_sampled_byte_budget_peak_bytes
+                > endpoint.client_byte_budget_allocated_bytes_peak
+            || endpoint.server_sampled_byte_budget_peak_bytes
+                > endpoint.server_byte_budget_allocated_bytes_peak
         {
-            return Err("observed byte allocations exceeded the configured budget".into());
+            return Err("transport byte high-water mark exceeds the budget or sampled peak".into());
         }
         let mut unsupported_metrics = BTreeMap::from([
             ("per_workload_class.*.queue_delay_nanos".into(),
-             "on_queue_wait measures client pool acquisition only; full outbound-to-TCP and server queue wait are not observable (on_server_queue_wait has no emitter)".into()),
+             "on_queue_wait measures client pool acquisition and on_server_queue_wait measures post-admission scheduling; full outbound-to-TCP and listener/transport queue delay are not observable".into()),
             ("per_workload_class.bulk_streams.scheduling_lag_p99_nanos".into(),
              "bulk streams use fixed concurrent closed-loop workers, not scheduled arrivals".into()),
             ("per_endpoint.*_active_permits_peak".into(),
              "no public gauge exposes client/server transport RPC semaphore occupancy".into()),
             ("per_endpoint.*_active_permits_post_drain".into(),
              "a successful post-drain RPC probes admission, not an exact semaphore occupancy gauge".into()),
-            ("per_endpoint.*_byte_budget_allocated_bytes_peak".into(),
-             "allocated() gives instantaneous snapshots only; callback + 5ms polling peaks are lower bounds, not an exact high-water mark".into()),
         ]);
         let mut blockers = vec![
             "one native/native loopback run is diagnostic only: no randomized five-run paired reference comparisons on dedicated hosts".into(),
-            "full client/server queue wait and transport active-permit/high-water byte-budget gauges are unavailable".into(),
+            "full client/server queue wait and transport active-permit gauges are unavailable".into(),
             "bulk arrival is closed-loop; no per-class open-loop bulk schedule".into(),
         ];
         if small_result.rejected_calls_by_reason["QUEUE_OVERFLOW"] > 0 {
@@ -1371,12 +1384,41 @@ mod tests {
         assert_eq!(measured.start_rss_bytes, 512);
         assert_eq!(measured.peak_rss_bytes, 2048);
         assert_eq!(measured.cpu_seconds, 3.0);
+        assert_eq!(measured.byte_budget_allocated_bytes_peak, 32);
         assert_eq!(measured.sampled_byte_budget_peak_bytes, 32);
         assert_eq!(measured.byte_budget_allocated_bytes_post_drain, 0);
         assert!(
             Endpoint::measured(after, before, &probe).is_err(),
             "reversed snapshots fail closed"
         );
+    }
+
+    #[test]
+    fn exact_byte_high_water_captures_a_spike_missed_by_sampling() {
+        let tracker = ByteBudgetTracker::with_limit(128);
+        let probe = Probe::new(tracker.clone());
+        let before = ResourceSnapshot {
+            user_cpu_nanos: 1,
+            system_cpu_nanos: 1,
+            current_rss_bytes: 512,
+            peak_rss_bytes: 512,
+            thread_count: 1,
+        };
+        let after = ResourceSnapshot {
+            user_cpu_nanos: 2,
+            system_cpu_nanos: 2,
+            current_rss_bytes: 512,
+            peak_rss_bytes: 512,
+            thread_count: 1,
+        };
+        probe.begin();
+        let permit = tracker.acquire(64).expect("brief allocation");
+        drop(permit);
+        probe.end();
+        let measured = Endpoint::measured(before, after, &probe).expect("valid snapshots");
+        assert_eq!(measured.sampled_byte_budget_peak_bytes, 0);
+        assert_eq!(measured.byte_budget_allocated_bytes_peak, 64);
+        assert_eq!(measured.byte_budget_allocated_bytes_post_drain, 0);
     }
 
     #[test]

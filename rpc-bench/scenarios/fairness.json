@@ -114,8 +114,8 @@
       "server_active_permits_peak": "u64 | null (not exposed)",
       "client_active_permits_post_drain": "u64 | null (not exposed)",
       "server_active_permits_post_drain": "u64 | null (not exposed)",
-      "client_byte_budget_allocated_bytes_peak": "u64 | null (no high-water gauge)",
-      "server_byte_budget_allocated_bytes_peak": "u64 | null (no high-water gauge)",
+      "client_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
+      "server_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
       "client_sampled_byte_budget_peak_bytes": "u64 (lower bound, real allocated() snapshots)",
       "server_sampled_byte_budget_peak_bytes": "u64 (lower bound, real allocated() snapshots)",
       "client_byte_budget_allocated_bytes_post_drain": "u64",
@@ -132,7 +132,7 @@
     "rejected_calls_by_reason": "fairness runner maps Status.code().name() to canonical RESOURCE_EXHAUSTED and LoadRecord.rejected_calls to QUEUE_OVERFLOW; independent client/server LifecycleObserver.on_rejection counts are diagnostic, not deduplicated",
     "timed_out_calls": "LoadRecord.timed_out_calls / RpcMetrics.timeouts",
     "unfinished_calls": "LoadRecord.unfinished_calls",
-    "queue_delay_nanos": "null: client on_queue_wait measures only pool acquisition, and on_server_queue_wait has no emitter; full outbound-to-TCP/server queue delay not exposed",
+    "queue_delay_nanos": "null: client on_queue_wait measures only pool acquisition and server on_server_queue_wait measures post-admission scheduling, not full outbound-to-TCP/listener/transport queue delay",
     "observed_client_pool_wait_nanos": "LifecycleObserver.on_queue_wait (per class, count + p99/max), distinct from LoadRecord scheduling lag and full outbound queue wait",
     "scheduling_lag_p99_nanos": "LoadRecord.scheduling_lags_nanos from actual spawned task start minus scheduled Poisson arrival for dispatched small calls, or generator decision minus arrival for unstarted overflows; null for closed-loop bulk",
     "p99_latency_nanos": "Raw scheduled-relative small samples retain every dispatched outcome and deadline-valued timeouts; required p99 is null on unstarted QUEUE_OVERFLOW or early non-timeout statuses (not deadline-valued), and the run fails when calls remain unfinished; bulk p99 is likewise null on non-timeout failures",
@@ -146,8 +146,8 @@
     "server_active_permits_peak": "null: server transport semaphore occupancy has no public gauge; admitted-call observer counts are not the same measurement",
     "client_active_permits_post_drain": "null: successful probe is not an exact client permit count",
     "server_active_permits_post_drain": "null: successful probe is not an exact server permit count",
-    "client_byte_budget_allocated_bytes_peak": "null: no exact high-water gauge; client sampled lower bound uses ByteBudgetTracker.allocated() at callbacks and 5ms polling",
-    "server_byte_budget_allocated_bytes_peak": "null: no exact high-water gauge; server sampled lower bound uses ByteBudgetTracker.allocated() at callbacks and 5ms polling",
+    "client_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact client tracker-lifetime high-water, including warmup; sampled lower bound is separate",
+    "server_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact server tracker-lifetime high-water, including warmup; sampled lower bound is separate",
     "client_byte_budget_allocated_bytes_post_drain": "shared client ByteBudgetTracker.allocated() after bounded drain",
     "server_byte_budget_allocated_bytes_post_drain": "server ByteBudgetTracker.allocated() after graceful shutdown"
   },
@@ -173,13 +173,13 @@
     "available_now": [
       "scheduled Poisson 128-byte unary RPCs overlap repeating finite 64 x 64KiB server streams at bounded concurrency, after discarded mixed warmup",
       "per-class offered/dispatched/success/failure counts, typed RESOURCE_EXHAUSTED and QUEUE_OVERFLOW, deadline-valued timeout samples, raw latency/scheduling lag and sampled client pool wait",
-      "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, observed byte-budget sample lower bounds and exact post-drain byte accounting",
+      "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, exact tracker-lifetime byte high-water (includes warmup), sampled lower bounds and post-drain byte accounting",
       "bounded CI smoke tests for competition, observed client queue wait and post-drain admission probes"
     ],
     "required_before_qualification": [
       "runnable slow reader/writer, idle peer, reset storm and overload cells; open-loop offered load for every required workload class",
       "client outbound-to-TCP and server queue delays, full offered-call failure latencies including unstarted QUEUE_OVERFLOW",
-      "public client/server active-permit and byte-budget high-water gauges (sampled allocated() peaks are not exact)",
+      "public client/server active-permit gauges and measurement-window attribution for the exact lifetime byte-budget high-water",
       "paired randomized dedicated-host native/tonic-pbrs runs, confidence intervals and RSS growth review; target_thresholds are proposals, not gates"
     ]
   },

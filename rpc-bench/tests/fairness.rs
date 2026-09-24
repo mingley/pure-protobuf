@@ -157,11 +157,18 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
             "{role} budget did not drain"
         );
         let observed = count(endpoints, &format!("{role}_sampled_byte_budget_peak_bytes"));
+        let exact = count(
+            endpoints,
+            &format!("{role}_byte_budget_allocated_bytes_peak"),
+        );
         assert!(
             observed > 0 && observed <= budget,
             "{role} byte sample is not credible"
         );
-        assert!(endpoints[format!("{role}_byte_budget_allocated_bytes_peak")].is_null());
+        assert!(
+            exact >= observed && exact <= budget,
+            "{role} exact lifetime byte high-water contradicts samples or budget"
+        );
         assert!(endpoints[format!("{role}_active_permits_peak")].is_null());
         assert!(endpoints[format!("{role}_active_permits_post_drain")].is_null());
     }
@@ -172,9 +179,10 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
             .is_some_and(|reason| reason.contains("no public gauge"))
     );
     assert!(
-        report["unsupported_metrics"]["per_endpoint.*_byte_budget_allocated_bytes_peak"]
-            .as_str()
-            .is_some_and(|reason| reason.contains("lower bounds"))
+        !report["unsupported_metrics"]
+            .as_object()
+            .expect("unsupported metrics map")
+            .contains_key("per_endpoint.*_byte_budget_allocated_bytes_peak")
     );
 
     let strict = Command::new(binary)
