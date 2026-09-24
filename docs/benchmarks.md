@@ -260,7 +260,8 @@ and published alongside raw logs on controlled hosts.
 
 Same-process encode into `BytesMut` (`Serialize::encode` / prost
 `Message::encode`). v4 is `Serialize::serialize` (new Arena + FFI +
-copy; no EncodeBuf). Not kernel `./bench`. Not in CI. Two consecutive
+copy; no EncodeBuf). Not kernel `./bench`. Release-mode timing is not in CI;
+unit correctness is. Two consecutive
 `./target/release/tonic-bench` runs; second capture below.
 
 `hello` / `hello_4kib` are the old 1-string rows. Everything else is
@@ -270,6 +271,11 @@ gencode is specialized (hello-sized), not TestAllTypes.
 For the `hello` rows, pbrs/prost use `hello.proto` but v4 uses the
 wire-equivalent `codec_cases.proto` `Name`; the generated schemas are not
 identical even though their encoded bytes and observed name match.
+The v4 common-shape bindings are byte-checked output from the pinned
+protobuf v35.1 Rust generator, matching runtime `4.35.1-release`. CI checks
+their source/generated SHA-256 values and compiles that output; a default
+local build requires the genuine pinned `protoc 35.1` and rejects a newer
+compiler whose gencode version was merely rewritten.
 
 **Historical first-encode caveat:** the `pbrs enc (fresh / cached)` numbers in
 the tables below were captured by an older harness that subtracted separate
@@ -398,7 +404,10 @@ Linux x86_64 1-string line of record after dropping the per-message
 4 KiB 36.8 / 153.8 vs 32.7 / 133.4. That host is not this one.
 
 ```bash
-cd tonic-bench && cargo build --release && ./target/release/tonic-bench
+PROTOC="$PWD/target/pinned-protoc-build/protoc" CARGO_BUILD_JOBS=2 \
+  CARGO_TARGET_DIR=target cargo build --release --locked \
+  --manifest-path tonic-bench/Cargo.toml
+./target/release/tonic-bench
 ```
 
 ## pbrs-grpc vs tonic 0.14 (transport)

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "protobuf_source_revision": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "protoc_version": "libprotoc 35.1",
+  "protoc_sha256": "e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940",
+  "runtime_version": "4.35.1-release",
+  "artifacts": {
+    "proto/codec_cases.proto": "9e208951e54267cce75193bc763b0c0cf5bdac7b79e21808a0ea9cbe13348256",
+    "tonic-bench/checked_v4/codec_cases.proto": "9e208951e54267cce75193bc763b0c0cf5bdac7b79e21808a0ea9cbe13348256",
+    "tonic-bench/checked_v4/generated.rs": "8a1a5aaa6f2e581de4561c5b20742b3b9434bfb2a52c5dbec04f1036b8db82eb",
+    "tonic-bench/checked_v4/codec_cases.u.pb.rs": "e46337aa57e11739e462f56fcedcf8f0553fb7a8933356a239893a7f2c0d35af"
+  },
+  "qualification": {
+    "qualified": false,
+    "scope": "Checked v4 benchmark binding correctness, not paired performance evidence"
+  }
+}
