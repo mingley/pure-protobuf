@@ -26,6 +26,10 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 
+#[path = "support/generated_consumer.rs"]
+mod generated_consumer;
+use generated_consumer::{run_consumer, write_consumer};
+
 fn string_field(name: &str, n: u32, presence: Presence) -> FieldDescriptor {
     let mut f = FieldDescriptor::new(name, n, FieldType::String, Cardinality::Optional, presence);
     f.json_name = name.to_string();
@@ -195,44 +199,6 @@ fn assert_field_wise_text(src: &str) {
             "generated text must not allocate DynamicMessage:\n{block}"
         );
     }
-}
-
-fn write_consumer(dir: &std::path::Path, generated: &str, main_rs: &str) {
-    std::fs::create_dir_all(dir.join("src")).unwrap();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    std::fs::write(
-        dir.join("Cargo.toml"),
-        format!(
-            "[package]\nname = \"generated-text-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
-            root.display()
-        ),
-    )
-    .unwrap();
-    std::fs::write(dir.join("src/main.rs"), format!("{generated}\n{main_rs}")).unwrap();
-}
-
-fn run_consumer(dir: &std::path::Path) -> String {
-    let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
-    build
-        .arg("run")
-        .arg("--offline")
-        .arg("--quiet")
-        .current_dir(dir)
-        // Isolate the consumer target dir: parallel consumers share a package
-        // name, so an inherited CARGO_TARGET_DIR makes them race on one binary.
-        .env("CARGO_TARGET_DIR", dir.join("target"));
-    if let Some(h) = cargo_home {
-        build.env("CARGO_HOME", h);
-    }
-    let run = build.output().expect("cargo run consumer");
-    assert!(
-        run.status.success(),
-        "consumer failed:\n{}\n{}",
-        String::from_utf8_lossy(&run.stdout),
-        String::from_utf8_lossy(&run.stderr)
-    );
-    String::from_utf8_lossy(&run.stdout).trim().to_string()
 }
 
 fn generate(proto: &str, out: &std::path::Path) -> String {

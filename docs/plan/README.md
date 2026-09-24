@@ -271,6 +271,14 @@ check as part of each implementation and report its actual command.
 | `codec-bench`, `shape-bench`, `rpc-bench` | Existing excluded crates have their own manifests/lockfiles. Local runs are smoke/evidence only; leadership gates need BM-12's approved isolated hosts. |
 | Empty `checks` list | The card introduces its own harness or requires documentary/operator proof. Its acceptance criteria still need evidence; this never means automatic completion. |
 
+For compatible generated JSON/text, WKT, scalar and oneof consumer tests,
+use the shared `target/integration-consumers` Cargo cache. Each scratch
+consumer has a distinct package/binary name, so parallel test cases cannot
+replace one another's executable; Cargo serializes builds of the shared
+target and nested builds use at most two jobs. Keep fresh-build/no-`protoc`
+proofs and incompatible toolchain or sanitizer flags in separate targets
+only when isolation is part of the check.
+
 ## Pinned upstream source map
 
 These are read-only source references inspected on 2026-09-18, **not** versions

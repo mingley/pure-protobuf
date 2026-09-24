@@ -30,6 +30,10 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 
+#[path = "support/generated_consumer.rs"]
+mod generated_consumer;
+use generated_consumer::{run_consumer, write_consumer};
+
 fn kind_enum() -> Arc<EnumDescriptor> {
     let mut en = EnumDescriptor {
         name: "Kind".into(),
@@ -277,44 +281,6 @@ fn text_method_block<'a>(src: &'a str, type_hint: &str) -> &'a str {
         .find("pbrs::impl_typed_message")
         .expect("to_text without impl_typed_message in generated source");
     &chunk[..end]
-}
-
-fn write_consumer(dir: &std::path::Path, generated: &str, main_rs: &str) {
-    std::fs::create_dir_all(dir.join("src")).unwrap();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    std::fs::write(
-        dir.join("Cargo.toml"),
-        format!(
-            "[package]\nname = \"generated-scalars-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
-            root.display()
-        ),
-    )
-    .unwrap();
-    std::fs::write(dir.join("src/main.rs"), format!("{generated}\n{main_rs}")).unwrap();
-}
-
-fn run_consumer(dir: &std::path::Path) -> String {
-    let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
-    build
-        .arg("run")
-        .arg("--offline")
-        .arg("--quiet")
-        .current_dir(dir)
-        // Isolate the consumer target dir: parallel consumers share a package
-        // name, so an inherited CARGO_TARGET_DIR makes them race on one binary.
-        .env("CARGO_TARGET_DIR", dir.join("target"));
-    if let Some(h) = cargo_home {
-        build.env("CARGO_HOME", h);
-    }
-    let run = build.output().expect("cargo run consumer");
-    assert!(
-        run.status.success(),
-        "consumer failed:\n{}\n{}",
-        String::from_utf8_lossy(&run.stdout),
-        String::from_utf8_lossy(&run.stderr)
-    );
-    String::from_utf8_lossy(&run.stdout).trim().to_string()
 }
 
 fn generate(out: &std::path::Path) -> String {
