@@ -1031,8 +1031,48 @@ use pbrs::UnknownFields;\n\n"
         }
         for name in &emit_names {
             let desc = pool.get_message(name).expect("emit");
-            emit_message(&mut src, &desc);
-            emit_map_decoders(&mut src, &desc);
+            let edition2024 = pool.file_edition(&desc.file_name) == Some(1001);
+            let emitted = edition2024.then(|| {
+                let mut message = desc.as_ref().clone();
+                // CG-14b will add typed extension access; for now keep them in unknown wire fields.
+                message
+                    .fields
+                    .retain(|_, field| field.extension_name.is_none());
+                message
+                    .fields_by_name
+                    .retain(|_, number| message.fields.contains_key(number));
+                message
+                    .fields_by_json_name
+                    .retain(|_, number| message.fields.contains_key(number));
+                message
+            });
+            let desc = emitted.as_ref().unwrap_or(desc.as_ref());
+            if edition2024 {
+                for field in desc.fields.values() {
+                    let repeated_closed = field.cardinality == Cardinality::Repeated
+                        && field.enum_ty.as_ref().is_some_and(|en| en.closed);
+                    let map_closed = field.is_map
+                        && field
+                            .message
+                            .as_ref()
+                            .and_then(|entry| entry.field(2))
+                            .filter(|value| value.field_type == FieldType::Enum)
+                            .and_then(|value| value.type_name.as_deref())
+                            .and_then(|name| pool.get_enum(name))
+                            .is_some_and(|en| en.closed);
+                    if repeated_closed || map_closed {
+                        return Err(CodegenError::MalformedDescriptor {
+                            detail: format!(
+                                "Edition 2024 closed enum in repeated/map field {}.{} is not supported",
+                                desc.full_name, field.name
+                            ),
+                            path: Some(PathBuf::from(&desc.file_name)),
+                        });
+                    }
+                }
+            }
+            emit_message(&mut src, desc, edition2024);
+            emit_map_decoders(&mut src, desc, edition2024)?;
         }
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
         let mut services: Vec<_> = pool
@@ -3186,7 +3226,7 @@ fn emit_clear_doc(src: &mut String, f: &FieldDescriptor) {
     }
 }
 
-fn emit_message(src: &mut String, desc: &MessageDescriptor) {
+fn emit_message(src: &mut String, desc: &MessageDescriptor, edition2024: bool) {
     bind_field_idents(desc);
     let name = rust_ident(&desc.full_name);
     let view = format!("{name}View");
@@ -3278,7 +3318,7 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     for f in desc.fields.values() {
         emit_accessors(src, desc, f);
     }
-    emit_codec(src, desc);
+    emit_codec(src, desc, edition2024);
     if std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref() != Ok("1") {
         emit_json_text(src, desc);
     }
@@ -4807,7 +4847,7 @@ fn map_val_ty(field: &FieldDescriptor) -> FieldType {
         .unwrap_or(FieldType::Int32)
 }
 
-fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
+fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024: bool) {
     let required: Vec<_> = desc
         .fields
         .values()
@@ -4874,7 +4914,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         for f in &lights {
             let _ = writeln!(src, "            if n == {} {{", f.number);
             let _ = writeln!(src, "                match w {{");
-            emit_merge_arm(src, desc, f);
+            emit_merge_arm(src, desc, f, edition2024);
             let _ = writeln!(
                 src,
                 "                    _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -4897,7 +4937,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
                 continue;
             }
             let _ = writeln!(src, "            {} => match w {{", f.number);
-            emit_merge_arm(src, desc, f);
+            emit_merge_arm(src, desc, f, edition2024);
             let _ = writeln!(
                 src,
                 "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -4927,7 +4967,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         let _ = writeln!(src, "        match n {{");
         for f in &heavies {
             let _ = writeln!(src, "            {} => match w {{", f.number);
-            emit_merge_arm(src, desc, f);
+            emit_merge_arm(src, desc, f, edition2024);
             let _ = writeln!(
                 src,
                 "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -5260,7 +5300,12 @@ fn emit_repeated_len_run(src: &mut String, num: u32, st: &str, push: &str) {
     );
 }
 
-fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+fn emit_merge_arm(
+    src: &mut String,
+    desc: &MessageDescriptor,
+    f: &FieldDescriptor,
+    edition2024: bool,
+) {
     let st = store_mut(desc, f);
     let num = f.number;
     if f.is_map {
@@ -5403,6 +5448,37 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         );
         let _ = writeln!(src, "                    }}");
         return;
+    }
+    if edition2024 && f.field_type == FieldType::Enum {
+        if let Some(en) = f.enum_ty.as_ref().filter(|en| en.closed) {
+            let known = en
+                .values
+                .keys()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let is_known = if known.is_empty() {
+                "false".to_string()
+            } else {
+                format!("matches!(value as i32, {known})")
+            };
+            let assign = if is_option(f) {
+                format!("{st} = Some(value as i32)")
+            } else {
+                format!("{st} = value as i32")
+            };
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_VARINT => {{ let value = pbrs::rt::decode_varint(data, pos)?; if {is_known} {{"
+            );
+            emit_oneof_clear(src, desc, f);
+            let _ = writeln!(src, "                    {assign};");
+            let _ = writeln!(
+                src,
+                "                }} else {{ self.unknown.fields.push(pbrs::rt::UnknownField::Varint {{ number: {num}, value }}); }} }}"
+            );
+            return;
+        }
     }
     let expr = read_scalar_expr(f.field_type, "data", "pos");
     let w = wire_const(f.field_type);
@@ -5838,13 +5914,32 @@ fn emit_map_scalar_write(src: &mut String, n: u32, var: &str, ty: FieldType) {
     }
 }
 
-fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
+fn emit_map_decoders(
+    src: &mut String,
+    desc: &MessageDescriptor,
+    edition2024: bool,
+) -> Result<(), CodegenError> {
     bind_field_idents(desc);
     let msg = rust_ident(&desc.full_name).replace("r#", "");
     for f in desc.fields.values() {
         if !f.is_map {
             continue;
         }
+        let (key_utf8, val_utf8) = if edition2024 {
+            f.message
+                .as_ref()
+                .and_then(|entry| entry.field(1).zip(entry.field(2)))
+                .map(|(key, val)| (key.utf8_validate, val.utf8_validate))
+                .ok_or_else(|| CodegenError::MalformedDescriptor {
+                    detail: format!(
+                        "Edition 2024 map {}.{} has no resolved key/value entry",
+                        desc.full_name, f.name
+                    ),
+                    path: Some(PathBuf::from(&desc.file_name)),
+                })?
+        } else {
+            (f.utf8_validate, f.utf8_validate)
+        };
         let id = field_id(f).replace("r#", "");
         let num = f.number;
         let (k, v) = map_kv(f);
@@ -5862,8 +5957,8 @@ fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
             src,
             "    while pos < data.len() {{ let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?; match (n, w) {{"
         );
-        emit_map_scalar_decode(src, 1, "key", kty, f.utf8_validate);
-        emit_map_scalar_decode(src, 2, "val", vty, f.utf8_validate);
+        emit_map_scalar_decode(src, 1, "key", kty, key_utf8);
+        emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
         let _ = writeln!(
             src,
             "        _ => pbrs::rt::skip_field(data, &mut pos, w)?,"
@@ -5872,6 +5967,7 @@ fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
         let _ = writeln!(src, "    Ok((key, val))");
         let _ = writeln!(src, "}}");
     }
+    Ok(())
 }
 
 fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, utf8: bool) {

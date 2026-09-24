@@ -6,6 +6,7 @@
   "description": "Master fixture expectation catalog and oracle for Edition 2024 semantics",
   "artifacts": {
     "fds_checksums": {
+      "cg14_preview.fds": "fb040b94abda740ddd45042fa56b92a820f5385f679c0d8da8b5c3f334f1ec92",
       "defaults.fds": "cae3b50c6932891359daf2a51f0ab08821269e3172ec20c7328437b4dcfeac95",
       "extensions.fds": "2cc2dad9794c49081b94b4f107bc3307f5ef2b0d68f8085d61d90ff6daf10a1a",
       "inheritance.fds": "5aabe20250ed32c30e609743abb7c8dfbd63717248c25a6348c7cc61774c3ac6",

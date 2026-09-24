@@ -414,3 +414,45 @@ All fixtures in `tests/fixtures/edition2024/` are approved and serve as the immu
 ### 8.2 Checksum & Verification Integrity
 
 All `.fds` and `.bin` artifacts are cryptographically registered in `tests/fixtures/edition2024/expectations.json`. Any regression in descriptor parsing or wire encoding will produce an immediate failure against these golden oracles.
+
+### 8.3 Bounded Generated-Consumer Preview (CG-14 Pending)
+
+The direct descriptor-set generator compiles the five checked Edition 2024
+fixtures plus the checked supplemental `fds/cg14_preview.fds` into a strict
+Rust-language Edition 2024 consumer. The preview set contains retained
+`STYLE_LEGACY` naming options, verified/unverified string maps, and the
+already-vendored original extension schema. The focused `tests/plugin.rs`
+consumer checks presence, inherited overrides, singular
+closed enums, delimited framing, visibility, checked wire vectors, and both
+verified and unverified map string entries. Generated map decoders use the
+resolved key and value features of the map entry; the outer 2024 map field's
+`utf8_validate` flag is false. Repeated and map fields with closed enum values
+are explicitly rejected until their unknown-value semantics are implemented.
+Extension fields are not emitted as ordinary typed fields: their wire bytes
+round-trip through unknown fields until `CG-14b` adds typed accessors.
+
+The preview FDS was produced once with `libprotoc 36.1` and `--retain_options`;
+mandatory Cargo tests consume only its checked bytes. `protoc 36.1` strips
+source-retention features such as `enforce_naming_style = STYLE_LEGACY` from
+ordinary descriptor sets. Without retained options, the resolver rejects
+nonconforming names instead of silently assuming Edition 2023 semantics.
+`Config::compile_protos` does not request `--retain_options` by default.
+Source-only rejection cases and byte-for-byte preview-FDS regeneration are
+explicitly ignored in the default Cargo gate:
+run `cargo test --test plugin edition2024_rejected_source_fixtures_fail_in_protoc -- --ignored --exact`
+and `cargo test --test plugin edition2024_preview_descriptor_matches_pinned_source_compiler -- --ignored --exact`
+only with a compatible pinned `libprotoc 36.1`. The default Rust 2024
+consumer, closed-enum, and plugin-cap tests do not invoke `protoc`.
+
+These are descriptor-set consumer proofs, **not** advertised Edition 2024
+plugin support. A direct binary `CodeGeneratorRequest` test verifies that
+`protoc-gen-pbrs` still reports `maximum_edition = 1000`; a compatible
+`protoc` refuses its Edition 2024 output when run with a compatible compiler.
+The upstream
+`rust/test/shared/extensions_test.rs` is empty; compiling its Edition 2024
+schema and checking unknown-extension wire preservation do not qualify typed
+extension access. Full original shared-consumer and pinned differential/
+conformance evidence, including the independent v35.1/max-2023 baseline,
+remain required before `CG-14` can raise the cap. The local warm target does
+not contain the pinned v35.1 compiler or conformance runner; the original
+shared and full conformance suites were not run in this bounded preview.

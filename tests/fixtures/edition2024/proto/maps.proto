@@ -1,0 +1,7 @@
+edition = "2024";
+
+package edition2024.map_cases;
+
+message Maps {
+  map<string, string> strings = 1;
+}

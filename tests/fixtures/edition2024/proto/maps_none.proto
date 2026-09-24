@@ -1,0 +1,9 @@
+edition = "2024";
+
+package edition2024.map_none;
+
+option features.utf8_validation = NONE;
+
+message Maps {
+  map<string, string> strings = 1;
+}

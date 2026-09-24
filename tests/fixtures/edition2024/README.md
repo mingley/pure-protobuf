@@ -22,8 +22,12 @@ tests/fixtures/edition2024/
 │   ├── overrides.proto     # Schema exercising explicit overrides for every feature
 │   ├── inheritance.proto   # Schema exercising file -> message -> field / enum inheritance
 │   ├── visibility.proto    # Schema exercising export/local visibility keywords and defaults
-│   └── extensions.proto    # Schema exercising Edition 2024 extension syntax and ranges
+│   ├── extensions.proto    # Schema exercising Edition 2024 extension syntax and ranges
+│   ├── legacy_style.proto  # CG-14: inherited STYLE_LEGACY naming opt-out
+│   ├── maps.proto          # CG-14: verified string map key and value
+│   └── maps_none.proto     # CG-14: file-level unverified string map entries
 ├── fds/                    # Deterministic FileDescriptorSet binaries compiled via protoc 36.1
+│   ├── cg14_preview.fds    # Four supplementary schemas, including vendored original extensions
 │   ├── defaults.fds
 │   ├── overrides.fds
 │   ├── inheritance.fds
@@ -68,6 +72,30 @@ tests/fixtures/edition2024/
 | `proto/inheritance.proto` | `edition2024.inheritance` | Exercises feature inheritance rules: file-level defaults (`IMPLICIT`, `EXPANDED`, `NONE`), field-level overrides reverting to (`EXPLICIT`, `PACKED`, `VERIFY`), message-level `json_format` overrides with nested message overrides, and enum-level `CLOSED` overrides both at file scope and nested inside messages. |
 | `proto/visibility.proto` | `edition2024.visibility` | Exercises symbol visibility: `export` and `local` keywords on top-level and nested messages/enums, and confirms unadorned nested messages/enums default to local under `EXPORT_TOP_LEVEL`. |
 | `proto/extensions.proto` | `edition2024.extensions` | Exercises Edition 2024 extensions: `extensions 100 to 1000;` declaration, file-level `extend` block, nested message-scoped `extend` block, scalar, string, repeated, submessage, enum extensions, default values (`[default = 42]`), and extension feature overrides (`features.enum_type = CLOSED`). |
+| `proto/legacy_style.proto` | `edition2024.legacy` | File-level `STYLE_LEGACY` inherited by unconventional message, field, and nested names. |
+| `proto/maps.proto` | `edition2024.map_cases` | `map<string, string>` verifies both key and value UTF-8 independently of the outer map field. |
+| `proto/maps_none.proto` | `edition2024.map_none` | File-level `utf8_validation = NONE` inherited by both map entry strings. |
+
+The supplemental `fds/cg14_preview.fds` contains these three schemas and the
+already vendored `vendor/google/rust/test/extensions.proto` (under the descriptor
+name `rust/test/extensions.proto`). It was compiled once with `libprotoc 36.1`:
+
+```sh
+protoc -I tests/fixtures/edition2024/proto -I vendor/google \
+  --retain_options --include_imports \
+  --descriptor_set_out=tests/fixtures/edition2024/fds/cg14_preview.fds \
+  legacy_style.proto maps.proto maps_none.proto rust/test/extensions.proto
+```
+
+`--retain_options` preserves the source-retention naming override; without it,
+the otherwise valid `legacy_style.proto` descriptor loses `STYLE_LEGACY` and
+fails closed. Its checked SHA-256 is recorded in `expectations.json`. Mandatory
+generated-consumer tests read the checked bytes and do not invoke a compiler
+that supports Edition 2024. Source-only rejection or regeneration requires
+`libprotoc 36.1` and is explicitly opt-in through the ignored
+`edition2024_rejected_source_fixtures_fail_in_protoc` and
+`edition2024_preview_descriptor_matches_pinned_source_compiler` tests in
+`tests/plugin.rs`.
 
 ---
 
@@ -132,7 +160,9 @@ The `bin/` directory contains exact binary payloads encoded with `protoc --encod
 
 ## 5. Negative Oracle Summary (`rejected/`)
 
-All negative fixtures in `rejected/` are verified against `protoc 36.1` to confirm exact rejection:
+All negative fixtures in `rejected/` were verified against `protoc 36.1`.
+They require an explicitly opted-in source-compiler test and are not part of
+the default Cargo gate, whose Ubuntu compiler may predate Edition 2024:
 
 1. `import_weak.proto`: Weak imports are removed in Edition 2024.
 2. `ctype_option.proto`: `[ctype = ...]` option is removed in Edition 2024.

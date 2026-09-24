@@ -1,0 +1,13 @@
+edition = "2024";
+
+package edition2024.legacy;
+
+option features.enforce_naming_style = STYLE_LEGACY;
+
+message badName {
+  string BadField = 1;
+
+  message nestedName {
+    int32 BadNumber = 1;
+  }
+}
