@@ -4,7 +4,7 @@ use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::server::{PeerCred, split_path};
 use crate::status::Status;
-use crate::telemetry::diagnostic_identity;
+use crate::telemetry::{diagnostic_debug_value, diagnostic_identity};
 use crate::tls::PeerIdentity;
 use futures_core::future::FusedFuture;
 use std::borrow::Cow;
@@ -1536,6 +1536,15 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
         let method = self
             .method()
             .map(|value| diagnostic_identity(value, config));
+        let scheme = self
+            .scheme()
+            .map(|value| diagnostic_identity(value, config));
+        let encoding = self
+            .encoding()
+            .map(|value| diagnostic_identity(value, config));
+        let user_agent = self
+            .user_agent()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Request")
             .field("message", message_display)
             .field("metadata", &self.metadata)
@@ -1543,12 +1552,36 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("deadline", &self.deadline)
             .field("compress", &self.compress)
             .field("compressed", &self.compressed)
-            .field("remote_addr", &self.remote_addr)
-            .field("local_addr", &self.local_addr)
-            .field("peer_identity", &self.peer_identity)
-            .field("peer_cred", &self.peer_cred)
+            .field(
+                "remote_addr",
+                &self
+                    .remote_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "local_addr",
+                &self
+                    .local_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_identity",
+                &self
+                    .peer_identity
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_cred",
+                &self
+                    .peer_cred
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
             .field("authority", &authority)
-            .field("scheme", &self.scheme)
+            .field("scheme", &scheme)
             .field("path", &path)
             .field("service", &service)
             .field("method", &method)
@@ -1562,10 +1595,10 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("accepts_compressed", &self.accepts_compressed)
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("send_buffer_size", &self.send_buffer_size)
-            .field("encoding", &self.encoding)
+            .field("encoding", &encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
-            .field("user_agent", &self.user_agent())
+            .field("user_agent", &user_agent)
             .finish_non_exhaustive()
     }
 }
@@ -2030,18 +2063,51 @@ impl fmt::Debug for Parts {
         let method = self
             .method()
             .map(|value| diagnostic_identity(value, config));
+        let scheme = self
+            .scheme()
+            .map(|value| diagnostic_identity(value, config));
+        let encoding = self
+            .encoding()
+            .map(|value| diagnostic_identity(value, config));
+        let user_agent = self
+            .user_agent()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Parts")
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline)
             .field("compress", &self.compress)
             .field("compressed", &self.compressed)
-            .field("remote_addr", &self.remote_addr)
-            .field("local_addr", &self.local_addr)
-            .field("peer_identity", &self.peer_identity)
-            .field("peer_cred", &self.peer_cred)
+            .field(
+                "remote_addr",
+                &self
+                    .remote_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "local_addr",
+                &self
+                    .local_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_identity",
+                &self
+                    .peer_identity
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_cred",
+                &self
+                    .peer_cred
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
             .field("authority", &authority)
-            .field("scheme", &self.scheme)
+            .field("scheme", &scheme)
             .field("path", &path)
             .field("service", &service)
             .field("method", &method)
@@ -2055,10 +2121,10 @@ impl fmt::Debug for Parts {
             .field("accepts_compressed", &self.accepts_compressed)
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("send_buffer_size", &self.send_buffer_size)
-            .field("encoding", &self.encoding)
+            .field("encoding", &encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
-            .field("user_agent", &self.user_agent())
+            .field("user_agent", &user_agent)
             .finish_non_exhaustive()
     }
 }
@@ -3248,7 +3314,9 @@ async fn when_cancelled(rx: Option<watch::Receiver<bool>>) {
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
+    use crate::server::PeerCred;
     use crate::telemetry::DiagnosticConfig;
+    use crate::tls::PeerIdentity;
     use std::time::Duration;
 
     #[test]
@@ -3684,6 +3752,158 @@ mod tests {
         assert!(permitted_debug.contains("[TRUNCATED]"));
         assert!(!permitted_debug.contains(path));
         assert!(!permitted_debug.contains("sensitive-payload"));
+    }
+
+    #[test]
+    fn request_and_parts_peer_debug_requires_bounded_consent() {
+        let mut request = Request::new("private-payload").with_http(
+            Some("credential@example.invalid".into()),
+            Some("éééé private-scheme".into()),
+            Some("/private.Service/Method".into()),
+        );
+        request.remote_addr = Some("192.0.2.100:51401".parse().expect("remote"));
+        request.local_addr = Some("127.0.0.1:51402".parse().expect("local"));
+        request.peer_identity = PeerIdentity::from_der_certs([b"private-cert-leaf"]);
+        request.peer_cred = Some(PeerCred::new(914_217, 914_218, Some(914_219)));
+        request.set_encoding(Some("éééé private-encoding".into()));
+        request
+            .set_user_agent("private-user-agent/1")
+            .expect("user-agent");
+        request.set_timeout(Duration::from_secs(2));
+        request
+            .metadata_mut()
+            .insert("authorization", "private-token")
+            .expect("authorization");
+        request
+            .metadata_mut()
+            .insert("x-request-id", "safe-123")
+            .expect("request id");
+
+        let (_, default_parts) = request.clone().into_message_and_parts();
+        for shown in [format!("{request:?}"), format!("{default_parts:?}")] {
+            for field in [
+                "remote_addr",
+                "local_addr",
+                "peer_identity",
+                "peer_cred",
+                "scheme",
+                "encoding",
+                "user_agent",
+            ] {
+                assert!(
+                    shown.contains(&format!("{field}: Some(\"[REDACTED]\")")),
+                    "{shown}"
+                );
+            }
+            for secret in [
+                "192.0.2.100:51401",
+                "127.0.0.1:51402",
+                "914217",
+                "914218",
+                "914219",
+                "PeerIdentity",
+                "éééé",
+                "private-user-agent",
+                "private-token",
+                "credential@example.invalid",
+                "/private.Service/Method",
+            ] {
+                assert!(!shown.contains(secret), "{shown}");
+            }
+            assert!(shown.contains("timeout: Some(2s)"), "{shown}");
+            assert!(shown.contains("\"x-request-id\": \"safe-123\""), "{shown}");
+            assert!(
+                shown.contains("\"authorization\": \"[REDACTED]\""),
+                "{shown}"
+            );
+        }
+
+        for config in [
+            DiagnosticConfig::new().with_raw_identity(true),
+            DiagnosticConfig::new().with_consent(true),
+        ] {
+            request.set_diagnostic_config(config);
+            let shown = format!("{request:?}");
+            assert!(
+                shown.contains("remote_addr: Some(\"[REDACTED]\")"),
+                "{shown}"
+            );
+            assert!(shown.contains("scheme: Some(\"[REDACTED]\")"), "{shown}");
+        }
+
+        request.set_diagnostic_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true)
+                .with_max_value_length(7),
+        );
+        let (_, mut parts) = request.clone().into_message_and_parts();
+        for shown in [format!("{request:?}"), format!("{parts:?}")] {
+            assert!(
+                shown.contains("scheme: Some(\"ééé... [TRUNCATED]\")"),
+                "{shown}"
+            );
+            assert!(
+                shown.contains("encoding: Some(\"ééé... [TRUNCATED]\")"),
+                "{shown}"
+            );
+            assert!(
+                shown.contains("remote_addr: Some(\"192.0.2... [TRUNCATED]\")"),
+                "{shown}"
+            );
+            assert!(
+                shown.contains("peer_cred: Some(\"PeerCre... [TRUNCATED]\")"),
+                "{shown}"
+            );
+            assert!(
+                shown.contains("user_agent: Some(\"private... [TRUNCATED]\")"),
+                "{shown}"
+            );
+            for secret in [
+                "éééé",
+                "192.0.2.100:51401",
+                "127.0.0.1:51402",
+                "914217",
+                "private-user-agent",
+                "credential@example.invalid",
+                "/private.Service/Method",
+            ] {
+                assert!(!shown.contains(secret), "{shown}");
+            }
+            assert!(shown.contains("timeout: Some(2s)"), "{shown}");
+            assert!(
+                shown.contains("\"authorization\": \"[REDACTED]\""),
+                "{shown}"
+            );
+        }
+
+        parts.set_diagnostic_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true)
+                .with_max_value_length(128),
+        );
+        let shown = format!("{parts:?}");
+        assert!(shown.contains("192.0.2.100:51401"), "{shown}");
+        assert!(shown.contains("127.0.0.1:51402"), "{shown}");
+        assert!(shown.contains("uid: 914217"), "{shown}");
+        assert!(shown.contains("gid: 914218"), "{shown}");
+        assert!(shown.contains("pid: Some(914219)"), "{shown}");
+        assert!(
+            shown.contains("PeerIdentity { certificates: 1 }"),
+            "{shown}"
+        );
+        assert!(!shown.contains("private-cert-leaf"), "{shown}");
+        assert!(shown.contains("éééé private-encoding"), "{shown}");
+        assert!(shown.contains("private-user-agent/1"), "{shown}");
+        assert!(
+            shown.contains("\"authorization\": \"[REDACTED]\""),
+            "{shown}"
+        );
+
+        let rebuilt = Request::<&str>::from_message_and_parts("private-payload", parts);
+        assert!(format!("{rebuilt:?}").contains("uid: 914217"));
+        assert!(!format!("{rebuilt:?}").contains("private-payload"));
     }
 
     #[test]

@@ -202,21 +202,32 @@ rejections have their own event. OpenTelemetry export is not built in.
 
 Default `Debug` formatting for `Request`, `Response`, split request `Parts`,
 server `Rpc`, and `TelemetryContext` masks unverified path/authority fields.
+`Request`, `Parts`, and `Rpc` also mask remote/local socket addresses, peer
+certificate identity, Unix peer credentials, and untrusted scheme and
+`grpc-encoding` text. `Request` and `Parts` mask their user-agent override.
+The presence of a peer field remains visible as `Some("[REDACTED]")`.
 `Outgoing` retains its application-defined static RPC path but masks the
 destination authority. A telemetry context keeps the status **code** and
 safe, redacted metadata visible while masking the free-form status message.
 
 For a controlled diagnostic, use `DiagnosticConfig::with_consent(true)` with
-`with_raw_identity(true)` and/or `with_status_message(true)` on a request,
-response, or telemetry context. Revealed strings are bounded by
-`with_max_value_length` (256 bytes by default). These switches are independent
-of `with_sensitive_headers(true)` and `with_payload(true)`: consent to inspect
-an RPC path must not also reveal credentials or payloads. Raw accessors and
-direct `Status` `Display`/`Debug` remain application-controlled and may expose
-untrusted text; do not put credentials in status messages or log them without
-a separate policy. Peer certificate identity and socket addresses are not
-redacted by this path/authority rule, so full diagnostic-surface qualification
-remains open.
+`with_raw_identity(true)` on a `Request`, `Parts`, or `Response`, or call
+`Rpc::set_diagnostic_config` on an inbound RPC (the setting carries to its
+handler `Request` and split `Parts`). For status text in a telemetry context,
+enable `with_status_message(true)` separately. Revealed identity and status
+text is truncated on UTF-8 boundaries to `with_max_value_length` bytes
+(256 by default) plus a truncation marker. Certificate `Debug` reveals only a
+bounded certificate count, never DER bytes. These switches are independent of
+`with_sensitive_headers(true)` and `with_payload(true)`: consent to inspect
+peer details must not also reveal metadata credentials or payloads.
+
+Raw accessors and direct `Status` `Display`/`Debug` remain application-controlled
+and may expose untrusted text. Other diagnostic surfaces, including
+`ConnectionInfo::Debug`, `Response`'s peer-provided encoding, `Outgoing`'s
+user-agent, and unclassified free-form metadata values (including an inbound
+`user-agent` in `Metadata::Debug`) still need a reviewed consent policy.
+Do not put credentials in status messages or log raw peer fields without one;
+OB-03 remains open.
 
 ---
 

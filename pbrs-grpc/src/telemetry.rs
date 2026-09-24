@@ -1104,7 +1104,8 @@ impl DiagnosticConfig {
         self
     }
 
-    /// Permit raw path and authority display (requires explicit consent).
+    /// Permit bounded path, authority, peer facts, and other untrusted identity
+    /// fields in envelope and RPC Debug output (requires explicit consent).
     #[must_use]
     pub fn with_raw_identity(mut self, allow: bool) -> Self {
         self.allow_raw_identity = allow;
@@ -1125,7 +1126,8 @@ impl DiagnosticConfig {
         self
     }
 
-    /// Set a limit on the maximum length of a header value before truncation.
+    /// Set a byte limit for opted-in identity/status text and safe metadata
+    /// diagnostics before truncation.
     #[must_use]
     pub fn with_max_value_length(mut self, max: usize) -> Self {
         self.max_value_length = max;
@@ -1164,7 +1166,7 @@ impl DiagnosticConfig {
         self.consent && self.allow_binary_metadata
     }
 
-    /// Whether raw path and authority display was explicitly permitted.
+    /// Whether raw identity diagnostics were explicitly permitted.
     #[must_use]
     pub fn is_raw_identity_allowed(&self) -> bool {
         self.consent && self.allow_raw_identity
@@ -1345,6 +1347,18 @@ pub(crate) fn diagnostic_identity<'a>(
     }
 }
 
+pub(crate) fn diagnostic_debug_value<T: fmt::Debug>(
+    value: &T,
+    config: Option<&DiagnosticConfig>,
+) -> Cow<'static, str> {
+    match config.filter(|config| config.is_raw_identity_allowed()) {
+        Some(config) => Cow::Owned(
+            diagnostic_value(&format!("{value:?}"), config.max_value_length()).into_owned(),
+        ),
+        None => Cow::Borrowed("[REDACTED]"),
+    }
+}
+
 fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
     if value.len() <= max_bytes {
         return Cow::Borrowed(value);
@@ -1354,4 +1368,40 @@ fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
         boundary -= 1;
     }
     Cow::Owned(format!("{}... [TRUNCATED]", &value[..boundary]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DiagnosticConfig, diagnostic_debug_value};
+    use std::cell::Cell;
+    use std::fmt;
+
+    struct Counted<'a>(&'a Cell<usize>);
+
+    impl fmt::Debug for Counted<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.0.set(self.0.get() + 1);
+            f.write_str("éééé private")
+        }
+    }
+
+    #[test]
+    fn diagnostic_peer_debug_is_lazy_and_unicode_safe() {
+        let calls = Cell::new(0);
+        let value = Counted(&calls);
+        let no_consent = DiagnosticConfig::new().with_raw_identity(true);
+        assert_eq!(diagnostic_debug_value(&value, None), "[REDACTED]");
+        assert_eq!(
+            diagnostic_debug_value(&value, Some(&no_consent)),
+            "[REDACTED]"
+        );
+        assert_eq!(calls.get(), 0);
+
+        let config = no_consent.with_consent(true).with_max_value_length(7);
+        assert_eq!(
+            diagnostic_debug_value(&value, Some(&config)),
+            "ééé... [TRUNCATED]"
+        );
+        assert_eq!(calls.get(), 1);
+    }
 }

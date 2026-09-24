@@ -27,6 +27,7 @@ use common::{
     until_ok,
 };
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::telemetry::DiagnosticConfig;
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, FusedStream, Identity,
     Incoming, InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity,
@@ -31263,6 +31264,77 @@ async fn incoming_peer_stamps_connection_facts() {
                         rpc.scheme()
                     )));
                 }
+                let shown = format!("{rpc:?}");
+                for field in [
+                    "remote_addr",
+                    "local_addr",
+                    "peer_identity",
+                    "peer_cred",
+                    "scheme",
+                    "encoding",
+                    "authority",
+                ] {
+                    if !shown.contains(&format!("{field}: Some(\"[REDACTED]\")")) {
+                        return Err(Status::internal(format!("rpc debug {shown}")));
+                    }
+                }
+                if !shown.contains("path: \"[REDACTED]\"")
+                    || shown.contains("192.0.2.1:8")
+                    || shown.contains("127.0.0.1:9")
+                    || shown.contains("uid: 42")
+                    || shown.contains("PeerIdentity")
+                    || shown.contains("scheme: Some(\"https\")")
+                    || shown.contains("encoding: Some(\"gzip\")")
+                {
+                    return Err(Status::internal(format!("rpc debug leaked {shown}")));
+                }
+                for config in [
+                    DiagnosticConfig::new().with_raw_identity(true),
+                    DiagnosticConfig::new().with_consent(true),
+                ] {
+                    rpc.set_diagnostic_config(config);
+                    if !format!("{rpc:?}").contains("peer_cred: Some(\"[REDACTED]\")") {
+                        return Err(Status::internal("rpc debug bypassed consent"));
+                    }
+                }
+                rpc.set_diagnostic_config(
+                    DiagnosticConfig::new()
+                        .with_consent(true)
+                        .with_raw_identity(true)
+                        .with_max_value_length(128),
+                );
+                let shown = format!("{rpc:?}");
+                if !shown.contains(&format!("path: {:?}", rpc.path())) {
+                    return Err(Status::internal(format!("rpc consent path {shown}")));
+                }
+                for expected in [
+                    "remote_addr: Some(\"192.0.2.1:8\")",
+                    "local_addr: Some(\"127.0.0.1:9\")",
+                    "peer_identity: Some(\"PeerIdentity { certificates: 1 }\")",
+                    "uid: 42",
+                    "gid: 43",
+                    "pid: Some(44)",
+                    "scheme: Some(\"https\")",
+                    "encoding: Some(\"gzip\")",
+                ] {
+                    if !shown.contains(expected) {
+                        return Err(Status::internal(format!("rpc consent debug {shown}")));
+                    }
+                }
+                rpc.set_diagnostic_config(
+                    DiagnosticConfig::new()
+                        .with_consent(true)
+                        .with_raw_identity(true)
+                        .with_max_value_length(6),
+                );
+                let shown = format!("{rpc:?}");
+                if !shown.contains("remote_addr: Some(\"192.0.... [TRUNCATED]\")")
+                    || !shown.contains("peer_cred: Some(\"PeerCr... [TRUNCATED]\")")
+                    || shown.contains("192.0.2.1:8")
+                    || shown.contains("uid: 42")
+                {
+                    return Err(Status::internal(format!("rpc bounded debug {shown}")));
+                }
                 Ok(())
             })
             .serve_with_incoming(StampedIncoming {
@@ -31275,7 +31347,8 @@ async fn incoming_peer_stamps_connection_facts() {
     let client = GreeterClient::new(
         Channel::from_io(client_io, "localhost")
             .await
-            .expect("from_io"),
+            .expect("from_io")
+            .send_compressed(),
     );
     echo_every_shape(&client, None).await;
     server.abort();
@@ -32696,7 +32769,7 @@ fn sees_from_io<T>(request: Request<T>, want_auth: &str, want_scheme: &str) -> R
     Ok(msg)
 }
 
-fn sees_incoming<T>(request: Request<T>) -> Result<T, Status> {
+fn sees_incoming<T: std::fmt::Debug>(request: Request<T>) -> Result<T, Status> {
     let want_remote: SocketAddr = "192.0.2.1:8".parse().expect("remote");
     let want_local: SocketAddr = "127.0.0.1:9".parse().expect("local");
     let want_cred = PeerCred::new(42, 43, Some(44));
@@ -32721,7 +32794,25 @@ fn sees_incoming<T>(request: Request<T>) -> Result<T, Status> {
     if request.scheme() != Some("https") {
         return Err(Status::internal(format!("scheme {:?}", request.scheme())));
     }
+    let shown_request = format!("{request:?}");
     let (msg, parts) = request.into_message_and_parts();
+    let shown_parts = format!("{parts:?}");
+    for shown in [&shown_request, &shown_parts] {
+        for expected in [
+            "remote_addr: Some(\"192.0.... [TRUNCATED]\")",
+            "local_addr: Some(\"127.0.... [TRUNCATED]\")",
+            "peer_identity: Some(\"PeerId... [TRUNCATED]\")",
+            "peer_cred: Some(\"PeerCr... [TRUNCATED]\")",
+            "encoding: Some(\"gzip\")",
+        ] {
+            if !shown.contains(expected) {
+                return Err(Status::internal(format!("handler bounded debug {shown}")));
+            }
+        }
+        if shown.contains("192.0.2.1:8") || shown.contains("uid: 42") {
+            return Err(Status::internal(format!("handler debug leaked {shown}")));
+        }
+    }
     if parts.remote_addr() != Some(want_remote)
         || parts.local_addr() != Some(want_local)
         || parts.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf")

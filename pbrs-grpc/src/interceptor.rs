@@ -1080,9 +1080,10 @@ mod tests {
             Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
         );
         let shown = format!("{resp:?}");
-        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
-        assert!(shown.contains("helloworld.Greeter"), "{shown}");
-        assert!(shown.contains("SayHello"), "{shown}");
+        assert!(shown.contains("path: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(shown.contains("service: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(shown.contains("method: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(!shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");

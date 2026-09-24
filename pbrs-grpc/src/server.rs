@@ -12,8 +12,9 @@ use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{
-    CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver, ObserverChain,
-    RejectionEvent, RejectionReason, diagnostic_identity,
+    CallLabels, CallRole, CancellationEvent, CancellationReason, DiagnosticConfig,
+    LifecycleObserver, ObserverChain, RejectionEvent, RejectionReason, diagnostic_debug_value,
+    diagnostic_identity,
 };
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
@@ -282,6 +283,7 @@ pub struct Rpc {
     transport_scheme: Option<&'static str>,
     extensions: http::Extensions,
     metadata: Metadata,
+    diagnostic_config: Option<DiagnosticConfig>,
     timeout: Option<Duration>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
     byte_budget: ByteBudgetTracker,
@@ -290,21 +292,51 @@ pub struct Rpc {
 
 impl std::fmt::Debug for Rpc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let config = self.diagnostic_config.as_ref();
         f.debug_struct("Rpc")
             .field(
                 "authority",
                 &self
                     .authority()
-                    .map(|value| diagnostic_identity(value, None)),
+                    .map(|value| diagnostic_identity(value, config)),
             )
-            .field("path", &diagnostic_identity(self.path(), None))
-            .field("service", &diagnostic_identity(self.service(), None))
-            .field("method", &diagnostic_identity(self.method(), None))
-            .field("remote_addr", &self.remote_addr)
-            .field("local_addr", &self.local_addr)
-            .field("peer_identity", &self.peer_identity)
-            .field("peer_cred", &self.peer_cred)
-            .field("scheme", &self.scheme())
+            .field("path", &diagnostic_identity(self.path(), config))
+            .field("service", &diagnostic_identity(self.service(), config))
+            .field("method", &diagnostic_identity(self.method(), config))
+            .field(
+                "remote_addr",
+                &self
+                    .remote_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "local_addr",
+                &self
+                    .local_addr
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_identity",
+                &self
+                    .peer_identity
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "peer_cred",
+                &self
+                    .peer_cred
+                    .as_ref()
+                    .map(|value| diagnostic_debug_value(value, config)),
+            )
+            .field(
+                "scheme",
+                &self
+                    .scheme()
+                    .map(|value| diagnostic_identity(value, config)),
+            )
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("rpc_timeout", &self.rpc_timeout())
@@ -320,7 +352,12 @@ impl std::fmt::Debug for Rpc {
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit())
             .field("send_buffer_size", &self.send_buffer_size())
             .field("byte_budget_allocated", &self.byte_budget.allocated())
-            .field("encoding", &self.encoding())
+            .field(
+                "encoding",
+                &self
+                    .encoding()
+                    .map(|value| diagnostic_identity(value, config)),
+            )
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
@@ -447,6 +484,15 @@ impl Rpc {
     /// removed here.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
+    }
+
+    /// Attach diagnostic configuration to this RPC and its handler request.
+    ///
+    /// Debug still masks identity unless both consent and raw identity are
+    /// enabled; opted-in identity values obey the configured byte limit.
+    pub fn set_diagnostic_config(&mut self, config: DiagnosticConfig) -> &mut Self {
+        self.diagnostic_config = Some(config);
+        self
     }
 
     /// Cap this RPC's deadline. Combined with the client's `grpc-timeout` and
@@ -1162,6 +1208,7 @@ impl Rpc {
             transport_scheme: _,
             extensions,
             metadata,
+            diagnostic_config,
             timeout: _,
             response_interceptor: _,
             byte_budget,
@@ -1190,6 +1237,9 @@ impl Rpc {
             )
             .with_extensions(extensions)
             .with_http(authority, scheme, path.clone());
+            if let Some(config) = diagnostic_config {
+                req.set_diagnostic_config(config);
+            }
             req.set_compressed(framed.compressed);
             req.set_peer_cred(peer_cred);
             req.set_limits(limits);
@@ -1288,6 +1338,7 @@ impl Rpc {
             transport_scheme: _,
             extensions,
             metadata,
+            diagnostic_config,
             timeout: _,
             response_interceptor: _,
             byte_budget,
@@ -1309,6 +1360,9 @@ impl Rpc {
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
                 .with_http(authority, scheme, path.clone());
+        if let Some(config) = diagnostic_config {
+            req.set_diagnostic_config(config);
+        }
         req.set_peer_cred(peer_cred);
         req.set_limits(limits);
         req.set_peer_timeout(peer_timeout);
@@ -4239,6 +4293,7 @@ fn incoming_rpc(
         transport_scheme: peer.scheme,
         extensions: http::Extensions::new(),
         metadata,
+        diagnostic_config: None,
         timeout: None,
         response_interceptor: None,
         byte_budget: ByteBudgetTracker::default(),
