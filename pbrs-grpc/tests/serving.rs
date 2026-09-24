@@ -30469,7 +30469,11 @@ async fn from_io_round_trips_without_tcp() {
     let channel = Channel::from_io(client_io, "localhost")
         .await
         .expect("from_io");
-    assert!(format!("{channel:?}").contains("once"), "{channel:?}");
+    let shown = format!("{channel:?}");
+    assert!(shown.contains("endpoint: \"[REDACTED]\""), "{shown}");
+    assert!(shown.contains("authority: \"[REDACTED]\""), "{shown}");
+    assert!(!shown.contains("localhost"), "{shown}");
+    assert!(!shown.contains("once"), "{shown}");
     echo_every_shape(&GreeterClient::new(channel), None).await;
     server.abort();
 }
