@@ -2291,6 +2291,9 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: The checked-in official BenchmarkService definitions already generate native stubs and the local benchmark service implements its selected unary/streaming methods. StreamingCall and StreamingBothWays now share a response pump that forwards an inbound request-stream error as a non-OK response status instead of silently completing the stream as OK. Synthetic failed-input regressions passed for both call shapes and the local benchmark service unit suite passed 6/6. This is not independent official-peer validation; payload shape, unsupported generic/byte-buffer modes, and full selected-procedure qualification remain BM-08 work."
       ]
     },
     {
