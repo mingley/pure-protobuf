@@ -330,13 +330,17 @@ impl PermitProbe {
 
 async fn assert_server_quiescent(server: &Server<GreeterServer<Echo>>, permit: &PermitProbe) {
     tokio::time::timeout(PROBE_TIMEOUT, async {
-        while !server.is_byte_budget_quiescent() || permit.active() != 0 {
+        while !server.is_byte_budget_quiescent()
+            || server.byte_budget_tracker().active_byte_permit_tokens() != 0
+            || permit.active() != 0
+        {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
     .await
-    .expect("server bytes or admitted stream permits did not drain");
+    .expect("server bytes, byte-permit tokens, or RPC permits did not drain");
     assert_eq!(server.byte_budget_allocated(), 0);
+    assert_eq!(server.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert_eq!(permit.active(), 0);
 }
 
@@ -700,6 +704,7 @@ async fn test_client_cancellation_releases_budget() {
         channel.byte_budget_allocated()
     );
     assert_eq!(channel.byte_budget_allocated(), 0);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 0);
 }
 
 /// Deterministic incompressible payload: xorshift bytes over ASCII
@@ -845,6 +850,7 @@ async fn test_mixed_large_small_compressed_byte_budget() {
         .acquire(LIMIT)
         .expect("hold full budget");
     assert_eq!(channel.byte_budget_allocated(), LIMIT);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 1);
     let err = client
         .say_hello(Request::new(req("blocked")))
         .await
@@ -854,6 +860,7 @@ async fn test_mixed_large_small_compressed_byte_budget() {
         err.message().contains("transport byte budget exceeded"),
         "rejection must cite the byte budget: {err}"
     );
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 1);
     drop(hold);
     let reply = client
         .say_hello(Request::new(req("after-release")))
@@ -868,12 +875,14 @@ async fn test_mixed_large_small_compressed_byte_budget() {
         channel.byte_budget_allocated()
     );
     assert_eq!(channel.byte_budget_allocated(), 0);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert!(
         server.is_byte_budget_quiescent(),
         "server must quiesce, allocated = {}",
         server.byte_budget_allocated()
     );
     assert_eq!(server.byte_budget_allocated(), 0);
+    assert_eq!(server.byte_budget_tracker().active_byte_permit_tokens(), 0);
 }
 
 #[tokio::test]
@@ -897,6 +906,7 @@ async fn test_encode_error_releases_budget_to_baseline() {
         "encode error must cite the encoding limit: {err}"
     );
     assert_eq!(channel.byte_budget_allocated(), 0);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert!(channel.is_byte_budget_quiescent());
 
     // Client-side mid-stream encode error: one small item flows, then an
@@ -924,6 +934,7 @@ async fn test_encode_error_releases_budget_to_baseline() {
     );
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(channel.byte_budget_allocated(), 0);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert!(channel.is_byte_budget_quiescent());
 
     // Server-side unary encode error: the echo reply exceeds the server
@@ -940,6 +951,7 @@ async fn test_encode_error_releases_budget_to_baseline() {
     assert_eq!(err.code(), Code::ResourceExhausted);
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(server2.byte_budget_allocated(), 0);
+    assert_eq!(server2.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert!(server2.is_byte_budget_quiescent());
 
     // Server-side mid-stream encode error: the stream ends truncated with
@@ -978,6 +990,7 @@ async fn test_encode_error_releases_budget_to_baseline() {
     assert_eq!(err.code(), Code::ResourceExhausted);
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(server2.byte_budget_allocated(), 0);
+    assert_eq!(server2.byte_budget_tracker().active_byte_permit_tokens(), 0);
     assert!(server2.is_byte_budget_quiescent());
 }
 
@@ -1982,6 +1995,7 @@ async fn test_cancellation_cleanup_drops_call_futures_and_quiesces() {
         channel.byte_budget_allocated()
     );
     assert_eq!(channel.byte_budget_allocated(), 0);
+    assert_eq!(channel.byte_budget_tracker().active_byte_permit_tokens(), 0);
 
     assert!(
         server.is_byte_budget_quiescent(),
@@ -1989,6 +2003,7 @@ async fn test_cancellation_cleanup_drops_call_futures_and_quiesces() {
         server.byte_budget_allocated()
     );
     assert_eq!(server.byte_budget_allocated(), 0);
+    assert_eq!(server.byte_budget_tracker().active_byte_permit_tokens(), 0);
 }
 
 #[tokio::test]

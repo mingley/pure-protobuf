@@ -27,6 +27,8 @@ struct ByteBudgetInner {
     limit: Option<usize>,
     allocated: AtomicUsize,
     peak_allocated: AtomicUsize,
+    active_byte_permit_tokens: AtomicUsize,
+    peak_active_byte_permit_tokens: AtomicUsize,
 }
 
 impl Default for ByteBudgetTracker {
@@ -45,6 +47,8 @@ impl ByteBudgetTracker {
                 limit,
                 allocated: AtomicUsize::new(0),
                 peak_allocated: AtomicUsize::new(0),
+                active_byte_permit_tokens: AtomicUsize::new(0),
+                peak_active_byte_permit_tokens: AtomicUsize::new(0),
             }),
         }
     }
@@ -67,13 +71,13 @@ impl ByteBudgetTracker {
         self.inner.limit
     }
 
-    /// The number of bytes currently allocated across active permits.
+    /// Bytes currently charged to this budget, including any deliberately forgotten permits.
     #[must_use]
     pub fn allocated(&self) -> usize {
         self.inner.allocated.load(Ordering::SeqCst)
     }
 
-    /// High-water mark of bytes held by permits over this tracker's lifetime.
+    /// High-water mark of bytes charged to this tracker over its lifetime.
     ///
     /// Exact after acquisitions finish; a concurrent read can briefly precede
     /// an acquiring task's peak update. Includes warmup and earlier calls when
@@ -82,6 +86,28 @@ impl ByteBudgetTracker {
     #[must_use]
     pub fn peak_allocated(&self) -> usize {
         self.inner.peak_allocated.load(Ordering::SeqCst)
+    }
+
+    /// Live [`BytePermit`] tokens sharing this tracker, including zero-byte permits.
+    ///
+    /// This counts byte-budget handles, not HTTP/2 streams, active RPCs,
+    /// semaphore slots, allocated bytes, or process memory. Merging permits
+    /// on the same tracker reduces the token count without releasing bytes.
+    #[must_use]
+    pub fn active_byte_permit_tokens(&self) -> usize {
+        self.inner.active_byte_permit_tokens.load(Ordering::SeqCst)
+    }
+
+    /// Lifetime high-water mark of live byte-permit tokens across clones.
+    ///
+    /// Exact after acquisitions finish; a concurrent read can briefly precede
+    /// an acquiring task's peak update. Includes warmup and earlier calls
+    /// when a tracker is reused, not just a benchmark measurement interval.
+    #[must_use]
+    pub fn peak_active_byte_permit_tokens(&self) -> usize {
+        self.inner
+            .peak_active_byte_permit_tokens
+            .load(Ordering::SeqCst)
     }
 
     /// Remaining bytes before the limit is reached, or `None` if unlimited.
@@ -98,6 +124,36 @@ impl ByteBudgetTracker {
         self.allocated() == 0
     }
 
+    fn acquire_token_count(&self) -> Result<(), Status> {
+        let mut current = self.inner.active_byte_permit_tokens.load(Ordering::SeqCst);
+        loop {
+            let next = current.checked_add(1).ok_or_else(|| {
+                Status::resource_exhausted("transport byte permit token counter overflow")
+            })?;
+            match self.inner.active_byte_permit_tokens.compare_exchange_weak(
+                current,
+                next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => {
+                    if next
+                        > self
+                            .inner
+                            .peak_active_byte_permit_tokens
+                            .load(Ordering::Relaxed)
+                    {
+                        self.inner
+                            .peak_active_byte_permit_tokens
+                            .fetch_max(next, Ordering::SeqCst);
+                    }
+                    return Ok(());
+                }
+                Err(actual) => current = actual,
+            }
+        }
+    }
+
     /// Try to acquire a permit for `bytes`.
     ///
     /// If the allocation would exceed the configured limit, returns
@@ -105,6 +161,7 @@ impl ByteBudgetTracker {
     /// that will release the bytes back to this tracker when dropped.
     pub fn try_acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
         if bytes == 0 {
+            self.acquire_token_count()?;
             return Ok(BytePermit {
                 tracker: Some(self.clone()),
                 bytes: 0,
@@ -132,6 +189,10 @@ impl ByteBudgetTracker {
                 Ordering::SeqCst,
             ) {
                 Ok(_) => {
+                    if let Err(error) = self.acquire_token_count() {
+                        self.release_bytes(bytes);
+                        return Err(error);
+                    }
                     // A stale low read only causes an extra fetch_max; peaks never decrease.
                     if next > self.inner.peak_allocated.load(Ordering::Relaxed) {
                         self.inner.peak_allocated.fetch_max(next, Ordering::SeqCst);
@@ -154,15 +215,37 @@ impl ByteBudgetTracker {
     }
 
     pub(crate) fn release(&self, bytes: usize) {
+        self.release_bytes(bytes);
+        self.release_token_count();
+    }
+
+    fn release_bytes(&self, bytes: usize) {
         if bytes == 0 {
             return;
         }
         let mut current = self.inner.allocated.load(Ordering::SeqCst);
         loop {
-            let next = current.saturating_sub(bytes);
+            assert!(current >= bytes, "byte permit released more than allocated");
+            let next = current - bytes;
             match self.inner.allocated.compare_exchange_weak(
                 current,
                 next,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
+    }
+
+    fn release_token_count(&self) {
+        let mut current = self.inner.active_byte_permit_tokens.load(Ordering::SeqCst);
+        loop {
+            assert!(current > 0, "byte permit token counter underflow");
+            match self.inner.active_byte_permit_tokens.compare_exchange_weak(
+                current,
+                current - 1,
                 Ordering::SeqCst,
                 Ordering::SeqCst,
             ) {
@@ -207,8 +290,12 @@ impl BytePermit {
     }
 
     /// Forget the permit without returning bytes to the tracker.
+    ///
+    /// The token is no longer active, but its bytes remain charged to the budget.
     pub fn forget(mut self) {
-        self.tracker = None;
+        if let Some(tracker) = self.tracker.take() {
+            tracker.release_token_count();
+        }
     }
 
     /// Merge another permit into this one, provided they belong to the same tracker.
@@ -217,13 +304,20 @@ impl BytePermit {
             return;
         }
         if self.bytes == 0 {
+            if let Some(tracker) = self.tracker.take() {
+                tracker.release_token_count();
+            }
             self.tracker = other.tracker.take();
             self.bytes = other.bytes;
             return;
         }
         if let (Some(t1), Some(t2)) = (&self.tracker, &other.tracker) {
             if Arc::ptr_eq(&t1.inner, &t2.inner) {
-                self.bytes = self.bytes.saturating_add(other.bytes);
+                assert!(
+                    self.bytes <= usize::MAX - other.bytes,
+                    "merged byte permits exceed representable tracker accounting"
+                );
+                self.bytes += other.bytes;
                 other.forget();
             }
         }
@@ -362,8 +456,9 @@ impl MessageLimits {
 
 #[cfg(test)]
 mod tests {
-    use super::{ByteBudgetTracker, MessageLimits};
+    use super::{ByteBudgetTracker, BytePermit, MessageLimits};
     use crate::status::Code;
+    use std::sync::atomic::Ordering;
     use std::sync::mpsc;
     use std::thread;
     use std::time::Duration;
@@ -374,6 +469,8 @@ mod tests {
         assert_eq!(tracker.limit(), Some(100));
         assert_eq!(tracker.allocated(), 0);
         assert_eq!(tracker.peak_allocated(), 0);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 0);
         assert_eq!(tracker.available(), Some(100));
         assert!(tracker.is_quiescent());
 
@@ -381,6 +478,8 @@ mod tests {
         assert_eq!(p1.bytes(), 40);
         assert_eq!(tracker.allocated(), 40);
         assert_eq!(tracker.peak_allocated(), 40);
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 1);
         assert_eq!(tracker.available(), Some(60));
         assert!(!tracker.is_quiescent());
 
@@ -388,23 +487,30 @@ mod tests {
             let p2 = tracker.acquire(50).expect("acquire 50");
             assert_eq!(tracker.allocated(), 90);
             assert_eq!(tracker.peak_allocated(), 90);
+            assert_eq!(tracker.active_byte_permit_tokens(), 2);
+            assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
             assert_eq!(tracker.available(), Some(10));
 
             let err = tracker.acquire(20).expect_err("exceed limit");
             assert_eq!(err.code(), Code::ResourceExhausted);
             assert_eq!(tracker.allocated(), 90);
             assert_eq!(tracker.peak_allocated(), 90);
+            assert_eq!(tracker.active_byte_permit_tokens(), 2);
 
             drop(p2);
         }
 
         assert_eq!(tracker.allocated(), 40);
         assert_eq!(tracker.peak_allocated(), 90);
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
         assert_eq!(tracker.available(), Some(60));
 
         p1.release();
         assert_eq!(tracker.allocated(), 0);
         assert_eq!(tracker.peak_allocated(), 90);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
         assert_eq!(tracker.available(), Some(100));
         assert!(tracker.is_quiescent());
         let reacquired = tracker.acquire(10).expect("below prior high-water mark");
@@ -452,6 +558,8 @@ mod tests {
         }
         assert_eq!(tracker.allocated(), 80);
         assert_eq!(tracker.peak_allocated(), 80);
+        assert_eq!(tracker.active_byte_permit_tokens(), 2);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
         for release in releases {
             release.send(()).expect("release worker");
         }
@@ -460,6 +568,8 @@ mod tests {
         }
         assert_eq!(tracker.allocated(), 0);
         assert_eq!(tracker.peak_allocated(), 80);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
 
         let unlimited = ByteBudgetTracker::unlimited();
         let max = unlimited
@@ -471,9 +581,65 @@ mod tests {
         assert_eq!(err.code(), Code::ResourceExhausted);
         assert_eq!(unlimited.allocated(), usize::MAX);
         assert_eq!(unlimited.peak_allocated(), usize::MAX);
+        assert_eq!(unlimited.active_byte_permit_tokens(), 1);
         drop(max);
         assert_eq!(unlimited.allocated(), 0);
         assert_eq!(unlimited.peak_allocated(), usize::MAX);
+        assert_eq!(unlimited.active_byte_permit_tokens(), 0);
+    }
+
+    #[test]
+    fn zero_byte_tokens_and_counter_overflow_are_independent_of_byte_budget() {
+        let tracker = ByteBudgetTracker::with_limit(0);
+        let empty = BytePermit::empty();
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        drop(empty);
+
+        let mut zero = tracker.acquire(0).expect("zero-byte permit");
+        assert_eq!(tracker.allocated(), 0);
+        assert!(tracker.is_quiescent());
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 1);
+        let second_zero = tracker.acquire(0).expect("another zero-byte permit");
+        assert_eq!(tracker.active_byte_permit_tokens(), 2);
+        zero.merge(second_zero);
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
+        assert_eq!(
+            tracker.acquire(1).expect_err("byte limit").code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        drop(zero);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+
+        let unlimited = ByteBudgetTracker::unlimited();
+        unlimited
+            .inner
+            .active_byte_permit_tokens
+            .store(usize::MAX, Ordering::SeqCst);
+        for bytes in [0, 7] {
+            let error = unlimited
+                .acquire(bytes)
+                .expect_err("token counter overflow must reject");
+            assert_eq!(error.code(), Code::ResourceExhausted);
+            assert!(
+                error
+                    .message()
+                    .contains("byte permit token counter overflow")
+            );
+            assert_eq!(unlimited.allocated(), 0);
+            assert_eq!(unlimited.peak_allocated(), 0);
+            assert_eq!(unlimited.peak_active_byte_permit_tokens(), 0);
+        }
+        unlimited
+            .inner
+            .active_byte_permit_tokens
+            .store(0, Ordering::SeqCst);
+        let permit = unlimited.acquire(7).expect("rollback restored byte budget");
+        drop(permit);
+        assert_eq!(unlimited.allocated(), 0);
+        assert_eq!(unlimited.active_byte_permit_tokens(), 0);
     }
 
     #[test]
@@ -482,17 +648,39 @@ mod tests {
         let mut p1 = tracker.acquire(50).expect("p1");
         let p2 = tracker.acquire(60).expect("p2");
         assert_eq!(tracker.allocated(), 110);
+        assert_eq!(tracker.active_byte_permit_tokens(), 2);
 
         p1.merge(p2);
         assert_eq!(p1.bytes(), 110);
         assert_eq!(tracker.allocated(), 110);
+        assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        assert_eq!(tracker.peak_active_byte_permit_tokens(), 2);
 
         drop(p1);
         assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
 
         let p3 = tracker.acquire(30).expect("p3");
         p3.forget();
         assert_eq!(tracker.allocated(), 30);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    }
+
+    #[test]
+    fn merging_a_zero_byte_token_transfers_only_the_held_owners_token() {
+        let first = ByteBudgetTracker::unlimited();
+        let second = ByteBudgetTracker::unlimited();
+        let mut zero = first.acquire(0).expect("first zero-byte token");
+        let held = second.acquire(4).expect("second byte token");
+        assert_eq!(first.active_byte_permit_tokens(), 1);
+        assert_eq!(second.active_byte_permit_tokens(), 1);
+        zero.merge(held);
+        assert_eq!(first.active_byte_permit_tokens(), 0);
+        assert_eq!(second.active_byte_permit_tokens(), 1);
+        assert_eq!(second.allocated(), 4);
+        drop(zero);
+        assert_eq!(second.active_byte_permit_tokens(), 0);
+        assert_eq!(second.allocated(), 0);
     }
 
     #[test]

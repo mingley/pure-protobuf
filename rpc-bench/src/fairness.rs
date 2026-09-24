@@ -386,6 +386,8 @@ struct Endpoint {
     byte_budget_allocated_bytes_peak: u64,
     sampled_byte_budget_peak_bytes: u64,
     byte_budget_allocated_bytes_post_drain: u64,
+    byte_budget_active_byte_permit_tokens_lifetime_peak: u64,
+    byte_budget_active_byte_permit_tokens_post_drain: u64,
     observed_rejections_by_reason: BTreeMap<String, u64>,
 }
 
@@ -403,10 +405,15 @@ impl Endpoint {
         }
         let sampled_peak = probe.sampled_peak.load(Ordering::SeqCst);
         let exact_peak = probe.tracker.peak_allocated();
+        let token_peak = probe.tracker.peak_active_byte_permit_tokens();
+        let active_tokens = probe.tracker.active_byte_permit_tokens();
         if sampled_peak > exact_peak {
             return Err(
                 "sampled transport byte peak exceeds exact lifetime high-water mark".into(),
             );
+        }
+        if active_tokens > token_peak {
+            return Err("active byte-permit tokens exceed the lifetime high-water mark".into());
         }
         Ok(Self {
             pid: std::process::id(),
@@ -421,6 +428,10 @@ impl Endpoint {
             sampled_byte_budget_peak_bytes: u64::try_from(sampled_peak)
                 .map_err(|_| "sampled transport byte peak is not representable as u64")?,
             byte_budget_allocated_bytes_post_drain: probe.tracker.allocated() as u64,
+            byte_budget_active_byte_permit_tokens_lifetime_peak: u64::try_from(token_peak)
+                .map_err(|_| "byte-permit token peak is not representable as u64")?,
+            byte_budget_active_byte_permit_tokens_post_drain: u64::try_from(active_tokens)
+                .map_err(|_| "active byte-permit token count is not representable as u64")?,
             observed_rejections_by_reason: probe.rejected_by_reason(),
         })
     }
@@ -939,6 +950,10 @@ struct EndpointMetrics {
     server_active_permits_peak: Option<u64>,
     client_active_permits_post_drain: Option<u64>,
     server_active_permits_post_drain: Option<u64>,
+    client_byte_budget_active_byte_permit_tokens_lifetime_peak: u64,
+    server_byte_budget_active_byte_permit_tokens_lifetime_peak: u64,
+    client_byte_budget_active_byte_permit_tokens_post_drain: u64,
+    server_byte_budget_active_byte_permit_tokens_post_drain: u64,
     client_byte_budget_allocated_bytes_peak: u64,
     server_byte_budget_allocated_bytes_peak: u64,
     client_byte_budget_allocated_bytes_post_drain: u64,
@@ -1083,6 +1098,10 @@ async fn with_server(case: Case, options: &Options) -> Result<FairnessReport, St
             server_active_permits_peak: None,
             client_active_permits_post_drain: None,
             server_active_permits_post_drain: None,
+            client_byte_budget_active_byte_permit_tokens_lifetime_peak: client_endpoint.byte_budget_active_byte_permit_tokens_lifetime_peak,
+            server_byte_budget_active_byte_permit_tokens_lifetime_peak: server.endpoint.byte_budget_active_byte_permit_tokens_lifetime_peak,
+            client_byte_budget_active_byte_permit_tokens_post_drain: client_endpoint.byte_budget_active_byte_permit_tokens_post_drain,
+            server_byte_budget_active_byte_permit_tokens_post_drain: server.endpoint.byte_budget_active_byte_permit_tokens_post_drain,
             client_byte_budget_allocated_bytes_peak: client_endpoint.byte_budget_allocated_bytes_peak,
             server_byte_budget_allocated_bytes_peak: server.endpoint.byte_budget_allocated_bytes_peak,
             client_byte_budget_allocated_bytes_post_drain: client_endpoint.byte_budget_allocated_bytes_post_drain,
@@ -1114,7 +1133,7 @@ async fn with_server(case: Case, options: &Options) -> Result<FairnessReport, St
         ]);
         let mut blockers = vec![
             "one native/native loopback run is diagnostic only: no randomized five-run paired reference comparisons on dedicated hosts".into(),
-            "full client/server queue wait and transport active-permit gauges are unavailable".into(),
+            "full client/server queue wait and transport RPC-slot semaphore occupancy gauges are unavailable; byte-permit-token counts are separate".into(),
             "bulk arrival is closed-loop; no per-class open-loop bulk schedule".into(),
         ];
         if small_result.rejected_calls_by_reason["QUEUE_OVERFLOW"] > 0 {
@@ -1178,9 +1197,14 @@ async fn with_server(case: Case, options: &Options) -> Result<FairnessReport, St
         }
         if endpoint.client_byte_budget_allocated_bytes_post_drain != 0
             || endpoint.server_byte_budget_allocated_bytes_post_drain != 0
+            || endpoint.client_byte_budget_active_byte_permit_tokens_post_drain != 0
+            || endpoint.server_byte_budget_active_byte_permit_tokens_post_drain != 0
             || !post_drain_probe_success
         {
-            blockers.push("post-drain admission or byte-budget recovery did not complete".into());
+            blockers.push(
+                "post-drain admission or byte-budget recovery (bytes or tokens) did not complete"
+                    .into(),
+            );
         }
         let mut per_workload_class = BTreeMap::new();
         per_workload_class.insert("bulk_streams".into(), bulk_result);
@@ -1387,6 +1411,11 @@ mod tests {
         assert_eq!(measured.byte_budget_allocated_bytes_peak, 32);
         assert_eq!(measured.sampled_byte_budget_peak_bytes, 32);
         assert_eq!(measured.byte_budget_allocated_bytes_post_drain, 0);
+        assert_eq!(
+            measured.byte_budget_active_byte_permit_tokens_lifetime_peak,
+            1
+        );
+        assert_eq!(measured.byte_budget_active_byte_permit_tokens_post_drain, 0);
         assert!(
             Endpoint::measured(after, before, &probe).is_err(),
             "reversed snapshots fail closed"
@@ -1419,6 +1448,99 @@ mod tests {
         assert_eq!(measured.sampled_byte_budget_peak_bytes, 0);
         assert_eq!(measured.byte_budget_allocated_bytes_peak, 64);
         assert_eq!(measured.byte_budget_allocated_bytes_post_drain, 0);
+        assert_eq!(
+            measured.byte_budget_active_byte_permit_tokens_lifetime_peak,
+            1
+        );
+        assert_eq!(measured.byte_budget_active_byte_permit_tokens_post_drain, 0);
+    }
+
+    #[test]
+    fn byte_permit_token_json_is_numeric_and_not_an_rpc_slot_gauge() {
+        let tracker = ByteBudgetTracker::with_limit(128);
+        let probe = Probe::new(tracker.clone());
+        let before = ResourceSnapshot {
+            user_cpu_nanos: 0,
+            system_cpu_nanos: 0,
+            current_rss_bytes: 512,
+            peak_rss_bytes: 512,
+            thread_count: 1,
+        };
+        let after = ResourceSnapshot {
+            user_cpu_nanos: 1,
+            system_cpu_nanos: 1,
+            current_rss_bytes: 512,
+            peak_rss_bytes: 1024,
+            thread_count: 1,
+        };
+        let zero = tracker.acquire(0).expect("zero-byte token");
+        let bytes = tracker.acquire(10).expect("byte token");
+        assert_eq!(tracker.active_byte_permit_tokens(), 2);
+        assert_eq!(tracker.allocated(), 10);
+        drop(zero);
+        drop(bytes);
+        let measured = Endpoint::measured(before, after, &probe).expect("valid snapshots");
+        assert_eq!(
+            measured.byte_budget_active_byte_permit_tokens_lifetime_peak,
+            2
+        );
+        assert_eq!(measured.byte_budget_active_byte_permit_tokens_post_drain, 0);
+        assert_eq!(measured.byte_budget_allocated_bytes_peak, 10);
+
+        let report = serde_json::to_value(EndpointMetrics {
+            client_pid: 11,
+            server_pid: 22,
+            client_cpu_seconds: 1.0,
+            server_cpu_seconds: 2.0,
+            client_start_rss_bytes: 512,
+            server_start_rss_bytes: 512,
+            client_peak_rss_bytes: 1024,
+            server_peak_rss_bytes: 1024,
+            client_active_permits_peak: None,
+            server_active_permits_peak: None,
+            client_active_permits_post_drain: None,
+            server_active_permits_post_drain: None,
+            client_byte_budget_active_byte_permit_tokens_lifetime_peak: measured
+                .byte_budget_active_byte_permit_tokens_lifetime_peak,
+            server_byte_budget_active_byte_permit_tokens_lifetime_peak: measured
+                .byte_budget_active_byte_permit_tokens_lifetime_peak,
+            client_byte_budget_active_byte_permit_tokens_post_drain: measured
+                .byte_budget_active_byte_permit_tokens_post_drain,
+            server_byte_budget_active_byte_permit_tokens_post_drain: measured
+                .byte_budget_active_byte_permit_tokens_post_drain,
+            client_byte_budget_allocated_bytes_peak: measured.byte_budget_allocated_bytes_peak,
+            server_byte_budget_allocated_bytes_peak: measured.byte_budget_allocated_bytes_peak,
+            client_byte_budget_allocated_bytes_post_drain: measured
+                .byte_budget_allocated_bytes_post_drain,
+            server_byte_budget_allocated_bytes_post_drain: measured
+                .byte_budget_allocated_bytes_post_drain,
+            client_sampled_byte_budget_peak_bytes: measured.sampled_byte_budget_peak_bytes,
+            server_sampled_byte_budget_peak_bytes: measured.sampled_byte_budget_peak_bytes,
+            post_drain_probe_success: true,
+            client_observed_rejections_by_reason: BTreeMap::new(),
+            server_observed_rejections_by_reason: BTreeMap::new(),
+        })
+        .expect("serialize endpoint metrics");
+        for role in ["client", "server"] {
+            assert_eq!(
+                report[format!("{role}_byte_budget_active_byte_permit_tokens_lifetime_peak")],
+                2
+            );
+            assert_eq!(
+                report[format!("{role}_byte_budget_active_byte_permit_tokens_post_drain")],
+                0
+            );
+            assert!(report[format!("{role}_active_permits_peak")].is_null());
+        }
+        let mut missing = report;
+        missing
+            .as_object_mut()
+            .expect("endpoint object")
+            .remove("server_byte_budget_active_byte_permit_tokens_lifetime_peak");
+        assert!(
+            serde_json::from_value::<EndpointMetrics>(missing).is_err(),
+            "a missing server token peak cannot look like zero"
+        );
     }
 
     #[test]

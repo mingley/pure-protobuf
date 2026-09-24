@@ -55,6 +55,10 @@
         "server_active_permits_peak",
         "client_active_permits_post_drain",
         "server_active_permits_post_drain",
+        "client_byte_budget_active_byte_permit_tokens_lifetime_peak",
+        "server_byte_budget_active_byte_permit_tokens_lifetime_peak",
+        "client_byte_budget_active_byte_permit_tokens_post_drain",
+        "server_byte_budget_active_byte_permit_tokens_post_drain",
         "client_byte_budget_allocated_bytes_peak",
         "server_byte_budget_allocated_bytes_peak",
         "client_byte_budget_allocated_bytes_post_drain",
@@ -114,6 +118,10 @@
       "server_active_permits_peak": "u64 | null (not exposed)",
       "client_active_permits_post_drain": "u64 | null (not exposed)",
       "server_active_permits_post_drain": "u64 | null (not exposed)",
+      "client_byte_budget_active_byte_permit_tokens_lifetime_peak": "u64 (exact tracker-lifetime high-water of byte-permit tokens, including zero-byte permits and warmup; not RPC slots)",
+      "server_byte_budget_active_byte_permit_tokens_lifetime_peak": "u64 (exact tracker-lifetime high-water of byte-permit tokens, including zero-byte permits and warmup; not RPC slots)",
+      "client_byte_budget_active_byte_permit_tokens_post_drain": "u64 (live byte-permit tokens after bounded drain; not RPC slots)",
+      "server_byte_budget_active_byte_permit_tokens_post_drain": "u64 (live byte-permit tokens after graceful shutdown; not RPC slots)",
       "client_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
       "server_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
       "client_sampled_byte_budget_peak_bytes": "u64 (lower bound, real allocated() snapshots)",
@@ -146,6 +154,10 @@
     "server_active_permits_peak": "null: server transport semaphore occupancy has no public gauge; admitted-call observer counts are not the same measurement",
     "client_active_permits_post_drain": "null: successful probe is not an exact client permit count",
     "server_active_permits_post_drain": "null: successful probe is not an exact server permit count",
+    "client_byte_budget_active_byte_permit_tokens_lifetime_peak": "client ByteBudgetTracker.peak_active_byte_permit_tokens() exact tracker-lifetime high-water, including warmup and zero-byte permits; not RPC semaphore occupancy",
+    "server_byte_budget_active_byte_permit_tokens_lifetime_peak": "server ByteBudgetTracker.peak_active_byte_permit_tokens() exact tracker-lifetime high-water, including warmup and zero-byte permits; not RPC semaphore occupancy",
+    "client_byte_budget_active_byte_permit_tokens_post_drain": "client ByteBudgetTracker.active_byte_permit_tokens() after bounded drain",
+    "server_byte_budget_active_byte_permit_tokens_post_drain": "server ByteBudgetTracker.active_byte_permit_tokens() after graceful shutdown",
     "client_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact client tracker-lifetime high-water, including warmup; sampled lower bound is separate",
     "server_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact server tracker-lifetime high-water, including warmup; sampled lower bound is separate",
     "client_byte_budget_allocated_bytes_post_drain": "shared client ByteBudgetTracker.allocated() after bounded drain",
@@ -173,13 +185,13 @@
     "available_now": [
       "scheduled Poisson 128-byte unary RPCs overlap repeating finite 64 x 64KiB server streams at bounded concurrency, after discarded mixed warmup",
       "per-class offered/dispatched/success/failure counts, typed RESOURCE_EXHAUSTED and QUEUE_OVERFLOW, deadline-valued timeout samples, raw latency/scheduling lag and sampled client pool wait",
-      "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, exact tracker-lifetime byte high-water (includes warmup), sampled lower bounds and post-drain byte accounting",
+      "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, exact tracker-lifetime byte and byte-permit-token high-water (includes warmup), sampled byte lower bounds and post-drain accounting",
       "bounded CI smoke tests for competition, observed client queue wait and post-drain admission probes"
     ],
     "required_before_qualification": [
       "runnable slow reader/writer, idle peer, reset storm and overload cells; open-loop offered load for every required workload class",
       "client outbound-to-TCP and server queue delays, full offered-call failure latencies including unstarted QUEUE_OVERFLOW",
-      "public client/server active-permit gauges and measurement-window attribution for the exact lifetime byte-budget high-water",
+      "public client/server RPC-slot semaphore occupancy gauges and measurement-window attribution for exact lifetime byte and byte-permit-token high-water",
       "paired randomized dedicated-host native/tonic-pbrs runs, confidence intervals and RSS growth review; target_thresholds are proposals, not gates"
     ]
   },

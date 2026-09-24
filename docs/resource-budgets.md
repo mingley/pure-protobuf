@@ -86,6 +86,19 @@ on drop. `allocated()` / `is_quiescent()` expose the current state, and
 across clones (including warmup), exact after in-flight acquisitions finish.
 Counter overflow rejects explicitly; neither value measures application
 allocations or process RSS.
+`active_byte_permit_tokens()` separately counts live `BytePermit` handles,
+including successful zero-byte acquisitions; `BytePermit::empty()` has no
+tracker and is not counted. `peak_active_byte_permit_tokens()` records their
+lifetime high-water across tracker clones, exact after acquisitions finish.
+Merging two handles on the same tracker reduces the token count by one
+without returning bytes. `forget()` removes a live token but deliberately
+leaves its bytes charged. Count overflow rejects with `RESOURCE_EXHAUSTED`
+and rolls back any newly reserved bytes; the byte admission limit is still
+decided solely by allocated bytes. `is_quiescent()` remains a **bytes-only**
+check and can be true while a zero-byte token is live. The byte and token
+counters are distinct atomics, so concurrent snapshots can briefly observe
+different acquisition/release phases. Neither token count is an RPC
+semaphore-slot gauge, an RSS measurement, or an interval-specific peak.
 
 ### 2.2 The Backing Buffer Retention Hazard
 
@@ -620,6 +633,18 @@ The table below is the pass/fail contract enforced in `pbrs-grpc/tests/resource_
 | C-5 | Deadline-expired unending streams abort, quiesce, and drain fast | `DeadlineExceeded`, `allocated() == 0` | Server | `test_unending_stream_deadline_expiration_and_drain` |
 
 Changing a value above requires a recorded decision **before** rerunning; a test edit that merely relaxes a bound to fit slower code is a contract change, not a fix.
+
+The separate-process `rpc-bench fairness` report adds numeric client/server
+`byte_budget_active_byte_permit_tokens_lifetime_peak` and
+`byte_budget_active_byte_permit_tokens_post_drain` fields under
+`per_endpoint`. Each process reads its own tracker; lifetime peaks include
+warmup and the client's post-drain probe. These are exact token counts after
+acquisitions complete, not counts inferred by dividing sampled bytes by
+message size. The existing `active_permits_peak` and
+`active_permits_post_drain` fields remain `null`: they refer to unavailable
+RPC-slot semaphore occupancy. Sampled byte peaks remain lower bounds, and
+full listener/transport queue delay, other fairness cells and dedicated-host
+paired reference runs remain unqualified.
 
 ---
 

@@ -48,6 +48,8 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
     assert_eq!(report["mode"], "diagnostic_smoke");
     assert_eq!(report["peer_combination"], "native/native");
     assert_eq!(report["qualification"]["qualified"], false);
+    let contract: Value = serde_json::from_str(include_str!("../scenarios/fairness.json"))
+        .expect("fairness contract");
     assert!(
         !report["qualification"]["blockers"]
             .as_array()
@@ -136,6 +138,30 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
     );
     let budget = count(&report["case"]["limits"], "byte_budget_bytes");
     for role in ["client", "server"] {
+        for suffix in [
+            "byte_budget_active_byte_permit_tokens_lifetime_peak",
+            "byte_budget_active_byte_permit_tokens_post_drain",
+        ] {
+            let field = format!("{role}_{suffix}");
+            assert!(
+                contract["defaults"]["fairness_contract"]["tracked_metrics"]
+                    .as_array()
+                    .expect("tracked metric names")
+                    .iter()
+                    .any(|metric| metric.as_str() == Some(field.as_str())),
+                "{field} missing from the fairness metric contract"
+            );
+            assert!(
+                contract["result_schema"]["per_endpoint"][&field]
+                    .as_str()
+                    .is_some(),
+                "{field} missing from the fairness result schema"
+            );
+            assert!(
+                contract["metric_sources"][&field].as_str().is_some(),
+                "{field} missing a measurement source"
+            );
+        }
         let start = count(endpoints, &format!("{role}_start_rss_bytes"));
         assert!(start > 0, "{role} baseline RSS is not measured");
         assert!(
@@ -169,6 +195,21 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
             exact >= observed && exact <= budget,
             "{role} exact lifetime byte high-water contradicts samples or budget"
         );
+        assert!(
+            count(
+                endpoints,
+                &format!("{role}_byte_budget_active_byte_permit_tokens_lifetime_peak")
+            ) > 0,
+            "{role} byte-permit token lifetime high-water is missing"
+        );
+        assert_eq!(
+            count(
+                endpoints,
+                &format!("{role}_byte_budget_active_byte_permit_tokens_post_drain")
+            ),
+            0,
+            "{role} byte-permit tokens did not drain"
+        );
         assert!(endpoints[format!("{role}_active_permits_peak")].is_null());
         assert!(endpoints[format!("{role}_active_permits_post_drain")].is_null());
     }
@@ -183,6 +224,12 @@ fn separate_process_mixed_load_preserves_outcomes_and_rejects_qualification() {
             .as_object()
             .expect("unsupported metrics map")
             .contains_key("per_endpoint.*_byte_budget_allocated_bytes_peak")
+    );
+    assert!(
+        !report["unsupported_metrics"]
+            .as_object()
+            .expect("unsupported metrics map")
+            .contains_key("per_endpoint.*_byte_budget_active_byte_permit_tokens_lifetime_peak")
     );
 
     let strict = Command::new(binary)
