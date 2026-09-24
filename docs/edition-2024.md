@@ -431,24 +431,23 @@ are explicitly rejected until their unknown-value semantics are implemented.
 Extension fields are not emitted as ordinary typed fields: their wire bytes
 round-trip through unknown fields until `CG-14b` adds typed accessors.
 
-The repeated-CLOSED guard remains necessary after a bounded 2026-09-24
-investigation. The checked `overrides.fds` has only a **singular** `ClosedEnum`;
-none of the checked Edition 2024 descriptors and wire vectors cover a repeated
-CLOSED enum. The local synthetic `tests/dynamic.rs` packed test verifies one
-known typed value and one unknown field, but does not pin reserialization of
-mixed packed/unpacked inputs, expanded output, or negative/out-of-range
-unknown values. Local `protoc 36.1` text decoding of the vendored Edition 2023
-closed-enum schema identifies unknown values; it does not provide a canonical
-Edition 2024 re-encode oracle. An unretained local Python protobuf 6.33.1
-probe, with a repeated field added to the checked descriptor in memory,
-suggested different negative-unknown normalization for packed and unpacked
-input. No checked Edition 2024 repeated-enum reference vector establishes the
-required wire contract, so removing the fail-closed guard risks wire loss.
-A future slice needs a checked
-Edition 2024 repeated-CLOSED descriptor and independently pinned output
-vectors for packed, unpacked, and mixed known/unknown values (including
-negative and out-of-range numbers). Closed enum map values remain a separate
-unsupported case.
+The repeated/map CLOSED guard remains necessary despite new checked
+`tests/fixtures/edition2024/{proto,fds}/closed_enum.*` and nine pinned,
+**local C++ v36.1** generated/dynamic wire observations in
+`tests/fixtures/edition2024/reference/`. The source, descriptor, replay
+driver and outputs have SHA-256 checks and a reproducible opt-in command in
+the fixture README; the default CI checks their integrity without requiring
+an Edition 2024 compiler. The generated and dynamic parsers use the same C++
+library, whose local binary was not independently verified as an official
+release. A packed negative CLOSED value re-encodes there as a ten-byte
+unknown varint; an earlier unpinned Python 6.33.1 probe produced five bytes.
+Unknown packed values move after the known packed field; invalid enum map
+entries become whole unknown entries. These are exact **C++ reference**
+observations, not a universal Rust/upb re-encoding contract or proof that
+pbrs handles either collection shape. A reviewed cross-runtime policy,
+generated Rust tests against the checked vectors, and original
+shared/conformance qualification must precede removing the guards or
+raising `maximum_edition` above `1000`.
 
 The preview FDS was produced once with `libprotoc 36.1` and `--retain_options`;
 mandatory Cargo tests consume only its checked bytes. `protoc 36.1` strips
