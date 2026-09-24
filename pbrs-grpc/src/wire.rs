@@ -384,13 +384,19 @@ impl OutBatch {
     /// Encode-cap and serialize failures stay [`Status`] so a server drain
     /// can ship them as trailers instead of treating them as a dead socket.
     pub(crate) fn encode<T: Serialize>(&mut self, item: Framed<T>) -> Result<(), Status> {
-        append_frame(
+        let prior_len = self.buf.len();
+        if let Err(status) = append_frame(
             &mut self.buf,
             &item.message,
             item.compressed,
             self.wire.limits,
             self.wire.gzip_level,
-        )
+        ) {
+            // Keep earlier complete frames flushable before the error trailer.
+            self.buf.truncate(prior_len);
+            return Err(status);
+        }
+        Ok(())
     }
 
     /// Whether the batch has reached the size worth writing on its own.

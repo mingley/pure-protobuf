@@ -22224,6 +22224,47 @@ fn fail_after_one_from_error_details() -> pbrs_grpc::Streaming<HelloReply> {
     stream
 }
 
+async fn queued_fail_after_one() -> pbrs_grpc::Streaming<HelloReply> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(2);
+    let mut reply = HelloReply::new();
+    reply.set_message("ada");
+    tx.send(reply).await.expect("queue valid reply");
+    tx.fail(typed_after_headers_status()).await;
+    stream
+}
+
+struct QueuedFailure;
+
+impl Greeter for QueuedFailure {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("queued-failure"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("queued-failure"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(queued_fail_after_one().await))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(queued_fail_after_one().await))
+    }
+}
+
 /// Server-streaming and bidi only: unary and client-streaming have no
 /// response DATA then trailers.
 struct TypedAfterHeaders;
@@ -22334,6 +22375,43 @@ async fn from_error_details_after_a_streamed_message() {
             .ok();
     });
     assert_typed_status_after_streamed_message(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn queued_response_is_delivered_before_producer_error_trailers() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QueuedFailure)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    for shape in ["server", "bidi"] {
+        let mut stream = if shape == "server" {
+            client
+                .server_hello(Request::new(req("ada")))
+                .await
+                .expect("server-stream headers")
+                .into_inner()
+        } else {
+            let (tx, call) = client.stream_hello(Request::new(()));
+            tx.close();
+            call.await.expect("bidi headers").into_inner()
+        };
+        let first = tokio::time::timeout(Duration::from_secs(3), stream.message())
+            .await
+            .expect("first response stalled")
+            .expect("first response status")
+            .expect("first response message");
+        assert_eq!(name_of(&first), "ada", "{shape}");
+        let status = tokio::time::timeout(Duration::from_secs(3), stream.message())
+            .await
+            .expect("error trailers stalled")
+            .expect_err("producer error must not become OK");
+        assert_typed_after_headers(&status);
+    }
     task.abort();
 }
 

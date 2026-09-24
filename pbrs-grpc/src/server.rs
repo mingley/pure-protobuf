@@ -1669,6 +1669,18 @@ enum DrainError {
     Producer(Status),
 }
 
+async fn flush_queued_before_error(
+    batch: &mut OutBatch,
+    send: &mut h2::SendStream<Bytes>,
+    permits: &mut Vec<crate::limits::BytePermit>,
+    status: Status,
+) -> Result<(), DrainError> {
+    // A burst can contain successful replies followed by a producer error.
+    batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    permits.clear();
+    Err(DrainError::Producer(status))
+}
+
 /// Copy every message from `stream` onto `send`, batching each burst.
 #[allow(
     clippy::too_many_arguments,
@@ -1715,19 +1727,27 @@ async fn drain_to_wire<Resp: Serialize + Send>(
             stream.try_recv_many(&mut items, room);
         }
         for item in items.drain(..) {
-            let mut item = item.map_err(DrainError::Producer)?;
+            let mut item = match item {
+                Ok(item) => item,
+                Err(status) => {
+                    return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
+                }
+            };
             item.compressed =
                 gzip_stream_frame(item.compressed, envelope, prefer_gzip, peer_accepts_gzip);
             let frame_len = 5 + item.message.serialized_len();
-            match budget.acquire(frame_len) {
-                Ok(permit) => permits.push(permit),
-                Err(status) => return Err(DrainError::Producer(status)),
+            let permit = match budget.acquire(frame_len) {
+                Ok(permit) => permit,
+                Err(status) => {
+                    return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
+                }
+            };
+            permits.push(permit);
+            if let Err(status) = batch.encode(item) {
+                return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
             }
             if let Some(obs) = observer {
                 obs.on_bytes_sent(call_labels, frame_len);
-            }
-            if let Err(status) = batch.encode(item) {
-                return Err(DrainError::Producer(status));
             }
             if batch.is_full() {
                 batch.flush(send).await.map_err(|_| DrainError::Transport)?;

@@ -77,6 +77,11 @@ writer never waits for credit equal to the entire message, which could
 otherwise stall behind a smaller buffer. The serialized message itself remains
 live while chunks are queued and is separately governed by the outbound
 encoding cap; the send-buffer limit alone is not a total-message memory cap.
+When a server response producer queues valid messages followed by an error in
+the same burst, complete encoded frames are flushed before the non-OK trailers.
+A failed encoding rolls back its incomplete frame before earlier replies are
+flushed, and the batch's byte permits are released after the flush. A peer
+reset can prevent both the flush and trailers from being delivered.
 
 The public `pbrs_grpc::ByteBudgetTracker` can share an explicit transport-byte
 cap through `Server::with_byte_budget_tracker` or
