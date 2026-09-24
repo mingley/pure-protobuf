@@ -2324,6 +2324,9 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "evidence": [
+        "Partial 2026-09-24 (WorkerService accounting safety): CoreCount and RunServer now reject unavailable or unrepresentable system CPU counts instead of reporting one fabricated core; zero or overflowed core-list counts cannot silently cast to i32. Initial and Mark process resource capture failures return UNAVAILABLE instead of zero or a stale baseline. The owned benchmark server is signaled, joined with a five-second bound and aborted/joined on timeout before an error is sent. Synthetic capture/core mapping and cleanup-helper tests plus normal worker mark/reset integration passed (worker 70/70, standalone rpc-bench bin 67/67); focused lint passed with only pre-existing unrelated lint allowances. A real capture failure was not injected into a live RunServer stream, and independent official-driver BM-09 acceptance remains pending."
       ]
     },
     {
@@ -2351,6 +2354,9 @@
       ],
       "checks": [
         "rpc-bench"
+      ],
+      "evidence": [
+        "Partial 2026-09-24 (WorkerService accounting safety): RunClient setup and Mark now fail with UNAVAILABLE on process snapshot errors instead of emitting zero CPU/RSS or recycling the prior baseline. The owned load-generator task is signaled to cancel, aborted and joined before the non-OK status; histogram and reset accounting advance only after a successful Mark capture. Pure injected snapshot mapping and owned-task cleanup helpers plus normal cumulative/reset lifecycle passed (worker 70/70, standalone rpc-bench bin 67/67). A platform capture error was not injected into the live RunClient stream, and independently spawned open-loop RPC subtasks and official-peer BM-10 qualification remain unverified."
       ]
     },
     {
