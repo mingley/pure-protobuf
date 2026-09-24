@@ -16,6 +16,7 @@ Verification states supported:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -381,6 +382,9 @@ class CasesRegistry:
     def validate_registry_schema(self) -> List[str]:
         """Validates the schema and completeness of cases.json."""
         errors = []
+        expected_statuses = {status.value for status in ExecutionStatus}
+        if set(self.disposition_definitions) != expected_statuses:
+            errors.append("Registry disposition definitions do not match the six execution statuses")
         if not self.version:
             errors.append("Registry missing 'version'")
         if not self.upstream_pins:
@@ -414,9 +418,16 @@ class CasesRegistry:
             if not disp or disp not in self.disposition_definitions:
                 errors.append(f"Case '{case_id}' has invalid disposition: '{disp}'")
 
-            if disp in ("unsupported", "blocked_external", "not_applicable"):
+            if disp != ExecutionStatus.PASSED.value:
                 if not c.get("justification"):
                     errors.append(f"Case '{case_id}' with disposition '{disp}' requires a justification")
+            coverage = c.get("present_coverage")
+            if not isinstance(coverage, dict):
+                errors.append(f"Case '{case_id}' has no present_coverage object")
+            elif coverage.get("status") not in expected_statuses:
+                errors.append(f"Case '{case_id}' has invalid coverage status: '{coverage.get('status')}'")
+            elif coverage["status"] == ExecutionStatus.PASSED.value and not coverage.get("evidence_file"):
+                errors.append(f"Case '{case_id}' has passing coverage without an evidence file")
 
         if self.summary:
             expected_total = self.summary.get("total_cases")
@@ -424,6 +435,16 @@ class CasesRegistry:
                 errors.append(
                     f"Summary total_cases ({expected_total}) != actual cases count ({len(self.cases_list)})"
                 )
+            for summary_key, case_key in (
+                ("by_disposition", "disposition"),
+                ("by_suite", "suite"),
+            ):
+                recorded = self.summary.get(summary_key)
+                actual = dict(Counter(c.get(case_key) for c in self.cases_list))
+                if recorded != actual:
+                    errors.append(
+                        f"Summary {summary_key} ({recorded}) != actual case counts ({actual})"
+                    )
         return errors
 
 
@@ -462,6 +483,7 @@ class ReportValidator:
         require_matrix: bool = False,
         required_directions: Optional[Set[str]] = None,
         require_peers: bool = False,
+        spec_adapter: bool = False,
         strict_retries: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> ValidationReport:
@@ -474,6 +496,16 @@ class ReportValidator:
         flaky_cases: List[str] = []
         missing_matrix_rows: List[str] = []
         peer_violations: List[str] = []
+        spec_peers = {
+            "http2_negative": {"local-http2-peer", "external-http2-peer"},
+            "server_probe": {"local-native-server"},
+        }
+        if spec_adapter and (
+            suite not in spec_peers or profile != "native" or require_all_cases
+        ):
+            errors.append(
+                "Spec-derived adapter mode requires a scoped native HTTP/2 suite without --require-all"
+            )
 
         # 1. Empty results check
         if not results:
@@ -509,6 +541,22 @@ class ReportValidator:
             if not case_def:
                 errors.append(f"Result references unknown case '{r.case}' not found in cases.json")
                 continue
+            is_adapter_result = (
+                spec_adapter
+                and case_def.get("suite") == suite
+                and r.peer in spec_peers.get(suite, set())
+            )
+            if spec_adapter and not is_adapter_result:
+                errors.append(
+                    f"Spec-derived adapter result for '{r.case}' must use the selected suite and peer from {sorted(spec_peers.get(suite, set()))}"
+                )
+            if case_def.get("disposition") not in (
+                ExecutionStatus.PASSED.value,
+                ExecutionStatus.NOT_APPLICABLE.value,
+            ) and r.status == ExecutionStatus.PASSED.value and not is_adapter_result:
+                errors.append(
+                    f"Case '{r.case}' cannot be reported passed while the registry disposition is '{case_def['disposition']}'"
+                )
 
             # Populate suite and profile from case_def if not present
             if not r.suite:
@@ -577,6 +625,10 @@ class ReportValidator:
                     errors.append(msg)
                     wrong_pins.append(msg)
 
+        # A profile without a suite names the entire shipping profile, not a
+        # partial smoke. The standard-interop CI selects its suite explicitly.
+        enforce_all_cases = require_all_cases or (profile is not None and suite is None)
+
         # 5. Determine expected cases to evaluate
         expected_cases: List[Dict[str, Any]] = []
         for c in self.registry.cases_list:
@@ -584,8 +636,17 @@ class ReportValidator:
                 continue
             if profile and c.get("profile") != profile:
                 continue
-            if require_all_cases or (suite or profile) or c.get("disposition") == ExecutionStatus.PASSED.value:
+            if enforce_all_cases or (suite or profile) or c.get("disposition") == ExecutionStatus.PASSED.value:
                 expected_cases.append(c)
+        if suite or profile:
+            selected_names = {case["case"] for case in expected_cases}
+            if not any(
+                r.case in selected_names and r.status == ExecutionStatus.PASSED.value
+                for r in results
+            ):
+                errors.append(
+                    f"No passing results for selected suite/profile: suite={suite}, profile={profile}"
+                )
 
         if required_directions is not None:
             if not require_matrix:
@@ -606,21 +667,36 @@ class ReportValidator:
             c_disp = c["disposition"]
             case_results = results_by_case.get(c_name, [])
 
+            if enforce_all_cases and c_disp not in (
+                ExecutionStatus.PASSED.value,
+                ExecutionStatus.NOT_APPLICABLE.value,
+            ):
+                errors.append(
+                    f"Unqualified required case '{c_name}': registry disposition is '{c_disp}'"
+                )
+
             if not case_results:
-                if require_all_cases or (c_disp == ExecutionStatus.PASSED.value and (suite or profile)):
+                if enforce_all_cases or (c_disp == ExecutionStatus.PASSED.value and (suite or profile)):
                     msg = f"Missing required case in results: '{c_name}' (expected disposition: '{c_disp}')"
                     errors.append(msg)
                     missing_cases.append(c_name)
                 continue
 
-            # Check if required case was marked not_run or failed
-            if c_disp == ExecutionStatus.PASSED.value:
-                for cr in case_results:
-                    if cr.status == ExecutionStatus.NOT_RUN.value:
-                        msg = f"Skipped required case: case '{c_name}' was not run (status: not_run)"
-                        errors.append(msg)
-                    elif cr.status == ExecutionStatus.FAILED.value:
-                        errors.append(f"Required case '{c_name}' failed execution: {cr.error_message or 'non-zero exit'}")
+            for cr in case_results:
+                if c_disp != ExecutionStatus.PASSED.value:
+                    continue
+                if required_directions is not None and cr.direction not in required_directions:
+                    continue
+                if cr.status == ExecutionStatus.FAILED.value:
+                    errors.append(f"Required case '{c_name}' failed execution: {cr.error_message or 'non-zero exit'}")
+                elif cr.status == ExecutionStatus.NOT_RUN.value:
+                    errors.append(
+                        f"Skipped required case: case '{c_name}' was not run (status: not_run)"
+                    )
+                elif (suite or profile or enforce_all_cases) and cr.status != ExecutionStatus.PASSED.value:
+                    errors.append(
+                        f"Required case '{c_name}' did not pass (status: {cr.status})"
+                    )
 
             # 7. Check matrix directions and self-test substitution
             if require_matrix or require_peers:
@@ -739,6 +815,7 @@ class AggregatedReport:
         target_suite: Optional[str] = None,
         target_profile: Optional[str] = None,
         generated_at: Optional[str] = None,
+        spec_adapter: bool = False,
     ):
         self.report_version = "1.0.0"
         self.generated_at = generated_at or datetime.now(timezone.utc).isoformat()
@@ -752,13 +829,15 @@ class AggregatedReport:
         self.upstream_pins = upstream_pins
         self.target_suite = target_suite
         self.target_profile = target_profile
+        self.spec_adapter = spec_adapter
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "report_version": self.report_version,
             "generated_at": self.generated_at,
             "overall_status": self.overall_status,
             "overall_passed": self.overall_passed,
+            "evidence_scope": "spec_derived_adapter" if self.spec_adapter else "registry",
             "failure_reasons": self.failure_reasons,
             "target_suite": self.target_suite,
             "target_profile": self.target_profile,
@@ -768,6 +847,12 @@ class AggregatedReport:
             "by_profile": {k: v.to_dict() for k, v in self.by_profile.items()},
             "results": [r.to_dict() for r in self.results],
         }
+        if self.spec_adapter:
+            result["qualification"] = {
+                "qualified": False,
+                "reason": "Spec-derived adapters do not qualify original upstream procedures",
+            }
+        return result
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
@@ -789,6 +874,8 @@ class AggregatedReport:
             lines.append(f"**Target Suite**: `{self.target_suite}`")
         if self.target_profile:
             lines.append(f"**Target Profile**: `{self.target_profile}`")
+        if self.spec_adapter:
+            lines.append("**Evidence Scope**: spec-derived adapter; original upstream qualification: NOT QUALIFIED")
 
         lines.append("\n### Upstream Pinned Versions")
         for k, pin in self.upstream_pins.items():
@@ -877,6 +964,8 @@ class AggregatedReport:
             lines.append(f"Target Suite:   {self.target_suite}")
         if self.target_profile:
             lines.append(f"Target Profile: {self.target_profile}")
+        if self.spec_adapter:
+            lines.append("Evidence Scope: spec-derived adapter; original upstream qualification: NOT QUALIFIED")
 
         lines.append(f"\n{BOLD}Summary Metrics:{RESET}")
         metrics = [
@@ -947,6 +1036,7 @@ class ReportAggregator:
         require_matrix: bool = False,
         required_directions: Optional[Set[str]] = None,
         require_peers: bool = False,
+        spec_adapter: bool = False,
         strict_retries: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AggregatedReport:
@@ -959,6 +1049,7 @@ class ReportAggregator:
             require_matrix=require_matrix,
             required_directions=required_directions,
             require_peers=require_peers,
+            spec_adapter=spec_adapter,
             strict_retries=strict_retries,
             metadata=metadata,
         )
@@ -1060,6 +1151,15 @@ class ReportAggregator:
 
         overall_passed = len(dedup_reasons) == 0
         overall_status = "passed" if overall_passed else "failed"
+        if not overall_passed:
+            if suite is not None:
+                by_suite.setdefault(
+                    suite, SuiteSummary(suite_id=suite, suite_name=self.registry.suites.get(suite, suite))
+                ).status = "failed"
+            if profile is not None:
+                by_profile.setdefault(
+                    profile, ProfileSummary(profile_id=profile)
+                ).status = "failed"
 
         return AggregatedReport(
             overall_status=overall_status,
@@ -1072,6 +1172,7 @@ class ReportAggregator:
             upstream_pins=self.registry.upstream_pins,
             target_suite=suite,
             target_profile=profile,
+            spec_adapter=spec_adapter,
         )
 
 
@@ -1203,7 +1304,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub_val.add_argument("--cases", type=str, default=str(default_cases_path()), help="Path to cases.json")
     sub_val.add_argument("--suite", type=str, help="Suite filter")
     sub_val.add_argument("--profile", type=str, help="Profile filter")
+    sub_val.add_argument("--require-all", action="store_true", default=argparse.SUPPRESS, help="Require every selected case and a qualifying registry disposition")
     sub_val.add_argument("--require-matrix", action="store_true", help="Enforce all matrix directions")
+    sub_val.add_argument("--spec-adapter", action="store_true", help="Validate only a scoped native HTTP/2 spec-derived adapter, never upstream qualification")
     sub_val.add_argument("--required-directions", type=parse_required_directions, help="Comma-separated peer directions to require")
     sub_val.add_argument("--require-peers", action="store_true", help="Disallow self-test substitution")
     sub_val.add_argument("--strict", action="store_true", default=True, help="Enforce strict retry checking")
@@ -1216,7 +1319,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub_agg.add_argument("--format", choices=["terminal", "markdown", "json"], default="terminal")
     sub_agg.add_argument("--suite", type=str, help="Suite filter")
     sub_agg.add_argument("--profile", type=str, help="Profile filter")
+    sub_agg.add_argument("--require-all", action="store_true", default=argparse.SUPPRESS, help="Require every selected case and a qualifying registry disposition")
     sub_agg.add_argument("--require-matrix", action="store_true", help="Enforce all matrix directions")
+    sub_agg.add_argument("--spec-adapter", action="store_true", help="Report only a scoped native HTTP/2 spec-derived adapter, never upstream qualification")
     sub_agg.add_argument("--required-directions", type=parse_required_directions, help="Comma-separated peer directions to require")
     sub_agg.add_argument("--require-peers", action="store_true", help="Disallow self-test substitution")
     sub_agg.add_argument("--strict", action="store_true", default=True, help="Enforce strict retry checking")
@@ -1306,9 +1411,11 @@ def handle_validate(args: argparse.Namespace) -> int:
         results=results,
         suite=args.suite,
         profile=args.profile,
+        require_all_cases=getattr(args, "require_all", False),
         require_matrix=getattr(args, "require_matrix", False),
         required_directions=getattr(args, "required_directions", None),
         require_peers=getattr(args, "require_peers", False),
+        spec_adapter=getattr(args, "spec_adapter", False),
         strict_retries=getattr(args, "strict", True),
         metadata=metadata,
     )
@@ -1325,7 +1432,10 @@ def handle_validate(args: argparse.Namespace) -> int:
         print("Validation succeeded, but one or more tests failed execution.", file=sys.stderr)
         return EXIT_TEST_FAILURE
 
-    print("Validation PASSED: All matrix rows, pins, and test cases conform to specification.")
+    if getattr(args, "spec_adapter", False):
+        print("Spec-derived adapter validation PASSED; original upstream qualification remains open.")
+    else:
+        print("Validation PASSED: All matrix rows, pins, and test cases conform to specification.")
     return EXIT_SUCCESS
 
 
@@ -1346,6 +1456,11 @@ def handle_aggregate(args: argparse.Namespace) -> int:
         return EXIT_VALIDATION_ERROR
 
     registry = CasesRegistry.load(cases_path)
+    schema_errs = registry.validate_registry_schema()
+    if schema_errs:
+        for err in schema_errs:
+            print(f"Registry schema error: {err}", file=sys.stderr)
+        return EXIT_VALIDATION_ERROR
     aggregator = ReportAggregator(registry)
     report = aggregator.aggregate(
         results=results,
@@ -1355,6 +1470,7 @@ def handle_aggregate(args: argparse.Namespace) -> int:
         require_matrix=getattr(args, "require_matrix", False),
         required_directions=getattr(args, "required_directions", None),
         require_peers=getattr(args, "require_peers", False),
+        spec_adapter=getattr(args, "spec_adapter", False),
         strict_retries=getattr(args, "strict", True),
         metadata=metadata,
     )
@@ -1382,6 +1498,10 @@ def handle_aggregate(args: argparse.Namespace) -> int:
             or "substitution" in r.lower()
             or "Empty" in r
             or "Retry hid" in r
+            or "Unqualified" in r
+            or "cannot be reported passed" in r
+            or "No passing results" in r
+            or "Spec-derived adapter" in r
             for r in report.failure_reasons
         )
         if has_validation_err:

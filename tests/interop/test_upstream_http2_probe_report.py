@@ -1,8 +1,14 @@
 """Original Go TestSoon failures must not become success-shaped exit codes."""
 
+import importlib.util
 import json
+from pathlib import Path
+import subprocess
+import sys
 import unittest
+from unittest.mock import patch
 
+from scripts import upstream_http2_probe_report
 from scripts.upstream_http2_probe_report import CASES, GRPC_SOURCE_SHA, summarize
 
 
@@ -67,6 +73,43 @@ class UpstreamHttp2ReportTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             summarize(good, "framing", 0, "0" * 40)
         self.assertFalse(summarize(good, "framing", 1, GRPC_SOURCE_SHA)["qualified"])
+
+    def test_source_guard_rejects_untracked_and_ignored_go_files(self):
+        script = Path(__file__).resolve().parents[2] / (
+            "scripts/grpc-http2-upstream-server-interop.py"
+        )
+        spec = importlib.util.spec_from_file_location("upstream_http2_runner", script)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        with patch.dict(sys.modules, {"upstream_http2_probe_report": upstream_http2_probe_report}):
+            runner = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(runner)
+
+        revision = subprocess.CompletedProcess([], 0, GRPC_SOURCE_SHA + "\n", "")
+        for status in (
+            "",
+            " M tools/http2_interop/http2interop.go\n",
+            "?? tools/http2_interop/injected_test.go\n",
+            "!! tools/http2_interop/ignored_test.go\n",
+        ):
+            with self.subTest(status=status), patch.object(
+                runner, "command", side_effect=[
+                    revision, subprocess.CompletedProcess([], 0, status, ""),
+                ],
+            ) as command:
+                if status:
+                    with self.assertRaisesRegex(RuntimeError, "modified, untracked, or ignored"):
+                        runner.require_clean_source()
+                else:
+                    self.assertEqual(runner.require_clean_source(), GRPC_SOURCE_SHA)
+                args = command.call_args_list[1].args[0]
+                self.assertIn("--untracked-files=all", args)
+                self.assertIn("--ignored=matching", args)
+        with patch.object(runner, "command", side_effect=[
+            revision, subprocess.CompletedProcess([], 128, "", "git status failed"),
+        ]):
+            with self.assertRaisesRegex(RuntimeError, "could not inspect"):
+                runner.require_clean_source()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mingley/pure-protobuf/blob/main/tests/interop/cases.schema.json",
+  "title": "Official interoperability case registry",
+  "type": "object",
+  "required": [
+    "version",
+    "updated_at",
+    "title",
+    "description",
+    "upstream_pins",
+    "disposition_definitions",
+    "suites",
+    "summary",
+    "cases"
+  ],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"type": "string"},
+    "updated_at": {"type": "string", "format": "date"},
+    "title": {"type": "string"},
+    "description": {"type": "string"},
+    "upstream_pins": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["repository", "commit"],
+        "properties": {
+          "repository": {"type": "string"},
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+        }
+      }
+    },
+    "disposition_definitions": {
+      "type": "object",
+      "required": [
+        "passed",
+        "failed",
+        "not_run",
+        "unsupported",
+        "blocked_external",
+        "not_applicable"
+      ],
+      "properties": {
+        "passed": {"type": "string"},
+        "failed": {"type": "string"},
+        "not_run": {"type": "string"},
+        "unsupported": {"type": "string"},
+        "blocked_external": {"type": "string"},
+        "not_applicable": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "suites": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total_cases", "by_disposition", "by_suite"],
+      "properties": {
+        "total_cases": {"type": "integer", "minimum": 0},
+        "by_disposition": {
+          "type": "object",
+          "required": [
+            "passed",
+            "failed",
+            "not_run",
+            "unsupported",
+            "blocked_external",
+            "not_applicable"
+          ],
+          "properties": {
+            "passed": {"type": "integer", "minimum": 0},
+            "failed": {"type": "integer", "minimum": 0},
+            "not_run": {"type": "integer", "minimum": 0},
+            "unsupported": {"type": "integer", "minimum": 0},
+            "blocked_external": {"type": "integer", "minimum": 0},
+            "not_applicable": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "by_suite": {
+          "type": "object",
+          "additionalProperties": {"type": "integer", "minimum": 0}
+        }
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": [
+        "case",
+        "name",
+        "suite",
+        "procedure_source",
+        "peer_direction",
+        "transport",
+        "profile",
+        "owner",
+        "disposition",
+        "justification",
+        "present_coverage"
+      ],
+      "properties": {
+        "case": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "suite": {"type": "string"},
+        "procedure_source": {"type": "string"},
+        "peer_direction": {
+          "enum": ["both", "client_to_server", "runner_to_binary", "driver_to_worker", "internal"]
+        },
+        "transport": {
+          "enum": ["http2_cleartext", "http2_tls", "http2_mtls", "alts", "pipe", "none"]
+        },
+        "profile": {
+          "enum": ["core", "native", "tonic", "full", "extended"]
+        },
+        "owner": {"type": "string"},
+        "disposition": {"$ref": "#/$defs/status"},
+        "justification": {"type": ["string", "null"]},
+        "present_coverage": {
+          "type": "object",
+          "required": ["status", "evidence_file", "passing_directions", "notes"],
+          "properties": {
+            "status": {"$ref": "#/$defs/status"},
+            "evidence_file": {"type": ["string", "null"]},
+            "passing_directions": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "notes": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "assertion_checklist": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["property", "assertion", "mutation_fixture"],
+            "properties": {
+              "property": {"type": "string"},
+              "assertion": {"type": "string"},
+              "mutation_fixture": {"type": ["string", "null"]},
+              "fixture_note": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "not_run",
+        "unsupported",
+        "blocked_external",
+        "not_applicable"
+      ]
+    }
+  }
+}

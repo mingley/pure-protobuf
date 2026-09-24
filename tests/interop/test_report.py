@@ -110,6 +110,42 @@ class TestCasesRegistry(BaseReportTest):
         self.assertEqual(errs, [], f"Authoritative cases.json has schema errors: {errs}")
         self.assertEqual(len(self.registry.cases_list), 69)
         self.assertIn("standard_interop", self.registry.suites)
+        data = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+        schema_path = CASES_PATH.parent / data["$schema"]
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(schema["$defs"]["status"]["enum"]),
+            {status.value for status in ExecutionStatus},
+        )
+
+    def test_original_upstream_proofs_are_not_replaced_by_local_adapters(self):
+        for case in self.registry.cases_list:
+            if case["suite"] == "http2_negative":
+                self.assertEqual(case["disposition"], "not_run", case["case"])
+                self.assertEqual(case["present_coverage"]["status"], "passed")
+            elif case["suite"] == "server_probe":
+                self.assertEqual(case["disposition"], "failed", case["case"])
+                self.assertEqual(case["present_coverage"]["status"], "passed")
+            elif case["suite"] == "soak":
+                self.assertEqual(case["disposition"], "not_run", case["case"])
+                self.assertEqual(case["present_coverage"]["status"], "passed")
+
+    def test_registry_summary_rejects_stale_disposition_and_suite_counts(self):
+        for summary_key, item in (("by_disposition", "passed"), ("by_suite", "soak")):
+            with self.subTest(summary_key=summary_key):
+                data = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+                data["summary"][summary_key][item] += 1
+                errors = CasesRegistry(data).validate_registry_schema()
+                self.assertTrue(any(summary_key in error for error in errors), errors)
+
+    def test_registry_rejects_unproven_pass_and_invalid_coverage(self):
+        for status, evidence in (("passed", None), ("unknown", "missing.py")):
+            with self.subTest(status=status):
+                data = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+                data["cases"][0]["present_coverage"]["status"] = status
+                data["cases"][0]["present_coverage"]["evidence_file"] = evidence
+                errors = CasesRegistry(data).validate_registry_schema()
+                self.assertTrue(any("coverage" in error for error in errors), errors)
 
 
 class TestValidResultProcessing(BaseReportTest):
@@ -162,6 +198,91 @@ class TestValidResultProcessing(BaseReportTest):
 
 class TestMatrixAndPinRejection(BaseReportTest):
     """Verify rejecting empty output, duplicate rows, missing matrix rows, and wrong pins."""
+
+    def test_local_pass_cannot_replace_unqualified_original(self):
+        validator = ReportValidator(self.registry)
+        for case in ("ping", "server_tls_probe", "rpc_soak"):
+            with self.subTest(case=case):
+                result = self.make_valid_case_result(
+                    case, peer="local-peer", direction="client_to_server"
+                )
+                errors = validator.validate_results([result]).errors
+                self.assertTrue(
+                    any("cannot be reported passed" in error for error in errors),
+                    errors,
+                )
+
+    def test_spec_adapter_reports_pass_only_with_explicit_unqualified_scope(self):
+        validator = ReportValidator(self.registry)
+        for suite, case, peer in (
+            ("http2_negative", "ping", "local-http2-peer"),
+            ("http2_negative", "ping", "external-http2-peer"),
+            ("server_probe", "server_tls_probe", "local-native-server"),
+        ):
+            with self.subTest(suite=suite, peer=peer):
+                result = self.make_valid_case_result(
+                    case, peer=peer, direction="client_to_server"
+                )
+                kwargs = {"suite": suite, "profile": "native", "spec_adapter": True}
+                self.assertTrue(validator.validate_results([result], **kwargs).is_valid)
+                report = ReportAggregator(self.registry).aggregate([result], **kwargs)
+                self.assertTrue(report.overall_passed)
+                self.assertEqual(report.to_dict()["evidence_scope"], "spec_derived_adapter")
+                self.assertEqual(report.to_dict()["qualification"]["qualified"], False)
+                self.assertIn("NOT QUALIFIED", report.to_terminal(use_color=False))
+
+                result.peer = "pbrs-grpc"
+                self.assertFalse(validator.validate_results([result], **kwargs).is_valid)
+                result.peer = peer
+                self.assertFalse(
+                    validator.validate_results(
+                        [result], profile="native", spec_adapter=True
+                    ).is_valid
+                )
+                self.assertFalse(
+                    validator.validate_results(
+                        [result], require_all_cases=True, **kwargs
+                    ).is_valid
+                )
+
+    def test_full_profile_fails_closed_on_upstream_blockers(self):
+        result = self.make_valid_case_result()
+        validator = ReportValidator(self.registry)
+        profile = validator.validate_results([result], profile="native")
+        self.assertFalse(profile.is_valid)
+        self.assertIn("server_tls_probe", profile.missing_cases)
+        self.assertIn("rpc_soak", profile.missing_cases)
+        self.assertTrue(
+            any("Unqualified required case 'server_tls_probe'" in e for e in profile.errors)
+        )
+        report = ReportAggregator(self.registry).aggregate([result], profile="native")
+        self.assertFalse(report.overall_passed)
+        self.assertEqual(report.by_profile["native"].status, "failed")
+
+        narrow = validator.validate_results(
+            [result], suite="standard_interop", profile="native"
+        )
+        self.assertFalse(narrow.is_valid)
+        self.assertFalse(
+            any("server_tls_probe" in e for e in narrow.errors),
+            "suite-specific CI validation must not accidentally become a full-profile gate",
+        )
+
+    def test_scoped_suite_cannot_pass_from_an_unrelated_result(self):
+        result = self.make_valid_case_result()
+        validator = ReportValidator(self.registry)
+        scoped = validator.validate_results(
+            [result], suite="server_probe", profile="native"
+        )
+        self.assertFalse(scoped.is_valid)
+        self.assertTrue(
+            any("No passing results for selected suite/profile" in e for e in scoped.errors)
+        )
+        report = ReportAggregator(self.registry).aggregate(
+            [result], suite="server_probe", profile="native"
+        )
+        self.assertFalse(report.overall_passed)
+        self.assertEqual(report.by_suite["server_probe"].status, "failed")
 
     def test_reject_empty_output(self):
         validator = ReportValidator(self.registry)
@@ -490,6 +611,62 @@ class TestCLIIntegration(BaseReportTest):
 
             proc = self.run_cli(["validate", "--cases", str(CASES_PATH), "--results", str(dup_results)])
             self.assertEqual(proc.returncode, EXIT_VALIDATION_ERROR)
+
+    def test_cli_profile_and_require_all_reject_missing_upstream_proof(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            results_path = Path(tmp_dir) / "results.json"
+            writer = ResultWriter(results_path)
+            writer.add_result(self.make_valid_case_result())
+            writer.write()
+            for args in (
+                ["validate", "--profile", "native"],
+                ["aggregate", "--profile", "native"],
+                ["--require-all", "validate", "--suite", "server_probe"],
+                ["validate", "--require-all", "--suite", "server_probe"],
+            ):
+                with self.subTest(args=args):
+                    proc = self.run_cli(args + ["--cases", str(CASES_PATH), "--results", str(results_path)])
+                    self.assertEqual(proc.returncode, EXIT_VALIDATION_ERROR, proc.stderr)
+                    self.assertIn("server_tls_probe", proc.stdout + proc.stderr)
+
+    def test_cli_spec_adapter_cannot_be_reused_as_upstream_pass(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            results_path = Path(tmp_dir) / "results.json"
+            writer = ResultWriter(results_path)
+            writer.add_result(
+                self.make_valid_case_result(
+                    "ping", peer="local-http2-peer", direction="client_to_server"
+                )
+            )
+            writer.write()
+            base = [
+                "aggregate", "--cases", str(CASES_PATH), "--results", str(results_path),
+                "--suite", "http2_negative", "--profile", "native", "--format", "json",
+            ]
+            local = self.run_cli(base + ["--spec-adapter"])
+            self.assertEqual(local.returncode, EXIT_SUCCESS, local.stderr)
+            self.assertFalse(json.loads(local.stdout)["qualification"]["qualified"])
+
+            original = self.run_cli(base)
+            self.assertEqual(original.returncode, EXIT_VALIDATION_ERROR)
+            self.assertIn("cannot be reported passed", original.stdout)
+
+    def test_cli_aggregate_rejects_stale_registry_summary(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            results_path = Path(tmp_dir) / "results.json"
+            registry_path = Path(tmp_dir) / "cases.json"
+            writer = ResultWriter(results_path)
+            writer.add_result(self.make_valid_case_result())
+            writer.write()
+            data = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+            data["summary"]["by_disposition"]["passed"] += 1
+            registry_path.write_text(json.dumps(data), encoding="utf-8")
+            proc = self.run_cli([
+                "aggregate", "--cases", str(registry_path),
+                "--results", str(results_path),
+            ])
+            self.assertEqual(proc.returncode, EXIT_VALIDATION_ERROR)
+            self.assertIn("Summary by_disposition", proc.stderr)
 
     def test_cli_stdin_input_and_json_format(self):
         res = self.make_valid_case_result("empty_unary")

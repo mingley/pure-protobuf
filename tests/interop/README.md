@@ -49,21 +49,34 @@ Every entry in `cases` contains:
 * `transport` *(string)*: Protocol and wire transport: `http2_cleartext`, `http2_tls`, `http2_mtls`, `alts`, `pipe`, or `none`.
 * `profile` *(string)*: Applicable shipping/qualification profile: `core`, `native`, `tonic`, `full`, `extended`.
 * `owner` *(string)*: Authoritative task ID in `docs/plan/tasks.json` responsible for this case.
-* `disposition` *(string)*: Current qualification disposition (see [Dispositions](#disposition-rules)).
-* `justification` *(string or null)*: Required explanation whenever disposition is `unsupported`, `blocked_external`, or `not_applicable`.
+* `disposition` *(string)*: Original pinned procedure's current qualification disposition (see [Dispositions](#disposition-rules)). The in-repo [JSON schema](cases.schema.json) lists all six states; `scripts/interop-report.py` checks unique cases and exact summary totals without an extra dependency.
+* `justification` *(string or null)*: Required explanation for every non-`passed` disposition.
 * `present_coverage` *(object)*:
-  * `status`: Current status (`passed`, `not_run`, `unsupported`, `blocked_external`, `not_applicable`).
+  * `status`: Current local or original-runner status (`passed`, `failed`, `not_run`, `unsupported`, `blocked_external`, `not_applicable`).
   * `evidence_file`: Path to the script, harness, or test file providing current evidence.
   * `passing_directions`: Array of verified peer directions currently passing.
   * `notes`: Additional technical context, limitations, or pending work.
 
 ### Disposition Rules
 Every active upstream case has an explicit disposition:
-1. `passed`: The case has been executed and verified passing in official test scripts, peer passes, or conformance harness.
-2. `not_run`: An active upstream procedure supported or planned for support, but not yet executed in the official harness.
-3. `unsupported`: A protocol feature or procedure not yet implemented in the target profile.
-4. `blocked_external`: Blocked by external infrastructure, provider identity, or cloud secrets (e.g. GCP metadata server, Google IAM credentials). **Missing credentials must always be classified as `blocked_external`, never `not_applicable`.**
-5. `not_applicable`: Explicitly excluded upstream test or kernel internal with approved, documented technical justification (e.g. C/upb internal arena memory layouts).
+1. `passed`: The pinned procedure has passing independent evidence for its required scope.
+2. `failed`: The original pinned procedure ran with failing subcases; diagnose runner drift versus product defects without relabeling a local adapter pass.
+3. `not_run`: An active upstream procedure supported or planned for support, but not yet executed in the official harness.
+4. `unsupported`: A protocol feature or procedure not yet implemented in the target profile.
+5. `blocked_external`: Blocked by external infrastructure, provider identity, or cloud secrets (e.g. GCP metadata server, Google IAM credentials). **Missing credentials must always be classified as `blocked_external`, never `not_applicable`.**
+6. `not_applicable`: Explicitly excluded upstream test or kernel internal with approved, documented technical justification (e.g. C/upb internal arena memory layouts).
+
+The eight HTTP/2 client negatives remain `not_run` for the original upstream
+Twisted/Python-2 runner while `present_coverage.status=passed` records the
+separate 8/8 local peer exercise. Both server probes are `failed` under the
+original Go runner (framing 5/6, TLS 0/3) despite 2/2 separate local probes.
+Both full-duration soaks are `not_run` although their local adapters pass
+deterministic and qualification-scale tests. An original-procedure case cannot
+be reported passed while its registry disposition is unresolved.
+`--spec-adapter` is accepted only for the two named native HTTP/2 suites
+and their explicit local or external adapter peer identities; its JSON
+reports mark `evidence_scope=spec_derived_adapter` and
+`qualification.qualified=false` even when the adapter matrix passes.
 
 ---
 
@@ -93,7 +106,8 @@ Adversarial framing, stream cancellation, and connection termination defined in 
   procedures against a purpose-built local HTTP/2 peer and retains a required
   matrix report. This is a spec-derived adapter, **not** execution of the
   upstream runner binary; the independent-peer qualification in `IO-08`
-  remains open. A fake successful client with no peer frames is recorded as
+  remains open and the original procedures are registered `not_run`.
+  A fake successful client with no peer frames is recorded as
   failed by `test_http2_peer_proof.py`; reports link both client and local-peer
   logs. In-tree hostile tests are complementary.
 
@@ -112,7 +126,8 @@ Official server transport verification probes from `tools/run_tests/run_interop_
   result rows and retained logs. It decodes the response `:status` and
   requires HTTP 405/415, rather than accepting any HEADERS frame. It does not
   invoke the upstream probe binary;
-  `IO-09` remains open until that qualification boundary is resolved.
+  `IO-09` remains open; the original Go probes are registered `failed`
+  rather than inheriting the local 2/2 result.
 
 The [original upstream Go probes](../../scripts/grpc-http2-upstream-server-interop.py)
 are a separate, fail-closed local diagnostic. With an existing clean
@@ -124,21 +139,34 @@ python3 scripts/grpc-http2-upstream-server-interop.py
 ```
 
 The harness builds the pinned stdlib-only Go test binary and native debug
-server, verifies the upstream test CA, server name and ALPN `h2`, then retains
-per-mode raw logs, binary hashes and JSON under `target/interop-logs/`. It
-requires all six framing and three TLS subcases to pass; upstream `TestMain`
-can return exit **0** even if advisory `TestSoon*` cases fail. A cached native
-binary selected with `--skip-rust-build` remains explicitly unqualified.
+server, rejects tracked, untracked, or ignored files in the pinned probe and
+test-credential directories, verifies the upstream test CA, server name and
+ALPN `h2`, then retains per-mode raw logs, binary hashes and JSON under
+`target/interop-logs/`. It requires all six framing and three TLS subcases
+to pass; upstream `TestMain` can return exit **0** even if advisory
+`TestSoon*` cases fail. A cached native binary selected with
+`--skip-rust-build` remains explicitly unqualified.
 
-The **2026-09-24 local macOS diagnostic**, using the pinned source and Go
-1.25.3, found framing **5/6** (`TestSoonSmallMaxFrameSize` expected GOAWAY
-but saw EOF) and TLS **0/3**. The TLS errors include a Go 1.25.3 client
-configuration error before connecting for the TLS 1.1 test, a changed
-no-ALPN error message, and a bad-cipher test that reaches HTTP/2 SETTINGS
-under TLS 1.3. These are raw runner outcomes, not conclusions that the
-server accepted TLS 1.1 or insecure ciphers. `IO-09` and the full upstream
-profile stay open until server behavior and runner-version drift are triaged
-and reproduced on the exact release SHA.
+The **2026-09-24 local macOS Go 1.25.3 run** remains framing **5/6** and TLS
+**0/3**. A separate stdlib socket diagnostic on the *cached, unqualified*
+native binary (SHA-256 `a4fa7a289441c8addc956e1e972e4ac8dde1821f0ea419a602260c444a79c251`)
+received initial SETTINGS, then GOAWAY with code 1 (`PROTOCOL_ERROR`), then
+EOF for `SETTINGS_MAX_FRAME_SIZE=16383`; a 16384 control received a SETTINGS
+ACK. The pinned Go `parseFrame` does not construct `GoAwayFrame`, and
+`TestSoonSmallMaxFrameSize` expects the string `Got goaway frame` despite its
+helper returning nil after a GOAWAY. Its EOF is therefore not evidence of a
+missing server GOAWAY; the original Go result is **not** relabeled as passed.
+
+The TLS cases likewise do not demonstrate a server flaw: `h2c` ALPN receives
+`no_application_protocol` (not the old test's `EOF`/`broken pipe` text); the
+TLS 1.1 case has contradictory Go client MinVersion TLS 1.2 and MaxVersion
+TLS 1.1 and errors before connecting; and the bad-TLS-1.2-cipher test leaves
+TLS 1.3 enabled. A verified stdlib TLS handshake with one banned TLS 1.2
+cipher (`AES128-SHA`) was rejected when forced to TLS 1.2, but negotiated
+TLS 1.3 AEAD and `h2` when TLS 1.3 was allowed. This does not prove rejection
+of every weak cipher or acceptance of TLS 1.1. The original upstream profile
+and `IO-09` stay open: a reviewed, version-compatible original-probe
+qualification and a fresh clean native build are still needed.
 
 ### 5. Connection Backoff (`connection_backoff`, 1 case)
 Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-interop-test-description.md`:
@@ -149,7 +177,7 @@ Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-int
 Long-running reliability and resource stability from `run_interop_tests.py`:
 * `rpc_soak`: Sustained high-iteration RPC loop measuring latency and error budget over a long window.
 * `channel_soak`: Repeated channel creation, connection churn, and teardown under load.
-* *Status*: Adapters qualified in task `IO-10` (`pbrs-grpc/src/interop_cases.rs`, `pbrs-grpc-interop-client` soak flags, `tests/interop/test_soak.py` 12/12 deterministic tests plus local qualification-scale runs); the full-duration official campaign remains a scheduled operator run.
+* *Status*: Adapters are exercised by `pbrs-grpc/src/interop_cases.rs`, the `pbrs-grpc-interop-client` soak flags, and `tests/interop/test_soak.py` (12/12 deterministic tests plus local qualification-scale runs). Their original full-duration procedures remain registered `not_run` for the scheduled operator campaign; IO-10's adapter deliverable is distinct from that campaign.
 
 ### 7. Stream Scaling (`scaling`, 1 case)
 Concurrent connection scaling under peer stream limits:
@@ -327,8 +355,10 @@ python3 scripts/interop-report.py record \
 * `--output, -o <path>`: Destination path for machine-readable `report.json`.
 * `--format {terminal,markdown,json}`: Output display format (default: `terminal`).
 * `--suite <name>`: Filter and enforce requirements for a specific suite (e.g. `standard_interop`).
-* `--profile <name>`: Filter and enforce requirements for a qualification profile (e.g. `native`).
-* `--require-all`: Fail if any case in `cases.json` for the target scope is missing from results.
+* `--profile <name>` without `--suite`: Require the entire profile, including unresolved upstream failures and missing original procedures; currently `native` fails qualification.
+* `--suite <name> --profile <name>`: A scoped matrix (for example CI's standard-interop direction subset), not a full-profile pass.
+* `--require-all`: Fail if any selected case is missing or has an unqualified registry disposition (on `validate` or `aggregate`).
+* `--spec-adapter`: Check only the explicitly scoped native HTTP/2 spec-derived client or server probes, including an explicitly labeled external HTTP/2 peer; its passing result is **not** an original upstream or full-profile qualification.
 * `--require-matrix`: Fail if any expected direction from `cases.json` is missing.
 * `--require-peers`: Fail if independent peer execution is missing or substituted with self-test.
 * `--strict` / `--no-strict`: Enforce strict retry checking (default: `--strict` fails if retries hid initial failure).

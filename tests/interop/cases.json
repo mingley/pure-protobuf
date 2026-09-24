@@ -1,7 +1,7 @@
 {
   "$schema": "./cases.schema.json",
   "version": "1.1.0",
-  "updated_at": "2026-09-22",
+  "updated_at": "2026-09-24",
   "title": "Official gRPC and Protobuf Interoperability Case Registry",
   "description": "Versioned case registry pinning official test suites, procedure sources, peer directions, transports, profiles, owners, and present coverage across pure-protobuf and pbrs-grpc.",
   "upstream_pins": {
@@ -38,6 +38,7 @@
   },
   "disposition_definitions": {
     "passed": "Verified passing in official test scripts, peer passes, or conformance harness.",
+    "failed": "Executed upstream procedure has a failing required or advisory subcase; failure may be in the runner or server and must be triaged.",
     "not_run": "Active upstream test case or procedure scheduled for execution, not yet run in official harness.",
     "unsupported": "Protocol feature, RPC pattern, or service not yet implemented in target profile.",
     "blocked_external": "Blocked by external dependencies (e.g. cloud provider credentials, GCP metadata service, network authority). Never marked not_applicable.",
@@ -60,8 +61,9 @@
   "summary": {
     "total_cases": 69,
     "by_disposition": {
-      "passed": 35,
-      "not_run": 2,
+      "passed": 23,
+      "failed": 2,
+      "not_run": 12,
       "unsupported": 24,
       "blocked_external": 6,
       "not_applicable": 2
@@ -844,8 +846,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-07",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -864,8 +866,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-07",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -884,8 +886,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-07",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -904,8 +906,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-07",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -924,8 +926,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-08",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -944,8 +946,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-08",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -964,8 +966,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-08",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -984,8 +986,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-08",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The original pinned HTTP/2 server requires an unavailable reviewed Twisted/Python-2 runner; the local spec-derived peer is not its execution.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-interop.sh",
@@ -1004,15 +1006,15 @@
       "transport": "http2_tls",
       "profile": "native",
       "owner": "IO-09",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "failed",
+      "justification": "The original pinned Go TLS probe failed 3/3 advisory subcases with Go 1.25.3; runner/version drift is under investigation, not a demonstrated server weakness.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-server-interop.sh",
         "passing_directions": [
           "client_to_server"
         ],
-        "notes": "ALPN h2 negotiation, non-h2 ALPN rejection, certificate presentation, and live TLS empty_unary verified against native pbrs-grpc-interop-server; in-tree rustls tests in pbrs-grpc/tests/tls.rs remain complementary."
+        "notes": "Local spec-derived TLS probe passes with ALPN and live gRPC; original Go probe remains 0/3 with Go 1.25.3 (client-side TLS-version error, ALPN text drift, TLS 1.3 cipher ambiguity). Neither result proves weak-cipher/TLS 1.1 acceptance."
       }
     },
     {
@@ -1024,15 +1026,15 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-09",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "failed",
+      "justification": "The original pinned Go framing probe failed 1/6 advisory subcases with Go 1.25.3; the cached-server wire diagnostic observed GOAWAY, so runner drift must be resolved.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "scripts/grpc-http2-server-interop.sh",
         "passing_directions": [
           "client_to_server"
         ],
-        "notes": "Preface/SETTINGS exchange, rapid-reset flood, small DATA frames, CONTINUATION assembly/flood, 405/415 rejection, and post-probe health verified against native pbrs-grpc-interop-server; in-tree hostile tests in pbrs-grpc/tests/hostile.rs remain complementary."
+        "notes": "Local spec-derived framing probe passes; original Go framing probe remains 5/6 with Go 1.25.3. A separate cached-server wire diagnostic observed GOAWAY before EOF; in-tree hostile tests are complementary."
       }
     },
     {
@@ -1062,8 +1064,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-10",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The full-duration official upstream soak has not run; local adapter tests and qualification-scale iterations are not a sustained qualification campaign.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "tests/interop/test_soak.py",
@@ -1082,8 +1084,8 @@
       "transport": "http2_cleartext",
       "profile": "native",
       "owner": "IO-10",
-      "disposition": "passed",
-      "justification": null,
+      "disposition": "not_run",
+      "justification": "The full-duration official upstream soak has not run; local adapter tests and qualification-scale iterations are not a sustained qualification campaign.",
       "present_coverage": {
         "status": "passed",
         "evidence_file": "tests/interop/test_soak.py",

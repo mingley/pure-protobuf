@@ -31,12 +31,17 @@ def require_clean_source() -> str:
     got = command(["git", "-C", str(SOURCE), "rev-parse", "HEAD"])
     if got.returncode != 0 or got.stdout.strip() != GRPC_SOURCE_SHA:
         raise RuntimeError("pinned grpc/grpc source is absent or at the wrong revision")
-    dirty = command([
-        "git", "-C", str(SOURCE), "diff", "--quiet", "HEAD", "--",
+    status = command([
+        "git", "-C", str(SOURCE), "status", "--porcelain=v1",
+        "--untracked-files=all", "--ignored=matching", "--",
         "tools/http2_interop", "src/core/tsi/test_creds",
     ])
-    if dirty.returncode != 0:
-        raise RuntimeError("pinned grpc/grpc Go probes or test credentials are modified")
+    if status.returncode != 0:
+        raise RuntimeError("could not inspect pinned grpc/grpc Go probes or test credentials")
+    if status.stdout:
+        raise RuntimeError(
+            "pinned grpc/grpc Go probes or test credentials are modified, untracked, or ignored"
+        )
     return got.stdout.strip()
 
 

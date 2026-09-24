@@ -638,7 +638,7 @@ for case in "${CASES[@]}"; do
       --case "$case" \
       --status "$status" \
       --duration-ms "$dur_ms" \
-      --peer "pbrs-grpc" \
+      --peer "local-native-server" \
       --direction "client_to_server" \
       --transport "$transport" \
       --suite "server_probe" \
@@ -659,10 +659,10 @@ echo "Logs saved to $LOG_DIR"
 echo "=================================================="
 
 echo "== validating interop results =="
-python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
+python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --spec-adapter --require-matrix || OVERALL_FAILED=1
 
 echo "== aggregating interop results =="
-python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
+python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --spec-adapter --require-matrix || OVERALL_FAILED=1
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then
   exit 1
