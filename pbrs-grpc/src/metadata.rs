@@ -14,6 +14,7 @@ pub type MetadataMap = Metadata;
 /// Returns true if the metadata header key is considered sensitive and should be redacted.
 ///
 /// Matches standard credentials (`authorization`, `cookie`, `set-cookie`, `proxy-authorization`),
+/// peer-provided `user-agent`,
 /// binary metadata keys (ending in `-bin`), and keys containing sensitive substrings such as
 /// `token`, `secret`, `password`, `credential`, `api-key`, `apikey`, `private-key`, `auth`,
 /// `sensitive`, or `signature`.
@@ -24,6 +25,7 @@ pub fn is_sensitive_key(key: &str) -> bool {
         || lower == "cookie"
         || lower == "set-cookie"
         || lower == "proxy-authorization"
+        || lower == "user-agent"
         || lower.ends_with("-bin")
         || lower.contains("token")
         || lower.contains("secret")

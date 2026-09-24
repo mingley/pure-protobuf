@@ -238,9 +238,12 @@ Direct `Status::Display` and raw getters (`message()`, `details()`, and
 `Error::source()`) remain application-controlled and may expose untrusted
 content. `Channel`, `ConnectionInfo`, and `Outgoing` do not provide a consent
 switch for their masked Debug fields; use explicit getters under your own
-logging policy. Other diagnostic surfaces, including unclassified free-form
-metadata values (such as inbound `user-agent` in `Metadata::Debug`), still
-need a reviewed consent policy.
+logging policy. Other unclassified free-form metadata values still need a
+reviewed consent policy. Inbound `user-agent` is redacted by default alongside
+credentials and binary metadata; `Metadata::safe_debug` can show a bounded
+value only with explicit consent plus `with_sensitive_headers(true)`.
+That flag also permits other sensitive ASCII headers; enable it only for
+controlled diagnostics.
 Do not put credentials in status messages or log raw peer fields without one;
 OB-03 remains open.
 

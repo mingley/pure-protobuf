@@ -1508,6 +1508,8 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         .expect("insert set-cookie");
     md.insert("proxy-authorization", "Basic dXNlcjpwYXNz")
         .expect("insert proxy-auth");
+    md.insert("user-agent", "tenant-private-agent/1.0")
+        .expect("insert user-agent");
 
     // Binary metadata headers
     md.insert_bin("x-trace-bin", [0xde, 0xad, 0xbe, 0xef])
@@ -1561,6 +1563,10 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         "leaked proxy-authorization: {formatted}"
     );
     assert!(
+        !formatted.contains("tenant-private-agent/1.0"),
+        "leaked user-agent: {formatted}"
+    );
+    assert!(
         !formatted.contains("secret-api-key-999"),
         "leaked api-key: {formatted}"
     );
@@ -1601,6 +1607,10 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
     assert!(
         formatted.contains("\"proxy-authorization\": \"[REDACTED]\""),
         "missing proxy-authorization redaction: {formatted}"
+    );
+    assert!(
+        formatted.contains("\"user-agent\": \"[REDACTED]\""),
+        "missing user-agent redaction: {formatted}"
     );
     assert!(
         formatted.contains("\"x-trace-bin\": \"[REDACTED]\""),
@@ -1652,6 +1662,7 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         md.get("cookie"),
         Some("session_id=super_sensitive_cookie_val")
     );
+    assert_eq!(md.get("user-agent"), Some("tenant-private-agent/1.0"));
     assert_eq!(
         md.get_bin("x-trace-bin").as_deref(),
         Some(&[0xde, 0xad, 0xbe, 0xef][..])
@@ -1836,6 +1847,21 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
         formatted_custom.contains("\"x-custom-tenant-uuid\": \"[REDACTED]\""),
         "custom sensitive header should be redacted: {formatted_custom}"
     );
+    md_custom
+        .insert("user-agent", "tenant-private-agent/1.0")
+        .expect("insert user-agent");
+    let no_consent = DiagnosticConfig::new().with_sensitive_headers(true);
+    assert!(
+        format!("{:?}", md_custom.safe_debug(&no_consent))
+            .contains("\"user-agent\": \"[REDACTED]\"")
+    );
+    let consented = DiagnosticConfig::new()
+        .with_consent(true)
+        .with_sensitive_headers(true)
+        .with_max_value_length(6);
+    let shown = format!("{:?}", md_custom.safe_debug(&consented));
+    assert!(shown.contains("\"user-agent\": \"tenant... [TRUNCATED]\""));
+    assert!(!shown.contains("tenant-private-agent/1.0"));
 }
 
 #[test]
