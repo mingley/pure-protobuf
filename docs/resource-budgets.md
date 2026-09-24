@@ -83,6 +83,20 @@ A failed encoding rolls back its incomplete frame before earlier replies are
 flushed, and the batch's byte permits are released after the flush. A peer
 reset can prevent both the flush and trailers from being delivered.
 
+The local `pbrs_grpc::InteropTestService` sample also bounds generated
+`Payload.body` at [`DEFAULT_MAX_DECODING_MESSAGE_SIZE`](../pbrs-grpc/src/limits.rs)
+(4 MiB), rejecting negative requested sizes with `INVALID_ARGUMENT` and
+larger bodies with `RESOURCE_EXHAUSTED` before allocation. This is a
+**test-service body-byte policy**, not the transport's serialized-message
+limit or an official peer requirement: a `SimpleResponse` or streaming reply
+adds protobuf envelope bytes, and the gRPC frame adds five more. A client
+requesting the entire body cap must raise its own inbound decoded-message
+limit; the official 314,159-byte cases fit the default. `StreamingInputCall`
+checks its i32 aggregate instead of saturating. A later invalid output size
+becomes non-OK trailers after already queued valid replies, unless a peer
+reset prevents delivery. This sample is separate from the benchmark worker
+and does not qualify the original upstream negative-case runner.
+
 The public `pbrs_grpc::ByteBudgetTracker` can share an explicit transport-byte
 cap through `Server::with_byte_budget_tracker` or
 `Channel::with_byte_budget_tracker`. Acquired `BytePermit`s return their bytes

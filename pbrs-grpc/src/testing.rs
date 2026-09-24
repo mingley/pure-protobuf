@@ -148,6 +148,11 @@ impl Echo {
 ///
 /// Official uncompressed `_TEST_CASES` and the four gzip cases pass against
 /// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
+/// This local demo caps each generated response `Payload.body` at the default
+/// 4 MiB decoded-message budget. A serialized `SimpleResponse` or
+/// `StreamingOutputCallResponse` adds protobuf envelope bytes, so callers
+/// requesting the full body cap may need a higher inbound message limit.
+/// This is a sample-service allocation policy, not an upstream interop limit.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService interceptor Err; those trailers reach the client without reading the body.
 /// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService interceptor Err is trailers without reading the body.
 /// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService interceptor Err is trailers without reading the body.
@@ -178,11 +183,32 @@ impl Echo {
 #[derive(Default)]
 pub struct InteropTestService;
 
-fn zeros_payload(n: i32) -> Payload {
-    let n = usize::try_from(n.max(0)).unwrap_or(0);
+const MAX_INTEROP_RESPONSE_BODY_SIZE: usize = crate::DEFAULT_MAX_DECODING_MESSAGE_SIZE;
+
+fn checked_response_body_size(size: i32) -> Result<usize, Status> {
+    let n = usize::try_from(size)
+        .map_err(|_| Status::invalid_argument("negative TestService response size"))?;
+    if n > MAX_INTEROP_RESPONSE_BODY_SIZE {
+        return Err(Status::resource_exhausted(
+            "TestService response body exceeds the 4 MiB demo limit",
+        ));
+    }
+    Ok(n)
+}
+
+fn zeros_payload(n: i32) -> Result<Payload, Status> {
+    let n = checked_response_body_size(n)?;
     let mut p = Payload::new();
     p.set_body(vec![0u8; n]);
-    p
+    Ok(p)
+}
+
+fn checked_input_total(total: i32, body_len: usize) -> Result<i32, Status> {
+    let n = i32::try_from(body_len)
+        .map_err(|_| Status::resource_exhausted("TestService streaming input total exceeds i32"))?;
+    total
+        .checked_add(n)
+        .ok_or_else(|| Status::resource_exhausted("TestService streaming input total exceeds i32"))
 }
 
 /// `(size, interval_us, compressed)` for each response the client asked for.
@@ -201,25 +227,29 @@ fn response_plan(req: &StreamingOutputCallRequest) -> ResponsePlan {
         .collect()
 }
 
-/// Emit the planned responses. `false` means the peer went away.
-async fn emit_plan(tx: &StreamSender<StreamingOutputCallResponse>, plan: ResponsePlan) -> bool {
+/// Emit planned responses. `Ok(false)` means the peer went away; invalid sizes return a status.
+async fn emit_plan(
+    tx: &StreamSender<StreamingOutputCallResponse>,
+    plan: ResponsePlan,
+) -> Result<bool, Status> {
     for (size, interval_us, compress) in plan {
+        let payload = zeros_payload(size)?;
         if interval_us > 0 {
             let us = u64::try_from(interval_us).unwrap_or(0);
             tokio::time::sleep(Duration::from_micros(us)).await;
         }
         let mut msg = StreamingOutputCallResponse::new();
-        msg.set_payload(zeros_payload(size));
+        msg.set_payload(payload);
         let sent = if compress {
             tx.send_compressed(msg).await
         } else {
             tx.send(msg).await
         };
         if sent.is_err() {
-            return false;
+            return Ok(false);
         }
     }
-    true
+    Ok(true)
 }
 
 fn echoed_status(code: i32, message: impl Into<String>) -> Status {
@@ -239,7 +269,7 @@ async fn unary_reply(
         return Err(echoed_status(st.code(), st.message().to_string()));
     }
     let mut msg = SimpleResponse::new();
-    msg.set_payload(zeros_payload(request.response_size()));
+    msg.set_payload(zeros_payload(request.response_size())?);
     let mut resp = Response::new(msg);
     echo.apply(&mut resp);
     if request.has_response_compressed() && request.response_compressed().value() {
@@ -286,10 +316,15 @@ impl TestService for InteropTestService {
             return Err(echoed_status(st.code(), st.message().to_string()));
         }
         let plan = response_plan(&inner);
+        if let Some((size, _, _)) = plan.first() {
+            checked_response_body_size(*size)?;
+        }
         let want_gzip = plan.iter().any(|(_, _, compress)| *compress);
         let (tx, stream) = Streaming::channel(8);
         drop(tokio::spawn(async move {
-            emit_plan(&tx, plan).await;
+            if let Err(status) = emit_plan(&tx, plan).await {
+                tx.fail(status).await;
+            }
         }));
         let mut resp = Response::new(stream);
         echo.apply(&mut resp);
@@ -314,7 +349,7 @@ impl TestService for InteropTestService {
                 return Err(Status::invalid_argument("request not compressed"));
             }
             let n = item.message.payload().body().len();
-            total = total.saturating_add(i32::try_from(n).unwrap_or(i32::MAX));
+            total = checked_input_total(total, n)?;
         }
         let mut msg = StreamingInputCallResponse::new();
         msg.set_aggregated_payload_size(total);
@@ -340,8 +375,13 @@ impl TestService for InteropTestService {
                                 .await;
                             return;
                         }
-                        if !emit_plan(&tx, response_plan(&req)).await {
-                            return;
+                        match emit_plan(&tx, response_plan(&req)).await {
+                            Ok(true) => {}
+                            Ok(false) => return,
+                            Err(status) => {
+                                tx.fail(status).await;
+                                return;
+                            }
                         }
                     }
                     Ok(None) => return,
@@ -372,5 +412,59 @@ impl TestService for InteropTestService {
         Err(Status::unimplemented(
             "grpc.testing.TestService/UnimplementedCall",
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        MAX_INTEROP_RESPONSE_BODY_SIZE, SimpleResponse, checked_input_total, zeros_payload,
+    };
+    use crate::status::Code;
+
+    #[test]
+    fn generated_response_body_has_an_explicit_demo_cap() {
+        assert_eq!(
+            MAX_INTEROP_RESPONSE_BODY_SIZE,
+            crate::DEFAULT_MAX_DECODING_MESSAGE_SIZE
+        );
+        assert_eq!(zeros_payload(0).expect("empty body").body().len(), 0);
+        for size in [-1, i32::MIN] {
+            assert_eq!(
+                zeros_payload(size).expect_err("negative size").code(),
+                Code::InvalidArgument
+            );
+        }
+        let max = i32::try_from(MAX_INTEROP_RESPONSE_BODY_SIZE).expect("4 MiB fits i32");
+        for size in [max + 1, i32::MAX] {
+            assert_eq!(
+                zeros_payload(size).expect_err("oversize body").code(),
+                Code::ResourceExhausted
+            );
+        }
+        let mut response = SimpleResponse::new();
+        response.set_payload(zeros_payload(max).expect("body at cap"));
+        assert_eq!(
+            response.payload().body().len(),
+            MAX_INTEROP_RESPONSE_BODY_SIZE
+        );
+        assert!(
+            pbrs::Serialize::serialized_len(&response) > MAX_INTEROP_RESPONSE_BODY_SIZE,
+            "the protobuf envelope is additional to the body cap"
+        );
+    }
+
+    #[test]
+    fn streaming_input_aggregation_rejects_overflow_without_saturation() {
+        assert_eq!(checked_input_total(7, 11).expect("within range"), 18);
+        assert_eq!(
+            checked_input_total(i32::MAX - 1, 1).expect("at boundary"),
+            i32::MAX
+        );
+        for length in [2, usize::MAX] {
+            let error = checked_input_total(i32::MAX - 1, length)
+                .expect_err("unrepresentable aggregate must fail");
+            assert_eq!(error.code(), Code::ResourceExhausted);
+        }
     }
 }

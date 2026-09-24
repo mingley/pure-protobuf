@@ -18,9 +18,9 @@
 
 use pbrs_grpc::interop_cases::{cancel_after_first_response, connect, run_case};
 use pbrs_grpc::testing::{
-    Empty, InteropTestService, Payload, SimpleRequest, SimpleResponse, StreamingInputCallRequest,
-    StreamingInputCallResponse, StreamingOutputCallRequest, StreamingOutputCallResponse,
-    TestService, TestServiceClient, TestServiceServer,
+    Empty, InteropTestService, Payload, ResponseParameters, SimpleRequest, SimpleResponse,
+    StreamingInputCallRequest, StreamingInputCallResponse, StreamingOutputCallRequest,
+    StreamingOutputCallResponse, TestService, TestServiceClient, TestServiceServer,
 };
 use pbrs_grpc::{Code, Request, Response, Status, Streaming};
 use std::net::SocketAddr;
@@ -62,6 +62,16 @@ async fn connect_client(addr: SocketAddr) -> TestServiceClient {
         }
     }
     panic!("could not connect to {addr}: {last}");
+}
+
+fn output_request(sizes: &[i32]) -> Request<StreamingOutputCallRequest> {
+    let mut request = StreamingOutputCallRequest::new();
+    for &size in sizes {
+        let mut parameter = ResponseParameters::new();
+        parameter.set_size(size);
+        request.response_parameters_mut().push(parameter);
+    }
+    Request::new(request)
 }
 
 /// A mock server that ignores client cancellation and cleanly closes the
@@ -1589,6 +1599,132 @@ async fn special_status_message_fails_on_wrong_code() {
         "expected error about status code mismatch, got: {:?}",
         err.message()
     );
+}
+
+#[tokio::test]
+async fn interop_sample_rejects_negative_and_oversize_response_bodies() {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let (addr, _guard) = spawn_test_server(InteropTestService).await;
+        let client = connect_client(addr).await;
+        let cap =
+            i32::try_from(pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE).expect("4 MiB fits i32");
+
+        for (size, code) in [
+            (-1, Code::InvalidArgument),
+            (i32::MIN, Code::InvalidArgument),
+            (cap + 1, Code::ResourceExhausted),
+            (i32::MAX, Code::ResourceExhausted),
+        ] {
+            let mut request = SimpleRequest::new();
+            request.set_response_size(size);
+            let err = client
+                .unary_call(Request::new(request))
+                .await
+                .expect_err("invalid unary response size must fail");
+            assert_eq!(err.code(), code, "{size}: {err}");
+
+            let err = client
+                .streaming_output_call(output_request(&[size]))
+                .await
+                .expect_err("invalid first streamed size must fail");
+            assert_eq!(err.code(), code, "{size}: {err}");
+        }
+
+        let mut cacheable = SimpleRequest::new();
+        cacheable.set_response_size(-1);
+        let err = client
+            .cacheable_unary_call(Request::new(cacheable))
+            .await
+            .expect_err("cacheable unary uses the same validation");
+        assert_eq!(err.code(), Code::InvalidArgument);
+
+        let mut valid = SimpleRequest::new();
+        valid.set_response_size(314159);
+        let reply = client
+            .unary_call(Request::new(valid))
+            .await
+            .expect("official response size remains valid");
+        assert_eq!(reply.get_ref().payload().body().len(), 314159);
+    })
+    .await
+    .expect("bounded invalid-size TestService case");
+}
+
+#[tokio::test]
+async fn interop_sample_preserves_prior_replies_then_sends_error_trailers() {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let (addr, _guard) = spawn_test_server(InteropTestService).await;
+        let client = connect_client(addr).await;
+        let cap =
+            i32::try_from(pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE).expect("4 MiB fits i32");
+
+        for (size, code) in [
+            (-1, Code::InvalidArgument),
+            (cap + 1, Code::ResourceExhausted),
+        ] {
+            let response = client
+                .streaming_output_call(output_request(&[8, size]))
+                .await
+                .expect("valid first reply opens stream");
+            let mut stream = response.into_inner();
+            let first = stream
+                .message()
+                .await
+                .expect("first reply")
+                .expect("valid reply before error");
+            assert_eq!(first.payload().body().len(), 8);
+            let err = stream
+                .message()
+                .await
+                .expect_err("later invalid size must produce non-OK trailers");
+            assert_eq!(err.code(), code, "{size}: {err}");
+        }
+
+        let (tx, call) = client.full_duplex_call(Request::new(()));
+        tx.send(output_request(&[8]).into_inner())
+            .await
+            .expect("first request");
+        tx.send(output_request(&[-1]).into_inner())
+            .await
+            .expect("invalid second request reaches service");
+        tx.close();
+        let response = call.await.expect("duplex response headers");
+        let mut stream = response.into_inner();
+        let first = stream
+            .message()
+            .await
+            .expect("first duplex reply")
+            .expect("valid duplex reply");
+        assert_eq!(first.payload().body().len(), 8);
+        let err = stream
+            .message()
+            .await
+            .expect_err("invalid later duplex request must reach trailers");
+        assert_eq!(err.code(), Code::InvalidArgument);
+    })
+    .await
+    .expect("bounded partial-stream TestService case");
+}
+
+#[tokio::test]
+async fn interop_sample_aggregates_valid_input_without_saturation() {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let (addr, _guard) = spawn_test_server(InteropTestService).await;
+        let client = connect_client(addr).await;
+        let (tx, call) = client.streaming_input_call(Request::new(()));
+        for size in [7, 11] {
+            let mut request = StreamingInputCallRequest::new();
+            let mut payload = Payload::new();
+            payload.set_body(vec![0u8; size]);
+            request.set_payload(payload);
+            tx.send(request).await.expect("streamed input");
+        }
+        tx.close();
+        let reply = call.await.expect("aggregate response");
+        assert_eq!(reply.get_ref().aggregated_payload_size(), 18);
+    })
+    .await
+    .expect("bounded streaming-input TestService case");
 }
 
 #[tokio::test]
