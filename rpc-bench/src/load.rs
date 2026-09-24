@@ -31,6 +31,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 use crate::report::{LatencyDistribution, RpcMetrics, SchedulingLagNanos};
 
@@ -451,6 +452,12 @@ pub struct LoadGenerator {
     cfg: LoadConfig,
 }
 
+fn reap_finished_calls(handles: &mut JoinSet<()>) {
+    while let Some(result) = handles.try_join_next() {
+        result.expect("open-loop load task failed");
+    }
+}
+
 impl LoadGenerator {
     /// Create a load generator with the given configuration.
     pub fn new(cfg: LoadConfig) -> Self {
@@ -458,6 +465,7 @@ impl LoadGenerator {
     }
 
     /// Execute the load benchmark against an async RPC invocation closure.
+    /// Dropping this future aborts its owned RPC tasks; a normal run joins them.
     pub async fn run<F, Fut>(&self, invoke: F) -> LoadRecord
     where
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
@@ -480,7 +488,7 @@ impl LoadGenerator {
         let start_time = Instant::now();
         let end_time = start_time + self.cfg.duration;
 
-        let mut handles = Vec::with_capacity(self.cfg.concurrency);
+        let mut handles = JoinSet::new();
         for _ in 0..self.cfg.concurrency {
             let invoke = invoke.clone();
             let state = state.clone();
@@ -488,7 +496,7 @@ impl LoadGenerator {
             let timeout = self.cfg.timeout;
             let max_calls = self.cfg.max_calls;
 
-            handles.push(tokio::spawn(async move {
+            handles.spawn(async move {
                 while running.load(Ordering::Relaxed) {
                     if let Some(max) = max_calls {
                         if state.offered_calls.load(Ordering::Relaxed) >= max {
@@ -521,15 +529,16 @@ impl LoadGenerator {
 
                     state.record_call_outcome(t_sched, t_actual, res, timed_out, timeout);
                 }
-            }));
+            });
         }
 
         // Wait for workers to finish
-        for h in handles {
-            let _ = h.await;
+        while let Some(result) = handles.join_next().await {
+            result.expect("closed-loop load worker failed");
         }
 
-        self.drain_and_finalize(state, start_time.elapsed()).await
+        self.drain_and_finalize(state, start_time.elapsed(), &mut handles)
+            .await
     }
 
     async fn run_open_loop_constant<F, Fut>(&self, invoke: F) -> LoadRecord
@@ -545,6 +554,7 @@ impl LoadGenerator {
 
         let state = Arc::new(GeneratorState::new());
         let semaphore = Arc::new(Semaphore::new(self.cfg.max_in_flight));
+        let mut handles = JoinSet::new();
         let start_time = Instant::now();
         let end_time = start_time + self.cfg.duration;
         let interval_nanos = (1_000_000_000.0 / rate_qps).round() as u64;
@@ -553,6 +563,7 @@ impl LoadGenerator {
         let mut count = 0u64;
 
         while Instant::now() < end_time {
+            reap_finished_calls(&mut handles);
             if let Some(max) = self.cfg.max_calls {
                 if count >= max {
                     break;
@@ -583,7 +594,7 @@ impl LoadGenerator {
                     let state = state.clone();
                     let timeout = self.cfg.timeout;
 
-                    tokio::spawn(async move {
+                    handles.spawn(async move {
                         let _permit = permit;
                         let t_actual = state.record_scheduling_lag(t_sched);
                         let fut = invoke();
@@ -611,7 +622,8 @@ impl LoadGenerator {
             scheduled_offset_nanos = scheduled_offset_nanos.saturating_add(interval_nanos);
         }
 
-        self.drain_and_finalize(state, start_time.elapsed()).await
+        self.drain_and_finalize(state, start_time.elapsed(), &mut handles)
+            .await
     }
 
     async fn run_open_loop_poisson<F, Fut>(&self, invoke: F) -> LoadRecord
@@ -628,6 +640,7 @@ impl LoadGenerator {
         let mut rng = SeededRng::new(self.cfg.seed);
         let state = Arc::new(GeneratorState::new());
         let semaphore = Arc::new(Semaphore::new(self.cfg.max_in_flight));
+        let mut handles = JoinSet::new();
         let start_time = Instant::now();
         let end_time = start_time + self.cfg.duration;
 
@@ -635,6 +648,7 @@ impl LoadGenerator {
         let mut count = 0u64;
 
         while Instant::now() < end_time {
+            reap_finished_calls(&mut handles);
             if let Some(max) = self.cfg.max_calls {
                 if count >= max {
                     break;
@@ -668,7 +682,7 @@ impl LoadGenerator {
                     let state = state.clone();
                     let timeout = self.cfg.timeout;
 
-                    tokio::spawn(async move {
+                    handles.spawn(async move {
                         let _permit = permit;
                         let t_actual = state.record_scheduling_lag(t_sched);
                         let fut = invoke();
@@ -694,17 +708,27 @@ impl LoadGenerator {
             }
         }
 
-        self.drain_and_finalize(state, start_time.elapsed()).await
+        self.drain_and_finalize(state, start_time.elapsed(), &mut handles)
+            .await
     }
 
     async fn drain_and_finalize(
         &self,
         state: Arc<GeneratorState>,
         measurement_dur: Duration,
+        handles: &mut JoinSet<()>,
     ) -> LoadRecord {
         let drain_deadline = Instant::now() + self.cfg.drain_timeout;
         while state.active_in_flight.load(Ordering::SeqCst) > 0 && Instant::now() < drain_deadline {
             tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+
+        // Settle all tasks before freezing counters so late calls cannot change the report.
+        handles.abort_all();
+        while let Some(result) = handles.join_next().await {
+            if let Err(error) = result {
+                assert!(error.is_cancelled(), "load task failed: {error}");
+            }
         }
 
         // Account for any remaining in-flight requests that did not finish within the drain window
@@ -746,6 +770,14 @@ impl LoadGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct Active(Arc<AtomicUsize>);
+
+    impl Drop for Active {
+        fn drop(&mut self) {
+            self.0.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
 
     #[test]
     fn test_seeded_rng_determinism() {
@@ -866,6 +898,100 @@ mod tests {
         assert_eq!(metrics.successful_rpcs, record.successful_calls);
         assert_eq!(metrics.offered_rpcs, Some(record.offered_calls));
         assert_eq!(metrics.queue_overflows, Some(0));
+    }
+
+    #[tokio::test]
+    async fn completed_open_loop_tasks_are_reaped() {
+        let mut tasks = JoinSet::new();
+        for _ in 0..64 {
+            tasks.spawn(async {});
+        }
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !tasks.is_empty() {
+                reap_finished_calls(&mut tasks);
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("completed tasks must not accumulate in a long run");
+    }
+
+    #[tokio::test]
+    async fn dropping_a_load_generator_cancels_its_active_calls() {
+        let configs = [
+            LoadConfig::closed(2, Duration::from_secs(30)),
+            LoadConfig::open_constant(1_000.0, Duration::from_secs(30)).with_max_in_flight(2),
+            LoadConfig::open_poisson(1_000.0, 42, Duration::from_secs(30)).with_max_in_flight(2),
+        ];
+        for config in configs {
+            let distribution = config.distribution;
+            let active = Arc::new(AtomicUsize::new(0));
+            let observed = active.clone();
+            let generator = LoadGenerator::new(config);
+            let task = tokio::spawn(async move {
+                generator
+                    .run(move || {
+                        let active = active.clone();
+                        async move {
+                            active.fetch_add(1, Ordering::SeqCst);
+                            let _guard = Active(active);
+                            std::future::pending::<()>().await;
+                            Ok(())
+                        }
+                    })
+                    .await
+            });
+            tokio::time::timeout(Duration::from_secs(2), async {
+                while observed.load(Ordering::SeqCst) == 0 {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .expect("load must dispatch a call before cancellation");
+            task.abort();
+            let _ = task.await;
+            tokio::time::timeout(Duration::from_millis(500), async {
+                while observed.load(Ordering::SeqCst) != 0 {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap_or_else(|_| panic!("{distribution:?} left detached calls running"));
+        }
+    }
+
+    #[tokio::test]
+    async fn unfinished_open_loop_calls_are_joined_before_reporting() {
+        let active = Arc::new(AtomicUsize::new(0));
+        let started = Arc::new(AtomicUsize::new(0));
+        let observed = active.clone();
+        let started_calls = started.clone();
+        let generator = LoadGenerator::new(
+            LoadConfig::open_constant(1_000.0, Duration::from_millis(60))
+                .with_max_in_flight(2)
+                .with_drain_timeout(Duration::from_millis(10)),
+        );
+        let record = generator
+            .run(move || {
+                let active = active.clone();
+                let started = started.clone();
+                async move {
+                    started.fetch_add(1, Ordering::SeqCst);
+                    active.fetch_add(1, Ordering::SeqCst);
+                    let _guard = Active(active);
+                    std::future::pending::<()>().await;
+                    Ok(())
+                }
+            })
+            .await;
+        assert!(started_calls.load(Ordering::SeqCst) > 0);
+        assert_eq!(observed.load(Ordering::SeqCst), 0);
+        assert_eq!(record.completed_calls, 0);
+        assert_eq!(record.unfinished_calls, record.dispatched_calls);
+        assert_eq!(
+            record.status_errors.get("UNFINISHED"),
+            Some(&record.unfinished_calls)
+        );
     }
 
     #[tokio::test]

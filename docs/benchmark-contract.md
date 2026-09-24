@@ -236,10 +236,15 @@ was captured. Reset baselines and client histograms advance only after a
 successful Mark capture. On capture failure, the worker shuts down and joins
 its owned benchmark server (five-second grace, then abort) or cancels,
 aborts and joins its owned client generator before reporting the error.
-Synthetic tests cover status mapping and the cleanup helpers; they do not
-inject a platform capture failure into a live control stream or prove
-completion of independently spawned open-loop RPC tasks. These local worker
-checks do not qualify BM-09/BM-10 against an independent official driver.
+The load generator owns closed-loop and open-loop RPC tasks in a `JoinSet`,
+reaps completed calls during scheduling, then aborts and joins any unfinished
+calls after its bounded drain before freezing counters. Dropping the generator
+on control cancellation aborts its child RPC tasks instead of leaving detached
+365-day benchmark traffic behind. Synthetic tests cover status mapping and
+cleanup helpers; they do not inject a platform capture failure into a live
+control stream or prove every canceled child has finished before the control
+response is delivered. These local worker checks do not qualify BM-09/BM-10
+against an independent official driver.
 
 ---
 
