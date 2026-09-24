@@ -37,6 +37,23 @@ adapters. The current source builds both adapters from checked descriptor sets
 without `protoc`, but the already-published adapter alphas still need it;
 that improvement reaches crates.io only when new versions are published.
 
+## Next coordinated all-crate release
+
+The next production-ready release must publish **new versions of all three**
+crates: `pbrs`, `protobuf-tonic`, and `pbrs-grpc`. Before tagging, update every
+package version and both adapters' `pbrs` dependency requirements, then
+validate the lockfile, package contents, unpacked consumers, and exact-SHA
+required CI. Rehearse all three packages with the existing dry-run publisher.
+Do not trigger the publisher until each crate's applicable qualification and
+promotion evidence has been reviewed.
+
+The publisher deliberately skips a name/version already present on crates.io
+so partial uploads can be retried safely. A successful workflow with unchanged
+manifest versions would **not** meet this all-crate release goal. After the
+tagged workflow publishes, verify that each new name/version is present on
+crates.io and that the workflow recorded all three on the same release SHA.
+Adapters remain free to use different versions from the core crate.
+
 ## Required CI
 
 `release.yml` calls [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
@@ -44,7 +61,7 @@ on the **same SHA** and will not publish unless every required job succeeds:
 
 | Job | What it runs |
 |---|---|
-| `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher contracts, `cargo test --workspace`, docs `-D warnings` |
+| `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher contracts, `cargo test --workspace`, serial standalone rpc-bench/tonic-bench correctness tests (not performance gates), docs `-D warnings` |
 | `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
 | `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then regenerate the adapters' checked descriptor sets with pinned protoc and compare their emitted Rust bytes |

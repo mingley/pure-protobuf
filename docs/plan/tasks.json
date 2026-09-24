@@ -4023,6 +4023,9 @@
       "checks": [
         "docs",
         "consumers"
+      ],
+      "evidence": [
+        "Promotion directive 2026-09-24: once the requested program reaches a clear, qualified finishing point, use the existing GitHub Actions publisher to release new versions of all three crates (pbrs, protobuf-tonic, pbrs-grpc), not a partial release or an idempotent skip of their already-published versions. Align adapter dependency requirements, rehearse package consumers, verify same-SHA release CI and each crates.io name/version. No version bump, tag or publish was authorized ahead of the outstanding per-crate, original-peer, safety, benchmark, and operator qualification gates; QL-05 remains pending."
       ]
     }
   ]
