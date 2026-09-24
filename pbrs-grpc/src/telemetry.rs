@@ -10,6 +10,7 @@
 
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::Deref;
@@ -1033,7 +1034,8 @@ impl Drop for AttemptGuard {
 ///
 /// By default, all credential-sensitive metadata (such as `authorization`,
 /// `cookie`, `set-cookie`, `proxy-authorization`, binary metadata `-bin`,
-/// and token/secret headers) and request/response payloads are redacted.
+/// and token/secret headers), raw RPC identity, status messages, and
+/// request/response payloads are redacted in diagnostic formatting.
 ///
 /// Diagnostic detail requires explicit consent (`consent: true`). Even when
 /// consent is provided, strict cardinality limits apply to prevent log and
@@ -1044,6 +1046,8 @@ pub struct DiagnosticConfig {
     allow_payload: bool,
     allow_sensitive_headers: bool,
     allow_binary_metadata: bool,
+    allow_raw_identity: bool,
+    allow_status_message: bool,
     max_metadata_entries: usize,
     max_value_length: usize,
     custom_sensitive_headers: BTreeSet<String>,
@@ -1056,6 +1060,8 @@ impl Default for DiagnosticConfig {
             allow_payload: false,
             allow_sensitive_headers: false,
             allow_binary_metadata: false,
+            allow_raw_identity: false,
+            allow_status_message: false,
             max_metadata_entries: 64,
             max_value_length: 256,
             custom_sensitive_headers: BTreeSet::new(),
@@ -1095,6 +1101,20 @@ impl DiagnosticConfig {
     #[must_use]
     pub fn with_binary_metadata(mut self, allow: bool) -> Self {
         self.allow_binary_metadata = allow;
+        self
+    }
+
+    /// Permit raw path and authority display (requires explicit consent).
+    #[must_use]
+    pub fn with_raw_identity(mut self, allow: bool) -> Self {
+        self.allow_raw_identity = allow;
+        self
+    }
+
+    /// Permit raw status message display (requires explicit consent).
+    #[must_use]
+    pub fn with_status_message(mut self, allow: bool) -> Self {
+        self.allow_status_message = allow;
         self
     }
 
@@ -1144,6 +1164,18 @@ impl DiagnosticConfig {
         self.consent && self.allow_binary_metadata
     }
 
+    /// Whether raw path and authority display was explicitly permitted.
+    #[must_use]
+    pub fn is_raw_identity_allowed(&self) -> bool {
+        self.consent && self.allow_raw_identity
+    }
+
+    /// Whether raw status message display was explicitly permitted.
+    #[must_use]
+    pub fn is_status_message_allowed(&self) -> bool {
+        self.consent && self.allow_status_message
+    }
+
     /// Maximum metadata entries allowed by cardinality limits.
     #[must_use]
     pub fn max_metadata_entries(&self) -> usize {
@@ -1167,7 +1199,8 @@ impl DiagnosticConfig {
 /// Safe diagnostic telemetry context representing an RPC call.
 ///
 /// Designed for structured logging and telemetry formatting without leaking
-/// credentials, cookies, binary metadata, or payloads by default.
+/// raw paths, authorities, status messages, credentials, binary metadata,
+/// or payloads by default. Accessors remain raw for controlled diagnostics.
 #[derive(Clone)]
 pub struct TelemetryContext<'a> {
     /// Underlying call labels.
@@ -1276,16 +1309,22 @@ impl<'a> TelemetryContext<'a> {
 
 impl fmt::Debug for TelemetryContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let identity = |value| diagnostic_identity(value, Some(&self.config));
         let mut s = f.debug_struct("TelemetryContext");
-        s.field("service", &self.call.service())
-            .field("method", &self.call.method())
-            .field("path", &self.call.path())
+        s.field("service", &identity(self.call.service()))
+            .field("method", &identity(self.call.method()))
+            .field("path", &identity(self.call.path()))
             .field("role", &self.call.role())
-            .field("authority", &self.call.authority());
+            .field("authority", &self.call.authority().map(identity));
 
         if let Some(status) = self.status {
             s.field("status_code", &status.code());
-            s.field("status_message", &status.message());
+            let message = if self.config.is_status_message_allowed() {
+                diagnostic_value(status.message(), self.config.max_value_length())
+            } else {
+                Cow::Borrowed("[REDACTED]")
+            };
+            s.field("status_message", &message);
         }
 
         if let Some(metadata) = self.metadata {
@@ -1294,4 +1333,25 @@ impl fmt::Debug for TelemetryContext<'_> {
 
         s.finish_non_exhaustive()
     }
+}
+
+pub(crate) fn diagnostic_identity<'a>(
+    value: &'a str,
+    config: Option<&DiagnosticConfig>,
+) -> Cow<'a, str> {
+    match config.filter(|config| config.is_raw_identity_allowed()) {
+        Some(config) => diagnostic_value(value, config.max_value_length()),
+        None => Cow::Borrowed("[REDACTED]"),
+    }
+}
+
+fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
+    if value.len() <= max_bytes {
+        return Cow::Borrowed(value);
+    }
+    let mut boundary = max_bytes;
+    while !value.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    Cow::Owned(format!("{}... [TRUNCATED]", &value[..boundary]))
 }

@@ -198,6 +198,26 @@ Server queue wait measures post-admission scheduling until the dispatch task
 starts, **not** full listener or transport queue delay; pre-admission
 rejections have their own event. OpenTelemetry export is not built in.
 
+### Safe Diagnostic Formatting
+
+Default `Debug` formatting for `Request`, `Response`, split request `Parts`,
+server `Rpc`, and `TelemetryContext` masks unverified path/authority fields.
+`Outgoing` retains its application-defined static RPC path but masks the
+destination authority. A telemetry context keeps the status **code** and
+safe, redacted metadata visible while masking the free-form status message.
+
+For a controlled diagnostic, use `DiagnosticConfig::with_consent(true)` with
+`with_raw_identity(true)` and/or `with_status_message(true)` on a request,
+response, or telemetry context. Revealed strings are bounded by
+`with_max_value_length` (256 bytes by default). These switches are independent
+of `with_sensitive_headers(true)` and `with_payload(true)`: consent to inspect
+an RPC path must not also reveal credentials or payloads. Raw accessors and
+direct `Status` `Display`/`Debug` remain application-controlled and may expose
+untrusted text; do not put credentials in status messages or log them without
+a separate policy. Peer certificate identity and socket addresses are not
+redacted by this path/authority rule, so full diagnostic-surface qualification
+remains open.
+
 ---
 
 <a id="testing"></a>

@@ -4,6 +4,7 @@ use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::server::{PeerCred, split_path};
 use crate::status::Status;
+use crate::telemetry::diagnostic_identity;
 use crate::tls::PeerIdentity;
 use futures_core::future::FusedFuture;
 use std::borrow::Cow;
@@ -1494,7 +1495,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("path", &self.path)
             .field("service", &split_path(self.path).0)
             .field("method", &split_path(self.path).1)
-            .field("authority", &self.authority)
+            .field("authority", &diagnostic_identity(self.authority, None))
             .field("scheme", &self.scheme)
             .field("user_agent", &self.user_agent())
             .field("limits", &self.limits)
@@ -1524,6 +1525,17 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
         } else {
             &"[REDACTED]"
         };
+        let config = self.diagnostic_config.as_ref();
+        let authority = self
+            .authority()
+            .map(|value| diagnostic_identity(value, config));
+        let path = self.path().map(|value| diagnostic_identity(value, config));
+        let service = self
+            .service()
+            .map(|value| diagnostic_identity(value, config));
+        let method = self
+            .method()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Request")
             .field("message", message_display)
             .field("metadata", &self.metadata)
@@ -1535,11 +1547,11 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
             .field("peer_cred", &self.peer_cred)
-            .field("authority", &self.authority)
+            .field("authority", &authority)
             .field("scheme", &self.scheme)
-            .field("path", &self.path())
-            .field("service", &self.service())
-            .field("method", &self.method())
+            .field("path", &path)
+            .field("service", &service)
+            .field("method", &method)
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
@@ -2007,6 +2019,17 @@ impl Parts {
 
 impl fmt::Debug for Parts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let config = self.diagnostic_config.as_ref();
+        let authority = self
+            .authority()
+            .map(|value| diagnostic_identity(value, config));
+        let path = self.path().map(|value| diagnostic_identity(value, config));
+        let service = self
+            .service()
+            .map(|value| diagnostic_identity(value, config));
+        let method = self
+            .method()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Parts")
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
@@ -2017,11 +2040,11 @@ impl fmt::Debug for Parts {
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
             .field("peer_cred", &self.peer_cred)
-            .field("authority", &self.authority)
+            .field("authority", &authority)
             .field("scheme", &self.scheme)
-            .field("path", &self.path())
-            .field("service", &self.service())
-            .field("method", &self.method())
+            .field("path", &path)
+            .field("service", &service)
+            .field("method", &method)
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
@@ -3027,15 +3050,23 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
         } else {
             &"[REDACTED]"
         };
+        let config = self.diagnostic_config.as_ref();
+        let path = self.path().map(|value| diagnostic_identity(value, config));
+        let service = self
+            .service()
+            .map(|value| diagnostic_identity(value, config));
+        let method = self
+            .method()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Response")
             .field("message", message_display)
             .field("metadata", &self.metadata)
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)
             .field("encoding", &self.encoding)
-            .field("path", &self.path())
-            .field("service", &self.service())
-            .field("method", &self.method())
+            .field("path", &path)
+            .field("service", &service)
+            .field("method", &method)
             .field("gzip_level", &self.gzip_level)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("accepts_gzip", &self.accepts_gzip)
@@ -3217,6 +3248,7 @@ async fn when_cancelled(rx: Option<watch::Receiver<bool>>) {
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
+    use crate::telemetry::DiagnosticConfig;
     use std::time::Duration;
 
     #[test]
@@ -3285,11 +3317,14 @@ mod tests {
         assert!(!parts.wait_for_ready_is_set());
         let shown_parts = format!("{parts:?}");
         assert!(
-            shown_parts.contains("/helloworld.Greeter/SayHello"),
+            shown_parts.contains("path: Some(\"[REDACTED]\")"),
             "{shown_parts}"
         );
-        assert!(shown_parts.contains("helloworld.Greeter"), "{shown_parts}");
-        assert!(shown_parts.contains("SayHello"), "{shown_parts}");
+        assert!(
+            !shown_parts.contains("/helloworld.Greeter/SayHello"),
+            "{shown_parts}"
+        );
+        assert!(!shown_parts.contains("127.0.0.1:9"), "{shown_parts}");
         assert!(shown_parts.contains("peer_timeout: Some("), "{shown_parts}");
         assert!(shown_parts.contains("rpc_timeout: Some("), "{shown_parts}");
         assert!(shown_parts.contains("accepts_gzip: true"), "{shown_parts}");
@@ -3360,9 +3395,9 @@ mod tests {
         assert!(shown.contains("send_buffer_size: 123456"), "{shown}");
         assert!(shown.contains("encoding: Some("), "{shown}");
         assert!(shown.contains("user_agent: Some("), "{shown}");
-        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
-        assert!(shown.contains("helloworld.Greeter"), "{shown}");
-        assert!(shown.contains("SayHello"), "{shown}");
+        assert!(shown.contains("path: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(!shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
+        assert!(!shown.contains("127.0.0.1:9"), "{shown}");
         let cloned = rebuilt.clone();
         assert_eq!(cloned.peer_timeout(), Some(Duration::from_secs(5)));
         assert_eq!(cloned.rpc_timeout(), Some(Duration::from_secs(9)));
@@ -3532,7 +3567,7 @@ mod tests {
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
         assert!(parts.compress_is_set());
-        let rebuilt = Response::from_message_and_parts(n, parts);
+        let mut rebuilt = Response::from_message_and_parts(n, parts);
         assert!(!rebuilt.compressed());
         assert!(!rebuilt.compress());
         assert!(rebuilt.compress_is_set());
@@ -3556,9 +3591,8 @@ mod tests {
             Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
         );
         let shown = format!("{rebuilt:?}");
-        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
-        assert!(shown.contains("helloworld.Greeter"), "{shown}");
-        assert!(shown.contains("SayHello"), "{shown}");
+        assert!(shown.contains("path: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(!shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
@@ -3569,6 +3603,15 @@ mod tests {
         assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
         assert!(shown.contains("send_buffer_size: Some("), "{shown}");
+        rebuilt.set_diagnostic_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true),
+        );
+        assert!(
+            format!("{rebuilt:?}").contains("/helloworld.Greeter/SayHello"),
+            "explicit consent should allow response path diagnostics"
+        );
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
@@ -3594,7 +3637,57 @@ mod tests {
     }
 
     #[test]
-    fn outgoing_debug_names_path_authority_and_user_metadata() {
+    fn envelope_debug_requires_consent_for_unverified_identity() {
+        let path = "/tenant-secret.Service/SensitiveMethod";
+        let authority = "credential@example.invalid";
+        let mut request = Request::new("sensitive-payload").with_http(
+            Some(authority.to_string()),
+            Some("https".to_string()),
+            Some(path.to_string()),
+        );
+        let default_debug = format!("{request:?}");
+        assert!(!default_debug.contains(path));
+        assert!(!default_debug.contains(authority));
+        assert!(default_debug.contains("path: Some(\"[REDACTED]\")"));
+        assert!(default_debug.contains("message: \"[REDACTED]\""));
+
+        request.set_diagnostic_config(DiagnosticConfig::new().with_raw_identity(true));
+        assert!(!format!("{request:?}").contains(path));
+        request.set_diagnostic_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true)
+                .with_max_value_length(8),
+        );
+        let permitted = format!("{request:?}");
+        assert!(permitted.contains("[TRUNCATED]"));
+        assert!(!permitted.contains(path));
+        assert!(!permitted.contains(authority));
+        assert!(!permitted.contains("sensitive-payload"));
+
+        let (_, parts) = request.into_message_and_parts();
+        let parts_debug = format!("{parts:?}");
+        assert!(parts_debug.contains("[TRUNCATED]"));
+        assert!(!parts_debug.contains(path));
+
+        let response = Response::new("sensitive-payload").with_path(Some(path.to_string()));
+        let default_response = format!("{response:?}");
+        assert!(!default_response.contains(path));
+        assert!(default_response.contains("path: Some(\"[REDACTED]\")"));
+        let permitted_response = response.with_diagnostic_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true)
+                .with_max_value_length(8),
+        );
+        let permitted_debug = format!("{permitted_response:?}");
+        assert!(permitted_debug.contains("[TRUNCATED]"));
+        assert!(!permitted_debug.contains(path));
+        assert!(!permitted_debug.contains("sensitive-payload"));
+    }
+
+    #[test]
+    fn outgoing_debug_names_static_path_and_redacts_authority() {
         let mut req = Request::new(());
         req.metadata_mut().insert("x-trace", "abc").expect("insert");
         req.set_timeout(Duration::from_secs(1));
@@ -3608,6 +3701,7 @@ mod tests {
             );
             assert_eq!(call.service(), "svc");
             assert_eq!(call.method(), "Method");
+            assert_eq!(call.authority(), "127.0.0.1:1");
             assert_eq!(call.limits(), crate::MessageLimits::default());
             assert_eq!(call.timeout(), Some(Duration::from_secs(1)));
             assert!(call.deadline().is_some());
@@ -3625,7 +3719,8 @@ mod tests {
         assert!(shown.contains("/svc/Method"), "{shown}");
         assert!(shown.contains("svc"), "{shown}");
         assert!(shown.contains("Method"), "{shown}");
-        assert!(shown.contains("127.0.0.1:1"), "{shown}");
+        assert!(shown.contains("authority: \"[REDACTED]\""), "{shown}");
+        assert!(!shown.contains("127.0.0.1:1"), "{shown}");
         assert!(shown.contains("http"), "{shown}");
         assert!(shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");

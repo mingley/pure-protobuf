@@ -1761,22 +1761,30 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
     let no_consent_config = DiagnosticConfig::new()
         .with_payload(true)
         .with_sensitive_headers(true)
-        .with_binary_metadata(true);
+        .with_binary_metadata(true)
+        .with_raw_identity(true)
+        .with_status_message(true);
     assert!(!no_consent_config.has_consent());
     assert!(!no_consent_config.is_payload_allowed());
     assert!(!no_consent_config.are_sensitive_headers_allowed());
     assert!(!no_consent_config.is_binary_metadata_allowed());
+    assert!(!no_consent_config.is_raw_identity_allowed());
+    assert!(!no_consent_config.is_status_message_allowed());
 
     // 2. With explicit consent, options become active
     let consent_config = DiagnosticConfig::new()
         .with_consent(true)
         .with_payload(true)
         .with_sensitive_headers(true)
-        .with_binary_metadata(true);
+        .with_binary_metadata(true)
+        .with_raw_identity(true)
+        .with_status_message(true);
     assert!(consent_config.has_consent());
     assert!(consent_config.is_payload_allowed());
     assert!(consent_config.are_sensitive_headers_allowed());
     assert!(consent_config.is_binary_metadata_allowed());
+    assert!(consent_config.is_raw_identity_allowed());
+    assert!(consent_config.is_status_message_allowed());
 
     // 3. Cardinality limits on metadata entries
     let mut md = Metadata::new();
@@ -1912,15 +1920,16 @@ fn test_telemetry_context_safe_debug_and_observability() {
 
     let formatted_ctx = format!("{ctx_with_status:?}");
 
-    // Observability: status code and message are clearly visible
+    // The bounded status code remains observable without exposing untrusted text.
     assert!(
         formatted_ctx.contains("status_code: NotFound"),
         "status code must be observable in TelemetryContext: {formatted_ctx}"
     );
     assert!(
-        formatted_ctx.contains("status_message: \"user not found\""),
-        "status message must be observable in TelemetryContext: {formatted_ctx}"
+        formatted_ctx.contains("status_message: \"[REDACTED]\""),
+        "status message must be redacted without consent: {formatted_ctx}"
     );
+    assert!(!formatted_ctx.contains("user not found"));
 
     // Safety: credentials are redacted
     assert!(
@@ -1954,8 +1963,55 @@ fn test_telemetry_context_safe_debug_and_observability() {
         .with_metadata(req.metadata())
         .with_status(&status);
     let direct_formatted = format!("{direct_ctx:?}");
-    assert!(direct_formatted.contains("service: \"helloworld.Greeter\""));
+    assert!(direct_formatted.contains("service: \"[REDACTED]\""));
+    assert!(!direct_formatted.contains("helloworld.Greeter"));
     assert!(direct_formatted.contains("status_code: NotFound"));
     assert!(direct_formatted.contains("\"authorization\": \"[REDACTED]\""));
     assert!(!direct_formatted.contains("obs-secret-token"));
+
+    let consented = TelemetryContext::new(direct_labels)
+        .with_metadata(req.metadata())
+        .with_status(&status)
+        .with_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_raw_identity(true)
+                .with_status_message(true),
+        );
+    let consented_debug = format!("{consented:?}");
+    assert!(consented_debug.contains("service: \"helloworld.Greeter\""));
+    assert!(consented_debug.contains("status_message: \"user not found\""));
+    assert!(consented_debug.contains("\"authorization\": \"[REDACTED]\""));
+}
+
+#[test]
+fn test_telemetry_context_masks_peer_identity_and_status_text_by_default() {
+    let path = "/tenant-secret.Service/SensitiveMethod";
+    let authority = "credential@example.invalid";
+    let status = Status::permission_denied("credential leaked by peer");
+    let call = CallLabels::new(path, Some(authority), CallRole::Server);
+    let debug = format!("{:?}", TelemetryContext::new(call).with_status(&status));
+    for secret in [path, authority, status.message()] {
+        assert!(
+            !debug.contains(secret),
+            "untrusted identity leaked: {debug}"
+        );
+    }
+    assert!(debug.contains("status_code: PermissionDenied"));
+    assert!(debug.contains("status_message: \"[REDACTED]\""));
+
+    let config = DiagnosticConfig::new()
+        .with_consent(true)
+        .with_raw_identity(true)
+        .with_status_message(true)
+        .with_max_value_length(7);
+    let consented = format!(
+        "{:?}",
+        TelemetryContext::new(call)
+            .with_status(&Status::permission_denied("éééé credential"))
+            .with_config(config)
+    );
+    assert!(consented.contains("[TRUNCATED]"));
+    assert!(!consented.contains(authority));
+    assert!(!consented.contains("credential"));
 }

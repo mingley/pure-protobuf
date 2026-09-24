@@ -13,7 +13,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{
     CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver, ObserverChain,
-    RejectionEvent, RejectionReason,
+    RejectionEvent, RejectionReason, diagnostic_identity,
 };
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
@@ -291,10 +291,15 @@ pub struct Rpc {
 impl std::fmt::Debug for Rpc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Rpc")
-            .field("authority", &self.authority())
-            .field("path", &self.path())
-            .field("service", &self.service())
-            .field("method", &self.method())
+            .field(
+                "authority",
+                &self
+                    .authority()
+                    .map(|value| diagnostic_identity(value, None)),
+            )
+            .field("path", &diagnostic_identity(self.path(), None))
+            .field("service", &diagnostic_identity(self.service(), None))
+            .field("method", &diagnostic_identity(self.method(), None))
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)

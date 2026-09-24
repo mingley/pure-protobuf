@@ -24570,6 +24570,11 @@ fn interceptor_see_overlay_and_tighten(rpc: &mut Rpc) -> Result<(), Status> {
     if !shown.contains("rpc_timeout: Some(") {
         return Err(Status::internal(format!("rpc debug {shown}")));
     }
+    if !shown.contains("path: \"[REDACTED]\"") {
+        return Err(Status::internal(format!(
+            "unverified path leaked in rpc debug {shown}"
+        )));
+    }
     Ok(())
 }
 
