@@ -2,7 +2,9 @@
 //! `grpc-status-details-bin`.
 
 use crate::metadata::Metadata;
+use crate::telemetry::{DiagnosticConfig, diagnostic_value};
 use bytes::Bytes;
+use std::borrow::Cow;
 use std::fmt;
 use std::sync::{Arc, OnceLock};
 
@@ -204,7 +206,7 @@ impl std::str::FromStr for Code {
 
 /// The rarely-populated half of a [`Status`], boxed so `Result<T, Status>`
 /// stays small on the hot path.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 struct Detail {
     message: String,
     metadata: Metadata,
@@ -214,6 +216,46 @@ struct Detail {
     transport: Option<TransportEvidence>,
     /// Local cause. Peer trailers leave this unset.
     source: Option<Arc<dyn std::error::Error + Send + Sync>>,
+}
+
+struct DetailDebug<'a> {
+    detail: &'a Detail,
+    config: Option<&'a DiagnosticConfig>,
+}
+
+impl fmt::Debug for Detail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(
+            &DetailDebug {
+                detail: self,
+                config: None,
+            },
+            f,
+        )
+    }
+}
+
+impl fmt::Debug for DetailDebug<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message: Cow<'_, str> = if self.detail.message.is_empty() {
+            Cow::Borrowed("")
+        } else if let Some(config) = self
+            .config
+            .filter(|config| config.is_status_message_allowed())
+        {
+            diagnostic_value(&self.detail.message, config.max_value_length())
+        } else {
+            Cow::Borrowed("[REDACTED]")
+        };
+
+        f.debug_struct("Detail")
+            .field("message", &message)
+            .field("metadata", &self.detail.metadata)
+            .field("details_len", &self.detail.details.len())
+            .field("transport", &self.detail.transport)
+            .field("source", &self.detail.source.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 /// A gRPC status: a [`Code`], an optional message, optional trailing
@@ -276,6 +318,26 @@ pub struct Status {
     detail: Option<Box<Detail>>,
 }
 
+struct StatusDiagnosticDebug<'a> {
+    status: &'a Status,
+    config: &'a DiagnosticConfig,
+}
+
+impl fmt::Debug for StatusDiagnosticDebug<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Status")
+            .field("code", &self.status.code)
+            .field(
+                "detail",
+                &self.status.detail.as_deref().map(|detail| DetailDebug {
+                    detail,
+                    config: Some(self.config),
+                }),
+            )
+            .finish()
+    }
+}
+
 /// Shared empty metadata, so [`Status::metadata`] can hand out a reference
 /// without forcing an allocation on statuses that have none.
 fn empty_metadata() -> &'static Metadata {
@@ -329,6 +391,20 @@ impl Status {
     #[must_use]
     pub fn message(&self) -> &str {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
+    }
+
+    /// Format this status with optional, bounded diagnostic message text.
+    ///
+    /// Only [`DiagnosticConfig::with_consent`] and
+    /// [`DiagnosticConfig::with_status_message`] together reveal the message.
+    /// Regular [`fmt::Debug`] always redacts it. Binary details and source
+    /// errors remain hidden in both views; metadata keeps its usual safe Debug.
+    #[must_use]
+    pub fn diagnostic_debug<'a>(&'a self, config: &'a DiagnosticConfig) -> impl fmt::Debug + 'a {
+        StatusDiagnosticDebug {
+            status: self,
+            config,
+        }
     }
 
     /// Replace the [`Code`]. Metadata is left alone. When
@@ -1588,6 +1664,7 @@ mod tests {
         assert!(status.metadata().is_empty());
         assert!(status.details().is_empty());
         assert_eq!(status.to_string(), "OK");
+        assert_eq!(format!("{status:?}"), "Status { code: Ok, detail: None }");
     }
 
     #[test]
@@ -1949,6 +2026,12 @@ mod tests {
             Some(super::TransportEvidence::RefusedStream)
         );
         assert!(std::error::Error::source(&status).is_some());
+        let shown = format!("{status:?}");
+        assert!(shown.contains("code: Unavailable"), "{shown}");
+        assert!(shown.contains("transport: Some(RefusedStream)"), "{shown}");
+        assert!(shown.contains("message: \"[REDACTED]\""), "{shown}");
+        assert!(shown.contains("source: Some(\"[REDACTED]\")"), "{shown}");
+        assert!(!shown.contains(status.message()), "{shown}");
     }
 
     #[test]

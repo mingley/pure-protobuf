@@ -1359,7 +1359,7 @@ pub(crate) fn diagnostic_debug_value<T: fmt::Debug>(
     }
 }
 
-fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
+pub(crate) fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
     if value.len() <= max_bytes {
         return Cow::Borrowed(value);
     }

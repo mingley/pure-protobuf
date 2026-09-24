@@ -1840,7 +1840,7 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
 
 #[test]
 fn test_status_error_paths_remain_observable() {
-    // Status error codes and messages must remain actionable and observable
+    // Accessors and Display retain the original error detail.
     let status_unauth = Status::unauthenticated("missing token");
     assert_eq!(status_unauth.code(), Code::Unauthenticated);
     assert_eq!(status_unauth.message(), "missing token");
@@ -1861,9 +1861,10 @@ fn test_status_error_paths_remain_observable() {
         "error code must be observable in Debug: {debug_invalid}"
     );
     assert!(
-        debug_invalid.contains("malformed parameter foo"),
-        "error message must be observable in Debug: {debug_invalid}"
+        debug_invalid.contains("message: \"[REDACTED]\""),
+        "peer message must be redacted in Debug: {debug_invalid}"
     );
+    assert!(!debug_invalid.contains("malformed parameter foo"));
 
     // Attaching metadata with credentials to a Status still redacts the credentials in Debug
     let mut status_with_md = Status::permission_denied("access denied");
@@ -1882,9 +1883,10 @@ fn test_status_error_paths_remain_observable() {
         "code must be observable: {debug_status_md}"
     );
     assert!(
-        debug_status_md.contains("access denied"),
-        "message must be observable: {debug_status_md}"
+        debug_status_md.contains("message: \"[REDACTED]\""),
+        "message must be redacted: {debug_status_md}"
     );
+    assert!(!debug_status_md.contains("access denied"));
     assert!(
         !debug_status_md.contains("leaking-token-attempt"),
         "sensitive header leaked in Status Debug: {debug_status_md}"
@@ -1897,6 +1899,149 @@ fn test_status_error_paths_remain_observable() {
         debug_status_md.contains("\"x-request-id\": \"req-err-456\""),
         "safe header should remain in Status Debug: {debug_status_md}"
     );
+}
+
+fn status_with_sensitive_diagnostics() -> Status {
+    let mut status = Status::with_details(
+        Code::PermissionDenied,
+        "éééé private peer message",
+        b"\xffprivate-detail-marker".to_vec(),
+    )
+    .with_cause(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "source-private-marker",
+    ));
+    status
+        .metadata_mut()
+        .insert("authorization", "Bearer token-private-789")
+        .expect("authorization");
+    status
+        .metadata_mut()
+        .insert("cookie", "session-private-456")
+        .expect("cookie");
+    status
+        .metadata_mut()
+        .insert_bin("x-proof-bin", b"binary-metadata-private")
+        .expect("binary metadata");
+    status
+        .metadata_mut()
+        .insert("x-custom", "custom-private-abc")
+        .expect("custom metadata");
+    status.metadata_mut().mark_sensitive("x-custom");
+    status
+        .metadata_mut()
+        .insert("x-request-id", "req-safe-456")
+        .expect("request id");
+    status
+}
+
+#[test]
+fn test_status_debug_masks_message_binary_details_and_source() {
+    let status = status_with_sensitive_diagnostics();
+    assert_eq!(status.code(), Code::PermissionDenied);
+    assert_eq!(status.message(), "éééé private peer message");
+    assert_eq!(status.details(), b"\xffprivate-detail-marker");
+    assert_eq!(
+        std::error::Error::source(&status)
+            .expect("source")
+            .to_string(),
+        "source-private-marker"
+    );
+    assert_eq!(
+        status.to_string(),
+        "PERMISSION_DENIED: éééé private peer message"
+    );
+    assert_eq!(status.metadata().get("x-request-id"), Some("req-safe-456"));
+    assert!(status.metadata().contains("authorization"));
+    assert_eq!(
+        status.metadata().get_bin("x-proof-bin"),
+        Some(b"binary-metadata-private".to_vec())
+    );
+
+    let shown = format!("{status:?}");
+    for expected in [
+        "code: PermissionDenied",
+        "message: \"[REDACTED]\"",
+        "source: Some(\"[REDACTED]\")",
+        "\"authorization\": \"[REDACTED]\"",
+        "\"cookie\": \"[REDACTED]\"",
+        "\"x-proof-bin\": \"[REDACTED]\"",
+        "\"x-custom\": \"[REDACTED]\"",
+        "\"x-request-id\": \"req-safe-456\"",
+    ] {
+        assert!(shown.contains(expected), "{shown}");
+    }
+    assert!(
+        shown.contains(&format!("details_len: {}", status.details().len())),
+        "{shown}"
+    );
+    for secret in [
+        status.message(),
+        "private-detail-marker",
+        "source-private-marker",
+        "session-private-456",
+        "binary-metadata-private",
+        "custom-private-abc",
+    ] {
+        assert!(!shown.contains(secret), "{shown}");
+    }
+}
+
+#[test]
+fn test_status_diagnostic_debug_needs_independent_bounded_consent() {
+    let status = status_with_sensitive_diagnostics();
+    for config in [
+        DiagnosticConfig::new().with_status_message(true),
+        DiagnosticConfig::new().with_consent(true),
+        DiagnosticConfig::new()
+            .with_consent(true)
+            .with_raw_identity(true)
+            .with_payload(true)
+            .with_sensitive_headers(true)
+            .with_binary_metadata(true),
+    ] {
+        let shown = format!("{:?}", status.diagnostic_debug(&config));
+        assert!(shown.contains("message: \"[REDACTED]\""), "{shown}");
+        assert!(!shown.contains(status.message()), "{shown}");
+    }
+
+    let config = DiagnosticConfig::new()
+        .with_consent(true)
+        .with_status_message(true)
+        .with_raw_identity(true)
+        .with_sensitive_headers(true)
+        .with_binary_metadata(true)
+        .with_max_value_length(7);
+    let shown = format!("{:?}", status.diagnostic_debug(&config));
+    assert!(shown.contains("message: \"ééé... [TRUNCATED]\""), "{shown}");
+    assert!(shown.contains("code: PermissionDenied"), "{shown}");
+    assert!(shown.contains("source: Some(\"[REDACTED]\")"), "{shown}");
+    assert!(
+        shown.contains("\"authorization\": \"[REDACTED]\""),
+        "{shown}"
+    );
+    assert!(shown.contains("\"x-proof-bin\": \"[REDACTED]\""), "{shown}");
+    assert!(
+        shown.contains("\"x-request-id\": \"req-safe-456\""),
+        "{shown}"
+    );
+    for secret in [
+        status.message(),
+        "private-detail-marker",
+        "source-private-marker",
+        "binary-metadata-private",
+    ] {
+        assert!(!shown.contains(secret), "{shown}");
+    }
+
+    let one_byte = config.clone().with_max_value_length(1);
+    assert!(
+        format!("{:?}", status.diagnostic_debug(&one_byte))
+            .contains("message: \"... [TRUNCATED]\"")
+    );
+    let full = config.with_max_value_length(status.message().len());
+    assert!(format!("{:?}", status.diagnostic_debug(&full)).contains(status.message()));
+    assert!(!format!("{status:?}").contains(status.message()));
 }
 
 #[test]
