@@ -814,7 +814,7 @@ mod linux_ffi {
 
     pub const RUSAGE_SELF: i32 = 0;
 
-    extern "C" {
+    unsafe extern "C" {
         pub fn getrusage(who: i32, usage: *mut Rusage) -> i32;
     }
 }
