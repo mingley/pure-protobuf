@@ -1,14 +1,14 @@
 //! Codec survey: `Serialize::encode` into `BytesMut` vs prost `Message::encode`
 //! vs v4 `Serialize::serialize` (Arena+FFI, no EncodeBuf). Same-process, no
-//! transport. Not kernel `./bench`. Not in CI.
+//! transport. Not kernel `./bench`. Timing is not in CI; correctness tests are.
 //!
-//! `hello` / `hello_4kib` stay the published 1-string rows. The rest are
-//! common unary shapes from `proto/codec_cases.proto` (specialized gencode,
-//! not TestAllTypes).
+//! `hello` / `hello_4kib` stay the published 1-string rows. Common unary
+//! shapes come from `proto/codec_cases.proto` (specialized gencode, not
+//! TestAllTypes); separate Person layout diagnostics use `proto/person.proto`.
 
 use bytes::BytesMut;
 use pbrs::testdata::{Address as PbrsAddress, Person as PbrsPerson};
-use pbrs::{Parse, Serialize};
+use pbrs::{AsView, Parse, Serialize};
 use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
 use std::time::Instant;
@@ -20,6 +20,10 @@ mod helloworld {
 mod pbrs_cases {
     #![allow(dead_code, unused, non_snake_case, clippy::all)]
     include!(concat!(env!("OUT_DIR"), "/pbrs/codec_cases.rs"));
+}
+mod pbrs_person {
+    #![allow(dead_code, unused, non_snake_case, clippy::all)]
+    include!(concat!(env!("OUT_DIR"), "/pbrs_person/person.rs"));
 }
 mod prost_cases {
     #![allow(dead_code, unused, clippy::all)]
@@ -183,8 +187,25 @@ fn assert_person_mutation_output(
     let expected = PbrsPerson::parse(expected_wire).expect("checked person reference must parse");
     assert_eq!(parsed.id(), expected_id, "person mutation: {codec} id");
     assert_eq!(parsed, expected, "person mutation: {codec} fields");
+    let generated = pbrs_person::Person::parse(actual).expect("generated pbrs reparses person");
+    let generated_expected =
+        pbrs_person::Person::parse(expected_wire).expect("generated pbrs reference must parse");
+    assert_eq!(
+        generated.id(),
+        expected_id,
+        "person mutation: {codec} generated id"
+    );
+    assert_eq!(
+        generated, generated_expected,
+        "person mutation: {codec} generated fields"
+    );
     let prost: ProstPerson = prost::Message::decode(actual).expect("prost reparses mutated person");
     assert_eq!(prost.id, expected_id, "person mutation: {codec} prost id");
+    assert_eq!(
+        prost,
+        prost::Message::decode(expected_wire).expect("prost reference must parse"),
+        "person mutation: {codec} prost fields"
+    );
     let v4 = v4_person::Person::parse(actual).expect("v4 reparses mutated person");
     assert_eq!(v4.id(), expected_id, "person mutation: {codec} v4 id");
 }
@@ -213,9 +234,12 @@ fn timer_budget(payload: usize) -> (u32, usize) {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Row {
     name: &'static str,
     payload: usize,
+    iters: u32,
+    samples: usize,
     pbrs_enc: f64,       // cached encode (pre-warmed length/canonical cache)
     pbrs_fresh_enc: f64, // direct first encode after parse, before canonical cache
     first_iters: u32,
@@ -240,6 +264,38 @@ fn run<P, R, V, TP, TR, TV>(
     touch_pbrs: TP,
     touch_prost: TR,
     touch_v4: TV,
+) -> Row
+where
+    P: Parse + Serialize + PartialEq,
+    R: prost::Message + Default,
+    V: V4Parse + V4Serialize,
+    TP: Fn(&P) -> usize,
+    TR: Fn(&R) -> usize,
+    TV: Fn(&V) -> usize,
+{
+    run_with_budget(
+        name,
+        pbrs,
+        prost,
+        v4,
+        check_wire,
+        touch_pbrs,
+        touch_prost,
+        touch_v4,
+        None,
+    )
+}
+
+fn run_with_budget<P, R, V, TP, TR, TV>(
+    name: &'static str,
+    pbrs: &P,
+    prost: &R,
+    v4: &V,
+    check_wire: bool,
+    touch_pbrs: TP,
+    touch_prost: TR,
+    touch_v4: TV,
+    budget: Option<(u32, usize)>,
 ) -> Row
 where
     P: Parse + Serialize + PartialEq,
@@ -308,7 +364,11 @@ where
     );
 
     let payload = pbrs_wire.len();
-    let (iters, samples) = timer_budget(payload);
+    let (iters, samples) = budget.unwrap_or_else(|| timer_budget(payload));
+    assert!(
+        iters > 0 && samples > 0,
+        "benchmark needs a positive budget"
+    );
     let first_iters = first_encode_budget::<P, R, V>(iters, payload);
     let pbrs_enc = median_ns(samples, iters, || {
         dst.clear();
@@ -369,6 +429,8 @@ where
     Row {
         name,
         payload,
+        iters,
+        samples,
         pbrs_enc,
         pbrs_fresh_enc,
         first_iters,
@@ -533,6 +595,72 @@ fn print_first_encodes(rows: &[Row]) {
     println!();
 }
 
+fn touch_handwritten_person(m: &PbrsPerson) -> usize {
+    m.id() as usize
+        + m.name().as_bytes().len()
+        + m.email_opt().map_or(0, |email| email.as_bytes().len())
+        + m.tags()
+            .iter()
+            .map(|tag| tag.as_view().as_bytes().len())
+            .sum::<usize>()
+        + m.scores()
+            .iter()
+            .map(|(key, score)| key.as_view().as_bytes().len() + score as usize)
+            .sum::<usize>()
+        + m.address().city().as_bytes().len()
+}
+
+fn touch_generated_person(m: &pbrs_person::Person) -> usize {
+    m.id() as usize
+        + m.name().as_bytes().len()
+        + m.email_opt().map_or(0, |email| email.as_bytes().len())
+        + m.tags()
+            .iter()
+            .map(|tag| tag.as_view().as_bytes().len())
+            .sum::<usize>()
+        + m.scores()
+            .iter()
+            .map(|(key, score)| key.as_view().as_bytes().len() + score as usize)
+            .sum::<usize>()
+        + m.address().city().as_bytes().len()
+        + m.extras()
+            .iter()
+            .map(|(key, value)| key.as_view().as_bytes().len() + value as usize)
+            .sum::<usize>()
+}
+
+fn touch_prost_person(m: &ProstPerson) -> usize {
+    m.id as usize
+        + m.name.len()
+        + m.email.as_ref().map_or(0, String::len)
+        + m.tags.iter().map(String::len).sum::<usize>()
+        + m.scores
+            .iter()
+            .map(|(key, score)| key.len() + *score as usize)
+            .sum::<usize>()
+        + m.address.as_ref().map_or(0, |address| address.city.len())
+        + m.extras
+            .iter()
+            .map(|(key, value)| key.len() + *value as usize)
+            .sum::<usize>()
+}
+
+fn touch_v4_person(m: &v4_person::Person) -> usize {
+    m.id() as usize
+        + m.name().len()
+        + (if m.has_email() { m.email().len() } else { 0 })
+        + m.tags().iter().map(|tag| tag.len()).sum::<usize>()
+        + m.scores()
+            .iter()
+            .map(|(key, score)| key.len() + score as usize)
+            .sum::<usize>()
+        + m.address().city().len()
+        + m.extras()
+            .iter()
+            .map(|(key, value)| key.len() + value as usize)
+            .sum::<usize>()
+}
+
 fn person_input_wire() -> Vec<u8> {
     let mut address = PbrsAddress::new();
     address.set_city("nyc");
@@ -547,7 +675,128 @@ fn person_input_wire() -> Vec<u8> {
     Serialize::serialize(&person).expect("person input wire")
 }
 
-fn encode_pbrs_person(message: &PbrsPerson, dst: &mut BytesMut) {
+fn run_person_rows(input: &[u8], budget: Option<(u32, usize)>) -> [Row; 2] {
+    let handwritten = PbrsPerson::parse(input).expect("handwritten person input");
+    let generated = pbrs_person::Person::parse(input).expect("generated person input");
+    let prost: ProstPerson = prost::Message::decode(input).expect("prost person input");
+    let v4 = v4_person::Person::parse(input).expect("v4 person input");
+    assert_eq!(
+        Serialize::serialize(&handwritten).expect("handwritten person wire"),
+        input
+    );
+    assert_eq!(
+        Serialize::serialize(&generated).expect("generated person wire"),
+        input
+    );
+    let handwritten_row = run_with_budget(
+        "person_handwritten",
+        &handwritten,
+        &prost,
+        &v4,
+        true,
+        touch_handwritten_person,
+        touch_prost_person,
+        touch_v4_person,
+        budget,
+    );
+    let prost: ProstPerson = prost::Message::decode(input).expect("prost generated-row input");
+    let v4 = v4_person::Person::parse(input).expect("v4 generated-row input");
+    [
+        handwritten_row,
+        run_with_budget(
+            "person_generated",
+            &generated,
+            &prost,
+            &v4,
+            true,
+            touch_generated_person,
+            touch_prost_person,
+            touch_v4_person,
+            budget,
+        ),
+    ]
+}
+
+fn person_report(rows: &[Row; 2]) -> String {
+    assert_eq!(rows[0].name, "person_handwritten");
+    assert_eq!(rows[1].name, "person_generated");
+    let work = (
+        rows[0].payload,
+        rows[0].iters,
+        rows[0].first_iters,
+        rows[0].samples,
+    );
+    assert!(
+        work.0 > 0 && work.1 > 0 && work.2 > 0 && work.2 <= work.1 && work.3 > 0,
+        "person rows need measured work"
+    );
+    assert_eq!(
+        work,
+        (
+            rows[1].payload,
+            rows[1].iters,
+            rows[1].first_iters,
+            rows[1].samples
+        ),
+        "person rows must use the same input and sample counts"
+    );
+    let mut report = String::from(
+        "## Person layouts (proto/person.proto; diagnostic, ns, not gated)\n\
+         | case (pbrs layout) | payload | repeated/parse iters | first-encode iters | samples | pbrs enc first/prewarmed | pbrs dec parse/touch | prost enc first/repeated | prost dec parse/touch | v4 enc first/repeated | v4 dec parse/touch |\n\
+         |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n",
+    );
+    for row in rows {
+        for value in [
+            row.pbrs_enc,
+            row.pbrs_fresh_enc,
+            row.pbrs_dec,
+            row.pbrs_touch,
+            row.prost_enc,
+            row.prost_first_enc,
+            row.prost_dec,
+            row.prost_touch,
+            row.v4_enc,
+            row.v4_first_enc,
+            row.v4_dec,
+            row.v4_touch,
+        ] {
+            assert!(
+                value.is_finite() && value > 0.0,
+                "person report has an invalid measured time for {}",
+                row.name
+            );
+        }
+        report.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} |\n",
+            row.name,
+            row.payload,
+            row.iters,
+            row.first_iters,
+            row.samples,
+            row.pbrs_fresh_enc,
+            row.pbrs_enc,
+            row.pbrs_dec,
+            row.pbrs_touch,
+            row.prost_first_enc,
+            row.prost_enc,
+            row.prost_dec,
+            row.prost_touch,
+            row.v4_first_enc,
+            row.v4_enc,
+            row.v4_dec,
+            row.v4_touch,
+        ));
+    }
+    report.push_str(
+        "\nSame input wire; prost/v4 columns are timed independently in each row. \
+         Handwritten Person has no extras field (tag 16), so the fixture leaves it empty. \
+         Touch uses string lengths and scalar values, not a bytewise string scan. \
+         Fixed-order, same-process timings do not qualify a speed or memory claim.\n",
+    );
+    report
+}
+
+fn encode_pbrs_person<P: Serialize>(message: &P, dst: &mut BytesMut) {
     dst.clear();
     Serialize::encode(message, dst).expect("pbrs person encode");
 }
@@ -559,12 +808,20 @@ fn encode_prost_person(message: &ProstPerson, dst: &mut BytesMut) {
 
 fn verify_person_mutations(input: &[u8]) {
     let mut pbrs = PbrsPerson::parse(input).expect("pbrs person input");
+    let mut generated = pbrs_person::Person::parse(input).expect("generated pbrs person input");
     let mut prost: ProstPerson = prost::Message::decode(input).expect("prost person input");
     let mut v4 = v4_person::Person::parse(input).expect("v4 person input");
     let mut pbrs_dst = BytesMut::new();
+    let mut generated_dst = BytesMut::new();
     let mut prost_dst = BytesMut::new();
     encode_pbrs_person(&pbrs, &mut pbrs_dst);
     assert_eq!(&pbrs_dst[..], input, "person: pbrs input wire");
+    encode_pbrs_person(&generated, &mut generated_dst);
+    assert_eq!(
+        &generated_dst[..],
+        input,
+        "person: generated pbrs input wire"
+    );
     encode_prost_person(&prost, &mut prost_dst);
     assert_eq!(&prost_dst[..], input, "person: prost input wire");
     assert_eq!(
@@ -578,11 +835,14 @@ fn verify_person_mutations(input: &[u8]) {
         expected.set_id(id);
         let expected_wire = Serialize::serialize(&expected).expect("person expected wire");
         pbrs.set_id(id);
+        generated.set_id(id);
         prost.id = id;
         v4.set_id(id);
 
         encode_pbrs_person(&pbrs, &mut pbrs_dst);
         assert_person_mutation_output("pbrs", &pbrs_dst, &expected_wire, id);
+        encode_pbrs_person(&generated, &mut generated_dst);
+        assert_person_mutation_output("pbrs generated", &generated_dst, &expected_wire, id);
         encode_prost_person(&prost, &mut prost_dst);
         assert_person_mutation_output("prost", &prost_dst, &expected_wire, id);
         let v4_wire = V4Serialize::serialize(&v4).expect("v4 person mutation wire");
@@ -601,25 +861,36 @@ struct MutationRow {
     v4_ns: f64,
 }
 
-fn run_person_mutation() -> MutationRow {
-    let input = person_input_wire();
-    verify_person_mutations(&input);
-    let (iters, samples) = timer_budget(input.len());
-    let iters =
-        first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(iters, input.len());
+fn person_mutation_budget(iters: u32, payload: usize) -> u32 {
+    first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(iters, payload).min(
+        first_encode_budget::<pbrs_person::Person, ProstPerson, v4_person::Person>(iters, payload),
+    )
+}
+
+fn measure_person_mutation<P, U>(
+    name: &'static str,
+    input: &[u8],
+    iters: u32,
+    samples: usize,
+    mut set_id: U,
+) -> MutationRow
+where
+    P: Parse + Serialize,
+    U: FnMut(&mut P, i32),
+{
     let mut pbrs_dst = BytesMut::new();
     let mut prost_dst = BytesMut::new();
     let pbrs_ns = median_mutated_encode_ns(
         samples,
         iters,
         || {
-            let message = PbrsPerson::parse(&input).expect("pbrs mutation parse");
+            let message = P::parse(input).expect("pbrs mutation parse");
             let mut warm = BytesMut::new();
             encode_pbrs_person(&message, &mut warm);
             std::hint::black_box(&warm[..]);
             message
         },
-        |message, id| message.set_id(id),
+        |message, id| set_id(message, id),
         |message| {
             encode_pbrs_person(message, &mut pbrs_dst);
             std::hint::black_box(&pbrs_dst[..]);
@@ -629,8 +900,7 @@ fn run_person_mutation() -> MutationRow {
         samples,
         iters,
         || {
-            let message: ProstPerson =
-                prost::Message::decode(input.as_slice()).expect("prost mutation parse");
+            let message: ProstPerson = prost::Message::decode(input).expect("prost mutation parse");
             std::hint::black_box(prost::Message::encode_to_vec(&message));
             message
         },
@@ -644,7 +914,7 @@ fn run_person_mutation() -> MutationRow {
         samples,
         iters,
         || {
-            let message = v4_person::Person::parse(&input).expect("v4 mutation parse");
+            let message = v4_person::Person::parse(input).expect("v4 mutation parse");
             std::hint::black_box(V4Serialize::serialize(&message).expect("v4 person warmup"));
             message
         },
@@ -654,7 +924,7 @@ fn run_person_mutation() -> MutationRow {
         },
     );
     MutationRow {
-        name: "person_handwritten",
+        name,
         payload: input.len(),
         iters,
         samples,
@@ -664,29 +934,66 @@ fn run_person_mutation() -> MutationRow {
     }
 }
 
-fn mutation_report(row: &MutationRow) -> String {
+fn run_person_mutations(input: &[u8], iters: u32, samples: usize) -> [MutationRow; 2] {
+    verify_person_mutations(input);
+    let iters = person_mutation_budget(iters, input.len());
+    [
+        measure_person_mutation::<PbrsPerson, _>(
+            "person_handwritten",
+            input,
+            iters,
+            samples,
+            PbrsPerson::set_id,
+        ),
+        measure_person_mutation::<pbrs_person::Person, _>(
+            "person_generated",
+            input,
+            iters,
+            samples,
+            pbrs_person::Person::set_id,
+        ),
+    ]
+}
+
+fn mutation_report(rows: &[MutationRow; 2]) -> String {
+    assert_eq!(rows[0].name, "person_handwritten");
+    assert_eq!(rows[1].name, "person_generated");
+    let work = (rows[0].payload, rows[0].iters, rows[0].samples);
     assert!(
-        row.iters > 0 && row.samples > 0 && row.payload > 0,
+        work.0 > 0 && work.1 > 0 && work.2 > 0,
         "mutation report needs measured work"
     );
-    for (codec, value) in [
-        ("pbrs", row.pbrs_ns),
-        ("prost", row.prost_ns),
-        ("v4", row.v4_ns),
-    ] {
-        assert!(
-            value.is_finite() && value > 0.0,
-            "mutation report has invalid {codec} time"
-        );
-    }
-    format!(
+    assert_eq!(
+        work,
+        (rows[1].payload, rows[1].iters, rows[1].samples),
+        "mutation rows must use the same input and sample counts"
+    );
+    let mut report = String::from(
         "Mutation before encode (diagnostic; mutation+encode ns, parse/pre-warm excluded):\n\
-         | case | id transition | payload | iterations/sample | samples | pbrs | prost | v4 |\n\
-         |---|---|---:|---:|---:|---:|---:|\n\
-         | {} | 42 <-> 43 | {} | {} | {} | {:.1} | {:.1} | {:.1} |\n\n\
-         Excluded: person_generated (pbrs generated Person is not wired in tonic-bench; adding build.rs generation is outside this slice).\n",
-        row.name, row.payload, row.iters, row.samples, row.pbrs_ns, row.prost_ns, row.v4_ns
-    )
+         | case (pbrs layout) | id transition | payload | iterations/sample | samples | pbrs | prost | v4 |\n\
+         |---|---|---:|---:|---:|---:|---:|---:|\n",
+    );
+    for row in rows {
+        for (codec, value) in [
+            ("pbrs", row.pbrs_ns),
+            ("prost", row.prost_ns),
+            ("v4", row.v4_ns),
+        ] {
+            assert!(
+                value.is_finite() && value > 0.0,
+                "mutation report has invalid {codec} time for {}",
+                row.name
+            );
+        }
+        report.push_str(&format!(
+            "| {} | 42 <-> 43 | {} | {} | {} | {:.1} | {:.1} | {:.1} |\n",
+            row.name, row.payload, row.iters, row.samples, row.pbrs_ns, row.prost_ns, row.v4_ns
+        ));
+    }
+    report.push_str(
+        "\nEach row times its own pbrs, prost and v4 mutation independently in fixed order; no gate or speed claim.\n",
+    );
+    report
 }
 
 fn main() {
@@ -1247,7 +1554,17 @@ fn main() {
     print_first_encodes(&published);
     print_table("## Common shapes (codec_cases.proto)", &survey);
     print_first_encodes(&survey);
-    println!("{}", mutation_report(&run_person_mutation()));
+    let person_wire = person_input_wire();
+    println!("{}", person_report(&run_person_rows(&person_wire, None)));
+    let (person_iters, person_samples) = timer_budget(person_wire.len());
+    println!(
+        "{}",
+        mutation_report(&run_person_mutations(
+            &person_wire,
+            person_iters,
+            person_samples
+        ))
+    );
 
     let mut failed = false;
     for r in survey.iter() {
@@ -1293,11 +1610,14 @@ fn main() {
 mod tests {
     use super::{
         MutationRow, ProstPerson, assert_person_mutation_output, first_encode_budget,
-        median_first_encode_ns, median_mutated_encode_ns, mutation_report, person_input_wire,
-        v4_person, verify_person_mutations,
+        median_first_encode_ns, median_mutated_encode_ns, mutation_report, pbrs_person,
+        person_input_wire, person_mutation_budget, person_report, run_person_mutations,
+        run_person_rows, touch_generated_person, touch_handwritten_person, touch_prost_person,
+        touch_v4_person, v4_person, verify_person_mutations,
     };
     use pbrs::testdata::Person as PbrsPerson;
-    use pbrs::{Parse, Serialize};
+    use pbrs::{AsView, Parse, Serialize};
+    use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 
     #[test]
     fn first_encode_prepares_and_encodes_every_sample_once() {
@@ -1368,17 +1688,104 @@ mod tests {
     }
 
     #[test]
+    fn generated_person_matches_the_populated_handwritten_fixture() {
+        let input = person_input_wire();
+        assert_eq!(input.len(), 62);
+        let handwritten = PbrsPerson::parse(&input).expect("handwritten person");
+        let generated = pbrs_person::Person::parse(&input).expect("generated person");
+        let prost: ProstPerson = prost::Message::decode(input.as_slice()).expect("prost person");
+        let v4 = v4_person::Person::parse(&input).expect("v4 person");
+
+        assert_eq!(generated.id(), 7);
+        assert_eq!(generated.name().as_bytes(), b"ada lovelace");
+        assert_eq!(
+            generated.email_opt().expect("email is present").as_bytes(),
+            b"ada@example.com"
+        );
+        assert_eq!(
+            generated
+                .tags()
+                .iter()
+                .map(|tag| tag.as_view().to_str().expect("valid tag").to_owned())
+                .collect::<Vec<_>>(),
+            ["math", "eng"]
+        );
+        assert_eq!(
+            generated
+                .scores()
+                .iter()
+                .map(|(key, value)| (
+                    key.as_view().to_str().expect("valid score key").to_owned(),
+                    value
+                ))
+                .collect::<Vec<_>>(),
+            [("notes".to_owned(), 12)]
+        );
+        assert_eq!(generated.address().city().as_bytes(), b"nyc");
+        assert_eq!(generated.extras().iter().count(), 0);
+        assert_eq!(
+            Serialize::serialize(&handwritten).expect("handwritten wire"),
+            input
+        );
+        assert_eq!(
+            Serialize::serialize(&generated).expect("generated wire"),
+            input
+        );
+        assert_eq!(V4Serialize::serialize(&v4).expect("v4 wire"), input);
+        let touched = touch_handwritten_person(&handwritten);
+        assert_eq!(touched, 61);
+        assert_eq!(touch_generated_person(&generated), touched);
+        assert_eq!(touch_prost_person(&prost), touched);
+        assert_eq!(touch_v4_person(&v4), touched);
+    }
+
+    #[test]
+    fn person_layout_rows_use_same_wire_work_and_report_both_measurements() {
+        let input = person_input_wire();
+        let rows = run_person_rows(&input, Some((10, 3)));
+        assert_eq!(rows[0].name, "person_handwritten");
+        assert_eq!(rows[1].name, "person_generated");
+        assert_eq!(rows[0].payload, input.len());
+        assert_eq!(rows[1].payload, input.len());
+        assert_eq!(rows[0].iters, 10);
+        assert_eq!(rows[1].iters, 10);
+        assert_eq!(rows[0].first_iters, rows[1].first_iters);
+        let report = person_report(&rows);
+        assert!(report.contains("| person_handwritten | 62 | 10 | 10 | 3 |"));
+        assert!(report.contains("| person_generated | 62 | 10 | 10 | 3 |"));
+        assert!(report.contains("prost/v4 columns are timed independently"));
+        assert!(!report.contains(" | win |"));
+        assert!(!report.contains(" | loss |"));
+
+        let mut mismatched = rows;
+        mismatched[1].first_iters -= 1;
+        assert!(std::panic::catch_unwind(|| person_report(&mismatched)).is_err());
+        let mut invalid = rows;
+        invalid[1].v4_touch = f64::NAN;
+        assert!(std::panic::catch_unwind(|| person_report(&invalid)).is_err());
+    }
+
+    #[test]
     fn person_mutation_checks_all_codecs_and_rejects_mismatches() {
         let input = person_input_wire();
         verify_person_mutations(&input);
-        let iters =
-            first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(40_000, input.len());
+        let iters = person_mutation_budget(40_000, input.len());
         let footprint = input.len()
             + size_of::<PbrsPerson>()
+                .max(size_of::<pbrs_person::Person>())
                 .max(size_of::<ProstPerson>())
                 .max(size_of::<v4_person::Person>());
         assert!(iters <= 10_000);
         assert!(usize::try_from(iters).expect("bounded count") * footprint <= 32 * 1024 * 1024);
+
+        let rows = run_person_mutations(&input, 10, 3);
+        assert_eq!(rows[0].iters, 10);
+        assert_eq!(rows[1].iters, 10);
+        assert_eq!(rows[0].payload, input.len());
+        assert_eq!(rows[1].payload, input.len());
+        let report = mutation_report(&rows);
+        assert!(report.contains("| person_handwritten | 42 <-> 43 | 62 | 10 | 3 |"));
+        assert!(report.contains("| person_generated | 42 <-> 43 | 62 | 10 | 3 |"));
 
         let mut expected = PbrsPerson::parse(&input).expect("reference parse");
         expected.set_id(42);
@@ -1389,6 +1796,16 @@ mod tests {
         assert!(
             std::panic::catch_unwind(|| {
                 assert_person_mutation_output("prost", &wrong_wire, &expected_wire, 42)
+            })
+            .is_err()
+        );
+        let mut wrong_generated = pbrs_person::Person::parse(&input).expect("generated input");
+        wrong_generated.set_id(42);
+        wrong_generated.set_name("different");
+        let wrong_wire = Serialize::serialize(&wrong_generated).expect("wrong generated wire");
+        assert!(
+            std::panic::catch_unwind(|| {
+                assert_person_mutation_output("pbrs generated", &wrong_wire, &expected_wire, 42)
             })
             .is_err()
         );
@@ -1409,7 +1826,14 @@ mod tests {
             prost_ns: 4.0,
             v4_ns: 9.2,
         };
-        let report = mutation_report(&row);
+        let generated = MutationRow {
+            name: "person_generated",
+            pbrs_ns: 5.3,
+            prost_ns: 4.1,
+            v4_ns: 8.0,
+            ..row
+        };
+        let report = mutation_report(&[row, generated]);
         assert_eq!(
             report.lines().next(),
             Some(
@@ -1420,16 +1844,34 @@ mod tests {
             report.lines().nth(3),
             Some("| person_handwritten | 42 <-> 43 | 64 | 10 | 3 | 3.5 | 4.0 | 9.2 |")
         );
-        assert!(report.contains("Excluded: person_generated ("));
+        assert_eq!(
+            report.lines().nth(4),
+            Some("| person_generated | 42 <-> 43 | 64 | 10 | 3 | 5.3 | 4.1 | 8.0 |")
+        );
+        assert!(report.contains("Each row times its own pbrs, prost and v4"));
+        assert!(!report.contains("Excluded:"));
         assert!(!report.contains("First encode after parse"));
         for value in [0.0, f64::NAN, f64::INFINITY] {
             assert!(
-                std::panic::catch_unwind(|| mutation_report(&MutationRow {
-                    v4_ns: value,
-                    ..row
-                }))
+                std::panic::catch_unwind(|| mutation_report(&[
+                    row,
+                    MutationRow {
+                        v4_ns: value,
+                        ..generated
+                    }
+                ]))
                 .is_err()
             );
         }
+        assert!(
+            std::panic::catch_unwind(|| mutation_report(&[
+                row,
+                MutationRow {
+                    iters: 9,
+                    ..generated
+                }
+            ]))
+            .is_err()
+        );
     }
 }

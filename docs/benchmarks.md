@@ -9,10 +9,13 @@ before promoting a comparative claim.
 
 ## Method
 
-Every row uses the same `.proto`. Most cases are
+The historical kernel comparisons target the same `.proto` per row. Most cases are
 `TestAllTypesProto3` (TAT), Google's kitchen-sink conformance message.
-pbrs types are plugin-generated, except `person` which uses the handwritten
-`pbrs::testdata::Person`.
+pbrs types in the historical kernel table are plugin-generated, except
+`person` which uses the handwritten `pbrs::testdata::Person`.
+That handwritten type has no typed `extras` (tag 16); the Person specimens
+leave the field empty, so this is populated-field rather than full-schema
+equivalence.
 Competitors are prost 0.13 (`prost-build` of that proto), crates.io
 `protobuf` 4.35.1-release (`protoc --rust_out kernel=upb`), buffa 0.9.1
 owned, and buffa `decode_view` where it exists.
@@ -25,11 +28,13 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
 1. **Handwritten vs. Generated Schemas**:
    `person` uses handwritten `pbrs::testdata::Person`, which optimizes repeat
    storage via `InlineVec<ProtoString, 4>` (up to 4 small repeats inline in the
-   struct without heap allocation). All other cases use compiler-generated
-   structures (`TestAllTypesProto3`). To measure the exact difference between
-   compiler-generated and handwritten schema layouts, the comparative row
+   struct without heap allocation). All other historical cases use
+   compiler-generated structures (`TestAllTypesProto3`). To expose
+   handwritten versus generated implementation differences, the comparative row
    `person_generated` uses the compiler-generated layout (`Repeated<LazyStr>`,
-   `Map<LazyStr, i32>`).
+   `Map<LazyStr, i32>`). The current `tonic-bench` additionally reports both
+   Person layouts in a separate same-input diagnostic; those measurements do
+   not replace this historical table.
 2. **Buffer Ownership (Owned vs. View Decode)**:
    Owned decoders (`pbrs`, `prost`, `v4 upb`, `buffa owned`) produce messages
    independent of the caller's input lifetime. pbrs can retain its own wire
@@ -52,9 +57,10 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
      included in this parse-prepared diagnostic.
    - *Mutated Encode*: `bench` alternates a field before every pbrs encode to
      include cache invalidation and size recomputation. `tonic-bench` now
-     reports a separate three-codec `Person` id-mutation comparison; it is
-     not part of the historical rows or gates. Both consume full encoded
-     buffers and are diagnostic, not replacements for the cached encode rows.
+     reports separate three-codec `Person` id-mutation rows for handwritten
+     and generated pbrs; they are not part of the historical rows or gates.
+     Both consume full encoded buffers and are diagnostic, not replacements
+     for the cached encode rows.
 4. **Parse-Only vs. Parse-and-Touch**:
    - *Parse-Only*: Deserializes wire bytes and drops the decoded message
      immediately without inspecting fields.
@@ -343,9 +349,10 @@ copy; no EncodeBuf). Not kernel `./bench`. Release-mode timing is not in CI;
 unit correctness is. Two consecutive
 `./target/release/tonic-bench` runs; second capture below.
 
-`hello` / `hello_4kib` are the old 1-string rows. Everything else is
-`proto/codec_cases.proto`: one message per common unary shape, so
-gencode is specialized (hello-sized), not TestAllTypes.
+`hello` / `hello_4kib` are the old 1-string rows. The other historical
+tables use `proto/codec_cases.proto`: one message per common unary shape,
+so gencode is specialized (hello-sized), not TestAllTypes. The new Person
+diagnostics below use `proto/person.proto` instead.
 
 For the `hello` rows, pbrs/prost use `hello.proto` but v4 uses the
 wire-equivalent `codec_cases.proto` `Name`; the generated schemas are not
@@ -381,27 +388,47 @@ reported separately in `bench`, not in this survey. The existing touch
 checksums access case-selected fields, not every nested leaf; exhaustive
 parse-and-touch materialization remains BM-03 work.
 
+**Person layout diagnostic (not historical, not gated):** `tonic-bench/build.rs`
+generates a pbrs `Person` from the repository's `proto/person.proto` alongside
+the existing common-shape bindings. Its separate `person_handwritten` and
+`person_generated` rows parse **the same 62-byte Person wire**. Each independently
+measures repeated encode, first encode after parse, parse-only, and parse-and-touch
+for pbrs, prost and the existing v4 upb Person. Full re-encoded buffers must
+match the shared input; the touch checks access id, name, present email, both
+tags, the one scores entry and nested address city, and match across layouts
+and codecs before timing. The diagnostic prints actual iteration/sample counts
+and raw times without declaring winners or changing any smoke gate. Repeated
+prost/v4 encode does not imply a pbrs-style cached-size optimization, and
+prost/v4 comparator cells are **timed anew** for each layout, not copied.
+Touch sums string lengths and scalar values; it does not scan every string
+byte. All these measurements are fixed-order and same-process, not randomized
+paired runs on independent pinned hosts.
+
+The handwritten `pbrs::testdata::Person` does **not** expose `extras` (tag 16);
+the test fixture leaves it empty for all four representations, and the generated
+layout alone cannot establish full-schema parity for nonempty `extras`.
+Generated pbrs retains lazy, wire-backed fields with different repeated/map
+storage; prost owns decoded fields, and v4 allocates an upb Arena. Equal wire
+bytes for this specimen do not make ownership, retained memory, or full-schema
+costs equal.
+
 **Mutation before encode (separate diagnostic, not a gate):**
 `tonic-bench` compares `proto/person.proto` with handwritten
-`pbrs::testdata::Person`, a locally prost-derived matching schema, and the
-checked-in v4 upb binding in `rust_out_person/src/person.u.pb.rs` (pinned to
-4.35.1-release). The shared Person input has one `scores` entry and no
-`extras`; all other populated fields remain unchanged. Each codec parses and
-pre-warms its own message outside the timed interval, then alternates `id`
-between 42 and 43 on that same object **before every encode**. The measured
-time includes the setter/assignment and serialization, not parsing or
-construction. pbrs/prost reuse a `BytesMut`; v4 allocates its upb-backed
-output. Full output buffers are passed through the black box. Before timing,
-both mutated states must produce equal wire bytes and reparse correctly with
-all three codecs; any mismatch fails the run. Iterations per sample share
-the existing 10,000/estimated-32-MiB cap and are reported separately.
-
-`person_generated` is explicitly excluded: the compiler-generated pbrs
-Person binding is wired only in `bench`, not in `tonic-bench`; generating it
-here would require an out-of-scope build-script change. The new result does
-not establish generated-layout parity, other field-mutation parity, retained
-memory, exhaustive touch, or holdout-schema coverage. A single local release
-smoke is unqualified comparative evidence, not a new performance claim.
+**and generated** pbrs Person, a locally prost-derived matching schema, and
+the existing v4 upb binding in `rust_out_person/src/person.u.pb.rs` (pinned
+to 4.35.1-release). Both rows use the shared input above, with no `extras`.
+For **each** row, all three codec timings are independently measured: parse
+and pre-warm a message outside the timer, then alternate `id` between 42 and
+43 on that same object **before every encode**. Timed work includes the
+setter/assignment and serialization, not parsing or construction. pbrs/prost
+reuse a `BytesMut`; v4 allocates its upb-backed output. Full buffers are
+consumed. Before timing, both states must byte-match the expected wire,
+reparse with handwritten and generated pbrs, prost and v4, and agree on
+populated fields; any mismatch fails the run. Both rows use the same
+iteration/sample counts within the existing 10,000/estimated-32-MiB cap.
+No raw host qualification or numeric speed claim follows from these
+diagnostics; other field-mutation parity, retained memory, exhaustive touch,
+and holdout-schema coverage remain BM-03 work.
 
 Historical table columns report:
 - `pbrs enc (fresh / cached)`: older derived fresh estimate alongside cached

@@ -8,9 +8,11 @@ fn main() {
     let proto_dir = manifest.join("../proto");
     let hello = proto_dir.join("hello.proto");
     let cases = proto_dir.join("codec_cases.proto");
+    let person = proto_dir.join("person.proto");
     let checked = manifest.join("checked_v4");
     println!("cargo:rerun-if-changed={}", hello.display());
     println!("cargo:rerun-if-changed={}", cases.display());
+    println!("cargo:rerun-if-changed={}", person.display());
     for name in ["codec_cases.proto", "generated.rs", "codec_cases.u.pb.rs"] {
         println!("cargo:rerun-if-changed={}", checked.join(name).display());
     }
@@ -22,9 +24,11 @@ fn main() {
 
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let pbrs_dir = out.join("pbrs");
+    let pbrs_person_dir = out.join("pbrs_person");
     let prost_dir = out.join("prost");
     let v4_dir = out.join("v4");
     fs::create_dir_all(&pbrs_dir).unwrap();
+    fs::create_dir_all(&pbrs_person_dir).unwrap();
     fs::create_dir_all(&prost_dir).unwrap();
     fs::create_dir_all(&v4_dir).unwrap();
 
@@ -34,6 +38,7 @@ fn main() {
         .expect("prost-build");
 
     gen_pbrs(&cases, &proto_dir, &pbrs_dir);
+    gen_pbrs(&person, &proto_dir, &pbrs_person_dir);
     println!("cargo:rerun-if-env-changed=PURE_PROTOBUF_CHECKED_V4");
     println!("cargo:rerun-if-env-changed=PROTOC");
     match env::var("PURE_PROTOBUF_CHECKED_V4") {
