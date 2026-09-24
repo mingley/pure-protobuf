@@ -1703,7 +1703,8 @@
       ],
       "evidence": [
         "Partial 2026-09-23: 2584e5c1 adds a bounded separate-process native mixed-load diagnostic with scheduled unary probes competing with bulk streams. Benchmark tests passed, but qualification.qualified remains false: full queue delay, exact permit/high-water byte gauges, other five cells and paired dedicated-host evidence are missing.",
-        "Partial 2026-09-24: the server lifecycle observer now emits post-admission scheduling delay once before dispatch, but this is not complete listener/transport queue time. It does not provide the missing permit/high-water gauges or dedicated-host paired fairness proof; RT-07 remains open."
+        "Partial 2026-09-24: the server lifecycle observer now emits post-admission scheduling delay once before dispatch, but this is not complete listener/transport queue time. It does not provide the missing permit or dedicated-host paired fairness proof; RT-07 remains open.",
+        "Partial 2026-09-24: ByteBudgetTracker.peak_allocated() records exact tracker-lifetime permit high-water across concurrent acquisitions and rejects counter overflow. The separate-process fairness JSON now reports numeric client/server exact peaks (including warmup) beside sampled lower bounds; a bounded local smoke retained under target/bench-logs stayed qualification.qualified=false. Measurement-window attribution, full queue delay, active-permit gauges, other scenarios and paired reference hosts are still missing."
       ]
     },
     {
