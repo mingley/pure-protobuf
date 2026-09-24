@@ -2885,20 +2885,28 @@ async fn prefer_peer_rejection_after_send<T>(
     send_error: Status,
 ) -> Result<T, Status> {
     if send_error.is_transport() {
-        if let Ok(response) = response.await {
-            let grpc_code = response
-                .headers()
-                .get("grpc-status")
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.parse::<i32>().ok());
-            // An early trailers-only error can close the request body with
-            // RST_STREAM(NO_ERROR). Never turn an incomplete upload into OK.
-            if response.status() == http::StatusCode::OK
-                && response.body().is_end_stream()
-                && grpc_code.is_some_and(|code| code != 0)
-            {
-                return Err(status_from(response.headers(), None));
+        match response.await {
+            Ok(response) => {
+                let grpc_code = response
+                    .headers()
+                    .get("grpc-status")
+                    .and_then(|value| value.to_str().ok())
+                    .and_then(|value| value.parse::<i32>().ok());
+                // An early trailers-only error can close the request body with
+                // RST_STREAM(NO_ERROR). Never turn an incomplete upload into OK.
+                if response.status() == http::StatusCode::OK
+                    && response.body().is_end_stream()
+                    && grpc_code.is_some_and(|code| code != 0)
+                {
+                    return Err(status_from(response.headers(), None));
+                }
             }
+            // A stream reset can close the send half before its explicit refusal
+            // reaches the response future. Only REFUSED_STREAM proves no execution.
+            Err(error) if error.reason() == Some(Reason::REFUSED_STREAM) => {
+                return Err(Status::from_h2_post_dispatch(error));
+            }
+            Err(_) => {}
         }
     }
     Err(send_error)
@@ -3456,8 +3464,10 @@ async fn race<T>(
 
 #[cfg(test)]
 mod tests {
-    use super::Target;
+    use super::{Target, prefer_peer_rejection_after_send};
+    use crate::status::{Status, TransportEvidence};
     use std::net::SocketAddr;
+    use std::time::Duration;
 
     #[test]
     fn targets_accept_addresses_and_names() {
@@ -3661,6 +3671,54 @@ mod tests {
             !err.message().contains("not a grpc://"),
             "{}",
             err.message()
+        );
+    }
+
+    #[tokio::test]
+    async fn refused_response_overrides_ambiguous_request_send_error() {
+        let status = tokio::time::timeout(Duration::from_secs(3), async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let peer = tokio::spawn(async move {
+                let (socket, _) = listener.accept().await.expect("accept");
+                let mut connection = h2::server::handshake(socket).await.expect("handshake");
+                let (_, mut respond) = connection
+                    .accept()
+                    .await
+                    .expect("request")
+                    .expect("headers");
+                respond.send_reset(h2::Reason::REFUSED_STREAM);
+                while let Some(result) = connection.accept().await {
+                    result.expect("drive reset");
+                }
+            });
+
+            let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+            let (sender, connection) = h2::client::handshake(socket).await.expect("handshake");
+            let driver = tokio::spawn(async move { drop(connection.await) });
+            let mut sender = sender.ready().await.expect("ready");
+            let (response, _send) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://localhost/first")
+                        .body(())
+                        .expect("request"),
+                    false,
+                )
+                .expect("send headers");
+            let result =
+                prefer_peer_rejection_after_send::<()>(response, Status::stream_closed()).await;
+            driver.abort();
+            peer.abort();
+            result.expect_err("REFUSED_STREAM must not be reported as an ambiguous send loss")
+        })
+        .await
+        .expect("HTTP/2 refusal stalled");
+        assert_eq!(
+            status.transport_evidence(),
+            Some(TransportEvidence::RefusedStream)
         );
     }
 

@@ -323,7 +323,11 @@ async fn scenario_a_refused_stream_retries_safely() {
     let server_task = tokio::spawn(async move {
         // Attempt 1: Server accepts connection and stream, but immediately sends REFUSED_STREAM.
         let (socket, _) = listener.accept().await.expect("accept conn 1");
-        let mut conn = h2::server::handshake(socket).await.expect("handshake 1");
+        let mut conn = h2::server::Builder::new()
+            .initial_window_size(1_024)
+            .handshake::<_, Bytes>(socket)
+            .await
+            .expect("handshake 1");
         if let Some(Ok((_req, respond))) = conn.accept().await {
             // Refuse stream before any application logic runs:
             let mut send = respond;
@@ -361,7 +365,7 @@ async fn scenario_a_refused_stream_retries_safely() {
 
     let client = GreeterClient::connect(addr).await.expect("connect");
     let response = client
-        .say_hello(Request::new(req("test")))
+        .say_hello(Request::new(req(&"x".repeat(32 * 1024))))
         .await
         .expect("say_hello after transparent retry");
 
