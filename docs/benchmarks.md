@@ -209,7 +209,8 @@ for resources; `--jobs` defaults to `CARGO_BUILD_JOBS` or 2.
 The Python harness generates and hashes every `.proto` from a fixed SHA-256
 field-selection scheme. It builds a small out-of-band Rust driver using
 `pbrs::codegen::Config::compile_protos` with messages-only stubs, normal
-reflection, and a pinned `protoc` executable. The measured generation phase
+reflection, and the recorded `protoc` executable (pinned in opt-in mode).
+The measured generation phase
 **includes protoc descriptor compilation and Rust emission**, not Cargo.
 A second identical invocation checks *all* `.rs` bytes, paths and nanosecond
 mtimes without rewriting them. An external consumer includes the generated
@@ -241,20 +242,98 @@ it is a lower bound on that sum's high-water mark, not physical memory
 (shared pages can be counted twice) or a complete allocator-aware peak.
 `status: error` and a nonzero exit preserve partial data and logs on
 measurement failure.
+After each release build and binary hash, a separate **untimed**
+`release_smoke` executes the binary from its own consumer directory with a
+maximum 15-second timeout. It requires exit 0, stdout exactly `1\n`, and
+empty stderr. A passing phase records its raw stdout/stderr logs, hashes,
+cwd, timeout, exit code and `output_verified`. A failing phase retains
+status and log paths (plus exit code if the child exited), and stops
+comparison without reporting empty losses as success. The smoke does not invoke
+`/usr/bin/time` because its resource report would make raw stderr nonempty.
+It contributes no timing/RSS row to the 12 cost metrics.
 
-No equivalent **pinned** reference generator/consumer with matched reflection
-and API work is wired in this slice. The report therefore always has
-`status: unqualified`, `qualification.qualified: false`,
-`reference.status: missing`, `comparison.status: not_run`, and
-`comparison.losing_cells: null` after a successful diagnostic; an empty loss
-list would incorrectly imply a comparison. `--require-qualified` fails fast
-with exit 2. This is one diagnostic run per cell, not paired randomized
-replicates with uncertainty bounds or published comparable raw reference
-measurements. Do not infer compile-time leadership from this command, the
-historical codec tables, or `cargo test`. Keep the
-[benchmark contract](benchmark-contract.md) and CG-19 acceptance open until
-matched, pinned reference peers and their **losing cells** have been measured
-and published alongside raw logs on controlled hosts.
+**Default behavior is unchanged:** no reference is invoked and successful
+pbrs-only runs retain `reference.status: missing`,
+`comparison.status: not_run`, `comparison.losing_cells: null` and
+`qualification.qualified: false`. The previous 6/100/1,000-message cells
+are historical pbrs-only measurements, **not** pairs. To opt into a
+**single local seed-190019 six-message pair** with the existing pinned
+compiler (not an arbitrary PATH `protoc`), use:
+
+```sh
+CARGO_BUILD_JOBS=2 ./scripts/codegen-bench.sh --case small \
+  --reference-protoc "$PWD/target/pinned-protoc-build/protoc" --jobs 2
+```
+
+The opt-in fails closed unless that compiler is genuine `libprotoc 35.1`,
+SHA-256 `e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940`,
+from the clean checked upstream source at
+`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`. Both generators receive the
+same byte-identical `.proto` inputs: proto3 scalars, repeated/map fields,
+cross-file imports, six concrete message types, and normal reflection
+metadata. Both consumers perform the same `new`/serialize/parse/serialize
+calls per type, but upstream's generated `generated.rs` module differs
+from pbrs's `mod.rs`. Upstream uses its built-in Rust output
+(`experimental-codegen=enabled,kernel=upb`) and **independent** registry
+`protobuf`/`protobuf-macros` `4.35.1-release` dependencies, verified by
+version and Cargo checksum; the reference lockfile must not contain `pbrs`.
+Opt-in requires Python 3.11+ for standard-library lockfile verification.
+That runtime compiles C/upb through the recorded C compiler. Pbrs uses its
+own Rust runtime and a pinned-protoc descriptor subprocess. Each side gets
+an initially empty cold-check target and the same two-job Cargo profile;
+bootstrap is excluded, while the registry/compiler-wrapper caches are
+shared and **pbrs always runs first**. These are full consumer/build costs,
+not isolated generator, C-free, identical-ABI or randomized cold-host
+comparisons. The reference repeat generation may rewrite identical Rust
+files; both bytes and mtime outcomes are explicit in the report. Only
+default-message values execute; this is not a nonempty-field semantic test.
+
+The **corrected** local small-cell diagnostic at
+`target/codegen-bench/20260924T211609Z-63179/summary.json` has **40 retained
+raw stdout/stderr logs**, 12 paired numeric cost metrics and **eight losing
+metrics** for pbrs (raw units are ns for time and bytes for RSS). All seven
+previously observed losses persist; this run also observes a generation RSS
+loss, which is subject to the sampling limitation above:
+
+| Metric where pbrs is larger | pbrs | Pinned upb reference |
+|---|---:|---:|
+| generation elapsed ns | 294591958 | 178592792 |
+| generation peak RSS bytes | 19709952 | 18235392 |
+| clean check elapsed ns | 8771809791 | 5682561709 |
+| clean check peak RSS bytes | 1036795904 | 441270272 |
+| incremental check elapsed ns | 237852459 | 150435834 |
+| incremental check peak RSS bytes | 127369216 | 107036672 |
+| release build elapsed ns | 37132551417 | 10040398125 |
+| release build peak RSS bytes | 1583726592 | 468123648 |
+
+The other four raw metrics (including unchanged-generation time/RSS) are in
+`comparison.metrics`; pbrs's generated Rust totals **126195 versus 127468
+bytes**, and release executables **527808 versus 658160 bytes**. Both
+release binaries passed their retained `release_smoke` proof: exit 0, stdout
+`1\n`, empty stderr and a 15-second cap. The raw output logs are
+`logs/small/release-smoke.{stdout,stderr}.log` and
+`logs/small/reference/release-smoke.{stdout,stderr}.log` beneath that run.
+Pbrs preserved all three output mtimes, while the reference rewrote three
+byte-identical files. RSS estimates have the sampled lower-bound/shared-page
+limitations above. This one macOS pbrs-first pair does **not** establish a
+relative performance ranking, uncertainty bound, or claim about 100/1,000
+messages. It remains `status: unqualified`,
+`qualification.qualified: false`, with every loss present in
+`comparison.losing_cells`; `--require-qualified` exits 2 even if requested
+with a reference. CG-19 and the [benchmark contract](benchmark-contract.md)
+still require the 100/1,000-message reference cells, multiple randomized
+paired runs with uncertainty on independent pinned hosts, controlled cache
+policy, retained/published raw data, and review of all losing cells before a
+qualified claim. No CI performance gate or release claim follows from this
+diagnostic.
+
+The earlier pair at
+`target/codegen-bench/20260924T205157Z-28795/summary.json` retains its
+historical 36 logs and seven losses; its binaries were checked manually
+afterward, not by that harness. A subsequent attempted correction at
+`target/codegen-bench/20260924T211311Z-57833/summary.json` stopped before
+the reference ran when `/usr/bin/time` contaminated the first smoke's
+stderr; it has `status: error` and no comparison, not a paired result.
 
 ## tonic Codec survey (Apple M4 Pro)
 
