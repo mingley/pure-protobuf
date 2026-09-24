@@ -271,13 +271,26 @@ pub fn extract_anchors(content: &str) -> HashSet<String> {
             let mut clean_heading = String::new();
             let mut in_label = false;
             let mut in_url = false;
+            let mut after_label = false;
             for ch in heading.chars() {
                 match ch {
-                    '[' => in_label = true,
-                    ']' => in_label = false,
-                    '(' if !in_label => in_url = true,
+                    '[' => {
+                        in_label = true;
+                        after_label = false;
+                    }
+                    ']' if in_label => {
+                        in_label = false;
+                        after_label = true;
+                    }
+                    '(' if after_label => {
+                        in_url = true;
+                        after_label = false;
+                    }
                     ')' if in_url => in_url = false,
-                    _ if !in_url => clean_heading.push(ch),
+                    _ if !in_url => {
+                        clean_heading.push(ch);
+                        after_label = false;
+                    }
                     _ => {}
                 }
             }
@@ -977,6 +990,12 @@ fn test_link_checker_detects_broken_link_and_anchor() {
 
     let links = extract_markdown_links(doc);
     assert_eq!(links, vec!["#main-heading", "#nonexistent"]);
+
+    let headings = "## Codegen and downstream compilation (CG-19 diagnostic)\n\
+                    ## [gRPC codec](https://example.invalid/guide) (v2)\n";
+    let anchors = extract_anchors(headings);
+    assert!(anchors.contains("codegen-and-downstream-compilation-cg-19-diagnostic"));
+    assert!(anchors.contains("grpc-codec-v2"));
 }
 
 #[test]
