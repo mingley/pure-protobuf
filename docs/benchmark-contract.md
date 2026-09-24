@@ -211,6 +211,11 @@ Measured on the dedicated server host/process:
 1. All peers serve identical application semantics: the same `grpc.testing.TestService` / `BenchmarkService` procedures, the same request validation, and the same response construction. Handler CPU is held constant across peers or measured and reported separately; a faster transport must not win by doing less application work.
 2. The codec tier (§2.2) pins the identical `pbrs` codec on both ends; the end-to-end tier (§2.3) uses each peer's idiomatic codec but identical message contents and validation rules.
 
+An inbound error on a benchmark bidirectional request stream must surface as a
+non-OK response status, not an empty successful stream. Local regressions cover
+`StreamingCall` and `StreamingBothWays`; independent official-peer data-plane
+validation remains part of BM-08.
+
 ---
 
 ## 6. Statistical Rigor and Precision Standards

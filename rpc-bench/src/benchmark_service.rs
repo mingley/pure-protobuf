@@ -79,7 +79,7 @@ pub use proto::{
     SimpleRequest, SimpleResponse,
 };
 
-use pbrs_grpc::{Code, Request, Response, Status, Streaming};
+use pbrs_grpc::{Code, Request, Response, Status, StreamSender, Streaming};
 
 const ECHO_INITIAL: &str = "x-grpc-test-echo-initial";
 const ECHO_TRAILING: &str = "x-grpc-test-echo-trailing-bin";
@@ -145,6 +145,40 @@ pub struct BenchmarkServiceImpl;
 /// Alias for `BenchmarkServiceImpl`.
 pub type NativeBenchmarkService = BenchmarkServiceImpl;
 
+async fn echo_stream(mut input: Streaming<SimpleRequest>, tx: StreamSender<SimpleResponse>) {
+    loop {
+        let item = match input.next_framed().await {
+            Ok(Some(item)) => item,
+            Ok(None) => break,
+            Err(status) => {
+                tx.fail(status).await;
+                return;
+            }
+        };
+        let req = item.message;
+        if req.has_expect_compressed() && req.expect_compressed().value() && !item.compressed {
+            tx.fail(Status::invalid_argument("request not compressed"))
+                .await;
+            return;
+        }
+        let resp_msg = match make_response(&req) {
+            Ok(msg) => msg,
+            Err(status) => {
+                tx.fail(status).await;
+                return;
+            }
+        };
+        let send_res = if req.has_response_compressed() && req.response_compressed().value() {
+            tx.send_compressed(resp_msg).await
+        } else {
+            tx.send(resp_msg).await
+        };
+        if send_res.is_err() || tx.is_closed() {
+            break;
+        }
+    }
+}
+
 impl BenchmarkService for BenchmarkServiceImpl {
     /// UnaryCall: responds with payload of requested response_size.
     async fn unary_call(
@@ -167,43 +201,16 @@ impl BenchmarkService for BenchmarkServiceImpl {
     }
 
     /// StreamingCall: bidirectional ping-pong echo with requested size.
+    /// An inbound stream error ends the response with that status, not OK.
     async fn streaming_call(
         &self,
         request: Request<Streaming<SimpleRequest>>,
     ) -> Result<Response<Streaming<SimpleResponse>>, Status> {
         let echo = Echo::capture(&request);
-        let mut in_stream = request.into_inner();
+        let in_stream = request.into_inner();
         let (tx, out_stream) = Streaming::channel(32);
 
-        tokio::spawn(async move {
-            while let Ok(Some(item)) = in_stream.next_framed().await {
-                let req = item.message;
-                if req.has_expect_compressed()
-                    && req.expect_compressed().value()
-                    && !item.compressed
-                {
-                    tx.fail(Status::invalid_argument("request not compressed"))
-                        .await;
-                    return;
-                }
-                let resp_msg = match make_response(&req) {
-                    Ok(msg) => msg,
-                    Err(status) => {
-                        tx.fail(status).await;
-                        return;
-                    }
-                };
-                let send_res = if req.has_response_compressed() && req.response_compressed().value()
-                {
-                    tx.send_compressed(resp_msg).await
-                } else {
-                    tx.send(resp_msg).await
-                };
-                if send_res.is_err() || tx.is_closed() {
-                    break;
-                }
-            }
-        });
+        tokio::spawn(echo_stream(in_stream, tx));
 
         let mut resp = Response::new(out_stream);
         echo.apply(&mut resp);
@@ -307,43 +314,16 @@ impl BenchmarkService for BenchmarkServiceImpl {
     }
 
     /// StreamingBothWays: bidirectional echo with requested size.
+    /// An inbound stream error ends the response with that status, not OK.
     async fn streaming_both_ways(
         &self,
         request: Request<Streaming<SimpleRequest>>,
     ) -> Result<Response<Streaming<SimpleResponse>>, Status> {
         let echo = Echo::capture(&request);
-        let mut in_stream = request.into_inner();
+        let in_stream = request.into_inner();
         let (tx, out_stream) = Streaming::channel(32);
 
-        tokio::spawn(async move {
-            while let Ok(Some(item)) = in_stream.next_framed().await {
-                let req = item.message;
-                if req.has_expect_compressed()
-                    && req.expect_compressed().value()
-                    && !item.compressed
-                {
-                    tx.fail(Status::invalid_argument("request not compressed"))
-                        .await;
-                    return;
-                }
-                let resp_msg = match make_response(&req) {
-                    Ok(msg) => msg,
-                    Err(status) => {
-                        tx.fail(status).await;
-                        return;
-                    }
-                };
-                let send_res = if req.has_response_compressed() && req.response_compressed().value()
-                {
-                    tx.send_compressed(resp_msg).await
-                } else {
-                    tx.send(resp_msg).await
-                };
-                if send_res.is_err() || tx.is_closed() {
-                    break;
-                }
-            }
-        });
+        tokio::spawn(echo_stream(in_stream, tx));
 
         let mut resp = Response::new(out_stream);
         echo.apply(&mut resp);
@@ -424,6 +404,45 @@ mod tests {
 
         tx.close();
         assert!(resp_stream.message().await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn request_stream_errors_are_not_reported_as_successful_responses() {
+        let service = BenchmarkServiceImpl;
+        for shape in ["StreamingCall", "StreamingBothWays"] {
+            for sent_first in [false, true] {
+                let (sender, input) = Streaming::<SimpleRequest>::channel(2);
+                let response = if shape == "StreamingCall" {
+                    service.streaming_call(Request::new(input)).await
+                } else {
+                    service.streaming_both_ways(Request::new(input)).await
+                }
+                .expect("stream setup");
+                if sent_first {
+                    let mut request = SimpleRequest::new();
+                    request.set_response_size(8);
+                    sender.send(request).await.expect("first request");
+                }
+                sender
+                    .fail(Status::invalid_argument("request stream failed"))
+                    .await;
+                let mut output = response.into_inner();
+                if sent_first {
+                    let first = tokio::time::timeout(Duration::from_secs(1), output.message())
+                        .await
+                        .expect("first response stalled")
+                        .expect("first response status")
+                        .expect("first response message");
+                    assert_eq!(first.payload().body().len(), 8);
+                }
+                let error = tokio::time::timeout(Duration::from_secs(1), output.message())
+                    .await
+                    .expect("response stream stalled")
+                    .expect_err("request failure must not become an empty OK response");
+                assert_eq!(error.code(), Code::InvalidArgument, "{shape}: {error}");
+                assert_eq!(error.message(), "request stream failed");
+            }
+        }
     }
 
     #[tokio::test]
