@@ -170,6 +170,26 @@ of every weak cipher or acceptance of TLS 1.1. The original upstream profile
 and `IO-09` stay open: a reviewed, version-compatible original-probe
 qualification and a fresh clean native build are still needed.
 
+A read-only upstream audit on 2026-09-24 compared all 15 files under
+`tools/http2_interop/` at the [pinned source](https://github.com/grpc/grpc/tree/d1487957db6658bc532b72871775148229836627/tools/http2_interop),
+released [`v1.84.0`](https://github.com/grpc/grpc/tree/3252a89f10d8e92997862167ca7d095ecda85973/tools/http2_interop),
+and [current-master snapshot](https://github.com/grpc/grpc/tree/88f984bbbd15b0223c95e56d9944357e665b3818/tools/http2_interop):
+their blob hashes match. There is **no corrected official runner** in those
+revisions. A valid GOAWAY check must both dispatch the existing
+[`GoAwayFrame` decoder](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/goaway.go#L23-L58)
+from [`parseFrame`](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/http2interop.go#L51-L80)
+and reconcile the [helper's nil-on-GOAWAY return](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5.go#L22-L46)
+with the [test's required error string](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5_test.go#L21-L29);
+assert the decoded frame and error code, not EOF. TLS 1.1 needs compatible
+client minimum **and** maximum versions under
+[Go 1.25's TLS checks](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L1156-L1194);
+the bad-cipher case must constrain
+[TLS 1.3 away](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L692-L701)
+to test TLS 1.2 suites. A local patch is an **unofficial adapter**,
+not an original-runner pass. Seek an upstream-reviewed correction before
+pinning a new runner; maintain framing 5/6, TLS 0/3 and the fail-closed
+full-profile result meanwhile.
+
 ### 5. Connection Backoff (`connection_backoff`, 1 case)
 Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-interop-test-description.md`:
 * `connection_backoff`: Full ~540-second exercise against official C++ `ReconnectService`.
