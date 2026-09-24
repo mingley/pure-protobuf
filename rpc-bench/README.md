@@ -46,6 +46,15 @@ The scenarios file [`rpc-bench/scenarios/official.json`](scenarios/official.json
 ## 3. Local Reproducible Invocation
 
 The runner script [`scripts/grpc-qps-interop.sh`](../scripts/grpc-qps-interop.sh) orchestrates workers and driver runs with full process isolation and error recovery.
+It defaults to the shared repository `target/` cache with at most two Cargo
+build jobs. Every non-`--skip-build` invocation runs Cargo's incremental
+`--locked --release` build, even when a worker binary already exists, so a
+stale executable is not labeled as current source. Override `CARGO_TARGET_DIR`
+to use another existing cache; `CARGO_BUILD_JOBS=1` is respected and larger
+values are capped at two. `--skip-build` is for diagnostic runs with an
+existing binary: its summary records `native.source_sha: null` and
+`native.source_verified: false` rather than attributing the prebuilt binary
+to the checkout.
 
 ### Quick Start: Dry Run
 Inspect the planned execution matrix, scenario configurations, and pinned dependencies without spawning processes:

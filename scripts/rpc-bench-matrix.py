@@ -494,18 +494,25 @@ def find_binary(repo_root: Path, override_path: Optional[str] = None) -> Path:
         raise FileNotFoundError(f"Specified binary not found or not executable: {override_path}")
 
     candidates = [
-        repo_root / "rpc-bench" / "target" / "release" / "rpc-bench",
         repo_root / "target" / "release" / "rpc-bench",
-        repo_root / "rpc-bench" / "target" / "debug" / "rpc-bench",
         repo_root / "target" / "debug" / "rpc-bench",
+        repo_root / "rpc-bench" / "target" / "release" / "rpc-bench",
+        repo_root / "rpc-bench" / "target" / "debug" / "rpc-bench",
     ]
     for c in candidates:
         if c.is_file() and os.access(c, os.X_OK):
             return c.resolve()
 
     raise FileNotFoundError(
-        "rpc-bench binary not found. Build it with: cargo build --manifest-path rpc-bench/Cargo.toml"
+        "rpc-bench binary not found. Build it with: CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo build --locked --manifest-path rpc-bench/Cargo.toml"
     )
+
+def bounded_cargo_env() -> Dict[str, str]:
+    """Keep subprocess builds on the caller's cache without multiplying rustc jobs."""
+    requested = os.environ.get("CARGO_BUILD_JOBS", "2")
+    if not requested.isdecimal() or int(requested) < 1:
+        raise ValueError("CARGO_BUILD_JOBS must be a positive integer")
+    return {**os.environ, "CARGO_BUILD_JOBS": str(min(int(requested), 2))}
 
 
 def collect_cpu_constraints() -> Dict[str, Any]:
@@ -626,6 +633,7 @@ class PeerRegistry:
                     capture_output=True,
                     text=True,
                     check=True,
+                    env=bounded_cargo_env(),
                 )
                 cand = self.repo_root / "target" / "release" / "tonic-interop"
                 if cand.is_file() and os.access(cand, os.X_OK):

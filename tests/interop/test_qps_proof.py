@@ -3,18 +3,96 @@
 import importlib.util
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "qps-proof.py"
+ROOT = SCRIPT.parents[1]
+RUNNER = ROOT / "scripts" / "grpc-qps-interop.sh"
 spec = importlib.util.spec_from_file_location("qps_proof", SCRIPT)
 qps_proof = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(qps_proof)
 
 
 class QpsProofTest(unittest.TestCase):
+    def test_runner_dry_run_uses_shared_cargo_target_and_caps_jobs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            command = [
+                "bash", str(RUNNER), "--dry-run", "--mode=native_pair",
+                "--scenario=protobuf_unary_ping_pong_empty", f"--log-dir={directory}",
+            ]
+            env = os.environ.copy()
+            env.pop("CARGO_TARGET_DIR", None)
+            env.pop("CARGO_BUILD_JOBS", None)
+            default = subprocess.run(
+                command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=10, check=True
+            )
+            self.assertIn(f"Native Worker:      {ROOT}/target/release/rpc-bench worker", default.stdout)
+            self.assertIn(f"Cargo Target:       {ROOT}/target", default.stdout)
+            self.assertIn("Cargo Build Jobs:   2", default.stdout)
+
+            env["CARGO_TARGET_DIR"] = "target/integration-consumers"
+            env["CARGO_BUILD_JOBS"] = "16"
+            capped = subprocess.run(
+                command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=10, check=True
+            )
+            self.assertIn(
+                f"Native Worker:      {ROOT}/target/integration-consumers/release/rpc-bench worker",
+                capped.stdout,
+            )
+            self.assertIn("Cargo Build Jobs:   2", capped.stdout)
+            self.assertIn("Capping CARGO_BUILD_JOBS=16 to 2", capped.stderr)
+
+            env["CARGO_BUILD_JOBS"] = "0"
+            invalid = subprocess.run(
+                command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=10
+            )
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn("CARGO_BUILD_JOBS must be a positive integer", invalid.stderr)
+
+    def test_runner_incremental_build_does_not_trust_an_existing_worker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            target = temporary / "cache"
+            worker = target / "release" / "rpc-bench"
+            worker.parent.mkdir(parents=True)
+            worker.write_text("#!/bin/sh\nexit 0\n")
+            worker.chmod(0o755)
+            bin_dir = temporary / "bin"
+            bin_dir.mkdir()
+            capture = temporary / "cargo-args"
+            cargo = bin_dir / "cargo"
+            cargo.write_text(
+                '#!/bin/sh\nprintf "%s\\n" "$CARGO_TARGET_DIR" "$CARGO_BUILD_JOBS" "$@" > "$CARGO_CAPTURE"\n'
+            )
+            cargo.chmod(0o755)
+            env = os.environ.copy()
+            env.update({
+                "PATH": f"{bin_dir}:{env['PATH']}",
+                "CARGO_TARGET_DIR": str(target),
+                "CARGO_BUILD_JOBS": "8",
+                "CARGO_CAPTURE": str(capture),
+                "SKIP_BUILD": "0",
+            })
+            result = subprocess.run(
+                [
+                    "bash", str(RUNNER), "--mode=native_pair",
+                    "--scenario=protobuf_unary_ping_pong_empty",
+                    f"--log-dir={temporary / 'logs'}",
+                    f"--driver={temporary / 'missing-qps-driver'}",
+                ],
+                cwd=ROOT, env=env, capture_output=True, text=True, timeout=10
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("QPS driver binary missing", result.stderr)
+            self.assertEqual(capture.read_text().splitlines()[:2], [str(target), "2"])
+            self.assertIn("--locked", capture.read_text())
+            self.assertIn("--release", capture.read_text())
+
     def test_driver_digest_is_stable_and_content_based(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = Path(directory) / "driver"

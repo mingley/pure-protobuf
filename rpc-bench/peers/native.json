@@ -17,12 +17,12 @@
     "description": "pbrs-grpc native benchmark server (from rpc-bench)",
     "binary_name": "rpc-bench",
     "candidates": [
-      "rpc-bench/target/release/rpc-bench",
       "target/release/rpc-bench",
-      "rpc-bench/target/debug/rpc-bench",
-      "target/debug/rpc-bench"
+      "target/debug/rpc-bench",
+      "rpc-bench/target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench"
     ],
-    "build_command": "cargo build --release --manifest-path rpc-bench/Cargo.toml",
+    "build_command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo build --locked --release --manifest-path rpc-bench/Cargo.toml",
     "args_template": [
       "{binary}",
       "server",
@@ -40,12 +40,12 @@
     "description": "pbrs-grpc native benchmark client (from rpc-bench)",
     "binary_name": "rpc-bench",
     "candidates": [
-      "rpc-bench/target/release/rpc-bench",
       "target/release/rpc-bench",
-      "rpc-bench/target/debug/rpc-bench",
-      "target/debug/rpc-bench"
+      "target/debug/rpc-bench",
+      "rpc-bench/target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench"
     ],
-    "build_command": "cargo build --release --manifest-path rpc-bench/Cargo.toml",
+    "build_command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo build --locked --release --manifest-path rpc-bench/Cargo.toml",
     "args_template": [
       "{binary}",
       "client",

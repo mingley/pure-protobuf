@@ -38,6 +38,8 @@
       "target/debug/tonic-interop",
       "tests/interop/tonic/target/release/tonic-interop",
       "tests/interop/tonic/target/debug/tonic-interop",
+      "target/release/rpc-bench",
+      "target/debug/rpc-bench",
       "rpc-bench/target/release/rpc-bench",
       "rpc-bench/target/debug/rpc-bench"
     ],
@@ -64,10 +66,10 @@
     "description": "Tonic interop & benchmark client (from tests/interop/tonic or rpc-bench)",
     "binary_name": "rpc-bench",
     "candidates": [
-      "rpc-bench/target/release/rpc-bench",
       "target/release/rpc-bench",
-      "rpc-bench/target/debug/rpc-bench",
       "target/debug/rpc-bench",
+      "rpc-bench/target/release/rpc-bench",
+      "rpc-bench/target/debug/rpc-bench",
       "target/release/tonic-interop",
       "tests/interop/tonic/target/release/tonic-interop"
     ],

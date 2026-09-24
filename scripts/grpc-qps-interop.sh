@@ -87,6 +87,8 @@ Environment Variables:
   GRPC_QPS_DURATION           Benchmark duration override in seconds
   GRPC_QPS_SKIP_BUILD         If 1, skip binary builds
   GRPC_QPS_LOG_DIR            Directory for execution logs and reports
+  CARGO_TARGET_DIR            Cargo cache for the native worker (default: repository target/)
+  CARGO_BUILD_JOBS            Build jobs (default 2; larger requests capped at 2)
 
 Examples:
   # Fast smoke test of unary ping-pong scenario:
@@ -762,12 +764,31 @@ for direction in "${DIRECTIONS[@]}"; do
   fi
 done
 
+WORKER_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
+if [[ "$WORKER_TARGET_DIR" != /* ]]; then
+  WORKER_TARGET_DIR="$ROOT/$WORKER_TARGET_DIR"
+fi
+requested_jobs="${CARGO_BUILD_JOBS:-2}"
+if [[ ! "$requested_jobs" =~ ^[1-9][0-9]*$ ]]; then
+  echo "FAIL: CARGO_BUILD_JOBS must be a positive integer" >&2
+  exit 1
+fi
+if [[ ${#requested_jobs} -gt 1 || "$requested_jobs" -gt 2 ]]; then
+  echo "Capping CARGO_BUILD_JOBS=$requested_jobs to 2 for the shared Cargo cache" >&2
+  requested_jobs=2
+fi
+export CARGO_TARGET_DIR="$WORKER_TARGET_DIR"
+export CARGO_BUILD_JOBS="$requested_jobs"
+NATIVE_WORKER_BIN="$WORKER_TARGET_DIR/release/rpc-bench"
+
 # Handle --dry-run
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "=== DRY RUN: Official gRPC QPS Benchmark Scenario Invocation ==="
   echo "Scenarios File:     $SCENARIOS_FILE"
   echo "Reference Peer:     $REF_PEER (Go: $GO_PEER_VERSION, C++: $CPP_PEER_VERSION)"
-  echo "Native Worker:      rpc-bench/target/release/rpc-bench worker"
+  echo "Native Worker:      $NATIVE_WORKER_BIN worker"
+  echo "Cargo Target:       $CARGO_TARGET_DIR"
+  echo "Cargo Build Jobs:   $CARGO_BUILD_JOBS"
   echo "Driver Protocol:    grpc.testing.WorkerService over HTTP/2"
   if [[ -n "$DRIVER_BIN" ]]; then
     echo "Driver Binary:      $DRIVER_BIN (official C++ qps_json_driver or external)"
@@ -807,15 +828,12 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 # Build required binaries
-NATIVE_WORKER_BIN="$ROOT/rpc-bench/target/release/rpc-bench"
 GO_WORKER_BIN="$ROOT/target/interop-go/go-worker"
 INTEGRATED_DRIVER_BIN="$ROOT/target/interop-go/qps-driver"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
-  echo "== building native rpc-bench worker =="
-  if [[ ! -x "$NATIVE_WORKER_BIN" ]]; then
-    cargo build --release --manifest-path "$ROOT/rpc-bench/Cargo.toml"
-  fi
+  echo "== building native rpc-bench worker against $CARGO_TARGET_DIR ($CARGO_BUILD_JOBS jobs) =="
+  cargo build --locked --release --manifest-path "$ROOT/rpc-bench/Cargo.toml"
 
   if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 && "$REF_PEER" == "go" ]]; then
     echo "== building Go benchmark worker ($GO_PEER_VERSION) =="
@@ -883,7 +901,10 @@ case "$(basename "$DRIVER_BIN")" in
 esac
 DRIVER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$DRIVER_BIN")"
 NATIVE_WORKER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$NATIVE_WORKER_BIN")"
-NATIVE_SOURCE_SHA="$(git rev-parse HEAD)"
+NATIVE_SOURCE_SHA=""
+if [[ "$SKIP_BUILD" != "1" ]]; then
+  NATIVE_SOURCE_SHA="$(git rev-parse HEAD)"
+fi
 NATIVE_SOURCE_DIRTY=0
 if ! git diff --quiet HEAD --; then
   NATIVE_SOURCE_DIRTY=1
@@ -1104,7 +1125,8 @@ echo "Driver Binary:      $DRIVER_BIN"
 echo "Driver SHA-256:     $DRIVER_SHA256"
 echo "Driver Source Pin:  $DRIVER_SOURCE_PIN"
 echo "Native Worker SHA: $NATIVE_WORKER_SHA256"
-echo "Native Source:     $NATIVE_SOURCE_SHA (dirty=$NATIVE_SOURCE_DIRTY)"
+echo "Native Source:     ${NATIVE_SOURCE_SHA:-unverified (--skip-build)} (dirty=$NATIVE_SOURCE_DIRTY)"
+echo "Cargo Target:      $CARGO_TARGET_DIR ($CARGO_BUILD_JOBS jobs)"
 if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 ]]; then
   echo "Reference Worker:  $REF_WORKER_BIN sha256:$REF_WORKER_SHA256 source:$REF_WORKER_SOURCE_PIN"
 fi
@@ -1162,9 +1184,10 @@ with open(summary_file, "w") as f:
             "source_pin": source_pin,
         },
         "native": {
-            "source_sha": native_sha,
+            "source_sha": native_sha or None,
             "binary_sha256": native_binary_sha,
             "dirty_source": native_dirty == "1",
+            "source_verified": bool(native_sha) and native_dirty != "1",
         },
         "reference_worker": {
             "binary": ref_binary,

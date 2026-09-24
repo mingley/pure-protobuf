@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -170,6 +171,31 @@ class BenchmarkReportTest(unittest.TestCase):
 
 
 class PeerManifestTest(unittest.TestCase):
+    def test_shared_cache_binary_precedes_legacy_standalone_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root / "rpc-bench" / "target" / "release" / "rpc-bench"
+            shared_debug = root / "target" / "debug" / "rpc-bench"
+            shared_release = root / "target" / "release" / "rpc-bench"
+            for path in (legacy, shared_debug):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"stub")
+                path.chmod(0o755)
+            self.assertEqual(bench_matrix.find_binary(root), shared_debug.resolve())
+            shared_release.parent.mkdir(parents=True, exist_ok=True)
+            shared_release.write_bytes(b"stub")
+            shared_release.chmod(0o755)
+            self.assertEqual(bench_matrix.find_binary(root), shared_release.resolve())
+
+    def test_matrix_tonic_build_caps_cargo_jobs(self):
+        with patch.dict(os.environ, {"CARGO_BUILD_JOBS": "16"}):
+            self.assertEqual(bench_matrix.bounded_cargo_env()["CARGO_BUILD_JOBS"], "2")
+        with patch.dict(os.environ, {"CARGO_BUILD_JOBS": "1"}):
+            self.assertEqual(bench_matrix.bounded_cargo_env()["CARGO_BUILD_JOBS"], "1")
+        with patch.dict(os.environ, {"CARGO_BUILD_JOBS": "0"}):
+            with self.assertRaisesRegex(ValueError, "positive integer"):
+                bench_matrix.bounded_cargo_env()
+
     def test_invalid_peer_manifest_is_not_silently_skipped(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             peer_dir = Path(temp_dir) / "peers"
