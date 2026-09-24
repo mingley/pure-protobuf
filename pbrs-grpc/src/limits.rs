@@ -73,10 +73,12 @@ impl ByteBudgetTracker {
         self.inner.allocated.load(Ordering::SeqCst)
     }
 
-    /// Exact high-water mark of bytes held by permits over this tracker's lifetime.
+    /// High-water mark of bytes held by permits over this tracker's lifetime.
     ///
-    /// Includes warmup and earlier calls when a tracker is reused; it is not
-    /// process RSS or an interval-specific memory measurement.
+    /// Exact after acquisitions finish; a concurrent read can briefly precede
+    /// an acquiring task's peak update. Includes warmup and earlier calls when
+    /// a tracker is reused; it is not process RSS or an interval-specific
+    /// memory measurement.
     #[must_use]
     pub fn peak_allocated(&self) -> usize {
         self.inner.peak_allocated.load(Ordering::SeqCst)
