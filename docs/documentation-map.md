@@ -53,6 +53,9 @@ separate and is never presented as qualification:
 - [status.md](status.md) `Verified` section: recorded CI /
   conformance / interop numbers at a pinned revision. Historical
   results, not production certification.
+- [benchmarks.md](benchmarks.md): local historical tables with explicit
+  missing provenance and raw-artifact caveats, not qualified comparative
+  performance claims. A new claim needs a dated source and linked results.
 - [plan/](plan/README.md): execution cards and dependency order, not
   shipped behavior.
 - [vendor/google/](../vendor/google): pinned upstream descriptors
@@ -117,10 +120,13 @@ their shape when editing the listed files:
 - [tests/onboarding.rs](../tests/onboarding.rs)
   `tonic_readme_selects_stubs_explicitly`: 2 presence checks on
   the tonic README (`emit_tonic_stubs(true)`, `prost::Message`).
-- [tests/documentation.rs](../tests/documentation.rs): 13 tests —
+- [tests/documentation.rs](../tests/documentation.rs): 14 tests —
   19 critical-caveat presence contracts, repo-wide markdown
   link/anchor validation, this map's `docs/` reference validation,
-  and rust/`protoc` syntax checks for guide snippets.
+  negative checks for missing examples/stale generated references,
+  and rust/`protoc` syntax checks for guide snippets. The separate
+  CI workspace and packaged-consumer checks compile the example and
+  generated code; snippet parsing alone does not type-check a recipe.
 
 ### 5.3 Already migrated
 
@@ -130,30 +136,15 @@ their shape when editing the listed files:
   `src/interceptor.rs`, `src/hello.rs`) and TLS fixtures, so the
   main guides can be edited without touching that suite.
 
-## 6. Stale publication claims
+## 6. Publication and source boundaries
 
-One live stale claim remains at this revision, in
-[protobuf-tonic/README.md](../protobuf-tonic/README.md):
-
-- Line 35: `protobuf-tonic = { git = "https://github.com/mingley/pure-protobuf" }`
-- Line 41: "`protobuf-tonic` currently depends on `pbrs` by
-  path/git. It will be published to crates.io following the
-  publication of `pbrs`."
-
-Published reality (workspace manifests): `pbrs` is `0.1.0`,
-`pbrs-grpc` is `0.1.0-alpha.1`, and `protobuf-tonic` is
-`0.1.0-alpha.1`. The gRPC hub and both other READMEs already use
-crates.io version requirements. Replacement text (DX-03 owns the
-edit; this card only identifies it):
-
-```toml
-[dependencies]
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
-```
-
-No other `until these crates are on crates.io` or git-dependency
-instruction survives outside this map's own quotation above.
+The stale git-dependency claim in the earlier audit is fixed.
+[protobuf-tonic/README.md](../protobuf-tonic/README.md) now shows the
+published `0.1.0-alpha.1` preview alongside `pbrs = "0.1"`.
+The checkout builds the adapters from checked descriptor sets without
+`protoc`; the published adapter archives predate that change and still
+require `protoc`. Keep source-only instructions distinct from published
+crate behavior until new versions pass the release qualification.
 
 ## 7. Duplicated prose
 
@@ -198,12 +189,12 @@ section records the shape to preserve:
 Any edit to this map or to a page it references must keep green:
 
 ```text
-export CARGO_TARGET_DIR=/tmp/pb-target-dx
-cargo test --test documentation
+CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo test --locked --offline --test documentation
 ```
 
 That suite enforces the map's own validity: every markdown link
 resolves to an existing file and anchor, every backticked `docs/`
-path in this file exists, and every guide snippet parses. When
+path in this file exists, and every guide snippet parses. It requires
+`protoc` to validate Protobuf snippets. When
 adding a page, add its journey row in section 2 and its domain
 row in section 1 in the same change.

@@ -26,7 +26,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -414,75 +414,14 @@ pub fn validate_all_markdown_links() -> Result<(), Vec<String>> {
     }
 
     for file in &files {
-        let content = match fs::read_to_string(file) {
-            Ok(c) => c,
-            Err(e) => {
-                errors.push(format!("failed to read {}: {e}", file.display()));
-                continue;
-            }
-        };
-
-        let file_dir = file.parent().unwrap_or(&root);
-        let links = extract_markdown_links(&content);
-
-        for link in links {
-            // Ignore external URLs
-            if link.starts_with("http://")
-                || link.starts_with("https://")
-                || link.starts_with("mailto:")
-            {
-                continue;
-            }
-
-            let (target_part, anchor_part) = match link.find('#') {
-                Some(idx) => (&link[..idx], Some(&link[idx + 1..])),
-                None => (link.as_str(), None),
-            };
-
-            let target_file_path = if target_part.is_empty() {
-                // Same-file anchor
-                file.clone()
-            } else {
-                // Resolve relative path
-                let raw_path = file_dir.join(target_part);
-                match raw_path.canonicalize() {
-                    Ok(p) => p,
-                    Err(_) => {
-                        errors.push(format!(
-                            "Broken link in '{}': target file '{}' does not exist",
-                            file.strip_prefix(&root).unwrap_or(file).display(),
-                            target_part
-                        ));
-                        continue;
-                    }
-                }
-            };
-
-            // If anchor specified, verify anchor exists
-            if let Some(anchor) = anchor_part {
-                if target_file_path.extension().and_then(|s| s.to_str()) == Some("md") {
-                    let anchors =
-                        anchor_cache
-                            .entry(target_file_path.clone())
-                            .or_insert_with(|| {
-                                fs::read_to_string(&target_file_path)
-                                    .map(|c| extract_anchors(&c))
-                                    .unwrap_or_default()
-                            });
-
-                    if !anchors.contains(anchor) {
-                        errors.push(format!(
-                            "Broken anchor in '{}': anchor '#{}' not found in '{}'",
-                            file.strip_prefix(&root).unwrap_or(file).display(),
-                            anchor,
-                            target_file_path
-                                .strip_prefix(&root)
-                                .unwrap_or(&target_file_path)
-                                .display()
-                        ));
-                    }
-                }
-            }
+        match fs::read_to_string(file) {
+            Ok(content) => errors.extend(validate_links_in_document(
+                file,
+                &content,
+                &root,
+                &mut anchor_cache,
+            )),
+            Err(e) => errors.push(format!("failed to read {}: {e}", file.display())),
         }
     }
 
@@ -491,6 +430,73 @@ pub fn validate_all_markdown_links() -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn validate_links_in_document(
+    file: &Path,
+    content: &str,
+    root: &Path,
+    anchor_cache: &mut HashMap<PathBuf, HashSet<String>>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let file_dir = file.parent().unwrap_or(root);
+
+    for link in extract_markdown_links(content) {
+        if link.starts_with("http://")
+            || link.starts_with("https://")
+            || link.starts_with("mailto:")
+        {
+            continue;
+        }
+
+        let (target_part, anchor_part) = match link.find('#') {
+            Some(idx) => (&link[..idx], Some(&link[idx + 1..])),
+            None => (link.as_str(), None),
+        };
+
+        let target_file_path = if target_part.is_empty() {
+            file.to_path_buf()
+        } else {
+            let raw_path = file_dir.join(target_part);
+            match raw_path.canonicalize() {
+                Ok(p) => p,
+                Err(_) => {
+                    errors.push(format!(
+                        "Broken link in '{}': target file '{}' does not exist",
+                        file.strip_prefix(root).unwrap_or(file).display(),
+                        target_part
+                    ));
+                    continue;
+                }
+            }
+        };
+
+        if let Some(anchor) = anchor_part {
+            if target_file_path.extension().and_then(|s| s.to_str()) == Some("md") {
+                let anchors = anchor_cache
+                    .entry(target_file_path.clone())
+                    .or_insert_with(|| {
+                        fs::read_to_string(&target_file_path)
+                            .map(|c| extract_anchors(&c))
+                            .unwrap_or_default()
+                    });
+
+                if !anchors.contains(anchor) {
+                    errors.push(format!(
+                        "Broken anchor in '{}': anchor '#{}' not found in '{}'",
+                        file.strip_prefix(root).unwrap_or(file).display(),
+                        anchor,
+                        target_file_path
+                            .strip_prefix(root)
+                            .unwrap_or(&target_file_path)
+                            .display()
+                    ));
+                }
+            }
+        }
+    }
+
+    errors
 }
 
 /// Validates that all guide and anchor references in `docs/documentation-map.md` resolve to valid files and anchors.
@@ -971,6 +977,35 @@ fn test_link_checker_detects_broken_link_and_anchor() {
 
     let links = extract_markdown_links(doc);
     assert_eq!(links, vec!["#main-heading", "#nonexistent"]);
+}
+
+#[test]
+fn test_link_checker_rejects_missing_examples_and_stale_generated_references() {
+    let root = workspace_root();
+    let file = root.join("README.md");
+    let mut anchor_cache = HashMap::new();
+    let good = "[example](examples/greeter/src/lib.rs) [generated](src/generated/empty.rs) \
+                [external](https://example.invalid/unreachable)\n";
+    assert!(validate_links_in_document(&file, good, &root, &mut anchor_cache).is_empty());
+
+    for (broken, target) in [
+        (
+            "[example](examples/greeter/src/removed.rs)",
+            "examples/greeter/src/removed.rs",
+        ),
+        (
+            "[generated](src/generated/removed.rs)",
+            "src/generated/removed.rs",
+        ),
+        (
+            "[heading](docs/grpc.md#missing-heading)",
+            "#missing-heading",
+        ),
+    ] {
+        let errors = validate_links_in_document(&file, broken, &root, &mut anchor_cache);
+        assert_eq!(errors.len(), 1, "expected one broken reference in {broken}");
+        assert!(errors[0].contains(target), "{}", errors[0]);
+    }
 }
 
 #[test]

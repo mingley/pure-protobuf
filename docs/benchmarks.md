@@ -1,5 +1,12 @@
 # Benchmarks
 
+The numeric tables below are historical local measurements, not a current
+performance-leadership claim. They do not link complete dated source revisions
+and per-run raw result artifacts; rerun commands alone cannot recreate their
+host conditions or supply uncertainty intervals. The
+[benchmark contract](benchmark-contract.md) defines the evidence required
+before promoting a comparative claim.
+
 ## Method
 
 Every row uses the same `.proto`. Most cases are
