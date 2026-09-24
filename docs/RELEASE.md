@@ -47,6 +47,13 @@ required CI. Rehearse all three packages with the existing dry-run publisher.
 Do not trigger the publisher until each crate's applicable qualification and
 promotion evidence has been reviewed.
 
+The publisher checks both runtime and build-time `pbrs` requirements in each
+adapter against the core manifest version and local source path **before**
+packaging or contacting crates.io. Mismatched constraints fail both the dry
+run and real upload, leaving idempotent partial-release retries intact. This
+preflight uses Python 3.11+ standard-library `tomllib`; it does not replace
+the separate requirement that all three package versions be new.
+
 The publisher deliberately skips a name/version already present on crates.io
 so partial uploads can be retried safely. A successful workflow with unchanged
 manifest versions would **not** meet this all-crate release goal. After the

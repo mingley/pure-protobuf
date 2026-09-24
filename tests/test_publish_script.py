@@ -1,23 +1,61 @@
 """Release-script tests that cannot contact a registry or upload crates."""
 
 import os
-from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts/publish-crates.sh"
 
 
 class PublishScriptTest(unittest.TestCase):
     def run_script(
         self, *, dry_run: bool | str, curl_code: str,
         publish_exit: int = 3, git_dirty: bool = False,
+        mismatched_dependency: tuple[str, str, str] | None = None,
     ):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            repo = root / "repo"
+            for relative in (
+                "scripts/publish-crates.sh",
+                "Cargo.toml",
+                "protobuf-tonic/Cargo.toml",
+                "pbrs-grpc/Cargo.toml",
+            ):
+                destination = repo / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes((ROOT / relative).read_bytes())
+            if mismatched_dependency:
+                crate, section, kind = mismatched_dependency
+                manifest = repo / crate / "Cargo.toml"
+                content = manifest.read_text()
+                header = f"[{section}]\n"
+                start = content.index(header) + len(header)
+                end = content.find("\n[", start)
+                if end < 0:
+                    end = len(content)
+                block = content[start:end]
+
+                def mismatch(match):
+                    line = match.group()
+                    if kind == "version":
+                        return re.sub(r'version = "[^"]+"', 'version = "9.9.9"', line)
+                    if kind == "path":
+                        return line.replace('path = ".."', 'path = "../not-core"')
+                    raise AssertionError(f"unknown mismatch kind: {kind}")
+
+                mismatched, count = re.subn(
+                    r'(?m)^pbrs = \{ version = "[^"]+", path = "\.\." \}$',
+                    mismatch,
+                    block,
+                    count=1,
+                )
+                self.assertEqual(count, 1, f"missing pbrs constraint in {crate} {section}")
+                manifest.write_text(content[:start] + mismatched + content[end:])
             bin_dir = root / "bin"
             bin_dir.mkdir()
             calls_path = root / "calls.txt"
@@ -64,7 +102,7 @@ class PublishScriptTest(unittest.TestCase):
                 }
             )
             proc = subprocess.run(
-                ["bash", str(SCRIPT)], cwd=ROOT, env=env,
+                ["bash", str(repo / "scripts/publish-crates.sh")], cwd=repo, env=env,
                 capture_output=True, text=True, timeout=20,
             )
             calls = calls_path.read_text().splitlines() if calls_path.exists() else []
@@ -112,6 +150,25 @@ class PublishScriptTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(sum(call.startswith("cargo publish") for call in calls), 1)
         self.assertEqual(sum(call == "curl" for call in calls), 4)
+
+    def test_mismatched_adapter_core_dependency_fails_before_registry_or_packaging(self):
+        for crate in ("protobuf-tonic", "pbrs-grpc"):
+            for section in ("build-dependencies", "dependencies"):
+                for kind in ("version", "path"):
+                    for dry_run in (False, True):
+                        with self.subTest(
+                            crate=crate, section=section, kind=kind, dry_run=dry_run,
+                        ):
+                            proc, calls = self.run_script(
+                                dry_run=dry_run,
+                                curl_code="404",
+                                mismatched_dependency=(crate, section, kind),
+                            )
+                            self.assertNotEqual(proc.returncode, 0)
+                            reason = "must require" if kind == "version" else "must point"
+                            self.assertIn(f"{crate} {section}.pbrs {reason}", proc.stderr)
+                            self.assertFalse(any(call == "curl" for call in calls))
+                            self.assertFalse(any(call.startswith("cargo ") for call in calls))
 
     def test_invalid_dry_run_mode_does_not_turn_into_upload(self):
         proc, calls = self.run_script(dry_run="yes", curl_code="404")

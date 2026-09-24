@@ -58,6 +58,31 @@ for manifest in "${MANIFESTS[@]}"; do
   VERS+=("$ver")
 done
 
+# Reject stale adapter constraints before any package, registry request, or upload.
+# This leaves the name/version skip below intact for safe partial-release retries.
+python3 - "$ROOT" "${VERS[0]}" "${MANIFESTS[@]:1}" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+core_version = sys.argv[2]
+for manifest_arg in sys.argv[3:]:
+    manifest = Path(manifest_arg)
+    package = tomllib.loads(manifest.read_text())
+    name = package["package"]["name"]
+    for section in ("dependencies", "build-dependencies"):
+        dependency = package.get(section, {}).get("pbrs")
+        if not isinstance(dependency, dict) or dependency.get("version") != core_version:
+            raise SystemExit(
+                f"::error::{name} {section}.pbrs must require the core version {core_version}"
+            )
+        path = dependency.get("path")
+        if not isinstance(path, str) or (manifest.parent / path).resolve() != root:
+            raise SystemExit(f"::error::{name} {section}.pbrs must point to the core crate")
+print(f"Both adapters require pbrs {core_version} for runtime and code generation")
+PY
+
 if [[ -n "${RELEASE_TAG:-}" ]]; then
   tag="${RELEASE_TAG#v}"
   match=0
