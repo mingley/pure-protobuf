@@ -134,7 +134,18 @@ the retry idempotent.
 
 ## Local packing check
 
-From a clean tree:
+For the coordinated three-crate release, rehearse the existing publisher on a
+committed SHA without a registry token or upload:
+
+```bash
+DRY_RUN=1 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target \
+  ./scripts/publish-crates.sh
+```
+
+It packs `pbrs`, `protobuf-tonic`, and `pbrs-grpc` in a disposable checkout,
+reusing the root Cargo target. This does not query crates.io or verify that
+the manifest versions are new. Individual packaging checks from a clean tree
+are also available:
 
 ```bash
 cargo publish -p pbrs --dry-run

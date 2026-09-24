@@ -4027,7 +4027,8 @@
         "consumers"
       ],
       "evidence": [
-        "Promotion directive 2026-09-24: once the requested program reaches a clear, qualified finishing point, use the existing GitHub Actions publisher to release new versions of all three crates (pbrs, protobuf-tonic, pbrs-grpc), not a partial release or an idempotent skip of their already-published versions. Align adapter dependency requirements, rehearse package consumers, verify same-SHA release CI and each crates.io name/version. No version bump, tag or publish was authorized ahead of the outstanding per-crate, original-peer, safety, benchmark, and operator qualification gates; QL-05 remains pending."
+        "Promotion directive 2026-09-24: once the requested program reaches a clear, qualified finishing point, use the existing GitHub Actions publisher to release new versions of all three crates (pbrs, protobuf-tonic, pbrs-grpc), not a partial release or an idempotent skip of their already-published versions. Align adapter dependency requirements, rehearse package consumers, verify same-SHA release CI and each crates.io name/version. No version bump, tag or publish was authorized ahead of the outstanding per-crate, original-peer, safety, benchmark, and operator qualification gates; QL-05 remains pending.",
+        "Partial 2026-09-24 (local publisher rehearsal at clean tracked main 90359b06): DRY_RUN=1 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target ./scripts/publish-crates.sh packed all three existing versions in dependency order: pbrs 0.1.0 (48 files), protobuf-tonic 0.1.0-alpha.1 (21 files), pbrs-grpc 0.1.0-alpha.1 (87 files). Artifacts stayed under ignored target/package; no token, crates.io API/version check, upload, version bump, tag or release workflow was used. Same-SHA development CI and compatibility passed separately, but packaging existing versions is NOT publication of new crate code and QL-05 remains pending."
       ]
     }
   ]
