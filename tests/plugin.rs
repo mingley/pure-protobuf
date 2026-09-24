@@ -25,6 +25,17 @@ fn plugin_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/debug/protoc-gen-pbrs")
 }
 
+fn shared_consumer_cargo() -> Command {
+    let mut cargo = Command::new("cargo");
+    cargo
+        .env(
+            "CARGO_TARGET_DIR",
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/integration-consumers"),
+        )
+        .env("CARGO_BUILD_JOBS", "2");
+    cargo
+}
+
 #[test]
 fn protoc_plugin_generates_and_roundtrips() {
     let tmp = tempfile_dir();
@@ -85,7 +96,7 @@ fn protoc_plugin_generates_and_roundtrips() {
     )
     .unwrap();
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -101,7 +112,7 @@ fn protoc_plugin_generates_and_roundtrips() {
         String::from_utf8_lossy(&run1.stdout),
         String::from_utf8_lossy(&run1.stderr)
     );
-    let run2 = Command::new("cargo")
+    let run2 = shared_consumer_cargo()
         .arg("run")
         .arg("--offline")
         .arg("--quiet")
@@ -186,7 +197,7 @@ fn plugin_generates_test_all_types_proto3() {
         ),
     )
     .unwrap();
-    let run = Command::new("cargo")
+    let run = shared_consumer_cargo()
         .arg("run")
         .arg("--offline")
         .arg("--quiet")
@@ -439,7 +450,7 @@ fn plugin_repeated_string_same_tag_parses_32() {
     )
     .unwrap();
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -547,7 +558,7 @@ fn main() {
     )
     .unwrap();
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -1166,7 +1177,7 @@ fn main() {
     .unwrap();
 
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -1410,7 +1421,7 @@ fn main() {
     .unwrap();
 
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -1506,7 +1517,7 @@ fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
     )
     .unwrap();
     let cargo_home = std::env::var("CARGO_HOME").ok();
-    let mut build = Command::new("cargo");
+    let mut build = shared_consumer_cargo();
     build
         .arg("run")
         .arg("--offline")
@@ -1854,7 +1865,7 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
     )
     .unwrap();
 
-    let mut doc_cmd = Command::new("cargo");
+    let mut doc_cmd = shared_consumer_cargo();
     doc_cmd
         .arg("doc")
         .arg("--offline")
@@ -1873,7 +1884,7 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
     );
 
     // Verify cargo test --doc executes 0 hostile doctests
-    let mut test_doc_cmd = Command::new("cargo");
+    let mut test_doc_cmd = shared_consumer_cargo();
     test_doc_cmd
         .arg("test")
         .arg("--doc")
@@ -2476,7 +2487,7 @@ fn test_message_keywords_and_non_standard_casings() {{
 
     let cargo_home = std::env::var("CARGO_HOME").ok();
 
-    let mut clippy_cmd = Command::new("cargo");
+    let mut clippy_cmd = shared_consumer_cargo();
     clippy_cmd
         .arg("clippy")
         .arg("--offline")
@@ -2493,7 +2504,7 @@ fn test_message_keywords_and_non_standard_casings() {{
         String::from_utf8_lossy(&clippy_out.stderr)
     );
 
-    let mut test_cmd = Command::new("cargo");
+    let mut test_cmd = shared_consumer_cargo();
     test_cmd
         .arg("test")
         .arg("--offline")
@@ -2640,7 +2651,7 @@ fn test_native_server_and_client_instantiation() {{
 
     let cargo_home = std::env::var("CARGO_HOME").ok();
 
-    let mut clippy_cmd = Command::new("cargo");
+    let mut clippy_cmd = shared_consumer_cargo();
     clippy_cmd
         .arg("clippy")
         .arg("--offline")
@@ -2657,7 +2668,7 @@ fn test_native_server_and_client_instantiation() {{
         String::from_utf8_lossy(&clippy_out.stderr)
     );
 
-    let mut test_cmd = Command::new("cargo");
+    let mut test_cmd = shared_consumer_cargo();
     test_cmd
         .arg("test")
         .arg("--offline")
@@ -2795,7 +2806,7 @@ async fn test_tonic_service_instantiation() {{
 
     let cargo_home = std::env::var("CARGO_HOME").ok();
 
-    let mut clippy_cmd = Command::new("cargo");
+    let mut clippy_cmd = shared_consumer_cargo();
     clippy_cmd
         .arg("clippy")
         .arg("--offline")
@@ -2812,7 +2823,7 @@ async fn test_tonic_service_instantiation() {{
         String::from_utf8_lossy(&clippy_out.stderr)
     );
 
-    let mut test_cmd = Command::new("cargo");
+    let mut test_cmd = shared_consumer_cargo();
     test_cmd
         .arg("test")
         .arg("--offline")
@@ -3561,11 +3572,9 @@ mod checks {
             vec!["--offline", "--quiet", "--lib", "--", "-D", "warnings"],
         ),
     ] {
-        let result = Command::new("cargo")
+        let result = shared_consumer_cargo()
             .arg(subcommand)
             .args(args)
-            .env("CARGO_TARGET_DIR", root.join("target"))
-            .env("CARGO_BUILD_JOBS", "2")
             .current_dir(&consumer)
             .output()
             .expect("run shared-target Rust 2024 consumer");

@@ -75,7 +75,13 @@ fn dump(out: &Output) -> String {
 fn cargo_run_consumer(dir: &Path) {
     let mut cmd = Command::new("cargo");
     cmd.args(["run", "--offline", "--quiet"]);
-    cmd.current_dir(dir).env("CARGO_TERM_COLOR", "never");
+    cmd.current_dir(dir)
+        .env("CARGO_TERM_COLOR", "never")
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
+        .env("CARGO_BUILD_JOBS", "2");
     apply_cargo_home(&mut cmd);
     let out = cmd.output().expect("cargo run consumer");
     assert!(
@@ -472,6 +478,7 @@ fn test_codegen_stub_signatures_all_four_call_shapes() {
 #[test]
 fn test_live_cross_version_stubs_and_unimplemented_behavior() {
     let consumer_dir = scratch_dir("grpc-cross-compat");
+    let consumer_package = format!("grpc-cross-compat-{}", std::process::id());
     let src_dir = consumer_dir.join("src");
     std::fs::create_dir_all(&src_dir).unwrap();
 
@@ -491,7 +498,7 @@ fn test_live_cross_version_stubs_and_unimplemented_behavior() {
         consumer_dir.join("Cargo.toml"),
         format!(
             r#"[package]
-name = "grpc-cross-compat-consumer"
+name = "{consumer_package}"
 version = "0.0.1"
 edition = "2021"
 
