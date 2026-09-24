@@ -1192,6 +1192,9 @@
       ],
       "checks": [
         "codegen"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: bench/codegen/ and scripts/codegen-bench.sh provide seeded 6/100/1000-message multi-file corpora with a shared two-job bootstrap cache and separate empty targets only for genuine cold consumer checks. All three local cells passed no-change byte/mtime verification, clean and incremental Cargo checks, release binary size/hash, recorded tool/source/compiler/cache pins, bounded RSS estimates and retained per-phase raw logs; Python harness tests 12/12, source mtime preservation test 1/1. The first run failed closed on rustup's symlinked Cargo shim and a deterministic regression now protects invocation by shim name. These are independent unqualified local diagnostic runs; no equivalent pinned reference generator, paired uncertainty, published comparable raw measurements or losing-cell analysis is available, so CG-19 remains pending."
       ]
     },
     {
