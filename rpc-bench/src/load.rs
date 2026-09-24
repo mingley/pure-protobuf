@@ -177,6 +177,8 @@ pub struct LoadConfig {
     pub drain_timeout: Duration,
     /// Optional cap on maximum calls to schedule (useful for bounded count tests).
     pub max_calls: Option<u64>,
+    /// Retain per-call latency and scheduling samples for the returned report.
+    pub collect_samples: bool,
 }
 
 impl Default for LoadConfig {
@@ -191,6 +193,7 @@ impl Default for LoadConfig {
             timeout: Some(Duration::from_secs(5)),
             drain_timeout: Duration::from_secs(2),
             max_calls: None,
+            collect_samples: true,
         }
     }
 }
@@ -239,6 +242,12 @@ impl LoadConfig {
         self
     }
 
+    /// Let a caller account for its own per-RPC timeout instead of dropping its future here.
+    pub fn without_timeout(mut self) -> Self {
+        self.timeout = None;
+        self
+    }
+
     /// Set drain timeout.
     pub fn with_drain_timeout(mut self, timeout: Duration) -> Self {
         self.drain_timeout = timeout;
@@ -248,6 +257,12 @@ impl LoadConfig {
     /// Set maximum number of calls to schedule.
     pub fn with_max_calls(mut self, max: u64) -> Self {
         self.max_calls = Some(max);
+        self
+    }
+
+    /// Keep aggregate counts but avoid retaining an unbounded raw sample vector.
+    pub fn without_raw_samples(mut self) -> Self {
+        self.collect_samples = false;
         self
     }
 }
@@ -321,6 +336,7 @@ impl LoadRecord {
 }
 
 struct GeneratorState {
+    collect_samples: bool,
     offered_calls: AtomicU64,
     dispatched_calls: AtomicU64,
     completed_calls: AtomicU64,
@@ -338,8 +354,9 @@ struct GeneratorState {
 }
 
 impl GeneratorState {
-    fn new() -> Self {
+    fn new(collect_samples: bool) -> Self {
         Self {
+            collect_samples,
             offered_calls: AtomicU64::new(0),
             dispatched_calls: AtomicU64::new(0),
             completed_calls: AtomicU64::new(0),
@@ -368,7 +385,9 @@ impl GeneratorState {
             .saturating_duration_since(scheduled)
             .as_nanos()
             .min(u64::MAX as u128) as u64;
-        self.scheduling_lags.lock().unwrap().push(nanos);
+        if self.collect_samples {
+            self.scheduling_lags.lock().unwrap().push(nanos);
+        }
         actual
     }
 
@@ -380,53 +399,53 @@ impl GeneratorState {
         timed_out: bool,
         call_timeout: Option<Duration>,
     ) {
-        let t_finish = Instant::now();
         self.completed_calls.fetch_add(1, Ordering::Relaxed);
 
-        let service_nanos = if timed_out {
-            call_timeout
-                .map(|t| t.as_nanos().min(u64::MAX as u128) as u64)
-                .unwrap_or_else(|| {
-                    t_finish
-                        .saturating_duration_since(t_actual)
-                        .as_nanos()
-                        .min(u64::MAX as u128) as u64
-                })
-        } else {
-            t_finish
-                .saturating_duration_since(t_actual)
-                .as_nanos()
-                .min(u64::MAX as u128) as u64
-        };
+        if self.collect_samples {
+            let t_finish = Instant::now();
+            let service_nanos = if timed_out {
+                call_timeout
+                    .map(|t| t.as_nanos().min(u64::MAX as u128) as u64)
+                    .unwrap_or_else(|| {
+                        t_finish
+                            .saturating_duration_since(t_actual)
+                            .as_nanos()
+                            .min(u64::MAX as u128) as u64
+                    })
+            } else {
+                t_finish
+                    .saturating_duration_since(t_actual)
+                    .as_nanos()
+                    .min(u64::MAX as u128) as u64
+            };
 
-        let e2e_nanos = if timed_out {
-            let base = call_timeout
-                .map(|t| t.as_nanos().min(u64::MAX as u128) as u64)
-                .unwrap_or_else(|| {
-                    t_finish
-                        .saturating_duration_since(t_actual)
-                        .as_nanos()
-                        .min(u64::MAX as u128) as u64
-                });
-            let lag = t_actual
-                .saturating_duration_since(t_sched)
-                .as_nanos()
-                .min(u64::MAX as u128) as u64;
-            base.saturating_add(lag)
-        } else {
-            t_finish
-                .saturating_duration_since(t_sched)
-                .as_nanos()
-                .min(u64::MAX as u128) as u64
-        };
+            let e2e_nanos = if timed_out {
+                let base = call_timeout
+                    .map(|t| t.as_nanos().min(u64::MAX as u128) as u64)
+                    .unwrap_or_else(|| {
+                        t_finish
+                            .saturating_duration_since(t_actual)
+                            .as_nanos()
+                            .min(u64::MAX as u128) as u64
+                    });
+                let lag = t_actual
+                    .saturating_duration_since(t_sched)
+                    .as_nanos()
+                    .min(u64::MAX as u128) as u64;
+                base.saturating_add(lag)
+            } else {
+                t_finish
+                    .saturating_duration_since(t_sched)
+                    .as_nanos()
+                    .min(u64::MAX as u128) as u64
+            };
 
-        // Latencies are recorded for ALL completed/timed-out calls (never dropped!)
-        {
+            // Raw-sample benchmark reports retain all completed/timed-out calls.
             self.service_latencies.lock().unwrap().push(service_nanos);
             self.e2e_latencies.lock().unwrap().push(e2e_nanos);
         }
 
-        if timed_out {
+        if timed_out || matches!(&res, Err(RpcCallError::Timeout)) {
             self.timed_out_calls.fetch_add(1, Ordering::Relaxed);
             self.failed_calls.fetch_add(1, Ordering::Relaxed);
             self.record_status_error("DEADLINE_EXCEEDED", 1);
@@ -471,10 +490,20 @@ impl LoadGenerator {
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
     {
+        self.run_with_rejections(invoke, || {}).await
+    }
+
+    /// Run while notifying the caller about each offered call rejected before dispatch.
+    pub async fn run_with_rejections<F, Fut, R>(&self, invoke: F, on_rejection: R) -> LoadRecord
+    where
+        F: Fn() -> Fut + Send + Sync + 'static + Clone,
+        Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
+        R: Fn() + Send + Sync,
+    {
         match self.cfg.distribution {
             LoadDistribution::Closed => self.run_closed_loop(invoke).await,
-            LoadDistribution::Constant => self.run_open_loop_constant(invoke).await,
-            LoadDistribution::Poisson => self.run_open_loop_poisson(invoke).await,
+            LoadDistribution::Constant => self.run_open_loop_constant(invoke, &on_rejection).await,
+            LoadDistribution::Poisson => self.run_open_loop_poisson(invoke, &on_rejection).await,
         }
     }
 
@@ -483,7 +512,7 @@ impl LoadGenerator {
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
     {
-        let state = Arc::new(GeneratorState::new());
+        let state = Arc::new(GeneratorState::new(self.cfg.collect_samples));
         let running = Arc::new(AtomicBool::new(true));
         let start_time = Instant::now();
         let end_time = start_time + self.cfg.duration;
@@ -512,7 +541,9 @@ impl LoadGenerator {
                     state.offered_calls.fetch_add(1, Ordering::Relaxed);
                     let t_sched = Instant::now();
                     let t_actual = t_sched;
-                    state.scheduling_lags.lock().unwrap().push(0);
+                    if state.collect_samples {
+                        state.scheduling_lags.lock().unwrap().push(0);
+                    }
 
                     state.dispatched_calls.fetch_add(1, Ordering::Relaxed);
                     state.active_in_flight.fetch_add(1, Ordering::SeqCst);
@@ -541,10 +572,11 @@ impl LoadGenerator {
             .await
     }
 
-    async fn run_open_loop_constant<F, Fut>(&self, invoke: F) -> LoadRecord
+    async fn run_open_loop_constant<F, Fut, R>(&self, invoke: F, on_rejection: &R) -> LoadRecord
     where
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
+        R: Fn(),
     {
         let rate_qps = self
             .cfg
@@ -552,7 +584,7 @@ impl LoadGenerator {
             .expect("rate_qps is required for open-loop constant load");
         assert!(rate_qps > 0.0, "rate_qps must be strictly positive");
 
-        let state = Arc::new(GeneratorState::new());
+        let state = Arc::new(GeneratorState::new(self.cfg.collect_samples));
         let semaphore = Arc::new(Semaphore::new(self.cfg.max_in_flight));
         let mut handles = JoinSet::new();
         let start_time = Instant::now();
@@ -612,6 +644,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
+                    on_rejection();
                     state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
@@ -626,10 +659,11 @@ impl LoadGenerator {
             .await
     }
 
-    async fn run_open_loop_poisson<F, Fut>(&self, invoke: F) -> LoadRecord
+    async fn run_open_loop_poisson<F, Fut, R>(&self, invoke: F, on_rejection: &R) -> LoadRecord
     where
         F: Fn() -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
+        R: Fn(),
     {
         let rate_qps = self
             .cfg
@@ -638,7 +672,7 @@ impl LoadGenerator {
         assert!(rate_qps > 0.0, "rate_qps must be strictly positive");
 
         let mut rng = SeededRng::new(self.cfg.seed);
-        let state = Arc::new(GeneratorState::new());
+        let state = Arc::new(GeneratorState::new(self.cfg.collect_samples));
         let semaphore = Arc::new(Semaphore::new(self.cfg.max_in_flight));
         let mut handles = JoinSet::new();
         let start_time = Instant::now();
@@ -700,6 +734,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
+                    on_rejection();
                     state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
@@ -738,12 +773,14 @@ impl LoadGenerator {
             state.failed_calls.fetch_add(unfinished, Ordering::Relaxed);
             state.record_status_error("UNFINISHED", unfinished);
 
-            let drain_nanos = self.cfg.drain_timeout.as_nanos().min(u64::MAX as u128) as u64;
-            let mut e2e = state.e2e_latencies.lock().unwrap();
-            let mut serv = state.service_latencies.lock().unwrap();
-            for _ in 0..unfinished {
-                e2e.push(drain_nanos);
-                serv.push(drain_nanos);
+            if state.collect_samples {
+                let drain_nanos = self.cfg.drain_timeout.as_nanos().min(u64::MAX as u128) as u64;
+                let mut e2e = state.e2e_latencies.lock().unwrap();
+                let mut serv = state.service_latencies.lock().unwrap();
+                for _ in 0..unfinished {
+                    e2e.push(drain_nanos);
+                    serv.push(drain_nanos);
+                }
             }
         }
 
@@ -819,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_dispatch_lag_is_measured_at_task_start() {
-        let state = GeneratorState::new();
+        let state = GeneratorState::new(true);
         let scheduled = Instant::now() - Duration::from_millis(10);
         let actual = state.record_scheduling_lag(scheduled);
         let samples = state.scheduling_lags.lock().unwrap().clone();
@@ -830,7 +867,7 @@ mod tests {
 
     #[test]
     fn test_drain_waits_until_outcome_samples_are_committed() {
-        let state = Arc::new(GeneratorState::new());
+        let state = Arc::new(GeneratorState::new(true));
         state.active_in_flight.store(1, Ordering::SeqCst);
         let hold_samples = state.service_latencies.lock().unwrap();
         let worker_state = state.clone();
@@ -1061,6 +1098,8 @@ mod tests {
     async fn test_bounded_in_flight_queue_overflow() {
         // High rate with small in-flight cap and long service time to force queue overflow
         let cap = 3;
+        let observed_rejections = Arc::new(AtomicUsize::new(0));
+        let rejection_counter = observed_rejections.clone();
         let cfg = LoadConfig::open_constant(1000.0, Duration::from_millis(50))
             .with_max_in_flight(cap)
             .with_timeout(Duration::from_millis(200))
@@ -1068,11 +1107,16 @@ mod tests {
         let r#gen = LoadGenerator::new(cfg);
 
         let record = r#gen
-            .run(|| async {
-                // Server stalls for 100 ms
-                tokio::time::sleep(Duration::from_millis(100)).await;
-                Ok(())
-            })
+            .run_with_rejections(
+                || async {
+                    // Server stalls for 100 ms
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    Ok(())
+                },
+                move || {
+                    rejection_counter.fetch_add(1, Ordering::Relaxed);
+                },
+            )
             .await;
 
         // Queue overflow must have been recorded, bounding memory growth
@@ -1082,6 +1126,11 @@ mod tests {
         );
         assert_eq!(record.rejected_calls, record.unstarted_calls);
         assert_eq!(
+            observed_rejections.load(Ordering::Relaxed) as u64,
+            record.rejected_calls,
+            "the worker must observe every rejected offered call"
+        );
+        assert_eq!(
             record.offered_calls,
             record.dispatched_calls + record.unstarted_calls
         );
@@ -1090,6 +1139,79 @@ mod tests {
 
         let metrics = record.to_rpc_metrics();
         assert_eq!(metrics.queue_overflows, Some(record.rejected_calls));
+    }
+
+    #[tokio::test]
+    async fn worker_load_retains_counts_without_unbounded_raw_samples() {
+        let r#gen = LoadGenerator::new(
+            LoadConfig::closed(1, Duration::from_millis(100))
+                .with_max_calls(3)
+                .without_raw_samples(),
+        );
+        let record = r#gen.run(|| async { Ok(()) }).await;
+        assert_eq!(record.offered_calls, 3);
+        assert_eq!(record.dispatched_calls, 3);
+        assert_eq!(record.successful_calls, 3);
+        assert_eq!(record.completed_calls, 3);
+        assert!(record.scheduling_lags_nanos.is_empty());
+        assert!(record.service_latencies_nanos.is_empty());
+        assert!(record.e2e_latencies_nanos.is_empty());
+    }
+
+    #[tokio::test]
+    async fn caller_reported_timeout_preserves_counts_without_raw_samples() {
+        let r#gen = LoadGenerator::new(
+            LoadConfig::closed(1, Duration::from_millis(100))
+                .with_max_calls(1)
+                .without_timeout()
+                .without_raw_samples(),
+        );
+        let record = r#gen.run(|| async { Err(RpcCallError::Timeout) }).await;
+        assert_eq!(record.offered_calls, 1);
+        assert_eq!(record.completed_calls, 1);
+        assert_eq!(record.timed_out_calls, 1);
+        assert_eq!(record.failed_calls, 1);
+        assert_eq!(record.status_errors.get("DEADLINE_EXCEEDED"), Some(&1));
+        assert!(record.service_latencies_nanos.is_empty());
+    }
+
+    #[tokio::test]
+    async fn poisson_rejections_are_observed_without_raw_sample_retention() {
+        let observed_rejections = Arc::new(AtomicUsize::new(0));
+        let callback_count = observed_rejections.clone();
+        let r#gen = LoadGenerator::new(
+            LoadConfig::open_poisson(10_000.0, 42, Duration::from_millis(50))
+                .with_max_in_flight(1)
+                .with_max_calls(30)
+                .without_raw_samples(),
+        );
+        let record = r#gen
+            .run_with_rejections(
+                || async {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    Ok(())
+                },
+                move || {
+                    callback_count.fetch_add(1, Ordering::Relaxed);
+                },
+            )
+            .await;
+        assert!(record.rejected_calls > 0);
+        assert_eq!(
+            observed_rejections.load(Ordering::Relaxed) as u64,
+            record.rejected_calls
+        );
+        assert_eq!(
+            record.offered_calls,
+            record.dispatched_calls + record.rejected_calls
+        );
+        assert_eq!(
+            record.status_errors.get("QUEUE_OVERFLOW"),
+            Some(&record.rejected_calls)
+        );
+        assert!(record.scheduling_lags_nanos.is_empty());
+        assert!(record.service_latencies_nanos.is_empty());
+        assert!(record.e2e_latencies_nanos.is_empty());
     }
 
     #[tokio::test]

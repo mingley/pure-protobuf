@@ -22,16 +22,23 @@ pub mod proto {
 pub use proto::*;
 
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use pbrs_grpc::{Request, Response, Status, Streaming};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, TryAcquireError};
 
 use crate::benchmark_service::BenchmarkServiceClient;
 use crate::load::{LoadConfig, LoadGenerator, RpcCallError};
 use crate::resources::ResourceSnapshot;
 use crate::worker_server::require_snapshot;
+
+pub(crate) const MAX_WORKER_CLIENT_CHANNELS: usize = 64;
+pub(crate) const MAX_WORKER_IN_FLIGHT_RPCS: usize = 256;
+pub(crate) const MAX_WORKER_HISTOGRAM_BUCKETS: usize = 65_536;
+const WORKER_RPC_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// High-resolution latency histogram based on `grpc/support/histogram.c`.
 ///
@@ -56,17 +63,23 @@ pub struct Histogram {
 impl Histogram {
     /// Create a new histogram with exponential buckets matching `grpc/support/histogram.c`.
     pub fn new(resolution: f64, max_possible: f64) -> Result<Self, Status> {
-        if resolution <= 0.0 || max_possible <= resolution {
+        if !resolution.is_finite()
+            || !max_possible.is_finite()
+            || resolution <= 0.0
+            || max_possible <= resolution
+        {
             return Err(Status::invalid_argument(format!(
                 "invalid histogram params: resolution={resolution}, max_possible={max_possible}"
             )));
         }
         let multiplier = 1.0 + resolution;
         let one_on_log_multiplier = 1.0 / multiplier.ln();
-        let num_buckets = Self::bucket_for_unchecked(max_possible, one_on_log_multiplier) + 1;
-        if num_buckets <= 1 || num_buckets > 100_000_000 {
+        let num_buckets = Self::bucket_for_unchecked(max_possible, one_on_log_multiplier)
+            .checked_add(1)
+            .ok_or_else(|| Status::resource_exhausted("histogram bucket count overflow"))?;
+        if num_buckets <= 1 || num_buckets > MAX_WORKER_HISTOGRAM_BUCKETS {
             return Err(Status::invalid_argument(format!(
-                "invalid histogram bucket count: {num_buckets}"
+                "histogram bucket count {num_buckets} exceeds supported range 2..={MAX_WORKER_HISTOGRAM_BUCKETS}"
             )));
         }
         Ok(Self {
@@ -206,6 +219,12 @@ impl ClientStatsTracker {
         }
     }
 
+    /// Record an offered call rejected before dispatch, without fabricating a latency sample.
+    pub fn record_rejection(&self, status_code: i32) {
+        let mut results = self.request_results.lock().unwrap();
+        *results.entry(status_code).or_insert(0) += 1;
+    }
+
     /// Generate initial empty `HistogramData` for the setup status message.
     pub fn initial_histogram_data(&self) -> HistogramData {
         let h = self.histogram.lock().unwrap();
@@ -239,6 +258,34 @@ impl ClientStatsTracker {
         };
 
         (hist_data, result_counts)
+    }
+}
+
+pub(crate) async fn track_worker_rpc<F>(
+    tracker: &ClientStatsTracker,
+    timeout: Duration,
+    call: F,
+) -> Result<(), RpcCallError>
+where
+    F: Future<Output = Result<(), Status>>,
+{
+    let start = Instant::now();
+    match tokio::time::timeout(timeout, call).await {
+        Ok(Ok(())) => {
+            tracker.record_success(start.elapsed().as_nanos() as f64);
+            Ok(())
+        }
+        Ok(Err(status)) => {
+            tracker.record_error(start.elapsed().as_nanos() as f64, status.code() as i32);
+            Err(RpcCallError::Status(format!("{:?}", status.code())))
+        }
+        Err(_) => {
+            tracker.record_error(
+                timeout.as_nanos() as f64,
+                pbrs_grpc::Code::DeadlineExceeded as i32,
+            );
+            Err(RpcCallError::Timeout)
+        }
     }
 }
 
@@ -302,6 +349,51 @@ pub(crate) fn unsupported_client_option(config: &ClientConfig) -> Option<&'stati
     }
 }
 
+pub(crate) fn checked_client_capacity(config: &ClientConfig) -> Result<(usize, usize), Status> {
+    let channels = usize::try_from(config.client_channels())
+        .ok()
+        .filter(|&count| count > 0)
+        .ok_or_else(|| Status::invalid_argument("client_channels must be positive"))?;
+    let per_channel = usize::try_from(config.outstanding_rpcs_per_channel())
+        .ok()
+        .filter(|&count| count > 0)
+        .ok_or_else(|| Status::invalid_argument("outstanding_rpcs_per_channel must be positive"))?;
+    if channels > MAX_WORKER_CLIENT_CHANNELS {
+        return Err(Status::resource_exhausted(format!(
+            "client_channels {channels} exceeds the worker limit of {MAX_WORKER_CLIENT_CHANNELS}"
+        )));
+    }
+    let total = channels.checked_mul(per_channel).ok_or_else(|| {
+        Status::resource_exhausted("client channel/outstanding RPC product overflow")
+    })?;
+    if total > MAX_WORKER_IN_FLIGHT_RPCS {
+        return Err(Status::resource_exhausted(format!(
+            "client_channels * outstanding_rpcs_per_channel ({total}) exceeds the worker limit of {MAX_WORKER_IN_FLIGHT_RPCS}"
+        )));
+    }
+    Ok((channels, total))
+}
+
+pub(crate) fn acquire_channel_slot(
+    slots: &[Arc<Semaphore>],
+    start: usize,
+) -> Result<Option<(usize, OwnedSemaphorePermit)>, Status> {
+    if slots.is_empty() {
+        return Err(Status::internal("benchmark client has no channel slots"));
+    }
+    for offset in 0..slots.len() {
+        let index = start.wrapping_add(offset) % slots.len();
+        match slots[index].clone().try_acquire_owned() {
+            Ok(permit) => return Ok(Some((index, permit))),
+            Err(TryAcquireError::NoPermits) => {}
+            Err(TryAcquireError::Closed) => {
+                return Err(Status::internal("benchmark client channel slot closed"));
+            }
+        }
+    }
+    Ok(None)
+}
+
 /// Start and manage the benchmark client workload, marks, and statistics accounting.
 pub async fn run_client(
     request: Request<Streaming<ClientArgs>>,
@@ -342,18 +434,13 @@ pub async fn run_client(
                 .await;
             return;
         }
-        if cfg.client_channels() <= 0 {
-            tx.fail(Status::invalid_argument("client_channels must be positive"))
-                .await;
-            return;
-        }
-        if cfg.outstanding_rpcs_per_channel() <= 0 {
-            tx.fail(Status::invalid_argument(
-                "outstanding_rpcs_per_channel must be positive",
-            ))
-            .await;
-            return;
-        }
+        let (num_channels, total_concurrency) = match checked_client_capacity(cfg) {
+            Ok(capacity) => capacity,
+            Err(status) => {
+                tx.fail(status).await;
+                return;
+            }
+        };
         if cfg.core_limit() < 0 {
             tx.fail(Status::invalid_argument("core_limit cannot be negative"))
                 .await;
@@ -487,7 +574,6 @@ pub async fn run_client(
         };
 
         // 3. Connect channels to target servers
-        let num_channels = cfg.client_channels() as usize;
         let targets: Vec<String> = match cfg
             .server_targets()
             .iter()
@@ -529,21 +615,19 @@ pub async fn run_client(
         }
 
         // 4. Configure LoadGenerator and stats tracker
-        let total_concurrency = (cfg.client_channels().max(1) as usize)
-            * (cfg.outstanding_rpcs_per_channel().max(1) as usize);
-
         let load_cfg = if cfg.load_params().has_closed_loop() {
             LoadConfig::closed(total_concurrency, Duration::from_secs(86400 * 365))
         } else {
             let offered_load = cfg.load_params().poisson().offered_load();
-            let mut c = LoadConfig::open_poisson(
+            LoadConfig::open_poisson(
                 offered_load,
                 0x5eed_2026_0918,
                 Duration::from_secs(86400 * 365),
-            );
-            c.max_in_flight = total_concurrency.max(1000);
-            c
-        };
+            )
+        }
+        .with_max_in_flight(total_concurrency)
+        .without_raw_samples()
+        .without_timeout();
 
         let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
         let stats_tracker = Arc::new(ClientStatsTracker::new(histogram));
@@ -567,10 +651,16 @@ pub async fn run_client(
         let template_req = Arc::new(template_req);
 
         let channels = Arc::new(channels);
+        let slots = Arc::new(
+            (0..num_channels)
+                .map(|_| Arc::new(Semaphore::new(total_concurrency / num_channels)))
+                .collect::<Vec<_>>(),
+        );
         let rr_counter = Arc::new(AtomicUsize::new(0));
         let rpc_type = cfg.rpc_type();
 
         let invoke_channels = channels.clone();
+        let invoke_slots = slots.clone();
         let invoke_rr = rr_counter.clone();
         let invoke_tracker = stats_tracker.clone();
         let invoke_template = template_req.clone();
@@ -578,6 +668,7 @@ pub async fn run_client(
 
         let invoke = move || {
             let channels = invoke_channels.clone();
+            let slots = invoke_slots.clone();
             let rr = invoke_rr.clone();
             let tracker = invoke_tracker.clone();
             let template = invoke_template.clone();
@@ -589,16 +680,26 @@ pub async fn run_client(
                     return Err(RpcCallError::Other("cancelled".to_string()));
                 }
 
-                let idx = rr.fetch_add(1, Ordering::Relaxed) % channels.len();
+                let (idx, _slot) =
+                    match acquire_channel_slot(&slots, rr.fetch_add(1, Ordering::Relaxed)) {
+                        Ok(Some(slot)) => slot,
+                        Ok(None) => {
+                            tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
+                            return Err(RpcCallError::Status("RESOURCE_EXHAUSTED".into()));
+                        }
+                        Err(status) => {
+                            tracker.record_rejection(status.code() as i32);
+                            return Err(RpcCallError::Status(format!("{:?}", status.code())));
+                        }
+                    };
                 let client = &channels[idx];
-                let t0 = Instant::now();
 
                 tokio::select! {
                     _ = cancel_watch.changed() => {
                         std::future::pending::<()>().await;
                         Err(RpcCallError::Other("cancelled".to_string()))
                     }
-                    res = async {
+                    res = track_worker_rpc(&tracker, WORKER_RPC_TIMEOUT, async {
                         if rpc_type == RpcType::Unary {
                             client.unary_call(Request::new((*template).clone())).await.map(|_| ())
                         } else {
@@ -609,26 +710,19 @@ pub async fn run_client(
                             drop(sender);
                             Ok(())
                         }
-                    } => {
-                        let latency_nanos = t0.elapsed().as_nanos() as f64;
-                        match res {
-                            Ok(()) => {
-                                tracker.record_success(latency_nanos);
-                                Ok(())
-                            }
-                            Err(st) => {
-                                tracker.record_error(latency_nanos, st.code() as i32);
-                                Err(RpcCallError::Status(format!("{:?}", st.code())))
-                            }
-                        }
-                    }
+                    }) => res,
                 }
             }
         };
 
         let generator = LoadGenerator::new(load_cfg);
+        let rejection_tracker = stats_tracker.clone();
         let mut gen_handle = tokio::spawn(async move {
-            generator.run(invoke).await;
+            generator
+                .run_with_rejections(invoke, || {
+                    rejection_tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
+                })
+                .await;
         });
 
         // 5. Build and send initial ClientStatus

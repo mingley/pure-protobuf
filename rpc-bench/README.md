@@ -128,6 +128,16 @@ local smoke run establishes the paired, dedicated-host performance gate.
 - **`src/load.rs`**: High-performance load engine supporting bounded in-flight queuing, open-loop Poisson arrival intervals, and scheduling lag measurements.
 - **`src/resources.rs`**: Cross-platform process resource inspection using `getrusage` and Mach on macOS, and `getrusage` plus `/proc` on Linux to record user/system CPU seconds and resident RSS (not virtual address-space `VmPeak`).
 
+The native WorkerService enforces a local cap of 64 client channels, 256
+configured in-flight RPCs, and 65,536 histogram buckets before it dials or
+allocates work. Local Poisson admission rejections appear as
+`RESOURCE_EXHAUSTED` result counts, not synthetic latency samples. Its
+long-lived control stream uses bounded histogram/status counters rather than
+retaining every raw load-generator sample. These policies preserve the
+checked scenarios (at most one channel and 100 outstanding RPCs); see the
+[worker contract](../docs/benchmark-contract.md) for limits and qualification
+boundaries.
+
 ---
 
 ## 5. RT-07 Mixed-Load Diagnostic

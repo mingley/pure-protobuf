@@ -568,6 +568,136 @@ fn test_histogram_known_synthetic_latencies() {
     assert_eq!(d_reset.bucket().get(b_100k), Some(0));
 }
 
+#[test]
+fn worker_client_capacity_and_histogram_are_bounded_before_allocation() {
+    let mut config = ClientConfig::new();
+    config.set_client_channels(worker_client::MAX_WORKER_CLIENT_CHANNELS as i32);
+    config.set_outstanding_rpcs_per_channel(
+        (worker_client::MAX_WORKER_IN_FLIGHT_RPCS / worker_client::MAX_WORKER_CLIENT_CHANNELS)
+            as i32,
+    );
+    assert_eq!(
+        worker_client::checked_client_capacity(&config).unwrap(),
+        (
+            worker_client::MAX_WORKER_CLIENT_CHANNELS,
+            worker_client::MAX_WORKER_IN_FLIGHT_RPCS,
+        )
+    );
+
+    config.set_client_channels(worker_client::MAX_WORKER_CLIENT_CHANNELS as i32 + 1);
+    let error = worker_client::checked_client_capacity(&config).unwrap_err();
+    assert_eq!(error.code(), pbrs_grpc::Code::ResourceExhausted);
+    assert!(error.message().contains("client_channels"));
+
+    config.set_client_channels(worker_client::MAX_WORKER_CLIENT_CHANNELS as i32);
+    config.set_outstanding_rpcs_per_channel(
+        (worker_client::MAX_WORKER_IN_FLIGHT_RPCS / worker_client::MAX_WORKER_CLIENT_CHANNELS)
+            as i32
+            + 1,
+    );
+    let error = worker_client::checked_client_capacity(&config).unwrap_err();
+    assert_eq!(error.code(), pbrs_grpc::Code::ResourceExhausted);
+    assert!(error.message().contains("outstanding_rpcs_per_channel"));
+
+    config.set_client_channels(1);
+    config.set_outstanding_rpcs_per_channel(i32::MAX);
+    assert_eq!(
+        worker_client::checked_client_capacity(&config)
+            .unwrap_err()
+            .code(),
+        pbrs_grpc::Code::ResourceExhausted
+    );
+    config.set_outstanding_rpcs_per_channel(0);
+    assert_eq!(
+        worker_client::checked_client_capacity(&config)
+            .unwrap_err()
+            .code(),
+        pbrs_grpc::Code::InvalidArgument
+    );
+
+    assert_eq!(
+        Histogram::new(0.01, 60_000_000_000.0)
+            .unwrap()
+            .num_buckets(),
+        2495
+    );
+    let excessive = Histogram::new(0.01, f64::MAX).unwrap_err();
+    assert_eq!(excessive.code(), pbrs_grpc::Code::InvalidArgument);
+    assert!(excessive.message().contains("histogram bucket count"));
+    let overflow = Histogram::new(f64::MIN_POSITIVE, f64::MAX).unwrap_err();
+    assert_eq!(overflow.code(), pbrs_grpc::Code::ResourceExhausted);
+    assert!(
+        overflow
+            .message()
+            .contains("histogram bucket count overflow")
+    );
+}
+
+#[test]
+fn worker_channel_slots_never_exceed_per_channel_concurrency() {
+    let slots = [
+        std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+        std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+    ];
+    let (first, first_permit) = worker_client::acquire_channel_slot(&slots, 0)
+        .unwrap()
+        .unwrap();
+    let (second, second_permit) = worker_client::acquire_channel_slot(&slots, 0)
+        .unwrap()
+        .unwrap();
+    assert_eq!((first, second), (0, 1));
+    assert!(
+        worker_client::acquire_channel_slot(&slots, 0)
+            .unwrap()
+            .is_none()
+    );
+    drop(first_permit);
+    let (available, _permit) = worker_client::acquire_channel_slot(&slots, 1)
+        .unwrap()
+        .unwrap();
+    assert_eq!(available, 0);
+    drop(second_permit);
+}
+
+#[test]
+fn worker_rejections_are_counts_not_latency_samples() {
+    let tracker =
+        worker_client::ClientStatsTracker::new(Histogram::new(0.01, 60_000_000_000.0).unwrap());
+    tracker.record_success(100_000.0);
+    tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
+    let (histogram, results) = tracker.snapshot(true);
+    assert_eq!(histogram.count(), 1.0);
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].status_code(),
+        pbrs_grpc::Code::ResourceExhausted as i32
+    );
+    assert_eq!(results[0].count(), 1);
+    let (histogram, results) = tracker.snapshot(false);
+    assert_eq!(histogram.count(), 0.0);
+    assert!(results.is_empty());
+}
+
+#[tokio::test]
+async fn worker_rpc_timeout_is_a_counted_error_not_a_missing_sample() {
+    let tracker =
+        worker_client::ClientStatsTracker::new(Histogram::new(0.01, 60_000_000_000.0).unwrap());
+    let result = worker_client::track_worker_rpc(&tracker, Duration::from_millis(5), async {
+        std::future::pending::<Result<(), pbrs_grpc::Status>>().await
+    })
+    .await;
+    assert!(matches!(result, Err(load::RpcCallError::Timeout)));
+    let (histogram, results) = tracker.snapshot(false);
+    assert_eq!(histogram.count(), 1.0);
+    assert_eq!(histogram.min_seen(), 5_000_000.0);
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].status_code(),
+        pbrs_grpc::Code::DeadlineExceeded as i32
+    );
+    assert_eq!(results[0].count(), 1);
+}
+
 #[tokio::test]
 async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     let (addr, _quit_tx) = spawn_worker_service().await;
@@ -988,6 +1118,39 @@ async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
         client_threads,
         pbrs_grpc::Code::InvalidArgument,
         "unsupported client config option async_client_threads",
+    )
+    .await;
+
+    let mut too_many_channels = valid.clone();
+    too_many_channels.set_client_channels(worker_client::MAX_WORKER_CLIENT_CHANNELS as i32 + 1);
+    reject_client(
+        &client,
+        too_many_channels,
+        pbrs_grpc::Code::ResourceExhausted,
+        "client_channels",
+    )
+    .await;
+    let mut too_many_calls = valid.clone();
+    too_many_calls
+        .set_outstanding_rpcs_per_channel(worker_client::MAX_WORKER_IN_FLIGHT_RPCS as i32 + 1);
+    reject_client(
+        &client,
+        too_many_calls,
+        pbrs_grpc::Code::ResourceExhausted,
+        "outstanding_rpcs_per_channel",
+    )
+    .await;
+
+    let mut too_many_buckets = valid.clone();
+    let mut histogram = HistogramParams::new();
+    histogram.set_resolution(0.01);
+    histogram.set_max_possible(f64::MAX);
+    too_many_buckets.set_histogram_params(histogram);
+    reject_client(
+        &client,
+        too_many_buckets,
+        pbrs_grpc::Code::InvalidArgument,
+        "histogram bucket count",
     )
     .await;
 

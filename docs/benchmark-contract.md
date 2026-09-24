@@ -235,9 +235,23 @@ payload sizes fail likewise; sizes above the 4 MiB worker body cap fail with
 support for the upstream generic byte-buffer QPS scenarios. Explicit thread
 counts, core affinity, security, channel/session, coalescing and other
 unimplemented control options now fail rather than being silently ignored.
-Requested client channel/outstanding-call counts are positive but do not yet
-have a reviewed upper policy cap; these local checks are not an independent
-official QPS-driver qualification.
+The worker accepts at most **64 client channels**, **256 configured in-flight
+RPCs** (`client_channels * outstanding_rpcs_per_channel`), and **65,536
+histogram buckets**. This is a conservative local resource policy, not an
+upstream gRPC limit; the checked scenarios need at most one channel and 100
+configured in-flight RPCs. Oversized channel or RPC counts fail
+`RESOURCE_EXHAUSTED` **before dialing**, and oversized histograms fail
+before allocating their buckets. The Poisson generator uses the configured
+in-flight cap rather than silently allowing 1,000 calls when fewer were
+requested. Offered calls rejected at the local cap appear as
+`RESOURCE_EXHAUSTED` in `ClientStats.request_results`; they do **not** get
+a fabricated latency sample. Published benchmark comparisons still need
+independent offered/rejected-call evidence; a `ClientStats` histogram alone
+cannot prove all offered calls completed. A per-channel semaphore enforces
+the requested outstanding-call limit; a call is assigned to a free channel
+or rejected visibly, not silently queued behind a saturated channel.
+Per-channel scheduling behavior against the original driver is not yet
+independently qualified.
 
 WorkerService `CoreCount` and `RunServer` setup require an observed,
 i32-representable system CPU count; a failed probe returns a non-OK status
@@ -254,7 +268,12 @@ The load generator owns closed-loop and open-loop RPC tasks in a `JoinSet`,
 reaps completed calls during scheduling, then aborts and joins any unfinished
 calls after its bounded drain before freezing counters. Dropping the generator
 on control cancellation aborts its child RPC tasks instead of leaving detached
-365-day benchmark traffic behind. Synthetic tests cover status mapping and
+365-day benchmark traffic behind. Worker load retains constant-size counters
+instead of accumulating a raw latency/scheduling vector for the entire
+nominal 365-day control stream; the separate benchmark harness retains its
+raw samples. The WorkerService histogram records timed-out calls at their
+five-second deadline, and its generator counts those calls as failures.
+Synthetic tests cover status mapping and
 cleanup helpers; they do not inject a platform capture failure into a live
 control stream or prove every canceled child has finished before the control
 response is delivered. These local worker checks do not qualify BM-09/BM-10
