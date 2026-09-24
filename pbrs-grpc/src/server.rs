@@ -2433,8 +2433,10 @@ impl<S: Service> Server<S> {
 
     /// Register a lifecycle telemetry observer.
     ///
-    /// The observer receives low-cardinality lifecycle events for incoming RPCs:
+    /// The observer receives lifecycle events for incoming RPCs:
     /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
+    /// Peer-supplied paths and authorities are raw identity; use
+    /// [`crate::telemetry::MetricLabelPolicy`] for bounded metric labels.
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]
@@ -3465,8 +3467,10 @@ impl Router {
 
     /// Register a lifecycle telemetry observer.
     ///
-    /// The observer receives low-cardinality lifecycle events for all routed RPCs:
+    /// The observer receives lifecycle events for all routed RPCs:
     /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
+    /// Peer-supplied paths and authorities are raw identity; use
+    /// [`crate::telemetry::MetricLabelPolicy`] for bounded metric labels.
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]
@@ -4344,11 +4348,20 @@ where
                     },
                 };
                 let lease = busy.start();
+                let queued_at = dispatch
+                    .observer()
+                    .map(|_| std::time::Instant::now());
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
                 drop(tokio::spawn(async move {
                     let _lease = lease;
                     let _permit = permit;
+                    if let (Some(obs), Some(queued_at)) = (dispatch.observer(), queued_at) {
+                        let path = request.uri().path();
+                        let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                        let labels = CallLabels::new(path, authority, CallRole::Server);
+                        obs.on_server_queue_wait(&labels, queued_at.elapsed());
+                    }
                     dispatch
                         .dispatch(incoming_rpc(request, respond, config, rpc_peer))
                         .await;

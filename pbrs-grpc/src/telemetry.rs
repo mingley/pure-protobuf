@@ -1,12 +1,12 @@
-//! Low-cardinality lifecycle telemetry hooks.
+//! Lifecycle telemetry hooks and explicitly bounded metric labels.
 //!
 //! Exposes [`LifecycleObserver`] for monitoring gRPC call attempts, calls,
 //! status codes, latencies, queue wait times, payload bytes, transport reconnects,
-//! rejections, and cancellations with bounded labels.
+//! rejections, and cancellations. Observer events retain raw RPC identity;
+//! classify it through [`MetricLabelPolicy`] before using it as metric labels.
 //!
-//! Instrumentation is completely zero-overhead and allocation-free when disabled.
-//! When enabled, all labels remain strictly low-cardinality and free of sensitive
-//! authorization, cookie, credential, or payload content.
+//! The disabled observer path does not allocate telemetry labels. Metric
+//! labels are drawn only from a capped static allowlist or fallback bucket.
 
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
@@ -38,19 +38,20 @@ pub fn split_path(path: &str) -> (&str, &str) {
     }
 }
 
-/// Low-cardinality labels identifying an RPC call.
+/// Raw identity of an RPC call passed to lifecycle observers.
 ///
-/// Contains only static or bounded string references (service name, method name,
-/// full path, authority, role) and never contains headers, credentials, or payload data.
+/// A peer can supply an arbitrary path or authority, so these fields must not
+/// be used directly as metric labels. Use [`MetricLabelPolicy::call`] to bound
+/// cardinality and omit untrusted authority values from metrics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CallLabels<'a> {
-    /// Service half of the path (e.g. `helloworld.Greeter`).
+    /// Unverified service half of the path (e.g. `helloworld.Greeter`).
     pub service: &'a str,
-    /// Method half of the path (e.g. `SayHello`).
+    /// Unverified method half of the path (e.g. `SayHello`).
     pub method: &'a str,
-    /// Full gRPC path (e.g. `/helloworld.Greeter/SayHello`).
+    /// Unverified full gRPC path (e.g. `/helloworld.Greeter/SayHello`).
     pub path: &'a str,
-    /// Authority or host:port destination, if known.
+    /// Unverified authority or host:port destination, if known.
     pub authority: Option<&'a str>,
     /// Whether this is a client or server call.
     pub role: CallRole,
@@ -142,7 +143,151 @@ impl OwnedCallLabels {
     }
 }
 
-/// Low-cardinality labels identifying an RPC attempt within a call.
+/// Maximum number of explicit RPC paths accepted by a metric policy.
+pub const MAX_METRIC_RPCS: usize = 256;
+/// Maximum number of explicit reconnect targets accepted by a metric policy.
+pub const MAX_METRIC_TARGETS: usize = 16;
+/// Maximum byte length of one explicitly configured metric label.
+pub const MAX_METRIC_LABEL_BYTES: usize = 256;
+/// Fallback label shared by all unregistered RPC paths and reconnect targets.
+pub const OTHER_METRIC_LABEL: &str = "_other";
+
+/// Bounded RPC labels safe to use as metric dimensions.
+///
+/// The RPC name comes only from an explicitly configured static allowlist.
+/// Peer-supplied authority, metadata, and payloads are never included.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct MetricCallLabels {
+    rpc: &'static str,
+    role: CallRole,
+}
+
+impl MetricCallLabels {
+    /// Canonical registered RPC path or [`OTHER_METRIC_LABEL`].
+    #[must_use]
+    pub fn rpc(&self) -> &'static str {
+        self.rpc
+    }
+
+    /// Client or server perspective.
+    #[must_use]
+    pub fn role(&self) -> CallRole {
+        self.role
+    }
+}
+
+/// Explicit, allocation-free classifier for bounded lifecycle metric labels.
+///
+/// Register only reviewed static RPC paths and reconnect targets. Raw
+/// [`CallLabels`] and [`ReconnectEvent`] remain available for controlled
+/// diagnostics, but cannot create new metric label values through this policy.
+#[derive(Clone, Copy, Debug)]
+pub struct MetricLabelPolicy {
+    rpc_paths: &'static [&'static str],
+    reconnect_targets: &'static [&'static str],
+}
+
+impl MetricLabelPolicy {
+    /// Validate a static allowlist before an observer uses it for metrics.
+    ///
+    /// At most [`MAX_METRIC_RPCS`] RPC values plus one fallback and
+    /// [`MAX_METRIC_TARGETS`] reconnect targets plus one fallback are emitted.
+    ///
+    /// ```
+    /// use pbrs_grpc::{CallLabels, CallRole, MetricLabelPolicy, OTHER_METRIC_LABEL};
+    ///
+    /// let policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+    ///     .expect("valid static RPC path");
+    /// let unregistered = CallLabels::new(
+    ///     "/unknown.Service/Method123",
+    ///     Some("tenant-secret.example"),
+    ///     CallRole::Server,
+    /// );
+    /// assert_eq!(policy.call(&unregistered).rpc(), OTHER_METRIC_LABEL);
+    /// ```
+    pub fn new(
+        rpc_paths: &'static [&'static str],
+        reconnect_targets: &'static [&'static str],
+    ) -> Result<Self, Status> {
+        if rpc_paths.len() > MAX_METRIC_RPCS {
+            return Err(Status::invalid_argument(format!(
+                "metric RPC paths exceed the cap of {MAX_METRIC_RPCS}"
+            )));
+        }
+        if reconnect_targets.len() > MAX_METRIC_TARGETS {
+            return Err(Status::invalid_argument(format!(
+                "metric reconnect targets exceed the cap of {MAX_METRIC_TARGETS}"
+            )));
+        }
+        for (index, path) in rpc_paths.iter().enumerate() {
+            let (service, method) = split_path(path);
+            if path.len() > MAX_METRIC_LABEL_BYTES
+                || !path.starts_with('/')
+                || service.is_empty()
+                || method.is_empty()
+                || !service
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'.')
+                || !method
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+            {
+                return Err(Status::invalid_argument("invalid metric RPC path"));
+            }
+            if rpc_paths.iter().take(index).any(|prior| prior == path) {
+                return Err(Status::invalid_argument("duplicate metric RPC path"));
+            }
+        }
+        for (index, target) in reconnect_targets.iter().enumerate() {
+            if target.is_empty()
+                || target.len() > MAX_METRIC_LABEL_BYTES
+                || !target.bytes().all(|byte| byte.is_ascii_graphic())
+            {
+                return Err(Status::invalid_argument("invalid metric reconnect target"));
+            }
+            if reconnect_targets
+                .iter()
+                .take(index)
+                .any(|prior| prior == target)
+            {
+                return Err(Status::invalid_argument(
+                    "duplicate metric reconnect target",
+                ));
+            }
+        }
+        Ok(Self {
+            rpc_paths,
+            reconnect_targets,
+        })
+    }
+
+    /// Classify an RPC without reflecting raw peer-supplied path or authority.
+    #[must_use]
+    pub fn call(&self, call: &CallLabels<'_>) -> MetricCallLabels {
+        let rpc = self
+            .rpc_paths
+            .iter()
+            .copied()
+            .find(|path| *path == call.path)
+            .unwrap_or(OTHER_METRIC_LABEL);
+        MetricCallLabels {
+            rpc,
+            role: call.role,
+        }
+    }
+
+    /// Classify a reconnect using only a configured static target name.
+    #[must_use]
+    pub fn reconnect_target(&self, event: &ReconnectEvent<'_>) -> &'static str {
+        self.reconnect_targets
+            .iter()
+            .copied()
+            .find(|target| *target == event.target)
+            .unwrap_or(OTHER_METRIC_LABEL)
+    }
+}
+
+/// Raw identity of an RPC attempt within a call.
 ///
 /// An RPC call may have one or more attempts (initial attempt + transparent retries).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -254,7 +399,7 @@ pub struct ReconnectEvent<'a> {
     pub status: Option<Code>,
 }
 
-/// Zero-overhead observer for gRPC call lifecycles.
+/// Optional observer for gRPC call lifecycles.
 ///
 /// Implement this trait to receive structured notifications for:
 /// - Client call start and completion
@@ -291,7 +436,10 @@ pub trait LifecycleObserver: Send + Sync + 'static {
     /// Invoked when a client-side call experiences queue wait (e.g. pool acquisition or wait-for-ready).
     fn on_queue_wait(&self, _call: &CallLabels<'_>, _wait: Duration) {}
 
-    /// Invoked when a server-side call experiences queue wait before dispatch.
+    /// Invoked after server validation/admission for delay before the dispatch task starts.
+    ///
+    /// This is scheduling delay, not the complete listener/transport queue time.
+    /// Calls rejected before admission do not emit this event.
     fn on_server_queue_wait(&self, _call: &CallLabels<'_>, _wait: Duration) {}
 
     /// Invoked when payload/frame bytes are sent on an RPC.

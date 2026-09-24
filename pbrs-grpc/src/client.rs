@@ -1358,9 +1358,11 @@ impl Channel {
 
     /// Register a lifecycle telemetry observer.
     ///
-    /// The observer receives low-cardinality lifecycle events for outbound RPCs:
+    /// The observer receives lifecycle events for outbound RPCs:
     /// call start/end, attempt start/end (including transparent retries), queue wait,
     /// bytes sent/received, transport reconnects, rejections, and cancellations.
+    /// Paths and targets are raw identity; classify them through
+    /// [`crate::telemetry::MetricLabelPolicy`] before using them as metric labels.
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]

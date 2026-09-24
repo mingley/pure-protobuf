@@ -23,10 +23,11 @@ use common::{Echo, name_of, reply, req};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::telemetry::{
     AttemptLabels, CallLabels, CallRole, CancellationEvent, CancellationReason, DiagnosticConfig,
-    LifecycleObserver, MetadataMap, ReconnectEvent, RejectionEvent, RejectionReason,
-    TelemetryContext,
+    LifecycleObserver, MAX_METRIC_RPCS, MAX_METRIC_TARGETS, MetadataMap, MetricLabelPolicy,
+    OTHER_METRIC_LABEL, ReconnectEvent, RejectionEvent, RejectionReason, TelemetryContext,
 };
 use pbrs_grpc::{Channel, Code, Metadata, Request, Response, Router, Server, Status};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -329,11 +330,29 @@ async fn test_unary_success_exact_events_and_counts() {
         .iter()
         .filter(|e| matches!(e, RecordedEvent::ServerCallEnd { .. }))
         .count();
+    let server_waits = server_events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                RecordedEvent::QueueWait {
+                    role: CallRole::Server
+                }
+            )
+        })
+        .count();
     assert_eq!(srv_starts, 1, "Expected exactly 1 server_call_start");
     assert_eq!(srv_ends, 1, "Expected exactly 1 server_call_end");
+    assert_eq!(server_waits, 1, "Expected exactly 1 server queue wait");
 
     assert_eq!(
         server_events[0],
+        RecordedEvent::QueueWait {
+            role: CallRole::Server
+        }
+    );
+    assert_eq!(
+        server_events[1],
         RecordedEvent::ServerCallStart {
             service: "helloworld.Greeter".to_string(),
             method: "SayHello".to_string(),
@@ -633,6 +652,19 @@ async fn test_server_rejection_concurrency_limit() {
     assert!(
         rejections.contains(&(RejectionReason::ConcurrencyLimit, Code::ResourceExhausted)),
         "Server observer must record ConcurrencyLimit rejection"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                RecordedEvent::QueueWait {
+                    role: CallRole::Server
+                }
+            ))
+            .count(),
+        1,
+        "only the admitted RPC should emit a server queue-wait event"
     );
 
     server_handle.abort();
@@ -1016,7 +1048,7 @@ async fn test_bidi_streaming_telemetry() {
 }
 
 #[tokio::test]
-async fn test_disabled_instrumentation_zero_overhead() {
+async fn test_disabled_instrumentation_preserves_behavior() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("local_addr");
 
@@ -1027,7 +1059,7 @@ async fn test_disabled_instrumentation_zero_overhead() {
             .ok();
     });
 
-    // Default channel has observer == None (zero allocation, disabled)
+    // The default channel has no observer or telemetry label copies.
     let channel = Channel::connect(addr).await.expect("connect");
     let client = GreeterClient::new(channel);
 
@@ -1042,7 +1074,7 @@ async fn test_disabled_instrumentation_zero_overhead() {
 
 #[test]
 fn test_bounded_labels_safety() {
-    // Verify that labels contain bounded static strings and do NOT store payloads or credentials.
+    // Raw identity remains available to observers; only policy output is safe as metric labels.
     let labels = CallLabels::new(
         "/helloworld.Greeter/SayHello",
         Some("127.0.0.1:50051"),
@@ -1061,6 +1093,81 @@ fn test_bounded_labels_safety() {
     assert_eq!(attempt.attempt(), 1);
     assert_eq!(attempt.service(), "helloworld.Greeter");
     assert_eq!(attempt.method(), "SayHello");
+}
+
+#[test]
+fn test_metric_label_policy_bounds_peer_identity_and_reconnect_targets() {
+    let policy = MetricLabelPolicy::new(
+        &[
+            "/helloworld.Greeter/SayHello",
+            "/helloworld.Greeter/ServerHello",
+        ],
+        &["api.internal:443"],
+    )
+    .expect("static metric label policy");
+    let known = CallLabels::new(
+        "/helloworld.Greeter/SayHello",
+        Some("credential@attacker.example"),
+        CallRole::Server,
+    );
+    assert_eq!(policy.call(&known).rpc(), "/helloworld.Greeter/SayHello");
+    assert_eq!(policy.call(&known).role(), CallRole::Server);
+    assert!(!format!("{:?}", policy.call(&known)).contains("credential"));
+
+    let mut observed = HashSet::new();
+    for index in 0..1024 {
+        let path = format!("/peer.Service/Method{index}");
+        let authority = format!("secret-{index}@attacker.example");
+        let raw = CallLabels::new(&path, Some(&authority), CallRole::Server);
+        observed.insert(policy.call(&raw));
+        let reconnect = ReconnectEvent {
+            target: &authority,
+            attempt: index,
+            duration: Duration::ZERO,
+            status: None,
+        };
+        assert_eq!(policy.reconnect_target(&reconnect), OTHER_METRIC_LABEL);
+    }
+    assert_eq!(observed.len(), 1);
+    assert_eq!(
+        observed.iter().next().expect("fallback").rpc(),
+        OTHER_METRIC_LABEL
+    );
+    let reconnect = ReconnectEvent {
+        target: "api.internal:443",
+        attempt: 1,
+        duration: Duration::ZERO,
+        status: None,
+    };
+    assert_eq!(policy.reconnect_target(&reconnect), "api.internal:443");
+
+    static TOO_MANY_RPCS: [&str; MAX_METRIC_RPCS + 1] =
+        ["/helloworld.Greeter/SayHello"; MAX_METRIC_RPCS + 1];
+    static TOO_MANY_TARGETS: [&str; MAX_METRIC_TARGETS + 1] =
+        ["api.internal:443"; MAX_METRIC_TARGETS + 1];
+    let too_many_rpcs =
+        MetricLabelPolicy::new(&TOO_MANY_RPCS, &[]).expect_err("too many RPC labels must fail");
+    assert_eq!(too_many_rpcs.code(), Code::InvalidArgument);
+    assert!(too_many_rpcs.message().contains("RPC paths"));
+    let too_many_targets = MetricLabelPolicy::new(&[], &TOO_MANY_TARGETS)
+        .expect_err("too many reconnect labels must fail");
+    assert_eq!(too_many_targets.code(), Code::InvalidArgument);
+    assert!(too_many_targets.message().contains("reconnect targets"));
+    for result in [
+        MetricLabelPolicy::new(&["/missing-method"], &[]),
+        MetricLabelPolicy::new(
+            &[
+                "/helloworld.Greeter/SayHello",
+                "/helloworld.Greeter/SayHello",
+            ],
+            &[],
+        ),
+    ] {
+        assert_eq!(
+            result.expect_err("invalid metric policy must fail").code(),
+            Code::InvalidArgument
+        );
+    }
 }
 
 #[test]

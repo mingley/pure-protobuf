@@ -154,8 +154,47 @@ match client.say_hello(req).await {
 
 ---
 
+<a id="lifecycle-metrics"></a>
+## 5. Lifecycle Metrics and Bounded Labels
+
+`Server::observer`, `Router::observer`, and `Channel::observer` expose
+`LifecycleObserver` events for calls, attempts, queue delay, bytes, reconnects,
+rejections, and cancellations. Callbacks receive **raw** RPC paths and
+authorities: an inbound peer can supply arbitrarily many distinct values.
+Never use `CallLabels::path()`, `CallLabels::authority()`,
+`ReconnectEvent::target`, or the numeric attempt index directly as metric
+dimensions.
+
+Classify raw call identity with a reviewed static allowlist:
+
+```rust
+use pbrs_grpc::{CallLabels, CallRole, MetricLabelPolicy, OTHER_METRIC_LABEL};
+
+let policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+    .expect("reviewed method allowlist");
+let raw = CallLabels::new(
+    "/unknown.Service/Method123",
+    Some("peer-supplied-authority"),
+    CallRole::Server,
+);
+assert_eq!(policy.call(&raw).rpc(), OTHER_METRIC_LABEL);
+```
+
+The [compiled API example](../../pbrs-grpc/src/telemetry.rs) exercises this
+policy. In an observer callback, record `policy.call(call).rpc()` and `.role()`;
+use `policy.reconnect_target(event)` for a reconnect metric. Unregistered
+values all share `_other`. Configuration rejects more than 256 RPC paths or
+16 reconnect targets, malformed paths, duplicate entries, and labels over
+256 bytes. The policy itself has no exporter dependency or per-call label
+allocation; enabled observers may still copy identity across async lifecycles.
+Server queue wait measures post-admission scheduling until the dispatch task
+starts, **not** full listener or transport queue delay; pre-admission
+rejections have their own event. OpenTelemetry export is not built in.
+
+---
+
 <a id="testing"></a>
-## 5. Testing with In-Memory Channels (`from_io`)
+## 6. Testing with In-Memory Channels (`from_io`)
 
 To test services deterministically without opening TCP sockets or managing ports:
 
