@@ -2435,8 +2435,9 @@ impl<S: Service> Server<S> {
     ///
     /// The observer receives lifecycle events for incoming RPCs:
     /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
-    /// Peer-supplied paths and authorities are raw identity; use
-    /// [`crate::telemetry::MetricLabelPolicy`] for bounded metric labels.
+    /// Peer-supplied paths and authorities are raw identity. For metrics,
+    /// register a [`crate::telemetry::BoundedMetricObserver`] with a reviewed
+    /// [`crate::telemetry::MetricLabelPolicy`].
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]
@@ -3469,8 +3470,9 @@ impl Router {
     ///
     /// The observer receives lifecycle events for all routed RPCs:
     /// server call start/end, server queue wait, payload bytes, rejections, and cancellations.
-    /// Peer-supplied paths and authorities are raw identity; use
-    /// [`crate::telemetry::MetricLabelPolicy`] for bounded metric labels.
+    /// Peer-supplied paths and authorities are raw identity. For metrics,
+    /// register a [`crate::telemetry::BoundedMetricObserver`] with a reviewed
+    /// [`crate::telemetry::MetricLabelPolicy`].
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]

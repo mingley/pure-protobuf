@@ -3,7 +3,7 @@
 //! Exposes [`LifecycleObserver`] for monitoring gRPC call attempts, calls,
 //! status codes, latencies, queue wait times, payload bytes, transport reconnects,
 //! rejections, and cancellations. Observer events retain raw RPC identity;
-//! classify it through [`MetricLabelPolicy`] before using it as metric labels.
+//! register a [`BoundedMetricObserver`] with a [`MetricLabelPolicy`] for metrics.
 //!
 //! The disabled observer path does not allocate telemetry labels. Metric
 //! labels are drawn only from a capped static allowlist or fallback bucket.
@@ -413,7 +413,9 @@ pub struct ReconnectEvent<'a> {
 ///
 /// All methods have default no-op implementations, so listeners only implement
 /// the events they require. Methods accept borrowed labels to ensure zero heap
-/// allocations during telemetry dispatch.
+/// allocations during telemetry dispatch. These callbacks may include raw
+/// peer-controlled identity or status text; use [`BoundedMetricObserver`]
+/// instead when exporting metrics.
 pub trait LifecycleObserver: Send + Sync + 'static {
     /// Invoked when a client-side RPC call is initiated.
     fn on_call_start(&self, _call: &CallLabels<'_>) {}
@@ -459,6 +461,288 @@ pub trait LifecycleObserver: Send + Sync + 'static {
 
     /// Invoked when diagnostic telemetry context is captured for an RPC.
     fn on_telemetry_context(&self, _ctx: &TelemetryContext<'_>) {}
+}
+
+/// Bounded classification of a raw attempt index for metric dimensions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum MetricAttemptClass {
+    /// First attempt of a call.
+    Initial,
+    /// Transparent retry after the first attempt.
+    Retry,
+    /// Invalid zero attempt index supplied by a caller.
+    Invalid,
+}
+
+impl MetricAttemptClass {
+    fn from_index(index: u32) -> Self {
+        match index {
+            0 => Self::Invalid,
+            1 => Self::Initial,
+            _ => Self::Retry,
+        }
+    }
+}
+
+/// Lifecycle event whose identity fields cannot contain peer-controlled strings.
+///
+/// Durations, byte counts, status codes, and rejection/cancellation reasons are
+/// observations, not new metric label values. The raw status message, metadata,
+/// payload, authority, and numeric attempt index are never forwarded.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum MetricEvent {
+    /// A client call started.
+    CallStart {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+    },
+    /// A client call finished.
+    CallEnd {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Bounded status code.
+        code: Code,
+        /// Total call duration.
+        latency: Duration,
+    },
+    /// A client attempt started.
+    AttemptStart {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// First, retry, or invalid attempt class.
+        class: MetricAttemptClass,
+    },
+    /// A client attempt finished.
+    AttemptEnd {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// First, retry, or invalid attempt class.
+        class: MetricAttemptClass,
+        /// Bounded status code.
+        code: Code,
+        /// Attempt duration.
+        latency: Duration,
+    },
+    /// A server call started.
+    ServerCallStart {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+    },
+    /// A server call finished.
+    ServerCallEnd {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Bounded status code.
+        code: Code,
+        /// Total call duration.
+        latency: Duration,
+    },
+    /// A client waited to acquire a connection or slot.
+    ClientQueueWait {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Observed wait duration.
+        wait: Duration,
+    },
+    /// A server waited between admission and dispatch.
+    ServerQueueWait {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Post-admission scheduling delay, not full transport queue time.
+        wait: Duration,
+    },
+    /// Bytes sent for one call.
+    BytesSent {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Byte count, used as a value rather than a label.
+        bytes: usize,
+    },
+    /// Bytes received for one call.
+    BytesReceived {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Byte count, used as a value rather than a label.
+        bytes: usize,
+    },
+    /// A reconnect/redial finished.
+    Reconnect {
+        /// Static allowlisted or fallback target.
+        target: &'static str,
+        /// First, retry, or invalid attempt class.
+        class: MetricAttemptClass,
+        /// Resulting bounded status code, or None on success.
+        status: Option<Code>,
+        /// Reconnect duration.
+        duration: Duration,
+    },
+    /// A call was rejected before handler execution.
+    Rejection {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Bounded rejection reason.
+        reason: RejectionReason,
+        /// Bounded status code.
+        code: Code,
+    },
+    /// A call was cancelled.
+    Cancellation {
+        /// Static or fallback RPC identity.
+        call: MetricCallLabels,
+        /// Bounded cancellation reason.
+        reason: CancellationReason,
+    },
+}
+
+/// Receiver for lifecycle events with bounded identity and no raw diagnostics.
+pub trait MetricSink: Send + Sync + 'static {
+    /// Record one event without receiving raw peer data or credential-bearing status messages.
+    fn record(&self, event: MetricEvent);
+}
+
+impl<S: MetricSink + ?Sized> MetricSink for Arc<S> {
+    fn record(&self, event: MetricEvent) {
+        (**self).record(event);
+    }
+}
+
+/// Adapts raw lifecycle hooks into events safe for bounded metric dimensions.
+///
+/// Unlike a directly registered [`LifecycleObserver`], this adapter cannot
+/// forward raw paths, authorities, payloads, metadata, or status messages
+/// to the sink. Raw diagnostic telemetry contexts are intentionally ignored.
+///
+/// ```
+/// use pbrs_grpc::{
+///     BoundedMetricObserver, CallLabels, CallRole, LifecycleObserver, MetricEvent,
+///     MetricLabelPolicy, MetricSink, OTHER_METRIC_LABEL,
+/// };
+///
+/// struct Check;
+/// impl MetricSink for Check {
+///     fn record(&self, event: MetricEvent) {
+///         if let MetricEvent::ServerCallStart { call } = event {
+///             assert_eq!(call.rpc(), OTHER_METRIC_LABEL);
+///         }
+///     }
+/// }
+/// let policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+///     .expect("valid allowlist");
+/// let observer = BoundedMetricObserver::new(policy, Check);
+/// let raw = CallLabels::new("/unregistered.Service/Call", Some("peer-secret"), CallRole::Server);
+/// observer.on_server_call_start(&raw);
+/// ```
+pub struct BoundedMetricObserver<S: MetricSink> {
+    policy: MetricLabelPolicy,
+    sink: S,
+}
+
+impl<S: MetricSink> BoundedMetricObserver<S> {
+    /// Bind a validated static label policy to a metric event receiver.
+    #[must_use]
+    pub fn new(policy: MetricLabelPolicy, sink: S) -> Self {
+        Self { policy, sink }
+    }
+}
+
+impl<S: MetricSink> LifecycleObserver for BoundedMetricObserver<S> {
+    fn on_call_start(&self, call: &CallLabels<'_>) {
+        self.sink.record(MetricEvent::CallStart {
+            call: self.policy.call(call),
+        });
+    }
+
+    fn on_call_end(&self, call: &CallLabels<'_>, status: &Status, latency: Duration) {
+        self.sink.record(MetricEvent::CallEnd {
+            call: self.policy.call(call),
+            code: status.code(),
+            latency,
+        });
+    }
+
+    fn on_attempt_start(&self, attempt: &AttemptLabels<'_>) {
+        self.sink.record(MetricEvent::AttemptStart {
+            call: self.policy.call(attempt.call()),
+            class: MetricAttemptClass::from_index(attempt.attempt()),
+        });
+    }
+
+    fn on_attempt_end(&self, attempt: &AttemptLabels<'_>, status: &Status, latency: Duration) {
+        self.sink.record(MetricEvent::AttemptEnd {
+            call: self.policy.call(attempt.call()),
+            class: MetricAttemptClass::from_index(attempt.attempt()),
+            code: status.code(),
+            latency,
+        });
+    }
+
+    fn on_server_call_start(&self, call: &CallLabels<'_>) {
+        self.sink.record(MetricEvent::ServerCallStart {
+            call: self.policy.call(call),
+        });
+    }
+
+    fn on_server_call_end(&self, call: &CallLabels<'_>, status: &Status, latency: Duration) {
+        self.sink.record(MetricEvent::ServerCallEnd {
+            call: self.policy.call(call),
+            code: status.code(),
+            latency,
+        });
+    }
+
+    fn on_queue_wait(&self, call: &CallLabels<'_>, wait: Duration) {
+        self.sink.record(MetricEvent::ClientQueueWait {
+            call: self.policy.call(call),
+            wait,
+        });
+    }
+
+    fn on_server_queue_wait(&self, call: &CallLabels<'_>, wait: Duration) {
+        self.sink.record(MetricEvent::ServerQueueWait {
+            call: self.policy.call(call),
+            wait,
+        });
+    }
+
+    fn on_bytes_sent(&self, call: &CallLabels<'_>, bytes: usize) {
+        self.sink.record(MetricEvent::BytesSent {
+            call: self.policy.call(call),
+            bytes,
+        });
+    }
+
+    fn on_bytes_received(&self, call: &CallLabels<'_>, bytes: usize) {
+        self.sink.record(MetricEvent::BytesReceived {
+            call: self.policy.call(call),
+            bytes,
+        });
+    }
+
+    fn on_reconnect(&self, event: &ReconnectEvent<'_>) {
+        self.sink.record(MetricEvent::Reconnect {
+            target: self.policy.reconnect_target(event),
+            class: MetricAttemptClass::from_index(event.attempt),
+            status: event.status,
+            duration: event.duration,
+        });
+    }
+
+    fn on_rejection(&self, event: &RejectionEvent<'_>) {
+        self.sink.record(MetricEvent::Rejection {
+            call: self.policy.call(&event.call),
+            reason: event.reason,
+            code: event.code,
+        });
+    }
+
+    fn on_cancellation(&self, event: &CancellationEvent<'_>) {
+        self.sink.record(MetricEvent::Cancellation {
+            call: self.policy.call(&event.call),
+            reason: event.reason,
+        });
+    }
 }
 
 /// Chained observer running `first` then `second`.

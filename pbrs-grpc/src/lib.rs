@@ -1139,10 +1139,11 @@ pub use server::{
 pub use status::{Code, ParseCodeError, Status};
 pub use stream::{Framed, StreamSender, Streaming};
 pub use telemetry::{
-    AttemptLabels, CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver,
-    MAX_METRIC_LABEL_BYTES, MAX_METRIC_RPCS, MAX_METRIC_TARGETS, MetricCallLabels,
-    MetricLabelPolicy, OTHER_METRIC_LABEL, ObserverChain, OwnedCallLabels, ReconnectEvent,
-    RejectionEvent, RejectionReason,
+    AttemptLabels, BoundedMetricObserver, CallLabels, CallRole, CancellationEvent,
+    CancellationReason, LifecycleObserver, MAX_METRIC_LABEL_BYTES, MAX_METRIC_RPCS,
+    MAX_METRIC_TARGETS, MetricAttemptClass, MetricCallLabels, MetricEvent, MetricLabelPolicy,
+    MetricSink, OTHER_METRIC_LABEL, ObserverChain, OwnedCallLabels, ReconnectEvent, RejectionEvent,
+    RejectionReason,
 };
 pub use tls::{ClientTls, Identity, PeerIdentity, ServerTls};
 

@@ -180,13 +180,20 @@ let raw = CallLabels::new(
 assert_eq!(policy.call(&raw).rpc(), OTHER_METRIC_LABEL);
 ```
 
-The [compiled API example](../../pbrs-grpc/src/telemetry.rs) exercises this
-policy. In an observer callback, record `policy.call(call).rpc()` and `.role()`;
-use `policy.reconnect_target(event)` for a reconnect metric. Unregistered
-values all share `_other`. Configuration rejects more than 256 RPC paths or
-16 reconnect targets, malformed paths, duplicate entries, and labels over
-256 bytes. The policy itself has no exporter dependency or per-call label
-allocation; enabled observers may still copy identity across async lifecycles.
+For an exporter, implement `MetricSink::record(MetricEvent)` and register
+`BoundedMetricObserver::new(policy, sink)` with `Server::observer`,
+`Router::observer`, or `Channel::observer`. The
+[compiled API example](../../pbrs-grpc/src/telemetry.rs) shows this adapter.
+It forwards only allowlisted or `_other` RPC/target labels, a bounded
+initial/retry/invalid attempt class, status/rejection/cancellation enums,
+durations and byte counts. It never forwards raw status messages,
+authorities, metadata, payloads, or diagnostic telemetry contexts. Direct
+`LifecycleObserver` implementations still receive raw identity and require
+explicit classification before exporting. Configuration rejects more than
+256 RPC paths or 16 reconnect targets, malformed paths, duplicate entries,
+and labels over 256 bytes. The policy itself has no exporter dependency or
+per-call label allocation; enabled observers may still copy identity across
+async lifecycles.
 Server queue wait measures post-admission scheduling until the dispatch task
 starts, **not** full listener or transport queue delay; pre-admission
 rejections have their own event. OpenTelemetry export is not built in.

@@ -1361,8 +1361,9 @@ impl Channel {
     /// The observer receives lifecycle events for outbound RPCs:
     /// call start/end, attempt start/end (including transparent retries), queue wait,
     /// bytes sent/received, transport reconnects, rejections, and cancellations.
-    /// Paths and targets are raw identity; classify them through
-    /// [`crate::telemetry::MetricLabelPolicy`] before using them as metric labels.
+    /// Paths and targets are raw identity. For metrics, register a
+    /// [`crate::telemetry::BoundedMetricObserver`] with a reviewed
+    /// [`crate::telemetry::MetricLabelPolicy`].
     ///
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]

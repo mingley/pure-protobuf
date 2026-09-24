@@ -22,8 +22,9 @@ mod common;
 use common::{Echo, name_of, reply, req};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::telemetry::{
-    AttemptLabels, CallLabels, CallRole, CancellationEvent, CancellationReason, DiagnosticConfig,
-    LifecycleObserver, MAX_METRIC_RPCS, MAX_METRIC_TARGETS, MetadataMap, MetricLabelPolicy,
+    AttemptLabels, BoundedMetricObserver, CallLabels, CallRole, CancellationEvent,
+    CancellationReason, DiagnosticConfig, LifecycleObserver, MAX_METRIC_RPCS, MAX_METRIC_TARGETS,
+    MetadataMap, MetricAttemptClass, MetricEvent, MetricLabelPolicy, MetricSink,
     OTHER_METRIC_LABEL, ReconnectEvent, RejectionEvent, RejectionReason, TelemetryContext,
 };
 use pbrs_grpc::{Channel, Code, Metadata, Request, Response, Router, Server, Status};
@@ -92,6 +93,23 @@ enum RecordedEvent {
 #[derive(Default, Clone)]
 struct RecordingObserver {
     events: Arc<Mutex<Vec<RecordedEvent>>>,
+}
+
+#[derive(Default, Clone)]
+struct RecordingMetricSink {
+    events: Arc<Mutex<Vec<MetricEvent>>>,
+}
+
+impl RecordingMetricSink {
+    fn events(&self) -> Vec<MetricEvent> {
+        self.events.lock().expect("metric sink lock").clone()
+    }
+}
+
+impl MetricSink for RecordingMetricSink {
+    fn record(&self, event: MetricEvent) {
+        self.events.lock().expect("metric sink lock").push(event);
+    }
 }
 
 impl RecordingObserver {
@@ -373,6 +391,9 @@ async fn test_unary_success_exact_events_and_counts() {
 #[tokio::test]
 async fn test_failed_setup_client_interceptor_exact_events() {
     let client_observer = RecordingObserver::new();
+    let metric_sink = RecordingMetricSink::default();
+    let metric_policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+        .expect("reviewed metric label policy");
 
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("local_addr");
@@ -392,6 +413,10 @@ async fn test_failed_setup_client_interceptor_exact_events() {
         .await
         .expect("connect")
         .observer(client_observer.clone())
+        .observer(BoundedMetricObserver::new(
+            metric_policy,
+            metric_sink.clone(),
+        ))
         .intercept(reject_token);
     let client = GreeterClient::new(channel);
 
@@ -455,6 +480,31 @@ async fn test_failed_setup_client_interceptor_exact_events() {
             role: CallRole::Client,
         }
     );
+    let metric_events = metric_sink.events();
+    assert_eq!(
+        metric_events.len(),
+        3,
+        "failed setup must not emit an attempt"
+    );
+    assert!(matches!(
+        metric_events.first(),
+        Some(MetricEvent::CallStart { .. })
+    ));
+    assert!(matches!(
+        metric_events.get(1),
+        Some(MetricEvent::Rejection {
+            reason: RejectionReason::ClientInterceptor,
+            code: Code::Unauthenticated,
+            ..
+        })
+    ));
+    assert!(matches!(
+        metric_events.last(),
+        Some(MetricEvent::CallEnd {
+            code: Code::Unauthenticated,
+            ..
+        })
+    ));
 
     server_handle.abort();
 }
@@ -462,6 +512,9 @@ async fn test_failed_setup_client_interceptor_exact_events() {
 #[tokio::test]
 async fn test_transparent_retry_exact_event_counts_and_order() {
     let client_observer = RecordingObserver::new();
+    let metric_sink = RecordingMetricSink::default();
+    let metric_policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+        .expect("reviewed metric label policy");
 
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("local_addr");
@@ -503,7 +556,11 @@ async fn test_transparent_retry_exact_event_counts_and_order() {
     let channel = Channel::connect(addr)
         .await
         .expect("connect")
-        .observer(client_observer.clone());
+        .observer(client_observer.clone())
+        .observer(BoundedMetricObserver::new(
+            metric_policy,
+            metric_sink.clone(),
+        ));
     let client = GreeterClient::new(channel);
 
     let reply = client
@@ -578,6 +635,76 @@ async fn test_transparent_retry_exact_event_counts_and_order() {
     assert!(attempt_1_start_idx < attempt_1_end_idx);
     assert!(attempt_1_end_idx < attempt_2_start_idx);
     assert!(attempt_2_start_idx < attempt_2_end_idx);
+
+    let metric_events = metric_sink.events();
+    assert_eq!(
+        metric_events
+            .iter()
+            .filter(|event| matches!(event, MetricEvent::CallStart { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        metric_events
+            .iter()
+            .filter(|event| matches!(event, MetricEvent::CallEnd { code: Code::Ok, .. }))
+            .count(),
+        1
+    );
+    let position = |predicate: fn(&MetricEvent) -> bool| {
+        metric_events
+            .iter()
+            .position(predicate)
+            .expect("expected bounded metric event")
+    };
+    let first_start = position(|event| {
+        matches!(
+            event,
+            MetricEvent::AttemptStart {
+                class: MetricAttemptClass::Initial,
+                ..
+            }
+        )
+    });
+    let first_end = position(|event| {
+        matches!(
+            event,
+            MetricEvent::AttemptEnd {
+                class: MetricAttemptClass::Initial,
+                code: Code::Unavailable,
+                ..
+            }
+        )
+    });
+    let retry_start = position(|event| {
+        matches!(
+            event,
+            MetricEvent::AttemptStart {
+                class: MetricAttemptClass::Retry,
+                ..
+            }
+        )
+    });
+    let retry_end = position(|event| {
+        matches!(
+            event,
+            MetricEvent::AttemptEnd {
+                class: MetricAttemptClass::Retry,
+                code: Code::Ok,
+                ..
+            }
+        )
+    });
+    assert!(first_start < first_end && first_end < retry_start && retry_start < retry_end);
+    assert!(metric_events.iter().any(|event| {
+        matches!(
+            event,
+            MetricEvent::Reconnect {
+                target: OTHER_METRIC_LABEL,
+                ..
+            }
+        )
+    }));
 }
 
 #[tokio::test]
@@ -1168,6 +1295,204 @@ fn test_metric_label_policy_bounds_peer_identity_and_reconnect_targets() {
             Code::InvalidArgument
         );
     }
+}
+
+#[test]
+fn test_bounded_metric_observer_forwards_only_typed_events() {
+    let sink = RecordingMetricSink::default();
+    let policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+        .expect("reviewed metric label policy");
+    let observer = BoundedMetricObserver::new(policy, sink.clone());
+    let raw = CallLabels::new(
+        "/peer.Service/credential123",
+        Some("Bearer credential123"),
+        CallRole::Server,
+    );
+    let fallback = policy.call(&raw);
+    let denied = Status::unauthenticated("Bearer credential123");
+    observer.on_server_queue_wait(&raw, Duration::from_millis(1));
+    observer.on_server_call_start(&raw);
+    observer.on_bytes_received(&raw, 8);
+    observer.on_rejection(&RejectionEvent {
+        call: raw,
+        reason: RejectionReason::ServerInterceptor,
+        code: denied.code(),
+    });
+    observer.on_server_call_end(&raw, &denied, Duration::from_millis(2));
+    observer.on_cancellation(&CancellationEvent {
+        call: raw,
+        reason: CancellationReason::CallerCancelled,
+    });
+
+    let client = CallLabels::new(
+        "/helloworld.Greeter/SayHello",
+        Some("Bearer credential123"),
+        CallRole::Client,
+    );
+    let registered = policy.call(&client);
+    observer.on_call_start(&client);
+    observer.on_attempt_start(&AttemptLabels::new(client, 1));
+    observer.on_queue_wait(&client, Duration::from_millis(3));
+    observer.on_bytes_sent(&client, 16);
+    observer.on_attempt_end(
+        &AttemptLabels::new(client, 42),
+        &Status::unavailable("credential123"),
+        Duration::from_millis(4),
+    );
+    observer.on_call_end(&client, &denied, Duration::from_millis(5));
+    observer.on_reconnect(&ReconnectEvent {
+        target: "Bearer credential123",
+        attempt: 0,
+        duration: Duration::from_millis(6),
+        status: Some(Code::Unavailable),
+    });
+
+    let events = sink.events();
+    assert_eq!(
+        events,
+        vec![
+            MetricEvent::ServerQueueWait {
+                call: fallback,
+                wait: Duration::from_millis(1),
+            },
+            MetricEvent::ServerCallStart { call: fallback },
+            MetricEvent::BytesReceived {
+                call: fallback,
+                bytes: 8,
+            },
+            MetricEvent::Rejection {
+                call: fallback,
+                reason: RejectionReason::ServerInterceptor,
+                code: Code::Unauthenticated,
+            },
+            MetricEvent::ServerCallEnd {
+                call: fallback,
+                code: Code::Unauthenticated,
+                latency: Duration::from_millis(2),
+            },
+            MetricEvent::Cancellation {
+                call: fallback,
+                reason: CancellationReason::CallerCancelled,
+            },
+            MetricEvent::CallStart { call: registered },
+            MetricEvent::AttemptStart {
+                call: registered,
+                class: MetricAttemptClass::Initial,
+            },
+            MetricEvent::ClientQueueWait {
+                call: registered,
+                wait: Duration::from_millis(3),
+            },
+            MetricEvent::BytesSent {
+                call: registered,
+                bytes: 16,
+            },
+            MetricEvent::AttemptEnd {
+                call: registered,
+                class: MetricAttemptClass::Retry,
+                code: Code::Unavailable,
+                latency: Duration::from_millis(4),
+            },
+            MetricEvent::CallEnd {
+                call: registered,
+                code: Code::Unauthenticated,
+                latency: Duration::from_millis(5),
+            },
+            MetricEvent::Reconnect {
+                target: OTHER_METRIC_LABEL,
+                class: MetricAttemptClass::Invalid,
+                status: Some(Code::Unavailable),
+                duration: Duration::from_millis(6),
+            },
+        ]
+    );
+    let rendered = format!("{events:?}");
+    assert!(!rendered.contains("credential123"), "{rendered}");
+    assert!(!rendered.contains("peer.Service"), "{rendered}");
+
+    let mut metadata = Metadata::new();
+    metadata
+        .insert("authorization", "Bearer credential123")
+        .expect("test credential header");
+    observer.on_telemetry_context(&TelemetryContext::new(raw).with_metadata(&metadata));
+    assert_eq!(
+        sink.events(),
+        events,
+        "raw diagnostic context reached the metric sink"
+    );
+}
+
+#[tokio::test]
+async fn test_bounded_metric_observer_receives_real_unary_lifecycle() {
+    let client_sink = RecordingMetricSink::default();
+    let server_sink = RecordingMetricSink::default();
+    let policy = MetricLabelPolicy::new(&["/helloworld.Greeter/SayHello"], &[])
+        .expect("reviewed metric label policy");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let sink = server_sink.clone();
+    let server_handle = tokio::spawn(async move {
+        Server::new(GreeterServer::new(EchoService))
+            .observer(BoundedMetricObserver::new(policy, sink))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = Channel::connect(addr)
+        .await
+        .expect("connect")
+        .observer(BoundedMetricObserver::new(policy, client_sink.clone()));
+    let response = GreeterClient::new(channel)
+        .say_hello(Request::new(req("metric")))
+        .await
+        .expect("bounded metric unary");
+    assert_eq!(name_of(response.get_ref()), "metric");
+
+    let client = client_sink.events();
+    assert!(
+        matches!(client.first(), Some(MetricEvent::CallStart { call })
+        if call.rpc() == "/helloworld.Greeter/SayHello" && call.role() == CallRole::Client)
+    );
+    assert_eq!(
+        client
+            .iter()
+            .filter(|event| matches!(
+                event,
+                MetricEvent::AttemptStart {
+                    class: MetricAttemptClass::Initial,
+                    ..
+                }
+            ))
+            .count(),
+        1
+    );
+    assert!(matches!(
+        client.last(),
+        Some(MetricEvent::CallEnd { code: Code::Ok, .. })
+    ));
+
+    let server = server_sink.events();
+    assert!(
+        matches!(server.first(), Some(MetricEvent::ServerQueueWait { call, .. })
+        if call.rpc() == "/helloworld.Greeter/SayHello" && call.role() == CallRole::Server)
+    );
+    assert!(matches!(
+        server.get(1),
+        Some(MetricEvent::ServerCallStart { .. })
+    ));
+    assert!(matches!(
+        server.last(),
+        Some(MetricEvent::ServerCallEnd { code: Code::Ok, .. })
+    ));
+    assert_eq!(
+        server
+            .iter()
+            .filter(|event| matches!(event, MetricEvent::ServerQueueWait { .. }))
+            .count(),
+        1
+    );
+    server_handle.abort();
 }
 
 #[test]
