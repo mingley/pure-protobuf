@@ -1702,7 +1702,8 @@
         "native-rpc"
       ],
       "evidence": [
-        "Partial 2026-09-23: 2584e5c1 adds a bounded separate-process native mixed-load diagnostic with scheduled unary probes competing with bulk streams. Benchmark tests passed, but qualification.qualified remains false: full queue delay, exact permit/high-water byte gauges, other five cells and paired dedicated-host evidence are missing."
+        "Partial 2026-09-23: 2584e5c1 adds a bounded separate-process native mixed-load diagnostic with scheduled unary probes competing with bulk streams. Benchmark tests passed, but qualification.qualified remains false: full queue delay, exact permit/high-water byte gauges, other five cells and paired dedicated-host evidence are missing.",
+        "Partial 2026-09-24: the server lifecycle observer now emits post-admission scheduling delay once before dispatch, but this is not complete listener/transport queue time. It does not provide the missing permit/high-water gauges or dedicated-host paired fairness proof; RT-07 remains open."
       ]
     },
     {
@@ -2122,6 +2123,9 @@
       "checks": [
         "codec-bench",
         "shape-bench"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: tonic-bench directly times first encode after parse for pbrs/prost/v4 using the same checked wire, prepared-message count, and a fail-closed estimated 32 MiB budget; historical cached-encode gates remain unchanged. Two deterministic helper tests passed and a bounded local release run produced 2 published-shape plus 19 common-shape first-encode rows with finite positive cells and a retained ignored raw log under target/bench-logs. These are local smoke results, not dated independent performance qualification. Constructor/mutation parity, exhaustive touch, retained memory, holdouts, and publishable raw paired results remain BM-03 work."
       ]
     },
     {
@@ -2860,6 +2864,9 @@
       "checks": [
         "native-rpc",
         "native-serving"
+      ],
+      "evidence": [
+        "Partial 2026-09-24: optional MetricLabelPolicy accepts at most 256 reviewed static RPC paths, 16 reconnect targets and 256-byte labels; 1024 distinct peer paths and authorities collapse to one fallback metric label. Server observers now emit post-admission scheduling delay once per admitted RPC, not for pre-admission rejections. Local telemetry 19/19, pbrs-grpc doctests 163/163, strict rustdoc/Clippy and native serving/resource/health/reflection/rpc tests passed without an exporter dependency. Raw CallLabels remain available in observer callbacks; metric consumers must opt into the bounded policy, and disabled-allocation overhead was not independently measured. Do not claim safe-by-default metric export or close OB-01 until that remaining public-hook boundary is settled."
       ]
     },
     {
