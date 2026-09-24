@@ -31,11 +31,12 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
    `person_generated` uses the compiler-generated layout (`Repeated<LazyStr>`,
    `Map<LazyStr, i32>`).
 2. **Buffer Ownership (Owned vs. View Decode)**:
-   Owned decoders (`pbrs`, `prost`, `v4 upb`, `buffa owned`) materialize
-   standalone data structures on the heap that can outlive the input buffer.
-   Borrowed view decoders (`buffa view`) borrow slices directly from the input
-   wire bytes without allocating. Following the Equivalence Rule, owned and view
-   decoders are evaluated and reported in separate distinct columns.
+   Owned decoders (`pbrs`, `prost`, `v4 upb`, `buffa owned`) produce messages
+   independent of the caller's input lifetime. pbrs can retain its own wire
+   backing and defer field materialization; prost eagerly owns fields, while
+   v4 uses an upb Arena. Borrowed view decoders (`buffa view`) borrow slices
+   directly from the input wire bytes. Following the Equivalence Rule, owned
+   and view decoders are reported in separate columns.
 3. **Fresh vs. Cached Encode & Mutation**:
    - *Cached Encode*: Measures re-serializing a message whose length
      (`cached_size`) and canonical packed varint representations
@@ -44,9 +45,11 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
      message before canonical caches are warmed. Parsing and preparation happen
      outside the timed interval; each prepared message is encoded exactly once.
      `fresh_encode_iters` is capped at 10,000 and an estimated 32 MiB of prepared
-     inputs per sample, so it can differ from the main row's `iters`. This is a
-     direct measurement, not the difference between parse+encode and parse
-     medians or a result clamped to cached encode.
+     inputs per sample in `bench`, so it can differ from the main row's `iters`.
+     The current `bench` and `tonic-bench` executables directly time this path;
+     historical tonic tables below predate that fix and must not be read as
+     direct first-encode measurements. Construction/field assignment is not
+     included in this parse-prepared diagnostic.
    - *Mutated Encode*: Alternates the mutated field between distinct values
      before every encode to include cache invalidation and size recomputation.
      Full encoded buffers, rather than only their lengths, are consumed by the
@@ -73,7 +76,9 @@ prost, v4, or buffa owned. Twelve cases are gated: the original nine plus
 `packed_fixed64_256`, `packed_float_256`, and `repeated_nested_8`. Buffa
 view is gated except `tat_populated`, `person`, and the packed-fixed rows
 (view does not build an owned `Vec`; person and `tat_populated` sit in a
-~3% band versus buffa view and are not a process gate).
+~3% band versus buffa view and are not a process gate). These legacy
+owned-versus-view gates are smoke checks only, not comparable codec evidence
+under the benchmark contract; replacing them requires BM-13.
 
 JSON, text, proto2 required, maps larger than 64, and WKT are not gated.
 1 MiB and 5 MiB rows are reported below and are not gated. Iters drop
@@ -199,16 +204,46 @@ copy; no EncodeBuf). Not kernel `./bench`. Not in CI. Two consecutive
 `proto/codec_cases.proto`: one message per common unary shape, so
 gencode is specialized (hello-sized), not TestAllTypes.
 
-Columns report:
-- `pbrs enc (fresh / cached)`: fresh encode (first encode before canonical cache)
-  alongside cached encode (pre-warmed size and pre-encoded packed varints).
+For the `hello` rows, pbrs/prost use `hello.proto` but v4 uses the
+wire-equivalent `codec_cases.proto` `Name`; the generated schemas are not
+identical even though their encoded bytes and observed name match.
+
+**Historical first-encode caveat:** the `pbrs enc (fresh / cached)` numbers in
+the tables below were captured by an older harness that subtracted separate
+parse and parse+encode medians and clamped the result to cached encode. Those
+fresh numbers are estimates, **not** direct first-encode measurements; the
+historical tables have not been rerun.
+
+The current `tonic-bench` directly times the first encode of separately parsed
+messages for **pbrs, prost, and v4**, using the same input wire, sample count,
+and per-case prepared-message count (up to 10,000 and an estimated 32 MiB of
+prepared inputs per sample). Parsing is outside the interval; each message is
+encoded once, with a reused `BytesMut` destination for pbrs/prost and a new
+v4 Arena/FFI-allocated `Vec`. It consumes full output buffers and verifies
+byte equality, or decoded message equality when map iteration order differs,
+before timing; parse-and-touch results are also cross-checked. The executable
+prints a separate first-encode comparison with the actual prepared-message
+count. A case whose estimated prepared message alone exceeds 32 MiB fails
+explicitly rather than silently breaching that budget. This is **first encode
+after parse**, not the cost of constructing and populating a new object. pbrs
+may retain wire-backed lazy fields/canonical
+caches, prost materializes owned fields, and v4 uses an upb Arena; first-encode
+numbers do not erase those materialization differences. Borrowed views are
+reported separately in `bench`, not in this survey. The existing touch
+checksums access case-selected fields, not every nested leaf; exhaustive
+parse-and-touch materialization remains BM-03 work.
+
+Historical table columns report:
+- `pbrs enc (fresh / cached)`: older derived fresh estimate alongside cached
+  encode (pre-warmed size and pre-encoded packed varints).
 - `pbrs dec (parse / touch)`: parse-only decode (dropping message immediately)
-  alongside parse-and-touch (recursively accessing all parsed fields).
+  alongside parse-and-touch (accessing selected populated fields).
 - `prost enc / dec / touch`: prost encode, decode, and parse-and-touch.
 - `v4 enc / dec / touch`: v4 serialize, parse, and parse-and-touch.
 
-Combined win/loss is pbrs (cached encode + parse decode) vs that
-column.
+Combined win/loss, including the unchanged executable smoke gates, is pbrs
+(cached encode + parse decode) vs that column; the first-encode diagnostic
+does not change those comparisons.
 
 `tonic-bench` exits non-zero if `name_4kib` or `blob_4kib` combined
 encode+decode loses to prost, if `rpc_sparse` decode loses to prost, or
@@ -245,14 +280,13 @@ if `tags_32` decode loses to v4.
 | rpc_mixed | 176 | 218.3 / 94.9 | 349.5 / 527.7 | 155.4 / 708.0 / 701.3 | 152.9 / 366.8 / 484.9 | win | win |
 | rpc_sparse | 2 | 4.9 / 4.9 | 4.5 / 5.3 | 7.5 / 16.5 / 16.3 | 39.5 / 36.4 / 41.6 | win | win |
 
-v4 loses every row. Typical unary `rpc_mixed` is already ~2× prost.
-Packed encode demonstrates the dramatic advantage of the cached-bytes path:
-fresh encode computes canonical varints (1233 ns for `packed_256`), while cached
-encode is a 9.7 ns memcpy!
-Parse-and-touch demonstrates that reading fields retains pbrs's lead over
-prost and v4, while making the materialization overhead observable
-(e.g., iterating 256 varints in `packed_256` adds ~680 ns to parse-only decode,
-still outperforming v4's 1805 ns touch time).
+In this historical capture v4 loses every cached-encode-plus-parse row.
+Typical unary `rpc_mixed` is ~2× prost on that host. Packed encode's
+9.7 ns cached cell reflects pre-encoded bytes; its 1233 ns historical
+fresh cell is **not** a verified direct cold/cached ratio. Parse-and-touch
+exposes deferred materialization (e.g., the historical `packed_256` pbrs
+touch cell is 832 ns versus 149 ns parse-only), but the older run did not
+perform the new cross-codec touch/output equivalence checks.
 
 ### What to chase
 

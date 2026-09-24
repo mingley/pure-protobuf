@@ -54,6 +54,67 @@ where
     t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
 }
 
+fn median_first_encode_ns<M, F, E, O>(
+    samples: usize,
+    iters: u32,
+    mut prepare: F,
+    mut encode: E,
+) -> f64
+where
+    F: FnMut() -> M,
+    E: FnMut(&M) -> O,
+{
+    let mut times = Vec::with_capacity(samples);
+    for _ in 0..samples {
+        for _ in 0..iters / 10 {
+            let message = prepare();
+            std::hint::black_box(encode(&message));
+        }
+        let messages: Vec<M> = (0..iters).map(|_| prepare()).collect();
+        let start = Instant::now();
+        for message in &messages {
+            std::hint::black_box(encode(message));
+        }
+        times.push(start.elapsed().as_secs_f64() * 1e9 / f64::from(iters));
+    }
+    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    times[samples / 2]
+}
+
+fn first_encode_budget<P, R, V>(iters: u32, payload: usize) -> u32 {
+    let estimated_bytes = payload
+        .saturating_add(
+            std::mem::size_of::<P>()
+                .max(std::mem::size_of::<R>())
+                .max(std::mem::size_of::<V>()),
+        )
+        .max(1);
+    let by_memory = u32::try_from(32 * 1024 * 1024 / estimated_bytes)
+        .expect("32 MiB divided by at least one byte fits u32");
+    assert!(iters > 0, "first encode needs a positive iteration count");
+    assert!(
+        by_memory > 0,
+        "first encode exceeds the 32 MiB preparation budget"
+    );
+    iters.min(10_000).min(by_memory)
+}
+
+fn assert_same_output<P: Parse + PartialEq>(
+    name: &str,
+    codec: &str,
+    actual: &[u8],
+    expected_wire: &[u8],
+    expected: &P,
+    byte_stable: bool,
+) {
+    if byte_stable {
+        assert_eq!(actual, expected_wire, "{name}: {codec} wire");
+    } else {
+        let parsed = P::parse(actual).expect("pbrs parses comparator wire");
+        assert!(&parsed == expected, "{name}: {codec} decoded fields");
+    }
+}
+
 fn timer_budget(payload: usize) -> (u32, usize) {
     if payload >= 32_000 {
         (4_000, 9)
@@ -66,13 +127,16 @@ struct Row {
     name: &'static str,
     payload: usize,
     pbrs_enc: f64,       // cached encode (pre-warmed length/canonical cache)
-    pbrs_fresh_enc: f64, // fresh encode (first encode before canonical cache)
-    pbrs_dec: f64,       // parse only (message dropped)
-    pbrs_touch: f64,     // parse-and-touch (reading parsed fields)
+    pbrs_fresh_enc: f64, // direct first encode after parse, before canonical cache
+    first_iters: u32,
+    pbrs_dec: f64,   // parse only (message dropped)
+    pbrs_touch: f64, // parse-and-touch (reading parsed fields)
     prost_enc: f64,
+    prost_first_enc: f64,
     prost_dec: f64,
     prost_touch: f64,
     v4_enc: f64,
+    v4_first_enc: f64,
     v4_dec: f64,
     v4_touch: f64,
 }
@@ -88,7 +152,7 @@ fn run<P, R, V, TP, TR, TV>(
     touch_v4: TV,
 ) -> Row
 where
-    P: Parse + Serialize,
+    P: Parse + Serialize + PartialEq,
     R: prost::Message + Default,
     V: V4Parse + V4Serialize,
     TP: Fn(&P) -> usize,
@@ -99,29 +163,79 @@ where
     let mut prost_wire = Vec::new();
     prost::Message::encode(prost, &mut prost_wire).expect("prost wire");
     let v4_wire = V4Serialize::serialize(v4).expect("v4 wire");
-    if check_wire {
-        assert_eq!(pbrs_wire, prost_wire, "{name}: pbrs vs prost wire");
-        assert_eq!(pbrs_wire, v4_wire, "{name}: pbrs vs v4 wire");
-    } else {
-        let _ = R::decode(pbrs_wire.as_slice()).expect("{name}: prost parses pbrs");
-        let _ = V::parse(&pbrs_wire).expect("{name}: v4 parses pbrs");
-    }
+    let parsed_pbrs = P::parse(&pbrs_wire).expect("pbrs parses pbrs wire");
+    let parsed_prost = R::decode(pbrs_wire.as_slice()).expect("prost parses pbrs wire");
+    let parsed_v4 = V::parse(&pbrs_wire).expect("v4 parses pbrs wire");
+    assert_same_output(
+        name,
+        "prost",
+        &prost_wire,
+        &pbrs_wire,
+        &parsed_pbrs,
+        check_wire,
+    );
+    assert_same_output(name, "v4", &v4_wire, &pbrs_wire, &parsed_pbrs, check_wire);
+    let mut dst = BytesMut::new();
+    let first_pbrs = P::parse(&pbrs_wire).expect("pbrs first precheck parse");
+    Serialize::encode(&first_pbrs, &mut dst).expect("pbrs first wire");
+    assert_same_output(
+        name,
+        "pbrs first",
+        &dst,
+        &pbrs_wire,
+        &parsed_pbrs,
+        check_wire,
+    );
+    dst.clear();
+    prost::Message::encode(&parsed_prost, &mut dst).expect("prost first wire");
+    assert_same_output(
+        name,
+        "prost first",
+        &dst,
+        &pbrs_wire,
+        &parsed_pbrs,
+        check_wire,
+    );
+    let v4_first_wire = V4Serialize::serialize(&parsed_v4).expect("v4 first wire");
+    assert_same_output(
+        name,
+        "v4 first",
+        &v4_first_wire,
+        &pbrs_wire,
+        &parsed_pbrs,
+        check_wire,
+    );
+    let expected_touch = touch_pbrs(&parsed_pbrs);
+    assert_eq!(
+        expected_touch,
+        touch_prost(&parsed_prost),
+        "{name}: pbrs vs prost touch"
+    );
+    assert_eq!(
+        expected_touch,
+        touch_v4(&parsed_v4),
+        "{name}: pbrs vs v4 touch"
+    );
+
     let payload = pbrs_wire.len();
     let (iters, samples) = timer_budget(payload);
-    let mut dst = BytesMut::new();
+    let first_iters = first_encode_budget::<P, R, V>(iters, payload);
     let pbrs_enc = median_ns(samples, iters, || {
         dst.clear();
         Serialize::encode(pbrs, &mut dst).expect("pbrs encode");
-        dst.len()
+        std::hint::black_box(&dst[..]);
     });
     let pbrs_dec = median_ns(samples, iters, || P::parse(&pbrs_wire).expect("pbrs parse"));
-    let parse_and_fresh_enc = median_ns(samples, iters, || {
-        let fresh = P::parse(&pbrs_wire).expect("pbrs parse");
-        dst.clear();
-        Serialize::encode(&fresh, &mut dst).expect("pbrs fresh encode");
-        dst.len()
-    });
-    let pbrs_fresh_enc = (parse_and_fresh_enc - pbrs_dec).max(pbrs_enc);
+    let pbrs_fresh_enc = median_first_encode_ns(
+        samples,
+        first_iters,
+        || P::parse(&pbrs_wire).expect("pbrs first parse"),
+        |message| {
+            dst.clear();
+            Serialize::encode(message, &mut dst).expect("pbrs first encode");
+            std::hint::black_box(&dst[..]);
+        },
+    );
     let pbrs_touch = median_ns(samples, iters, || {
         let msg = P::parse(&pbrs_wire).expect("pbrs parse");
         touch_pbrs(&msg)
@@ -129,19 +243,35 @@ where
     let prost_enc = median_ns(samples, iters, || {
         dst.clear();
         prost::Message::encode(prost, &mut dst).expect("prost encode");
-        dst.len()
+        std::hint::black_box(&dst[..]);
     });
     let prost_dec = median_ns(samples, iters, || {
         R::decode(pbrs_wire.as_slice()).expect("prost decode")
     });
+    let prost_first_enc = median_first_encode_ns(
+        samples,
+        first_iters,
+        || R::decode(pbrs_wire.as_slice()).expect("prost first parse"),
+        |message| {
+            dst.clear();
+            prost::Message::encode(message, &mut dst).expect("prost first encode");
+            std::hint::black_box(&dst[..]);
+        },
+    );
     let prost_touch = median_ns(samples, iters, || {
         let msg = R::decode(pbrs_wire.as_slice()).expect("prost decode");
         touch_prost(&msg)
     });
     let v4_enc = median_ns(samples, iters, || {
-        V4Serialize::serialize(v4).expect("v4 encode").len()
+        V4Serialize::serialize(v4).expect("v4 encode")
     });
     let v4_dec = median_ns(samples, iters, || V::parse(&pbrs_wire).expect("v4 parse"));
+    let v4_first_enc = median_first_encode_ns(
+        samples,
+        first_iters,
+        || V::parse(&pbrs_wire).expect("v4 first parse"),
+        |message| V4Serialize::serialize(message).expect("v4 first encode"),
+    );
     let v4_touch = median_ns(samples, iters, || {
         let msg = V::parse(&pbrs_wire).expect("v4 parse");
         touch_v4(&msg)
@@ -151,12 +281,15 @@ where
         payload,
         pbrs_enc,
         pbrs_fresh_enc,
+        first_iters,
         pbrs_dec,
         pbrs_touch,
         prost_enc,
+        prost_first_enc,
         prost_dec,
         prost_touch,
         v4_enc,
+        v4_first_enc,
         v4_dec,
         v4_touch,
     }
@@ -292,6 +425,19 @@ fn print_table(title: &str, rows: &[Row]) {
             r.v4_enc,
             r.v4_dec,
             r.v4_touch
+        );
+    }
+    println!();
+}
+
+fn print_first_encodes(rows: &[Row]) {
+    println!("First encode after parse (diagnostic; ns, preparation excluded):");
+    println!("| case | prepared messages/sample | pbrs | prost | v4 |");
+    println!("|---|---:|---:|---:|---:|");
+    for r in rows {
+        println!(
+            "| {} | {} | {:.1} | {:.1} | {:.1} |",
+            r.name, r.first_iters, r.pbrs_fresh_enc, r.prost_first_enc, r.v4_first_enc
         );
     }
     println!();
@@ -840,10 +986,21 @@ fn main() {
     println!("# Codec survey (encode into BytesMut; v4 serialize is Arena+FFI)");
     println!("iters=40000 samples=15 except payload>=32KiB (4000x9). median. release thin-LTO.");
     println!("pbrs vs prost vs crates.io protobuf 4.35.1-release (upb).");
-    println!("map_8 / rpc_mixed skip byte-equal (HashMap order); cross-parse still checked.");
+    println!("map_8 / rpc_mixed skip byte-equal (HashMap order); decoded values checked.");
+    println!(
+        "First encode is directly timed from separately parsed messages with matched input counts."
+    );
+    println!(
+        "pbrs may retain lazy wire backing; prost owns fields; v4 uses an upb Arena. No views."
+    );
     println!();
-    print_table("## Published 1-string (hello.proto)", &published);
+    print_table(
+        "## Published 1-string (hello.proto; v4 uses wire-equivalent cases.Name)",
+        &published,
+    );
+    print_first_encodes(&published);
     print_table("## Common shapes (codec_cases.proto)", &survey);
+    print_first_encodes(&survey);
 
     let mut failed = false;
     for r in survey.iter() {
@@ -882,5 +1039,52 @@ fn main() {
     }
     if failed {
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{first_encode_budget, median_first_encode_ns};
+
+    #[test]
+    fn first_encode_prepares_and_encodes_every_sample_once() {
+        let mut prepared = 0usize;
+        let mut encoded = Vec::new();
+        let measurement = median_first_encode_ns(
+            3,
+            10,
+            || {
+                prepared += 1;
+                prepared
+            },
+            |message| {
+                encoded.push(*message);
+                *message
+            },
+        );
+        assert!(measurement.is_finite());
+        assert_eq!(prepared, 33);
+        assert_eq!(encoded, (1..=33).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn first_encode_budget_limits_the_estimated_prepared_footprint() {
+        let payload = 64 * 1024;
+        let count = first_encode_budget::<u64, u64, u64>(40_000, payload);
+        assert!(count <= 10_000);
+        assert!(
+            usize::try_from(count).expect("bounded count") * (payload + size_of::<u64>())
+                <= 32 * 1024 * 1024
+        );
+        assert_eq!(
+            first_encode_budget::<u64, u64, u64>(40_000, 20 * 1024 * 1024),
+            1
+        );
+        assert!(
+            std::panic::catch_unwind(|| {
+                first_encode_budget::<u64, u64, u64>(40_000, 33 * 1024 * 1024)
+            })
+            .is_err()
+        );
     }
 }
