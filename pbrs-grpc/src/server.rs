@@ -4134,7 +4134,7 @@ where
 /// keeps the `SocketAddr` from [`IncomingAccept`] and does not override
 /// `:scheme`. [`Server::serve_connection`] leaves every field unset.
 /// Applies to every call shape on that connection.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct ConnectionInfo {
     remote: Option<SocketAddr>,
     local: Option<SocketAddr>,
@@ -4143,6 +4143,18 @@ pub struct ConnectionInfo {
     /// Transport `:scheme` when the accept loop knows it. `None` keeps the
     /// peer's `:scheme` ([`Incoming`] / [`Server::serve_connection`]).
     scheme: Option<&'static str>,
+}
+
+impl std::fmt::Debug for ConnectionInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectionInfo")
+            .field("remote", &self.remote.as_ref().map(|_| "[REDACTED]"))
+            .field("local", &self.local.as_ref().map(|_| "[REDACTED]"))
+            .field("identity", &self.identity.as_ref().map(|_| "[REDACTED]"))
+            .field("cred", &self.cred.as_ref().map(|_| "[REDACTED]"))
+            .field("scheme", &self.scheme.map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 impl ConnectionInfo {
@@ -4489,7 +4501,37 @@ async fn wait_for_drain(mut goaway: watch::Receiver<bool>) {
 
 #[cfg(test)]
 mod tests {
-    use super::split_path;
+    use super::{ConnectionInfo, PeerCred, split_path};
+    use crate::tls::PeerIdentity;
+
+    #[test]
+    fn connection_info_debug_masks_peer_details_without_hiding_getters() {
+        let remote = "192.0.2.100:51401".parse().expect("remote");
+        let local = "127.0.0.1:51402".parse().expect("local");
+        let cred = PeerCred::new(914_217, 914_218, Some(914_219));
+        let peer = ConnectionInfo::new()
+            .with_remote_addr(remote)
+            .with_local_addr(local)
+            .with_peer_identity(
+                PeerIdentity::from_der_certs([b"private-cert-leaf"]).expect("identity"),
+            )
+            .with_peer_cred(cred)
+            .with_scheme("https");
+        let shown = format!("{peer:?}");
+        for field in ["remote", "local", "identity", "cred", "scheme"] {
+            assert!(
+                shown.contains(&format!("{field}: Some(\"[REDACTED]\")")),
+                "{shown}"
+            );
+        }
+        for secret in ["192.0.2.100", "127.0.0.1:51402", "914217", "PeerIdentity"] {
+            assert!(!shown.contains(secret), "{shown}");
+        }
+        assert_eq!(peer.remote_addr(), Some(remote));
+        assert_eq!(peer.local_addr(), Some(local));
+        assert_eq!(peer.peer_cred(), Some(cred));
+        assert_eq!(peer.scheme(), Some("https"));
+    }
 
     #[test]
     fn splits_service_and_method() {

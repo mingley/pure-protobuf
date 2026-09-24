@@ -1497,7 +1497,10 @@ impl fmt::Debug for Outgoing<'_> {
             .field("method", &split_path(self.path).1)
             .field("authority", &diagnostic_identity(self.authority, None))
             .field("scheme", &self.scheme)
-            .field("user_agent", &self.user_agent())
+            .field(
+                "user_agent",
+                &diagnostic_identity(self.user_agent().as_ref(), None),
+            )
             .field("limits", &self.limits)
             .field("rpc_timeout", &self.rpc_timeout)
             .field("waits_for_ready", &self.waits_for_ready)
@@ -2828,7 +2831,7 @@ impl<T> Response<T> {
 /// See [`Response::into_message_and_parts`].
 /// [`Self::compress_is_set`] is occupancy on this split reply envelope, so a later interceptor can fill compress only when unset.
 /// [`Self::clear_compress`] restores the server gzip overlay on this split reply envelope.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ResponseParts {
     metadata: Metadata,
     trailers: Metadata,
@@ -2847,6 +2850,38 @@ pub struct ResponseParts {
     send_buffer_size: Option<usize>,
     extensions: http::Extensions,
     diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
+}
+
+impl fmt::Debug for ResponseParts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let config = self.diagnostic_config.as_ref();
+        f.debug_struct("ResponseParts")
+            .field("metadata", &self.metadata)
+            .field("trailers", &self.trailers)
+            .field("compress", &self.compress)
+            .field(
+                "encoding",
+                &self
+                    .encoding()
+                    .map(|value| diagnostic_identity(value, config)),
+            )
+            .field(
+                "path",
+                &self.path().map(|value| diagnostic_identity(value, config)),
+            )
+            .field("gzip_level", &self.gzip_level)
+            .field("compresses_outbound", &self.compresses_outbound)
+            .field("accepts_gzip", &self.accepts_gzip)
+            .field("accepts_compressed", &self.accepts_compressed)
+            .field("deadline", &self.deadline)
+            .field("timeout", &self.timeout)
+            .field("peer_timeout", &self.peer_timeout)
+            .field("rpc_timeout", &self.rpc_timeout)
+            .field("limits", &self.limits)
+            .field("send_buffer_size", &self.send_buffer_size)
+            .field("extensions", &self.extensions.len())
+            .finish()
+    }
 }
 
 impl ResponseParts {
@@ -3124,12 +3159,15 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
         let method = self
             .method()
             .map(|value| diagnostic_identity(value, config));
+        let encoding = self
+            .encoding()
+            .map(|value| diagnostic_identity(value, config));
         f.debug_struct("Response")
             .field("message", message_display)
             .field("metadata", &self.metadata)
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)
-            .field("encoding", &self.encoding)
+            .field("encoding", &encoding)
             .field("path", &path)
             .field("service", &service)
             .field("method", &method)
@@ -3738,20 +3776,43 @@ mod tests {
         assert!(parts_debug.contains("[TRUNCATED]"));
         assert!(!parts_debug.contains(path));
 
-        let response = Response::new("sensitive-payload").with_path(Some(path.to_string()));
+        let encoding = "éééé private-encoding";
+        let response = Response::new("sensitive-payload")
+            .with_path(Some(path.to_string()))
+            .with_encoding(Some(encoding.to_string()));
         let default_response = format!("{response:?}");
         assert!(!default_response.contains(path));
+        assert!(!default_response.contains(encoding));
         assert!(default_response.contains("path: Some(\"[REDACTED]\")"));
-        let permitted_response = response.with_diagnostic_config(
-            DiagnosticConfig::new()
-                .with_consent(true)
-                .with_raw_identity(true)
-                .with_max_value_length(8),
-        );
+        assert!(default_response.contains("encoding: Some(\"[REDACTED]\")"));
+        assert_eq!(response.encoding(), Some(encoding));
+        let (message, mut response_parts) = response.into_message_and_parts();
+        let default_parts = format!("{response_parts:?}");
+        assert!(!default_parts.contains(path));
+        assert!(!default_parts.contains(encoding));
+        assert!(default_parts.contains("path: Some(\"[REDACTED]\")"));
+        assert!(default_parts.contains("encoding: Some(\"[REDACTED]\")"));
+        assert_eq!(response_parts.path(), Some(path));
+        assert_eq!(response_parts.encoding(), Some(encoding));
+        response_parts.set_diagnostic_config(DiagnosticConfig::new().with_raw_identity(true));
+        assert!(!format!("{response_parts:?}").contains(encoding));
+        let permitted_response = Response::from_message_and_parts(message, response_parts)
+            .with_diagnostic_config(
+                DiagnosticConfig::new()
+                    .with_consent(true)
+                    .with_raw_identity(true)
+                    .with_max_value_length(8),
+            );
         let permitted_debug = format!("{permitted_response:?}");
         assert!(permitted_debug.contains("[TRUNCATED]"));
         assert!(!permitted_debug.contains(path));
         assert!(!permitted_debug.contains("sensitive-payload"));
+        assert!(permitted_debug.contains("encoding: Some(\"éééé... [TRUNCATED]\")"));
+        let (_, permitted_parts) = permitted_response.into_message_and_parts();
+        let permitted_parts_debug = format!("{permitted_parts:?}");
+        assert!(permitted_parts_debug.contains("encoding: Some(\"éééé... [TRUNCATED]\")"));
+        assert!(!permitted_parts_debug.contains(path));
+        assert_eq!(permitted_parts.encoding(), Some(encoding));
     }
 
     #[test]
@@ -3922,6 +3983,7 @@ mod tests {
             assert_eq!(call.service(), "svc");
             assert_eq!(call.method(), "Method");
             assert_eq!(call.authority(), "127.0.0.1:1");
+            assert_eq!(call.user_agent().as_ref(), "pbrs-grpc/test");
             assert_eq!(call.limits(), crate::MessageLimits::default());
             assert_eq!(call.timeout(), Some(Duration::from_secs(1)));
             assert!(call.deadline().is_some());
@@ -3942,7 +4004,8 @@ mod tests {
         assert!(shown.contains("authority: \"[REDACTED]\""), "{shown}");
         assert!(!shown.contains("127.0.0.1:1"), "{shown}");
         assert!(shown.contains("http"), "{shown}");
-        assert!(shown.contains("pbrs-grpc/test"), "{shown}");
+        assert!(shown.contains("user_agent: \"[REDACTED]\""), "{shown}");
+        assert!(!shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
         assert!(shown.contains("max_decoding"), "{shown}");

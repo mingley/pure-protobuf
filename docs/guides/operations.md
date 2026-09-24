@@ -200,18 +200,23 @@ rejections have their own event. OpenTelemetry export is not built in.
 
 ### Safe Diagnostic Formatting
 
-Default `Debug` formatting for `Request`, `Response`, split request `Parts`,
-server `Rpc`, and `TelemetryContext` masks unverified path/authority fields.
+Default `Debug` formatting for `Request`, `Response`, their split `Parts` and
+`ResponseParts`, server `Rpc`, and `TelemetryContext` masks unverified
+path/authority fields. `Response` and `ResponseParts` also mask the received
+`grpc-encoding` text.
 `Request`, `Parts`, and `Rpc` also mask remote/local socket addresses, peer
 certificate identity, Unix peer credentials, and untrusted scheme and
 `grpc-encoding` text. `Request` and `Parts` mask their user-agent override.
 The presence of a peer field remains visible as `Some("[REDACTED]")`.
 `Outgoing` retains its application-defined static RPC path but masks the
-destination authority. A telemetry context keeps the status **code** and
-safe, redacted metadata visible while masking the free-form status message.
+destination authority and user-agent. `Channel` masks its authority, endpoint,
+and user-agent; `ConnectionInfo` masks peer addresses, certificate identity,
+Unix credentials, and scheme. A telemetry context keeps the status **code**
+and safe, redacted metadata visible while masking the free-form status message.
 
 For a controlled diagnostic, use `DiagnosticConfig::with_consent(true)` with
-`with_raw_identity(true)` on a `Request`, `Parts`, or `Response`, or call
+`with_raw_identity(true)` on a `Request`, `Parts`, `Response`, or
+`ResponseParts`, or call
 `Rpc::set_diagnostic_config` on an inbound RPC (the setting carries to its
 handler `Request` and split `Parts`). For status text in a telemetry context,
 enable `with_status_message(true)` separately. Revealed identity and status
@@ -222,10 +227,11 @@ bounded certificate count, never DER bytes. These switches are independent of
 peer details must not also reveal metadata credentials or payloads.
 
 Raw accessors and direct `Status` `Display`/`Debug` remain application-controlled
-and may expose untrusted text. Other diagnostic surfaces, including
-`ConnectionInfo::Debug`, `Response`'s peer-provided encoding, `Outgoing`'s
-user-agent, and unclassified free-form metadata values (including an inbound
-`user-agent` in `Metadata::Debug`) still need a reviewed consent policy.
+and may expose untrusted text. `Channel`, `ConnectionInfo`, and `Outgoing` do
+not provide a consent switch for their masked Debug fields; use explicit
+getters under your own logging policy. Other diagnostic surfaces, including
+unclassified free-form metadata values (such as inbound `user-agent` in
+`Metadata::Debug`), still need a reviewed consent policy.
 Do not put credentials in status messages or log raw peer fields without one;
 OB-03 remains open.
 

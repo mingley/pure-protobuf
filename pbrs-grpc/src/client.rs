@@ -8,7 +8,7 @@ use crate::status::{Code, Status, TransportEvidence};
 use crate::stream::{StreamSender, Streaming};
 use crate::telemetry::{
     AttemptGuard, AttemptLabels, CallGuard, CallLabels, CallRole, CancellationReason,
-    LifecycleObserver, ObserverChain, ReconnectEvent, RejectionReason,
+    LifecycleObserver, ObserverChain, ReconnectEvent, RejectionReason, diagnostic_identity,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
@@ -485,8 +485,11 @@ pub struct Channel {
 impl fmt::Debug for Channel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Channel")
-            .field("authority", &self.authority.as_str())
-            .field("endpoint", &self.inner.endpoint.describe())
+            .field(
+                "authority",
+                &diagnostic_identity(self.authority.as_str(), None),
+            )
+            .field("endpoint", &"[REDACTED]")
             .field("connections", &self.inner.slots.len())
             .field("tls", &self.inner.tls.is_some())
             .field("https", &self.https)
@@ -494,7 +497,7 @@ impl fmt::Debug for Channel {
             .field("response_interceptors", &self.response_interceptors.len())
             .field("config", &self.config)
             .field("byte_budget_allocated", &self.byte_budget.allocated())
-            .field("user_agent", &self.user_agent)
+            .field("user_agent", &"[REDACTED]")
             .field("observer", &self.observer.is_some())
             .finish()
     }
@@ -3723,10 +3726,13 @@ mod tests {
     }
 
     #[test]
-    fn channel_debug_names_the_authority() {
+    fn channel_debug_masks_the_authority_and_target() {
         let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
         let dbg = format!("{channel:?}");
-        assert!(dbg.contains("127.0.0.1:9"), "{dbg}");
+        assert!(dbg.contains("authority: \"[REDACTED]\""), "{dbg}");
+        assert!(dbg.contains("endpoint: \"[REDACTED]\""), "{dbg}");
+        assert!(dbg.contains("user_agent: \"[REDACTED]\""), "{dbg}");
+        assert!(!dbg.contains("127.0.0.1:9"), "{dbg}");
         assert!(dbg.contains("connections: 1"), "{dbg}");
         assert!(dbg.contains("tls: false"), "{dbg}");
         assert!(dbg.contains("interceptors: 0"), "{dbg}");

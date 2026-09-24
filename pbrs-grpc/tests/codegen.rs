@@ -1766,7 +1766,12 @@ fn generated_client_debug_and_into_inner() {
     .stream_buffer(64)
     .max_send_buffer_size(123_456)
     .message_limits(pbrs_grpc::MessageLimits::unlimited());
-    assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
+    let client_debug = format!("{client:?}");
+    assert!(
+        client_debug.contains("authority: \"[REDACTED]\""),
+        "{client_debug}"
+    );
+    assert!(!client_debug.contains("127.0.0.1:1"), "{client_debug}");
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
     assert_eq!(client.stream_buffer_size(), 64);
     assert_eq!(client.channel().config().send_buffer_size(), 123_456);
