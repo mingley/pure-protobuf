@@ -275,8 +275,10 @@ For compatible plugin, versioned-stub and generated JSON/text, WKT, scalar and
 oneof consumer tests, use the shared `target/integration-consumers` Cargo
 cache. Each scratch
 consumer has a distinct package/binary name, so parallel test cases cannot
-replace one another's executable; Cargo serializes builds of the shared
-target and nested builds use at most two jobs. Keep fresh-build/no-`protoc`
+replace one another's executable. Plugin tests also serialize the entire
+nested Cargo command through doctests: Cargo's build lock alone can release
+while rustdoc still needs dependency artifacts. Nested builds use at most
+two jobs. Keep fresh-build/no-`protoc`
 proofs and incompatible toolchain or sanitizer flags in separate targets
 only when isolation is part of the check.
 

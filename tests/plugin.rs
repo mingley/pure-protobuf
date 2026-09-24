@@ -2,6 +2,7 @@
 
 #![allow(
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     clippy::let_underscore_must_use,
     clippy::unwrap_used,
     clippy::expect_used,
@@ -13,10 +14,13 @@
     clippy::too_many_lines,
     clippy::unimplemented,
     unreachable_pub,
-    reason = "integration tests are sync; generated fixtures live in the test crate"
+    reason = "synchronous test subprocesses share a Cargo cache and generated fixtures"
 )]
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Mutex;
+
+static CONSUMER_CARGO_LOCK: Mutex<()> = Mutex::new(());
 
 fn plugin_bin() -> PathBuf {
     if let Ok(p) = std::env::var("CARGO_BIN_EXE_protoc-gen-pbrs") {
@@ -34,6 +38,11 @@ fn shared_consumer_cargo() -> Command {
         )
         .env("CARGO_BUILD_JOBS", "2");
     cargo
+}
+
+fn run_shared_consumer_cargo(command: &mut Command) -> std::io::Result<std::process::Output> {
+    let _guard = CONSUMER_CARGO_LOCK.lock().expect("consumer Cargo lock");
+    command.output()
 }
 
 #[test]
@@ -105,20 +114,21 @@ fn protoc_plugin_generates_and_roundtrips() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run1 = build.output().expect("cargo run consumer");
+    let run1 = run_shared_consumer_cargo(&mut build).expect("cargo run consumer");
     assert!(
         run1.status.success(),
         "consumer 1 failed:\n{}\n{}",
         String::from_utf8_lossy(&run1.stdout),
         String::from_utf8_lossy(&run1.stderr)
     );
-    let run2 = shared_consumer_cargo()
-        .arg("run")
-        .arg("--offline")
-        .arg("--quiet")
-        .current_dir(&consumer)
-        .output()
-        .unwrap();
+    let run2 = run_shared_consumer_cargo(
+        shared_consumer_cargo()
+            .arg("run")
+            .arg("--offline")
+            .arg("--quiet")
+            .current_dir(&consumer),
+    )
+    .unwrap();
     assert!(run2.status.success(), "consumer 2 failed");
     assert_eq!(run1.stdout, run2.stdout);
     assert_eq!(String::from_utf8_lossy(&run1.stdout).trim(), "ok 1");
@@ -197,13 +207,14 @@ fn plugin_generates_test_all_types_proto3() {
         ),
     )
     .unwrap();
-    let run = shared_consumer_cargo()
-        .arg("run")
-        .arg("--offline")
-        .arg("--quiet")
-        .current_dir(&consumer)
-        .output()
-        .expect("cargo run tat consumer");
+    let run = run_shared_consumer_cargo(
+        shared_consumer_cargo()
+            .arg("run")
+            .arg("--offline")
+            .arg("--quiet")
+            .current_dir(&consumer),
+    )
+    .expect("cargo run tat consumer");
     assert!(
         run.status.success(),
         "tat consumer failed:\n{}\n{}",
@@ -459,7 +470,7 @@ fn plugin_repeated_string_same_tag_parses_32() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run = build.output().expect("cargo run tags consumer");
+    let run = run_shared_consumer_cargo(&mut build).expect("cargo run tags consumer");
     assert!(
         run.status.success(),
         "tags consumer failed:\n{}\n{}",
@@ -567,7 +578,7 @@ fn main() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run = build.output().expect("cargo run utf8 consumer");
+    let run = run_shared_consumer_cargo(&mut build).expect("cargo run utf8 consumer");
     assert!(
         run.status.success(),
         "utf8 consumer failed:\n{}\n{}",
@@ -1186,7 +1197,7 @@ fn main() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run = build.output().expect("cargo run consumer");
+    let run = run_shared_consumer_cargo(&mut build).expect("cargo run consumer");
     assert!(
         run.status.success(),
         "consumer failed:\n{}\n{}",
@@ -1430,7 +1441,7 @@ fn main() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run = build.output().expect("cargo run extern consumer");
+    let run = run_shared_consumer_cargo(&mut build).expect("cargo run extern consumer");
     assert!(
         run.status.success(),
         "extern consumer failed:\n{}\n{}",
@@ -1526,7 +1537,7 @@ fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
     if let Some(h) = cargo_home {
         build.env("CARGO_HOME", h);
     }
-    let run = build.output().expect("cargo run alias consumer");
+    let run = run_shared_consumer_cargo(&mut build).expect("cargo run alias consumer");
     assert!(
         run.status.success(),
         "alias consumer failed:\n{}\n{}",
@@ -1875,7 +1886,7 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
     if let Ok(h) = std::env::var("CARGO_HOME") {
         doc_cmd.env("CARGO_HOME", h);
     }
-    let doc_res = doc_cmd.output().expect("run cargo doc on consumer");
+    let doc_res = run_shared_consumer_cargo(&mut doc_cmd).expect("run cargo doc on consumer");
     assert!(
         doc_res.status.success(),
         "cargo doc with -D warnings failed on generated code:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -1893,9 +1904,8 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
     if let Ok(h) = std::env::var("CARGO_HOME") {
         test_doc_cmd.env("CARGO_HOME", h);
     }
-    let test_doc_res = test_doc_cmd
-        .output()
-        .expect("run cargo test --doc on consumer");
+    let test_doc_res =
+        run_shared_consumer_cargo(&mut test_doc_cmd).expect("run cargo test --doc on consumer");
     assert!(
         test_doc_res.status.success(),
         "cargo test --doc failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2496,7 +2506,7 @@ fn test_message_keywords_and_non_standard_casings() {{
     if let Some(ref h) = cargo_home {
         clippy_cmd.env("CARGO_HOME", h);
     }
-    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    let clippy_out = run_shared_consumer_cargo(&mut clippy_cmd).expect("run cargo clippy");
     assert!(
         clippy_out.status.success(),
         "cargo clippy on message consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2513,7 +2523,7 @@ fn test_message_keywords_and_non_standard_casings() {{
     if let Some(ref h) = cargo_home {
         test_cmd.env("CARGO_HOME", h);
     }
-    let test_out = test_cmd.output().expect("run cargo test");
+    let test_out = run_shared_consumer_cargo(&mut test_cmd).expect("run cargo test");
     assert!(
         test_out.status.success(),
         "cargo test on message consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2660,7 +2670,7 @@ fn test_native_server_and_client_instantiation() {{
     if let Some(ref h) = cargo_home {
         clippy_cmd.env("CARGO_HOME", h);
     }
-    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    let clippy_out = run_shared_consumer_cargo(&mut clippy_cmd).expect("run cargo clippy");
     assert!(
         clippy_out.status.success(),
         "cargo clippy on native kernel consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2677,7 +2687,7 @@ fn test_native_server_and_client_instantiation() {{
     if let Some(ref h) = cargo_home {
         test_cmd.env("CARGO_HOME", h);
     }
-    let test_out = test_cmd.output().expect("run cargo test");
+    let test_out = run_shared_consumer_cargo(&mut test_cmd).expect("run cargo test");
     assert!(
         test_out.status.success(),
         "cargo test on native kernel consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2815,7 +2825,7 @@ async fn test_tonic_service_instantiation() {{
     if let Some(ref h) = cargo_home {
         clippy_cmd.env("CARGO_HOME", h);
     }
-    let clippy_out = clippy_cmd.output().expect("run cargo clippy");
+    let clippy_out = run_shared_consumer_cargo(&mut clippy_cmd).expect("run cargo clippy");
     assert!(
         clippy_out.status.success(),
         "cargo clippy on tonic consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -2832,7 +2842,7 @@ async fn test_tonic_service_instantiation() {{
     if let Some(ref h) = cargo_home {
         test_cmd.env("CARGO_HOME", h);
     }
-    let test_out = test_cmd.output().expect("run cargo test");
+    let test_out = run_shared_consumer_cargo(&mut test_cmd).expect("run cargo test");
     assert!(
         test_out.status.success(),
         "cargo test on tonic consumer failed:\nSTDOUT:\n{}\nSTDERR:\n{}",
@@ -3572,12 +3582,13 @@ mod checks {
             vec!["--offline", "--quiet", "--lib", "--", "-D", "warnings"],
         ),
     ] {
-        let result = shared_consumer_cargo()
-            .arg(subcommand)
-            .args(args)
-            .current_dir(&consumer)
-            .output()
-            .expect("run shared-target Rust 2024 consumer");
+        let result = run_shared_consumer_cargo(
+            shared_consumer_cargo()
+                .arg(subcommand)
+                .args(args)
+                .current_dir(&consumer),
+        )
+        .expect("run shared-target Rust 2024 consumer");
         assert!(
             result.status.success(),
             "edition2024 consumer {subcommand} failed:\n{}\n{}",
