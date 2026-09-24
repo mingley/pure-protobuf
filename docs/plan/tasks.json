@@ -1535,7 +1535,8 @@
       "implementer": "wave0-lane-agent",
       "reviewer": "coordinator",
       "evidence": [
-        "done: verified is_transparent_retryable() classification in pbrs-grpc/src/client.rs; scenarios A-C green, no src change needed."
+        "done: verified is_transparent_retryable() classification in pbrs-grpc/src/client.rs; scenarios A-C green, no src change needed.",
+        "2026-09-24: CI at 0799093c stalled in scenario_b_unary for over five hours before cancellation. The test peer stopped polling its h2 connection while reading a request body, so DATA arriving after HEADERS could never progress. A deliberate delayed-DATA regression failed before and passed after bounded concurrent connection/body polling; retry_safety passed 13/13 in five parallel-local repeats. This repairs the test harness, not shipping retry behavior; new same-SHA CI remains required."
       ]
     },
     {
