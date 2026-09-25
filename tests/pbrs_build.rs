@@ -1000,6 +1000,9 @@ fn custom_protoc_path_configuration() {
 
 #[test]
 fn error_invalid_protoc_path_diagnostics() {
+    let _consumer_guard = CARGO_MUTEX
+        .lock()
+        .expect("serialize protoc spawn checks with nested Cargo consumers");
     let tmp = test_temp_dir("invalid-protoc-test");
     let proto_path = tmp.join("test.proto");
     std::fs::write(&proto_path, "syntax = \"proto3\";\nmessage Dummy {}\n").unwrap();
@@ -1060,7 +1063,10 @@ fn error_invalid_protoc_path_diagnostics() {
         match &shim_err {
             pbrs::codegen::CodegenError::MissingProtoc { path, source } => {
                 assert_eq!(path, &failing_shim);
-                assert!(source.to_string().contains("127"));
+                assert!(
+                    source.to_string().contains("127"),
+                    "expected the shim's exit status 127, got: {source}"
+                );
             }
             other => panic!("expected MissingProtoc for exit 127 shim, got: {other:?}"),
         }
