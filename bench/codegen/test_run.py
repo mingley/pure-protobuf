@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -59,15 +60,17 @@ class CorpusTests(unittest.TestCase):
         self.assertIn('opt-level = 3\nlto = "thin"\ncodegen-units = 1', harness.manifest("test"))
 
     def test_reference_consumer_uses_same_work_with_independent_runtime(self):
-        text = harness.render_consumer(6, 0, reference=True)
-        self.assertIn('#[path = "../generated/generated.rs"] mod generated;', text)
-        self.assertIn("fn roundtrip<T: protobuf::Parse + protobuf::Serialize>", text)
-        self.assertEqual(text.count("roundtrip(generated::Message"), 6)
-        self.assertIn("generated::Message0005::new()", text)
-        self.assertEqual(
-            text.split("    let wire = ")[1].split("\n\nfn main()")[0],
-            harness.render_consumer(6, 0).split("    let wire = ")[1].split("\n\nfn main()")[0],
-        )
+        for messages in (6, 100, 1000):
+            with self.subTest(messages=messages):
+                text = harness.render_consumer(messages, 0, reference=True)
+                self.assertIn('#[path = "../generated/generated.rs"] mod generated;', text)
+                self.assertIn("fn roundtrip<T: protobuf::Parse + protobuf::Serialize>", text)
+                self.assertEqual(text.count("roundtrip(generated::Message"), messages)
+                self.assertIn(f"generated::Message{messages - 1:04d}::new()", text)
+                self.assertEqual(
+                    text.split("    let wire = ")[1].split("\n\nfn main()")[0],
+                    harness.render_consumer(messages, 0).split("    let wire = ")[1].split("\n\nfn main()")[0],
+                )
         dependency = harness.manifest("cg19-reference-small", reference=True)
         self.assertIn('protobuf = "=4.35.1-release"', dependency)
         self.assertNotIn("pbrs", dependency)
@@ -171,12 +174,98 @@ class CorpusTests(unittest.TestCase):
             with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
                 os.environ, {"CARGO_BUILD_JOBS": "2"}
             ), contextlib.redirect_stderr(io.StringIO()):
-                for options in ([], ["--seed", "1"], ["--jobs", "3"]):
+                for options in ([], ["--seed", "1"], ["--jobs", "3"], ["--case", "all"]):
                     with self.subTest(options=options), self.assertRaises(SystemExit) as raised:
                         harness.main(["--case", "small", *options, "--reference-protoc", "missing"]
                                      if options else ["--reference-protoc", "missing"])
                     self.assertEqual(raised.exception.code, 2)
             self.assertFalse((root / "target").exists())
+
+    def test_explicit_larger_reference_cells_reach_pipeline_without_claim(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for case in ("100", "1000"):
+                with self.subTest(case=case):
+                    out = root / "target" / "codegen-bench" / case
+
+                    def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms, reference_protoc):
+                        self.assertEqual(run_dir, out.resolve())
+                        self.assertEqual(cases, [case])
+                        self.assertEqual(seed, harness.DEFAULT_SEED)
+                        self.assertEqual(jobs, 2)
+                        self.assertEqual(reference_protoc.resolve(), (root / "pinned-protoc").resolve())
+                        raise harness.BenchmarkError("stub pipeline reached")
+
+                    with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                        os.environ, {"CARGO_BUILD_JOBS": "2"}
+                    ), mock.patch.object(
+                        harness, "run_cases", side_effect=fake_run
+                    ), contextlib.redirect_stderr(io.StringIO()):
+                        result = harness.main([
+                            "--case", case, "--reference-protoc", str(root / "pinned-protoc"),
+                            "--out", str(out),
+                        ])
+                    self.assertEqual(result, 1)
+                    report = json.loads((out / "summary.json").read_text())
+                    self.assertEqual(report["cases_requested"], [case])
+                    self.assertEqual(report["reference"]["status"], "incomplete")
+                    self.assertEqual(report["comparison"]["status"], "not_run")
+                    self.assertIsNone(report["comparison"]["losing_cells"])
+                    self.assertIn("stub pipeline reached", report["errors"])
+                    self.assertIn("partial_corpus_matrix", report["qualification"]["reasons"])
+                    self.assertFalse(report["qualification"]["qualified"])
+
+    def test_larger_reference_qualification_fails_before_compilers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for case in ("100", "1000"):
+                with self.subTest(case=case):
+                    out = root / "target" / "codegen-bench" / case
+                    with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                        os.environ, {"CARGO_BUILD_JOBS": "2"}
+                    ), mock.patch.object(
+                        harness, "run_cases", side_effect=AssertionError("compiler ran")
+                    ), contextlib.redirect_stderr(io.StringIO()):
+                        result = harness.main([
+                            "--case", case, "--reference-protoc", str(root / "pinned-protoc"),
+                            "--require-qualified", "--out", str(out),
+                        ])
+                    self.assertEqual(result, 2)
+                    report = json.loads((out / "summary.json").read_text())
+                    self.assertEqual(report["status"], "unqualified")
+                    self.assertIsNone(report["comparison"]["losing_cells"])
+                    self.assertFalse(report["qualification"]["qualified"])
+
+    @unittest.skipUnless(os.environ.get("CG19_PINNED_PROTOC"), "opt-in pinned protoc only")
+    def test_pinned_reference_generates_full_larger_corpora(self):
+        protoc = Path(os.environ["CG19_PINNED_PROTOC"]).resolve()
+        self.assertEqual(harness.sha256(protoc), harness.REFERENCE_PROTOC_SHA256)
+        expected = {
+            "100": (6, "1c91b8a07095e3d1a5972933ec6ffda40be5b9c0a067303196c48cba2be19ee4"),
+            "1000": (21, "2727bb5aa3979c1e6e085d480dbfa1b4e0fc2290c46384d2f03daa43604001d4"),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            for case, (file_count, digest) in expected.items():
+                with self.subTest(case=case):
+                    case_dir = Path(temporary) / case
+                    names, _ = harness.prepare_corpus(case_dir, case, harness.DEFAULT_SEED)
+                    generated = case_dir / "reference" / "generated"
+                    generated.mkdir(parents=True)
+                    proc = subprocess.run(
+                        [
+                            str(protoc), f"--proto_path={case_dir / 'consumer' / 'proto'}",
+                            f"--rust_out={generated}", f"--rust_opt={harness.REFERENCE_RUST_OPT}",
+                            *names,
+                        ],
+                        capture_output=True, text=True, timeout=120, check=True,
+                    )
+                    self.assertEqual(proc.stderr, "")
+                    snapshot = harness.snapshot_generated(generated, "generated.rs")
+                    self.assertEqual(len(snapshot), file_count)
+                    self.assertEqual(harness.tree_digest(snapshot), digest)
+                    entry = (generated / "generated.rs").read_text()
+                    for name in names:
+                        self.assertIn(f'#[path="{name[:-6]}.u.pb.rs"]', entry)
 
     def test_failed_reference_request_does_not_report_zero_losses(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -709,6 +798,10 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(saved["cells"][0]["reference"]["output"]["rust_file_count"], 3)
             self.assertEqual(saved["cells"][0]["reference"]["consumer_lock_sha256"], "verified")
             self.assertEqual(saved["environment"]["cache"]["bootstrap_build_jobs"], 2)
+            self.assertIn(
+                "cases/<case>/target and cases/<case>/reference/target",
+                saved["environment"]["cache"]["paired_cold_targets"],
+            )
             self.assertFalse((run_dir / "bootstrap-target").exists())
             reference_manifest = (
                 run_dir / "cases" / "small" / "reference" / "consumer" / "Cargo.toml"

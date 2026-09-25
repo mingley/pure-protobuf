@@ -856,7 +856,7 @@ def run_cases(
     if reference_protoc is not None:
         base_env["CC"] = details["tools"]["cc"]["executable"]
         details["cache"]["paired_cold_targets"] = (
-            "separate initially nonexistent cases/small/target and cases/small/reference/target; "
+            "separate initially nonexistent cases/<case>/target and cases/<case>/reference/target; "
             "serial Cargo jobs=2; shared registry and compiler-wrapper caches are not cleared"
         )
         details["measurement"]["reference_generation_includes"] = (
@@ -1018,7 +1018,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rss-sample-ms", type=positive_int, default=100)
     parser.add_argument(
         "--reference-protoc", type=Path,
-        help="opt into the SHA-pinned v35.1 upb peer, only for --case small --seed 190019 --jobs 2",
+        help="opt into the SHA-pinned v35.1 upb peer for one explicit "
+             "--case small|100|1000 --seed 190019 --jobs 2",
     )
     parser.add_argument(
         "--require-qualified", action="store_true",
@@ -1026,8 +1027,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     if args.reference_protoc is not None:
-        if args.case != "small" or args.seed != DEFAULT_SEED or args.jobs != 2:
-            parser.error("--reference-protoc requires --case small --seed 190019 --jobs 2")
+        if args.case == "all" or args.seed != DEFAULT_SEED or args.jobs != 2:
+            parser.error(
+                "--reference-protoc requires one explicit --case small|100|1000 "
+                "--seed 190019 --jobs 2"
+            )
         args.reference_protoc = Path(os.path.abspath(args.reference_protoc))
     allowed = (ROOT / "target" / "codegen-bench").resolve()
     run_dir = (

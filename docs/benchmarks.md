@@ -262,21 +262,38 @@ It contributes no timing/RSS row to the 12 cost metrics.
 pbrs-only runs retain `reference.status: missing`,
 `comparison.status: not_run`, `comparison.losing_cells: null` and
 `qualification.qualified: false`. The previous 6/100/1,000-message cells
-are historical pbrs-only measurements, **not** pairs. To opt into a
-**single local seed-190019 six-message pair** with the existing pinned
-compiler (not an arbitrary PATH `protoc`), use:
+are historical pbrs-only measurements, **not** pairs. An explicit reference
+opt-in now accepts **one** seeded 6-, 100-, or 1,000-message corpus at a
+time; `--case all` or an omitted case is rejected before creating artifacts
+to avoid unplanned cold builds. For the existing **single local six-message
+pair** with the pinned compiler (not an arbitrary PATH `protoc`), use:
 
 ```sh
 CARGO_BUILD_JOBS=2 ./scripts/codegen-bench.sh --case small \
   --reference-protoc "$PWD/target/pinned-protoc-build/protoc" --jobs 2
 ```
 
+Substitute `--case 100` or `--case 1000` only when there is an approved
+compute window for **two separate cold consumer builds** including upstream
+C/upb. No such timed larger reference runs or dedicated-host qualification
+are recorded here. A local **generation-only** proof with genuine pinned
+`libprotoc 35.1` (verified compiler hash above) produced 6 Rust files for
+the 100-message corpus and 21 for the 1,000-message corpus, including
+`generated.rs`; all 5/20 per-file module references were present. The
+respective generated Rust tree digests were
+`1c91b8a07095e3d1a5972933ec6ffda40be5b9c0a067303196c48cba2be19ee4`
+and
+`2727bb5aa3979c1e6e085d480dbfa1b4e0fc2290c46384d2f03daa43604001d4`.
+The opt-in Python harness test reproduces these generated-byte checks without
+running `rustc` or comparing performance; it does **not** establish that
+100/1,000-message consumers build or run.
+
 The opt-in fails closed unless that compiler is genuine `libprotoc 35.1`,
 SHA-256 `e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940`,
 from the clean checked upstream source at
 `35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`. Both generators receive the
 same byte-identical `.proto` inputs: proto3 scalars, repeated/map fields,
-cross-file imports, six concrete message types, and normal reflection
+cross-file imports, every concrete message in the selected corpus, and normal reflection
 metadata. Both consumers perform the same `new`/serialize/parse/serialize
 calls per type, but upstream's generated `generated.rs` module differs
 from pbrs's `mod.rs`. Upstream uses its built-in Rust output

@@ -9,9 +9,10 @@ directory. No existing evidence is deleted. See
 [`docs/benchmarks.md`](../../docs/benchmarks.md#codegen-and-downstream-compilation-cg-19-diagnostic)
 for measured phases, RSS limitations and reference qualification boundaries.
 
-An **explicit opt-in**, restricted to the default-seed six-message cell, pairs
-the same `.proto` inputs and six default-message parse/serialize calls with
-the genuine pinned upstream Rust generator:
+An **explicit opt-in** pairs one default-seed corpus with the genuine pinned
+upstream Rust generator. Specify exactly one of `--case small`, `--case 100`,
+or `--case 1000`; `--case all` and an omitted case are rejected in reference
+mode to avoid unexpectedly running three cold comparison builds:
 
 ```sh
 CARGO_BUILD_JOBS=2 ./scripts/codegen-bench.sh --case small \
@@ -28,8 +29,15 @@ or ABI shim in the reference consumer. Its `kernel=upb` runtime builds C
 code, so the report records the selected C compiler as well as Cargo, Rust,
 protoc, flags, lockfile hashes and source state. Missing/mismatched pins fail
 closed. Opt-in needs Python 3.11+ for standard-library lockfile verification
-and requires `--case small --seed 190019 --jobs 2`; the larger corpora are
-**not** reference-tested in this slice.
+and requires one explicit case with `--seed 190019 --jobs 2`. Running
+`--case 100` or `--case 1000` triggers a separate cold pbrs and C/upb consumer
+build, which is substantially heavier than generation alone. No timed
+100/1,000-message reference consumer run has been performed or qualified.
+For a bounded **generation-only** check against an already built pinned
+compiler, use
+`CG19_PINNED_PROTOC="$PWD/target/pinned-protoc-build/protoc" python3 -B -m unittest discover -s bench/codegen -p 'test_*.py'`.
+This verifies all 5/20 generated Rust modules and their pinned byte hashes,
+but does not compile them or measure runtime performance.
 
 Bootstrap is **excluded** from generation and consumer check timings. Its
 driver builds offline against the compatible shared
@@ -54,7 +62,8 @@ reference peer in the **default** pbrs-only mode remains
 In opt-in mode, pbrs generation uses the **same pinned protoc** to compile
 descriptors; upstream uses its built-in `--rust_out` with
 `experimental-codegen=enabled,kernel=upb`. Both use default reflection
-metadata, the same input files and equivalent `Parse`/`Serialize` work, but
+metadata, the same input files and equivalent `Parse`/`Serialize` work
+across every generated message in the selected corpus, but
 their generated Rust module layouts differ (`mod.rs` versus `generated.rs`).
 Both generated file sets and byte hashes are recorded. Pbrs must preserve all
 `.rs` bytes and mtimes on repeat generation; upstream must preserve the
