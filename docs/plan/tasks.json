@@ -3007,6 +3007,9 @@
         "native-tls",
         "native-discovery",
         "docs"
+      ],
+      "evidence": [
+        "Partial 2026-09-25 (local TLS policy-replacement exercise): A bounded loopback test restarts an ordinary TLS greeter as mTLS using the existing public test fixtures. A channel created before the restart cannot bypass the new client-certificate requirement on redial; a newly constructed client with the required identity succeeds across all four RPC shapes. The operations guide now describes readiness/drain before replacement, fresh ServerTls/ClientTls/Channel construction, trust and identity probes, status-code triage without logging sensitive fields, and reflection exposure. Shared-cache two-job TLS 20/20, health 180/180 and documentation 18/18 passed locally. This tests a new-connection policy after server restart, NOT live certificate or CA rotation, an actual renewed identity, production traffic, or the still-pending OB-02/OB-03 dependencies; OB-04 remains pending."
       ]
     },
     {
