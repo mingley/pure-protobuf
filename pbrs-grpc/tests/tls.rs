@@ -825,3 +825,60 @@ async fn a_dead_tls_channel_redials() {
     assert_eq!(name_of(after.get_ref()), "after");
     echo_every_shape(&client, "after").await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn replacing_tls_policy_requires_fresh_client_identity() {
+    let (addr, old_server) =
+        serve_tls(ServerTls::new(server_identity()).expect("ordinary TLS server")).await;
+    let old_client = tls_client(
+        addr,
+        ClientTls::ca("localhost", CA).expect("ordinary TLS client"),
+    )
+    .await;
+    let before = old_client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("ordinary TLS RPC");
+    assert_eq!(name_of(before.get_ref()), "before");
+
+    drop(old_server);
+    let _new_server = serve_tls_at(
+        addr,
+        ServerTls::mtls(server_identity(), CA).expect("replacement mTLS server"),
+    )
+    .await;
+
+    let mut observed = Vec::new();
+    for _ in 0..4 {
+        let outcome = tokio::time::timeout(
+            Duration::from_secs(3),
+            old_client.say_hello(Request::new(req("after"))),
+        )
+        .await
+        .expect("old channel redial must have a bounded outcome");
+        match outcome {
+            Ok(_) => panic!("old TLS channel bypassed the new client-certificate requirement"),
+            Err(status) => {
+                assert!(
+                    matches!(status.code(), Code::Unauthenticated | Code::Unavailable),
+                    "unexpected old-channel outcome: {status}"
+                );
+                observed.push(status.code());
+                if status.code() == Code::Unauthenticated {
+                    break;
+                }
+            }
+        }
+    }
+    assert!(
+        observed.contains(&Code::Unauthenticated),
+        "old TLS channel never observed the new mTLS policy: {observed:?}"
+    );
+
+    let fresh_client = tls_client(
+        addr,
+        ClientTls::ca_mtls("localhost", CA, client_identity()).expect("fresh mTLS identity"),
+    )
+    .await;
+    echo_every_shape(&fresh_client, "after").await;
+}

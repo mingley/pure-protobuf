@@ -249,8 +249,50 @@ OB-03 remains open.
 
 ---
 
+<a id="credential-refresh"></a>
+## 6. Certificate and Trust Replacement
+
+There is no live certificate or CA reload on `ServerTls`, `ClientTls`, or an
+existing `Channel`. The rustls configuration is built from the supplied
+identity/trust material; editing a PEM file later does not change that
+configuration, and an already negotiated TLS connection is not reverified.
+Use a bounded replacement procedure instead:
+
+1. Set health to `NOT_SERVING`, let upstream routing observe it, then drain and
+   stop the old TLS listener with `serve_tls_with_shutdown`. A readiness update
+   by itself does not reject new calls or close existing connections.
+2. Obtain replacement material through an approved secret source; create a new
+   `Identity` and `ServerTls::new` or `ServerTls::mtls`, and start a new listener.
+   Never log the key, certificate bytes, peer metadata, or status message.
+3. Construct fresh `ClientTls` and `Channel` instances with the new CA and, for
+   mTLS, client identity. Retire old channels; they retain their original
+   connector even when they reconnect. Do not assume the new policy applies to
+   connections that were never closed.
+4. Probe with an authorized new client, reject an untrusted CA and a missing
+   client identity, then restore `SERVING`. If probes fail, keep readiness off
+   and roll back the listener/credentials through the same drain path.
+
+The [loopback policy-change test](../../pbrs-grpc/tests/tls.rs) exercises a
+restart from ordinary TLS to mTLS: the old credential-less channel cannot
+bypass the new policy on redial, while a newly constructed mTLS client works
+across all four RPC shapes. This proves new-connection behavior with public
+test fixtures, **not** live rotation of a server certificate or a production
+rollout. The [production recipe](production-service.md) covers readiness,
+drain and the fixture boundaries.
+
+For incident triage, distinguish a dial failure (`UNAVAILABLE`), failed TLS
+trust/client identity (`UNAUTHENTICATED`), protocol negotiation errors (which
+can also surface as `UNAVAILABLE` or `INTERNAL`), deadline exhaustion
+(`DEADLINE_EXCEEDED`), and admission overload (`RESOURCE_EXHAUSTED`). Use
+redacted `Debug` and bounded observer labels from section 5; raw `Status`
+messages and metadata are application-controlled and may contain secrets.
+Keep reflection disabled on exposed production listeners unless access to
+descriptors is separately authorized.
+
+---
+
 <a id="testing"></a>
-## 6. Testing with In-Memory Channels (`from_io`)
+## 7. Testing with In-Memory Channels (`from_io`)
 
 To test services deterministically without opening TCP sockets or managing ports:
 
