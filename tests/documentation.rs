@@ -383,39 +383,94 @@ pub fn extract_markdown_links(content: &str) -> Vec<String> {
     links
 }
 
-/// Discovers all `.md` files in the repository (excluding target, .git, and third_party).
-pub fn discover_markdown_files() -> Vec<PathBuf> {
-    let root = workspace_root();
+/// Discovers repository-owned `.md` files without following links outside the tree.
+pub fn discover_markdown_files() -> Result<Vec<PathBuf>, Vec<String>> {
+    discover_markdown_files_in(&workspace_root())
+}
+
+fn discover_markdown_files_in(root: &Path) -> Result<Vec<PathBuf>, Vec<String>> {
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|error| vec![format!("failed to resolve documentation root: {error}")])?;
     let mut result = Vec::new();
-    let mut stack = vec![root];
+    let mut errors = Vec::new();
+    let mut visited = HashSet::new();
+    let mut stack = vec![root.to_path_buf()];
 
     while let Some(dir) = stack.pop() {
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    let file_name = path.file_name().unwrap_or_default().to_string_lossy();
-                    if file_name != "target"
-                        && file_name != ".git"
-                        && file_name != "third_party"
-                        && file_name != "vendor"
-                    {
-                        stack.push(path);
-                    }
-                } else if path.extension().and_then(|s| s.to_str()) == Some("md") {
-                    result.push(path);
+        let resolved = match dir.canonicalize() {
+            Ok(path) => path,
+            Err(error) => {
+                errors.push(format!(
+                    "failed to resolve documentation directory: {error}"
+                ));
+                continue;
+            }
+        };
+        if !resolved.starts_with(&canonical_root) {
+            errors.push(format!(
+                "documentation directory '{}' points outside repository",
+                dir.strip_prefix(root).unwrap_or(&dir).display()
+            ));
+            continue;
+        }
+        if !visited.insert(resolved) {
+            continue;
+        }
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(error) => {
+                errors.push(format!(
+                    "failed to read documentation directory '{}': {error}",
+                    dir.strip_prefix(root).unwrap_or(&dir).display()
+                ));
+                continue;
+            }
+        };
+        for entry in entries {
+            let path = match entry {
+                Ok(entry) => entry.path(),
+                Err(error) => {
+                    errors.push(format!("failed to inspect documentation entry: {error}"));
+                    continue;
+                }
+            };
+            if path.is_dir() {
+                let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+                if file_name != "target"
+                    && file_name != ".git"
+                    && file_name != "third_party"
+                    && file_name != "vendor"
+                {
+                    stack.push(path);
+                }
+            } else if path.extension().and_then(|s| s.to_str()) == Some("md") {
+                match path.canonicalize() {
+                    Ok(resolved) if resolved.starts_with(&canonical_root) => result.push(path),
+                    Ok(_) => errors.push(format!(
+                        "Markdown file '{}' points outside repository",
+                        path.strip_prefix(root).unwrap_or(&path).display()
+                    )),
+                    Err(error) => errors.push(format!(
+                        "failed to resolve Markdown file '{}': {error}",
+                        path.strip_prefix(root).unwrap_or(&path).display()
+                    )),
                 }
             }
         }
     }
     result.sort();
-    result
+    if errors.is_empty() {
+        Ok(result)
+    } else {
+        Err(errors)
+    }
 }
 
 /// Validates all links and anchors in all repository markdown files.
 pub fn validate_all_markdown_links() -> Result<(), Vec<String>> {
     let root = workspace_root();
-    let files = discover_markdown_files();
+    let files = discover_markdown_files()?;
     let mut anchor_cache: HashMap<PathBuf, HashSet<String>> = HashMap::new();
     let mut errors = Vec::new();
 
@@ -445,6 +500,20 @@ pub fn validate_all_markdown_links() -> Result<(), Vec<String>> {
     }
 }
 
+fn cached_anchors<'a>(
+    path: &Path,
+    cache: &'a mut HashMap<PathBuf, HashSet<String>>,
+) -> std::io::Result<&'a HashSet<String>> {
+    use std::collections::hash_map::Entry;
+    match cache.entry(path.to_path_buf()) {
+        Entry::Occupied(entry) => Ok(entry.into_mut()),
+        Entry::Vacant(entry) => {
+            let content = fs::read_to_string(path)?;
+            Ok(entry.insert(extract_anchors(&content)))
+        }
+    }
+}
+
 fn validate_links_in_document(
     file: &Path,
     content: &str,
@@ -453,6 +522,10 @@ fn validate_links_in_document(
 ) -> Vec<String> {
     let mut errors = Vec::new();
     let file_dir = file.parent().unwrap_or(root);
+    let canonical_root = match root.canonicalize() {
+        Ok(path) => path,
+        Err(error) => return vec![format!("failed to resolve documentation root: {error}")],
+    };
 
     for link in extract_markdown_links(content) {
         if link.starts_with("http://")
@@ -467,35 +540,35 @@ fn validate_links_in_document(
             None => (link.as_str(), None),
         };
 
-        let target_file_path = if target_part.is_empty() {
+        let raw_path = if target_part.is_empty() {
             file.to_path_buf()
         } else {
-            let raw_path = file_dir.join(target_part);
-            match raw_path.canonicalize() {
-                Ok(p) => p,
-                Err(_) => {
-                    errors.push(format!(
-                        "Broken link in '{}': target file '{}' does not exist",
-                        file.strip_prefix(root).unwrap_or(file).display(),
-                        target_part
-                    ));
-                    continue;
-                }
+            file_dir.join(target_part)
+        };
+        let target_file_path = match raw_path.canonicalize() {
+            Ok(path) => path,
+            Err(_) => {
+                errors.push(format!(
+                    "Broken link in '{}': target file '{}' does not exist",
+                    file.strip_prefix(root).unwrap_or(file).display(),
+                    target_part
+                ));
+                continue;
             }
         };
+        if !target_file_path.starts_with(&canonical_root) {
+            errors.push(format!(
+                "Broken link in '{}': target '{}' points outside repository",
+                file.strip_prefix(root).unwrap_or(file).display(),
+                target_part
+            ));
+            continue;
+        }
 
         if let Some(anchor) = anchor_part {
             if target_file_path.extension().and_then(|s| s.to_str()) == Some("md") {
-                let anchors = anchor_cache
-                    .entry(target_file_path.clone())
-                    .or_insert_with(|| {
-                        fs::read_to_string(&target_file_path)
-                            .map(|c| extract_anchors(&c))
-                            .unwrap_or_default()
-                    });
-
-                if !anchors.contains(anchor) {
-                    errors.push(format!(
+                match cached_anchors(&target_file_path, anchor_cache) {
+                    Ok(anchors) if !anchors.contains(anchor) => errors.push(format!(
                         "Broken anchor in '{}': anchor '#{}' not found in '{}'",
                         file.strip_prefix(root).unwrap_or(file).display(),
                         anchor,
@@ -503,7 +576,12 @@ fn validate_links_in_document(
                             .strip_prefix(root)
                             .unwrap_or(&target_file_path)
                             .display()
-                    ));
+                    )),
+                    Err(error) => errors.push(format!(
+                        "Failed to read Markdown anchor target '{}': {error}",
+                        target_part
+                    )),
+                    Ok(_) => {}
                 }
             }
         }
@@ -524,7 +602,13 @@ pub fn validate_documentation_map_references() -> Result<(), Vec<String>> {
             )]);
         }
     };
+    validate_documentation_map_content(&root, &content)
+}
 
+fn validate_documentation_map_content(root: &Path, content: &str) -> Result<(), Vec<String>> {
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|error| vec![format!("failed to resolve documentation root: {error}")])?;
     let mut errors = Vec::new();
     let mut anchor_cache: HashMap<PathBuf, HashSet<String>> = HashMap::new();
 
@@ -541,26 +625,32 @@ pub fn validate_documentation_map_references() -> Result<(), Vec<String>> {
                         None => (token, None),
                     };
 
-                    let file_path = root.join(path_part);
-                    if !file_path.exists() {
+                    let file_path = match root.join(path_part).canonicalize() {
+                        Ok(path) => path,
+                        Err(_) => {
+                            errors.push(format!(
+                                "Documentation map references non-existent path: '{path_part}' (from `{token}`)"
+                            ));
+                            i = start + end_rel + 1;
+                            continue;
+                        }
+                    };
+                    if !file_path.starts_with(&canonical_root) {
                         errors.push(format!(
-                            "Documentation map references non-existent path: '{path_part}' (from `{token}`)"
+                            "Documentation map reference '{path_part}' points outside repository (from `{token}`)"
                         ));
                     } else if let Some(anchor) = anchor_part {
                         if file_path.is_file()
                             && file_path.extension().and_then(|s| s.to_str()) == Some("md")
                         {
-                            let anchors =
-                                anchor_cache.entry(file_path.clone()).or_insert_with(|| {
-                                    fs::read_to_string(&file_path)
-                                        .map(|c| extract_anchors(&c))
-                                        .unwrap_or_default()
-                                });
-
-                            if !anchors.contains(anchor) {
-                                errors.push(format!(
+                            match cached_anchors(&file_path, &mut anchor_cache) {
+                                Ok(anchors) if !anchors.contains(anchor) => errors.push(format!(
                                     "Documentation map references missing anchor '#{anchor}' in '{path_part}' (from `{token}`)"
-                                ));
+                                )),
+                                Err(error) => errors.push(format!(
+                                    "Failed to read documentation-map anchor target '{path_part}': {error}"
+                                )),
+                                Ok(_) => {}
                             }
                         }
                     }
@@ -1025,6 +1115,92 @@ fn test_link_checker_rejects_missing_examples_and_stale_generated_references() {
         assert_eq!(errors.len(), 1, "expected one broken reference in {broken}");
         assert!(errors[0].contains(target), "{}", errors[0]);
     }
+}
+
+#[test]
+fn test_local_link_checker_rejects_repository_escape() {
+    let root = workspace_root();
+    let file = root.join("README.md");
+    let errors = validate_links_in_document(
+        &file,
+        "[outside this repository](..)",
+        &root,
+        &mut HashMap::new(),
+    );
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("outside repository"), "{errors:?}");
+
+    #[cfg(unix)]
+    {
+        let link = root.join("target").join(format!(
+            "documentation-link-escape-{}-{}.md",
+            std::process::id(),
+            PROTO_COUNTER.fetch_add(1, Ordering::SeqCst)
+        ));
+        fs::create_dir_all(link.parent().unwrap()).expect("create ignored link fixture directory");
+        std::os::unix::fs::symlink(root.parent().expect("repository has a parent"), &link)
+            .expect("create outside-root link fixture");
+        let content = format!(
+            "[outside through symlink](target/{}#anchor)",
+            link.file_name().unwrap().to_string_lossy()
+        );
+        let errors = validate_links_in_document(&file, &content, &root, &mut HashMap::new());
+        fs::remove_file(&link).expect("remove link fixture");
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("outside repository"), "{errors:?}");
+    }
+}
+
+#[test]
+fn test_documentation_map_rejects_repository_escape() {
+    let errors = validate_documentation_map_content(&workspace_root(), "`docs/../..`")
+        .expect_err("a documentation-map reference cannot point outside this repository");
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("outside repository"), "{errors:?}");
+}
+
+#[test]
+fn test_anchor_cache_never_treats_unreadable_targets_as_empty() {
+    let mut cache = HashMap::new();
+    let directory = workspace_root().join("docs");
+    assert!(cached_anchors(&directory, &mut cache).is_err());
+    assert!(!cache.contains_key(&directory));
+}
+
+#[cfg(unix)]
+#[test]
+fn test_markdown_discovery_rejects_out_of_repo_directory_links() {
+    let scratch = workspace_root().join("target").join(format!(
+        "documentation-discovery-{}-{}",
+        std::process::id(),
+        PROTO_COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
+    let root = scratch.join("repo");
+    let outside = scratch.join("outside");
+    fs::create_dir_all(&root).expect("create synthetic repo");
+    fs::create_dir_all(&outside).expect("create external fixture");
+    fs::write(root.join("inside.md"), "# Inside\n").expect("write local page");
+    fs::write(outside.join("outside.md"), "# Outside\n").expect("write external page");
+    let link = root.join("external");
+    std::os::unix::fs::symlink(&outside, &link).expect("create directory link fixture");
+
+    let rejected = discover_markdown_files_in(&root);
+    fs::remove_file(&link).expect("remove directory link fixture");
+    let file_link = root.join("leak.md");
+    std::os::unix::fs::symlink(outside.join("outside.md"), &file_link)
+        .expect("create Markdown file link fixture");
+    let rejected_file = discover_markdown_files_in(&root);
+    fs::remove_file(&file_link).expect("remove Markdown file link fixture");
+    let local_files = discover_markdown_files_in(&root).expect("local Markdown files are valid");
+    fs::remove_dir_all(&scratch).expect("remove synthetic documentation fixture");
+
+    let errors = rejected.expect_err("out-of-repository directories cannot be scanned");
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("outside repository"), "{errors:?}");
+    let errors = rejected_file.expect_err("out-of-repository Markdown files cannot be scanned");
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("outside repository"), "{errors:?}");
+    assert_eq!(local_files, vec![root.join("inside.md")]);
 }
 
 #[test]

@@ -192,9 +192,14 @@ Any edit to this map or to a page it references must keep green:
 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo test --locked --offline --test documentation
 ```
 
-That suite enforces the map's own validity: every markdown link
-resolves to an existing file and anchor, every backticked `docs/`
-path in this file exists, and every guide snippet parses. It requires
+That suite enforces the map's own validity: repository-local Markdown links
+resolve to existing files and anchors **inside the canonical repository
+root**, including when a path contains parent components or symlinks.
+Unreadable Markdown anchor targets fail explicitly; external HTTP links
+are not fetched during the offline check. Every backticked `docs/` path
+in this file resolves inside the repository, and every guide snippet
+parses. Markdown discovery refuses out-of-repository file or directory
+symlinks rather than traversing external material. The suite requires
 `protoc` to validate Protobuf snippets. When
 adding a page, add its journey row in section 2 and its domain
 row in section 1 in the same change.
