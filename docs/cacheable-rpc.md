@@ -184,6 +184,7 @@ When invoked over normal gRPC `POST`, `cacheable_unary_call` functions identical
 ### 6.1 Disposition in `tests/interop/cases.json`
 `tests/interop/cases.json` is updated with the authoritative classification:
 - **Case:** `cacheable_unary`
+- **Procedure source:** The pinned `doc/interop-test-descriptions.md` description, not `run_interop_tests.py`, which omits the case.
 - **Disposition:** `not_applicable`
 - **Justification:** Unratified experimental procedure not included in the gRPC over HTTP/2 specification (`PROTOCOL-HTTP2.md` requires `:method POST`). Excluded from the active upstream test runner (`run_interop_tests.py`), rejected in C++ core (`HttpServerFilter`), broken in `grpc-java`, and unimplemented in `grpc-go`. Excluded from the standard HTTP/2 full profile with maintainer approval due to CSRF and URL credential disclosure hazards.
 - **Coverage Status:** `not_applicable`

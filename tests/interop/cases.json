@@ -663,7 +663,7 @@
       "case": "cacheable_unary",
       "name": "Cacheable Unary Call",
       "suite": "standard_interop",
-      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:doc/interop-test-descriptions.md",
       "peer_direction": "client_to_server",
       "transport": "http2_cleartext",
       "profile": "full",

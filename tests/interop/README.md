@@ -92,7 +92,8 @@ Baseline gRPC RPC patterns and protocol semantics defined in `doc/interop-test-d
 * **Flow control and lifecycle**: `cancel_after_begin`, `cancel_after_first_response`, `timeout_on_sleeping_server`.
 * **Metadata and errors**: `custom_metadata`, `status_code_and_message`, `special_status_message`.
 * **Unimplemented handling**: `unimplemented_method`, `unimplemented_service`.
-* **Extended runner cases**: `pick_first_unary` (subchannel pick_first validation), `cacheable_unary` (HTTP/2 GET mapping).
+* **Extended runner case**: `pick_first_unary` (subchannel pick_first validation).
+* **Spec-only experimental case**: `cacheable_unary` describes HTTP/2 GET through a caching proxy, but is omitted from the active runner. Its standard gRPC over HTTP/2 disposition is [not applicable](../../docs/cacheable-rpc.md); the native kernel still requires POST.
 
 ### 2. Compression Interoperability (`compression_interop`, 4 cases)
 Message-level compression negotiation and framing:

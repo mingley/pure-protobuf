@@ -69,6 +69,16 @@ class TestCasesJsonSchema(unittest.TestCase):
         self.assertEqual(len(self.raw_data["cases"]), 69)
         self.assertEqual(self.raw_data["summary"]["total_cases"], 69)
 
+    def test_cacheable_unary_cites_its_spec_not_the_runner_that_omits_it(self):
+        case = next(item for item in self.raw_data["cases"] if item["case"] == "cacheable_unary")
+        pin = self.raw_data["upstream_pins"]["grpc"]
+        self.assertEqual(
+            case["procedure_source"],
+            f"{pin['repository']}@{pin['commit']}:{pin['interop_doc']}",
+        )
+        self.assertEqual(case["disposition"], "not_applicable")
+        self.assertEqual(case["present_coverage"]["status"], "not_applicable")
+
     def test_schema_missing_required_top_level_keys(self):
         """Top-level keys must all be present."""
         for key in ["version", "upstream_pins", "disposition_definitions", "suites", "summary", "cases"]:
