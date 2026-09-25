@@ -3833,7 +3833,10 @@
         "If applicable, create separate opt-in protocol/client/server fixture cards and leave the case unsupported until their independent proof lands.",
         "Do not globally relax POST or authorization/caching rules to satisfy a test name; any genuine not-applicable decision cites upstream status and maintainer approval."
       ],
-      "checks": []
+      "checks": [],
+      "evidence": [
+        "Partial 2026-09-25 (spec-vs-runner provenance): Verified the pinned grpc/grpc d1487957 source describes cacheable_unary only in doc/interop-test-descriptions.md, while active run_interop_tests.py omits it. The registry now points procedure_source to the pinned description rather than the absent runner entry; a regression locks that distinction. The existing documented POST-only/not_applicable disposition is unchanged and no GET behavior was added. EX-20 stays pending coordinator review of the recorded exclusion and its maintainer approval evidence; this provenance correction alone does not close the gate."
+      ]
     },
     {
       "id": "EX-21",
