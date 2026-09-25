@@ -407,14 +407,18 @@ parse-and-touch materialization remains BM-03 work.
 
 **Person layout diagnostic (not historical, not gated):** `tonic-bench/build.rs`
 generates a pbrs `Person` from the repository's `proto/person.proto` alongside
-the existing common-shape bindings. Its separate `person_handwritten` and
-`person_generated` rows parse **the same 62-byte Person wire**. Each independently
+the existing common-shape bindings. Its `person_handwritten` and
+`person_generated` layout rows parse **the same 62-byte Person wire**. Each independently
 measures repeated encode, first encode after parse, parse-only, and parse-and-touch
 for pbrs, prost and the existing v4 upb Person. Full re-encoded buffers must
 match the shared input; the touch checks access id, name, present email, both
 tags, the one scores entry and nested address city, and match across layouts
 and codecs before timing. The diagnostic prints actual iteration/sample counts
-and raw times without declaring winners or changing any smoke gate. Repeated
+and raw times without declaring winners or changing any smoke gate. A third
+`person_generated_extras` row carries one nonempty typed `extras` map entry
+(tag 16) and measures generated pbrs against prost/v4 independently, with
+the same sample budget and checked wire/parsed-field/touch equivalence.
+There is **no handwritten comparator** for that row. Repeated
 prost/v4 encode does not imply a pbrs-style cached-size optimization, and
 prost/v4 comparator cells are **timed anew** for each layout, not copied.
 Touch sums string lengths and scalar values; it does not scan every string
@@ -422,8 +426,10 @@ byte. All these measurements are fixed-order and same-process, not randomized
 paired runs on independent pinned hosts.
 
 The handwritten `pbrs::testdata::Person` does **not** expose `extras` (tag 16);
-the test fixture leaves it empty for all four representations, and the generated
-layout alone cannot establish full-schema parity for nonempty `extras`.
+the two-layout fixture leaves it empty for all four representations. The
+generated-only row proves that **one** nonempty entry is observable by the
+three codecs with a typed field; it does not establish handwritten/generated
+full-schema parity for arbitrary `extras` contents.
 Generated pbrs retains lazy, wire-backed fields with different repeated/map
 storage; prost owns decoded fields, and v4 allocates an upb Arena. Equal wire
 bytes for this specimen do not make ownership, retained memory, or full-schema

@@ -675,6 +675,37 @@ fn person_input_wire() -> Vec<u8> {
     Serialize::serialize(&person).expect("person input wire")
 }
 
+fn person_extras_wire(base: &[u8]) -> Vec<u8> {
+    let mut person = pbrs_person::Person::parse(base).expect("generated Person fixture");
+    person.extras_mut().insert("project", 7);
+    Serialize::serialize(&person).expect("Person with typed extras")
+}
+
+fn run_person_extras_row(input: &[u8], budget: Option<(u32, usize)>) -> Row {
+    let generated = pbrs_person::Person::parse(input).expect("generated extras input");
+    let prost: ProstPerson = prost::Message::decode(input).expect("prost extras input");
+    let v4 = v4_person::Person::parse(input).expect("v4 extras input");
+    assert_eq!(generated.extras().iter().count(), 1);
+    assert_eq!(prost.extras.get("project"), Some(&7));
+    assert!(
+        v4.extras()
+            .iter()
+            .any(|(key, value)| key == "project" && value == 7),
+        "v4 must expose the same typed extras field"
+    );
+    run_with_budget(
+        "person_generated_extras",
+        &generated,
+        &prost,
+        &v4,
+        true,
+        touch_generated_person,
+        touch_prost_person,
+        touch_v4_person,
+        budget,
+    )
+}
+
 fn mutation_id(alternate: bool) -> i32 {
     if alternate { 42 } else { 43 }
 }
@@ -729,9 +760,10 @@ fn run_person_rows(input: &[u8], budget: Option<(u32, usize)>) -> [Row; 2] {
     ]
 }
 
-fn person_report(rows: &[Row; 2]) -> String {
+fn person_report(rows: &[Row; 2], extras: &Row) -> String {
     assert_eq!(rows[0].name, "person_handwritten");
     assert_eq!(rows[1].name, "person_generated");
+    assert_eq!(extras.name, "person_generated_extras");
     let work = (
         rows[0].payload,
         rows[0].iters,
@@ -752,12 +784,21 @@ fn person_report(rows: &[Row; 2]) -> String {
         ),
         "person rows must use the same input and sample counts"
     );
+    assert!(
+        extras.payload > work.0,
+        "typed extras row must contain additional wire data"
+    );
+    assert_eq!(
+        (extras.iters, extras.first_iters, extras.samples),
+        (work.1, work.2, work.3),
+        "typed extras row must use the same sample budget"
+    );
     let mut report = String::from(
         "## Person layouts (proto/person.proto; diagnostic, ns, not gated)\n\
          | case (pbrs layout) | payload | repeated/parse iters | first-encode iters | samples | pbrs enc first/prewarmed | pbrs dec parse/touch | prost enc first/repeated | prost dec parse/touch | v4 enc first/repeated | v4 dec parse/touch |\n\
          |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n",
     );
-    for row in rows {
+    for row in rows.iter().chain(std::iter::once(extras)) {
         for value in [
             row.pbrs_enc,
             row.pbrs_fresh_enc,
@@ -800,8 +841,9 @@ fn person_report(rows: &[Row; 2]) -> String {
         ));
     }
     report.push_str(
-        "\nSame input wire; prost/v4 columns are timed independently in each row. \
-         Handwritten Person has no extras field (tag 16), so the fixture leaves it empty. \
+        "\nEach row uses a matched wire across its codecs; prost/v4 are timed independently. \
+         The two layout rows share an empty-extras wire; the generated-only extras row has \
+         one typed tag-16 entry and no handwritten comparator. \
          Touch uses string lengths and scalar values, not a bytewise string scan. \
          Fixed-order, same-process timings do not qualify a speed or memory claim.\n",
     );
@@ -1654,7 +1696,10 @@ fn main() {
     print_table("## Common shapes (codec_cases.proto)", &survey);
     print_first_encodes(&survey);
     let person_wire = person_input_wire();
-    println!("{}", person_report(&run_person_rows(&person_wire, None)));
+    let person_rows = run_person_rows(&person_wire, None);
+    let extras_wire = person_extras_wire(&person_wire);
+    let extras_row = run_person_extras_row(&extras_wire, None);
+    println!("{}", person_report(&person_rows, &extras_row));
     let (person_iters, person_samples) = timer_budget(person_wire.len());
     println!(
         "{}",
@@ -1710,9 +1755,10 @@ mod tests {
     use super::{
         MutationRow, ProstPerson, assert_person_mutation_output, first_encode_budget,
         median_first_encode_ns, median_mutated_encode_ns, mutation_report, pbrs_person,
-        person_input_wire, person_mutation_budget, person_report, run_person_mutations,
-        run_person_rows, touch_generated_person, touch_handwritten_person, touch_prost_person,
-        touch_v4_person, v4_person, verify_person_mutations,
+        person_extras_wire, person_input_wire, person_mutation_budget, person_report,
+        run_person_extras_row, run_person_mutations, run_person_rows, touch_generated_person,
+        touch_handwritten_person, touch_prost_person, touch_v4_person, v4_person,
+        verify_person_mutations,
     };
     use pbrs::testdata::Person as PbrsPerson;
     use pbrs::{AsView, Parse, Serialize};
@@ -1842,6 +1888,7 @@ mod tests {
     fn person_layout_rows_use_same_wire_work_and_report_both_measurements() {
         let input = person_input_wire();
         let rows = run_person_rows(&input, Some((10, 3)));
+        let extras = run_person_extras_row(&person_extras_wire(&input), Some((10, 3)));
         assert_eq!(rows[0].name, "person_handwritten");
         assert_eq!(rows[1].name, "person_generated");
         assert_eq!(rows[0].payload, input.len());
@@ -1849,19 +1896,56 @@ mod tests {
         assert_eq!(rows[0].iters, 10);
         assert_eq!(rows[1].iters, 10);
         assert_eq!(rows[0].first_iters, rows[1].first_iters);
-        let report = person_report(&rows);
+        let report = person_report(&rows, &extras);
         assert!(report.contains("| person_handwritten | 62 | 10 | 10 | 3 |"));
         assert!(report.contains("| person_generated | 62 | 10 | 10 | 3 |"));
-        assert!(report.contains("prost/v4 columns are timed independently"));
+        assert!(report.contains("| person_generated_extras |"));
+        assert!(report.contains("no handwritten comparator"));
+        assert!(report.contains("prost/v4 are timed independently"));
         assert!(!report.contains(" | win |"));
         assert!(!report.contains(" | loss |"));
 
         let mut mismatched = rows;
         mismatched[1].first_iters -= 1;
-        assert!(std::panic::catch_unwind(|| person_report(&mismatched)).is_err());
+        assert!(std::panic::catch_unwind(|| person_report(&mismatched, &extras)).is_err());
         let mut invalid = rows;
         invalid[1].v4_touch = f64::NAN;
-        assert!(std::panic::catch_unwind(|| person_report(&invalid)).is_err());
+        assert!(std::panic::catch_unwind(|| person_report(&invalid, &extras)).is_err());
+        let mut mislabeled = extras;
+        mislabeled.name = "person_handwritten";
+        assert!(std::panic::catch_unwind(|| person_report(&rows, &mislabeled)).is_err());
+    }
+
+    #[test]
+    fn generated_person_extras_compares_only_codecs_with_typed_tag_16() {
+        let base = person_input_wire();
+        let wire = person_extras_wire(&base);
+        assert!(wire.len() > base.len());
+        let generated = pbrs_person::Person::parse(&wire).expect("generated extras");
+        let (key, value) = generated.extras().iter().next().expect("typed extras");
+        assert_eq!(key.as_view().as_bytes(), b"project");
+        assert_eq!(value, 7);
+        let prost: ProstPerson = prost::Message::decode(wire.as_slice()).expect("prost extras");
+        let v4 = v4_person::Person::parse(&wire).expect("v4 extras");
+        let touched = touch_generated_person(&generated);
+        assert!(touched > touch_generated_person(&pbrs_person::Person::parse(&base).unwrap()));
+        assert_eq!(touched, touch_prost_person(&prost));
+        assert_eq!(touched, touch_v4_person(&v4));
+
+        let row = run_person_extras_row(&wire, Some((10, 3)));
+        assert_eq!(row.name, "person_generated_extras");
+        assert_eq!((row.payload, row.iters, row.samples), (wire.len(), 10, 3));
+        assert!(
+            person_report(&run_person_rows(&base, Some((10, 3))), &row)
+                .contains("| person_generated_extras |")
+        );
+
+        let mut wrong = generated;
+        wrong.extras_mut().insert("project", 9);
+        let wrong_wire = Serialize::serialize(&wrong).expect("wrong typed extras wire");
+        assert!(
+            std::panic::catch_unwind(|| run_person_extras_row(&wrong_wire, Some((10, 3)))).is_err()
+        );
     }
 
     #[test]
