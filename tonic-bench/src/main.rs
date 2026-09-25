@@ -147,7 +147,7 @@ fn median_mutated_encode_ns<M, F, U, E, O>(
 ) -> f64
 where
     F: FnMut() -> M,
-    U: FnMut(&mut M, i32),
+    U: FnMut(&mut M, bool),
     E: FnMut(&M) -> O,
 {
     assert!(
@@ -157,10 +157,10 @@ where
     let mut times = Vec::with_capacity(samples);
     for _ in 0..samples {
         let mut message = prepare();
-        let mut last_id = 43;
+        let mut alternate = false;
         let mut step = || {
-            last_id = if last_id == 42 { 43 } else { 42 };
-            mutate(&mut message, last_id);
+            alternate = !alternate;
+            mutate(&mut message, alternate);
             std::hint::black_box(encode(&message));
         };
         for _ in 0..iters / 10 {
@@ -675,6 +675,18 @@ fn person_input_wire() -> Vec<u8> {
     Serialize::serialize(&person).expect("person input wire")
 }
 
+fn mutation_id(alternate: bool) -> i32 {
+    if alternate { 42 } else { 43 }
+}
+
+fn mutation_name(alternate: bool) -> &'static str {
+    if alternate {
+        "ada"
+    } else {
+        "ada lovelace with a longer name"
+    }
+}
+
 fn run_person_rows(input: &[u8], budget: Option<(u32, usize)>) -> [Row; 2] {
     let handwritten = PbrsPerson::parse(input).expect("handwritten person input");
     let generated = pbrs_person::Person::parse(input).expect("generated person input");
@@ -848,11 +860,35 @@ fn verify_person_mutations(input: &[u8]) {
         let v4_wire = V4Serialize::serialize(&v4).expect("v4 person mutation wire");
         assert_person_mutation_output("v4", &v4_wire, &expected_wire, id);
     }
+
+    let mut pbrs = PbrsPerson::parse(input).expect("pbrs name mutation input");
+    let mut generated = pbrs_person::Person::parse(input).expect("generated name mutation input");
+    let mut prost: ProstPerson = prost::Message::decode(input).expect("prost name mutation input");
+    let mut v4 = v4_person::Person::parse(input).expect("v4 name mutation input");
+    for name in [mutation_name(true), mutation_name(false)] {
+        let mut expected = PbrsPerson::parse(input).expect("name mutation reference");
+        expected.set_name(name);
+        let expected_wire = Serialize::serialize(&expected).expect("name mutation expected wire");
+        pbrs.set_name(name);
+        generated.set_name(name);
+        prost.name = name.to_owned();
+        v4.set_name(name);
+
+        encode_pbrs_person(&pbrs, &mut pbrs_dst);
+        assert_person_mutation_output("pbrs name", &pbrs_dst, &expected_wire, 7);
+        encode_pbrs_person(&generated, &mut generated_dst);
+        assert_person_mutation_output("pbrs generated name", &generated_dst, &expected_wire, 7);
+        encode_prost_person(&prost, &mut prost_dst);
+        assert_person_mutation_output("prost name", &prost_dst, &expected_wire, 7);
+        let v4_wire = V4Serialize::serialize(&v4).expect("v4 name mutation wire");
+        assert_person_mutation_output("v4 name", &v4_wire, &expected_wire, 7);
+    }
 }
 
 #[derive(Clone, Copy)]
 struct MutationRow {
     name: &'static str,
+    transition: &'static str,
     payload: usize,
     iters: u32,
     samples: usize,
@@ -861,22 +897,31 @@ struct MutationRow {
     v4_ns: f64,
 }
 
+struct MutationLabel {
+    layout: &'static str,
+    transition: &'static str,
+}
+
 fn person_mutation_budget(iters: u32, payload: usize) -> u32 {
     first_encode_budget::<PbrsPerson, ProstPerson, v4_person::Person>(iters, payload).min(
         first_encode_budget::<pbrs_person::Person, ProstPerson, v4_person::Person>(iters, payload),
     )
 }
 
-fn measure_person_mutation<P, U>(
-    name: &'static str,
+fn measure_person_mutation<P, UP, UR, UV>(
+    label: MutationLabel,
     input: &[u8],
     iters: u32,
     samples: usize,
-    mut set_id: U,
+    mut set_pbrs: UP,
+    mut set_prost: UR,
+    mut set_v4: UV,
 ) -> MutationRow
 where
     P: Parse + Serialize,
-    U: FnMut(&mut P, i32),
+    UP: FnMut(&mut P, bool),
+    UR: FnMut(&mut ProstPerson, bool),
+    UV: FnMut(&mut v4_person::Person, bool),
 {
     let mut pbrs_dst = BytesMut::new();
     let mut prost_dst = BytesMut::new();
@@ -890,7 +935,7 @@ where
             std::hint::black_box(&warm[..]);
             message
         },
-        |message, id| set_id(message, id),
+        |message, alternate| set_pbrs(message, alternate),
         |message| {
             encode_pbrs_person(message, &mut pbrs_dst);
             std::hint::black_box(&pbrs_dst[..]);
@@ -904,7 +949,7 @@ where
             std::hint::black_box(prost::Message::encode_to_vec(&message));
             message
         },
-        |message, id| message.id = id,
+        |message, alternate| set_prost(message, alternate),
         |message| {
             encode_prost_person(message, &mut prost_dst);
             std::hint::black_box(&prost_dst[..]);
@@ -918,13 +963,14 @@ where
             std::hint::black_box(V4Serialize::serialize(&message).expect("v4 person warmup"));
             message
         },
-        |message, id| message.set_id(id),
+        |message, alternate| set_v4(message, alternate),
         |message| {
             std::hint::black_box(V4Serialize::serialize(message).expect("v4 person encode"));
         },
     );
     MutationRow {
-        name,
+        name: label.layout,
+        transition: label.transition,
         payload: input.len(),
         iters,
         samples,
@@ -934,43 +980,87 @@ where
     }
 }
 
-fn run_person_mutations(input: &[u8], iters: u32, samples: usize) -> [MutationRow; 2] {
+fn run_person_mutations(input: &[u8], iters: u32, samples: usize) -> [MutationRow; 4] {
     verify_person_mutations(input);
     let iters = person_mutation_budget(iters, input.len());
     [
-        measure_person_mutation::<PbrsPerson, _>(
-            "person_handwritten",
+        measure_person_mutation::<PbrsPerson, _, _, _>(
+            MutationLabel {
+                layout: "person_handwritten",
+                transition: "id 42 <-> 43",
+            },
             input,
             iters,
             samples,
-            PbrsPerson::set_id,
+            |message, alternate| message.set_id(mutation_id(alternate)),
+            |message, alternate| message.id = mutation_id(alternate),
+            |message, alternate| message.set_id(mutation_id(alternate)),
         ),
-        measure_person_mutation::<pbrs_person::Person, _>(
-            "person_generated",
+        measure_person_mutation::<pbrs_person::Person, _, _, _>(
+            MutationLabel {
+                layout: "person_generated",
+                transition: "id 42 <-> 43",
+            },
             input,
             iters,
             samples,
-            pbrs_person::Person::set_id,
+            |message, alternate| message.set_id(mutation_id(alternate)),
+            |message, alternate| message.id = mutation_id(alternate),
+            |message, alternate| message.set_id(mutation_id(alternate)),
+        ),
+        measure_person_mutation::<PbrsPerson, _, _, _>(
+            MutationLabel {
+                layout: "person_handwritten",
+                transition: "name ada <-> longer",
+            },
+            input,
+            iters,
+            samples,
+            |message, alternate| message.set_name(mutation_name(alternate)),
+            |message, alternate| message.name = mutation_name(alternate).to_owned(),
+            |message, alternate| message.set_name(mutation_name(alternate)),
+        ),
+        measure_person_mutation::<pbrs_person::Person, _, _, _>(
+            MutationLabel {
+                layout: "person_generated",
+                transition: "name ada <-> longer",
+            },
+            input,
+            iters,
+            samples,
+            |message, alternate| message.set_name(mutation_name(alternate)),
+            |message, alternate| message.name = mutation_name(alternate).to_owned(),
+            |message, alternate| message.set_name(mutation_name(alternate)),
         ),
     ]
 }
 
-fn mutation_report(rows: &[MutationRow; 2]) -> String {
-    assert_eq!(rows[0].name, "person_handwritten");
-    assert_eq!(rows[1].name, "person_generated");
+fn mutation_report(rows: &[MutationRow; 4]) -> String {
     let work = (rows[0].payload, rows[0].iters, rows[0].samples);
     assert!(
         work.0 > 0 && work.1 > 0 && work.2 > 0,
         "mutation report needs measured work"
     );
-    assert_eq!(
-        work,
-        (rows[1].payload, rows[1].iters, rows[1].samples),
-        "mutation rows must use the same input and sample counts"
-    );
+    for (row, expected) in rows.iter().zip([
+        ("person_handwritten", "id 42 <-> 43"),
+        ("person_generated", "id 42 <-> 43"),
+        ("person_handwritten", "name ada <-> longer"),
+        ("person_generated", "name ada <-> longer"),
+    ]) {
+        assert_eq!(
+            (row.name, row.transition),
+            expected,
+            "mutation row identity"
+        );
+        assert_eq!(
+            work,
+            (row.payload, row.iters, row.samples),
+            "mutation rows must use the same input and sample counts"
+        );
+    }
     let mut report = String::from(
         "Mutation before encode (diagnostic; mutation+encode ns, parse/pre-warm excluded):\n\
-         | case (pbrs layout) | id transition | payload | iterations/sample | samples | pbrs | prost | v4 |\n\
+         | case (pbrs layout) | field transition | payload | iterations/sample | samples | pbrs | prost | v4 |\n\
          |---|---|---:|---:|---:|---:|---:|---:|\n",
     );
     for row in rows {
@@ -986,12 +1076,21 @@ fn mutation_report(rows: &[MutationRow; 2]) -> String {
             );
         }
         report.push_str(&format!(
-            "| {} | 42 <-> 43 | {} | {} | {} | {:.1} | {:.1} | {:.1} |\n",
-            row.name, row.payload, row.iters, row.samples, row.pbrs_ns, row.prost_ns, row.v4_ns
+            "| {} | {} | {} | {} | {} | {:.1} | {:.1} | {:.1} |\n",
+            row.name,
+            row.transition,
+            row.payload,
+            row.iters,
+            row.samples,
+            row.pbrs_ns,
+            row.prost_ns,
+            row.v4_ns
         ));
     }
     report.push_str(
-        "\nEach row times its own pbrs, prost and v4 mutation independently in fixed order; no gate or speed claim.\n",
+        "\nName states are \"ada\" and \"ada lovelace with a longer name\". \
+         Each row times its own pbrs, prost and v4 mutation independently in fixed order; \
+         no gate or speed claim.\n",
     );
     report
 }
@@ -1672,7 +1771,7 @@ mod tests {
                 prepared += 1;
                 7
             },
-            |message, id| *message = id,
+            |message, alternate| *message = super::mutation_id(alternate),
             |message| {
                 encoded.push(*message);
                 vec![*message as u8]
@@ -1779,13 +1878,20 @@ mod tests {
         assert!(usize::try_from(iters).expect("bounded count") * footprint <= 32 * 1024 * 1024);
 
         let rows = run_person_mutations(&input, 10, 3);
+        assert_eq!(rows.len(), 4);
         assert_eq!(rows[0].iters, 10);
         assert_eq!(rows[1].iters, 10);
+        assert_eq!(rows[2].iters, 10);
+        assert_eq!(rows[3].iters, 10);
         assert_eq!(rows[0].payload, input.len());
         assert_eq!(rows[1].payload, input.len());
+        assert_eq!(rows[2].payload, input.len());
+        assert_eq!(rows[3].payload, input.len());
         let report = mutation_report(&rows);
-        assert!(report.contains("| person_handwritten | 42 <-> 43 | 62 | 10 | 3 |"));
-        assert!(report.contains("| person_generated | 42 <-> 43 | 62 | 10 | 3 |"));
+        assert!(report.contains("| person_handwritten | id 42 <-> 43 | 62 | 10 | 3 |"));
+        assert!(report.contains("| person_generated | id 42 <-> 43 | 62 | 10 | 3 |"));
+        assert!(report.contains("| person_handwritten | name ada <-> longer | 62 | 10 | 3 |"));
+        assert!(report.contains("| person_generated | name ada <-> longer | 62 | 10 | 3 |"));
 
         let mut expected = PbrsPerson::parse(&input).expect("reference parse");
         expected.set_id(42);
@@ -1816,9 +1922,19 @@ mod tests {
     }
 
     #[test]
+    fn person_mutation_covers_non_id_field_for_both_layouts() {
+        let rows = run_person_mutations(&person_input_wire(), 10, 3);
+        assert_eq!(rows.len(), 4, "name mutation must have two additional rows");
+        let report = mutation_report(&rows);
+        assert!(report.contains("| person_handwritten | name "));
+        assert!(report.contains("| person_generated | name "));
+    }
+
+    #[test]
     fn mutation_report_is_separate_and_fails_closed_on_missing_measurements() {
         let row = MutationRow {
             name: "person_handwritten",
+            transition: "id 42 <-> 43",
             payload: 64,
             iters: 10,
             samples: 3,
@@ -1833,7 +1949,22 @@ mod tests {
             v4_ns: 8.0,
             ..row
         };
-        let report = mutation_report(&[row, generated]);
+        let name_row = MutationRow {
+            transition: "name ada <-> longer",
+            pbrs_ns: 6.0,
+            prost_ns: 6.5,
+            v4_ns: 10.1,
+            ..row
+        };
+        let generated_name_row = MutationRow {
+            name: "person_generated",
+            pbrs_ns: 7.0,
+            prost_ns: 6.8,
+            v4_ns: 11.2,
+            ..name_row
+        };
+        let rows = [row, generated, name_row, generated_name_row];
+        let report = mutation_report(&rows);
         assert_eq!(
             report.lines().next(),
             Some(
@@ -1842,36 +1973,34 @@ mod tests {
         );
         assert_eq!(
             report.lines().nth(3),
-            Some("| person_handwritten | 42 <-> 43 | 64 | 10 | 3 | 3.5 | 4.0 | 9.2 |")
+            Some("| person_handwritten | id 42 <-> 43 | 64 | 10 | 3 | 3.5 | 4.0 | 9.2 |")
         );
         assert_eq!(
             report.lines().nth(4),
-            Some("| person_generated | 42 <-> 43 | 64 | 10 | 3 | 5.3 | 4.1 | 8.0 |")
+            Some("| person_generated | id 42 <-> 43 | 64 | 10 | 3 | 5.3 | 4.1 | 8.0 |")
+        );
+        assert_eq!(
+            report.lines().nth(5),
+            Some("| person_handwritten | name ada <-> longer | 64 | 10 | 3 | 6.0 | 6.5 | 10.1 |")
+        );
+        assert_eq!(
+            report.lines().nth(6),
+            Some("| person_generated | name ada <-> longer | 64 | 10 | 3 | 7.0 | 6.8 | 11.2 |")
         );
         assert!(report.contains("Each row times its own pbrs, prost and v4"));
+        assert!(report.contains("Name states are \"ada\" and \"ada lovelace with a longer name\""));
         assert!(!report.contains("Excluded:"));
         assert!(!report.contains("First encode after parse"));
         for value in [0.0, f64::NAN, f64::INFINITY] {
-            assert!(
-                std::panic::catch_unwind(|| mutation_report(&[
-                    row,
-                    MutationRow {
-                        v4_ns: value,
-                        ..generated
-                    }
-                ]))
-                .is_err()
-            );
+            let mut invalid = rows;
+            invalid[3].v4_ns = value;
+            assert!(std::panic::catch_unwind(|| mutation_report(&invalid)).is_err());
         }
-        assert!(
-            std::panic::catch_unwind(|| mutation_report(&[
-                row,
-                MutationRow {
-                    iters: 9,
-                    ..generated
-                }
-            ]))
-            .is_err()
-        );
+        let mut unmatched = rows;
+        unmatched[3].iters = 9;
+        assert!(std::panic::catch_unwind(|| mutation_report(&unmatched)).is_err());
+        let mut mislabeled = rows;
+        mislabeled[3].transition = "id 42 <-> 43";
+        assert!(std::panic::catch_unwind(|| mutation_report(&mislabeled)).is_err());
     }
 }

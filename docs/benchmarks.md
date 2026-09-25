@@ -56,11 +56,11 @@ structured to avoid semantic bias across buffer ownership, caching, and layout:
      direct first-encode measurements. Construction/field assignment is not
      included in this parse-prepared diagnostic.
    - *Mutated Encode*: `bench` alternates a field before every pbrs encode to
-     include cache invalidation and size recomputation. `tonic-bench` now
-     reports separate three-codec `Person` id-mutation rows for handwritten
-     and generated pbrs; they are not part of the historical rows or gates.
-     Both consume full encoded buffers and are diagnostic, not replacements
-     for the cached encode rows.
+     include cache invalidation and size recomputation. `tonic-bench` reports
+     separate three-codec `Person` ID and variable-length name-mutation rows
+     for handwritten and generated pbrs; they are not part of the historical
+     rows or gates. These measurements consume full encoded buffers and are
+     diagnostic, not replacements for the cached encode rows.
 4. **Parse-Only vs. Parse-and-Touch**:
    - *Parse-Only*: Deserializes wire bytes and drops the decoded message
      immediately without inspecting fields.
@@ -433,18 +433,21 @@ costs equal.
 `tonic-bench` compares `proto/person.proto` with handwritten
 **and generated** pbrs Person, a locally prost-derived matching schema, and
 the existing v4 upb binding in `rust_out_person/src/person.u.pb.rs` (pinned
-to 4.35.1-release). Both rows use the shared input above, with no `extras`.
-For **each** row, all three codec timings are independently measured: parse
-and pre-warm a message outside the timer, then alternate `id` between 42 and
-43 on that same object **before every encode**. Timed work includes the
-setter/assignment and serialization, not parsing or construction. pbrs/prost
-reuse a `BytesMut`; v4 allocates its upb-backed output. Full buffers are
-consumed. Before timing, both states must byte-match the expected wire,
-reparse with handwritten and generated pbrs, prost and v4, and agree on
-populated fields; any mismatch fails the run. Both rows use the same
-iteration/sample counts within the existing 10,000/estimated-32-MiB cap.
+to 4.35.1-release). All four rows use the shared input above, with no `extras`.
+The diagnostic now has **four** independently measured rows: handwritten
+and generated pbrs layouts, each for ID and name mutation. Parse and pre-warm
+take place outside the timer. On the same object before **every encode**, the
+ID rows alternate 42 and 43 while the name rows alternate `"ada"` and
+`"ada lovelace with a longer name"` (different encoded lengths). Timed work
+includes the setter/assignment and serialization, not parsing or
+construction. pbrs/prost reuse a `BytesMut`; v4 allocates its upb-backed
+output. Full buffers are consumed. Before timing, both states for each field
+must byte-match the expected wire, reparse with handwritten and generated
+pbrs, prost and v4, and agree on populated fields; any mismatch fails the
+run. All four rows use the same input and iteration/sample counts within the
+existing 10,000/estimated-32-MiB cap.
 No raw host qualification or numeric speed claim follows from these
-diagnostics; other field-mutation parity, retained memory, exhaustive touch,
+diagnostics; map/bytes/other field-mutation parity, retained memory, exhaustive touch,
 and holdout-schema coverage remain BM-03 work.
 
 Historical table columns report:
