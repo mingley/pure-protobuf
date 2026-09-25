@@ -47,6 +47,16 @@ required CI. Rehearse all three packages with the existing dry-run publisher.
 Do not trigger the publisher until each crate's applicable qualification and
 promotion evidence has been reviewed.
 
+Keep that release **small and cohesive**, not a catch-up bundle of unfinished
+roadmap features. Choose modest, compatible version increments independently
+per crate, describe only the qualified profile and changes it actually ships,
+and keep unsupported or unqualified extensions out of the release claims.
+The next coordinated release still requires three **new** versions; later
+follow-up releases can be smaller and per-crate through the same workflow,
+subject to the adapter dependency preflight.
+Neither a green historical benchmark nor a bundled feature count overrides
+the applicable safety, interoperability, package-consumer and operator gates.
+
 The publisher checks both runtime and build-time `pbrs` requirements in each
 adapter against the core manifest version and local source path **before**
 packaging or contacting crates.io. Mismatched constraints fail both the dry
@@ -87,8 +97,14 @@ development push; the publisher still requires every job on its exact SHA.
 
 ## Cutting a release
 
-1. Set `version` in the crate manifest(s) you intend to publish. Adapters may
-   stay at `0.1.0-alpha.1` while `pbrs` moves.
+1. Set `version` in the crate manifest(s) you intend to publish. For the
+   **next coordinated release**, all three versions must be new and both
+   adapters must require that core version. In later per-crate releases,
+   unchanged package versions can be skipped only if both adapters' runtime
+   and build dependency requirements still match the core manifest. A new
+   core version needs aligned source requirements even if an adapter version
+   stays put; verify that its *already-published* requirement admits the new
+   core, and never claim a skipped adapter gained unpublished source changes.
 2. Land that change on `main` (CI must be green; that still does **not**
    publish).
 3. Tag the SHA with `v` plus a version that **matches at least one** crate
