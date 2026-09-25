@@ -57,6 +57,15 @@ subject to the adapter dependency preflight.
 Neither a green historical benchmark nor a bundled feature count overrides
 the applicable safety, interoperability, package-consumer and operator gates.
 
+**Adapter naming is an open decision.** The published tonic adapter is
+`protobuf-tonic`; `pbrs-tonic` was not indexed on crates.io when checked on
+2026-09-25, but availability is not a reservation. Adopting the clearer name
+would create a **new package**, require a consumer migration and publisher
+update, and change the previously requested set of three named new versions.
+Do not silently add a fourth crate or abandon the published alpha. Until the
+maintainer chooses a migration/scope policy, the existing three-crate release
+contract above remains in force.
+
 The publisher checks both runtime and build-time `pbrs` requirements in each
 adapter against the core manifest version and local source path **before**
 packaging or contacting crates.io. Mismatched constraints fail both the dry
