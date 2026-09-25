@@ -1534,7 +1534,7 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         .expect("insert tenant");
     md.mark_sensitive("x-tenant-private-id");
 
-    // Safe, non-sensitive headers
+    // Peer-supplied values under apparently safe names are untrusted too.
     md.insert("x-request-id", "req-safe-uuid-12345")
         .expect("insert req-id");
     md.insert(
@@ -1641,17 +1641,17 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         "missing marked sensitive redaction: {formatted}"
     );
 
-    // Safe headers MUST remain observable with their real values
+    // Keys stay observable, but a peer can put secrets under any header name.
     assert!(
-        formatted.contains("\"x-request-id\": \"req-safe-uuid-12345\""),
-        "safe header should be preserved: {formatted}"
+        formatted.contains("\"x-request-id\": \"[REDACTED]\""),
+        "peer request ID must be masked: {formatted}"
     );
     assert!(
-        formatted.contains(
-            "\"traceparent\": \"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\""
-        ),
-        "safe header should be preserved: {formatted}"
+        formatted.contains("\"traceparent\": \"[REDACTED]\""),
+        "peer trace context must be masked: {formatted}"
     );
+    assert!(!formatted.contains("req-safe-uuid-12345"));
+    assert!(!formatted.contains("4bf92f3577b34da6a3ce929d0e0e4736"));
 
     // Underlying values must remain intact for application logic
     assert_eq!(
@@ -1663,10 +1663,71 @@ fn test_metadata_map_default_debug_redacts_credentials_and_binary() {
         Some("session_id=super_sensitive_cookie_val")
     );
     assert_eq!(md.get("user-agent"), Some("tenant-private-agent/1.0"));
+    assert_eq!(md.get("x-request-id"), Some("req-safe-uuid-12345"));
     assert_eq!(
         md.get_bin("x-trace-bin").as_deref(),
         Some(&[0xde, 0xad, 0xbe, 0xef][..])
     );
+}
+
+#[test]
+fn unclassified_metadata_values_are_masked_without_explicit_consent() {
+    let mut metadata = MetadataMap::new();
+    metadata
+        .insert(
+            "x-correlation-context",
+            "private-value-without-sensitive-key",
+        )
+        .expect("insert opaque peer metadata");
+    metadata
+        .insert("x-request-id", "untrusted-client-supplied-id")
+        .expect("insert peer request id");
+
+    for shown in [
+        format!("{metadata:?}"),
+        format!("{:?}", metadata.safe_debug(&DiagnosticConfig::new())),
+        format!(
+            "{:?}",
+            metadata.safe_debug(&DiagnosticConfig::new().with_consent(true))
+        ),
+        format!(
+            "{:?}",
+            metadata.safe_debug(
+                &DiagnosticConfig::new()
+                    .with_consent(true)
+                    .with_sensitive_headers(true)
+            )
+        ),
+    ] {
+        assert!(
+            shown.contains("\"x-correlation-context\": \"[REDACTED]\""),
+            "opaque metadata leaked: {shown}"
+        );
+        assert!(
+            shown.contains("\"x-request-id\": \"[REDACTED]\""),
+            "untrusted request ID leaked: {shown}"
+        );
+        assert!(!shown.contains("private-value-without-sensitive-key"));
+        assert!(!shown.contains("untrusted-client-supplied-id"));
+    }
+    assert_eq!(
+        metadata.get("x-correlation-context"),
+        Some("private-value-without-sensitive-key")
+    );
+
+    metadata
+        .insert("authorization", "auth-secret")
+        .expect("insert known sensitive header");
+    let opted_in = DiagnosticConfig::new()
+        .with_consent(true)
+        .with_metadata_values(true)
+        .with_max_value_length(8);
+    let shown = format!("{:?}", metadata.safe_debug(&opted_in));
+    assert!(shown.contains("\"x-correlation-context\": \"private-... [TRUNCATED]\""));
+    assert!(shown.contains("\"x-request-id\": \"untruste... [TRUNCATED]\""));
+    assert!(shown.contains("\"authorization\": \"[REDACTED]\""));
+    assert!(!shown.contains("private-value-without-sensitive-key"));
+    assert!(!shown.contains("auth-secret"));
 }
 
 #[test]
@@ -1703,8 +1764,8 @@ fn test_request_and_response_default_debug_redaction() {
         "expected redacted authorization in Request Debug: {formatted_req}"
     );
     assert!(
-        formatted_req.contains("\"x-request-id\": \"req-123\""),
-        "safe header missing in Request Debug: {formatted_req}"
+        formatted_req.contains("\"x-request-id\": \"[REDACTED]\""),
+        "untrusted request ID leaked in Request Debug: {formatted_req}"
     );
 
     // Explicit consent/permission unlocks diagnostic payload
@@ -1719,6 +1780,8 @@ fn test_request_and_response_default_debug_redaction() {
         allowed_req.contains("\"authorization\": \"[REDACTED]\""),
         "authorization must remain redacted: {allowed_req}"
     );
+    assert!(allowed_req.contains("\"x-request-id\": \"[REDACTED]\""));
+    assert_eq!(req.metadata().get("x-request-id"), Some("req-123"));
 
     // Test Response
     let mut resp = Response::new("sensitive-response-payload-abc");
@@ -1771,12 +1834,14 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
     // 1. Without consent, options are inactive
     let no_consent_config = DiagnosticConfig::new()
         .with_payload(true)
+        .with_metadata_values(true)
         .with_sensitive_headers(true)
         .with_binary_metadata(true)
         .with_raw_identity(true)
         .with_status_message(true);
     assert!(!no_consent_config.has_consent());
     assert!(!no_consent_config.is_payload_allowed());
+    assert!(!no_consent_config.are_metadata_values_allowed());
     assert!(!no_consent_config.are_sensitive_headers_allowed());
     assert!(!no_consent_config.is_binary_metadata_allowed());
     assert!(!no_consent_config.is_raw_identity_allowed());
@@ -1786,12 +1851,14 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
     let consent_config = DiagnosticConfig::new()
         .with_consent(true)
         .with_payload(true)
+        .with_metadata_values(true)
         .with_sensitive_headers(true)
         .with_binary_metadata(true)
         .with_raw_identity(true)
         .with_status_message(true);
     assert!(consent_config.has_consent());
     assert!(consent_config.is_payload_allowed());
+    assert!(consent_config.are_metadata_values_allowed());
     assert!(consent_config.are_sensitive_headers_allowed());
     assert!(consent_config.is_binary_metadata_allowed());
     assert!(consent_config.is_raw_identity_allowed());
@@ -1817,7 +1884,10 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
     let long_val = "A".repeat(500);
     md_long.insert("x-long-header", &long_val).expect("insert");
 
-    let len_limited_config = DiagnosticConfig::new().with_max_value_length(20);
+    let len_limited_config = DiagnosticConfig::new()
+        .with_consent(true)
+        .with_metadata_values(true)
+        .with_max_value_length(20);
 
     let formatted_len = format!("{:?}", md_long.safe_debug(&len_limited_config));
     assert!(
@@ -1847,6 +1917,17 @@ fn test_diagnostic_config_consent_and_cardinality_limits() {
         formatted_custom.contains("\"x-custom-tenant-uuid\": \"[REDACTED]\""),
         "custom sensitive header should be redacted: {formatted_custom}"
     );
+    let unclassified_only = format!(
+        "{:?}",
+        md_custom.safe_debug(
+            &custom_sensitive_config
+                .clone()
+                .with_consent(true)
+                .with_metadata_values(true)
+        )
+    );
+    assert!(unclassified_only.contains("\"x-custom-tenant-uuid\": \"[REDACTED]\""));
+    assert!(!unclassified_only.contains("uuid-secret-999"));
     md_custom
         .insert("user-agent", "tenant-private-agent/1.0")
         .expect("insert user-agent");
@@ -1922,8 +2003,12 @@ fn test_status_error_paths_remain_observable() {
         "expected redacted header in Status Debug: {debug_status_md}"
     );
     assert!(
-        debug_status_md.contains("\"x-request-id\": \"req-err-456\""),
-        "safe header should remain in Status Debug: {debug_status_md}"
+        debug_status_md.contains("\"x-request-id\": \"[REDACTED]\""),
+        "peer request ID must be masked in Status Debug: {debug_status_md}"
+    );
+    assert_eq!(
+        status_with_md.metadata().get("x-request-id"),
+        Some("req-err-456")
     );
 }
 
@@ -1993,7 +2078,7 @@ fn test_status_debug_masks_message_binary_details_and_source() {
         "\"cookie\": \"[REDACTED]\"",
         "\"x-proof-bin\": \"[REDACTED]\"",
         "\"x-custom\": \"[REDACTED]\"",
-        "\"x-request-id\": \"req-safe-456\"",
+        "\"x-request-id\": \"[REDACTED]\"",
     ] {
         assert!(shown.contains(expected), "{shown}");
     }
@@ -2048,7 +2133,7 @@ fn test_status_diagnostic_debug_needs_independent_bounded_consent() {
     );
     assert!(shown.contains("\"x-proof-bin\": \"[REDACTED]\""), "{shown}");
     assert!(
-        shown.contains("\"x-request-id\": \"req-safe-456\""),
+        shown.contains("\"x-request-id\": \"[REDACTED]\""),
         "{shown}"
     );
     for secret in [
@@ -2120,8 +2205,8 @@ fn test_telemetry_context_safe_debug_and_observability() {
         "expected redacted cookie in TelemetryContext: {formatted_ctx}"
     );
     assert!(
-        formatted_ctx.contains("\"x-request-id\": \"req-obs-789\""),
-        "safe header should be preserved in TelemetryContext: {formatted_ctx}"
+        formatted_ctx.contains("\"x-request-id\": \"[REDACTED]\""),
+        "peer request ID should be masked in TelemetryContext: {formatted_ctx}"
     );
 
     // Direct construction using TelemetryContext::new
@@ -2153,6 +2238,30 @@ fn test_telemetry_context_safe_debug_and_observability() {
     assert!(consented_debug.contains("service: \"helloworld.Greeter\""));
     assert!(consented_debug.contains("status_message: \"user not found\""));
     assert!(consented_debug.contains("\"authorization\": \"[REDACTED]\""));
+    assert!(consented_debug.contains("\"x-request-id\": \"[REDACTED]\""));
+
+    let consented_values = TelemetryContext::new(direct_labels)
+        .with_metadata(req.metadata())
+        .with_status(&status)
+        .with_config(
+            DiagnosticConfig::new()
+                .with_consent(true)
+                .with_metadata_values(true)
+                .with_max_value_length(6),
+        );
+    let bounded = format!("{consented_values:?}");
+    assert!(
+        bounded.contains("\"x-request-id\": \"req-ob... [TRUNCATED]\""),
+        "{bounded}"
+    );
+    assert!(
+        bounded.contains("\"authorization\": \"[REDACTED]\""),
+        "{bounded}"
+    );
+    assert!(
+        bounded.contains("status_message: \"[REDACTED]\""),
+        "{bounded}"
+    );
 }
 
 #[test]

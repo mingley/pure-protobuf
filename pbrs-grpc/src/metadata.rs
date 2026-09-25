@@ -11,6 +11,8 @@ use std::sync::Arc;
 /// Type alias for [`Metadata`] matching common gRPC terminology.
 pub type MetadataMap = Metadata;
 
+const MAX_DIAGNOSTIC_KEY_BYTES: usize = 256;
+
 /// Returns true if the metadata header key is considered sensitive and should be redacted.
 ///
 /// Matches standard credentials (`authorization`, `cookie`, `set-cookie`, `proxy-authorization`),
@@ -84,10 +86,13 @@ pub fn is_sensitive_key(key: &str) -> bool {
 /// echoing received metadata back cannot corrupt the protocol framing.
 /// [`Self::insert`], [`Self::set`], [`Self::insert_bin`], and
 /// [`Self::set_bin`] reject them rather than storing a value you cannot
-/// read back. `Debug` omits them too, so a dumped interceptor `Rpc` or
-/// `Outgoing` does not look like it can rewrite `grpc-status`. `user-agent`
-/// is readable; on outbound requests the kernel overwrites it after user
-/// metadata so a smuggled value cannot win.
+/// read back. `Debug` omits them too and masks every remaining value, so a
+/// dumped interceptor `Rpc` or `Outgoing` neither looks like it can rewrite
+/// `grpc-status` nor exposes an unclassified peer value. Explicit getters
+/// remain raw; [`Self::safe_debug`] requires consent plus per-category
+/// permission before showing bounded values. `user-agent` is readable; on
+/// outbound requests the kernel overwrites it after user metadata so a
+/// smuggled value cannot win.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
@@ -104,7 +109,7 @@ impl fmt::Debug for Metadata {
         let mut count = 0usize;
         const DEFAULT_MAX_METADATA_ENTRIES: usize = 64;
 
-        for (k, v) in &self.map {
+        for (k, _) in &self.map {
             let key_str = k.as_str();
             if is_reserved(key_str) {
                 continue;
@@ -114,11 +119,8 @@ impl fmt::Debug for Metadata {
                 break;
             }
             count += 1;
-            if self.is_sensitive(key_str) {
-                s.entry(&key_str, &"[REDACTED]");
-            } else {
-                s.entry(&key_str, v);
-            }
+            let shown_key = crate::telemetry::diagnostic_value(key_str, MAX_DIAGNOSTIC_KEY_BYTES);
+            s.entry(&shown_key, &"[REDACTED]");
         }
         s.finish()
     }
@@ -147,24 +149,27 @@ impl fmt::Debug for SafeMetadataDebug<'_> {
                 break;
             }
             count += 1;
+            let shown_key = crate::telemetry::diagnostic_value(key_str, MAX_DIAGNOSTIC_KEY_BYTES);
 
             let is_custom = self.config.is_custom_sensitive(key_str);
             let is_sens = self.metadata.is_sensitive(key_str) || is_custom;
             let is_bin = key_str.ends_with("-bin");
 
-            if (is_bin && !self.config.is_binary_metadata_allowed())
-                || (is_sens && !self.config.are_sensitive_headers_allowed())
-            {
-                s.entry(&key_str, &"[REDACTED]");
-            } else if let Ok(val_str) = v.to_str() {
-                if val_str.len() > max_len {
-                    let truncated = format!("{}... [TRUNCATED]", &val_str[..max_len]);
-                    s.entry(&key_str, &truncated);
-                } else {
-                    s.entry(&key_str, &val_str);
-                }
+            let value_allowed = if is_bin {
+                self.config.is_binary_metadata_allowed()
+                    && self.config.are_sensitive_headers_allowed()
+            } else if is_sens {
+                self.config.are_sensitive_headers_allowed()
             } else {
-                s.entry(&key_str, v);
+                self.config.are_metadata_values_allowed()
+            };
+            if !value_allowed {
+                s.entry(&shown_key, &"[REDACTED]");
+            } else if let Ok(val_str) = v.to_str() {
+                let bounded = crate::telemetry::diagnostic_value(val_str, max_len);
+                s.entry(&shown_key, &bounded);
+            } else {
+                s.entry(&shown_key, &"[NON-ASCII VALUE]");
             }
         }
         s.finish()
@@ -429,7 +434,10 @@ impl Metadata {
         }
     }
 
-    /// Mark an additional custom header key as sensitive so it will be redacted in [`fmt::Debug`].
+    /// Mark a custom key sensitive so unclassified-value consent alone cannot reveal it.
+    ///
+    /// Regular [`fmt::Debug`] always masks values; opted-in [`Self::safe_debug`]
+    /// also requires separate sensitive-header consent for this key.
     pub fn mark_sensitive(&mut self, key: impl AsRef<str>) -> &mut Self {
         let set = self
             .sensitive_keys
@@ -921,6 +929,44 @@ mod tests {
         let md = Metadata::from_headers(&raw);
         assert_eq!(md.get_bin("a-bin").as_deref(), Some(&[0u8][..]));
         assert_eq!(md.get_bin("b-bin").as_deref(), Some(&[0u8][..]));
+    }
+
+    #[test]
+    fn opted_in_debug_does_not_print_non_ascii_header_bytes() {
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("x-opaque"),
+            HeaderValue::from_bytes(&[0xff, 0x80]).expect("opaque HTTP header"),
+        );
+        let metadata = Metadata::from_headers(&raw);
+        let config = crate::telemetry::DiagnosticConfig::new()
+            .with_consent(true)
+            .with_metadata_values(true);
+        let shown = format!("{:?}", metadata.safe_debug(&config));
+        assert!(
+            shown.contains("\"x-opaque\": \"[NON-ASCII VALUE]\""),
+            "{shown}"
+        );
+    }
+
+    #[test]
+    fn diagnostic_key_names_are_bounded_even_when_values_are_opted_in() {
+        let mut metadata = Metadata::new();
+        let key = format!("x-{}", "k".repeat(320));
+        metadata.insert(&key, "opaque-marker").expect("long header");
+        let expected = format!("{}... [TRUNCATED]", &key[..super::MAX_DIAGNOSTIC_KEY_BYTES]);
+        let ordinary = format!("{metadata:?}");
+        assert!(ordinary.contains(&format!("{expected:?}: \"[REDACTED]\"")));
+        assert!(!ordinary.contains(&key));
+        assert!(!ordinary.contains("opaque-marker"));
+
+        let config = crate::telemetry::DiagnosticConfig::new()
+            .with_consent(true)
+            .with_metadata_values(true);
+        let opted_in = format!("{:?}", metadata.safe_debug(&config));
+        assert!(opted_in.contains(&format!("{expected:?}: \"opaque-marker\"")));
+        assert!(!opted_in.contains(&key));
+        assert_eq!(metadata.get(&key), Some("opaque-marker"));
     }
 
     #[test]

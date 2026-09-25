@@ -212,10 +212,12 @@ The presence of a peer field remains visible as `Some("[REDACTED]")`.
 destination authority and user-agent. `Channel` masks its authority, endpoint,
 and user-agent; `ConnectionInfo` masks peer addresses, certificate identity,
 Unix credentials, and scheme. A telemetry context keeps the status **code**
-and safe, redacted metadata visible while masking the free-form status message.
+and metadata key names visible while masking all peer-supplied values,
+including `x-request-id` and `traceparent`, and the free-form status message.
 Direct `Status::Debug` also retains the code, transport evidence, and
-sensitive-key-redacted metadata, but masks the message and source error and
-reports only the length of binary rich details.
+value-redacted metadata, but masks the message and source error and
+reports only the length of binary rich details. Default metadata formatting
+shows at most 64 entries and 256 bytes per key name, never a value.
 
 For a controlled diagnostic, use `DiagnosticConfig::with_consent(true)` with
 `with_raw_identity(true)` on a `Request`, `Parts`, `Response`, or
@@ -226,7 +228,9 @@ enable `with_status_message(true)` separately. To inspect a `Status` message
 without changing its default `Debug`, format
 `status.diagnostic_debug(&config)`, where `config` has both
 `with_consent(true)` and `with_status_message(true)`. That view still hides
-binary details and the source error and keeps ordinary metadata redaction.
+binary details and the source error and keeps all metadata values masked,
+even if unclassified metadata disclosure is separately permitted. Inspect
+`Metadata::safe_debug` explicitly for a controlled metadata diagnostic.
 Revealed identity and status text is truncated on UTF-8 boundaries to
 `with_max_value_length` bytes (256 by default) plus a truncation marker.
 Certificate `Debug` reveals only a bounded certificate count, never DER
@@ -238,12 +242,17 @@ Direct `Status::Display` and raw getters (`message()`, `details()`, and
 `Error::source()`) remain application-controlled and may expose untrusted
 content. `Channel`, `ConnectionInfo`, and `Outgoing` do not provide a consent
 switch for their masked Debug fields; use explicit getters under your own
-logging policy. Other unclassified free-form metadata values still need a
-reviewed consent policy. Inbound `user-agent` is redacted by default alongside
-credentials and binary metadata; `Metadata::safe_debug` can show a bounded
-value only with explicit consent plus `with_sensitive_headers(true)`.
-That flag also permits other sensitive ASCII headers; enable it only for
-controlled diagnostics.
+logging policy. `Metadata::safe_debug` reveals byte-bounded unclassified
+ASCII values only with both `with_consent(true)` and
+`with_metadata_values(true)`; a peer can place secrets under *any* custom
+header name, so use that switch only for controlled diagnostics. Inbound
+`user-agent`, credentials and binary metadata remain redacted: showing
+sensitive ASCII values additionally requires `with_sensitive_headers(true)`,
+and binary values require both that switch and `with_binary_metadata(true)`.
+Unclassified-value, sensitive-value, identity and payload permissions are
+independent. Invalid non-ASCII header values never print raw bytes. The opt-in
+view defaults to 64 entries and 256 bytes per value; callers who raise those
+limits also accept the resulting log-volume and disclosure risk.
 Do not put credentials in status messages or log raw peer fields without one;
 OB-03 remains open.
 

@@ -1032,10 +1032,9 @@ impl Drop for AttemptGuard {
 
 /// Configuration for diagnostic formatting and telemetry observation.
 ///
-/// By default, all credential-sensitive metadata (such as `authorization`,
-/// `cookie`, `set-cookie`, `proxy-authorization`, binary metadata `-bin`,
-/// and token/secret headers), raw RPC identity, status messages, and
-/// request/response payloads are redacted in diagnostic formatting.
+/// By default, all metadata values (including unknown custom headers),
+/// raw RPC identity, status messages, and request/response payloads are
+/// redacted in diagnostic formatting. Keys and status codes remain visible.
 ///
 /// Diagnostic detail requires explicit consent (`consent: true`). Even when
 /// consent is provided, strict cardinality limits apply to prevent log and
@@ -1044,6 +1043,7 @@ impl Drop for AttemptGuard {
 pub struct DiagnosticConfig {
     consent: bool,
     allow_payload: bool,
+    allow_metadata_values: bool,
     allow_sensitive_headers: bool,
     allow_binary_metadata: bool,
     allow_raw_identity: bool,
@@ -1058,6 +1058,7 @@ impl Default for DiagnosticConfig {
         Self {
             consent: false,
             allow_payload: false,
+            allow_metadata_values: false,
             allow_sensitive_headers: false,
             allow_binary_metadata: false,
             allow_raw_identity: false,
@@ -1090,6 +1091,17 @@ impl DiagnosticConfig {
         self
     }
 
+    /// Permit bounded values for unclassified ASCII metadata (requires consent).
+    ///
+    /// A peer can put sensitive content under any custom key; use only for
+    /// controlled diagnostics. Known sensitive and binary values require
+    /// their separate switches even when this is enabled.
+    #[must_use]
+    pub fn with_metadata_values(mut self, allow: bool) -> Self {
+        self.allow_metadata_values = allow;
+        self
+    }
+
     /// Permit unredacted sensitive headers (requires explicit consent).
     #[must_use]
     pub fn with_sensitive_headers(mut self, allow: bool) -> Self {
@@ -1097,7 +1109,7 @@ impl DiagnosticConfig {
         self
     }
 
-    /// Permit binary metadata display (requires explicit consent).
+    /// Permit binary metadata display (requires consent and sensitive-header permission).
     #[must_use]
     pub fn with_binary_metadata(mut self, allow: bool) -> Self {
         self.allow_binary_metadata = allow;
@@ -1126,7 +1138,7 @@ impl DiagnosticConfig {
         self
     }
 
-    /// Set a byte limit for opted-in identity/status text and safe metadata
+    /// Set a byte limit for opted-in identity/status text and metadata value
     /// diagnostics before truncation.
     #[must_use]
     pub fn with_max_value_length(mut self, max: usize) -> Self {
@@ -1154,13 +1166,19 @@ impl DiagnosticConfig {
         self.consent && self.allow_payload
     }
 
+    /// Whether unclassified metadata values were explicitly permitted.
+    #[must_use]
+    pub fn are_metadata_values_allowed(&self) -> bool {
+        self.consent && self.allow_metadata_values
+    }
+
     /// Check whether sensitive headers can be displayed unredacted (both `allow_sensitive_headers` AND `consent` must be true).
     #[must_use]
     pub fn are_sensitive_headers_allowed(&self) -> bool {
         self.consent && self.allow_sensitive_headers
     }
 
-    /// Check whether binary metadata can be displayed unredacted (both `allow_binary_metadata` AND `consent` must be true).
+    /// Check binary permission; formatting also requires sensitive-header permission.
     #[must_use]
     pub fn is_binary_metadata_allowed(&self) -> bool {
         self.consent && self.allow_binary_metadata

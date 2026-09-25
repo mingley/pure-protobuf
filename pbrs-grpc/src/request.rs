@@ -3872,7 +3872,11 @@ mod tests {
                 assert!(!shown.contains(secret), "{shown}");
             }
             assert!(shown.contains("timeout: Some(2s)"), "{shown}");
-            assert!(shown.contains("\"x-request-id\": \"safe-123\""), "{shown}");
+            assert!(
+                shown.contains("\"x-request-id\": \"[REDACTED]\""),
+                "{shown}"
+            );
+            assert!(!shown.contains("safe-123"), "{shown}");
             assert!(
                 shown.contains("\"authorization\": \"[REDACTED]\""),
                 "{shown}"
@@ -4007,7 +4011,9 @@ mod tests {
         assert!(shown.contains("user_agent: \"[REDACTED]\""), "{shown}");
         assert!(!shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
-        assert!(shown.contains("abc"), "{shown}");
+        assert!(shown.contains("\"x-trace\": \"[REDACTED]\""), "{shown}");
+        assert!(!shown.contains("\"abc\""), "{shown}");
+        assert_eq!(req.metadata().get("x-trace"), Some("abc"));
         assert!(shown.contains("max_decoding"), "{shown}");
         assert!(shown.contains("deadline"), "{shown}");
         assert!(shown.contains("connected: false"), "{shown}");
@@ -4151,7 +4157,8 @@ mod tests {
         let stamped = call.metadata().get("x-ua").expect("x-ua");
         assert!(stamped.starts_with("override/1.0 "), "{stamped}");
         let shown = format!("{call:?}");
-        assert!(shown.contains("override/1.0 "), "{shown}");
+        assert!(!shown.contains("override/1.0 "), "{shown}");
+        assert!(shown.contains("\"x-ua\": \"[REDACTED]\""), "{shown}");
         call.clear_user_agent();
         assert!(!call.user_agent_is_set());
         assert_eq!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
