@@ -2020,7 +2020,8 @@
         "codegen"
       ],
       "evidence": [
-        "Partial 2026-09-24: tests/documentation.rs 14/14 proves synthetic broken example/generated references fail, repo links/anchors and snippets resolve offline; strict workspace rustdoc -D warnings passed against the shared target. The documentation map distinguishes published adapter versions from source-only no-protoc builds. Many historical benchmark tables still lack linked dated source and raw result artifacts, so performance-claim qualification and DX-07 remain open."
+        "Partial 2026-09-24: tests/documentation.rs 14/14 proves synthetic broken example/generated references fail, repo links/anchors and snippets resolve offline; strict workspace rustdoc -D warnings passed against the shared target. The documentation map distinguishes published adapter versions from source-only no-protoc builds. Many historical benchmark tables still lack linked dated source and raw result artifacts, so performance-claim qualification and DX-07 remain open.",
+        "Partial 2026-09-25 (repository-local link boundary): The offline link and documentation-map checks canonicalize targets and fail when parent traversal or symlinks escape the repository; Markdown discovery also rejects external file/directory symlinks before reading them. Failed Markdown anchor reads are explicit errors, not empty anchor sets, and directory access failures cannot silently omit documentation. Synthetic parent-path, file/directory symlink and map-reference regressions passed with documentation tests 18/18 using the shared two-job Cargo cache. External HTTP links remain unqueried offline; historical performance/support claims still need dated source/raw artifact links before DX-07 can close."
       ]
     },
     {
