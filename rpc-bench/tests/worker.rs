@@ -14,6 +14,8 @@ pub mod worker_client;
 pub mod worker_server;
 
 use pbrs_grpc::Request;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpListener;
 
@@ -38,10 +40,25 @@ fn async_server_config() -> ServerConfig {
 }
 
 async fn spawn_worker_service() -> (std::net::SocketAddr, tokio::sync::watch::Sender<bool>) {
+    spawn_worker_service_impl(None).await
+}
+
+async fn spawn_worker_service_with_capture(
+    capture: worker_server::ResourceCapture,
+) -> (std::net::SocketAddr, tokio::sync::watch::Sender<bool>) {
+    spawn_worker_service_impl(Some(capture)).await
+}
+
+async fn spawn_worker_service_impl(
+    capture: Option<worker_server::ResourceCapture>,
+) -> (std::net::SocketAddr, tokio::sync::watch::Sender<bool>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (quit_tx, mut quit_rx) = tokio::sync::watch::channel(false);
-    let worker_impl = WorkerServiceImpl::with_shutdown(quit_tx.clone());
+    let worker_impl = match capture {
+        Some(capture) => WorkerServiceImpl::with_capture(quit_tx.clone(), capture),
+        None => WorkerServiceImpl::with_shutdown(quit_tx.clone()),
+    };
 
     let shutdown = async move {
         while !*quit_rx.borrow() {
@@ -60,6 +77,19 @@ async fn spawn_worker_service() -> (std::net::SocketAddr, tokio::sync::watch::Se
 
     tokio::time::sleep(Duration::from_millis(50)).await;
     (addr, quit_tx)
+}
+
+fn fail_on_second_snapshot(attempts: Arc<AtomicUsize>) -> worker_server::ResourceCapture {
+    Arc::new(move || {
+        if attempts.fetch_add(1, Ordering::SeqCst) == 1 {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "synthetic Mark resource capture unavailable",
+            ))
+        } else {
+            resources::ResourceSnapshot::capture()
+        }
+    })
 }
 
 #[tokio::test]
@@ -117,6 +147,127 @@ fn test_worker_snapshot_failure_is_a_status_not_a_zero_sample() {
             .expect("real snapshot must pass through"),
         snapshot
     );
+}
+
+#[tokio::test]
+async fn live_run_server_mark_capture_failure_releases_owned_listener() {
+    let captures = Arc::new(AtomicUsize::new(0));
+    let (addr, quit_tx) =
+        spawn_worker_service_with_capture(fail_on_second_snapshot(captures.clone())).await;
+    let client = WorkerServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+    let (sender, call) = client.run_server(Request::new(()));
+    let mut output = call.await.unwrap().into_inner();
+
+    let mut setup = ServerArgs::new();
+    setup.set_setup(async_server_config());
+    sender.send(setup).await.unwrap();
+    let port = output
+        .message()
+        .await
+        .unwrap()
+        .expect("initial server status")
+        .port();
+    assert!(port > 0);
+    let mut mark = ServerArgs::new();
+    mark.set_mark(Mark::new());
+    sender.send(mark).await.unwrap();
+
+    let error = tokio::time::timeout(Duration::from_secs(3), output.message())
+        .await
+        .expect("server capture failure must finish the control stream")
+        .expect_err("server capture failure must not produce valid stats");
+    assert_eq!(error.code(), pbrs_grpc::Code::Unavailable);
+    assert!(error.message().contains("RunServer Mark"), "{error}");
+    assert!(
+        error
+            .message()
+            .contains("synthetic Mark resource capture unavailable"),
+        "{error}"
+    );
+    assert_eq!(captures.load(Ordering::SeqCst), 2);
+
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match TcpListener::bind(("127.0.0.1", port as u16)).await {
+                Ok(listener) => {
+                    drop(listener);
+                    break;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                Err(error) => panic!("unexpected port probe failure: {error}"),
+            }
+        }
+    })
+    .await
+    .expect("owned benchmark listener stayed bound after the non-OK control response");
+    drop(sender);
+    let _ = quit_tx.send(true);
+}
+
+#[tokio::test]
+async fn live_run_client_mark_capture_failure_terminates_control_work() {
+    let (server_addr, server_quit) = spawn_worker_service().await;
+    let server = WorkerServiceClient::new(pbrs_grpc::Channel::connect(server_addr).await.unwrap());
+    let (server_sender, server_call) = server.run_server(Request::new(()));
+    let mut server_output = server_call.await.unwrap().into_inner();
+    let mut server_setup = ServerArgs::new();
+    server_setup.set_setup(async_server_config());
+    server_sender.send(server_setup).await.unwrap();
+    let server_port = server_output
+        .message()
+        .await
+        .unwrap()
+        .expect("benchmark server setup")
+        .port();
+
+    let captures = Arc::new(AtomicUsize::new(0));
+    let (client_addr, client_quit) =
+        spawn_worker_service_with_capture(fail_on_second_snapshot(captures.clone())).await;
+    let worker = WorkerServiceClient::new(pbrs_grpc::Channel::connect(client_addr).await.unwrap());
+    let (client_sender, client_call) = worker.run_client(Request::new(()));
+    let mut client_output = client_call.await.unwrap().into_inner();
+    let mut config = ClientConfig::new();
+    config.set_server_targets(lazy_targets(&[&format!("127.0.0.1:{server_port}")]));
+    config.set_client_channels(1);
+    config.set_outstanding_rpcs_per_channel(1);
+    config.set_client_type(ClientType::AsyncClient);
+    let mut load = LoadParams::new();
+    load.set_closed_loop(ClosedLoopParams::new());
+    config.set_load_params(load);
+    let mut setup = ClientArgs::new();
+    setup.set_setup(config);
+    client_sender.send(setup).await.unwrap();
+    let initial = client_output
+        .message()
+        .await
+        .unwrap()
+        .expect("client setup status");
+    assert!(initial.has_stats());
+
+    let mut mark = ClientArgs::new();
+    mark.set_mark(Mark::new());
+    client_sender.send(mark).await.unwrap();
+    let error = tokio::time::timeout(Duration::from_secs(3), client_output.message())
+        .await
+        .expect("client capture failure must finish the control stream")
+        .expect_err("client capture failure must not produce valid stats");
+    assert_eq!(error.code(), pbrs_grpc::Code::Unavailable);
+    assert!(error.message().contains("RunClient Mark"), "{error}");
+    assert!(
+        error
+            .message()
+            .contains("synthetic Mark resource capture unavailable"),
+        "{error}"
+    );
+    assert_eq!(captures.load(Ordering::SeqCst), 2);
+
+    drop(client_sender);
+    drop(server_sender);
+    assert!(server_output.message().await.unwrap().is_none());
+    let _ = client_quit.send(true);
+    let _ = server_quit.send(true);
 }
 
 #[test]

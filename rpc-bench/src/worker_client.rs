@@ -32,8 +32,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, TryAcquireError};
 
 use crate::benchmark_service::BenchmarkServiceClient;
 use crate::load::{LoadConfig, LoadGenerator, RpcCallError};
-use crate::resources::ResourceSnapshot;
-use crate::worker_server::require_snapshot;
+use crate::worker_server::{ResourceCapture, require_snapshot};
 
 pub(crate) const MAX_WORKER_CLIENT_CHANNELS: usize = 64;
 pub(crate) const MAX_WORKER_IN_FLIGHT_RPCS: usize = 256;
@@ -395,8 +394,9 @@ pub(crate) fn acquire_channel_slot(
 }
 
 /// Start and manage the benchmark client workload, marks, and statistics accounting.
-pub async fn run_client(
+pub(crate) async fn run_client(
     request: Request<Streaming<ClientArgs>>,
+    resource_capture: ResourceCapture,
 ) -> Result<Response<Streaming<ClientStatus>>, Status> {
     let mut in_stream = request.into_inner();
     let (tx, out_stream) = Streaming::channel(32);
@@ -726,14 +726,13 @@ pub async fn run_client(
         });
 
         // 5. Build and send initial ClientStatus
-        let initial_snapshot =
-            match require_snapshot(ResourceSnapshot::capture(), "RunClient initial") {
-                Ok(snapshot) => snapshot,
-                Err(status) => {
-                    fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
-                    return;
-                }
-            };
+        let initial_snapshot = match require_snapshot(resource_capture(), "RunClient initial") {
+            Ok(snapshot) => snapshot,
+            Err(status) => {
+                fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                return;
+            }
+        };
 
         let mut initial_status = ClientStatus::new();
         let mut initial_stats = ClientStats::new();
@@ -791,14 +790,13 @@ pub async fn run_client(
             let now = Instant::now();
             let time_elapsed = (now - baseline_time).as_secs_f64();
 
-            let current_snapshot =
-                match require_snapshot(ResourceSnapshot::capture(), "RunClient Mark") {
-                    Ok(snapshot) => snapshot,
-                    Err(status) => {
-                        fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
-                        return;
-                    }
-                };
+            let current_snapshot = match require_snapshot(resource_capture(), "RunClient Mark") {
+                Ok(snapshot) => snapshot,
+                Err(status) => {
+                    fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                    return;
+                }
+            };
             let delta = baseline_snapshot.delta_to(&current_snapshot);
 
             let (latencies, request_results) = stats_tracker.snapshot(mark.reset());
@@ -855,6 +853,20 @@ impl WorkerServiceImpl {
             server_impl: crate::worker_server::WorkerServiceImpl::with_shutdown(quit_tx),
         }
     }
+
+    #[cfg(test)]
+    #[allow(dead_code, reason = "used by the standalone worker integration tests")]
+    pub(crate) fn with_capture(
+        quit_tx: tokio::sync::watch::Sender<bool>,
+        resource_capture: ResourceCapture,
+    ) -> Self {
+        Self {
+            server_impl: crate::worker_server::WorkerServiceImpl::with_capture(
+                quit_tx,
+                resource_capture,
+            ),
+        }
+    }
 }
 
 impl WorkerService for WorkerServiceImpl {
@@ -880,7 +892,7 @@ impl WorkerService for WorkerServiceImpl {
         &self,
         request: Request<Streaming<ClientArgs>>,
     ) -> Result<Response<Streaming<ClientStatus>>, Status> {
-        run_client(request).await
+        self.server_impl.run_client(request).await
     }
 }
 

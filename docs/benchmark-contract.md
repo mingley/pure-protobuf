@@ -273,11 +273,13 @@ instead of accumulating a raw latency/scheduling vector for the entire
 nominal 365-day control stream; the separate benchmark harness retains its
 raw samples. The WorkerService histogram records timed-out calls at their
 five-second deadline, and its generator counts those calls as failures.
-Synthetic tests cover status mapping and
-cleanup helpers; they do not inject a platform capture failure into a live
-control stream or prove every canceled child has finished before the control
-response is delivered. These local worker checks do not qualify BM-09/BM-10
-against an independent official driver.
+Synthetic snapshot failures are also injected into live `RunServer` and
+`RunClient` Mark control streams through a per-worker collector. Both return
+`UNAVAILABLE` instead of a valid Mark; after the server error, its owned
+benchmark listener can be rebound. These tests do not simulate a real
+platform failure or independently prove every canceled client child has
+finished before the error response. They do not qualify BM-09/BM-10 against
+an independent official driver.
 
 The default CI runs the standalone `rpc-bench` worker/fairness and `tonic-bench`
 codec-survey correctness tests serially after the root workspace suite, using

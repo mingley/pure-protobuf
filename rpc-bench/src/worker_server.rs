@@ -34,11 +34,18 @@ pub use proto::{
 };
 
 use pbrs_grpc::{Request, Response, Status, Streaming};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
 use crate::benchmark_service::{BenchmarkServiceImpl, BenchmarkServiceServer};
 use crate::resources::ResourceSnapshot;
+
+pub(crate) type ResourceCapture = Arc<dyn Fn() -> std::io::Result<ResourceSnapshot> + Send + Sync>;
+
+fn default_resource_capture() -> ResourceCapture {
+    Arc::new(ResourceSnapshot::capture)
+}
 
 pub(crate) fn require_snapshot(
     snapshot: std::io::Result<ResourceSnapshot>,
@@ -145,16 +152,26 @@ pub fn create_benchmark_router() -> pbrs_grpc::Router {
 }
 
 /// Implementation of the official gRPC `WorkerService`.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct WorkerServiceImpl {
     quit_tx: Option<tokio::sync::watch::Sender<bool>>,
+    resource_capture: ResourceCapture,
+}
+
+impl Default for WorkerServiceImpl {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WorkerServiceImpl {
     /// Create a new worker service instance without an external shutdown trigger.
     #[must_use]
     pub fn new() -> Self {
-        Self { quit_tx: None }
+        Self {
+            quit_tx: None,
+            resource_capture: default_resource_capture(),
+        }
     }
 
     /// Create a new worker service instance with a shutdown watch channel sender.
@@ -162,6 +179,19 @@ impl WorkerServiceImpl {
     pub fn with_shutdown(quit_tx: tokio::sync::watch::Sender<bool>) -> Self {
         Self {
             quit_tx: Some(quit_tx),
+            resource_capture: default_resource_capture(),
+        }
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code, reason = "used by the standalone worker integration tests")]
+    pub(crate) fn with_capture(
+        quit_tx: tokio::sync::watch::Sender<bool>,
+        resource_capture: ResourceCapture,
+    ) -> Self {
+        Self {
+            quit_tx: Some(quit_tx),
+            resource_capture,
         }
     }
 }
@@ -193,6 +223,7 @@ impl WorkerService for WorkerServiceImpl {
     ) -> Result<Response<Streaming<ServerStatus>>, Status> {
         let mut in_stream = request.into_inner();
         let (tx, out_stream) = Streaming::channel(32);
+        let resource_capture = self.resource_capture.clone();
 
         tokio::spawn(async move {
             // 1. First request received must specify ServerConfig.
@@ -311,15 +342,13 @@ impl WorkerService for WorkerServiceImpl {
             });
 
             // 5. Build and send initial ServerStatus.
-            let initial_snapshot =
-                match require_snapshot(ResourceSnapshot::capture(), "RunServer initial") {
-                    Ok(snapshot) => snapshot,
-                    Err(status) => {
-                        fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle)
-                            .await;
-                        return;
-                    }
-                };
+            let initial_snapshot = match require_snapshot(resource_capture(), "RunServer initial") {
+                Ok(snapshot) => snapshot,
+                Err(status) => {
+                    fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle).await;
+                    return;
+                }
+            };
 
             let mut initial_status = ServerStatus::new();
             initial_status.set_port(bound_port);
@@ -378,15 +407,15 @@ impl WorkerService for WorkerServiceImpl {
                 let now = std::time::Instant::now();
                 let time_elapsed = (now - baseline_time).as_secs_f64();
 
-                let current_snapshot =
-                    match require_snapshot(ResourceSnapshot::capture(), "RunServer Mark") {
-                        Ok(snapshot) => snapshot,
-                        Err(status) => {
-                            fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle)
-                                .await;
-                            return;
-                        }
-                    };
+                let current_snapshot = match require_snapshot(resource_capture(), "RunServer Mark")
+                {
+                    Ok(snapshot) => snapshot,
+                    Err(status) => {
+                        fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle)
+                            .await;
+                        return;
+                    }
+                };
                 let delta = baseline_snapshot.delta_to(&current_snapshot);
 
                 let mut stats = ServerStats::new();
@@ -428,6 +457,6 @@ impl WorkerService for WorkerServiceImpl {
         &self,
         request: Request<Streaming<ClientArgs>>,
     ) -> Result<Response<Streaming<ClientStatus>>, Status> {
-        crate::worker_client::run_client(request).await
+        crate::worker_client::run_client(request, self.resource_capture.clone()).await
     }
 }
