@@ -363,10 +363,7 @@ async fn invalid_service_config_leaves_channel_unchanged() {
         .service_config(r#"{"methodConfig": [{"name": [{"method": "X"}]}]}"#)
         .unwrap_err();
     assert_eq!(err.code(), Code::InvalidArgument);
-    let err = channel
-        .clone()
-        .service_config("not json")
-        .unwrap_err();
+    let err = channel.clone().service_config("not json").unwrap_err();
     assert_eq!(err.code(), Code::InvalidArgument);
     assert!(channel.service_config_doc().is_none());
 }
