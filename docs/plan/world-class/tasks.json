@@ -6452,7 +6452,14 @@
     "self-interop"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 8b4f3dfd: wire.rs (1734 lines) moved verbatim into wire/{headers,encode,frame_reader,out_batch,send}.rs declared from wire.rs; lib.rs unchanged; no public API (mod wire is private)",
+    "pub(crate) widening only; FrameReader methods/fields widened for the unit tests that stay in wire.rs; test-only re-exports gated with cfg(test); two fmt-required reflows; per-module verbatim check green",
+    "checks: format, clippy lib -D warnings clean, rustdoc -D warnings clean, native-lib (248), native-rpc, native-hostile (33), serving (1097), self-interop PASS, tls serial (20); one retry_safety timing flake and the known tls flake in full parallel runs, both pass alone/serially"
+   ]
   },
   {
    "id": "SB-18",
