@@ -188,7 +188,7 @@ For detailed walkthroughs, channel setup, and cancellation patterns, see the ded
 
 `pbrs-grpc` implements a strict, predictable retry policy:
 - **Transparent Retries**: Transparent retry is at most once, and occurs automatically only if a connection drops before request headers or body transmission commits.
-- **Application Retries**: There is no service-config retry engine in the kernel; application-level retries remain at the call site evaluated against `Code::is_retryable`.
+- **Service-Config Retries**: Attach an A6 document with `Channel::service_config` for unary `retryPolicy` (backoff, throttling, per-attempt timeouts, server pushback) and `hedgingPolicy`. Without a policy, application-level retries remain at the call site evaluated against `Code::is_retryable`.
 - **In-Process Bypasses**: In-process connections (`from_io`) have no transparent retry.
 
 For complete state transitions and commitment boundaries, consult the [Retry Contract](retry-contract.md).

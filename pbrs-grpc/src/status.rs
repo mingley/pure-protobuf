@@ -7,6 +7,7 @@ use bytes::Bytes;
 use std::borrow::Cow;
 use std::fmt;
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 /// A `grpc-status` code.
 ///
@@ -204,6 +205,34 @@ impl std::str::FromStr for Code {
     }
 }
 
+/// Server retry pushback from a `grpc-retry-pushback-ms` trailer (gRPC A6).
+///
+/// The kernel parses this trailer on receipt and emits it when set: user
+/// metadata can never carry a `grpc-*` key, so pushback travels on the
+/// [`Status`] itself rather than in [`Metadata`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pushback {
+    /// Retry after this delay instead of the computed backoff.
+    Delay(Duration),
+    /// The server asked the client not to retry this call.
+    DoNotRetry,
+}
+
+/// Parse one `grpc-retry-pushback-ms` trailer value.
+///
+/// `-1` is [`Pushback::DoNotRetry`]; any other non-negative integer is
+/// [`Pushback::Delay`]. Malformed values are ignored, not errors.
+pub(crate) fn parse_pushback_value(raw: &str) -> Option<Pushback> {
+    match raw.parse::<i64>() {
+        Ok(-1) => Some(Pushback::DoNotRetry),
+        Ok(ms) if ms >= 0 => {
+            let ms = u64::try_from(ms).unwrap_or(u64::MAX);
+            Some(Pushback::Delay(Duration::from_millis(ms)))
+        }
+        _ => None,
+    }
+}
+
 /// The rarely-populated half of a [`Status`], boxed so `Result<T, Status>`
 /// stays small on the hot path.
 #[derive(Clone, Default)]
@@ -216,6 +245,9 @@ struct Detail {
     transport: Option<TransportEvidence>,
     /// Local cause. Peer trailers leave this unset.
     source: Option<Arc<dyn std::error::Error + Send + Sync>>,
+    /// A6 server pushback: parsed from `grpc-retry-pushback-ms` on receipt,
+    /// emitted as that trailer when set by the handler.
+    retry_pushback: Option<Pushback>,
 }
 
 struct DetailDebug<'a> {
@@ -902,6 +934,45 @@ impl Status {
     #[must_use]
     pub fn is_ok(&self) -> bool {
         self.code == Code::Ok
+    }
+
+    /// A6 server pushback carried on this status, if any.
+    ///
+    /// The kernel parses `grpc-retry-pushback-ms` into this slot on receipt
+    /// and emits it from this slot on send. A handler sets it with
+    /// [`Self::with_retry_pushback`]; a retrying client reads it before
+    /// computing backoff.
+    /// Distinct from [`Self::retry_delay`]: that is a packed `RetryInfo`
+    /// wait hint; this is the A6 pushback trailer.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Pushback, Status};
+    /// use std::time::Duration;
+    ///
+    /// let status = Status::unavailable("slow down")
+    ///     .with_retry_pushback(Pushback::Delay(Duration::from_millis(250)));
+    /// assert_eq!(
+    ///     status.retry_pushback(),
+    ///     Some(Pushback::Delay(Duration::from_millis(250)))
+    /// );
+    /// ```
+    #[must_use]
+    pub fn retry_pushback(&self) -> Option<Pushback> {
+        self.detail.as_ref().and_then(|d| d.retry_pushback)
+    }
+
+    /// Set A6 server pushback, allocating the detail block on first use.
+    /// Distinct from [`Self::with_retry_pushback`]: that is the builder form; this mutates.
+    pub fn set_retry_pushback(&mut self, pushback: Pushback) {
+        self.detail.get_or_insert_with(Box::default).retry_pushback = Some(pushback);
+    }
+
+    /// Builder form of [`Self::set_retry_pushback`].
+    /// Distinct from [`Self::set_retry_pushback`]: that mutates; this is the builder form.
+    #[must_use]
+    pub fn with_retry_pushback(mut self, pushback: Pushback) -> Self {
+        self.set_retry_pushback(pushback);
+        self
     }
 
     /// Whether [`Self::code`] is gRPC A6-retryable ([`Code::Unavailable`]).

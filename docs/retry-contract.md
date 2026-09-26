@@ -17,6 +17,29 @@ The central hazard in distributed RPC systems is **ambiguous connection loss**. 
 
 Prior to RT-01, the `pbrs-grpc` client kernel conflated "transport connection died" with "safe to transparently retry". This document specifies the required call lifecycle states, analyzes the baseline behavior, defines the exact gRFC A6 commitment rules, and approves the transport-evidence-based replay specification for RT-02.
 
+## 1b. Shipped policy engine (unary)
+
+`Channel::service_config` attaches the A6 document; `ServiceConfig::parse`
+validates it eagerly per A21. Unary calls resolve the method entry and then:
+
+- `retryPolicy` retries a failed attempt while attempts remain, the code is in
+  `retryableStatusCodes`, throttling allows it, and no `DoNotRetry` pushback
+  arrived. Backoff is jittered exponential; a `Delay` pushback overrides it.
+- `perAttemptRecvTimeout` bounds each attempt; its expiry retries on its own,
+  without consulting the retryable set.
+- `hedgingPolicy` fans out delayed duplicate attempts; the first `OK` (or the
+  first fatal status) commits, non-fatal statuses keep waiting, and an
+  exhausted race fails with the last non-fatal error.
+- `retryThrottling` debits every failed unary call and credits every success;
+  retries and hedged sends past the first need more than half the bucket.
+- Transparent retry (at most once, pre-commit only) still runs first and never
+  consumes a policy attempt.
+
+Policy retry replays the already-encoded request frame, so it never
+re-serializes and never exceeds the method's caps. Server-streaming policy
+retry and streaming throttling accounting are follow-up work; client-streaming
+and bidi stay call-site retries because the kernel holds no replay buffer.
+
 ---
 
 ## 2. Call and Attempt Lifecycle State Machine

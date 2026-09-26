@@ -4,11 +4,15 @@ use crate::config::{ChannelConfig, Wire};
 use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::request::{Call, Request, Response};
+use crate::service_config::{
+    HedgingPolicy, MethodConfig, RetryPolicy, ServiceConfig, SharedServiceConfig, retry_backoff,
+};
 use crate::status::{Code, Status, TransportEvidence};
 use crate::stream::{StreamSender, Streaming};
 use crate::telemetry::{
     AttemptGuard, AttemptLabels, CallGuard, CallLabels, CallRole, CancellationReason,
-    LifecycleObserver, ObserverChain, ReconnectEvent, RejectionReason, diagnostic_identity,
+    LifecycleObserver, ObserverChain, OwnedCallLabels, ReconnectEvent, RejectionReason,
+    diagnostic_identity,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
@@ -38,7 +42,7 @@ use std::task::Poll;
 use std::time::Duration;
 #[cfg(unix)]
 use tokio::net::UnixStream;
-use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, watch};
+use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, watch};
 
 /// Where a [`Channel`] should dial.
 ///
@@ -334,17 +338,18 @@ impl Endpoint {
 /// went out; after the stream is open they do not, because the caller already
 /// holds the send half.
 /// There is no grpc-go `WithDisableRetry` DialOption: that disables
-/// service-config retries and does not impact transparent retries. This
-/// kernel has no service-config retry policy; application retries stay at
-/// the call site ([`Code::is_retryable`]). Transparent retry cannot be
-/// turned off. Distinct from [`Self::from_io`] (no transparent retry).
-/// Distinct from hedging (not implemented).
+/// service-config retries and does not impact transparent retries.
+/// Service-config `retryPolicy`/`hedgingPolicy` attach with
+/// [`Self::service_config`]; omit the document (or the method's policy) for
+/// no policy retries, in which case application retries stay at the call
+/// site ([`Code::is_retryable`]). Transparent retry cannot be turned off.
+/// Distinct from [`Self::from_io`] (no transparent retry).
 /// There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging
-/// per call (default 5; values below 2 become 5). Transparent retry is at
-/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`
-/// (on/off of service-config retry, not a count). Distinct from
-/// [`Code::is_retryable`] (application retries at the call site, unbounded
-/// by this kernel). Distinct from hedging (not implemented).
+/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes
+/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as
+/// 5); transparent retry is at most once on top and cannot be raised.
+/// Distinct from [`Code::is_retryable`] (application retries at the call
+/// site, unbounded by this kernel).
 /// A healthy connection that is only waiting for a free stream
 /// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
 /// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with
@@ -480,6 +485,8 @@ pub struct Channel {
     /// [`Self::origin`] overrides it.
     authority: Authority,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
+    /// Attached JSON service config (A6/A21/A24), if any. Clones share it.
+    service_config: SharedServiceConfig,
 }
 
 impl fmt::Debug for Channel {
@@ -813,6 +820,103 @@ impl Channel {
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
         self.config
+    }
+
+    /// Attach a JSON service-config document (gRPC A6/A21/A24).
+    ///
+    /// The document supplies per-method defaults (`timeout`, `waitForReady`,
+    /// message caps, `retryPolicy`/`hedgingPolicy`), channel-wide
+    /// `retryThrottling`, and `loadBalancingConfig` selection. Precedence is
+    /// explicit request overlay first, then this channel's typed overlays
+    /// ([`Self::timeout`], [`Self::wait_for_ready`], message caps), then the
+    /// method entry; message caps combine tightest-wins. Cloning shares the
+    /// parsed document and its throttling bucket.
+    ///
+    /// Returns [`Code::InvalidArgument`] naming the first invalid entry when
+    /// the document fails validation; the channel is unchanged.
+    /// Distinct from [`Self::config`]: that is typed handshake fields; this is
+    /// the JSON document a resolver would supply.
+    ///
+    /// ```
+    /// use pbrs_grpc::Channel;
+    ///
+    /// # fn demo(channel: Channel) -> Result<Channel, pbrs_grpc::Status> {
+    /// let channel = channel.service_config(
+    ///     r#"{"methodConfig": [{"name": [{}], "timeout": "30s"}]}"#,
+    /// )?;
+    /// # Ok(channel)
+    /// # }
+    /// ```
+    pub fn service_config(mut self, json: &str) -> Result<Self, Status> {
+        let parsed = ServiceConfig::parse(json)?;
+        self.service_config = SharedServiceConfig::new(parsed);
+        Ok(self)
+    }
+
+    /// The attached service-config document, if any.
+    /// Distinct from [`Self::config`]: that is typed handshake fields; this is the parsed JSON document.
+    #[must_use]
+    pub fn service_config_doc(&self) -> Option<&ServiceConfig> {
+        self.service_config.get().map(|state| &state.config)
+    }
+
+    /// The method entry covering `path`, if a document is attached and covers it.
+    pub(crate) fn method_config_for(&self, path: &str) -> Option<&MethodConfig> {
+        let state = self.service_config.get()?;
+        let (service, method) = crate::telemetry::split_path(path);
+        state.config.method_config(service, method)
+    }
+
+    /// Record a finished unary call in the throttling bucket, if configured.
+    ///
+    /// Success refunds `tokenRatio`; any failure (including cancellation and
+    /// deadline) removes one token. Local rejections that never ran (a
+    /// refused interceptor, an unencodable message, a full concurrency
+    /// semaphore) are not call outcomes and are not recorded.
+    pub(crate) async fn note_call_outcome(&self, ok: bool) {
+        if let Some(state) = self.service_config.get() {
+            if let Some(throttler) = &state.throttler {
+                if ok {
+                    throttler.on_success().await;
+                } else {
+                    throttler.on_failure().await;
+                }
+            }
+        }
+    }
+
+    /// Whether the throttling bucket allows another retry or hedged send.
+    ///
+    /// `true` when no `retryThrottling` is configured.
+    pub(crate) async fn retry_allowed(&self) -> bool {
+        match self
+            .service_config
+            .get()
+            .and_then(|state| state.throttler.as_ref())
+        {
+            Some(throttler) => throttler.retry_allowed().await,
+            None => true,
+        }
+    }
+
+    /// Per-call wire settings: channel settings tightened by the method entry.
+    ///
+    /// `maxRequestMessageBytes` tightens the encoding cap and
+    /// `maxResponseMessageBytes` tightens the decoding cap; a method entry
+    /// never loosens an explicit channel cap.
+    pub(crate) fn wire_for(&self, path: &str) -> Wire {
+        let mut wire = self.config.wire();
+        if let Some(method) = self.method_config_for(path) {
+            if let Some(max) = method.max_request_message_bytes {
+                let tight = wire.limits.max_encoding().map_or(max, |base| base.min(max));
+                wire.limits = wire.limits.with_max_encoding(tight);
+            }
+            if let Some(max) = method.max_response_message_bytes {
+                let tight = wire.limits.max_decoding().map_or(max, |base| base.min(max));
+                wire.limits = wire.limits.with_max_decoding(tight);
+            }
+        }
+        wire
     }
 
     /// Whether any pool slot currently holds a live HTTP/2 connection.
@@ -1392,6 +1496,16 @@ impl Channel {
     }
 
     fn prepare_outbound<T>(&self, path: &'static str, req: &mut Request<T>) -> Result<(), Status> {
+        if let Some(method) = self.method_config_for(path) {
+            if req.timeout().is_none() {
+                if let Some(timeout) = method.timeout {
+                    req.set_timeout(timeout);
+                }
+            }
+            if !req.wait_for_ready_is_set() && method.wait_for_ready == Some(true) {
+                req.set_wait_for_ready(true);
+            }
+        }
         if req.timeout().is_none() {
             if let Some(timeout) = self.config.rpc_timeout() {
                 req.set_timeout(timeout);
@@ -1588,7 +1702,7 @@ impl Channel {
         let prepared = self.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
-        let wire = self.config.wire();
+        let wire = self.wire_for(path);
         let observer = self.observer.clone();
         Call::new(
             cancel,
@@ -1636,7 +1750,34 @@ impl Channel {
                         return Err(status);
                     }
                 };
+                let (retry_policy, hedging_policy) = channel
+                    .method_config_for(path)
+                    .map(|method| (method.retry_policy.clone(), method.hedging_policy.clone()))
+                    .unwrap_or((None, None));
+                if let Some(policy) = hedging_policy {
+                    return channel
+                        .execute_hedged(HedgeUnary {
+                            path,
+                            md,
+                            req_timeout,
+                            deadline,
+                            wait,
+                            compress,
+                            frame,
+                            cancel_rx,
+                            wire,
+                            ua,
+                            https,
+                            policy,
+                            call_guard,
+                            owned_labels,
+                            observer,
+                            permit: _permit,
+                        })
+                        .await;
+                }
                 let mut attempt_idx = 1u32;
+                let mut policy_attempts = 1u32;
                 let mut retried = false;
                 loop {
                     let _ = match remaining_timeout(deadline) {
@@ -1676,6 +1817,9 @@ impl Channel {
                                 attempt_guard.reject(RejectionReason::SetupFailed, &status);
                                 call_guard.reject(RejectionReason::SetupFailed, &status);
                             }
+                            if policy_attempts > 1 {
+                                channel.note_call_outcome(false).await;
+                            }
                             attempt_guard.finish(&status);
                             return Err(status);
                         }
@@ -1686,6 +1830,9 @@ impl Channel {
                         Err(status) => {
                             attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
                             call_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            if policy_attempts > 1 {
+                                channel.note_call_outcome(false).await;
+                            }
                             attempt_guard.finish(&status);
                             return Err(status);
                         }
@@ -1693,13 +1840,21 @@ impl Channel {
                     if let Some(obs) = &observer {
                         obs.on_bytes_sent(&call_labels, frame.len());
                     }
+                    let attempt_deadline = retry_policy
+                        .as_ref()
+                        .and_then(|policy| policy.per_attempt_recv_timeout)
+                        .map(|budget| {
+                            let capped = tokio::time::Instant::now() + budget;
+                            deadline.map_or(capped, |overall| overall.min(capped))
+                        })
+                        .or(deadline);
                     match run_unary(
                         live.send,
                         &channel.authority,
                         path,
                         &md,
                         req_timeout,
-                        deadline,
+                        attempt_deadline,
                         compress,
                         frame.clone(),
                         cancel_rx.clone(),
@@ -1722,6 +1877,52 @@ impl Channel {
                         }
                         result => {
                             if let Err(status) = &result {
+                                let cancelled = *cancel_rx.borrow();
+                                let per_attempt_timeout = status.code() == Code::DeadlineExceeded
+                                    && retry_policy.as_ref().is_some_and(|policy| {
+                                        policy.per_attempt_recv_timeout.is_some()
+                                    })
+                                    && remaining_timeout(deadline).is_ok()
+                                    && !cancelled;
+                                if let Some(delay) = policy_retry_delay(
+                                    &channel,
+                                    retry_policy.as_ref(),
+                                    status,
+                                    policy_attempts,
+                                    per_attempt_timeout,
+                                    cancelled,
+                                )
+                                .await
+                                {
+                                    if status.is_transport() {
+                                        channel.inner.discard(slot, r#gen).await;
+                                    }
+                                    attempt_guard.finish(status);
+                                    let slept = first_of(
+                                        async {
+                                            tokio::time::sleep(delay).await;
+                                            Ok::<(), Status>(())
+                                        },
+                                        cancel_rx.clone(),
+                                        deadline,
+                                    )
+                                    .await;
+                                    if let Err(sleep_status) = slept {
+                                        if *cancel_rx.borrow() {
+                                            call_guard.cancel(CancellationReason::CallerCancelled);
+                                        } else {
+                                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                                        }
+                                        channel.note_call_outcome(false).await;
+                                        call_guard.finish(&sleep_status);
+                                        return Err(sleep_status);
+                                    }
+                                    policy_attempts += 1;
+                                    attempt_idx += 1;
+                                    continue;
+                                }
+                            }
+                            if let Err(status) = &result {
                                 if status.is_transport() {
                                     channel.inner.discard(slot, r#gen).await;
                                 }
@@ -1733,6 +1934,7 @@ impl Channel {
                                     if let Some(obs) = &observer {
                                         obs.on_bytes_received(&call_labels, 0);
                                     }
+                                    channel.note_call_outcome(true).await;
                                     attempt_guard.finish(&Status::ok());
                                     call_guard.finish(&Status::ok());
                                 }
@@ -1744,6 +1946,7 @@ impl Channel {
                                         attempt_guard.cancel(CancellationReason::DeadlineExceeded);
                                         call_guard.cancel(CancellationReason::DeadlineExceeded);
                                     }
+                                    channel.note_call_outcome(false).await;
                                     attempt_guard.finish(status);
                                     call_guard.finish(status);
                                 }
@@ -1754,6 +1957,162 @@ impl Channel {
                 }
             }),
         )
+    }
+
+    /// Run a unary call under an A6 hedging policy.
+    ///
+    /// The first attempt goes out immediately and is never throttled. When it
+    /// has not finished after `hedgingDelay`, the next attempt goes out, up to
+    /// `maxAttempts`; an unset delay fans all attempts out at once. Sends past
+    /// the first need a throttling token and stop on a `DoNotRetry` pushback.
+    /// The first `OK` wins; a non-OK status outside `nonFatalStatusCodes`
+    /// commits immediately; non-fatal statuses keep waiting, and when nothing
+    /// is outstanding the next hedge goes out at once instead of waiting for
+    /// the timer. When attempts are exhausted the last non-fatal error fails
+    /// the call. Every attempt transparent-redials once on a raced connection
+    /// death, exactly like [`Self::unary`].
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one select loop over cancel, deadline, hedge timer, and completions"
+    )]
+    async fn execute_hedged<Resp>(&self, mut req: HedgeUnary) -> Result<Response<Resp>, Status>
+    where
+        Resp: Parse + Default + Send + 'static,
+    {
+        let _held = req.permit.take();
+        let max = req.policy.max_attempts.max(1);
+        let bound = usize::try_from(max).unwrap_or(usize::MAX).max(1);
+        let (tx, mut rx) = mpsc::channel(bound);
+        let mut handles = Vec::new();
+        let mut sent = 1u32;
+        let mut outstanding = 1u32;
+        let mut last_err: Option<Status> = None;
+        let mut stop_sending = false;
+        let mut hedge_at: Option<tokio::time::Instant> = None;
+        handles.push(spawn_hedge_attempt(self.clone(), &req, 1, tx.clone()));
+        match req.policy.hedging_delay {
+            Some(delay) => {
+                hedge_at = Some(tokio::time::Instant::now() + delay);
+            }
+            None => {
+                while sent < max {
+                    if !self.retry_allowed().await {
+                        stop_sending = true;
+                        break;
+                    }
+                    sent += 1;
+                    handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
+                    outstanding += 1;
+                }
+            }
+        }
+        loop {
+            tokio::select! {
+                biased;
+                () = cancel_fired(req.cancel_rx.clone()) => {
+                    abort_hedges(&handles);
+                    req.call_guard.cancel(CancellationReason::CallerCancelled);
+                    let status = Status::cancelled();
+                    req.call_guard.finish(&status);
+                    self.note_call_outcome(false).await;
+                    return Err(status);
+                }
+                () = sleep_until_or_pending(req.deadline) => {
+                    abort_hedges(&handles);
+                    req.call_guard.cancel(CancellationReason::DeadlineExceeded);
+                    let status = Status::deadline_exceeded();
+                    req.call_guard.finish(&status);
+                    self.note_call_outcome(false).await;
+                    return Err(status);
+                }
+                () = sleep_until_or_pending(hedge_at),
+                    if hedge_at.is_some() && sent < max && !stop_sending =>
+                {
+                    hedge_at = None;
+                    if self.retry_allowed().await {
+                        sent += 1;
+                        handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
+                        outstanding += 1;
+                        if let Some(delay) = req.policy.hedging_delay {
+                            hedge_at = Some(tokio::time::Instant::now() + delay);
+                        }
+                    } else {
+                        stop_sending = true;
+                    }
+                }
+                outcome = rx.recv() => {
+                    let Some((_attempt, result)) = outcome else {
+                        // Defensive: every task sends exactly one outcome, so
+                        // the channel only closes after a commit aborts the
+                        // tasks. Never return without an outcome.
+                        abort_hedges(&handles);
+                        let status = last_err.take().unwrap_or_else(|| {
+                            Status::unknown("hedging ended without an outcome")
+                        });
+                        req.call_guard.finish(&status);
+                        self.note_call_outcome(false).await;
+                        return Err(status);
+                    };
+                    outstanding = outstanding.saturating_sub(1);
+                    match result {
+                        Ok(response) => {
+                            abort_hedges(&handles);
+                            let final_result: Result<Response<Resp>, Status> =
+                                self.apply_response_hooks(req.path, response);
+                            match &final_result {
+                                Ok(_) => {
+                                    req.call_guard.finish(&Status::ok());
+                                    self.note_call_outcome(true).await;
+                                }
+                                Err(status) => {
+                                    req.call_guard.finish(status);
+                                    self.note_call_outcome(false).await;
+                                }
+                            }
+                            return final_result;
+                        }
+                        Err(status) => {
+                            if matches!(
+                                status.retry_pushback(),
+                                Some(crate::status::Pushback::DoNotRetry)
+                            ) {
+                                stop_sending = true;
+                            }
+                            let fatal = !req
+                                .policy
+                                .non_fatal_status_codes
+                                .contains(&status.code());
+                            if fatal {
+                                abort_hedges(&handles);
+                                req.call_guard.finish(&status);
+                                self.note_call_outcome(false).await;
+                                return Err(status);
+                            }
+                            last_err = Some(status);
+                            if outstanding == 0 {
+                                if !stop_sending && sent < max && self.retry_allowed().await {
+                                    sent += 1;
+                                    handles.push(spawn_hedge_attempt(
+                                        self.clone(),
+                                        &req,
+                                        sent,
+                                        tx.clone(),
+                                    ));
+                                    outstanding += 1;
+                                    if let Some(delay) = req.policy.hedging_delay {
+                                        hedge_at = Some(tokio::time::Instant::now() + delay);
+                                    }
+                                } else if let Some(status) = last_err.take() {
+                                    req.call_guard.finish(&status);
+                                    self.note_call_outcome(false).await;
+                                    return Err(status);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Issue a server-streaming RPC: one request message, many responses.
@@ -1809,7 +2168,7 @@ impl Channel {
         let prepared = channel.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let reset = cancel.clone();
-        let wire = channel.config.wire();
+        let wire = channel.wire_for(path);
         let observer = channel.observer.clone();
         Call::new(
             cancel,
@@ -2024,7 +2383,7 @@ impl Channel {
     {
         let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);
-        let wire = self.config.wire();
+        let wire = self.wire_for(path);
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
@@ -2209,7 +2568,7 @@ impl Channel {
         let channel = self.clone();
         let mut req = req;
         let prepared = channel.prepare_outbound(path, &mut req);
-        let wire = channel.config.wire();
+        let wire = channel.wire_for(path);
         let buffer = channel.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
@@ -2425,6 +2784,7 @@ fn finish_channel(
         https,
         authority,
         observer: None,
+        service_config: SharedServiceConfig::default(),
     }
 }
 
@@ -2938,6 +3298,196 @@ async fn send_request_frame(
         send.send_reset(Reason::CANCEL);
     }
     result
+}
+
+/// A6 policy-retry decision: how long to wait before the next attempt.
+///
+/// Returns `None` when the call must finish with `status`: no policy, attempts
+/// exhausted, cancelled, a non-retryable code (a per-attempt timeout counts as
+/// retryable on its own), a `DoNotRetry` pushback, or a throttled bucket.
+/// Otherwise returns the pushback delay when the server sent one, else the
+/// jittered exponential backoff for retry number `attempts_made` (1-based, so
+/// the first retry uses index 0).
+async fn policy_retry_delay(
+    channel: &Channel,
+    policy: Option<&RetryPolicy>,
+    status: &Status,
+    attempts_made: u32,
+    per_attempt_timeout: bool,
+    cancelled: bool,
+) -> Option<Duration> {
+    let policy = policy?;
+    if cancelled || attempts_made >= policy.max_attempts {
+        return None;
+    }
+    if matches!(
+        status.retry_pushback(),
+        Some(crate::status::Pushback::DoNotRetry)
+    ) {
+        return None;
+    }
+    let retryable = per_attempt_timeout || policy.retryable_status_codes.contains(&status.code());
+    if !retryable {
+        return None;
+    }
+    if !channel.retry_allowed().await {
+        return None;
+    }
+    if let Some(crate::status::Pushback::Delay(delay)) = status.retry_pushback() {
+        return Some(delay);
+    }
+    Some(retry_backoff(
+        policy.initial_backoff,
+        policy.max_backoff,
+        policy.backoff_multiplier,
+        attempts_made.saturating_sub(1),
+    ))
+}
+
+/// One hedged unary call: everything an attempt task needs, all owned.
+///
+/// The concurrency semaphore permit travels here so the call keeps holding its
+/// slot while hedges are in flight.
+struct HedgeUnary {
+    path: &'static str,
+    md: crate::metadata::Metadata,
+    req_timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    wait: bool,
+    compress: bool,
+    frame: Bytes,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    ua: HeaderValue,
+    https: bool,
+    policy: HedgingPolicy,
+    call_guard: CallGuard,
+    owned_labels: Option<OwnedCallLabels>,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    permit: Option<OwnedSemaphorePermit>,
+}
+
+/// A finished hedged attempt: its 1-based index plus the outcome.
+type HedgeOutcome<Resp> = (u32, Result<Response<Resp>, Status>);
+
+/// Run one hedged attempt: grab, send, transparent-redial once on a raced
+/// connection death, then report exactly one outcome.
+fn spawn_hedge_attempt<Resp>(
+    channel: Channel,
+    req: &HedgeUnary,
+    attempt: u32,
+    tx: mpsc::Sender<HedgeOutcome<Resp>>,
+) -> tokio::task::JoinHandle<()>
+where
+    Resp: Parse + Default + Send + 'static,
+{
+    let path = req.path;
+    let md = req.md.clone();
+    let req_timeout = req.req_timeout;
+    let deadline = req.deadline;
+    let wait = req.wait;
+    let compress = req.compress;
+    let frame = req.frame.clone();
+    let cancel_rx = req.cancel_rx.clone();
+    let wire = req.wire;
+    let ua = req.ua.clone();
+    let https = req.https;
+    let observer = req.observer.clone();
+    let owned_labels = req.owned_labels.clone();
+    tokio::spawn(async move {
+        let mut attempt_guard = AttemptGuard::new(
+            observer.clone(),
+            owned_labels.clone(),
+            attempt,
+            std::time::Instant::now(),
+        );
+        if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
+            let borrowed = call.as_borrowed();
+            obs.on_attempt_start(&AttemptLabels::new(borrowed, attempt));
+        }
+        let mut redialed = false;
+        let outcome: Result<Response<Resp>, Status> = loop {
+            let queue_start = tokio::time::Instant::now();
+            let live = match channel.grab(cancel_rx.clone(), deadline, wait).await {
+                Ok(live) => {
+                    if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
+                        obs.on_queue_wait(&call.as_borrowed(), queue_start.elapsed());
+                    }
+                    live
+                }
+                Err(status) => break Err(status),
+            };
+            let (slot, r#gen) = (live.slot, live.r#gen);
+            let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+                Ok(permit) => permit,
+                Err(status) => break Err(status),
+            };
+            if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
+                obs.on_bytes_sent(&call.as_borrowed(), frame.len());
+            }
+            match run_unary(
+                live.send,
+                &channel.authority,
+                path,
+                &md,
+                req_timeout,
+                deadline,
+                compress,
+                frame.clone(),
+                cancel_rx.clone(),
+                wire,
+                ua.clone(),
+                https,
+                byte_permit,
+            )
+            .await
+            {
+                Err(status)
+                    if !redialed
+                        && status.is_transparent_retryable()
+                        && channel.inner.endpoint.can_redial() =>
+                {
+                    redialed = true;
+                    channel.inner.discard(slot, r#gen).await;
+                }
+                result => {
+                    if let Err(status) = &result {
+                        if status.is_transport() {
+                            channel.inner.discard(slot, r#gen).await;
+                        }
+                    }
+                    break result;
+                }
+            }
+        };
+        match &outcome {
+            Ok(_) => attempt_guard.finish(&Status::ok()),
+            Err(status) => attempt_guard.finish(status),
+        }
+        drop(tx.send((attempt, outcome)).await);
+    })
+}
+
+/// Abort every outstanding hedged attempt. Aborted attempts report
+/// cancellation through their guard's `Drop`, matching a dropped [`Call`].
+fn abort_hedges(handles: &[tokio::task::JoinHandle<()>]) {
+    for handle in handles {
+        handle.abort();
+    }
+}
+
+/// Sleep until `at`, or forever when there is no deadline.
+async fn sleep_until_or_pending(at: Option<tokio::time::Instant>) {
+    match at {
+        Some(instant) => tokio::time::sleep_until(instant).await,
+        None => std::future::pending().await,
+    }
+}
+
+/// Complete when the call's cancel flag is set.
+async fn cancel_fired(cancel_rx: watch::Receiver<bool>) {
+    let mut cancel_rx = cancel_rx;
+    drop(cancel_rx.wait_for(|flag| *flag).await);
 }
 
 #[allow(

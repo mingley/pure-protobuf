@@ -636,7 +636,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries. This\n/// kernel has no service-config retry policy; application retries stay at\n/// the call site ([`Code::is_retryable`]). Transparent retry cannot be\n/// turned off. Distinct from [`Self::from_io`] (no transparent retry).\n/// Distinct from hedging (not implemented)."
+            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries.\n/// Service-config `retryPolicy`/`hedgingPolicy` attach with\n/// [`Self::service_config`]; omit the document (or the method's policy) for\n/// no policy retries, in which case application retries stay at the call\n/// site ([`Code::is_retryable`]). Transparent retry cannot be turned off.\n/// Distinct from [`Self::from_io`] (no transparent retry)."
         ),
         "Channel rustdoc must Distinct transparent retry from grpc-go WithDisableRetry"
     );
@@ -648,7 +648,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes\n/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as\n/// 5); transparent retry is at most once on top and cannot be raised.\n/// Distinct from [`Code::is_retryable`] (application retries at the call\n/// site, unbounded by this kernel)."
         ),
         "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
     );
@@ -6482,7 +6482,7 @@ fn channel_documents_with_max_call_attempts() {
     let src = include_str!("../src/client.rs");
     assert!(
         src.contains(
-            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes\n/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as\n/// 5); transparent retry is at most once on top and cannot be raised.\n/// Distinct from [`Code::is_retryable`] (application retries at the call\n/// site, unbounded by this kernel)."
         ),
         "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
     );
@@ -6915,7 +6915,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
-            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries. This\n/// kernel has no service-config retry policy; application retries stay at\n/// the call site ([`Code::is_retryable`]). Transparent retry cannot be\n/// turned off. Distinct from [`Self::from_io`] (no transparent retry).\n/// Distinct from hedging (not implemented)."
+            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries.\n/// Service-config `retryPolicy`/`hedgingPolicy` attach with\n/// [`Self::service_config`]; omit the document (or the method's policy) for\n/// no policy retries, in which case application retries stay at the call\n/// site ([`Code::is_retryable`]). Transparent retry cannot be turned off.\n/// Distinct from [`Self::from_io`] (no transparent retry)."
         ),
         "Channel rustdoc must Distinct transparent retry from grpc-go WithDisableRetry"
     );
@@ -6928,7 +6928,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
-            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes\n/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as\n/// 5); transparent retry is at most once on top and cannot be raised.\n/// Distinct from [`Code::is_retryable`] (application retries at the call\n/// site, unbounded by this kernel)."
         ),
         "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
     );
@@ -8345,11 +8345,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
     );
     assert!(
-        crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented)."),
+        crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map attaches `retryPolicy`/`hedgingPolicy` with [`Channel::service_config`]; omit the document (or the method's policy) for no policy retries, in which case application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry)."),
         "crate-map must Distinct transparent retry from grpc-go WithDisableRetry"
     );
     assert!(
-        crate_src.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        crate_src.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map reads `maxAttempts` from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as 5); transparent retry is at most once on top and cannot be raised. Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel)."),
         "crate-map must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
     );
     assert!(

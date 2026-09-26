@@ -6,7 +6,7 @@ use crate::config::Wire;
 use crate::gzip;
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
-use crate::status::{Code, Status};
+use crate::status::{Code, Pushback, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
@@ -23,6 +23,7 @@ use std::time::Duration;
 const GRPC_STATUS: HeaderName = HeaderName::from_static("grpc-status");
 const GRPC_MESSAGE: HeaderName = HeaderName::from_static("grpc-message");
 const GRPC_STATUS_DETAILS_BIN: HeaderName = HeaderName::from_static("grpc-status-details-bin");
+const GRPC_RETRY_PUSHBACK_MS: HeaderName = HeaderName::from_static("grpc-retry-pushback-ms");
 const GRPC_TIMEOUT: HeaderName = HeaderName::from_static("grpc-timeout");
 const GRPC_ENCODING: HeaderName = HeaderName::from_static("grpc-encoding");
 const GRPC_ACCEPT_ENCODING: HeaderName = HeaderName::from_static("grpc-accept-encoding");
@@ -488,13 +489,14 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         && status.message().is_empty()
         && status.metadata().is_empty()
         && status.details().is_empty()
+        && status.retry_pushback().is_none()
     {
         // The overwhelmingly common case: one static header, no formatting.
         let mut map = HeaderMap::with_capacity(1);
         map.insert(GRPC_STATUS, STATUS_OK);
         return Ok(map);
     }
-    let mut map = HeaderMap::with_capacity(5);
+    let mut map = HeaderMap::with_capacity(6);
     let code = HeaderValue::from_str(&status.code().to_i32().to_string())
         .map_err(|e| Status::internal(e.to_string()))?;
     map.insert(GRPC_STATUS, code);
@@ -502,6 +504,18 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         let encoded = percent_encode(status.message());
         let val = HeaderValue::from_str(&encoded).map_err(|e| Status::internal(e.to_string()))?;
         map.insert(GRPC_MESSAGE, val);
+    }
+    match status.retry_pushback() {
+        Some(Pushback::Delay(delay)) => {
+            let val = HeaderValue::from_str(&delay.as_millis().to_string())
+                .map_err(|e| Status::internal(e.to_string()))?;
+            map.insert(GRPC_RETRY_PUSHBACK_MS, val);
+        }
+        Some(Pushback::DoNotRetry) => {
+            let val = HeaderValue::from_static("-1");
+            map.insert(GRPC_RETRY_PUSHBACK_MS, val);
+        }
+        None => {}
     }
     if !status.details().is_empty() {
         let encoded = STANDARD_NO_PAD.encode(status.details());
@@ -632,6 +646,13 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
             let mut status = Status::new(code, message);
             if code != Code::Ok {
                 *status.metadata_mut() = Metadata::from_headers(map);
+            }
+            if let Some(pushback) = map
+                .get(GRPC_RETRY_PUSHBACK_MS)
+                .and_then(|v| v.to_str().ok())
+                .and_then(parse_pushback_value)
+            {
+                status.set_retry_pushback(pushback);
             }
             if let Some(raw) = map
                 .get(GRPC_STATUS_DETAILS_BIN)

@@ -787,9 +787,9 @@
 //!
 //! There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`].
 //!
-//! There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented).
+//! There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map attaches `retryPolicy`/`hedgingPolicy` with [`Channel::service_config`]; omit the document (or the method's policy) for no policy retries, in which case application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry).
 //!
-//! There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented).
+//! There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map reads `maxAttempts` from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as 5); transparent retry is at most once on top and cannot be raised. Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel).
 //!
 //! There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. This crate-map [`Channel::origin`] is `:authority` only. Distinct from [`ClientTls`] (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call.
 //!
@@ -1083,6 +1083,8 @@ mod request;
 #[forbid(unsafe_code)]
 mod server;
 #[forbid(unsafe_code)]
+pub mod service_config;
+#[forbid(unsafe_code)]
 mod status;
 #[forbid(unsafe_code)]
 mod stream;
@@ -1136,7 +1138,12 @@ pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response, Response
 pub use server::{
     ConnectionInfo, Incoming, IncomingAccept, PeerCred, Router, Rpc, Server, Service,
 };
-pub use status::{Code, ParseCodeError, Status};
+pub use service_config::{
+    HedgingPolicy, LbPolicyConfig, MethodConfig, MethodName, RetryPolicy, RetryThrottler,
+    RetryThrottling, RingHashConfig, ServiceConfig, WeightedRoundRobinConfig, pushback_delay,
+    retry_backoff,
+};
+pub use status::{Code, ParseCodeError, Pushback, Status};
 pub use stream::{Framed, StreamSender, Streaming};
 pub use telemetry::{
     AttemptLabels, BoundedMetricObserver, CallLabels, CallRole, CancellationEvent,

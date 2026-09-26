@@ -92,10 +92,10 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
     },
     CaveatRequirement {
         category: "transparent_retries",
-        title: "no_service_config_retries",
+        title: "service_config_retry_boundary",
         doc_path: "docs/grpc.md",
-        required_all: &["service-config retry", "Code::is_retryable"],
-        description: "gRPC guide must distinguish kernel transparent retry from service-config retries (call-site only).",
+        required_all: &["Channel::service_config", "Code::is_retryable"],
+        description: "gRPC guide must document service-config retry attachment and the call-site fallback without a policy.",
     },
     CaveatRequirement {
         category: "transparent_retries",

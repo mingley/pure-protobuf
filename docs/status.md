@@ -150,7 +150,7 @@ For a consolidated cross-framework comparison matrix, see [docs/guides/compariso
 
 ## Unfinished
 
-Tracked in [TODO.md](../TODO.md) / [ROADMAP.md](ROADMAP.md). The notes above document shipped behavior and explicit omissions; they are not an open work queue. Still not done: arena views, Edition 2024, `name_80` leftover, xDS, application retries, hedging, channelz, binary logging, grpc.stats / OpenTelemetry, remaining WKT field-wise JSON/text, and GR-03+. Do not treat a clean checkout as production certification.
+Tracked in [TODO.md](../TODO.md) / [ROADMAP.md](ROADMAP.md). The notes above document shipped behavior and explicit omissions; they are not an open work queue. Still not done: arena views, Edition 2024, `name_80` leftover, xDS, streaming policy retries, channelz, binary logging, grpc.stats / OpenTelemetry, remaining WKT field-wise JSON/text, and GR-03+. Unary service-config retries and hedging ship (`Channel::service_config`, `tests/policy_retry.rs`). Do not treat a clean checkout as production certification.
 
 ## Skipped rust/test/shared files
 

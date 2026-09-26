@@ -14,7 +14,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 | Client retries | partial → in progress | Transparent retry ships ([retry contract](retry-contract.md)). Service-config `retryPolicy`, `retryThrottling`, `hedgingPolicy` in progress. |
+| A6 | Client retries | partial | Transparent retry ships ([retry contract](retry-contract.md)). Unary service-config `retryPolicy`, `retryThrottling`, `hedgingPolicy`, per-attempt timeouts, and server pushback ship (`Channel::service_config`, `tests/policy_retry.rs`). Server-streaming policy retry is next; client-streaming/bidi stay call-site retries (no replay buffer). |
 | A8 | Client-side keepalive | shipped | `keep_alive_interval` / `keep_alive_timeout`, idle PINGs. |
 | A9 | Server-side connection management | shipped | `max_connection_age`/`idle`, GOAWAY drain, `serve_with_shutdown`. |
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |

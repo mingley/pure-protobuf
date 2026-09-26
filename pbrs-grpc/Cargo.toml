@@ -33,6 +33,7 @@ rustls = { version = "0.23", default-features = false, features = ["std", "tls12
 # keeps the declared pbrs-grpc MSRV (1.85) honest. Same `default_provider()` API.
 rustls-graviola = "0.2.1"
 rustls-pemfile = "2"
+serde_json = "1"
 # Pure-Rust wrapper around libc socket options. Tokio already depends on it;
 # a direct dep lets the kernel set SO_KEEPALIVE without compiling C.
 # `all` is an empty feature that unlocks `TCP_KEEPCNT` (`with_retries`).
