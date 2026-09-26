@@ -1067,6 +1067,8 @@ pub mod reflection;
 pub mod testing;
 
 #[forbid(unsafe_code)]
+pub mod binlog;
+#[forbid(unsafe_code)]
 mod client;
 #[forbid(unsafe_code)]
 mod config;
