@@ -9,10 +9,10 @@ Classification against committed source:
   production certification.
 - **Unfinished:** [TODO.md](../TODO.md) and the
   [leadership plan](ROADMAP.md). GR-01 and GR-02 are checked off there.
-  No arena views, Edition 2024, xDS,
-  application retries, hedging, channelz, binary logging, or grpc.stats /
-  OpenTelemetry. `name_80` leftover remains. Field-wise WKT JSON/text is
-  not closed.
+  No arena views, Edition 2024, xDS, streaming policy retries,
+  channelz, binary logging, or grpc.stats / OpenTelemetry. `name_80`
+  leftover remains. Field-wise WKT JSON/text is not closed. Unary
+  service-config retries and hedging ship (see below).
 - **Discarded:** [closed inventory](inventory/README.md). Do not merge
   those diffs. `#34` already landed; `#39` flatten and `#57` heap-copy
   did not.
@@ -142,9 +142,9 @@ The native gRPC kernel (`pbrs-grpc`) provides comprehensive support across all f
 ### Explicit Omissions and Boundaries
 - **xDS Protocol**: Omitted; name resolution and dynamic traffic steering are expected to terminate at service-mesh ingress or L4/L7 sidecars.
 - **channelz & Binary Logging**: Omitted from kernel to prevent unbounded runtime memory retention.
-- **Hedging**: Speculative hedging is omitted to avoid latency spikes and traffic amplification.
+- **Hedging**: Unary `hedgingPolicy` ships, bounded by `maxAttempts` and gated by the throttling bucket past the first send. Streaming hedging is not applicable.
 - **Edition 2024**: Edition 2024 is currently untested and unsupported (conformance covers up to Edition 2023).
-- **Service-Config Retries**: Application-level retries remain at the call site evaluated against `Code::is_retryable`.
+- **Service-Config Retries**: Unary `retryPolicy` (backoff, throttling, per-attempt timeouts, server pushback) ships via `Channel::service_config`. Streaming policy retry is follow-up work; client-streaming/bidi stay call-site retries with no replay buffer.
 
 For a consolidated cross-framework comparison matrix, see [docs/guides/comparison.md](guides/comparison.md).
 

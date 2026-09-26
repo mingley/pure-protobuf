@@ -201,6 +201,6 @@ For complete state transitions and commitment boundaries, consult the [Retry Con
 To maintain zero C dependencies, minimal overhead, and deterministic execution, `pbrs-grpc` deliberately omits non-essential features:
 - **No xDS or Client-Side Load Balancing**: Services dial direct authorities (`host:port`); use an L4/L7 proxy (e.g. Envoy) for dynamic routing.
 - **No Channelz or Binary Logging**: Metrics and observability are exposed via standard Rust tracing and middleware extensions.
-- **No Hedging or Speculative RPCs**: Omitted from kernel to prevent latency spikes and unexpected traffic multiplication.
+- **No Unbounded Speculation**: Hedging ships only as opt-in, `maxAttempts`-bounded unary `hedgingPolicy` (see [Retries and Resilience](#retries-and-resilience)); there is no speculative RPC outside that policy.
 
 For a comprehensive comparison against Tonic and gRPC-Go, refer to the [Framework Comparison Guide](guides/comparison.md).

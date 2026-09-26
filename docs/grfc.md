@@ -32,7 +32,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 |---|---|---|---|
 | A2 | Service configs in DNS | planned | TXT-record service config in the DNS resolver. |
 | A10 | Avoid grpclb/service-config for localhost and IP literals | planned | Folded into the resolver: literals skip DNS-TXT lookup. |
-| A21 | Service-config error handling | planned | With the JSON service-config parser. |
+| A21 | Service-config error handling | partial | `ServiceConfig::parse` validates eagerly and rejects bad documents with `InvalidArgument` naming the entry. Resolver-delivered configs arrive with CH-03. |
 | A24 | LB policy config | planned | `loadBalancingConfig` selection in service config. |
 | A62 | pick_first | planned | Default LB policy with sticky transient-failure handling. |
 | A113 | pick_first weighted shuffling | planned | With pick_first. |
@@ -57,7 +57,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 hedging | Hedging (part of A6) | planned | Bounded, opt-in, idempotency-gated. |
+| A6 hedging | Hedging (part of A6) | shipped | Unary `hedgingPolicy` ships: bounded by `maxAttempts`, opt-in per method, first OK/fatal commits, non-fatal waits (`tests/policy_retry.rs`). Streaming hedging is not applicable (grpc-go is unary-only too). |
 | A44 | xDS retry | planned | With the xDS client (route-level retry policy). |
 | A45 | Retry stats | planned | Per-call retry attempt counters. |
 | A96 | Retry OTel stats | planned | With OTel metrics. |
