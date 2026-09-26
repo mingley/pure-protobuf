@@ -4,6 +4,13 @@
 [`139af0c2559ebc36ecae86c647482a758dff4d64`](https://github.com/mingley/pure-protobuf/tree/139af0c2559ebc36ecae86c647482a758dff4d64).
 **Coordinator and scope approver:** Michael Ingley.
 
+> **2026-09-26:** The [world-class gRPC program](world-class/README.md) extends
+> this plan with a category scoreboard, a deterministic dev-loop evidence tier,
+> and lanes for codec, codegen, client, server, a sans-IO HTTP/2 engine, a
+> pure-Rust upb-replacement kernel, better-tonic adoption and gRFC/xDS work.
+> Its `reconciliation` table says which open cards here are carried by new
+> cards and which stay authoritative.
+
 The objective is leading protobuf code generation, documentation, codec
 performance, and **both client and server** gRPC performance in Rust, without
 trading away Google's protocol semantics. This plan supplements the stable

@@ -265,6 +265,7 @@ Run the conformance suite locally:
 - [Implementation Plan & Scorecard](docs/ROADMAP.md) — Ordered work packages for compatibility, reliability, operational readiness and measurable performance leadership.
 - [Granular Execution Plan](docs/plan/README.md) — Current gaps, official-suite pins, Rust-only boundaries, separate client/server performance goals, and bounded task assignments.
 - [Task Cards](docs/plan/tasks.json) — Dependency-linked implementation, design and qualification work with file scopes, acceptance criteria and check references.
+- [World-class gRPC Program](docs/plan/world-class/README.md) — Category scoreboard, upb-replacement kernel, pbrs-h2 transport, better-tonic and gRFC/xDS lanes, with [169 worker cards](docs/plan/world-class/tasks.json).
 - [Execution Queue](TODO.md) — Delivered foundations, next assignments and milestone exit gates.
 
 ---

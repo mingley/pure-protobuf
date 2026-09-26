@@ -5,6 +5,9 @@ The [granular execution plan](docs/plan/README.md) records the 2026-09-18 gap
 assessment, official-suite pins, measurable goals and small-executor contract.
 Its [127 task cards](docs/plan/tasks.json) are authoritative for leaf-task
 dependencies/status; this checklist tracks milestones, not a second backlog.
+The [world-class gRPC program](docs/plan/world-class/README.md) adds 169
+dependency-checked cards; its first assignments start with MX-00, SB-01,
+SB-10, MX-01/03/04/05, QG-04 and UK-01.
 Nothing here claims current production certification or universal performance
 leadership.
 

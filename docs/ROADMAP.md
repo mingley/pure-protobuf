@@ -12,6 +12,8 @@ official-suite source map and small-executor contract;
 [task cards](plan/tasks.json) are authoritative for dependencies and leaf-task
 status. Completed foundation slices stay done; larger qualification claims
 still require their own evidence.
+The [world-class gRPC program](plan/world-class/README.md) adds the
+category scoreboard and the performance, upb-replacement, tonic and gRFC lanes.
 
 ## Starting point and evidence
 
