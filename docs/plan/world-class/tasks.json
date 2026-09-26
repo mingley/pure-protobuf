@@ -1213,7 +1213,14 @@
         "native-hostile"
       ],
       "scoreboard": [],
-      "relates": []
+      "relates": [],
+      "status": "done",
+      "implementer": "muse-code",
+      "evidence": [
+        "PR1 ac09259d: pool.rs + config_glue.rs extracted verbatim",
+        "PR2 93d738fb: channel/call/unary/streaming/retry extracted verbatim; lib.rs unchanged; serving.rs needles re-pointed via concat with zero assertion changes",
+        "checks: format, native-lib (248), native-rpc (rpc+gaps), native-tls serial (20), native-hostile, serving (1097), policy_retry (13), clippy lib -D warnings, rustdoc -D warnings; known pre-existing parallel-only tls flake excluded as on base"
+      ]
     },
     {
       "id": "MX-03",
