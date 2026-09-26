@@ -198,6 +198,7 @@ pub struct Server<S> {
     response_interceptor: Option<crate::interceptor::ResponseHook>,
     observer: Option<Arc<dyn LifecycleObserver>>,
     byte_budget: ByteBudgetTracker,
+    binlog: Option<Arc<crate::binlog::BinaryLogger>>,
 }
 
 impl<S> Clone for Server<S> {
@@ -209,6 +210,7 @@ impl<S> Clone for Server<S> {
             response_interceptor: self.response_interceptor.clone(),
             observer: self.observer.clone(),
             byte_budget: self.byte_budget.clone(),
+            binlog: self.binlog.clone(),
         }
     }
 }
@@ -224,6 +226,7 @@ impl<S: Service> std::fmt::Debug for Server<S> {
                 &self.response_interceptor.is_some(),
             )
             .field("observer", &self.observer.is_some())
+            .field("binary_logger", &self.binlog.is_some())
             .finish()
     }
 }
@@ -239,6 +242,7 @@ impl<S: Service> Server<S> {
             response_interceptor: None,
             observer: None,
             byte_budget: ByteBudgetTracker::default(),
+            binlog: None,
         }
     }
 
@@ -258,6 +262,7 @@ impl<S: Service> Server<S> {
             response_interceptor: None,
             observer: None,
             byte_budget: ByteBudgetTracker::default(),
+            binlog: None,
         }
     }
 
@@ -918,6 +923,20 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Record RPCs as `grpc.binarylog.v1` entries via `logger`.
+    ///
+    /// Applies to every call shape. Methods the logger's filter excludes
+    /// cost one branch and log nothing. Credential headers are omitted and
+    /// sensitive metadata values masked; see
+    /// [`BinaryLogger`](crate::binlog::BinaryLogger).
+    /// Distinct from [`Self::observer`]: that reports lifecycle events to
+    /// telemetry; this records wire-faithful RPC logs to a sink.
+    #[must_use]
+    pub fn binary_logger(mut self, logger: crate::binlog::BinaryLogger) -> Self {
+        self.binlog = Some(Arc::new(logger));
+        self
+    }
+
     fn into_single(self) -> (Single<S>, ServerConfig) {
         (
             Single {
@@ -926,6 +945,7 @@ impl<S: Service> Server<S> {
                 response_interceptor: self.response_interceptor,
                 observer: self.observer,
                 byte_budget: self.byte_budget,
+                binlog: self.binlog,
             },
             self.config,
         )
@@ -966,6 +986,7 @@ impl<S: Service> Server<S> {
         router.response_interceptor = self.response_interceptor;
         router.observer = self.observer;
         router.byte_budget = self.byte_budget;
+        router.binlog = self.binlog;
         router
     }
 

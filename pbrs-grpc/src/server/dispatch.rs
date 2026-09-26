@@ -100,6 +100,7 @@ pub(crate) struct Single<S> {
     pub(crate) response_interceptor: Option<crate::interceptor::ResponseHook>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) byte_budget: ByteBudgetTracker,
+    pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
 }
 
 impl<S: Service> Dispatch for Single<S> {
@@ -107,6 +108,22 @@ impl<S: Service> Dispatch for Single<S> {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.byte_budget = self.byte_budget.clone();
         rpc.observer = self.observer.clone();
+        if let Some(tap) = self
+            .binlog
+            .as_ref()
+            .and_then(|binlog| binlog.start_call(rpc.path(), crate::binlog::Logger::Server))
+        {
+            if let Some(peer) = rpc.remote_addr() {
+                tap.set_peer(peer);
+            }
+            tap.log_client_header(
+                rpc.metadata(),
+                rpc.path(),
+                rpc.authority().unwrap_or(""),
+                rpc.effective_timeout(),
+            );
+            rpc.binlog = Some(tap);
+        }
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);

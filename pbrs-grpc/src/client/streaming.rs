@@ -6,6 +6,7 @@ use super::call::{
 };
 use super::pool;
 use super::retry::{PolicyDecision, policy_retry_delay, retry_exhausted};
+use crate::binlog::CallLogger;
 use crate::config::Wire;
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::request::{Call, Request, Response};
@@ -27,7 +28,7 @@ use tokio::sync::watch;
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "one transport handle plus request, cancel, limits, and buffer"
+    reason = "thin cancel-logging wrapper over run_server_stream_inner"
 )]
 async fn run_server_stream<Resp>(
     send_req: h2::client::SendRequest<Bytes>,
@@ -43,11 +44,51 @@ async fn run_server_stream<Resp>(
     user_agent: HeaderValue,
     https: bool,
     permit: BytePermit,
+    tap: Option<&CallLogger>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Resp: Parse + Default + Send + 'static,
+{
+    let outcome = run_server_stream_inner(
+        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+        user_agent, https, permit, tap,
+    )
+    .await;
+    if let (Some(tap), Err(status)) = (tap, &outcome) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    outcome
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, cancel, limits, buffer, and tap"
+)]
+async fn run_server_stream_inner<Resp>(
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    compress: bool,
+    frame: Bytes,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    user_agent: HeaderValue,
+    https: bool,
+    permit: BytePermit,
+    tap: Option<&CallLogger>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: Parse + Default + Send + 'static,
 {
     let mut commitment = AttemptCommitment::Uncommitted;
+    if let Some(tap) = tap {
+        tap.log_client_header(md, path, authority.as_str(), timeout);
+    }
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
@@ -64,6 +105,7 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
+    let log_frame = tap.is_some().then(|| frame.clone());
     let sent = send_request_frame(
         &mut send_stream,
         frame,
@@ -85,13 +127,24 @@ where
         )
         .await;
     }
+    if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
+        // Server-streaming sends one request with end-of-stream set.
+        tap.log_written(log_frame);
+        tap.log_half_close();
+    }
     let response = race(
         async {
             let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
             commitment = AttemptCommitment::ResponseCommitted;
-            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip)
-                .await
-                .map_err(|e| commitment.classify(e))
+            finish_stream::<Resp>(
+                response,
+                wire.limits,
+                deadline,
+                wire.accept_gzip,
+                tap.cloned(),
+            )
+            .await
+            .map_err(|e| commitment.classify(e))
         },
         cancel_rx.clone(),
         deadline,
@@ -104,6 +157,10 @@ where
     Ok(response)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "response and send halves plus cancel, limits, deadline, and tap"
+)]
 async fn run_client_stream<Req, Resp>(
     resp_fut: h2::client::ResponseFuture,
     send_stream: h2::SendStream<Bytes>,
@@ -112,6 +169,7 @@ async fn run_client_stream<Req, Resp>(
     wire: Wire,
     deadline: Option<tokio::time::Instant>,
     budget: ByteBudgetTracker,
+    tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -128,11 +186,18 @@ where
     let result = {
         let mut failed = false;
         let result = {
-            let pump = pump_outbound_budget(&mut send.stream, rx, cancel_rx.clone(), wire, &budget);
+            let pump = pump_outbound_budget(
+                &mut send.stream,
+                rx,
+                cancel_rx.clone(),
+                wire,
+                &budget,
+                tap.cloned(),
+            );
             tokio::pin!(pump);
             let fut = async {
                 let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
-                finish_unary::<Resp>(response, wire.limits, wire.accept_gzip).await
+                finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap).await
             };
             tokio::pin!(fut);
             let until_deadline = async {
@@ -173,7 +238,13 @@ where
         result
     };
     send.live = false;
-    prefer_deadline(result, deadline)
+    let result = prefer_deadline(result, deadline);
+    if let (Some(tap), Err(status)) = (tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    result
 }
 
 async fn pump_outbound_budget<T: Serialize>(
@@ -182,8 +253,12 @@ async fn pump_outbound_budget<T: Serialize>(
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
     budget: &ByteBudgetTracker,
+    tap: Option<CallLogger>,
 ) -> PumpEnd {
     let mut batch = OutBatch::new(wire);
+    if let Some(tap) = &tap {
+        batch.set_tap(tap.clone());
+    }
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut permits = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
@@ -209,6 +284,9 @@ async fn pump_outbound_budget<T: Serialize>(
             }
             permits.clear();
             send.send_data(Bytes::new(), true).ok();
+            if let Some(tap) = &tap {
+                tap.log_half_close();
+            }
             return PumpEnd::HalfClosed;
         }
         let room = OutBatch::BURST - items.len();
@@ -262,12 +340,17 @@ impl Drop for ResetSend {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "response and send halves plus cancel, limits, deadline, and tap"
+)]
 async fn run_bidi<Req, Resp>(
     resp_fut: h2::client::ResponseFuture,
     send_stream: h2::SendStream<Bytes>,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
+    tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
     budget: ByteBudgetTracker,
 ) -> Result<Response<Streaming<Resp>>, Status>
@@ -282,12 +365,15 @@ where
     // Call does not leave SendStream parked on a watch that never fires.
     let (fail_tx, mut fail_rx) = tokio::sync::oneshot::channel();
     let (hold_tx, hold_rx) = tokio::sync::oneshot::channel::<()>();
+    let pump_tap = tap.clone();
     drop(tokio::spawn({
         let cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
+            let tap = pump_tap;
             let end = {
-                let pump = pump_outbound_budget(&mut send, rx, cancel_rx.clone(), wire, &budget);
+                let pump =
+                    pump_outbound_budget(&mut send, rx, cancel_rx.clone(), wire, &budget, tap);
                 tokio::pin!(pump);
                 let until_deadline = async {
                     match deadline {
@@ -320,7 +406,14 @@ where
     let result = {
         let fut = async {
             let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
-            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip).await
+            finish_stream::<Resp>(
+                response,
+                wire.limits,
+                deadline,
+                wire.accept_gzip,
+                tap.clone(),
+            )
+            .await
         };
         tokio::pin!(fut);
         let until_deadline = async {
@@ -351,7 +444,13 @@ where
             }
         }
     };
-    prefer_deadline(result, deadline)
+    let result = prefer_deadline(result, deadline);
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    result
 }
 
 impl super::Channel {
@@ -457,6 +556,10 @@ impl super::Channel {
                     }
                 };
                 channel.retry_stats.record_call();
+                let tap = channel
+                    .binlog
+                    .as_ref()
+                    .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let retry_policy = channel
                     .method_config_for(path)
                     .and_then(|method| method.retry_policy.clone());
@@ -550,6 +653,7 @@ impl super::Channel {
                         ua.clone(),
                         https,
                         byte_permit,
+                        tap.as_ref(),
                     )
                     .await
                     {
@@ -798,6 +902,10 @@ impl super::Channel {
                 let mut attempt_guard =
                     AttemptGuard::new(observer.clone(), owned_labels.clone(), 1, attempt_start);
                 let queue_start = tokio::time::Instant::now();
+                let tap = channel
+                    .binlog
+                    .as_ref()
+                    .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -814,6 +922,14 @@ impl super::Channel {
                     Ok(opened) => {
                         if let Some(obs) = &observer {
                             obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                        }
+                        if let Some(tap) = &tap {
+                            tap.log_client_header(
+                                &md,
+                                path,
+                                channel.authority.as_str(),
+                                req_timeout,
+                            );
                         }
                         opened
                     }
@@ -841,6 +957,7 @@ impl super::Channel {
                     wire,
                     deadline,
                     budget,
+                    tap.as_ref(),
                 )
                 .await
                 {
@@ -984,6 +1101,10 @@ impl super::Channel {
                 let mut attempt_guard =
                     AttemptGuard::new(observer.clone(), owned_labels.clone(), 1, attempt_start);
                 let queue_start = tokio::time::Instant::now();
+                let tap = channel
+                    .binlog
+                    .as_ref()
+                    .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let opened = match channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -1000,6 +1121,14 @@ impl super::Channel {
                     Ok(opened) => {
                         if let Some(obs) = &observer {
                             obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                        }
+                        if let Some(tap) = &tap {
+                            tap.log_client_header(
+                                &md,
+                                path,
+                                channel.authority.as_str(),
+                                req_timeout,
+                            );
                         }
                         opened
                     }
@@ -1025,6 +1154,7 @@ impl super::Channel {
                     rx,
                     cancel_rx.clone(),
                     wire,
+                    tap,
                     deadline,
                     budget,
                 )

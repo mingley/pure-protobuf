@@ -4,6 +4,22 @@
 //! `grpc/binlog/v1/binarylog.proto`; those tests skip when `protoc` is
 //! missing from `PATH`.
 
+#![allow(
+    clippy::disallowed_methods,
+    clippy::let_underscore_must_use,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::too_many_lines,
+    clippy::unimplemented,
+    unreachable_pub,
+    reason = "integration tests"
+)]
+
 use pbrs_grpc::Metadata;
 use pbrs_grpc::binlog::{
     Address, AddressType, BinaryLogFilter, BinaryLogger, Cap, ClientHeader, EventType,
@@ -560,4 +576,504 @@ fn unused_imports_anchor() {
         status_message: String::new(),
         status_details: vec![],
     };
+}
+
+// ---- end-to-end: taps on the real client and server ----
+
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::{Channel, Request, Response, Server, Streaming};
+
+struct Echo;
+
+impl Greeter for Echo {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let mut reply = HelloReply::new();
+        reply.set_message(name);
+        Ok(Response::new(reply))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut inbound = request.into_inner();
+        let mut names = Vec::new();
+        while let Some(msg) = inbound.message().await? {
+            names.push(msg.name().to_str().unwrap_or("").to_string());
+        }
+        let mut reply = HelloReply::new();
+        reply.set_message(names.join(","));
+        Ok(Response::new(reply))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let (tx, rx) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            for part in name.split(',') {
+                let mut reply = HelloReply::new();
+                reply.set_message(part.to_string());
+                if tx.send(reply).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(rx))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, rx) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            loop {
+                match inbound.message().await {
+                    Ok(Some(msg)) => {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                        if tx.send(reply).await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
+                }
+            }
+        }));
+        Ok(Response::new(rx))
+    }
+}
+
+struct Guard {
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+fn hello_request(name: &str) -> HelloRequest {
+    let mut req = HelloRequest::new();
+    req.set_name(name);
+    req
+}
+
+/// One logged client/server pair sharing `filter`.
+async fn logged_pair(filter: &str) -> (GreeterClient, Arc<VecSink>, Arc<VecSink>, Guard) {
+    let client_sink = Arc::new(VecSink::new());
+    let server_sink = Arc::new(VecSink::new());
+    let client_log = BinaryLogger::new(
+        BinaryLogFilter::parse(filter).expect("filter"),
+        client_sink.clone(),
+    );
+    let server_log = BinaryLogger::new(
+        BinaryLogFilter::parse(filter).expect("filter"),
+        server_sink.clone(),
+    );
+    let listener = tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .binary_logger(server_log)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mut last = Status::unavailable("connect");
+    for _ in 0..80 {
+        match Channel::connect(addr).await {
+            Ok(channel) => {
+                let client = GreeterClient::new(channel.binary_logger(client_log));
+                return (client, client_sink, server_sink, Guard { task });
+            }
+            Err(e) => {
+                last = e;
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect to {addr}: {last}");
+}
+
+fn events_of(records: &[pbrs_grpc::binlog::LogRecord]) -> Vec<EventType> {
+    records.iter().map(|r| r.entry.event).collect()
+}
+
+/// Every record shares one nonzero call id with 1-based sequence numbers.
+fn assert_call_shape(records: &[pbrs_grpc::binlog::LogRecord], role: Logger) {
+    assert!(!records.is_empty(), "expected records for {role:?}");
+    let call_id = records[0].entry.call_id;
+    assert_ne!(call_id, 0);
+    for (i, record) in records.iter().enumerate() {
+        assert_eq!(record.entry.call_id, call_id);
+        assert_eq!(
+            record.entry.sequence_id_within_call,
+            i as u64 + 1,
+            "sequence of {:?}",
+            record.entry.event
+        );
+        assert_eq!(record.entry.logger, role);
+        assert!(!record.entry.payload_truncated);
+    }
+}
+
+fn message_data(records: &[pbrs_grpc::binlog::LogRecord], index: usize) -> Vec<u8> {
+    match records[index].entry.payload.as_ref().expect("payload") {
+        Payload::Message(m) => {
+            assert_eq!(m.length as usize, m.data.len());
+            m.data.clone()
+        }
+        other => panic!("expected message at {index}, got {other:?}"),
+    }
+}
+
+/// `HelloRequest`/`HelloReply` with a one-field string payload.
+fn framed_string(value: &str) -> Vec<u8> {
+    let mut out = vec![0x0A, value.len() as u8];
+    out.extend_from_slice(value.as_bytes());
+    out
+}
+
+const UNARY_EVENTS: [EventType; 6] = [
+    EventType::ClientHeader,
+    EventType::ClientMessage,
+    EventType::ClientHalfClose,
+    EventType::ServerHeader,
+    EventType::ServerMessage,
+    EventType::ServerTrailer,
+];
+
+#[tokio::test]
+async fn unary_logs_full_sequence_both_sides() {
+    let (client, client_sink, server_sink, _guard) = logged_pair("*").await;
+    let reply = client
+        .say_hello(Request::new(hello_request("world")))
+        .await
+        .expect("rpc")
+        .into_inner();
+    assert_eq!(reply.message().to_str().unwrap_or(""), "world");
+
+    let client_records = client_sink.records();
+    let server_records = server_sink.records();
+    assert_eq!(events_of(&client_records), UNARY_EVENTS);
+    assert_eq!(events_of(&server_records), UNARY_EVENTS);
+    assert_call_shape(&client_records, Logger::Client);
+    assert_call_shape(&server_records, Logger::Server);
+
+    // Request bytes are exact on both sides.
+    assert_eq!(message_data(&client_records, 1), framed_string("world"));
+    assert_eq!(message_data(&server_records, 1), framed_string("world"));
+    // The echo reply is exact on both sides.
+    assert_eq!(message_data(&client_records, 4), framed_string("world"));
+    assert_eq!(message_data(&server_records, 4), framed_string("world"));
+
+    // Server attaches the peer once, on the client header.
+    let peer = server_records[0].entry.peer.as_ref().expect("peer");
+    assert_eq!(peer.addr_type, AddressType::Ipv4);
+    assert_eq!(peer.address, "127.0.0.1");
+    assert_ne!(peer.ip_port, 0);
+    for record in server_records.iter().skip(1) {
+        assert_eq!(record.entry.peer, None);
+    }
+
+    // Client header carries routing fields.
+    match client_records[0].entry.payload.as_ref().expect("payload") {
+        Payload::ClientHeader(h) => {
+            assert_eq!(h.method_name, "/helloworld.Greeter/SayHello");
+            assert!(h.authority.starts_with("127.0.0.1:"), "{}", h.authority);
+        }
+        other => panic!("expected client header, got {other:?}"),
+    }
+    // Trailer carries the OK status on both sides.
+    for records in [&client_records, &server_records] {
+        match records[5].entry.payload.as_ref().expect("payload") {
+            Payload::Trailer(t) => {
+                assert_eq!(t.status_code, 0);
+                assert_eq!(t.status_message, "");
+            }
+            other => panic!("expected trailer, got {other:?}"),
+        }
+    }
+
+    // Every emitted byte string decodes under the real schema.
+    for record in client_records.iter().chain(server_records.iter()) {
+        let Some(text) = protoc_decode(&record.bytes) else {
+            eprintln!("skipping protoc check: protoc unavailable");
+            return;
+        };
+        assert!(text.contains("call_id:"), "no call_id in:\n{text}");
+    }
+}
+
+#[tokio::test]
+async fn server_streaming_logs_every_message() {
+    let (client, client_sink, server_sink, _guard) = logged_pair("*").await;
+    let mut stream = client
+        .server_hello(Request::new(hello_request("a,b")))
+        .await
+        .expect("rpc")
+        .into_inner();
+    let mut seen = Vec::new();
+    while let Some(msg) = stream.message().await.expect("message") {
+        seen.push(msg.message().to_str().unwrap_or("").to_string());
+    }
+    assert_eq!(seen, vec!["a", "b"]);
+
+    let expected = vec![
+        EventType::ClientHeader,
+        EventType::ClientMessage,
+        EventType::ClientHalfClose,
+        EventType::ServerHeader,
+        EventType::ServerMessage,
+        EventType::ServerMessage,
+        EventType::ServerTrailer,
+    ];
+    let client_records = client_sink.records();
+    let server_records = server_sink.records();
+    assert_eq!(events_of(&client_records), expected);
+    assert_eq!(events_of(&server_records), expected);
+    assert_call_shape(&client_records, Logger::Client);
+    assert_call_shape(&server_records, Logger::Server);
+    assert_eq!(message_data(&client_records, 1), framed_string("a,b"));
+    assert_eq!(message_data(&client_records, 4), framed_string("a"));
+    assert_eq!(message_data(&client_records, 5), framed_string("b"));
+    assert_eq!(message_data(&server_records, 4), framed_string("a"));
+    assert_eq!(message_data(&server_records, 5), framed_string("b"));
+}
+
+#[tokio::test]
+async fn client_streaming_logs_every_message() {
+    let (client, client_sink, server_sink, _guard) = logged_pair("*").await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(hello_request("ada")).await.expect("send");
+    tx.send(hello_request("bob")).await.expect("send");
+    drop(tx);
+    let reply = call.await.expect("rpc").into_inner();
+    assert_eq!(reply.message().to_str().unwrap_or(""), "ada,bob");
+
+    let expected = vec![
+        EventType::ClientHeader,
+        EventType::ClientMessage,
+        EventType::ClientMessage,
+        EventType::ClientHalfClose,
+        EventType::ServerHeader,
+        EventType::ServerMessage,
+        EventType::ServerTrailer,
+    ];
+    let client_records = client_sink.records();
+    let server_records = server_sink.records();
+    assert_eq!(events_of(&client_records), expected);
+    assert_eq!(events_of(&server_records), expected);
+    assert_call_shape(&client_records, Logger::Client);
+    assert_call_shape(&server_records, Logger::Server);
+    assert_eq!(message_data(&server_records, 1), framed_string("ada"));
+    assert_eq!(message_data(&server_records, 2), framed_string("bob"));
+    assert_eq!(message_data(&server_records, 5), framed_string("ada,bob"));
+}
+
+#[tokio::test]
+async fn bidi_logs_both_directions() {
+    let (client, client_sink, server_sink, _guard) = logged_pair("*").await;
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(hello_request("x")).await.expect("send");
+    tx.send(hello_request("y")).await.expect("send");
+    drop(tx);
+    let mut stream = call.await.expect("rpc").into_inner();
+    let mut seen = Vec::new();
+    while let Some(msg) = stream.message().await.expect("message") {
+        seen.push(msg.message().to_str().unwrap_or("").to_string());
+    }
+    assert_eq!(seen, vec!["x", "y"]);
+
+    // Interleavings vary; both directions log two messages each.
+    for (records, role) in [
+        (&client_sink.records(), Logger::Client),
+        (&server_sink.records(), Logger::Server),
+    ] {
+        assert_call_shape(records, role);
+        let kinds = events_of(records);
+        assert_eq!(kinds[0], EventType::ClientHeader);
+        assert_eq!(kinds[kinds.len() - 1], EventType::ServerTrailer);
+        assert_eq!(
+            kinds
+                .iter()
+                .filter(|e| **e == EventType::ClientMessage)
+                .count(),
+            2
+        );
+        assert_eq!(
+            kinds
+                .iter()
+                .filter(|e| **e == EventType::ServerMessage)
+                .count(),
+            2
+        );
+        assert_eq!(
+            kinds
+                .iter()
+                .filter(|e| **e == EventType::ClientHalfClose)
+                .count(),
+            1
+        );
+    }
+}
+
+#[tokio::test]
+async fn exclusion_skips_one_method() {
+    let (client, client_sink, server_sink, _guard) =
+        logged_pair("*,-helloworld.Greeter/SayHello").await;
+    client
+        .say_hello(Request::new(hello_request("quiet")))
+        .await
+        .expect("rpc");
+    assert!(client_sink.records().is_empty());
+    assert!(server_sink.records().is_empty());
+
+    let mut stream = client
+        .server_hello(Request::new(hello_request("loud")))
+        .await
+        .expect("rpc")
+        .into_inner();
+    while stream.message().await.expect("message").is_some() {}
+    assert!(!client_sink.records().is_empty());
+    assert!(!server_sink.records().is_empty());
+}
+
+/// Blocks unary handlers until the test releases them, signalling entry.
+struct Blocker {
+    started: tokio::sync::mpsc::UnboundedSender<()>,
+}
+
+impl Greeter for Blocker {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.started.send(()).ok();
+        std::future::pending().await
+    }
+}
+
+#[tokio::test]
+async fn cancel_logs_both_sides() {
+    let client_sink = Arc::new(VecSink::new());
+    let server_sink = Arc::new(VecSink::new());
+    let client_log = BinaryLogger::new(
+        BinaryLogFilter::parse("*").expect("filter"),
+        client_sink.clone(),
+    );
+    let server_log = BinaryLogger::new(
+        BinaryLogFilter::parse("*").expect("filter"),
+        server_sink.clone(),
+    );
+    let (started_tx, mut started_rx) = tokio::sync::mpsc::unbounded_channel();
+    let listener = tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Blocker {
+            started: started_tx,
+        }))
+        .binary_logger(server_log)
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    let _guard = Guard { task };
+    let channel = Channel::connect(addr).await.expect("connect");
+    let client = GreeterClient::new(channel.binary_logger(client_log));
+
+    let call = client.say_hello(Request::new(hello_request("never")));
+    let handle = call.handle();
+    let rpc = tokio::spawn(call);
+    started_rx.recv().await.expect("handler started");
+    handle.cancel();
+    let outcome = rpc.await.expect("join");
+    assert_eq!(outcome.expect_err("cancelled").code(), Code::Cancelled);
+
+    let client_kinds = events_of(&client_sink.records());
+    assert!(
+        client_kinds.contains(&EventType::Cancel),
+        "client log: {client_kinds:?}"
+    );
+    // The server notices the reset asynchronously; wait for it.
+    let mut server_kinds = Vec::new();
+    for _ in 0..200 {
+        server_kinds = events_of(&server_sink.records());
+        if server_kinds.contains(&EventType::Cancel) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    assert!(
+        server_kinds.contains(&EventType::Cancel),
+        "server log: {server_kinds:?}"
+    );
+}
+
+#[tokio::test]
+async fn caps_apply_end_to_end() {
+    let (client, client_sink, server_sink, _guard) = logged_pair("*{h:4;m:2}").await;
+    let mut req = Request::new(hello_request("world"));
+    req.metadata_mut()
+        .insert("x-long", "abcdef")
+        .expect("insert");
+    client.say_hello(req).await.expect("rpc");
+
+    for records in [client_sink.records(), server_sink.records()] {
+        assert_eq!(events_of(&records), UNARY_EVENTS);
+        // Message payloads truncated to 2 bytes, full length kept.
+        for index in [1, 4] {
+            let record = &records[index];
+            assert!(record.entry.payload_truncated, "message {index}");
+            match record.entry.payload.as_ref().expect("payload") {
+                Payload::Message(m) => {
+                    assert_eq!(m.length, 7);
+                    assert_eq!(m.data.len(), 2);
+                }
+                other => panic!("expected message, got {other:?}"),
+            }
+        }
+        // The long metadata value truncated to 4 bytes.
+        match records[0].entry.payload.as_ref().expect("payload") {
+            Payload::ClientHeader(h) => {
+                let value = h
+                    .metadata
+                    .iter()
+                    .find(|(k, _)| k == "x-long")
+                    .map(|(_, v)| v.clone())
+                    .expect("x-long logged");
+                assert_eq!(value, b"abcd");
+            }
+            other => panic!("expected client header, got {other:?}"),
+        }
+        assert!(records[0].entry.payload_truncated);
+    }
 }

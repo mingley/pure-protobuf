@@ -4,6 +4,7 @@ use super::call::{
     AttemptCommitment, first_of, open, prefer_peer_rejection_after_send, race, send_request_frame,
 };
 use super::retry::{HedgeUnary, PolicyDecision, policy_retry_delay, retry_exhausted};
+use crate::binlog::CallLogger;
 use crate::config::Wire;
 use crate::limits::BytePermit;
 use crate::request::{Call, Request, Response};
@@ -39,11 +40,51 @@ pub(crate) async fn run_unary<Resp>(
     user_agent: HeaderValue,
     https: bool,
     permit: BytePermit,
+    tap: Option<&CallLogger>,
+) -> Result<Response<Resp>, Status>
+where
+    Resp: Parse + Default,
+{
+    let outcome = run_unary_inner(
+        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+        user_agent, https, permit, tap,
+    )
+    .await;
+    if let (Some(tap), Err(status)) = (tap, &outcome) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    outcome
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, cancel, limits, scheme, and tap"
+)]
+async fn run_unary_inner<Resp>(
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    compress: bool,
+    frame: Bytes,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    user_agent: HeaderValue,
+    https: bool,
+    permit: BytePermit,
+    tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
 where
     Resp: Parse + Default,
 {
     let mut commitment = AttemptCommitment::Uncommitted;
+    if let Some(tap) = tap {
+        tap.log_client_header(md, path, authority.as_str(), timeout);
+    }
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
@@ -60,6 +101,7 @@ where
     .await
     .map_err(|e| commitment.classify(e))?;
     commitment = AttemptCommitment::BodyStarted;
+    let log_frame = tap.is_some().then(|| frame.clone());
     let sent = send_request_frame(
         &mut send_stream,
         frame,
@@ -81,11 +123,16 @@ where
         )
         .await;
     }
+    if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
+        // Unary sends with end-of-stream set: message and half-close together.
+        tap.log_written(log_frame);
+        tap.log_half_close();
+    }
     race(
         async {
             let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
             commitment = AttemptCommitment::ResponseCommitted;
-            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip)
+            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap)
                 .await
                 .map_err(|e| commitment.classify(e))
         },
@@ -183,6 +230,10 @@ impl super::Channel {
                     }
                 };
                 channel.retry_stats.record_call();
+                let tap = channel
+                    .binlog
+                    .as_ref()
+                    .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let (retry_policy, hedging_policy) = channel
                     .method_config_for(path)
                     .map(|method| (method.retry_policy.clone(), method.hedging_policy.clone()))
@@ -206,6 +257,7 @@ impl super::Channel {
                             owned_labels,
                             observer,
                             permit: _permit,
+                            binlog: tap,
                         })
                         .await;
                 }
@@ -298,6 +350,7 @@ impl super::Channel {
                         ua.clone(),
                         https,
                         byte_permit,
+                        tap.as_ref(),
                     )
                     .await
                     {

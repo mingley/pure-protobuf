@@ -231,6 +231,7 @@ pub(crate) fn incoming_rpc(
         response_interceptor: None,
         byte_budget: ByteBudgetTracker::default(),
         observer: None,
+        binlog: None,
     }
 }
 

@@ -256,6 +256,7 @@ pub(crate) struct HedgeUnary {
     pub(crate) owned_labels: Option<OwnedCallLabels>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) permit: Option<OwnedSemaphorePermit>,
+    pub(crate) binlog: Option<crate::binlog::CallLogger>,
 }
 
 /// A finished hedged attempt: its 1-based index plus the outcome.
@@ -285,6 +286,7 @@ where
     let https = req.https;
     let observer = req.observer.clone();
     let owned_labels = req.owned_labels.clone();
+    let tap = req.binlog.clone();
     tokio::spawn(async move {
         let mut attempt_guard = AttemptGuard::new(
             observer.clone(),
@@ -330,6 +332,7 @@ where
                 ua.clone(),
                 https,
                 byte_permit,
+                tap.as_ref(),
             )
             .await
             {

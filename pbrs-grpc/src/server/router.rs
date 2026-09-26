@@ -85,6 +85,7 @@ pub struct Router {
     pub(crate) response_interceptor: Option<crate::interceptor::ResponseHook>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) byte_budget: ByteBudgetTracker,
+    pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
 }
 
 impl std::fmt::Debug for Router {
@@ -100,6 +101,7 @@ impl std::fmt::Debug for Router {
                 &self.response_interceptor.is_some(),
             )
             .field("observer", &self.observer.is_some())
+            .field("binary_logger", &self.binlog.is_some())
             .finish()
     }
 }
@@ -115,6 +117,7 @@ impl Router {
             response_interceptor: None,
             observer: None,
             byte_budget: ByteBudgetTracker::default(),
+            binlog: None,
         }
     }
 
@@ -776,6 +779,20 @@ impl Router {
         self
     }
 
+    /// Record RPCs as `grpc.binarylog.v1` entries via `logger`.
+    ///
+    /// Applies to every call shape on every mounted service. Methods the
+    /// logger's filter excludes cost one branch and log nothing. Credential
+    /// headers are omitted and sensitive metadata values masked; see
+    /// [`BinaryLogger`](crate::binlog::BinaryLogger).
+    /// Distinct from [`Self::observer`]: that reports lifecycle events to
+    /// telemetry; this records wire-faithful RPC logs to a sink.
+    #[must_use]
+    pub fn binary_logger(mut self, logger: crate::binlog::BinaryLogger) -> Self {
+        self.binlog = Some(Arc::new(logger));
+        self
+    }
+
     pub(crate) fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
         let service: Arc<dyn DynService> = service;
         for &alias in S::ALIASES {
@@ -963,6 +980,22 @@ impl Dispatch for Router {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.byte_budget = self.byte_budget.clone();
         rpc.observer = self.observer.clone();
+        if let Some(tap) = self
+            .binlog
+            .as_ref()
+            .and_then(|binlog| binlog.start_call(rpc.path(), crate::binlog::Logger::Server))
+        {
+            if let Some(peer) = rpc.remote_addr() {
+                tap.set_peer(peer);
+            }
+            tap.log_client_header(
+                rpc.metadata(),
+                rpc.path(),
+                rpc.authority().unwrap_or(""),
+                rpc.effective_timeout(),
+            );
+            rpc.binlog = Some(tap);
+        }
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);

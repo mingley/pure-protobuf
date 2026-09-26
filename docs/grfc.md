@@ -68,7 +68,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 |---|---|---|---|
 | A3 | Channel tracing | planned | Bounded in-memory channel trace API. |
 | A14 | Channelz | planned | Channelz data model + `grpc.channelz.v1` service. |
-| A16 | Binary logging | planned | `grpc.binarylog.v1` sink with size caps. |
+| A16 | Binary logging | shipped | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`; `{h;m}` caps; attempts share one call id; client peer + `grpc-trace-bin` omitted at taps. |
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |
 | A59 | Audit logging | planned | Authz-decision audit sink. |

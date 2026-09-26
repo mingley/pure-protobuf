@@ -194,6 +194,7 @@ pub(crate) fn finish_channel(
         observer: None,
         service_config: SharedServiceConfig::default(),
         retry_stats: Arc::new(RetryStatsRecorder::new()),
+        binlog: None,
     }
 }
 

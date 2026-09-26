@@ -4,6 +4,7 @@ use super::headers::{
     GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS, GRPC_STATUS, GRPC_STATUS_DETAILS_BIN,
     encoding_not_supported, grpc_encoding,
 };
+use crate::binlog::{CallLogger, Logger};
 use crate::codec::{self, Frame};
 use crate::gzip;
 use crate::limits::MessageLimits;
@@ -177,6 +178,7 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
     recv: &mut RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
+    tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
     let mut found: Option<Framed<T>> = None;
@@ -188,10 +190,18 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
             if found.is_some() {
                 return Err(Status::internal("unary rpc received more than one message"));
             }
+            if let Some(tap) = tap {
+                tap.log_read(&frame.payload);
+            }
             found = Some(decode_frame(frame, limits, accept_gzip)?);
         }
     }
     reader.finish()?;
+    // A clean unary-request end is the client's half-close. Response reads
+    // end in a trailer, logged by the caller.
+    if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
+        tap.log_half_close();
+    }
     Ok(found.unwrap_or_else(|| Framed::new(T::default())))
 }
 
@@ -222,6 +232,7 @@ pub(crate) struct WireStream<T> {
     ended: bool,
     trailers_done: bool,
     trailers: Metadata,
+    tap: Option<CallLogger>,
 }
 
 impl<T: Parse + Default> WireStream<T> {
@@ -230,6 +241,7 @@ impl<T: Parse + Default> WireStream<T> {
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
         accept_gzip: bool,
+        tap: Option<CallLogger>,
     ) -> Self {
         Self {
             recv,
@@ -242,6 +254,7 @@ impl<T: Parse + Default> WireStream<T> {
             ended: false,
             trailers_done: false,
             trailers: Metadata::new(),
+            tap,
         }
     }
 }
@@ -293,6 +306,9 @@ impl<T> WireStream<T> {
             match self.reader.next_frame() {
                 Err(e) => return Poll::Ready(Err(e)),
                 Ok(Some(frame)) => {
+                    if let Some(tap) = &self.tap {
+                        tap.log_read(&frame.payload);
+                    }
                     return Poll::Ready(
                         (self.decode)(frame, self.limits, self.accept_gzip).map(Some),
                     );
@@ -330,6 +346,15 @@ impl<T> WireStream<T> {
                     if let Err(e) = self.reader.finish() {
                         return Poll::Ready(Err(e));
                     }
+                    // A clean request-stream end is the client's half-close.
+                    // Response streams end in a trailer instead.
+                    if let Some(tap) = self
+                        .tap
+                        .as_ref()
+                        .filter(|tap| matches!(tap.role(), Logger::Server))
+                    {
+                        tap.log_half_close();
+                    }
                 }
             }
         }
@@ -338,17 +363,37 @@ impl<T> WireStream<T> {
     fn poll_finish_trailers(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Status>> {
         match self.recv.poll_trailers(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Err(e)) => Poll::Ready(Err(h2_error(e))),
-            Poll::Ready(Ok(None)) => Poll::Ready(Ok(())),
+            Poll::Ready(Err(e)) => {
+                let status = h2_error(e);
+                self.log_response_trailer(&status);
+                Poll::Ready(Err(status))
+            }
+            Poll::Ready(Ok(None)) => {
+                self.log_response_trailer(&Status::from_code(Code::Ok));
+                Poll::Ready(Ok(()))
+            }
             Poll::Ready(Ok(Some(map))) => {
                 let status = status_from(&map, Some(&map));
                 self.trailers = Metadata::from_owned_headers(map);
+                self.log_response_trailer(&status);
                 if status.code() == Code::Ok {
                     Poll::Ready(Ok(()))
                 } else {
                     Poll::Ready(Err(status))
                 }
             }
+        }
+    }
+
+    /// Log the response trailer exactly once, when this stream reads
+    /// responses. Request streams end in a half-close instead.
+    fn log_response_trailer(&self, status: &Status) {
+        if let Some(tap) = self
+            .tap
+            .as_ref()
+            .filter(|tap| matches!(tap.role(), Logger::Client))
+        {
+            tap.log_trailer(&self.trailers, status);
         }
     }
 
@@ -375,32 +420,73 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
     response: http::Response<RecvStream>,
     limits: MessageLimits,
     accept_gzip: bool,
+    tap: Option<&CallLogger>,
 ) -> Result<crate::request::Response<Resp>, Status> {
     if response.status() != StatusCode::OK {
-        return Err(Status::unknown(format!("http {}", response.status())));
+        let status = Status::unknown(format!("http {}", response.status()));
+        if let Some(tap) = tap {
+            tap.log_trailer(&Metadata::new(), &status);
+        }
+        return Err(status);
     }
     let (parts, mut body) = response.into_parts();
     if body.is_end_stream() {
         // Trailers-Only: the status is in the headers and there is no message.
         let status = status_from(&parts.headers, None);
         if status.code() != Code::Ok {
+            if let Some(tap) = tap {
+                tap.log_trailer(
+                    &Metadata::from_owned_headers(parts.headers.clone()),
+                    &status,
+                );
+            }
             return Err(status);
         }
     }
-    refuse_gzip_reply(&parts.headers, accept_gzip)?;
-    let framed = read_one_message::<Resp>(&mut body, limits, accept_gzip).await?;
-    let trailers = read_trailers(&mut body).await?;
-    let status = status_from(&parts.headers, trailers.as_ref());
-    if status.code() != Code::Ok {
+    // Headers are observed before the body is read; log them first so the
+    // message entries that read_one_message emits stay in wire order.
+    if let Some(tap) = tap {
+        tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
+    }
+    if let Err(status) = refuse_gzip_reply(&parts.headers, accept_gzip) {
+        if let Some(tap) = tap {
+            tap.log_trailer(&Metadata::new(), &status);
+        }
         return Err(status);
     }
+    let framed = match read_one_message::<Resp>(&mut body, limits, accept_gzip, tap).await {
+        Ok(framed) => framed,
+        Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
+            return Err(status);
+        }
+    };
+    let trailers = match read_trailers(&mut body).await {
+        Ok(trailers) => trailers,
+        Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
+            return Err(status);
+        }
+    };
+    let status = status_from(&parts.headers, trailers.as_ref());
+    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
+    let header_md = Metadata::from_owned_headers(parts.headers);
     let trailers_md = trailers
         .map(Metadata::from_owned_headers)
         .unwrap_or_default();
-    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
+    if let Some(tap) = tap {
+        tap.log_trailer(&trailers_md, &status);
+    }
+    if status.code() != Code::Ok {
+        return Err(status);
+    }
     Ok(crate::request::Response::from_parts_compress(
         framed.message,
-        Metadata::from_owned_headers(parts.headers),
+        header_md,
         trailers_md,
         framed.compressed,
     )
@@ -412,23 +498,50 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     limits: MessageLimits,
     deadline: Option<tokio::time::Instant>,
     accept_gzip: bool,
+    tap: Option<CallLogger>,
 ) -> Result<crate::request::Response<Streaming<Resp>>, Status> {
     if response.status() != StatusCode::OK {
-        return Err(Status::unknown(format!("http {}", response.status())));
+        let status = Status::unknown(format!("http {}", response.status()));
+        if let Some(tap) = &tap {
+            tap.log_trailer(&Metadata::new(), &status);
+        }
+        return Err(status);
     }
     let (parts, body) = response.into_parts();
     if body.is_end_stream() {
         // Trailers-Only: the status is in the headers and there is no stream.
         let status = status_from(&parts.headers, None);
         if status.code() != Code::Ok {
+            if let Some(tap) = &tap {
+                tap.log_trailer(
+                    &Metadata::from_owned_headers(parts.headers.clone()),
+                    &status,
+                );
+            }
             return Err(status);
         }
     }
-    refuse_gzip_reply(&parts.headers, accept_gzip)?;
+    if let Err(status) = refuse_gzip_reply(&parts.headers, accept_gzip) {
+        if let Some(tap) = &tap {
+            tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
+            tap.log_trailer(&Metadata::new(), &status);
+        }
+        return Err(status);
+    }
     let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
+    let header_md = Metadata::from_owned_headers(parts.headers);
+    if let Some(tap) = &tap {
+        tap.log_server_header(&header_md);
+    }
     Ok(crate::request::Response::from_parts(
-        Streaming::from_wire(WireStream::<Resp>::new(body, limits, deadline, accept_gzip)),
-        Metadata::from_owned_headers(parts.headers),
+        Streaming::from_wire(WireStream::<Resp>::new(
+            body,
+            limits,
+            deadline,
+            accept_gzip,
+            tap,
+        )),
+        header_md,
         Metadata::new(),
     )
     .with_encoding(encoding))

@@ -2,6 +2,7 @@
 
 use super::encode::{STREAM_BATCH_BYTES, append_frame};
 use super::send::send_bytes;
+use crate::binlog::CallLogger;
 use crate::config::Wire;
 use crate::status::Status;
 use crate::stream::Framed;
@@ -13,6 +14,7 @@ use pbrs::Serialize;
 pub(crate) struct OutBatch {
     buf: BytesMut,
     wire: Wire,
+    tap: Option<CallLogger>,
 }
 
 impl OutBatch {
@@ -26,7 +28,13 @@ impl OutBatch {
         Self {
             buf: BytesMut::new(),
             wire,
+            tap: None,
         }
+    }
+
+    /// Log every encoded message to `tap` as it joins the batch.
+    pub(crate) fn set_tap(&mut self, tap: CallLogger) {
+        self.tap = Some(tap);
     }
 
     /// Encode one message into the batch without writing.
@@ -45,6 +53,9 @@ impl OutBatch {
             // Keep earlier complete frames flushable before the error trailer.
             self.buf.truncate(prior_len);
             return Err(status);
+        }
+        if let Some(tap) = &self.tap {
+            tap.log_written(self.buf.get(prior_len..).unwrap_or_default());
         }
         Ok(())
     }

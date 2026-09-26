@@ -385,6 +385,8 @@ pub struct Channel {
     pub(crate) service_config: SharedServiceConfig,
     /// Channel-scoped retry statistics. Clones share it.
     pub(crate) retry_stats: Arc<RetryStatsRecorder>,
+    /// Binary logger. Clones share it.
+    pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
 }
 
 impl fmt::Debug for Channel {
@@ -404,6 +406,7 @@ impl fmt::Debug for Channel {
             .field("byte_budget_allocated", &self.byte_budget.allocated())
             .field("user_agent", &"[REDACTED]")
             .field("observer", &self.observer.is_some())
+            .field("binary_logger", &self.binlog.is_some())
             .finish()
     }
 }
@@ -1640,6 +1643,22 @@ impl super::Channel {
                 None => Arc::new(observer),
                 Some(prev) => Arc::new(ObserverChain::new(prev, Arc::new(observer))),
             }),
+            ..self
+        }
+    }
+
+    /// Record RPCs as `grpc.binarylog.v1` entries via `logger`.
+    ///
+    /// Applies to every call shape. Methods the logger's filter excludes
+    /// cost one branch and log nothing. Credential headers are omitted and
+    /// sensitive metadata values masked; see
+    /// [`BinaryLogger`](crate::binlog::BinaryLogger).
+    /// Distinct from [`Self::observer`]: that reports lifecycle events to
+    /// telemetry; this records wire-faithful RPC logs to a sink.
+    #[must_use]
+    pub fn binary_logger(self, logger: crate::binlog::BinaryLogger) -> Self {
+        Self {
+            binlog: Some(Arc::new(logger)),
             ..self
         }
     }

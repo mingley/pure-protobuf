@@ -48,6 +48,7 @@ pub(crate) async fn run_handler<T>(
     respond: &mut h2::server::SendResponse<Bytes>,
     on_reset: watch::Sender<bool>,
     handler: impl Future<Output = Result<T, Status>>,
+    tap: Option<&crate::binlog::CallLogger>,
 ) -> Result<T, Status> {
     tokio::pin!(handler);
     tokio::select! {
@@ -55,6 +56,9 @@ pub(crate) async fn run_handler<T>(
         result = &mut handler => result,
         gone = wait_client_reset(respond) => {
             on_reset.send(true).ok();
+            if let Some(tap) = tap {
+                tap.log_cancel();
+            }
             match poll_fn(|cx| Poll::Ready(handler.as_mut().poll(cx))).await {
                 Poll::Ready(result) => result,
                 Poll::Pending => Err(gone),
@@ -128,6 +132,7 @@ pub(crate) struct Prepared<T> {
     pub(crate) budget: ByteBudgetTracker,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) call_start: tokio::time::Instant,
+    pub(crate) binlog: Option<crate::binlog::CallLogger>,
 }
 
 #[allow(
@@ -143,12 +148,16 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
+    tap: Option<&crate::binlog::CallLogger>,
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
     let frame = match encode_msg(&msg, gzip, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
         Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
             send_trailers_only(&mut respond, status, &Metadata::new());
             return;
         }
@@ -156,6 +165,9 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     let permit = match budget.acquire(frame.len()) {
         Ok(p) => p,
         Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
             send_trailers_only(&mut respond, status, &Metadata::new());
             return;
         }
@@ -163,6 +175,10 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
         return;
     };
+    if let Some(tap) = tap {
+        tap.log_server_header(&headers);
+        tap.log_written(&frame);
+    }
     if let Some(obs) = observer {
         obs.on_bytes_sent(call_labels, frame.len());
     }
@@ -172,6 +188,9 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     drop(permit);
     let mut status = Status::new(Code::Ok, "");
     *status.metadata_mut() = trailers;
+    if let Some(tap) = tap {
+        tap.log_trailer(status.metadata(), &status);
+    }
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
     }
@@ -191,6 +210,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
+    tap: Option<&crate::binlog::CallLogger>,
 ) -> Status {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
@@ -199,6 +219,9 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
         return Status::unavailable("failed to send response headers");
     };
+    if let Some(tap) = tap {
+        tap.log_server_header(&headers);
+    }
     let mut status = Status::from_code(Code::Ok);
     *status.metadata_mut() = trailers;
     // The deadline has to cover the whole response, not just the handler
@@ -216,6 +239,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 budget,
                 observer,
                 call_labels,
+                tap.cloned(),
             )
             .await
         }
@@ -231,6 +255,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 budget,
                 observer,
                 call_labels,
+                tap.cloned(),
             ),
         )
         .await
@@ -252,6 +277,9 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
         if status.is_ok() && tokio::time::Instant::now() >= at {
             status = Status::deadline_exceeded();
         }
+    }
+    if let Some(tap) = tap {
+        tap.log_trailer(status.metadata(), &status);
     }
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
@@ -294,8 +322,12 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
+    tap: Option<crate::binlog::CallLogger>,
 ) -> Result<(), DrainError> {
     let mut batch = OutBatch::new(wire);
+    if let Some(tap) = tap {
+        batch.set_tap(tap);
+    }
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut permits = Vec::with_capacity(OutBatch::BURST);
     loop {

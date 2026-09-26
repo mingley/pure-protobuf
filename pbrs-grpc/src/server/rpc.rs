@@ -62,6 +62,7 @@ pub struct Rpc {
     pub(crate) response_interceptor: Option<crate::interceptor::ResponseHook>,
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
+    pub(crate) binlog: Option<crate::binlog::CallLogger>,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -510,6 +511,9 @@ impl Rpc {
             });
             obs.on_server_call_end(&labels, &status, Duration::ZERO);
         }
+        if let Some(tap) = &self.binlog {
+            tap.log_trailer(&Metadata::new(), &status);
+        }
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -554,6 +558,9 @@ impl Rpc {
             });
             obs.on_server_call_end(&labels, &status, Duration::ZERO);
         }
+        if let Some(tap) = &self.binlog {
+            tap.log_trailer(&Metadata::new(), &status);
+        }
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -597,6 +604,7 @@ impl Rpc {
             budget,
             observer,
             call_start,
+            binlog,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -626,6 +634,9 @@ impl Rpc {
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
                     }
+                    if let Some(tap) = &binlog {
+                        tap.log_trailer(&Metadata::new(), &status);
+                    }
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -638,6 +649,7 @@ impl Rpc {
                         &budget,
                         observer.as_deref(),
                         &call_labels,
+                        binlog.as_ref(),
                     )
                     .await;
                     if let Some(obs) = &observer {
@@ -689,6 +701,7 @@ impl Rpc {
             budget,
             observer,
             call_start,
+            binlog,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -718,6 +731,9 @@ impl Rpc {
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
                     }
+                    if let Some(tap) = &binlog {
+                        tap.log_trailer(&Metadata::new(), &status);
+                    }
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -730,6 +746,7 @@ impl Rpc {
                         &budget,
                         observer.as_deref(),
                         &call_labels,
+                        binlog.as_ref(),
                     )
                     .await;
                     if let Some(obs) = &observer {
@@ -788,6 +805,7 @@ impl Rpc {
             budget,
             observer,
             call_start,
+            binlog,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -817,6 +835,9 @@ impl Rpc {
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
                     }
+                    if let Some(tap) = &binlog {
+                        tap.log_trailer(&Metadata::new(), &status);
+                    }
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -830,6 +851,7 @@ impl Rpc {
                         &budget,
                         observer.as_deref(),
                         &call_labels,
+                        binlog.as_ref(),
                     )
                     .await;
                     if let Some(obs) = &observer {
@@ -888,6 +910,7 @@ impl Rpc {
             budget,
             observer,
             call_start,
+            binlog,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -917,6 +940,9 @@ impl Rpc {
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
                     }
+                    if let Some(tap) = &binlog {
+                        tap.log_trailer(&Metadata::new(), &status);
+                    }
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -930,6 +956,7 @@ impl Rpc {
                         &budget,
                         observer.as_deref(),
                         &call_labels,
+                        binlog.as_ref(),
                     )
                     .await;
                     if let Some(obs) = &observer {
@@ -987,6 +1014,7 @@ impl Rpc {
             response_interceptor: _,
             byte_budget,
             observer: _,
+            binlog,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -997,8 +1025,13 @@ impl Rpc {
         let obs_clone = observer.clone();
         let labels_clone = owned_labels.clone();
         let outcome = wrap_timeout(timeout, async {
-            let framed =
-                read_one_message::<Req>(&mut recv, limits, config.accepts_compressed()).await?;
+            let framed = read_one_message::<Req>(
+                &mut recv,
+                limits,
+                config.accepts_compressed(),
+                binlog.as_ref(),
+            )
+            .await?;
             if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
                 obs.on_bytes_received(&labels.as_borrowed(), 0);
             }
@@ -1033,7 +1066,7 @@ impl Rpc {
             if let Some(at) = deadline {
                 req.set_deadline(at);
             }
-            run_handler(&mut respond, on_reset, handler(req)).await
+            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
         })
         .await;
         notify_deadline(&outcome, &cancel_tx);
@@ -1068,6 +1101,7 @@ impl Rpc {
             budget: byte_budget,
             observer,
             call_start,
+            binlog,
         })
     }
 
@@ -1117,6 +1151,7 @@ impl Rpc {
             response_interceptor: _,
             byte_budget,
             observer: _,
+            binlog,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1129,6 +1164,7 @@ impl Rpc {
             limits,
             deadline,
             config.accepts_compressed(),
+            binlog.clone(),
         ));
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
@@ -1158,7 +1194,7 @@ impl Rpc {
         let on_reset = cancel_tx.clone();
         req.set_cancel(cancel_rx);
         let outcome = wrap_timeout(timeout, async {
-            run_handler(&mut respond, on_reset, handler(req)).await
+            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
         })
         .await;
         notify_deadline(&outcome, &cancel_tx);
@@ -1193,6 +1229,7 @@ impl Rpc {
             budget: byte_budget,
             observer,
             call_start,
+            binlog,
         })
     }
 }
