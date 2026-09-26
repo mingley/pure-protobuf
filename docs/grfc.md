@@ -88,7 +88,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 |---|---|---|---|
 | A29 | xDS TLS security | planned | With the xDS client (SDS-delivered roots/identities). |
 | A41 | xDS RBAC | planned | RBAC filter from xDS route config. |
-| A43 | gRPC authorization API | planned | Authz policy engine + server/client enforcement. |
+| A43 | gRPC authorization API | shipped | `authz::{Policy, StaticDataProvider, FileWatcherProvider, AuthzInterceptor}`; `Server`/`Router::authorization_policy`; deny-first/default-deny, SAN/subject principals, header matching; denied calls are `PERMISSION_DENIED` without handler execution. |
 | A65 | xDS mTLS creds in bootstrap | planned | With xDS bootstrap. |
 | A69 | CRL enhancements | planned | CRL revocation checking in the TLS verifier. |
 | A82 | xDS system root certs | planned | With xDS bootstrap. |

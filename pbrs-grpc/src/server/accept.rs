@@ -806,6 +806,17 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Enforce a gRFC A43 authorization policy on every call.
+    ///
+    /// Denied calls fail with [`Code::PermissionDenied`] before the
+    /// handler runs, on every call shape, including over TLS, mTLS, Unix,
+    /// and [`Self::serve_connection`]. Stacks with [`Self::intercept`]:
+    /// earlier interceptors run first.
+    #[must_use]
+    pub fn authorization_policy(self, provider: impl Into<crate::authz::Provider>) -> Self {
+        self.intercept(crate::authz::AuthzInterceptor::new(provider))
+    }
+
     /// Run `interceptor` after the handler returns `Ok`.
     ///
     /// Closures implement [`crate::ResponseInterceptor`], so
