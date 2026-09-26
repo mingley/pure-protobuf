@@ -7295,6 +7295,13 @@
    ],
    "relates": [
     "OB-03"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 670a5e49: authz/audit.rs (audit_logging_options, AuditCondition, AuditEvent, AuditLogger/AuditLoggerFactory + global registry, stdout_logger, A59 JSON record, RFC3339 nanos) + post-decision hook in interceptor + tests/authz.rs audit cases",
+    "checks: fmt clean, clippy zero new errors, rustdoc clean, native-lib (262) green, authz (11) green incl custom-factory e2e, condition filtering, empty-rule default-deny, no-metadata record assertion; self-interop PASS; grfc.md A59 -> shipped",
+    "boundaries: records carry only the five A59 fields, never headers/metadata (OB-03); pre-existing tls parallel flake unchanged"
    ]
   }
  ]
