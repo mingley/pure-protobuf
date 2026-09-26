@@ -23,12 +23,17 @@
 //! names, bad patterns, and unsupported header keys (`Host`, hop-by-hop,
 //! `:` pseudo-headers, `grpc-` headers) all reject the policy.
 
+mod audit;
 mod interceptor;
 mod matcher;
 mod policy;
 mod principal;
 mod provider;
 
+pub use audit::{
+    AuditCondition, AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger, format_record,
+    register_audit_logger_factory,
+};
 pub use interceptor::AuthzInterceptor;
 pub use policy::{HeaderMatcher, Policy, PolicyError, Request, Rule, Source};
 pub use principal::PeerPrincipals;

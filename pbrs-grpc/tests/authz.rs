@@ -18,7 +18,10 @@
 mod common;
 
 use common::{ServerGuard, greeter_client, reply, req};
-use pbrs_grpc::authz::{FileWatcherProvider, StaticDataProvider};
+use pbrs_grpc::authz::{
+    AuditEvent, AuditLogger, AuditLoggerFactory, FileWatcherProvider, PolicyError,
+    StaticDataProvider, format_record, register_audit_logger_factory,
+};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     ClientTls, Code, Identity, Request, Response, Router, Server, ServerTls, Status, Streaming,
@@ -375,6 +378,209 @@ async fn mtls_principal_match() {
         .expect_err("wrong principal is denied");
     permission_denied(&denied);
     assert_eq!(unary.load(Ordering::SeqCst), 0, "handler must not run");
+}
+
+/// Channel-backed test logger: `log` never blocks, tests drain events.
+struct Recorder {
+    name: &'static str,
+    tx: std::sync::mpsc::Sender<AuditEvent>,
+}
+
+impl AuditLogger for Recorder {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    fn log(&self, event: &AuditEvent) {
+        self.tx.send(event.clone()).ok();
+    }
+}
+
+struct RecorderFactory {
+    name: &'static str,
+    tx: std::sync::mpsc::Sender<AuditEvent>,
+}
+
+impl AuditLoggerFactory for RecorderFactory {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    fn build(&self, _config: &serde_json::Value) -> Result<Box<dyn AuditLogger>, PolicyError> {
+        Ok(Box::new(Recorder {
+            name: self.name,
+            tx: self.tx.clone(),
+        }))
+    }
+}
+
+fn drain(rx: &std::sync::mpsc::Receiver<AuditEvent>) -> Vec<AuditEvent> {
+    let mut events = Vec::new();
+    while let Ok(event) = rx.try_recv() {
+        events.push(event);
+    }
+    events
+}
+
+#[tokio::test]
+async fn audit_logs_allow_and_deny_with_context() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    register_audit_logger_factory(Arc::new(RecorderFactory {
+        name: "test_recorder",
+        tx,
+    }));
+    let provider = StaticDataProvider::new(
+        r#"{"name":"audited","allow_rules":[
+            {"name":"unary-only","request":{"paths":["/helloworld.Greeter/SayHello"]}}
+        ],"deny_rules":[
+            {"name":"no-streams","request":{"paths":["*/ServerHello"]}}
+        ],"audit_logging_options":{
+            "audit_condition":"ON_DENY_AND_ALLOW",
+            "audit_logger":[{"name":"test_recorder"}]
+        }}"#,
+    )
+    .expect("policy");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Counting::new()))
+            .authorization_policy(provider)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = greeter_client(addr).await;
+
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("allowed unary");
+    let denied = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deny rule wins");
+    permission_denied(&denied);
+
+    let events = drain(&rx);
+    assert_eq!(events.len(), 2);
+    assert_eq!(
+        events[0],
+        AuditEvent {
+            rpc_method: "/helloworld.Greeter/SayHello".to_owned(),
+            principal: String::new(),
+            policy_name: "audited".to_owned(),
+            matched_rule: "unary-only".to_owned(),
+            authorized: true,
+        }
+    );
+    assert_eq!(
+        events[1],
+        AuditEvent {
+            rpc_method: "/helloworld.Greeter/ServerHello".to_owned(),
+            principal: String::new(),
+            policy_name: "audited".to_owned(),
+            matched_rule: "no-streams".to_owned(),
+            authorized: false,
+        }
+    );
+}
+
+#[tokio::test]
+async fn audit_default_deny_reports_empty_rule() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    register_audit_logger_factory(Arc::new(RecorderFactory {
+        name: "test_recorder_default",
+        tx,
+    }));
+    let provider = StaticDataProvider::new(
+        r#"{"name":"closed","allow_rules":[],
+            "audit_logging_options":{
+            "audit_condition":"ON_DENY",
+            "audit_logger":[{"name":"test_recorder_default"}]
+        }}"#,
+    )
+    .expect("policy");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Counting::new()))
+            .authorization_policy(provider)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = greeter_client(addr).await;
+    let denied = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("empty allow list denies");
+    permission_denied(&denied);
+
+    let events = drain(&rx);
+    assert_eq!(events.len(), 1);
+    assert!(!events[0].authorized);
+    assert!(events[0].matched_rule.is_empty());
+}
+
+#[tokio::test]
+async fn audit_condition_filters_events() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    register_audit_logger_factory(Arc::new(RecorderFactory {
+        name: "test_recorder_deny_only",
+        tx,
+    }));
+    // ON_DENY: the allowed call audits nothing, the denied call audits.
+    let provider = StaticDataProvider::new(
+        r#"{"name":"deny-only","allow_rules":[
+            {"name":"unary-only","request":{"paths":["/helloworld.Greeter/SayHello"]}}
+        ],"audit_logging_options":{
+            "audit_condition":"ON_DENY",
+            "audit_logger":[{"name":"test_recorder_deny_only"}]
+        }}"#,
+    )
+    .expect("policy");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Counting::new()))
+            .authorization_policy(provider)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = greeter_client(addr).await;
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("allowed unary");
+    assert!(drain(&rx).is_empty());
+    client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect_err("unlisted path denied");
+    assert_eq!(drain(&rx).len(), 1);
+}
+
+#[test]
+fn audit_record_carries_no_metadata() {
+    // OB-03: the stdout record is exactly the five A59 fields plus the
+    // timestamp; headers and metadata can never appear in it.
+    let record = format_record(
+        &AuditEvent {
+            rpc_method: "/s/M".to_owned(),
+            principal: String::new(),
+            policy_name: "p".to_owned(),
+            matched_rule: String::new(),
+            authorized: false,
+        },
+        std::time::SystemTime::UNIX_EPOCH,
+    );
+    let value: serde_json::Value = serde_json::from_str(&record).expect("JSON");
+    let entry = value.get("grpc_audit_log").expect("entry");
+    assert_eq!(entry.as_object().expect("object").len(), 6);
+    for key in ["headers", "metadata", "authorization", "cookie"] {
+        assert!(entry.get(key).is_none(), "must not emit {key}");
+    }
 }
 
 async fn tls_client(addr: SocketAddr, tls: ClientTls) -> GreeterClient {

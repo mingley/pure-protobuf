@@ -71,7 +71,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A16 | Binary logging | shipped | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`; `{h;m}` caps; attempts share one call id; client peer + `grpc-trace-bin` omitted at taps. |
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |
-| A59 | Audit logging | planned | Authz-decision audit sink. |
+| A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |
 | A66 | OTel stats | planned | Optional `opentelemetry` metrics bridge. |
 | A72 | OpenTelemetry tracing | planned | Optional OTel trace propagation + spans. |
 | A78 | gRPC metrics for WRR/PF/xDS | planned | With WRR/pick_first/xDS metrics. |

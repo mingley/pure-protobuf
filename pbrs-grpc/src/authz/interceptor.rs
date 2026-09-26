@@ -49,7 +49,9 @@ pub(crate) fn authorize(policy: &Arc<Policy>, rpc: &Rpc) -> Result<(), Status> {
         headers: &headers,
         peer: &peer,
     };
-    match policy.decide(&call) {
+    let decision = policy.decide(&call);
+    policy.audit(&call, &decision);
+    match decision {
         Decision::Allow { .. } => Ok(()),
         Decision::Deny { rule } if rule.is_empty() => Err(Status::permission_denied(format!(
             "denied by authorization policy {:?}: no allow rule matched",

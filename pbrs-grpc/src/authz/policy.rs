@@ -7,6 +7,7 @@
 //! deny; within a rule, source and request are ANDed while principals,
 //! paths, and header values are ORed and headers are ANDed.
 
+use super::audit::{AuditEvent, AuditOptions};
 use super::matcher::StringMatcher;
 use super::principal::PeerPrincipals;
 
@@ -16,6 +17,7 @@ pub struct Policy {
     name: String,
     allow_rules: Vec<Rule>,
     deny_rules: Vec<Rule>,
+    audit: Option<AuditOptions>,
 }
 
 impl Policy {
@@ -32,7 +34,10 @@ impl Policy {
             .as_object()
             .ok_or_else(|| PolicyError::new("policy must be an object"))?;
         for key in obj.keys() {
-            if !matches!(key.as_str(), "name" | "allow_rules" | "deny_rules") {
+            if !matches!(
+                key.as_str(),
+                "name" | "allow_rules" | "deny_rules" | "audit_logging_options"
+            ) {
                 return Err(PolicyError::new(format!("unknown policy field {key:?}")));
             }
         }
@@ -49,10 +54,15 @@ impl Policy {
             .map(|v| parse_rules(v, "deny_rules"))
             .transpose()?
             .unwrap_or_default();
+        let audit = obj
+            .get("audit_logging_options")
+            .map(AuditOptions::parse)
+            .transpose()?;
         Ok(Self {
             name: name.to_owned(),
             allow_rules,
             deny_rules,
+            audit,
         })
     }
 
@@ -94,6 +104,31 @@ impl Policy {
         Decision::Deny {
             rule: String::new(),
         }
+    }
+
+    /// Audit `decision` when the policy configures audit logging (A59).
+    /// Runs synchronously right after the decision; never changes it.
+    pub(crate) fn audit(&self, call: &CallAttributes<'_, '_, '_>, decision: &Decision) {
+        let Some(audit) = self.audit.as_ref() else {
+            return;
+        };
+        let (authorized, matched_rule) = match decision {
+            Decision::Allow { rule } => (true, rule.clone()),
+            Decision::Deny { rule } => (false, rule.clone()),
+        };
+        audit.audit(&AuditEvent {
+            rpc_method: call.path.to_owned(),
+            principal: call
+                .peer
+                .identities()
+                .first()
+                .copied()
+                .unwrap_or_default()
+                .to_owned(),
+            policy_name: self.name.clone(),
+            matched_rule,
+            authorized,
+        });
     }
 }
 
