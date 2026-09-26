@@ -6777,7 +6777,15 @@ fn server_tls_new_documents_use_key_log() {
 
 #[test]
 fn server_documents_trace_fn() {
-    let src = include_str!("../src/server.rs");
+    let src = concat!(
+        include_str!("../src/server.rs"),
+        include_str!("../src/server/accept.rs"),
+        include_str!("../src/server/connection.rs"),
+        include_str!("../src/server/dispatch.rs"),
+        include_str!("../src/server/drain.rs"),
+        include_str!("../src/server/router.rs"),
+        include_str!("../src/server/rpc.rs"),
+    );
     assert!(
         src.contains(
             "There is no tonic `Server::trace_fn`: that intercepts inbound headers and\n/// installs a `tracing::Span` on each response future. This type has no span\n/// installer. Distinct from [`crate::Interceptor`] (envelope mutation, not a\n/// span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from\n/// binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct\n/// from tonic `Server::layer` (tower)."
@@ -12431,7 +12439,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
 
 #[test]
 fn server_and_router_config_document_every_call_shape() {
-    let src = include_str!("../src/server.rs");
+    let src = concat!(
+        include_str!("../src/server.rs"),
+        include_str!("../src/server/accept.rs"),
+        include_str!("../src/server/connection.rs"),
+        include_str!("../src/server/dispatch.rs"),
+        include_str!("../src/server/drain.rs"),
+        include_str!("../src/server/router.rs"),
+        include_str!("../src/server/rpc.rs"),
+    );
     assert_eq!(
         src.matches("The configuration in effect. Applies to every call shape.")
             .count(),

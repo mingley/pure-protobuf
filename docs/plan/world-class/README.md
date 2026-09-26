@@ -341,7 +341,7 @@ Hot files serialize work. After the MX splits land, assign by submodule.
 | `src/wire.rs`, `src/lazy.rs`, `src/string.rs`, `src/packed.rs`, `src/map.rs` | PK | Serialize. The UK lane reads them but does not write them without coordination (UK-18). |
 | `src/runtime.rs` → `src/runtime/{arena,mini_table,layout,decode,encode,extension,map,array,reflect}.rs` | UK | One UK card per module file; MX-04 creates them. |
 | `pbrs-grpc/src/client/{channel,pool,call,unary,streaming,retry,config_glue}.rs` | CL, CH, GF-07, H2-02, RX | Serialize per file. Everything waits for MX-00. |
-| `pbrs-grpc/src/server/{accept,connection,dispatch,router,rpc,drain}.rs` | SV, XD-07, H2-02, RX, GF | Serialize per file. |
+| `pbrs-grpc/src/server/{accept,connection,dispatch,router,rpc,drain}.rs` | accept SV; connection H2; dispatch SV; drain RX; router SV; rpc SV | One writer per file (MX-03 created them). XD-07/GF coordinate with the file owner. |
 | `pbrs-grpc/src/wire/{headers,encode,frame_reader,out_batch,send}.rs` | CL-03, SV-05/06, PK-09..11, H2-02/10, TC-02, RX-07 | Serialize per file (MX-05 creates them). |
 | `pbrs-grpc/src/transport/`, `pbrs-h2/` | H2 | H2 only, once H2-02 lands. |
 | `bench/devloop/`, `bench/scoreboard/`, `docs/benchmarks.md`, `docs/scoreboard.md` | SB | Other lanes add cells in small PRs reviewed by an SB owner. |
