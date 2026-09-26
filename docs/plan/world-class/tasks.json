@@ -6083,6 +6083,14 @@
    ],
    "relates": [
     "OB-03"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 6157b712: binlog/ engine (A16 ABNF filter, GrpcLogEntry wire encoding, BinaryLogger/CallLogger, VecSink/FileSink); credential omission + OB-03 masking with consent-gated opt-out",
+    "commit 2b1b57c4: exact-byte wire taps (reads, OutBatch, finish paths) + Rpc/CallLogger threading + Channel/Server/Router::binary_logger builders across all four call shapes",
+    "checks: format, clippy lib -D warnings clean, rustdoc -D warnings clean, native-lib (248), full pbrs-grpc suite green incl serving (1097) and binlog (32), self-interop PASS; grfc.md A16 -> shipped",
+    "boundaries: attempts share one call id (no commit tracking); client peer + grpc-trace-bin omitted at taps; recorded in grfc.md row"
    ]
   },
   {
