@@ -524,7 +524,16 @@ async fn a_from_io_hand_written_service_serves_without_generated_code() {
 
 #[test]
 fn channel_call_apis_document_hand_written_services() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     let needle = "A hand-written [`crate::Service`] is first-class on this path;";
     assert_eq!(
         src.matches(needle).count(),
@@ -6479,7 +6488,16 @@ fn channel_config_max_connection_idle_documents_with_idle_timeout() {
 
 #[test]
 fn channel_documents_with_max_call_attempts() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes\n/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as\n/// 5); transparent retry is at most once on top and cannot be raised.\n/// Distinct from [`Code::is_retryable`] (application retries at the call\n/// site, unbounded by this kernel)."
@@ -6496,7 +6514,16 @@ fn channel_documents_with_max_call_attempts() {
 
 #[test]
 fn channel_origin_documents_with_authority() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithAuthority`: that sets `:authority` and the\n    /// TLS authentication server name. This overlay is `:authority` only.\n    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct\n    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no\n    /// `CallAuthority`: interceptors cannot override `:authority` per call."
@@ -6512,7 +6539,16 @@ fn channel_origin_documents_with_authority() {
 
 #[test]
 fn channel_connect_with_documents_with_connect_params() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithConnectParams`: that is exponential reconnect\n    /// backoff plus `MinConnectTimeout` for creating and maintaining\n    /// connections. A dead slot is redialed on the next RPC with no\n    /// channel-level reconnect backoff. There is no `WithBackoffMaxDelay` /\n    /// `WithBackoffConfig` (deprecated aliases). Distinct from\n    /// [`Self::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320,\n    /// 640, 1000]` ms, not channel reconnect). Distinct from\n    /// [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not\n    /// grpc-go `MinConnectTimeout`, also default 20 s). Distinct from\n    /// transparent retry (one redial of the same RPC, not connect backoff)."
@@ -6529,7 +6565,16 @@ fn channel_connect_with_documents_with_connect_params() {
 
 #[test]
 fn channel_documents_with_no_proxy() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
@@ -6545,7 +6590,16 @@ fn channel_documents_with_no_proxy() {
 
 #[test]
 fn channel_connect_tls_documents_with_insecure() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires\n    /// credentials (`insecure.NewCredentials()` or TLS). [`Self::connect`] is\n    /// h2c by default; TLS is this constructor. There is no\n    /// `WithTransportCredentials` DialOption (TLS is this constructor plus\n    /// [`crate::ClientTls`]). Distinct from a skip-verify constructor (there\n    /// is none). Distinct from [`Self::https_scheme`] (`from_io` label; it\n    /// does not handshake)."
@@ -6578,7 +6632,16 @@ fn client_interceptor_documents_with_unary_interceptor() {
 
 #[test]
 fn channel_documents_with_default_call_options() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of\n/// per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …)\n/// applied as channel defaults. These methods are typed overlays on this\n/// clone, not a `CallOption` list and not a DialOption. Distinct from\n/// grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions).\n/// Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from\n/// [`Self::intercept`] (per-RPC mutation after connect)."
@@ -6595,7 +6658,16 @@ fn channel_documents_with_default_call_options() {
 
 #[test]
 fn channel_send_compressed_documents_with_compressor() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithCompressor`: that is a DialOption plugging a\n    /// custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor`\n    /// is global). This overlay is gzip on or off, not a compressor plugin.\n    /// There is no `WithDecompressor` (deprecated inbound plugin). Distinct\n    /// from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct\n    /// from [`Self::gzip_compression_level`] (deflate effort, not a plugin).\n    /// Distinct from grpc-go `UseCompressor` (a CallOption name, not this\n    /// overlay)."
@@ -6611,7 +6683,16 @@ fn channel_send_compressed_documents_with_compressor() {
 
 #[test]
 fn channel_connect_lazy_documents_with_context_dialer() {
-    let src = include_str!("../src/client.rs");
+    let src = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     assert!(
         src.contains(
             "There is no grpc-go `WithContextDialer`: that is a DialOption plugging a\n    /// custom `func(context.Context, string) (net.Conn, error)` that still\n    /// dials. `WithDialer` is the deprecated context-less form. The first RPC\n    /// still dials TCP `host:port`; there is no replacement hook. Distinct from\n    /// tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still\n    /// dials). Distinct from [`Self::from_io`] (already-connected bytes; it\n    /// does not dial). Distinct from [`Self::connect_unix`] (filesystem path,\n    /// not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`]\n    /// (source bind, still this kernel's TCP dialer). Distinct from grpc-go\n    /// `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go\n    /// `WithBlock` (handshake wait, not a dial function)."
@@ -6810,7 +6891,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ChannelConfig::max_connection_age must name client age redial on TLS, mTLS, and Unix"
     );
-    let channel = include_str!("../src/client.rs");
+    let channel = concat!(
+        include_str!("../src/client.rs"),
+        include_str!("../src/client/channel.rs"),
+        include_str!("../src/client/call.rs"),
+        include_str!("../src/client/config_glue.rs"),
+        include_str!("../src/client/pool.rs"),
+        include_str!("../src/client/retry.rs"),
+        include_str!("../src/client/streaming.rs"),
+        include_str!("../src/client/unary.rs"),
+    );
     let tls = include_str!("../src/tls.rs");
     let health = include_str!("../src/health.rs");
     let intercept = include_str!("../src/interceptor.rs");
