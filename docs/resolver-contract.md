@@ -1,10 +1,13 @@
-# Resolver and subchannel lifecycle contract (FL-01 proposal)
+# Resolver and subchannel lifecycle contract (DNS-profile detail)
 
-**Status:** Proposed for maintainer review; no resolver or client-managed
-balancer is shipped by this document. **Baseline:** `cd9d7bd8` on 2026-09-23.
+**Status:** Detail under the [channel architecture](decisions/channel-architecture.md)
+(CH-01, proposed for maintainer review); no resolver or client-managed
+balancer is shipped by this document. **Baseline:** `10b0ba1a` on 2026-09-26.
 **Depends on:** RT-03's absolute call deadline and RT-08's bounded drain.
-Implementation is split across FL-02 (resolution), FL-03 (`pick_first`) and
-FL-04 (`round_robin`) in [the task register](plan/tasks.json).
+Implementation is split across CH-02 (resolution), CH-04 (`pick_first`) and
+CH-03 (`round_robin` selection) in [the task register](plan/world-class/tasks.json);
+the old FL-02/FL-03/FL-04 split in [the legacy register](plan/tasks.json) is
+superseded by CH-01's scope.
 
 ## Boundary and identity
 
@@ -127,5 +130,5 @@ official ~540-second backoff exercise is **not** replaced by the short
 fake-clock timeline.
 
 **Review gate:** The maintainer must approve the refresh/staleness bounds,
-state transitions and opt-in API before this proposal closes FL-01 or
-unblocks FL-02. A design note is not production or official-gate evidence.
+state transitions and opt-in API before this detail closes CH-01 or
+unblocks CH-02. A design note is not production or official-gate evidence.
