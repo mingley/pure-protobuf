@@ -6123,7 +6123,14 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 3ded24db: authz/ module (A43 policy JSON, exact/prefix/suffix/presence matchers, deny-first/default-deny, SAN/subject principal extraction, static + file-watcher providers, AuthzInterceptor) + Server/Router::authorization_policy + tests/authz.rs",
+    "checks: fmt clean, clippy adds zero new errors (tree has pre-existing toolchain-drift errors incl tests/common), rustdoc clean, native-lib (255) green, authz (7) green incl gRFC example fixtures, mTLS principal e2e, watcher reload + last-valid, self-interop PASS; grfc.md A43 -> shipped",
+    "boundaries: pre-existing tls parallel flake (replacing_tls_policy_requires_fresh_client_identity) fails on clean tree too; client-side enforcement not in scope (server path per card)"
+   ]
   },
   {
    "id": "GF-06",
