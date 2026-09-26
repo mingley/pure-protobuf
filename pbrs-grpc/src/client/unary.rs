@@ -3,7 +3,7 @@
 use super::call::{
     AttemptCommitment, first_of, open, prefer_peer_rejection_after_send, race, send_request_frame,
 };
-use super::retry::{HedgeUnary, policy_retry_delay};
+use super::retry::{HedgeUnary, PolicyDecision, policy_retry_delay, retry_exhausted};
 use crate::config::Wire;
 use crate::limits::BytePermit;
 use crate::request::{Call, Request, Response};
@@ -182,6 +182,7 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
+                channel.retry_stats.record_call();
                 let (retry_policy, hedging_policy) = channel
                     .method_config_for(path)
                     .map(|method| (method.retry_policy.clone(), method.hedging_policy.clone()))
@@ -216,6 +217,7 @@ impl super::Channel {
                         Ok(t) => t,
                         Err(status) => {
                             call_guard.cancel(CancellationReason::DeadlineExceeded);
+                            channel.retry_stats.record_committed(false);
                             return Err(status);
                         }
                     };
@@ -252,6 +254,7 @@ impl super::Channel {
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
+                            channel.retry_stats.record_committed(false);
                             attempt_guard.finish(&status);
                             return Err(status);
                         }
@@ -265,6 +268,7 @@ impl super::Channel {
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
+                            channel.retry_stats.record_committed(false);
                             attempt_guard.finish(&status);
                             return Err(status);
                         }
@@ -303,6 +307,7 @@ impl super::Channel {
                                 && channel.inner.endpoint.can_redial() =>
                         {
                             retried = true;
+                            channel.retry_stats.record_transparent_retry();
                             attempt_guard.finish(&status);
                             channel.inner.discard(slot, r#gen).await;
                             attempt_idx += 1;
@@ -316,7 +321,7 @@ impl super::Channel {
                                     })
                                     && remaining_timeout(deadline).is_ok()
                                     && !cancelled;
-                                if let Some(delay) = policy_retry_delay(
+                                match policy_retry_delay(
                                     &channel,
                                     retry_policy.as_ref(),
                                     status,
@@ -326,32 +331,64 @@ impl super::Channel {
                                 )
                                 .await
                                 {
-                                    if status.is_transport() {
-                                        channel.inner.discard(slot, r#gen).await;
-                                    }
-                                    attempt_guard.finish(status);
-                                    let slept = first_of(
-                                        async {
-                                            tokio::time::sleep(delay).await;
-                                            Ok::<(), Status>(())
-                                        },
-                                        cancel_rx.clone(),
-                                        deadline,
-                                    )
-                                    .await;
-                                    if let Err(sleep_status) = slept {
-                                        if *cancel_rx.borrow() {
-                                            call_guard.cancel(CancellationReason::CallerCancelled);
-                                        } else {
-                                            call_guard.cancel(CancellationReason::DeadlineExceeded);
+                                    PolicyDecision::Proceed {
+                                        delay,
+                                        via_pushback,
+                                    } => {
+                                        channel.retry_stats.record_policy_retry();
+                                        if via_pushback {
+                                            channel.retry_stats.record_pushback_delay();
                                         }
-                                        channel.note_call_outcome(false).await;
-                                        call_guard.finish(&sleep_status);
-                                        return Err(sleep_status);
+                                        if per_attempt_timeout {
+                                            channel.retry_stats.record_per_attempt_timeout();
+                                        }
+                                        if status.is_transport() {
+                                            channel.inner.discard(slot, r#gen).await;
+                                        }
+                                        attempt_guard.finish(status);
+                                        let slept = first_of(
+                                            async {
+                                                tokio::time::sleep(delay).await;
+                                                Ok::<(), Status>(())
+                                            },
+                                            cancel_rx.clone(),
+                                            deadline,
+                                        )
+                                        .await;
+                                        if let Err(sleep_status) = slept {
+                                            if *cancel_rx.borrow() {
+                                                call_guard
+                                                    .cancel(CancellationReason::CallerCancelled);
+                                            } else {
+                                                call_guard
+                                                    .cancel(CancellationReason::DeadlineExceeded);
+                                            }
+                                            channel.note_call_outcome(false).await;
+                                            channel.retry_stats.record_committed(false);
+                                            call_guard.finish(&sleep_status);
+                                            return Err(sleep_status);
+                                        }
+                                        policy_attempts += 1;
+                                        attempt_idx += 1;
+                                        continue;
                                     }
-                                    policy_attempts += 1;
-                                    attempt_idx += 1;
-                                    continue;
+                                    PolicyDecision::Throttled => {
+                                        channel.retry_stats.record_throttled();
+                                    }
+                                    PolicyDecision::PushbackRefused => {
+                                        channel.retry_stats.record_pushback_refusal();
+                                    }
+                                    PolicyDecision::Declined => {
+                                        if retry_exhausted(
+                                            retry_policy.as_ref(),
+                                            status,
+                                            policy_attempts,
+                                            per_attempt_timeout,
+                                            cancelled,
+                                        ) {
+                                            channel.retry_stats.record_exhausted();
+                                        }
+                                    }
                                 }
                             }
                             if let Err(status) = &result {
@@ -383,6 +420,7 @@ impl super::Channel {
                                     call_guard.finish(status);
                                 }
                             }
+                            channel.retry_stats.record_committed(final_result.is_ok());
                             return final_result;
                         }
                     }

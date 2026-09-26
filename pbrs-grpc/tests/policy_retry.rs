@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
+const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
 const CALL_BUDGET: Duration = Duration::from_secs(15);
 
 /// One scripted unary outcome. `Copy` so the script stays shareable.
@@ -38,12 +39,25 @@ enum Step {
     SleepFail(Duration, Code),
 }
 
+/// One scripted server-streaming outcome.
+#[derive(Clone, Copy)]
+enum StreamStep {
+    Messages(&'static [&'static str]),
+    FailAfter(&'static [&'static str], Code),
+    Fail(Code),
+    SleepMessages(Duration, &'static [&'static str]),
+    SleepFail(Duration, Code),
+}
+
 /// Counts unary calls and plays `steps[n]` for call `n` (1-based), repeating
-/// the last step once the script runs out.
+/// the last step once the script runs out. Streaming calls play
+/// `stream_steps` under a separate counter.
 #[derive(Clone)]
 struct Scripted {
     calls: Arc<AtomicUsize>,
     steps: Vec<Step>,
+    stream_calls: Arc<AtomicUsize>,
+    stream_steps: Vec<StreamStep>,
 }
 
 impl Scripted {
@@ -52,11 +66,23 @@ impl Scripted {
         Self {
             calls: Arc::new(AtomicUsize::new(0)),
             steps,
+            stream_calls: Arc::new(AtomicUsize::new(0)),
+            stream_steps: vec![StreamStep::Messages(&[])],
         }
+    }
+
+    fn with_streams(mut self, steps: Vec<StreamStep>) -> Self {
+        assert!(!steps.is_empty());
+        self.stream_steps = steps;
+        self
     }
 
     fn calls(&self) -> usize {
         self.calls.load(Ordering::SeqCst)
+    }
+
+    fn stream_calls(&self) -> usize {
+        self.stream_calls.load(Ordering::SeqCst)
     }
 
     async fn play(&self, n: usize) -> Result<Response<HelloReply>, Status> {
@@ -105,7 +131,60 @@ impl Greeter for Scripted {
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("scripted"))
+        let n = self.stream_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let step = self
+            .stream_steps
+            .get(n - 1)
+            .or(self.stream_steps.last())
+            .unwrap();
+        match *step {
+            StreamStep::Fail(code) => Err(Status::new(code, "scripted")),
+            StreamStep::Messages(messages) => {
+                let (tx, rx) = Streaming::channel(8);
+                drop(tokio::spawn(async move {
+                    for message in messages {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(*message);
+                        if tx.send(reply).await.is_err() {
+                            break;
+                        }
+                    }
+                }));
+                Ok(Response::new(rx))
+            }
+            StreamStep::FailAfter(messages, code) => {
+                let (tx, rx) = Streaming::channel(8);
+                drop(tokio::spawn(async move {
+                    for message in messages {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(*message);
+                        if tx.send(reply).await.is_err() {
+                            return;
+                        }
+                    }
+                    tx.fail(Status::new(code, "scripted")).await;
+                }));
+                Ok(Response::new(rx))
+            }
+            StreamStep::SleepMessages(delay, messages) => {
+                let (tx, rx) = Streaming::channel(8);
+                drop(tokio::spawn(async move {
+                    tokio::time::sleep(delay).await;
+                    for message in messages {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(*message);
+                        if tx.send(reply).await.is_err() {
+                            break;
+                        }
+                    }
+                }));
+                Ok(Response::new(rx))
+            }
+            StreamStep::SleepFail(delay, code) => {
+                tokio::time::sleep(delay).await;
+                Err(Status::new(code, "scripted"))
+            }
+        }
     }
 
     async fn stream_hello(
@@ -135,6 +214,26 @@ async fn say_hello(channel: &Channel) -> Result<Response<HelloReply>, Status> {
     )
     .await
     .expect("unary call hung")
+}
+
+async fn collect_stream(channel: &Channel) -> Result<Vec<String>, Status> {
+    let mut stream = tokio::time::timeout(
+        CALL_BUDGET,
+        channel.server_streaming(SERVER_HELLO, Request::new(req("ada"))),
+    )
+    .await
+    .expect("stream headers hung")?
+    .into_inner();
+    let mut out = Vec::new();
+    loop {
+        match tokio::time::timeout(CALL_BUDGET, stream.message())
+            .await
+            .expect("stream message hung")?
+        {
+            Some(reply) => out.push(name_of(&reply)),
+            None => return Ok(out),
+        }
+    }
 }
 
 #[tokio::test]
@@ -347,6 +446,161 @@ async fn per_attempt_timeout_retries_without_listing_deadline() {
     let reply = say_hello(&channel).await.unwrap();
     assert_eq!(name_of(reply.get_ref()), "second");
     assert_eq!(service.calls(), 2);
+}
+
+#[tokio::test]
+async fn streaming_retry_recovers_before_headers() {
+    let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
+        "maxAttempts": 3, "initialBackoff": "0.01s", "maxBackoff": "0.05s",
+        "backoffMultiplier": 2.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![Step::Ok("unused")]).with_streams(vec![
+            StreamStep::Fail(Code::Unavailable),
+            StreamStep::Fail(Code::Unavailable),
+            StreamStep::Messages(&["a", "b"]),
+        ]),
+        json,
+    )
+    .await;
+    let messages = collect_stream(&channel).await.unwrap();
+    assert_eq!(messages, vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(service.stream_calls(), 3);
+}
+
+#[tokio::test]
+async fn streaming_retry_exhausts_attempts() {
+    let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
+        "maxAttempts": 3, "initialBackoff": "0.01s", "maxBackoff": "0.05s",
+        "backoffMultiplier": 2.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![Step::Ok("unused")])
+            .with_streams(vec![StreamStep::Fail(Code::Unavailable)]),
+        json,
+    )
+    .await;
+    let err = collect_stream(&channel).await.unwrap_err();
+    assert_eq!(err.code(), Code::Unavailable);
+    assert_eq!(service.stream_calls(), 3);
+}
+
+#[tokio::test]
+async fn streaming_never_retries_after_first_message() {
+    let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
+        "maxAttempts": 3, "initialBackoff": "0.01s", "maxBackoff": "0.05s",
+        "backoffMultiplier": 2.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![Step::Ok("unused")])
+            .with_streams(vec![StreamStep::FailAfter(&["first"], Code::Unavailable)]),
+        json,
+    )
+    .await;
+    let mut stream = tokio::time::timeout(
+        CALL_BUDGET,
+        channel.server_streaming(SERVER_HELLO, Request::new(req("ada"))),
+    )
+    .await
+    .expect("stream headers hung")
+    .unwrap()
+    .into_inner();
+    let first = tokio::time::timeout(CALL_BUDGET, stream.message())
+        .await
+        .expect("first message hung")
+        .unwrap()
+        .unwrap();
+    assert_eq!(name_of(&first), "first");
+    let err = tokio::time::timeout(CALL_BUDGET, stream.message())
+        .await
+        .expect("terminal status hung")
+        .unwrap_err();
+    assert_eq!(err.code(), Code::Unavailable);
+    assert_eq!(service.stream_calls(), 1);
+}
+
+#[tokio::test]
+async fn streaming_non_retryable_code_fails_fast() {
+    let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
+        "maxAttempts": 4, "initialBackoff": "0.01s", "maxBackoff": "0.05s",
+        "backoffMultiplier": 2.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![Step::Ok("unused")])
+            .with_streams(vec![StreamStep::Fail(Code::Internal)]),
+        json,
+    )
+    .await;
+    let err = collect_stream(&channel).await.unwrap_err();
+    assert_eq!(err.code(), Code::Internal);
+    assert_eq!(service.stream_calls(), 1);
+}
+
+#[tokio::test]
+async fn streaming_per_attempt_timeout_retries_slow_headers() {
+    let json = r#"{"methodConfig": [{"name": [{}], "timeout": "10s",
+        "retryPolicy": {"maxAttempts": 3,
+        "initialBackoff": "0.005s", "maxBackoff": "0.01s",
+        "backoffMultiplier": 1.0, "perAttemptRecvTimeout": "0.05s",
+        "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![Step::Ok("unused")]).with_streams(vec![
+            StreamStep::SleepFail(Duration::from_secs(5), Code::Unavailable),
+            StreamStep::Messages(&["second"]),
+        ]),
+        json,
+    )
+    .await;
+    let messages = collect_stream(&channel).await.unwrap();
+    assert_eq!(messages, vec!["second".to_string()]);
+    assert_eq!(service.stream_calls(), 2);
+}
+
+#[tokio::test]
+async fn retry_stats_count_policy_decisions() {
+    let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
+        "maxAttempts": 3, "initialBackoff": "0.005s", "maxBackoff": "0.01s",
+        "backoffMultiplier": 1.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::Fail(Code::Unavailable),
+            Step::Fail(Code::Unavailable),
+            Step::Ok("recovered"),
+            Step::Fail(Code::Unavailable),
+            Step::Fail(Code::Unavailable),
+            Step::Fail(Code::Unavailable),
+        ]),
+        json,
+    )
+    .await;
+    say_hello(&channel).await.unwrap();
+    say_hello(&channel).await.unwrap_err();
+    assert_eq!(service.calls(), 6);
+    let stats = channel.retry_stats();
+    assert_eq!(stats.calls, 2);
+    assert_eq!(stats.policy_retries, 4);
+    assert_eq!(stats.exhausted, 1);
+    assert_eq!(stats.committed_ok, 1);
+    assert_eq!(stats.committed_err, 1);
+    assert_eq!(stats.transparent_retries, 0);
+    assert_eq!(stats.throttled, 0);
+}
+
+#[tokio::test]
+async fn retry_stats_count_hedged_sends() {
+    let json = r#"{"methodConfig": [{"name": [{}],
+        "hedgingPolicy": {"maxAttempts": 3, "hedgingDelay": "0.05s",
+        "nonFatalStatusCodes": ["UNAVAILABLE"]}}]}"#;
+    let (_service, channel, _guard) = channel_with(
+        Scripted::new(vec![
+            Step::SleepOk(Duration::from_secs(1), "slow"),
+            Step::Ok("hedged"),
+        ]),
+        json,
+    )
+    .await;
+    say_hello(&channel).await.unwrap();
+    let stats = channel.retry_stats();
+    assert_eq!(stats.calls, 1);
+    assert_eq!(stats.hedged_sends, 1);
+    assert_eq!(stats.committed_ok, 1);
+    assert_eq!(stats.committed_err, 0);
 }
 
 #[tokio::test]

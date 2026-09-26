@@ -13,17 +13,162 @@ use bytes::Bytes;
 use http::HeaderValue;
 use pbrs::Parse;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{OwnedSemaphorePermit, mpsc, watch};
 
-/// A6 policy-retry decision: how long to wait before the next attempt.
+/// Retry statistics for one [`Channel`](super::Channel), A45-style.
 ///
-/// Returns `None` when the call must finish with `status`: no policy, attempts
-/// exhausted, cancelled, a non-retryable code (a per-attempt timeout counts as
-/// retryable on its own), a `DoNotRetry` pushback, or a throttled bucket.
-/// Otherwise returns the pushback delay when the server sent one, else the
-/// jittered exponential backoff for retry number `attempts_made` (1-based, so
-/// the first retry uses index 0).
+/// Every counter covers the channel's unary and server-streaming calls,
+/// whether or not a retry policy is attached: calls without a policy still
+/// record `calls` and their terminal outcome, so exporters can compute retry
+/// rates. Recording is a few atomic adds per call outcome plus one per retry
+/// decision, always on; there is no sampling flag. GF-01 exports these to
+/// OpenTelemetry (A96); until then read them with
+/// [`Channel::retry_stats`](super::Channel::retry_stats).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RetryStats {
+    /// Calls entering the unary or server-streaming executors.
+    pub calls: u64,
+    /// Policy retries actually sent (per-attempt timeouts included).
+    pub policy_retries: u64,
+    /// Transparent redials on raced connection deaths (never policy-gated).
+    pub transparent_retries: u64,
+    /// Hedged sends past the first attempt.
+    pub hedged_sends: u64,
+    /// Retries or hedged sends refused by the throttling bucket.
+    pub throttled: u64,
+    /// Retries honoring a server pushback delay.
+    pub pushback_delays: u64,
+    /// Retries refused by a server `DoNotRetry` pushback.
+    pub pushback_refusals: u64,
+    /// Per-attempt recv timeouts that triggered a retry.
+    pub per_attempt_timeouts: u64,
+    /// Calls failing with a retryable outcome after attempts ran out.
+    pub exhausted: u64,
+    /// Calls committed `OK`, including hedged and retried calls.
+    pub committed_ok: u64,
+    /// Calls committed non-OK, including exhausted and throttled calls.
+    pub committed_err: u64,
+}
+
+/// Channel-scoped atomic recorder behind [`RetryStats`].
+///
+/// One per [`Channel`](super::Channel), shared by clones. All methods are
+/// lock-free; contention is one atomic add per recorded event.
+#[derive(Debug, Default)]
+pub(crate) struct RetryStatsRecorder {
+    calls: AtomicU64,
+    policy_retries: AtomicU64,
+    transparent_retries: AtomicU64,
+    hedged_sends: AtomicU64,
+    throttled: AtomicU64,
+    pushback_delays: AtomicU64,
+    pushback_refusals: AtomicU64,
+    per_attempt_timeouts: AtomicU64,
+    exhausted: AtomicU64,
+    committed_ok: AtomicU64,
+    committed_err: AtomicU64,
+}
+
+impl RetryStatsRecorder {
+    /// A zeroed recorder. Distinct from [`Self::snapshot`]: that reads.
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    /// A point-in-time copy. Counters keep moving under concurrent calls.
+    pub(crate) fn snapshot(&self) -> RetryStats {
+        RetryStats {
+            calls: self.calls.load(Ordering::Relaxed),
+            policy_retries: self.policy_retries.load(Ordering::Relaxed),
+            transparent_retries: self.transparent_retries.load(Ordering::Relaxed),
+            hedged_sends: self.hedged_sends.load(Ordering::Relaxed),
+            throttled: self.throttled.load(Ordering::Relaxed),
+            pushback_delays: self.pushback_delays.load(Ordering::Relaxed),
+            pushback_refusals: self.pushback_refusals.load(Ordering::Relaxed),
+            per_attempt_timeouts: self.per_attempt_timeouts.load(Ordering::Relaxed),
+            exhausted: self.exhausted.load(Ordering::Relaxed),
+            committed_ok: self.committed_ok.load(Ordering::Relaxed),
+            committed_err: self.committed_err.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Record a call entering a policy-aware executor.
+    pub(crate) fn record_call(&self) {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a policy retry actually sent.
+    pub(crate) fn record_policy_retry(&self) {
+        self.policy_retries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a transparent redial on a raced connection death.
+    pub(crate) fn record_transparent_retry(&self) {
+        self.transparent_retries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a hedged send past the first attempt.
+    pub(crate) fn record_hedged_send(&self) {
+        self.hedged_sends.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a retry or hedged send refused by the throttling bucket.
+    pub(crate) fn record_throttled(&self) {
+        self.throttled.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a retry honoring a server pushback delay.
+    pub(crate) fn record_pushback_delay(&self) {
+        self.pushback_delays.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a retry refused by a server `DoNotRetry` pushback.
+    pub(crate) fn record_pushback_refusal(&self) {
+        self.pushback_refusals.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a per-attempt recv timeout that triggered a retry.
+    pub(crate) fn record_per_attempt_timeout(&self) {
+        self.per_attempt_timeouts.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a call failing retryably after attempts ran out.
+    pub(crate) fn record_exhausted(&self) {
+        self.exhausted.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a terminal call outcome.
+    pub(crate) fn record_committed(&self, ok: bool) {
+        if ok {
+            self.committed_ok.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.committed_err.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+/// A6 policy-retry decision: whether and how long to wait for the next attempt.
+///
+/// Distinct from a bare delay: the variants tell the caller which
+/// [`RetryStats`] counter to record. `Declined` covers no policy, exhausted
+/// attempts, cancellation, and non-retryable codes.
+pub(crate) enum PolicyDecision {
+    /// Retry after this delay; `via_pushback` names a server pushback delay
+    /// rather than the computed jittered backoff for retry number
+    /// `attempts_made` (1-based, so the first retry uses index 0).
+    Proceed { delay: Duration, via_pushback: bool },
+    /// The throttling bucket refused another send.
+    Throttled,
+    /// The server sent `DoNotRetry` pushback.
+    PushbackRefused,
+    /// No policy, attempts exhausted, cancelled, or a non-retryable code (a
+    /// per-attempt timeout counts as retryable on its own).
+    Declined,
+}
+
+/// Decide whether `status` earns another attempt under `policy`.
 pub(crate) async fn policy_retry_delay(
     channel: &Channel,
     policy: Option<&RetryPolicy>,
@@ -31,33 +176,63 @@ pub(crate) async fn policy_retry_delay(
     attempts_made: u32,
     per_attempt_timeout: bool,
     cancelled: bool,
-) -> Option<Duration> {
-    let policy = policy?;
+) -> PolicyDecision {
+    let Some(policy) = policy else {
+        return PolicyDecision::Declined;
+    };
     if cancelled || attempts_made >= policy.max_attempts {
-        return None;
+        return PolicyDecision::Declined;
     }
     if matches!(
         status.retry_pushback(),
         Some(crate::status::Pushback::DoNotRetry)
     ) {
-        return None;
+        return PolicyDecision::PushbackRefused;
     }
     let retryable = per_attempt_timeout || policy.retryable_status_codes.contains(&status.code());
     if !retryable {
-        return None;
+        return PolicyDecision::Declined;
     }
     if !channel.retry_allowed().await {
-        return None;
+        return PolicyDecision::Throttled;
     }
     if let Some(crate::status::Pushback::Delay(delay)) = status.retry_pushback() {
-        return Some(delay);
+        return PolicyDecision::Proceed {
+            delay,
+            via_pushback: true,
+        };
     }
-    Some(retry_backoff(
-        policy.initial_backoff,
-        policy.max_backoff,
-        policy.backoff_multiplier,
-        attempts_made.saturating_sub(1),
-    ))
+    PolicyDecision::Proceed {
+        delay: retry_backoff(
+            policy.initial_backoff,
+            policy.max_backoff,
+            policy.backoff_multiplier,
+            attempts_made.saturating_sub(1),
+        ),
+        via_pushback: false,
+    }
+}
+
+/// Whether `status` fails a call whose policy attempts ran out.
+pub(crate) fn retry_exhausted(
+    policy: Option<&RetryPolicy>,
+    status: &Status,
+    attempts_made: u32,
+    per_attempt_timeout: bool,
+    cancelled: bool,
+) -> bool {
+    match policy {
+        None => false,
+        Some(policy) => {
+            !cancelled
+                && attempts_made >= policy.max_attempts
+                && (per_attempt_timeout || policy.retryable_status_codes.contains(&status.code()))
+                && !matches!(
+                    status.retry_pushback(),
+                    Some(crate::status::Pushback::DoNotRetry)
+                )
+        }
+    }
 }
 
 /// One hedged unary call: everything an attempt task needs, all owned.
@@ -164,6 +339,7 @@ where
                         && channel.inner.endpoint.can_redial() =>
                 {
                     redialed = true;
+                    channel.retry_stats.record_transparent_retry();
                     channel.inner.discard(slot, r#gen).await;
                 }
                 result => {
@@ -248,10 +424,12 @@ impl super::Channel {
             None => {
                 while sent < max {
                     if !self.retry_allowed().await {
+                        self.retry_stats.record_throttled();
                         stop_sending = true;
                         break;
                     }
                     sent += 1;
+                    self.retry_stats.record_hedged_send();
                     handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
                     outstanding += 1;
                 }
@@ -266,6 +444,7 @@ impl super::Channel {
                     let status = Status::cancelled();
                     req.call_guard.finish(&status);
                     self.note_call_outcome(false).await;
+                    self.retry_stats.record_committed(false);
                     return Err(status);
                 }
                 () = sleep_until_or_pending(req.deadline) => {
@@ -274,6 +453,7 @@ impl super::Channel {
                     let status = Status::deadline_exceeded();
                     req.call_guard.finish(&status);
                     self.note_call_outcome(false).await;
+                    self.retry_stats.record_committed(false);
                     return Err(status);
                 }
                 () = sleep_until_or_pending(hedge_at),
@@ -282,12 +462,14 @@ impl super::Channel {
                     hedge_at = None;
                     if self.retry_allowed().await {
                         sent += 1;
+                        self.retry_stats.record_hedged_send();
                         handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
                         outstanding += 1;
                         if let Some(delay) = req.policy.hedging_delay {
                             hedge_at = Some(tokio::time::Instant::now() + delay);
                         }
                     } else {
+                        self.retry_stats.record_throttled();
                         stop_sending = true;
                     }
                 }
@@ -302,6 +484,7 @@ impl super::Channel {
                         });
                         req.call_guard.finish(&status);
                         self.note_call_outcome(false).await;
+                        self.retry_stats.record_committed(false);
                         return Err(status);
                     };
                     outstanding = outstanding.saturating_sub(1);
@@ -320,6 +503,7 @@ impl super::Channel {
                                     self.note_call_outcome(false).await;
                                 }
                             }
+                            self.retry_stats.record_committed(final_result.is_ok());
                             return final_result;
                         }
                         Err(status) => {
@@ -337,12 +521,14 @@ impl super::Channel {
                                 abort_hedges(&handles);
                                 req.call_guard.finish(&status);
                                 self.note_call_outcome(false).await;
+                                self.retry_stats.record_committed(false);
                                 return Err(status);
                             }
                             last_err = Some(status);
                             if outstanding == 0 {
                                 if !stop_sending && sent < max && self.retry_allowed().await {
                                     sent += 1;
+                                    self.retry_stats.record_hedged_send();
                                     handles.push(spawn_hedge_attempt(
                                         self.clone(),
                                         &req,
@@ -353,10 +539,16 @@ impl super::Channel {
                                     if let Some(delay) = req.policy.hedging_delay {
                                         hedge_at = Some(tokio::time::Instant::now() + delay);
                                     }
-                                } else if let Some(status) = last_err.take() {
-                                    req.call_guard.finish(&status);
-                                    self.note_call_outcome(false).await;
-                                    return Err(status);
+                                } else {
+                                    if !stop_sending && sent < max {
+                                        self.retry_stats.record_throttled();
+                                    }
+                                    if let Some(status) = last_err.take() {
+                                        req.call_guard.finish(&status);
+                                        self.note_call_outcome(false).await;
+                                        self.retry_stats.record_committed(false);
+                                        return Err(status);
+                                    }
                                 }
                             }
                         }

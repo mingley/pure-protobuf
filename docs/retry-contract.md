@@ -37,8 +37,20 @@ validates it eagerly per A21. Unary calls resolve the method entry and then:
 
 Policy retry replays the already-encoded request frame, so it never
 re-serializes and never exceeds the method's caps. Server-streaming policy
-retry and streaming throttling accounting are follow-up work; client-streaming
-and bidi stay call-site retries because the kernel holds no replay buffer.
+retry replays from the already-buffered request bytes with the same unary
+decision helper; a stream commits the moment the first response message
+arrives (or success completes), so mid-stream failures never retry.
+Streaming tests cover the two accept shapes: trailers-only failures take
+the retry path, and stream-created-then-cancelled matches the explicit
+streaming-transport-cancel verdict. Client-streaming and bidi stay
+call-site retries because the kernel holds no replay buffer.
+- Every policy outcome (unary attempts, hedging sends, streaming calls)
+  records into the channel-scoped lock-free `RetryStats` counters, exported
+  via `Channel::retry_stats` for GF-01/A96 channelz and OTel export.
+- Streaming throttling accounting approximation: credit/debit taps the
+  headers read, because receipt of an `OK` status is read through the
+  unobservable transport at commit (A6-faithful accounting of streaming
+  throttling is explicit follow-up work).
 
 ---
 

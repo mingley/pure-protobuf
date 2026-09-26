@@ -1,5 +1,6 @@
 //! Connection pool: slots, dialing, handshake, and idle/age watches.
 
+use super::retry::RetryStatsRecorder;
 use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::limits::ByteBudgetTracker;
@@ -192,6 +193,7 @@ pub(crate) fn finish_channel(
         authority,
         observer: None,
         service_config: SharedServiceConfig::default(),
+        retry_stats: Arc::new(RetryStatsRecorder::new()),
     }
 }
 

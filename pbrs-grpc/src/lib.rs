@@ -1108,7 +1108,7 @@ pub mod codegen_support {
     pub use tokio::net::UnixListener;
 }
 
-pub use client::{Channel, Target};
+pub use client::{Channel, RetryStats, Target};
 pub use config::{
     ChannelConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,
     DEFAULT_GZIP_COMPRESSION_LEVEL, DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT,

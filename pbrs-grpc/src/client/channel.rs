@@ -1,6 +1,7 @@
 //! Channel type: dialing, overlays, and connection metadata.
 
 use super::pool::{self, ChannelInner, Endpoint};
+use super::retry::{RetryStats, RetryStatsRecorder};
 use crate::config::ChannelConfig;
 use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
 use crate::limits::ByteBudgetTracker;
@@ -382,6 +383,8 @@ pub struct Channel {
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     /// Attached JSON service config (A6/A21/A24), if any. Clones share it.
     pub(crate) service_config: SharedServiceConfig,
+    /// Channel-scoped retry statistics. Clones share it.
+    pub(crate) retry_stats: Arc<RetryStatsRecorder>,
 }
 
 impl fmt::Debug for Channel {
@@ -1053,6 +1056,27 @@ impl super::Channel {
     #[must_use]
     pub fn service_config_doc(&self) -> Option<&ServiceConfig> {
         self.service_config.get().map(|state| &state.config)
+    }
+
+    /// A snapshot of this channel's retry statistics.
+    ///
+    /// Counters cover unary and server-streaming calls and are shared by
+    /// clones. Recording is always on and lock-free; GF-01 exports these to
+    /// OpenTelemetry.
+    /// Distinct from [`Self::service_config_doc`]: that is the policy; this
+    /// is what the policy did.
+    ///
+    /// ```
+    /// use pbrs_grpc::Channel;
+    ///
+    /// # fn demo(channel: Channel) {
+    /// let stats = channel.retry_stats();
+    /// assert_eq!(stats.committed_ok + stats.committed_err, stats.calls);
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn retry_stats(&self) -> RetryStats {
+        self.retry_stats.snapshot()
     }
 
     /// Whether any pool slot currently holds a live HTTP/2 connection.
