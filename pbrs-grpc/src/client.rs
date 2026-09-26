@@ -5,14 +5,13 @@ use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::request::{Call, Request, Response};
 use crate::service_config::{
-    HedgingPolicy, MethodConfig, RetryPolicy, ServiceConfig, SharedServiceConfig, retry_backoff,
+    HedgingPolicy, RetryPolicy, ServiceConfig, SharedServiceConfig, retry_backoff,
 };
 use crate::status::{Code, Status, TransportEvidence};
 use crate::stream::{StreamSender, Streaming};
 use crate::telemetry::{
     AttemptGuard, AttemptLabels, CallGuard, CallLabels, CallRole, CancellationReason,
-    LifecycleObserver, ObserverChain, OwnedCallLabels, ReconnectEvent, RejectionReason,
-    diagnostic_identity,
+    LifecycleObserver, ObserverChain, OwnedCallLabels, RejectionReason, diagnostic_identity,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::tls::ClientTls;
@@ -31,18 +30,16 @@ use http::HeaderValue;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
 use std::fmt;
-use std::future::Future;
 use std::net::SocketAddr;
 #[cfg(unix)]
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
+use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::task::Poll;
 use std::time::Duration;
-#[cfg(unix)]
-use tokio::net::UnixStream;
-use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, mpsc, watch};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc, watch};
+
+pub(crate) mod config_glue;
+pub(crate) mod pool;
+use pool::{ChannelInner, Endpoint, LiveConn};
 
 /// Where a [`Channel`] should dial.
 ///
@@ -236,89 +233,12 @@ impl From<&String> for Target {
     }
 }
 
-/// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
-/// grabber that observed the previous generation die does not overwrite a
-/// reconnect that already landed. `send` is `None` until the first successful
-/// handshake on a lazy channel, and after a dead handle is discarded or the
-/// slot idle-closes.
-struct ConnSlot {
-    r#gen: u64,
-    send: Option<h2::client::SendRequest<Bytes>>,
-    /// Stops the connection driver (idle close, age close, lost-race handshake, drop).
-    stop: Option<watch::Sender<bool>>,
-    /// Outstanding RPCs; `None` when neither idle-close nor age is configured.
-    busy: Option<Arc<crate::keepalive::Busy>>,
-}
-
-/// A finished handshake: the sender plus the handles that stop its driver.
-struct Dialed {
-    send: h2::client::SendRequest<Bytes>,
-    stop: watch::Sender<bool>,
-    busy: Option<Arc<crate::keepalive::Busy>>,
-}
-
-/// A sender taken from a pool slot, plus the generation so a raced `GOAWAY`
-/// can discard this slot instead of writing into a reconnect that already
-/// landed.
-struct LiveConn {
-    send: h2::client::SendRequest<Bytes>,
-    lease: Option<crate::keepalive::Lease>,
-    /// Clone of the slot's driver-stop sender. Held on a received
-    /// [`Streaming`] so dropping the last [`Channel`] does not stop the
-    /// connection under an in-flight stream.
-    driver: Option<watch::Sender<bool>>,
-    slot: usize,
-    r#gen: u64,
-}
-
 /// HEADERS sent; request DATA has not started. Transparent retry stops here.
 struct Opened {
     lease: Option<crate::keepalive::Lease>,
     driver: Option<watch::Sender<bool>>,
     resp_fut: h2::client::ResponseFuture,
     send: h2::SendStream<Bytes>,
-}
-
-/// Backoff between wait-for-ready handshake attempts, in milliseconds.
-/// Caps at the last entry; see [`ChannelInner::acquire`].
-const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
-
-struct ChannelInner {
-    slots: Vec<Mutex<ConnSlot>>,
-    next: AtomicUsize,
-    endpoint: Endpoint,
-    tls: Option<ClientTls>,
-    /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
-    /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
-    /// stream_buffer, max_send_buffer_size, https_scheme, origin) do not change
-    /// how a dead slot is redialed.
-    dial: ChannelConfig,
-}
-
-/// Where a handshake should connect. TCP is `host:port`; Unix is a filesystem
-/// path. HTTP/2 `:authority` for a Unix socket is `localhost`. [`Self::Once`]
-/// is an already-connected stream that cannot be redialed.
-#[derive(Clone)]
-enum Endpoint {
-    Tcp(String),
-    #[cfg(unix)]
-    Unix(PathBuf),
-    Once,
-}
-
-impl Endpoint {
-    fn describe(&self) -> String {
-        match self {
-            Self::Tcp(host) => host.clone(),
-            #[cfg(unix)]
-            Self::Unix(path) => path.display().to_string(),
-            Self::Once => "once".to_owned(),
-        }
-    }
-
-    fn can_redial(&self) -> bool {
-        !matches!(self, Self::Once)
-    }
 }
 
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
@@ -486,7 +406,7 @@ pub struct Channel {
     authority: Authority,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     /// Attached JSON service config (A6/A21/A24), if any. Clones share it.
-    service_config: SharedServiceConfig,
+    pub(crate) service_config: SharedServiceConfig,
 }
 
 impl fmt::Debug for Channel {
@@ -550,7 +470,7 @@ impl Channel {
         target: impl Into<Target>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        connect_inner(target.into(), config, None).await
+        pool::connect_inner(target.into(), config, None).await
     }
 
     /// Shorthand for [`Self::connect_with`] with `connections` connections.
@@ -599,7 +519,7 @@ impl Channel {
         config: ChannelConfig,
         tls: ClientTls,
     ) -> Result<Self, Status> {
-        connect_inner(target.into(), config, Some(tls)).await
+        pool::connect_inner(target.into(), config, Some(tls)).await
     }
 
     /// Build a channel that dials on the first RPC instead of now.
@@ -631,7 +551,7 @@ impl Channel {
         target: impl Into<Target>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        connect_lazy_inner(target.into(), config, None)
+        pool::connect_lazy_inner(target.into(), config, None)
     }
 
     /// [`Self::connect_lazy`] over TLS. Applies to every call shape.
@@ -645,7 +565,7 @@ impl Channel {
         config: ChannelConfig,
         tls: ClientTls,
     ) -> Result<Self, Status> {
-        connect_lazy_inner(target.into(), config, Some(tls))
+        pool::connect_lazy_inner(target.into(), config, Some(tls))
     }
 
     /// Dial a Unix domain socket with default configuration.
@@ -666,7 +586,7 @@ impl Channel {
         path: impl AsRef<Path>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        connect_unix_inner(path.as_ref(), config).await
+        pool::connect_unix_inner(path.as_ref(), config).await
     }
 
     /// [`Self::connect_unix`] that dials on the first RPC instead of now.
@@ -682,12 +602,12 @@ impl Channel {
         path: impl AsRef<Path>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        Ok(finish_channel(
+        Ok(pool::finish_channel(
             Endpoint::Unix(path.as_ref().to_owned()),
-            unix_authority(),
+            pool::unix_authority(),
             config,
             None,
-            empty_slots(config.connection_count()),
+            pool::empty_slots(config.connection_count()),
         ))
     }
 
@@ -799,7 +719,7 @@ impl Channel {
         let parsed = target.parse()?;
         let config = config.connections(1);
         let timeout = config.handshake_timeout();
-        let send = match tokio::time::timeout(timeout, finish_h2(config, io)).await {
+        let send = match tokio::time::timeout(timeout, pool::finish_h2(config, io)).await {
             Ok(result) => result?,
             Err(_) => {
                 return Err(Status::unavailable(format!(
@@ -807,12 +727,12 @@ impl Channel {
                 )));
             }
         };
-        Ok(finish_channel(
+        Ok(pool::finish_channel(
             Endpoint::Once,
             parsed,
             config,
             None,
-            live_slots(vec![send]),
+            pool::live_slots(vec![send]),
         ))
     }
 
@@ -858,65 +778,6 @@ impl Channel {
     #[must_use]
     pub fn service_config_doc(&self) -> Option<&ServiceConfig> {
         self.service_config.get().map(|state| &state.config)
-    }
-
-    /// The method entry covering `path`, if a document is attached and covers it.
-    pub(crate) fn method_config_for(&self, path: &str) -> Option<&MethodConfig> {
-        let state = self.service_config.get()?;
-        let (service, method) = crate::telemetry::split_path(path);
-        state.config.method_config(service, method)
-    }
-
-    /// Record a finished unary call in the throttling bucket, if configured.
-    ///
-    /// Success refunds `tokenRatio`; any failure (including cancellation and
-    /// deadline) removes one token. Local rejections that never ran (a
-    /// refused interceptor, an unencodable message, a full concurrency
-    /// semaphore) are not call outcomes and are not recorded.
-    pub(crate) async fn note_call_outcome(&self, ok: bool) {
-        if let Some(state) = self.service_config.get() {
-            if let Some(throttler) = &state.throttler {
-                if ok {
-                    throttler.on_success().await;
-                } else {
-                    throttler.on_failure().await;
-                }
-            }
-        }
-    }
-
-    /// Whether the throttling bucket allows another retry or hedged send.
-    ///
-    /// `true` when no `retryThrottling` is configured.
-    pub(crate) async fn retry_allowed(&self) -> bool {
-        match self
-            .service_config
-            .get()
-            .and_then(|state| state.throttler.as_ref())
-        {
-            Some(throttler) => throttler.retry_allowed().await,
-            None => true,
-        }
-    }
-
-    /// Per-call wire settings: channel settings tightened by the method entry.
-    ///
-    /// `maxRequestMessageBytes` tightens the encoding cap and
-    /// `maxResponseMessageBytes` tightens the decoding cap; a method entry
-    /// never loosens an explicit channel cap.
-    pub(crate) fn wire_for(&self, path: &str) -> Wire {
-        let mut wire = self.config.wire();
-        if let Some(method) = self.method_config_for(path) {
-            if let Some(max) = method.max_request_message_bytes {
-                let tight = wire.limits.max_encoding().map_or(max, |base| base.min(max));
-                wire.limits = wire.limits.with_max_encoding(tight);
-            }
-            if let Some(max) = method.max_response_message_bytes {
-                let tight = wire.limits.max_decoding().map_or(max, |base| base.min(max));
-                wire.limits = wire.limits.with_max_decoding(tight);
-            }
-        }
-        wire
     }
 
     /// Whether any pool slot currently holds a live HTTP/2 connection.
@@ -1212,7 +1073,7 @@ impl Channel {
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
-        self.rpc_slots = rpc_slots_from(self.config);
+        self.rpc_slots = pool::rpc_slots_from(self.config);
         self
     }
 
@@ -2295,7 +2156,13 @@ impl Channel {
                             let response = channel.apply_response_hooks(path, response)?;
                             attempt_guard.finish(&Status::ok());
                             call_guard.finish(&Status::ok());
-                            return Ok(attach_conn(response, lease, driver, Some(reset), permit));
+                            return Ok(pool::attach_conn(
+                                response,
+                                lease,
+                                driver,
+                                Some(reset),
+                                permit,
+                            ));
                         }
                         Err(status)
                             if !retried
@@ -2682,7 +2549,7 @@ impl Channel {
                 let response = channel.apply_response_hooks(path, response)?;
                 attempt_guard.finish(&Status::ok());
                 call_guard.finish(&Status::ok());
-                Ok(attach_conn(
+                Ok(pool::attach_conn(
                     response,
                     opened.lease,
                     opened.driver,
@@ -2693,518 +2560,6 @@ impl Channel {
         );
         (tx, call)
     }
-}
-
-async fn connect_inner(
-    target: Target,
-    config: ChannelConfig,
-    tls: Option<ClientTls>,
-) -> Result<Channel, Status> {
-    let endpoint = Endpoint::Tcp(target.authority().to_owned());
-    let authority = target.parse()?;
-    let n = config.connection_count();
-    let mut sends = Vec::with_capacity(n);
-    for _ in 0..n {
-        sends.push(handshake(&endpoint, config, tls.as_ref()).await?);
-    }
-    Ok(finish_channel(
-        endpoint,
-        authority,
-        config,
-        tls,
-        live_slots(sends),
-    ))
-}
-
-fn connect_lazy_inner(
-    target: Target,
-    config: ChannelConfig,
-    tls: Option<ClientTls>,
-) -> Result<Channel, Status> {
-    let endpoint = Endpoint::Tcp(target.authority().to_owned());
-    let authority = target.parse()?;
-    Ok(finish_channel(
-        endpoint,
-        authority,
-        config,
-        tls,
-        empty_slots(config.connection_count()),
-    ))
-}
-
-#[cfg(unix)]
-async fn connect_unix_inner(path: &Path, config: ChannelConfig) -> Result<Channel, Status> {
-    let endpoint = Endpoint::Unix(path.to_owned());
-    let n = config.connection_count();
-    let mut sends = Vec::with_capacity(n);
-    for _ in 0..n {
-        sends.push(handshake(&endpoint, config, None).await?);
-    }
-    Ok(finish_channel(
-        endpoint,
-        unix_authority(),
-        config,
-        None,
-        live_slots(sends),
-    ))
-}
-
-fn finish_channel(
-    endpoint: Endpoint,
-    authority: Authority,
-    config: ChannelConfig,
-    tls: Option<ClientTls>,
-    slots: Vec<Mutex<ConnSlot>>,
-) -> Channel {
-    let https = tls.is_some();
-    let inner = Arc::new(ChannelInner {
-        slots,
-        next: AtomicUsize::new(0),
-        endpoint,
-        tls,
-        dial: config,
-    });
-    for i in 0..inner.slots.len() {
-        spawn_idle_watch(Arc::clone(&inner), i);
-        spawn_age_watch(Arc::clone(&inner), i);
-    }
-    let budget_limit = if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
-        Some(config.send_buffer_size())
-    } else {
-        None
-    };
-    Channel {
-        inner,
-        config,
-        interceptors: Arc::from([]),
-        response_interceptors: Arc::from([]),
-        rpc_slots: rpc_slots_from(config),
-        byte_budget: ByteBudgetTracker::new(budget_limit),
-        user_agent: crate::wire::PBRS_GRPC_UA,
-        https,
-        authority,
-        observer: None,
-        service_config: SharedServiceConfig::default(),
-    }
-}
-
-fn rpc_slots_from(config: ChannelConfig) -> Option<Arc<Semaphore>> {
-    config
-        .concurrent_rpc_limit()
-        .map(|n| Arc::new(Semaphore::new(n)))
-}
-
-fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
-    dialed
-        .into_iter()
-        .map(|d| {
-            Mutex::new(ConnSlot {
-                r#gen: 0,
-                send: Some(d.send),
-                stop: Some(d.stop),
-                busy: d.busy,
-            })
-        })
-        .collect()
-}
-
-fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
-    (0..n)
-        .map(|_| {
-            Mutex::new(ConnSlot {
-                r#gen: 0,
-                send: None,
-                stop: None,
-                busy: None,
-            })
-        })
-        .collect()
-}
-
-#[cfg(unix)]
-fn unix_authority() -> Authority {
-    Authority::from_static("localhost")
-}
-
-impl ChannelInner {
-    fn pick(&self) -> Result<usize, Status> {
-        let n = self.slots.len();
-        if n == 0 {
-            return Err(Status::unavailable("empty connection pool"));
-        }
-        if n == 1 {
-            Ok(0)
-        } else {
-            Ok(self.next.fetch_add(1, Ordering::Relaxed) % n)
-        }
-    }
-
-    fn slot(&self, i: usize) -> Result<&Mutex<ConnSlot>, Status> {
-        self.slots
-            .get(i)
-            .ok_or_else(|| Status::unavailable("empty connection pool"))
-    }
-
-    /// Clone a live sender for this slot, redialing only when `ready` reports
-    /// the connection is gone or the slot has never been dialed. `ready`
-    /// waiting on stream capacity is not treated as death: that wait happens
-    /// without holding the slot lock. Handshake and wait-for-ready backoff
-    /// also run without the lock, so a down peer cannot stall other RPCs on
-    /// the same slot. A `GOAWAY` that races after `ready` is handled by
-    /// discarding that generation and retrying once on unary and
-    /// server-streaming.
-    async fn acquire(
-        self: &Arc<Self>,
-        wait_for_ready: bool,
-        observer: Option<&dyn LifecycleObserver>,
-    ) -> Result<LiveConn, Status> {
-        let i = self.pick()?;
-        let mut attempt = 0usize;
-        loop {
-            let (handle, lease, r#gen, driver) = {
-                let slot = self.slot(i)?.lock().await;
-                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
-            };
-            if let Some(handle) = handle {
-                if let Ok(ready) = handle.ready().await {
-                    return Ok(LiveConn {
-                        send: ready,
-                        lease,
-                        driver,
-                        slot: i,
-                        r#gen,
-                    });
-                }
-            }
-            drop(lease);
-            let dial_start = tokio::time::Instant::now();
-            match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
-                Ok(dialed) => {
-                    if let Some(obs) = observer {
-                        if r#gen > 0 || attempt > 0 {
-                            let target_desc = self.endpoint.describe();
-                            let attempt_u32 =
-                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
-                            obs.on_reconnect(&ReconnectEvent {
-                                target: &target_desc,
-                                attempt: attempt_u32,
-                                duration: dial_start.elapsed(),
-                                status: None,
-                            });
-                        }
-                    }
-                    let mut slot = self.slot(i)?.lock().await;
-                    if slot.r#gen == r#gen {
-                        let send = store_dialed(&mut slot, dialed);
-                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                        let driver = slot.stop.clone();
-                        let r#gen = slot.r#gen;
-                        drop(slot);
-                        spawn_idle_watch(Arc::clone(self), i);
-                        spawn_age_watch(Arc::clone(self), i);
-                        return Ok(LiveConn {
-                            send,
-                            lease,
-                            driver,
-                            slot: i,
-                            r#gen,
-                        });
-                    }
-                    dialed.stop.send(true).ok();
-                }
-                Err(status) => {
-                    if let Some(obs) = observer {
-                        if r#gen > 0 || attempt > 0 {
-                            let target_desc = self.endpoint.describe();
-                            let attempt_u32 =
-                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
-                            obs.on_reconnect(&ReconnectEvent {
-                                target: &target_desc,
-                                attempt: attempt_u32,
-                                duration: dial_start.elapsed(),
-                                status: Some(status.code()),
-                            });
-                        }
-                    }
-                    if wait_for_ready && self.endpoint.can_redial() {
-                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
-                            .get(attempt)
-                            .copied()
-                            .unwrap_or(1000);
-                        attempt = attempt.saturating_add(1);
-                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                    } else {
-                        return Err(status);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Drop a dead generation so the next [`Self::acquire`] redials.
-    ///
-    /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
-    /// same dying sender would be handed out again. A reconnect that already
-    /// stored a newer `gen` is left alone.
-    async fn discard(&self, i: usize, r#gen: u64) {
-        let Ok(lock) = self.slot(i) else {
-            return;
-        };
-        let mut slot = lock.lock().await;
-        if slot.r#gen != r#gen {
-            return;
-        }
-        slot.send = None;
-        slot.busy = None;
-        if let Some(stop) = slot.stop.take() {
-            stop.send(true).ok();
-        }
-        slot.r#gen = slot.r#gen.wrapping_add(1);
-    }
-}
-
-fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<Bytes> {
-    if let Some(stop) = slot.stop.take() {
-        stop.send(true).ok();
-    }
-    slot.r#gen = slot.r#gen.wrapping_add(1);
-    slot.send = Some(dialed.send.clone());
-    slot.stop = Some(dialed.stop);
-    slot.busy = dialed.busy;
-    dialed.send
-}
-
-fn spawn_idle_watch(inner: Arc<ChannelInner>, i: usize) {
-    let Some(idle) = inner.dial.connection_idle() else {
-        return;
-    };
-    drop(tokio::spawn(async move {
-        let (r#gen, busy) = {
-            let Ok(slot) = inner.slot(i) else {
-                return;
-            };
-            let slot = slot.lock().await;
-            match slot.busy.as_ref() {
-                Some(busy) => (slot.r#gen, Arc::clone(busy)),
-                None => return,
-            }
-        };
-        idle_watch(inner, i, r#gen, busy, idle).await;
-    }));
-}
-
-fn spawn_age_watch(inner: Arc<ChannelInner>, i: usize) {
-    let Some(age) = inner.dial.connection_age() else {
-        return;
-    };
-    let grace = inner.dial.age_grace();
-    drop(tokio::spawn(async move {
-        let r#gen = {
-            let Ok(slot) = inner.slot(i) else {
-                return;
-            };
-            let slot = slot.lock().await;
-            // Lazy slots have no socket yet; age starts at handshake.
-            if slot.send.is_none() {
-                return;
-            }
-            slot.r#gen
-        };
-        let seed = (i as u64).wrapping_shl(32).wrapping_add(r#gen);
-        tokio::time::sleep(crate::config::jitter_age(age, seed)).await;
-        age_close(inner, i, r#gen, grace).await;
-    }));
-}
-
-async fn age_close(inner: Arc<ChannelInner>, i: usize, r#gen: u64, grace: Duration) {
-    let (old_stop, old_busy) = {
-        let Ok(lock) = inner.slot(i) else {
-            return;
-        };
-        let mut slot = lock.lock().await;
-        if slot.r#gen != r#gen {
-            return;
-        }
-        slot.send = None;
-        let busy = slot.busy.take();
-        let stop = slot.stop.take();
-        slot.r#gen = slot.r#gen.wrapping_add(1);
-        (stop, busy)
-    };
-    if let Some(busy) = old_busy {
-        tokio::select! {
-            () = busy.wait_idle() => {}
-            () = tokio::time::sleep(grace) => {}
-        }
-    }
-    if let Some(stop) = old_stop {
-        stop.send(true).ok();
-    }
-}
-
-async fn idle_watch(
-    inner: Arc<ChannelInner>,
-    i: usize,
-    r#gen: u64,
-    busy: Arc<crate::keepalive::Busy>,
-    idle: Duration,
-) {
-    loop {
-        busy.wait_idle().await;
-        tokio::select! {
-            () = tokio::time::sleep(idle) => {
-                let Ok(slot) = inner.slot(i) else {
-                    return;
-                };
-                let mut slot = slot.lock().await;
-                if slot.r#gen != r#gen {
-                    return;
-                }
-                if busy.count() != 0 {
-                    continue;
-                }
-                slot.send = None;
-                slot.busy = None;
-                if let Some(stop) = slot.stop.take() {
-                    stop.send(true).ok();
-                }
-                slot.r#gen = slot.r#gen.wrapping_add(1);
-                return;
-            }
-            () = busy.wait_busy() => {}
-        }
-    }
-}
-
-async fn handshake(
-    endpoint: &Endpoint,
-    config: ChannelConfig,
-    tls: Option<&ClientTls>,
-) -> Result<Dialed, Status> {
-    let timeout = config.handshake_timeout();
-    match tokio::time::timeout(timeout, handshake_io(endpoint, config, tls)).await {
-        Ok(result) => result,
-        Err(_) => Err(Status::unavailable(format!(
-            "connect {}: timed out after {timeout:?}",
-            endpoint.describe()
-        ))),
-    }
-}
-
-async fn handshake_io(
-    endpoint: &Endpoint,
-    config: ChannelConfig,
-    tls: Option<&ClientTls>,
-) -> Result<Dialed, Status> {
-    match endpoint {
-        Endpoint::Tcp(host) => {
-            let tcp = crate::tcp::connect(host, config.bound_local_address())
-                .await
-                .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
-            crate::tcp::tune(
-                &tcp,
-                config.tcp_keepalive_period(),
-                config.tcp_keepalive_probe_interval(),
-                config.tcp_keepalive_probe_retries(),
-            )
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-            match tls {
-                None => finish_h2(config, tcp).await,
-                Some(tls) => {
-                    let tls_stream = tls.connect(tcp).await?;
-                    finish_h2(config, tls_stream).await.map_err(|e| {
-                        if e.to_string().contains("connection closed") {
-                            Status::unauthenticated("tls: peer closed after handshake")
-                        } else {
-                            e
-                        }
-                    })
-                }
-            }
-        }
-        #[cfg(unix)]
-        Endpoint::Unix(path) => {
-            if tls.is_some() {
-                return Err(Status::invalid_argument(
-                    "TLS over a Unix socket is not supported",
-                ));
-            }
-            let io = UnixStream::connect(path).await.map_err(|e| {
-                Status::unavailable(format!("connect {}: {e}", endpoint.describe()))
-            })?;
-            finish_h2(config, io).await
-        }
-        Endpoint::Once => Err(Status::unavailable("channel has no address to redial")),
-    }
-}
-
-async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Dialed, Status>
-where
-    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
-{
-    let (send, mut conn) = config
-        .h2_builder()
-        .handshake(io)
-        .await
-        .map_err(|e| Status::unavailable(e.to_string()))?;
-    let (interval, timeout) = config.keepalive();
-    let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
-    // `SendRequest::ready` does not wait for SETTINGS. Drive the connection
-    // until send capacity leaves 0, which is when the peer's preface has
-    // been applied. Dropping this future on connect_timeout drops `conn`.
-    std::future::poll_fn(|cx| {
-        if send.current_max_send_streams() > 0 {
-            return Poll::Ready(Ok(()));
-        }
-        match Pin::new(&mut conn).poll(cx) {
-            Poll::Ready(result) => {
-                drop(result);
-                Poll::Ready(Err(Status::unavailable(
-                    "http/2 preface: connection closed",
-                )))
-            }
-            Poll::Pending => {
-                if send.current_max_send_streams() > 0 {
-                    Poll::Ready(Ok(()))
-                } else {
-                    Poll::Pending
-                }
-            }
-        }
-    })
-    .await?;
-    let (stop_tx, stop_rx) = watch::channel(false);
-    let busy = (config.connection_idle().is_some() || config.connection_age().is_some())
-        .then(crate::keepalive::Busy::new);
-    drop(tokio::spawn(async move {
-        tokio::select! {
-            r = conn => {
-                drop(r);
-            }
-            _ = crate::keepalive::wait_opt(dead) => {}
-            _ = crate::keepalive::wait(stop_rx) => {}
-        }
-    }));
-    Ok(Dialed {
-        send,
-        stop: stop_tx,
-        busy,
-    })
-}
-
-fn attach_conn<T>(
-    response: crate::request::Response<Streaming<T>>,
-    lease: Option<crate::keepalive::Lease>,
-    driver: Option<watch::Sender<bool>>,
-    reset: Option<watch::Sender<bool>>,
-    rpc_slot: Option<OwnedSemaphorePermit>,
-) -> crate::request::Response<Streaming<T>> {
-    response.map(|stream| {
-        stream
-            .bind_conn(lease, driver, reset)
-            .bind_rpc_slot(rpc_slot)
-    })
 }
 
 /// Tracks commitment state of an RPC attempt according to gRFC A6.
