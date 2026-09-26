@@ -6361,6 +6361,13 @@
         "FL-07",
         "FL-08",
         "FL-09"
+      ],
+      "status": "done",
+      "implementer": "muse-code",
+      "evidence": [
+        "commit be2c1e45 reconciles grfc.md, status.md, grpc.md with 02390322/e9272edc; retry-contract.md section 1b verified against service_config.rs, client.rs and tests/policy_retry.rs",
+        "checks: cargo test -p pbrs --test documentation (18 pass); cargo test -p pbrs-grpc --test rpc --test gaps (6+11 pass)",
+        "base SHA for MX-02 and other client-side cards: be2c1e45"
       ]
     },
     {
