@@ -1252,7 +1252,15 @@
     "self-interop"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 8ba68810: server.rs (4571 lines) moved verbatim into server/{accept,connection,dispatch,router,rpc,drain}.rs declared from server.rs; lib.rs unchanged",
+    "pub(crate) widening only (cross-module items, Rpc/Single/Prepared fields, four Router fields assigned by into_router); one fmt-required reflow; per-module verbatim check green",
+    "serving.rs needles re-pointed via concat with zero assertion changes; ownership table records accept SV, connection H2, dispatch SV, drain RX, router SV, rpc SV",
+    "checks: format, clippy lib -D warnings clean, rustdoc -D warnings clean, native-lib (248), native-rpc, native-serving (1097), native-hostile, self-interop PASS, tls serial (20); one pre-existing parallel-only tls flake as on base"
+   ]
   },
   {
    "id": "SB-01",
