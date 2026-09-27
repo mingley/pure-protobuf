@@ -18,13 +18,14 @@
 
 mod common;
 
-use common::{Echo, ServerGuard, greeter_client, req};
-use pbrs_grpc::hello::{GreeterClient, GreeterServer};
+use common::{Echo, ServerGuard, greeter_client, reply, req};
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::lb::PickFirst;
 use pbrs_grpc::resolver::{
     BuiltResolver, DnsConfig, DnsLookup, Resolution, ResolvedAddress, ResolverConfig,
     parse_target_uri, resolver_for,
 };
-use pbrs_grpc::{Channel, ClientTls, Request, ServerTls};
+use pbrs_grpc::{Channel, ClientTls, Code, Request, Response, ServerTls, Status, Streaming};
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
@@ -493,5 +494,403 @@ async fn unix_abstract_uri_dials_on_linux() {
     )
     .await
     .expect("abstract uri");
+    assert_eq!(say_hello(channel).await, "ada");
+}
+
+/// Named Greeter: replies carry the server tag, unaries counted.
+#[derive(Clone)]
+struct Named {
+    tag: &'static str,
+    unaries: Arc<AtomicUsize>,
+}
+
+impl Greeter for Named {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.unaries.fetch_add(1, Ordering::SeqCst);
+        Ok(Response::new(reply(format!(
+            "{}:{}",
+            self.tag,
+            request.get_ref().name()
+        ))))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        // Slow second item: still on the wire when a handoff lands.
+        let (tx, stream) = Streaming::channel(4);
+        let name = request.get_ref().name().to_string();
+        let tag = self.tag;
+        drop(tokio::spawn(async move {
+            let _ = tx.send(reply(format!("{tag}:1:{name}"))).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let _ = tx.send(reply(format!("{tag}:2:{name}"))).await;
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+async fn serve_named(tag: &'static str) -> (SocketAddr, Arc<AtomicUsize>, ServerGuard) {
+    let unaries = Arc::new(AtomicUsize::new(0));
+    let worker = Arc::clone(&unaries);
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Named {
+            tag,
+            unaries: worker,
+        })
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    (addr, unaries, ServerGuard(handle))
+}
+
+async fn unary_tag_is(client: &GreeterClient, want: &str) {
+    assert_eq!(
+        client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect("unary")
+            .into_inner()
+            .message(),
+        want
+    );
+}
+
+#[tokio::test]
+async fn pick_first_sticks_then_fails_over() {
+    let (addr_a, unaries_a, guard_a) = serve_named("A").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let channel = Channel::connect_uri(
+        &format!(
+            "ipv4:{}:{},{}:{}",
+            addr_a.ip(),
+            addr_a.port(),
+            addr_b.ip(),
+            addr_b.port()
+        ),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    let client = GreeterClient::new(channel);
+
+    // Stickiness: every call lands on A.
+    for _ in 0..5 {
+        unary_tag_is(&client, "A:ada").await;
+    }
+    assert_eq!(unaries_a.load(Ordering::SeqCst), 5);
+    assert_eq!(unaries_b.load(Ordering::SeqCst), 0);
+
+    // Kill A: calls fail over to B (the abort lands asynchronously,
+    // so early calls may still serve from A or error once).
+    drop(guard_a);
+    let mut failed_over = false;
+    for _ in 0..20 {
+        match client.say_hello(Request::new(req("ada"))).await {
+            Ok(response) => {
+                if response.into_inner().message() == "B:ada" {
+                    failed_over = true;
+                    break;
+                }
+            }
+            Err(status) => assert_eq!(status.code(), Code::Unavailable),
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert!(failed_over);
+    for _ in 0..3 {
+        unary_tag_is(&client, "B:ada").await;
+    }
+
+    // Rebind A's port: pick_first stays on B (no flap-back).
+    let unaries_a2 = Arc::new(AtomicUsize::new(0));
+    let worker = Arc::clone(&unaries_a2);
+    let listener = TcpListener::bind(addr_a).await.expect("rebind");
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Named {
+            tag: "A",
+            unaries: worker,
+        })
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    let _guard_a2 = ServerGuard(handle);
+    for _ in 0..3 {
+        unary_tag_is(&client, "B:ada").await;
+    }
+    assert_eq!(unaries_a2.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn pick_first_skips_dead_first_address() {
+    let closed = {
+        let (addr, listener) = bind().await;
+        drop(listener);
+        addr
+    };
+    let (addr_b, _, _guard_b) = serve_named("B").await;
+    let channel = Channel::connect_uri(
+        &format!(
+            "ipv4:{}:{},{}:{}",
+            closed.ip(),
+            closed.port(),
+            addr_b.ip(),
+            addr_b.port()
+        ),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    let client = GreeterClient::new(channel);
+    // Fail-fast: the refused dial errors once, then the live address serves.
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("first dial refused");
+    assert_eq!(err.code(), Code::Unavailable);
+    unary_tag_is(&client, "B:ada").await;
+}
+
+/// Scripted A answers switching once, then repeating.
+struct SwitchA {
+    steps: tokio::sync::Mutex<Vec<Vec<SocketAddr>>>,
+}
+
+impl DnsLookup for SwitchA {
+    fn lookup(
+        &self,
+        _host: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
+        Box::pin(async move {
+            let mut steps = self.steps.lock().await;
+            if steps.len() > 1 {
+                Ok(steps.remove(0))
+            } else {
+                Ok(steps.first().cloned().unwrap_or_default())
+            }
+        })
+    }
+}
+
+fn fast_bounds() -> DnsConfig {
+    DnsConfig::new(
+        Duration::from_millis(50),
+        Duration::from_secs(1),
+        Duration::from_millis(100),
+        Duration::from_millis(50),
+        Duration::from_millis(200),
+        Duration::from_secs(1),
+    )
+    .expect("bounds")
+}
+
+#[tokio::test]
+async fn removed_address_drains_without_migrating() {
+    let (addr_a, _, _guard_a) = serve_named("A").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let dns = Arc::new(SwitchA {
+        steps: tokio::sync::Mutex::new(vec![vec![addr_a, addr_b], vec![addr_b]]),
+    });
+    let config = ResolverConfig::with_dns_provider(fast_bounds(), dns);
+    let channel = Channel::connect_uri("dns:///fl.invalid:443", config)
+        .await
+        .expect("channel");
+    let client = GreeterClient::new(channel);
+    unary_tag_is(&client, "A:ada").await;
+
+    // Slow stream starts on A; the refresh then removes A mid-stream.
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("stream")
+        .into_inner();
+    assert_eq!(
+        stream
+            .message()
+            .await
+            .expect("item")
+            .expect("some")
+            .message(),
+        "A:1:ada"
+    );
+    // Wait for the policy to move off A: new unaries land on B.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        if unaries_b.load(Ordering::SeqCst) > 0 {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "policy never moved off A"
+        );
+        match client.say_hello(Request::new(req("ada"))).await {
+            Ok(response) => {
+                if response.into_inner().message() == "B:ada" {
+                    break;
+                }
+            }
+            Err(status) => assert_eq!(status.code(), Code::Unavailable),
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    // The A stream was never migrated or killed: item 2 arrives from A.
+    assert_eq!(
+        stream
+            .message()
+            .await
+            .expect("item")
+            .expect("some")
+            .message(),
+        "A:2:ada"
+    );
+}
+
+#[tokio::test]
+async fn all_failing_fast_fails_and_wait_for_ready_recovers() {
+    let closed_a = {
+        let (addr, listener) = bind().await;
+        drop(listener);
+        addr
+    };
+    let closed_b = {
+        let (addr, listener) = bind().await;
+        drop(listener);
+        addr
+    };
+    let channel = Channel::connect_uri(
+        &format!(
+            "ipv4:{}:{},{}:{}",
+            closed_a.ip(),
+            closed_a.port(),
+            closed_b.ip(),
+            closed_b.port()
+        ),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    let client = GreeterClient::new(channel.clone());
+
+    // Fail-fast errors at once.
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("nothing listening");
+    assert_eq!(err.code(), Code::Unavailable);
+
+    // ... and the call deadline bounds a wait-for-ready wait.
+    let mut request = Request::new(req("ada"));
+    request.set_wait_for_ready(true);
+    request.set_timeout(Duration::from_millis(200));
+    let err = GreeterClient::new(channel.clone())
+        .say_hello(request)
+        .await
+        .expect_err("deadline bounds the wait");
+    assert_eq!(err.code(), Code::DeadlineExceeded);
+
+    // Wait-for-ready outlives the outage: bind B's port mid-wait.
+    let mut request = Request::new(req("ada"));
+    request.set_wait_for_ready(true);
+    let mut slow = client.say_hello(request);
+    tokio::select! {
+        biased;
+        _ = &mut slow => panic!("recovered before the server existed"),
+        () = tokio::time::sleep(Duration::from_millis(300)) => {}
+    }
+    let listener = TcpListener::bind(closed_b).await.expect("rebind");
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Named {
+            tag: "B",
+            unaries: Arc::new(AtomicUsize::new(0)),
+        })
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let reply = tokio::time::timeout(Duration::from_secs(10), slow)
+        .await
+        .expect("recovered in time")
+        .expect("unary")
+        .into_inner();
+    assert_eq!(reply.message(), "B:ada");
+}
+
+#[tokio::test]
+async fn shuffle_distributes_first_pick() {
+    let config = pbrs_grpc::ServiceConfig::parse(
+        r#"{"loadBalancingConfig": [{"pick_first": {"shuffleAddressList": true}}]}"#,
+    )
+    .expect("parses");
+    let addrs = vec![
+        ResolvedAddress::Tcp("10.0.0.1:80".parse().expect("addr")),
+        ResolvedAddress::Tcp("10.0.0.2:80".parse().expect("addr")),
+    ];
+    let mut firsts = [0u32; 2];
+    for _ in 0..50 {
+        let policy = PickFirst::from_config(Some(&config));
+        policy.update(addrs.clone()).await;
+        match policy.pick().await {
+            pbrs_grpc::lb::Pick::Use(ResolvedAddress::Tcp(sock)) => {
+                let last = sock.ip().to_string();
+                if last.starts_with("10.0.0.1") {
+                    firsts[0] += 1;
+                } else {
+                    firsts[1] += 1;
+                }
+            }
+            _ => panic!("expected an address pick"),
+        }
+    }
+    assert!(
+        firsts[0] >= 5 && firsts[1] >= 5,
+        "shuffle split: {firsts:?}"
+    );
+}
+
+#[tokio::test]
+async fn tls_failover_keeps_identity() {
+    let tls =
+        ServerTls::new(pbrs_grpc::Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity"))
+            .expect("server tls");
+    let closed = {
+        let (addr, listener) = bind().await;
+        drop(listener);
+        addr
+    };
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let channel = Channel::connect_tls_uri(
+        &format!(
+            "ipv4:{}:{},{}:{}",
+            closed.ip(),
+            closed.port(),
+            addr.ip(),
+            addr.port()
+        ),
+        ClientTls::ca("localhost", CA).expect("client tls"),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("tls uri");
+    let client = GreeterClient::new(channel.clone());
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("first dial refused");
+    // Failover dials TLS with the configured name, not the dead IP.
     assert_eq!(say_hello(channel).await, "ada");
 }

@@ -607,6 +607,9 @@ impl ChannelInner {
                             store_dialed(&mut slot, dialed);
                             None
                         };
+                        // LB slots always track busyness: handoff drains
+                        // wait on it even without idle/age configured.
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
                         let send = slot.send.clone().ok_or_else(|| {
                             Status::unavailable("connection vanished after store")
                         })?;

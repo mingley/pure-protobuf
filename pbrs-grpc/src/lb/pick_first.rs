@@ -176,7 +176,8 @@ impl PickFirst {
 
 /// Backoff for an exhausted round: 1s × 1.6^rounds ± 20%, capped.
 fn backoff_for(rounds: u32) -> Duration {
-    let scaled = BACKOFF_BASE.as_secs_f64() * BACKOFF_MULTIPLIER.powi(rounds.min(16) as i32);
+    let scaled = BACKOFF_BASE.as_secs_f64()
+        * BACKOFF_MULTIPLIER.powi(i32::try_from(rounds.min(16)).unwrap_or(16));
     let capped = scaled.min(BACKOFF_MAX.as_secs_f64());
     // Deterministic ±20% jitter from a counter-free hash of the rounds.
     let wobble = 0.8 + 0.4 * f64::from((rounds.wrapping_mul(2_654_435_761) >> 9) % 1000) / 1000.0;
@@ -189,7 +190,7 @@ fn shuffle_from(addresses: &mut [ResolvedAddress], start: usize) {
     let mut i = addresses.len();
     while i > start + 1 {
         rng = xorshift_next(rng);
-        let j = start + (rng as usize % (i - start));
+        let j = start + (usize::try_from(rng).unwrap_or(usize::MAX) % (i - start));
         i -= 1;
         addresses.swap(i, j);
     }
