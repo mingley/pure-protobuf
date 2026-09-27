@@ -6,6 +6,7 @@
 
 #![allow(
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     clippy::let_underscore_must_use,
     clippy::unwrap_used,
     clippy::expect_used,
@@ -16,6 +17,9 @@
     clippy::cast_sign_loss,
     clippy::too_many_lines,
     clippy::unimplemented,
+    // Deferred `start` futures intentionally wrap sync spawners in async
+    // blocks: unwrapping would spawn eagerly and break test ordering.
+    clippy::async_yields_async,
     unreachable_pub,
     reason = "integration tests"
 )]

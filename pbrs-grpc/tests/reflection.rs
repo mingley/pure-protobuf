@@ -2,6 +2,7 @@
 
 #![allow(
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     clippy::let_underscore_must_use,
     clippy::unwrap_used,
     clippy::expect_used,

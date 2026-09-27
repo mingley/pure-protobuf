@@ -2,7 +2,7 @@
 //!
 //! [`OrcaLoadReport`] is the `xds.data.orca.v3` wire message, generated from
 //! the vendored proto. Backends attach it to the `endpoint-load-metrics-bin`
-//! trailer ([`report`]); the `OpenRcaService/StreamCoreMetrics` stubs below
+//! trailer (`report`); the `OpenRcaService/StreamCoreMetrics` stubs below
 //! serve and consume out-of-band reports. `weighted_round_robin` (A58) reads
 //! both; see [`crate::lb`] once the policy lands.
 

@@ -85,9 +85,7 @@ impl TxtLookup for SystemTxt {
                 .map_err(|_| {
                     io::Error::new(io::ErrorKind::TimedOut, "dns txt query timed out")
                 })??;
-            let datagram = buf
-                .get(..len)
-                .ok_or_else(|| invalid("short datagram"))?;
+            let datagram = buf.get(..len).ok_or_else(|| invalid("short datagram"))?;
             parse_response(datagram, id)
         })
     }
@@ -183,7 +181,9 @@ fn parse_response(buf: &[u8], want_id: u16) -> Result<Vec<String>, io::Error> {
             .ok_or_else(|| invalid("short rr"))?;
         let rtype = u16::from_be_bytes([fixed[0], fixed[1]]);
         let rdlen = usize::from(u16::from_be_bytes([fixed[8], fixed[9]]));
-        let rdata_end = end.checked_add(rdlen).ok_or_else(|| invalid("short rdata"))?;
+        let rdata_end = end
+            .checked_add(rdlen)
+            .ok_or_else(|| invalid("short rdata"))?;
         let rdata = buf
             .get(end..rdata_end)
             .ok_or_else(|| invalid("short rdata"))?;
@@ -268,7 +268,7 @@ mod tests {
         out.extend_from_slice(&[0x00, 0x01, 0x00, an, 0x00, 0x00, 0x00, 0x00]);
         // Question: _grpc_config.x.test TXT IN (name never inspected).
         for label in ["_grpc_config", "x", "test"] {
-            out.push(label.len() as u8);
+            out.push(u8::try_from(label.len()).expect("label fits"));
             out.extend_from_slice(label.as_bytes());
         }
         out.extend_from_slice(&[0x00, 0x00, 0x10, 0x00, 0x01]);

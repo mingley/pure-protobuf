@@ -1890,15 +1890,47 @@ async fn dial_resolved(
         ResolvedAddress::UnixAbstract(name) => {
             #[cfg(target_os = "linux")]
             {
+                use std::os::unix::ffi::OsStrExt as _;
+
                 if tls.is_some() {
                     return Err(Status::invalid_argument(
                         "TLS over a Unix socket is not supported",
                     ));
                 }
-                let addr = tokio::net::unix::SocketAddr::from_abstract_name(name)
+                // tokio has no abstract-namespace constructor; socket2
+                // builds one from a leading-NUL path instead.
+                let mut raw = Vec::with_capacity(name.len() + 1);
+                raw.push(0u8);
+                raw.extend_from_slice(&name);
+                let addr = socket2::SockAddr::unix(std::path::Path::new(
+                    std::ffi::OsStr::from_bytes(&raw),
+                ))
+                .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                let socket =
+                    socket2::Socket::new(socket2::Domain::UNIX, socket2::Type::STREAM, None)
+                        .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                socket
+                    .set_nonblocking(true)
                     .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
-                let io = UnixStream::connect_addr(&addr)
+                // EINPROGRESS means "wait for writable"; anything else
+                // fails fast. (`ErrorKind::InProgress` is still
+                // unstable, so match the errno: 36 on every Linux arch.)
+                const EINPROGRESS: i32 = 36;
+                match socket.connect(&addr) {
+                    Ok(()) => {}
+                    Err(e) if e.raw_os_error() == Some(EINPROGRESS) => {}
+                    Err(e) => {
+                        return Err(Status::unavailable(format!("connect {display}: {e}")));
+                    }
+                }
+                let std_stream: std::os::unix::net::UnixStream = socket.into();
+                let io = UnixStream::from_std(std_stream)
+                    .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                io.ready(tokio::io::Interest::WRITABLE)
                     .await
+                    .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                // A failed nonblocking connect surfaces here, not above.
+                io.peer_addr()
                     .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
                 finish_h2(config, io).await
             }

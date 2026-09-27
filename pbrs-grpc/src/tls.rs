@@ -602,6 +602,6 @@ mod handshake {
             Err(e) => e,
         };
         assert_eq!(err.code(), Code::Unauthenticated, "{err}");
-        let _ = server_task.await;
+        let _server_outcome = server_task.await;
     }
 }

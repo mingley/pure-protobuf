@@ -120,11 +120,13 @@ impl EndpointWeight {
             self.non_empty_since = None;
             return 0.0;
         }
-        if !blackout.is_zero()
-            && let Some(since) = self.non_empty_since
-            && now.duration_since(since) < blackout
-        {
-            return 0.0;
+        // No let-chains: MSRV 1.85 predates them (E0658).
+        if !blackout.is_zero() {
+            if let Some(since) = self.non_empty_since {
+                if now.duration_since(since) < blackout {
+                    return 0.0;
+                }
+            }
         }
         self.weight
     }
@@ -455,10 +457,11 @@ impl WeightedRoundRobin {
     /// the weight blackout, as a re-READY does.
     pub async fn note_success(&self, addr: &ResolvedAddress) {
         let mut state = self.state.lock().await;
-        if state.down.remove(addr).is_some()
-            && let Some(weight) = state.weights.get_mut(addr)
-        {
-            weight.non_empty_since = None;
+        // No let-chains: MSRV 1.85 predates them (E0658).
+        if state.down.remove(addr).is_some() {
+            if let Some(weight) = state.weights.get_mut(addr) {
+                weight.non_empty_since = None;
+            }
         }
     }
 
