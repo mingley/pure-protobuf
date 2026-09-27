@@ -71,6 +71,16 @@ fn main() {
         )
         .expect("codegen grpc.reflection.v1");
 
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .include_source_info(true)
+        .compile_descriptor_set(
+            proto_dir.join("channelz.fds"),
+            &["grpc/channelz/v1/channelz.proto"],
+            &[&proto_dir],
+        )
+        .expect("codegen grpc.channelz.v1");
+
     // google.rpc.Status and the standard error-detail messages. Compiled
     // separately so each FileDescriptorSet only pulls the WKT it imports
     // (Any vs Duration) and the two generated files can live in sibling

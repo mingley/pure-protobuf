@@ -1060,6 +1060,7 @@ pub mod telemetry;
 #[forbid(unsafe_code)]
 pub mod timeout;
 
+pub mod channelz;
 pub mod health;
 pub mod hello;
 pub mod orca;
