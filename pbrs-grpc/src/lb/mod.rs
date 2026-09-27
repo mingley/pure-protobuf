@@ -7,8 +7,9 @@
 //! unregistered names are skipped, never fatal: an empty selection
 //! means no listed policy is available. Concrete policies ship per
 //! card: `pick_first` (FL-03/CH-04), `round_robin` (FL-04),
-//! `weighted_round_robin` (CH-06); ring hash and the rest register
-//! as they land.
+//! `weighted_round_robin` (CH-06), `ring_hash`, `least_request`,
+//! `random_subsetting_experimental` (CH-07); the rest register as
+//! they land.
 
 #![allow(
     clippy::disallowed_types,
@@ -20,20 +21,28 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 mod health;
+mod least_request;
 mod pick_first;
 mod ring_hash;
 mod round_robin;
+mod subset;
 mod wrr;
 
 pub use health::{HealthSignal, disables_health_check, signal_for};
+pub(crate) use least_request::LrTrack;
+pub(crate) use least_request::ensure_registered as ensure_least_request_registered;
+pub use least_request::{LeastRequest, LeastRequestFactory};
 pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
 pub(crate) use ring_hash::ensure_registered as ensure_ring_hash_registered;
+pub(crate) use ring_hash::xxh64;
 pub use ring_hash::{RingHash, RingHashFactory};
 pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
 pub use round_robin::{RoundRobin, RoundRobinFactory};
+pub(crate) use subset::ensure_registered as ensure_random_subsetting_registered;
+pub use subset::{RandomSubsetting, RandomSubsettingFactory};
 pub(crate) use wrr::ensure_registered as ensure_weighted_round_robin_registered;
 pub use wrr::{WeightedRoundRobin, WeightedRoundRobinFactory, WrrStats};
 
@@ -55,9 +64,9 @@ pub struct SelectedPolicy {
 }
 
 /// A running LB policy on a resolver-managed channel. Variants grow
-/// as policies land (ring hash, …); the pool dispatches acquire
-/// per variant because connection shapes differ (one sticky slot
-/// versus one subchannel per address).
+/// as policies land; the pool dispatches acquire per variant
+/// because connection shapes differ (one sticky slot versus one
+/// subchannel per address).
 #[derive(Clone, Debug)]
 pub enum LbPolicy {
     /// One sticky connection with ordered failover.
@@ -68,6 +77,47 @@ pub enum LbPolicy {
     WeightedRoundRobin(std::sync::Arc<WeightedRoundRobin>),
     /// Consistent hashing over endpoints.
     RingHash(std::sync::Arc<RingHash>),
+    /// Least-loaded of sampled candidates.
+    LeastRequest(std::sync::Arc<LeastRequest>),
+    /// Rendezvous subsetting over a child policy.
+    RandomSubsetting(std::sync::Arc<RandomSubsetting>),
+}
+
+/// Build a running policy from one config entry. Used for the
+/// top-level selection and for subset children alike, so both paths
+/// construct identical runtimes. Entries without a runtime in this
+/// build (`Priority`, `Unknown`) fail; callers surface that as an
+/// invalid selection.
+pub(crate) fn instantiate(
+    entry: &crate::service_config::LbPolicyConfig,
+) -> Result<LbPolicy, crate::status::Status> {
+    use crate::service_config::LbPolicyConfig;
+    match entry {
+        LbPolicyConfig::PickFirst {
+            shuffle_address_list,
+        } => Ok(LbPolicy::PickFirst(PickFirst::with_shuffle(
+            *shuffle_address_list,
+        ))),
+        LbPolicyConfig::RoundRobin => Ok(LbPolicy::RoundRobin(RoundRobin::new())),
+        LbPolicyConfig::WeightedRoundRobin(config) => Ok(LbPolicy::WeightedRoundRobin(
+            WeightedRoundRobin::with_config(config.clone()),
+        )),
+        LbPolicyConfig::RingHash(config) => {
+            Ok(LbPolicy::RingHash(RingHash::with_config(config.clone())))
+        }
+        LbPolicyConfig::LeastRequest(config) => Ok(LbPolicy::LeastRequest(
+            LeastRequest::with_config(config.clone()),
+        )),
+        LbPolicyConfig::RandomSubsetting(config) => Ok(LbPolicy::RandomSubsetting(
+            RandomSubsetting::with_config(config)?,
+        )),
+        LbPolicyConfig::Priority => Err(crate::status::Status::unimplemented(
+            "priority LB has no runtime in this build",
+        )),
+        LbPolicyConfig::Unknown(name) => Err(crate::status::Status::invalid_argument(format!(
+            "LB policy {name:?} has no runtime in this build"
+        ))),
+    }
 }
 
 impl LbPolicy {
@@ -78,6 +128,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.update(addresses).await,
             Self::WeightedRoundRobin(policy) => policy.update(addresses).await,
             Self::RingHash(policy) => policy.update(addresses).await,
+            Self::LeastRequest(policy) => policy.update(addresses).await,
+            Self::RandomSubsetting(policy) => policy.update(addresses).await,
         }
     }
 
@@ -89,6 +141,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.watch(),
             Self::WeightedRoundRobin(policy) => policy.watch(),
             Self::RingHash(policy) => policy.watch(),
+            Self::LeastRequest(policy) => policy.watch(),
+            Self::RandomSubsetting(policy) => policy.watch(),
         }
     }
 
@@ -100,6 +154,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.note_health_pending(addr).await,
             Self::WeightedRoundRobin(policy) => policy.note_health_pending(addr).await,
             Self::RingHash(policy) => policy.note_health_pending(addr).await,
+            Self::LeastRequest(policy) => policy.note_health_pending(addr).await,
+            Self::RandomSubsetting(policy) => policy.note_health_pending(addr).await,
         }
     }
 
@@ -110,6 +166,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.note_health_gone(addr).await,
             Self::WeightedRoundRobin(policy) => policy.note_health_gone(addr).await,
             Self::RingHash(policy) => policy.note_health_gone(addr).await,
+            Self::LeastRequest(policy) => policy.note_health_gone(addr).await,
+            Self::RandomSubsetting(policy) => policy.note_health_gone(addr).await,
         }
     }
 
@@ -120,6 +178,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.note_health(addr, signal).await,
             Self::WeightedRoundRobin(policy) => policy.note_health(addr, signal).await,
             Self::RingHash(policy) => policy.note_health(addr, signal).await,
+            Self::LeastRequest(policy) => policy.note_health(addr, signal).await,
+            Self::RandomSubsetting(policy) => policy.note_health(addr, signal).await,
         }
     }
 
@@ -130,6 +190,8 @@ impl LbPolicy {
             Self::RoundRobin(policy) => policy.health_of(addr).await,
             Self::WeightedRoundRobin(policy) => policy.health_of(addr).await,
             Self::RingHash(policy) => policy.health_of(addr).await,
+            Self::LeastRequest(policy) => policy.health_of(addr).await,
+            Self::RandomSubsetting(policy) => policy.health_of(addr).await,
         }
     }
 
@@ -145,7 +207,104 @@ impl LbPolicy {
     ) {
         match self {
             Self::WeightedRoundRobin(policy) => policy.note_orca_report(addr, report, oob).await,
-            Self::PickFirst(_) | Self::RoundRobin(_) | Self::RingHash(_) => {}
+            Self::RandomSubsetting(policy) => policy.note_orca_report(addr, report, oob).await,
+            Self::PickFirst(_)
+            | Self::RoundRobin(_)
+            | Self::RingHash(_)
+            | Self::LeastRequest(_) => {}
+        }
+    }
+
+    /// Pick an address. Ring children need [`Self::pick_hash`].
+    pub async fn pick(&self) -> Pick {
+        match self {
+            Self::PickFirst(policy) => policy.pick().await,
+            Self::RoundRobin(policy) => policy.pick().await,
+            Self::WeightedRoundRobin(policy) => policy.pick().await,
+            Self::LeastRequest(policy) => policy.pick().await,
+            Self::RandomSubsetting(policy) => policy.pick().await,
+            Self::RingHash(policy) => policy.pick_hash(None).await,
+        }
+    }
+
+    /// Pick with a request hash. Only ring policies (and subsets
+    /// over them) use the hash; the rest delegate to [`Self::pick`].
+    pub async fn pick_hash(&self, hash: Option<u64>) -> Pick {
+        match self {
+            Self::RingHash(policy) => policy.pick_hash(hash).await,
+            Self::RandomSubsetting(policy) => policy.pick_hash(hash).await,
+            Self::PickFirst(policy) => policy.pick().await,
+            Self::RoundRobin(policy) => policy.pick().await,
+            Self::WeightedRoundRobin(policy) => policy.pick().await,
+            Self::LeastRequest(policy) => policy.pick().await,
+        }
+    }
+
+    /// Record a successful dial on an address.
+    pub async fn note_success(&self, addr: &crate::resolver::ResolvedAddress) {
+        match self {
+            Self::PickFirst(policy) => policy.note_success(addr).await,
+            Self::RoundRobin(policy) => policy.note_success(addr).await,
+            Self::WeightedRoundRobin(policy) => policy.note_success(addr).await,
+            Self::RingHash(policy) => policy.note_success(addr).await,
+            Self::LeastRequest(policy) => policy.note_success(addr).await,
+            Self::RandomSubsetting(policy) => policy.note_success(addr).await,
+        }
+    }
+
+    /// Record a failed dial on an address. `pick_first` tracks one
+    /// sticky target, so it ignores which address failed.
+    pub async fn note_failure(
+        &self,
+        addr: &crate::resolver::ResolvedAddress,
+        status: crate::status::Status,
+    ) {
+        match self {
+            Self::PickFirst(policy) => policy.note_failure(status).await,
+            Self::RoundRobin(policy) => policy.note_failure(addr, status).await,
+            Self::WeightedRoundRobin(policy) => policy.note_failure(addr, status).await,
+            Self::RingHash(policy) => policy.note_failure(addr, status).await,
+            Self::LeastRequest(policy) => policy.note_failure(addr, status).await,
+            Self::RandomSubsetting(policy) => policy.note_failure(addr, status).await,
+        }
+    }
+
+    /// OOB reporting interval when the policy (or subset child)
+    /// enables OOB; `None` means per-call reports.
+    pub async fn wants_oob(&self) -> Option<std::time::Duration> {
+        match self {
+            Self::WeightedRoundRobin(policy) => policy.wants_oob().await,
+            Self::RandomSubsetting(policy) => policy.wants_oob().await,
+            _ => None,
+        }
+    }
+
+    /// Claim the OOB pump slot for an address.
+    pub async fn note_oob_started(&self, addr: &crate::resolver::ResolvedAddress) -> bool {
+        match self {
+            Self::WeightedRoundRobin(policy) => policy.note_oob_started(addr).await,
+            Self::RandomSubsetting(policy) => policy.note_oob_started(addr).await,
+            _ => false,
+        }
+    }
+
+    /// Release the OOB pump slot for an address.
+    pub async fn note_oob_gone(&self, addr: &crate::resolver::ResolvedAddress) {
+        match self {
+            Self::WeightedRoundRobin(policy) => policy.note_oob_gone(addr).await,
+            Self::RandomSubsetting(policy) => policy.note_oob_gone(addr).await,
+            _ => {}
+        }
+    }
+
+    /// Start tracking one unary attempt for least-request counts
+    /// (through subset children). Other policies yield an empty
+    /// guard that counts nothing.
+    pub async fn track_start(&self, addr: &crate::resolver::ResolvedAddress) -> LrTrack {
+        match self {
+            Self::LeastRequest(policy) => policy.track_start(addr).await,
+            Self::RandomSubsetting(policy) => policy.track_start(addr).await,
+            _ => LrTrack::empty(),
         }
     }
 }

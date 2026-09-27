@@ -6,10 +6,11 @@ use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::health::{HealthCheckRequest, HealthCheckResponse};
 use crate::lb::{
-    HealthSignal, LbPolicy, Pick, PickFirst, RingHash, RoundRobin, WeightedRoundRobin,
-    disables_health_check, ensure_pick_first_registered, ensure_ring_hash_registered,
-    ensure_round_robin_registered, ensure_weighted_round_robin_registered, select_lb_policy,
-    signal_for, transient_backoff,
+    HealthSignal, LbPolicy, LeastRequest, Pick, PickFirst, RandomSubsetting, RingHash, RoundRobin,
+    WeightedRoundRobin, disables_health_check, ensure_least_request_registered,
+    ensure_pick_first_registered, ensure_random_subsetting_registered, ensure_ring_hash_registered,
+    ensure_round_robin_registered, ensure_weighted_round_robin_registered, instantiate,
+    select_lb_policy, signal_for, transient_backoff,
 };
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::metadata::Metadata;
@@ -266,7 +267,9 @@ pub(crate) async fn connect_uri_inner(
     }
     // Effective LB policy: explicit selection wins, else pick_first
     // is the default. Anything selected but unrunnable fails fast.
+    ensure_least_request_registered();
     ensure_pick_first_registered();
+    ensure_random_subsetting_registered();
     ensure_ring_hash_registered();
     ensure_round_robin_registered();
     ensure_weighted_round_robin_registered();
@@ -278,26 +281,15 @@ pub(crate) async fn connect_uri_inner(
             Some(select_lb_policy(&state.config))
         }
     }) {
-        Some(Some(selected)) if selected.name == "pick_first" => Some(LbPolicy::PickFirst(
-            PickFirst::from_config(doc.as_ref().map(|state| &state.config)),
-        )),
-        Some(Some(selected)) if selected.name == "round_robin" => {
-            Some(LbPolicy::RoundRobin(RoundRobin::new()))
-        }
-        Some(Some(selected)) if selected.name == "weighted_round_robin" => {
-            Some(LbPolicy::WeightedRoundRobin(
-                WeightedRoundRobin::from_config(doc.as_ref().map(|state| &state.config)),
-            ))
-        }
-        Some(Some(selected)) if selected.name == "ring_hash" => Some(LbPolicy::RingHash(
-            RingHash::from_config(doc.as_ref().map(|state| &state.config)),
-        )),
-        Some(Some(selected)) => {
-            return Err(Status::invalid_argument(format!(
-                "loadBalancingConfig selected {:?}, which has no runtime in this build",
-                selected.name
-            )));
-        }
+        Some(Some(selected)) => match instantiate(&selected.policy) {
+            Ok(lb) => Some(lb),
+            Err(_) => {
+                return Err(Status::invalid_argument(format!(
+                    "loadBalancingConfig selected {:?}, which has no runtime in this build",
+                    selected.name
+                )));
+            }
+        },
         Some(None) => {
             return Err(Status::invalid_argument(
                 "loadBalancingConfig lists no registered policy",
@@ -310,6 +302,8 @@ pub(crate) async fn connect_uri_inner(
         Some(LbPolicy::RoundRobin(_))
             | Some(LbPolicy::WeightedRoundRobin(_))
             | Some(LbPolicy::RingHash(_))
+            | Some(LbPolicy::LeastRequest(_))
+            | Some(LbPolicy::RandomSubsetting(_))
     )
     .then(|| Arc::new(RrTable::new()));
     let initial_addrs = built.initial.addresses().to_vec();
@@ -528,6 +522,14 @@ impl ChannelInner {
                 LbPolicy::RingHash(ring) => {
                     return self
                         .acquire_rh(ring, hash, wait_for_ready, observer, health)
+                        .await;
+                }
+                LbPolicy::LeastRequest(lr) => {
+                    return self.acquire_lr(lr, wait_for_ready, observer, health).await;
+                }
+                LbPolicy::RandomSubsetting(subset) => {
+                    return self
+                        .acquire_subset(subset, hash, wait_for_ready, observer, health)
                         .await;
                 }
             }
@@ -1000,7 +1002,7 @@ impl ChannelInner {
                 if let Ok(ready) = handle.ready().await {
                     if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
                         // OOB reports are advisory and never gate reuse.
-                        spawn_oob_watch(self, policy, &addr, &ready, &driver).await;
+                        spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
                             lease,
@@ -1044,7 +1046,7 @@ impl ChannelInner {
                             continue;
                         }
                         // OOB reports are advisory and never gate dials.
-                        spawn_oob_watch(self, policy, &addr, &send, &driver).await;
+                        spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -1193,6 +1195,306 @@ impl ChannelInner {
                             // Unhealthy or died while waiting: re-hash on.
                             continue;
                         }
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acquire through least_request: sample candidates and take
+    /// the least-loaded subchannel, one connection each. Connection
+    /// handling matches [`Self::acquire_rr`]; in-flight counts move
+    /// via guards owned by the caller, not here.
+    async fn acquire_lr(
+        self: &Arc<Self>,
+        policy: &Arc<LeastRequest>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let lb = LbPolicy::LeastRequest(Arc::clone(policy));
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no least_request table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick().await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: resample on.
+                            continue;
+                        }
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acquire through random_subsetting: pick through the child
+    /// policy over the rendezvous subset, one connection each.
+    /// Connection handling matches [`Self::acquire_rr`]; the hash
+    /// passes through for ring children. OOB pumps run when the
+    /// child wants them.
+    async fn acquire_subset(
+        self: &Arc<Self>,
+        policy: &Arc<RandomSubsetting>,
+        hash: Option<u64>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let lb = LbPolicy::RandomSubsetting(Arc::clone(policy));
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no random_subsetting table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick_hash(hash).await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        // OOB reports are advisory and never gate reuse.
+                        spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: repick on.
+                            continue;
+                        }
+                        // OOB reports are advisory and never gate dials.
+                        spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -1856,7 +2158,7 @@ struct OobWatch {
     wire: crate::config::Wire,
     frame: Bytes,
     addr: ResolvedAddress,
-    policy: Arc<WeightedRoundRobin>,
+    policy: LbPolicy,
     stop: watch::Receiver<bool>,
     backoff_rounds: u32,
 }
@@ -1951,24 +2253,25 @@ impl OobWatch {
     }
 }
 
-/// Spawn the OOB pump for a live WRR subchannel connection, once per
-/// address. No-ops unless the policy enables OOB, the address is
-/// known, or no pump runs yet. Unlike health, OOB never gates
-/// acquisition: reports are advisory and weights start absent.
+/// Spawn the OOB pump for a live subchannel connection, once per
+/// address. No-ops unless the policy (or subset child) enables OOB,
+/// the address is known, or no pump runs yet. Unlike health, OOB
+/// never gates acquisition: reports are advisory and weights start
+/// absent.
 async fn spawn_oob_watch(
     inner: &ChannelInner,
-    policy: &Arc<WeightedRoundRobin>,
+    lb: &LbPolicy,
     addr: &ResolvedAddress,
     send: &h2::client::SendRequest<Bytes>,
     driver: &Option<watch::Sender<bool>>,
 ) {
-    let Some(period) = policy.wants_oob().await else {
+    let Some(period) = lb.wants_oob().await else {
         return;
     };
     let Some(stop) = driver.as_ref().map(watch::Sender::subscribe) else {
         return;
     };
-    if !policy.note_oob_started(addr).await {
+    if !lb.note_oob_started(addr).await {
         return;
     }
     let mut request = OrcaLoadReportRequest::new();
@@ -1982,7 +2285,7 @@ async fn spawn_oob_watch(
     let frame = match crate::wire::encode_msg(&request, false, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
         Err(_) => {
-            policy.note_oob_gone(addr).await;
+            lb.note_oob_gone(addr).await;
             return;
         }
     };
@@ -1993,7 +2296,7 @@ async fn spawn_oob_watch(
         wire,
         frame,
         addr: addr.clone(),
-        policy: Arc::clone(policy),
+        policy: lb.clone(),
         stop,
         backoff_rounds: 0,
     };
@@ -2085,6 +2388,21 @@ pub(crate) async fn ingest_orca_report(
         return;
     };
     lb.note_orca_report(addr, &report, false).await;
+}
+
+/// Start least-request tracking for one unary attempt (A48): an
+/// RAII guard that releases the address's in-flight count on drop,
+/// so every completion path — including hedged-task aborts —
+/// balances. Empty (counting nothing) without a per-address
+/// attempt or without a least-request (sub)policy.
+pub(crate) async fn track_least_request(
+    endpoint: &Endpoint,
+    addr: Option<&ResolvedAddress>,
+) -> crate::lb::LrTrack {
+    let (Some(addr), Endpoint::Resolved { lb: Some(lb), .. }) = (addr, endpoint) else {
+        return crate::lb::LrTrack::empty();
+    };
+    lb.track_start(addr).await
 }
 
 /// Wait for an address's first Watch report: `None` while no Watch

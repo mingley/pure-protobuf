@@ -340,6 +340,10 @@ pub enum LbPolicyConfig {
     WeightedRoundRobin(WeightedRoundRobinConfig),
     /// Request-hash ring (A42/A76).
     RingHash(RingHashConfig),
+    /// Power-of-N-choices least-loaded pick (A48).
+    LeastRequest(LeastRequestConfig),
+    /// Rendezvous subsetting over a child policy (A68).
+    RandomSubsetting(RandomSubsettingConfig),
     /// Priority failover across localities (A56).
     Priority,
     /// A policy name this kernel does not implement. Selection skips it.
@@ -356,6 +360,8 @@ impl LbPolicyConfig {
             Self::RoundRobin => "round_robin",
             Self::WeightedRoundRobin(_) => "weighted_round_robin",
             Self::RingHash(_) => "ring_hash",
+            Self::LeastRequest(_) => "least_request",
+            Self::RandomSubsetting(_) => "random_subsetting_experimental",
             Self::Priority => "priority",
             Self::Unknown(name) => name,
         }
@@ -394,6 +400,32 @@ impl Default for WeightedRoundRobinConfig {
             metric_names_for_computing_utilization: Vec::new(),
         }
     }
+}
+
+/// A48 least-request tunables.
+#[derive(Clone, Debug)]
+pub struct LeastRequestConfig {
+    /// Candidates sampled per pick. Default 2, clamped to [2, 10]
+    /// at parse (below 2 rejects, above 10 clamps).
+    pub choice_count: u32,
+}
+
+impl Default for LeastRequestConfig {
+    fn default() -> Self {
+        Self { choice_count: 2 }
+    }
+}
+
+/// A68 rendezvous-subsetting tunables.
+#[derive(Clone, Debug)]
+pub struct RandomSubsettingConfig {
+    /// Subset size; required, must be > 0. Larger than the address
+    /// list keeps every address.
+    pub subset_size: u64,
+    /// Child policy list (a `loadBalancingConfig`-shaped array);
+    /// required, first registered entry wins. Nested subsetting is
+    /// rejected.
+    pub child_policy: Vec<LbPolicyConfig>,
 }
 
 /// A42/A76 ring-hash tunables.
@@ -778,6 +810,13 @@ fn parse_lb_entry(value: &serde_json::Value) -> Result<LbPolicyConfig, Status> {
         "ring_hash" | "ring_hash_experimental" => {
             Ok(LbPolicyConfig::RingHash(parse_ring_hash(config)?))
         }
+        // Same experimental alias for A48's `least_request_experimental`.
+        "least_request" | "least_request_experimental" => {
+            Ok(LbPolicyConfig::LeastRequest(parse_least_request(config)?))
+        }
+        "random_subsetting_experimental" => Ok(LbPolicyConfig::RandomSubsetting(
+            parse_random_subsetting(config)?,
+        )),
         "priority" => Ok(LbPolicyConfig::Priority),
         other => Ok(LbPolicyConfig::Unknown(other.to_owned())),
     }
@@ -873,6 +912,76 @@ fn parse_ring_hash(value: &serde_json::Value) -> Result<RingHashConfig, Status> 
         out.request_hash_header = header.to_owned();
     }
     Ok(out)
+}
+
+fn parse_least_request(value: &serde_json::Value) -> Result<LeastRequestConfig, Status> {
+    let mut out = LeastRequestConfig::default();
+    let Some(obj) = value.as_object() else {
+        return Ok(out);
+    };
+    if let Some(v) = obj.get("choiceCount") {
+        let count = v.as_u64().ok_or_else(|| {
+            Status::invalid_argument("least_request.choiceCount must be an unsigned integer")
+        })?;
+        if count < 2 {
+            return Err(Status::invalid_argument(
+                "least_request.choiceCount must be at least 2",
+            ));
+        }
+        out.choice_count = u32::try_from(count.min(10)).unwrap_or(10);
+    }
+    Ok(out)
+}
+
+fn parse_random_subsetting(value: &serde_json::Value) -> Result<RandomSubsettingConfig, Status> {
+    let obj = value.as_object().ok_or_else(|| {
+        Status::invalid_argument(
+            "random_subsetting_experimental requires subsetSize and childPolicy",
+        )
+    })?;
+    let subset_size = obj
+        .get("subsetSize")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| {
+            Status::invalid_argument(
+                "random_subsetting_experimental.subsetSize must be an unsigned integer",
+            )
+        })?;
+    if subset_size == 0 {
+        return Err(Status::invalid_argument(
+            "random_subsetting_experimental.subsetSize must be positive",
+        ));
+    }
+    let child_policy: Vec<LbPolicyConfig> = obj
+        .get("childPolicy")
+        .ok_or_else(|| {
+            Status::invalid_argument("random_subsetting_experimental requires childPolicy")
+        })
+        .and_then(|v| {
+            let list = v.as_array().ok_or_else(|| {
+                Status::invalid_argument(
+                    "random_subsetting_experimental.childPolicy must be an array",
+                )
+            })?;
+            if list.is_empty() {
+                return Err(Status::invalid_argument(
+                    "random_subsetting_experimental.childPolicy must not be empty",
+                ));
+            }
+            list.iter().map(parse_lb_entry).collect()
+        })?;
+    if child_policy
+        .iter()
+        .any(|entry| matches!(entry, LbPolicyConfig::RandomSubsetting(_)))
+    {
+        return Err(Status::invalid_argument(
+            "random_subsetting_experimental.childPolicy must not nest subsetting",
+        ));
+    }
+    Ok(RandomSubsettingConfig {
+        subset_size,
+        child_policy,
+    })
 }
 
 fn parse_json_bool(value: &serde_json::Value) -> Result<bool, Status> {
@@ -1084,6 +1193,56 @@ mod tests {
         let bad_name = r#"{"loadBalancingConfig": [{"ring_hash": {
             "requestHashHeader": "not a header"}}]}"#;
         assert!(ServiceConfig::parse(bad_name).is_err());
+    }
+
+    #[test]
+    fn least_request_clamps_rejects_and_aliases() {
+        let doc = r#"{"loadBalancingConfig": [{"least_request": {"choiceCount": 5}}]}"#;
+        let config = ServiceConfig::parse(doc).unwrap();
+        let [LbPolicyConfig::LeastRequest(lr)] = config.lb_policies() else {
+            panic!("expected least_request entry");
+        };
+        assert_eq!(lr.choice_count, 5);
+        let big = r#"{"loadBalancingConfig": [{"least_request": {"choiceCount": 99}}]}"#;
+        let config = ServiceConfig::parse(big).unwrap();
+        let [LbPolicyConfig::LeastRequest(lr)] = config.lb_policies() else {
+            panic!("expected least_request entry");
+        };
+        assert_eq!(lr.choice_count, 10);
+        let small = r#"{"loadBalancingConfig": [{"least_request": {"choiceCount": 1}}]}"#;
+        assert!(ServiceConfig::parse(small).is_err());
+        let alias = r#"{"loadBalancingConfig": [{"least_request_experimental": {}}]}"#;
+        let config = ServiceConfig::parse(alias).unwrap();
+        assert!(matches!(
+            config.lb_policies()[0],
+            LbPolicyConfig::LeastRequest(_)
+        ));
+    }
+
+    #[test]
+    fn subset_parses_child_and_rejects_nesting() {
+        let doc = r#"{"loadBalancingConfig": [{"random_subsetting_experimental": {
+            "subsetSize": 3,
+            "childPolicy": [{"no_such_policy": {}}, {"round_robin": {}}]
+        }}]}"#;
+        let config = ServiceConfig::parse(doc).unwrap();
+        let [LbPolicyConfig::RandomSubsetting(sub)] = config.lb_policies() else {
+            panic!("expected subsetting entry");
+        };
+        assert_eq!(sub.subset_size, 3);
+        assert_eq!(sub.child_policy.len(), 2);
+        let nested = r#"{"loadBalancingConfig": [{"random_subsetting_experimental": {
+            "subsetSize": 3,
+            "childPolicy": [{"random_subsetting_experimental": {
+                "subsetSize": 1, "childPolicy": [{"round_robin": {}}]}}]
+        }}]}"#;
+        assert!(ServiceConfig::parse(nested).is_err());
+        let zero = r#"{"loadBalancingConfig": [{"random_subsetting_experimental": {
+            "subsetSize": 0, "childPolicy": [{"round_robin": {}}]}}]}"#;
+        assert!(ServiceConfig::parse(zero).is_err());
+        let no_child = r#"{"loadBalancingConfig": [{"random_subsetting_experimental": {
+            "subsetSize": 3}}]}"#;
+        assert!(ServiceConfig::parse(no_child).is_err());
     }
 
     #[test]

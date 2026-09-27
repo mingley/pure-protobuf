@@ -90,6 +90,12 @@ impl PickFirst {
                 })
             })
             .unwrap_or(false);
+        Self::with_shuffle(shuffle)
+    }
+
+    /// Build with an explicit shuffle flag (entry-level construction).
+    #[must_use]
+    pub fn with_shuffle(shuffle: bool) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(State {
                 addresses: Vec::new(),

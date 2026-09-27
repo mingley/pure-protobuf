@@ -314,6 +314,11 @@ where
                 Err(status) => break Err(status),
             };
             let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
+            // A48 least-request: RAII in-flight count for this
+            // attempt; drops (releasing) on every exit path and
+            // on hedged-task abort.
+            let _lr =
+                super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref()).await;
             let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                 Ok(permit) => permit,
                 Err(status) => break Err(status),
