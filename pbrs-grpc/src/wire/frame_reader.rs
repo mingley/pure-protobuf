@@ -129,6 +129,30 @@ impl FrameReader {
         }
         crate::copy_counts::note_carry(next.len());
         self.carry.extend_from_slice(&next);
+        self.reserve_for_header();
+    }
+
+    /// Phase 1a: once the 5-byte header of the spanning frame is in
+    /// `carry`, reserve the whole frame at once so the remaining chunks
+    /// append without regrowth copies. The reservation is capped by the
+    /// decode limit (a hostile length fails `check_decode` here and again
+    /// at pop, where the error surfaces); `carry` always starts at a frame
+    /// boundary because complete frames are split off by `next_frame`.
+    fn reserve_for_header(&mut self) {
+        if self.carry.len() < codec::HEADER_LEN {
+            return;
+        }
+        let mut len_be = [0u8; 4];
+        len_be.copy_from_slice(&self.carry[1..codec::HEADER_LEN]);
+        let Ok(len) = usize::try_from(u32::from_be_bytes(len_be)) else {
+            return;
+        };
+        if self.limits.check_decode(len).is_err() {
+            return;
+        }
+        if let Some(total) = codec::HEADER_LEN.checked_add(len) {
+            self.carry.reserve(total.saturating_sub(self.carry.len()));
+        }
     }
 
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
@@ -597,4 +621,73 @@ pub(crate) fn percent_decode(s: &str) -> String {
         i += 1;
     }
     String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn framed(payload: &[u8]) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(codec::HEADER_LEN + payload.len());
+        buf.push(0);
+        buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    #[test]
+    fn spanning_frame_pops_intact() {
+        // A frame split across three chunks reassembles with an intact
+        // payload, whatever the split points (including inside the header).
+        for split in [1, 4, 5, 6, 64] {
+            let wire = framed(&vec![0xABu8; 300]);
+            let (a, rest) = wire.split_at(split.min(wire.len() - 1));
+            let (b, c) = rest.split_at(rest.len() / 2);
+            let mut reader = FrameReader::new(MessageLimits::new());
+            reader.push(Bytes::copy_from_slice(a));
+            assert!(reader.next_frame().expect("frame").is_none());
+            reader.push(Bytes::copy_from_slice(b));
+            reader.push(Bytes::copy_from_slice(c));
+            let frame = reader.next_frame().expect("frame").expect("one frame");
+            assert!(!frame.compressed);
+            assert_eq!(frame.payload.as_ref(), vec![0xABu8; 300]);
+            assert!(reader.next_frame().expect("frame").is_none());
+        }
+    }
+
+    #[test]
+    fn reserve_once_covers_the_spanning_frame() {
+        // Once the header lands in carry, capacity covers the whole frame:
+        // later chunks append without regrowth.
+        let wire = framed(&vec![0xCDu8; 64 * 1024]);
+        let mut reader = FrameReader::new(MessageLimits::new());
+        reader.push(Bytes::copy_from_slice(&wire[..8]));
+        reader.push(Bytes::copy_from_slice(&wire[8..16]));
+        assert!(
+            reader.carry.capacity() >= wire.len(),
+            "carry capacity {} < frame {}",
+            reader.carry.capacity(),
+            wire.len()
+        );
+        reader.push(Bytes::copy_from_slice(&wire[16..]));
+        let frame = reader.next_frame().expect("frame").expect("one frame");
+        assert_eq!(frame.payload.len(), 64 * 1024);
+    }
+
+    #[test]
+    fn hostile_header_does_not_reserve() {
+        // A length past the decode limit reserves nothing; the error still
+        // surfaces at pop.
+        let mut wire = framed(&[9u8; 16]);
+        wire[1..5].copy_from_slice(&u32::MAX.to_be_bytes());
+        let mut reader = FrameReader::new(MessageLimits::new());
+        reader.push(Bytes::copy_from_slice(&wire[..8]));
+        reader.push(Bytes::copy_from_slice(&wire[8..]));
+        assert!(
+            reader.carry.capacity() < 1024,
+            "hostile header reserved {}",
+            reader.carry.capacity()
+        );
+        assert!(reader.next_frame().is_err());
+    }
 }
