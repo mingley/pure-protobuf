@@ -95,6 +95,10 @@ impl BlobSize {
 pub struct BlobCase {
     pub size: BlobSize,
     pub wire: Vec<u8>,
+    /// Same bytes as `wire` in a shareable buffer. `parse_shared` cells
+    /// clone this per iter (a refcount bump): the "frame arrival", owned by
+    /// the harness like the network owns a received frame.
+    pub frame: pbrs::rt::Bytes,
     pub shared: Vec<BlobChunk>,
     pub shared_mixed: Vec<BlobMixed>,
     pub prost_wire: Vec<u8>,
@@ -126,9 +130,11 @@ impl BlobCase {
         for _ in 0..4 {
             shared.push(BlobChunk::parse(&wire).expect("pbrs blob parse"));
         }
+        let frame = pbrs::rt::Bytes::copy_from_slice(&wire);
         BlobCase {
             size,
             wire,
+            frame,
             shared,
             shared_mixed: Vec::new(),
             prost_wire,
@@ -155,9 +161,11 @@ impl BlobCase {
         for _ in 0..4 {
             shared_mixed.push(BlobMixed::parse(&wire).expect("pbrs mixed parse"));
         }
+        let frame = pbrs::rt::Bytes::copy_from_slice(&wire);
         BlobCase {
             size: BlobSize::Mixed,
             wire,
+            frame,
             shared: Vec::new(),
             shared_mixed,
             prost_wire,
@@ -182,7 +190,7 @@ pub fn blob_cells() -> Vec<(&'static str, &'static str)> {
     let mut out = Vec::new();
     // (suffix, codec) tables are expanded below into 'static ids via Box::leak:
     // cell ids must be 'static for all_cells().
-    let pbrs_ops = ["parse", "touch", "encode", "encode_shared"];
+    let pbrs_ops = ["parse", "parse_shared", "touch", "encode", "encode_shared"];
     let prost_ops = ["parse", "touch", "encode"];
     for size in BlobSize::all() {
         for op in pbrs_ops {
@@ -219,6 +227,8 @@ pub fn blob_work(cell: &str, case: &BlobCase, i: usize) -> u64 {
     let second = cell.split('_').nth(1).expect("blob cell op");
     let op = if cell.contains("encode_shared") {
         "encode_shared"
+    } else if cell.contains("parse_shared") {
+        "parse_shared"
     } else {
         second
     };
@@ -231,6 +241,10 @@ pub fn blob_work(cell: &str, case: &BlobCase, i: usize) -> u64 {
     match (codec, op, mixed) {
         ("pbrs", "parse", false) => {
             let m = BlobChunk::parse(black_box(&case.wire)).expect("parse");
+            m.id().wrapping_add(m.checksum())
+        }
+        ("pbrs", "parse_shared", false) => {
+            let m = BlobChunk::parse_bytes(black_box(case.frame.clone())).expect("parse");
             m.id().wrapping_add(m.checksum())
         }
         ("pbrs", "touch", false) => {
@@ -270,6 +284,10 @@ pub fn blob_work(cell: &str, case: &BlobCase, i: usize) -> u64 {
         }
         ("pbrs", "parse", true) => {
             let m = BlobMixed::parse(black_box(&case.wire)).expect("parse");
+            m.id().wrapping_add(m.parts().len() as u64)
+        }
+        ("pbrs", "parse_shared", true) => {
+            let m = BlobMixed::parse_bytes(black_box(case.frame.clone())).expect("parse");
             m.id().wrapping_add(m.parts().len() as u64)
         }
         ("pbrs", "touch", true) => {
