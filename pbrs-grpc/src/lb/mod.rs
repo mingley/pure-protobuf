@@ -121,6 +121,22 @@ impl LbPolicy {
             Self::WeightedRoundRobin(policy) => policy.health_of(addr).await,
         }
     }
+
+    /// Fold one ORCA report into an address's weight. Only
+    /// `weighted_round_robin` consumes reports; other policies ignore
+    /// them. `oob` marks OOB pump reports (per-call reports pause
+    /// while OOB is enabled).
+    pub async fn note_orca_report(
+        &self,
+        addr: &crate::resolver::ResolvedAddress,
+        report: &crate::orca::OrcaLoadReport,
+        oob: bool,
+    ) {
+        match self {
+            Self::WeightedRoundRobin(policy) => policy.note_orca_report(addr, report, oob).await,
+            Self::PickFirst(_) | Self::RoundRobin(_) => {}
+        }
+    }
 }
 
 fn registry() -> &'static Mutex<HashMap<String, Arc<dyn LbPolicyFactory>>> {

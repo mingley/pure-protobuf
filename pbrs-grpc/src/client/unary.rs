@@ -369,6 +369,18 @@ impl super::Channel {
                             attempt_idx += 1;
                         }
                         result => {
+                            // A58 per-call ORCA: every attempt's trailers
+                            // feed weights, including failed attempts.
+                            let trailers = match &result {
+                                Ok(response) => response.trailers(),
+                                Err(status) => status.metadata(),
+                            };
+                            super::pool::ingest_orca_report(
+                                &channel.inner.endpoint,
+                                rr_addr.as_ref(),
+                                trailers,
+                            )
+                            .await;
                             if let Err(status) = &result {
                                 let cancelled = *cancel_rx.borrow();
                                 let per_attempt_timeout = status.code() == Code::DeadlineExceeded

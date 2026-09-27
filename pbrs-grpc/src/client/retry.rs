@@ -349,6 +349,18 @@ where
                         .await;
                 }
                 result => {
+                    // A58 per-call ORCA: every hedged attempt's trailers
+                    // feed weights, including failed attempts.
+                    let trailers = match &result {
+                        Ok(response) => response.trailers(),
+                        Err(status) => status.metadata(),
+                    };
+                    super::pool::ingest_orca_report(
+                        &channel.inner.endpoint,
+                        rr_addr.as_ref(),
+                        trailers,
+                    )
+                    .await;
                     if let Err(status) = &result {
                         if status.is_transport() {
                             channel

@@ -12,6 +12,7 @@ use crate::lb::{
 };
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::metadata::Metadata;
+use crate::orca::{OrcaLoadReport, OrcaLoadReportRequest};
 use crate::resolver::{
     Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, ResolverTask, parse_target_uri,
     resolver_for,
@@ -985,6 +986,8 @@ impl ChannelInner {
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
                     if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        // OOB reports are advisory and never gate reuse.
+                        spawn_oob_watch(self, policy, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
                             lease,
@@ -1027,6 +1030,8 @@ impl ChannelInner {
                             // Unhealthy or died while waiting: schedule on.
                             continue;
                         }
+                        // OOB reports are advisory and never gate dials.
+                        spawn_oob_watch(self, policy, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -1674,6 +1679,166 @@ impl HealthWatch {
     }
 }
 
+/// One OOB ORCA loop for a subchannel connection: streams
+/// `xds.service.orca.v3.OpenRcaService/StreamCoreMetrics` on the
+/// subchannel's own connection and folds reports into the WRR
+/// policy's weights. `UNIMPLEMENTED` stops silently (A51: never
+/// retry OOB on a connection whose backend lacks the service);
+/// other failures back off and retry, reset by any received
+/// message. Reports are advisory: OOB failures never mark the
+/// address unhealthy. The loop ends silently when the
+/// subconnection's stop channel fires (drain, discard, shutdown).
+struct OobWatch {
+    send: h2::client::SendRequest<Bytes>,
+    authority: Authority,
+    https: bool,
+    wire: crate::config::Wire,
+    frame: Bytes,
+    addr: ResolvedAddress,
+    policy: Arc<WeightedRoundRobin>,
+    stop: watch::Receiver<bool>,
+    backoff_rounds: u32,
+}
+
+/// How one OOB call ended.
+enum OobEnd {
+    /// Backend has no OOB service: release the pump slot, stop.
+    Disabled,
+    /// Subchannel drained or shut down: release the slot, stop.
+    Stopped,
+    /// Retryable end: back off, retry.
+    Retry,
+}
+
+impl OobWatch {
+    async fn run(mut self) {
+        loop {
+            match self.once().await {
+                OobEnd::Disabled | OobEnd::Stopped => {
+                    self.policy.note_oob_gone(&self.addr).await;
+                    return;
+                }
+                OobEnd::Retry => {
+                    let delay = transient_backoff(self.backoff_rounds);
+                    self.backoff_rounds = self.backoff_rounds.saturating_add(1);
+                    tokio::select! {
+                        () = tokio::time::sleep(delay) => {}
+                        _ = self.stop.changed() => {
+                            self.policy.note_oob_gone(&self.addr).await;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn once(&mut self) -> OobEnd {
+        if *self.stop.borrow() {
+            return OobEnd::Stopped;
+        }
+        let md = Metadata::new();
+        let response = run_server_stream::<OrcaLoadReport>(
+            self.send.clone(),
+            &self.authority,
+            "/xds.service.orca.v3.OpenRcaService/StreamCoreMetrics",
+            &md,
+            None,
+            None,
+            false,
+            self.frame.clone(),
+            self.stop.clone(),
+            self.wire,
+            crate::wire::PBRS_GRPC_UA,
+            self.https,
+            BytePermit::empty(),
+            None,
+        )
+        .await;
+        let response = match response {
+            Ok(response) => response,
+            Err(status) if status.code() == Code::Unimplemented => return OobEnd::Disabled,
+            Err(status) if status.code() == Code::Cancelled => return OobEnd::Stopped,
+            Err(_) => return OobEnd::Retry,
+        };
+        let mut stream = response.into_inner();
+        loop {
+            tokio::select! {
+                biased;
+                _ = self.stop.changed() => return OobEnd::Stopped,
+                message = stream.message() => {
+                    match message {
+                        Ok(Some(report)) => {
+                            // Any message resets the retry backoff.
+                            self.backoff_rounds = 0;
+                            self.policy.note_orca_report(&self.addr, &report, true).await;
+                        }
+                        // A clean end is unexpected (OOB is
+                        // infinite): retry like a failure.
+                        Ok(None) => return OobEnd::Retry,
+                        Err(status) if status.code() == Code::Unimplemented => {
+                            return OobEnd::Disabled;
+                        }
+                        Err(status) if status.code() == Code::Cancelled => {
+                            return OobEnd::Stopped;
+                        }
+                        Err(_) => return OobEnd::Retry,
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Spawn the OOB pump for a live WRR subchannel connection, once per
+/// address. No-ops unless the policy enables OOB, the address is
+/// known, or no pump runs yet. Unlike health, OOB never gates
+/// acquisition: reports are advisory and weights start absent.
+async fn spawn_oob_watch(
+    inner: &ChannelInner,
+    policy: &Arc<WeightedRoundRobin>,
+    addr: &ResolvedAddress,
+    send: &h2::client::SendRequest<Bytes>,
+    driver: &Option<watch::Sender<bool>>,
+) {
+    let Some(period) = policy.wants_oob().await else {
+        return;
+    };
+    let Some(stop) = driver.as_ref().map(watch::Sender::subscribe) else {
+        return;
+    };
+    if !policy.note_oob_started(addr).await {
+        return;
+    }
+    let mut request = OrcaLoadReportRequest::new();
+    request
+        .report_interval_mut()
+        .set_seconds(i64::try_from(period.as_secs()).unwrap_or(i64::MAX));
+    request
+        .report_interval_mut()
+        .set_nanos(i32::try_from(period.subsec_nanos()).unwrap_or(i32::MAX));
+    let wire = inner.dial.wire();
+    let frame = match crate::wire::encode_msg(&request, false, wire.limits, wire.gzip_level) {
+        Ok(frame) => frame,
+        Err(_) => {
+            policy.note_oob_gone(addr).await;
+            return;
+        }
+    };
+    let pump = OobWatch {
+        send: send.clone(),
+        authority: inner.authority.clone(),
+        https: inner.tls.is_some(),
+        wire,
+        frame,
+        addr: addr.clone(),
+        policy: Arc::clone(policy),
+        stop,
+        backoff_rounds: 0,
+    };
+    drop(tokio::spawn(pump.run()));
+}
+
 /// Ensure a Watch runs for a live subchannel connection and wait for
 /// its first report (A17 CONNECTING). Returns the first signal, or
 /// `None` when the connection died while waiting (caller re-picks).
@@ -1739,6 +1904,26 @@ async fn reuse_health_ok(
         ensure_health_watch(inner, policy, addr, send.clone(), stop, Some(directive)).await,
         Some(HealthSignal::Healthy)
     )
+}
+
+/// Ingest one attempt's ORCA report (A58 per-call): parse the
+/// `endpoint-load-metrics-bin` trailer once and hand it to the LB
+/// policy. No-ops without a per-address attempt, without a resolver
+/// LB policy, or without a decodable report. Error statuses carry
+/// their trailers in [`Status::metadata`], so failed attempts feed
+/// weights too; the report's own eps/qps captures the errors.
+pub(crate) async fn ingest_orca_report(
+    endpoint: &Endpoint,
+    addr: Option<&ResolvedAddress>,
+    trailers: &Metadata,
+) {
+    let (Some(addr), Endpoint::Resolved { lb: Some(lb), .. }) = (addr, endpoint) else {
+        return;
+    };
+    let Some(report) = crate::orca::report_from_trailers(trailers) else {
+        return;
+    };
+    lb.note_orca_report(addr, &report, false).await;
 }
 
 /// Wait for an address's first Watch report: `None` while no Watch
