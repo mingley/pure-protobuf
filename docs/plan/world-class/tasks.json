@@ -6059,6 +6059,13 @@
    ],
    "relates": [
     "OB-02"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 3ac6959b: otel/ Metrics observer (A66 full family, A94 redial counters, A108 static labels) + tests/otel.rs 3/3",
+    "zero-cost: otel off by default, default rlib carries 0 opentelemetry symbols, dev-loop rpc.pbrs.unary green",
+    "boundaries (GF-01b): initial-dial counters, dynamic per-RPC labels, A79/A78-xDS/A96 instruments need hook/plumbing work; see grfc.md"
    ]
   },
   {
@@ -6089,7 +6096,14 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit eb6627b1: otel/trace.rs (W3C propagator, ClientTracing inject, ServerTracing spans, safe-by-default attrs) + tests/otel_trace.rs 7/7",
+    "live Go interop (grpc-go 1.70 + otelgrpc 0.59, throwaway /tmp probes): D1 Go client -> pbrs server and D2 pbrs client -> Go server both parent correctly with sampled flag preserved",
+    "boundaries (GF-02b): automatic client spans need a per-call client completion hook; error-path spans end without status code; streaming spans end at handler completion"
+   ]
   },
   {
    "id": "GF-03",
