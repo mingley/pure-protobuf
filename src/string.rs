@@ -308,12 +308,16 @@ impl IntoProxied<ProtoString> for &std::ffi::OsStr {
 }
 
 /// Owned protobuf `bytes`.
+///
+/// Backed by [`Bytes`](bytes::Bytes) (PK-09): cheap to clone, and convertible
+/// to/from shared buffers without copying. The `&[u8]` accessors are
+/// unchanged.
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
-pub struct ProtoBytes(Vec<u8>);
+pub struct ProtoBytes(bytes::Bytes);
 
 impl ProtoBytes {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(bytes::Bytes::new())
     }
 
     pub fn as_view(&self) -> &[u8] {
@@ -324,34 +328,50 @@ impl ProtoBytes {
         &self.0
     }
 
+    /// This value as a shareable buffer: a refcount clone, never a copy.
+    pub fn as_shared(&self) -> bytes::Bytes {
+        self.0.clone()
+    }
+
+    /// Owned copy of the contents. The escape hatch when a value must not
+    /// retain a shared buffer (PK-09 `detach`).
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0.to_vec()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.0 = bytes::Bytes::new();
     }
 }
 
 impl fmt::Debug for ProtoBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ProtoBytes").field(&self.0).finish()
+        f.debug_tuple("ProtoBytes").field(&self.as_bytes()).finish()
     }
 }
 
 impl From<&[u8]> for ProtoBytes {
     fn from(v: &[u8]) -> Self {
-        Self(v.to_vec())
+        Self(bytes::Bytes::copy_from_slice(v))
     }
 }
 impl From<Vec<u8>> for ProtoBytes {
     fn from(v: Vec<u8>) -> Self {
+        Self(bytes::Bytes::from(v))
+    }
+}
+impl From<bytes::Bytes> for ProtoBytes {
+    fn from(v: bytes::Bytes) -> Self {
         Self(v)
     }
 }
 impl<const N: usize> From<&[u8; N]> for ProtoBytes {
     fn from(v: &[u8; N]) -> Self {
-        Self(v.to_vec())
+        Self(bytes::Bytes::copy_from_slice(v))
     }
 }
 
@@ -371,6 +391,11 @@ impl IntoProxied<ProtoBytes> for &[u8] {
     }
 }
 impl IntoProxied<ProtoBytes> for Vec<u8> {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
+        ProtoBytes::from(self)
+    }
+}
+impl IntoProxied<ProtoBytes> for bytes::Bytes {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self)
     }

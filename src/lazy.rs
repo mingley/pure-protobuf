@@ -454,6 +454,16 @@ impl LazyBytes {
         }
     }
 
+    /// This field as a shareable buffer: a refcount clone in every state,
+    /// never a copy (PK-09; the one runtime method Phase 2 sends share).
+    pub fn as_shared(&self) -> Bytes {
+        match self {
+            Self::Empty => Bytes::new(),
+            Self::Wire(w) => w.as_bytes(),
+            Self::Owned(s) => s.as_shared(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.as_bytes().is_empty()
     }
@@ -499,6 +509,11 @@ impl crate::proxied::IntoProxied<LazyBytes> for Vec<u8> {
 impl crate::proxied::IntoProxied<LazyBytes> for &[u8] {
     fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
         LazyBytes::from(self)
+    }
+}
+impl crate::proxied::IntoProxied<LazyBytes> for Bytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
+        LazyBytes::owned(ProtoBytes::from(self))
     }
 }
 

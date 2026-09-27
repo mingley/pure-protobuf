@@ -670,3 +670,28 @@ fn small_bytes_field_does_not_pin_shared_frame() {
         "large field is not shared with the frame"
     );
 }
+
+#[test]
+fn bytes_setter_shares_without_copy() {
+    // PK-09: ProtoBytes is Bytes-backed, so a Bytes setter shares the
+    // caller's buffer (pointer-identical), while &[u8]/Vec keep working.
+    let buf = pbrs::rt::Bytes::from(vec![0xCCu8; 4096]);
+    let mut a = Any::new();
+    a.set_value(buf.clone());
+    assert_eq!(a.value().len(), 4096);
+    assert_eq!(a.value().as_ptr(), buf.as_ptr());
+
+    a.set_value(vec![0xDDu8; 16]);
+    assert_eq!(a.value(), vec![0xDDu8; 16]);
+    a.set_value([0xEEu8; 8].as_slice());
+    assert_eq!(a.value(), vec![0xEEu8; 8]);
+
+    let mut m = TestAllTypesProto3::new();
+    m.repeated_bytes_mut().push(buf.clone());
+    let got = m.repeated_bytes().get(0).expect("one element");
+    assert_eq!(got.as_bytes().as_ptr(), buf.as_ptr());
+
+    let p = pbrs::ProtoBytes::from(buf.clone());
+    assert_eq!(p.as_shared().as_ptr(), buf.as_ptr());
+    assert_eq!(p.into_vec(), vec![0xCCu8; 4096]);
+}
