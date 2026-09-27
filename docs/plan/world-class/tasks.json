@@ -5393,7 +5393,15 @@
     "F4",
     "C7"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 59da17ae: pool dial_racing (250ms-staggered full dials, fast-failure advance, first READY wins, loser abort + completed-loser shutdown, handshake-timeout-bounded attempts); note_success(winner) sticks the policy to the working address; pick_first WeightedAddress + update_weighted + Efraimidis-Spirakis shuffle + RFC-8305 interleave + race_plan + note_round_failed",
+    "commit d0273a4f: SplitMix64 + per-call counter replaces the clock-seeded bare xorshift whose adjacent-nanosecond seeds stuck permutations (full-suite failures [4,46] and 118/200; scratch probe reproduced [50,0]/[0,50] splits); new rapid_shuffles_do_not_stick regression test; shuffle pair stress-tested 15/15",
+    "checks: fmt clean, clippy zero errors (lib + resolver target), rustdoc clean, lb unit (8) + resolver (26) green incl v4-only/v6-only fixtures, broken-v6 blackhole race (~250ms, EOF-proved no-leak), weighted distribution; dead-first/TLS tests updated to transparent-race semantics; self-interop PASS; full suite green except pre-existing tls flake",
+    "boundaries: no RFC-6724 sort in DNS resolver (provider order kept); no channel-arg race-delay knob (A61 optional, fixed 250ms); LB dials now handshake-timeout-bounded like the direct path (previously RPC-deadline-only); tcp.rs untouched (A61 READY-wins races above TCP); CDS normalized weights arrive with xDS"
+   ]
   },
   {
    "id": "CH-05",

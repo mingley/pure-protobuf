@@ -94,10 +94,10 @@ the balancer (no extra tasks, no snapshot machinery).
 | A17 | Client-side health checking | `subchannel` health state + `HealthReporter` wiring | CH-05 e2e (existing `Check`/`Watch` stay) |
 | A21 | Service-config error handling | `service_config` validation at resolver delivery | CH-03 invalid-document tests |
 | A24 | LB policy + config selection | `balancer` tree + `LbPolicyRegistry` | CH-03 selection/fallthrough tests |
-| A61 | Dualstack racing | `subchannel` Happy-Eyeballs dial (CH-04) | CH-04 race/churn tests |
+| A61 | Dualstack racing | `pool` Happy-Eyeballs full-dial race + `lb/pick_first` interleave (CH-04, done) | v4-only / v6-only / broken-v6 race + no-leak tests |
 | A62 | pick_first | `lb/pick_first.rs` (FL-03, done) | `tests/resolver.rs` stick/failover/drain/backoff/shuffle + ported `pick_first_unary` procedure |
 | A105 | Scale on `max_concurrent_streams` | `pool` growth signals from subchannel caps | CH-08 scaling tests |
-| A113 | pick_first weighted shuffling | `lb/pick_first.rs` shuffle (CH-04) | CH-04 shuffle distribution tests |
+| A113 | pick_first weighted shuffling | `lb/pick_first.rs` weighted shuffle (CH-04, done) | weighted distribution test (heavy-first share) |
 
 Follow-ups land in the same tree: ring hash / least request /
 subsetting (CH-07), ORCA + weighted round robin (CH-06), proxy + user

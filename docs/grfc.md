@@ -21,7 +21,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A17 | Client-side health checking | shipped | `grpc.health.v1` `Check`/`Watch`, `HealthReporter`. |
 | A90 | Health `List` method | shipped | `Health::list`. |
 | A18 | TCP user timeout | planned | `tcp_user_timeout` via socket2 on Linux. |
-| A61 | IPv4/IPv6 dualstack backends | partial → in progress | Hostname resolution ships; Happy-Eyeballs racing in progress. |
+| A61 | IPv4/IPv6 dualstack backends | shipped | Hostname resolution plus Happy-Eyeballs racing: 250ms-staggered full dials, fast-failure advance, first READY wins, family interleave after shuffle (CH-04). No RFC-6724 sort in the DNS resolver; no channel-arg delay knob. |
 | A101 | SNI setting and SNI/SAN validation | partial → in progress | rustls sends SNI from the name; explicit server-name override in progress. |
 | A105 | `max_concurrent_streams` connection scaling | planned | Grow the pool when the server lowers the stream cap. |
 | G1 | True binary metadata | planned | Interop-verified binary metadata handling. |
@@ -35,7 +35,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A21 | Service-config error handling | shipped | Eager validation; invalid initial TXT fails the channel, invalid updates keep the last good document. |
 | A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; `pick_first` registered (FL-03), more policies in CH-04+. |
 | A62 | pick_first | shipped | Sticky first-ready selection, in-order TF failover, shuffleAddressList, 1s×1.6^r±20%/120s-cap backoff (`lb/pick_first.rs`, FL-03). |
-| A113 | pick_first weighted shuffling | planned | With pick_first. |
+| A113 | pick_first weighted shuffling | shipped | Efraimidis–Spirakis `u^(1/weight)` sort under `shuffleAddressList` with per-endpoint weights defaulting to 1 (CH-04). CDS-side normalized weight computation arrives with xDS. |
 | round_robin | (core policy, no gRFC number) | planned | Per-subchannel ready-list rotation. |
 | A58 | Client-side weighted round robin | planned | With ORCA utilization input (A114 names). |
 | A114 | WRR metric names for computing utilization | planned | With WRR. |
