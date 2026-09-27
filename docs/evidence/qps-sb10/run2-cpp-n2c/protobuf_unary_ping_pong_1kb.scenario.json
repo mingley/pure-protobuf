@@ -1,0 +1,36 @@
+{
+  "scenarios": [
+    {
+      "name": "protobuf_unary_ping_pong_1kb",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    }
+  ]
+}
