@@ -3090,6 +3090,11 @@
       ],
       "checks": [
         "native-lib"
+      ],
+      "status": "done",
+      "implementer": "muse-code",
+      "evidence": [
+        "done: substance shipped as CH-02 (commits def3119d, d8c9bfce): resolver/ tree with target URIs, scheme registry, DNS refresh with explicit bounds, t0-t7 paused-clock timelines in tests/resolver.rs (15 green). Reconciliation already records FL-02 retained by CH-02."
       ]
     },
     {
