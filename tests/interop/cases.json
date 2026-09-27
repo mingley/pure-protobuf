@@ -645,18 +645,18 @@
       "case": "pick_first_unary",
       "name": "Pick First Unary",
       "suite": "standard_interop",
-      "procedure_source": "grpc/grpc@d1487957db6658bc532b72871775148229836627:tools/run_tests/run_interop_tests.py",
+      "procedure_source": "grpc/grpc-go@dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef:interop/test_utils.go:DoPickFirstUnary (dispatched by interop/client/client.go); absent from grpc/grpc run_interop_tests.py at d1487957 and master",
       "peer_direction": "client_to_server",
       "transport": "http2_cleartext",
       "profile": "full",
       "owner": "FL-03",
       "disposition": "not_run",
-      "justification": "Active upstream runner case for pick_first load balancing. Scheduled for integration in FL-03.",
+      "justification": "Procedure (100 unary RPCs, all land on one backend) replicated natively in FL-03; cross-peer matrix cell still not executed because the vendored testing proto predates SimpleRequest.fill_server_id/SimpleResponse.server_id.",
       "present_coverage": {
         "status": "not_run",
         "evidence_file": null,
         "passing_directions": [],
-        "notes": "Upstream runner case testing subchannel connection and pick_first selection; pending FL-03."
+        "notes": "Native replication pbrs-grpc/tests/resolver.rs::pick_first_unary_pinned_procedure green (100 RPCs, same echo tag, second backend untouched). Wire-exact TestService cell waits on a testing-proto sync."
       }
     },
     {

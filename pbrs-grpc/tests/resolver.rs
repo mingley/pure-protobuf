@@ -629,6 +629,52 @@ async fn pick_first_sticks_then_fails_over() {
 }
 
 #[tokio::test]
+async fn pick_first_unary_pinned_procedure() {
+    // Ports grpc-go@dd51b1c9 DoPickFirstUnary (interop/test_utils.go):
+    // rpcCount = 100 unary RPCs, every response must carry a non-empty
+    // server id and all 100 must agree (one backend despite several
+    // resolved). Greeter echo tags stand in for SimpleResponse.server_id:
+    // the vendored testing proto predates fill_server_id, so the
+    // wire-exact TestService shape waits on a proto sync.
+    const RPC_COUNT: usize = 100;
+    let (addr_a, unaries_a, _guard_a) = serve_named("A").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let channel = Channel::connect_uri(
+        &format!(
+            "ipv4:{}:{},{}:{}",
+            addr_a.ip(),
+            addr_a.port(),
+            addr_b.ip(),
+            addr_b.port()
+        ),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    let client = GreeterClient::new(channel);
+
+    let mut server_id = String::new();
+    for i in 0..RPC_COUNT {
+        let tag = client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .unwrap_or_else(|err| panic!("iteration {i}: unary failed: {err}"))
+            .into_inner()
+            .message()
+            .to_string();
+        assert!(!tag.is_empty(), "iteration {i}: empty server id");
+        if i == 0 {
+            server_id = tag;
+        } else {
+            assert_eq!(tag, server_id, "iteration {i}: backend changed");
+        }
+    }
+    assert_eq!(server_id, "A:ada");
+    assert_eq!(unaries_a.load(Ordering::SeqCst), RPC_COUNT);
+    assert_eq!(unaries_b.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
 async fn pick_first_skips_dead_first_address() {
     let closed = {
         let (addr, listener) = bind().await;

@@ -3124,6 +3124,12 @@
         "native-rpc",
         "native-tls",
         "interop"
+      ],
+      "status": "done",
+      "implementer": "muse-code",
+      "evidence": [
+        "done: pick_first policy (commits aabd1b81, 4ca546b8): lb/pick_first.rs sticky ready selection, in-order TF failover, shuffleAddressList, 1s x1.6^r +/-20% 120s-cap backoff; pool acquire_lb with endpoint watch, redial adoption, dead-slot eviction, L1 clone handoff drains; tests/resolver.rs (22) stick/failover/drain/backoff/shuffle/TLS green.",
+        "pinned procedure: grpc-go@dd51b1c9 interop/test_utils.go DoPickFirstUnary (100 unary RPCs, one backend) ported as pick_first_unary_pinned_procedure (Greeter echo tags; vendored testing proto predates fill_server_id so the wire-exact TestService cell stays not_run). cases.json procedure_source corrected (case is absent from grpc/grpc run_interop_tests.py)."
       ]
     },
     {

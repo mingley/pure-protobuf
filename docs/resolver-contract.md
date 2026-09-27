@@ -124,8 +124,10 @@ supported. No xDS or service-config URI is implied by this contract.
 
 FL-02 must prove these with a fake resolver and fake clock, including TTL
 absence, errors, duplicate addresses, empty answers and IPv4/IPv6 filtering.
-FL-03 adds real loopback and pinned-peer `pick_first_unary` evidence; FL-04
-adds distribution and churn measurements at preregistered bounds. The FL-05
+FL-03 added real loopback and pinned-peer `pick_first_unary` evidence
+(`tests/resolver.rs`: stick/failover/drain/backoff/shuffle/TLS plus a port
+of grpc-go@dd51b1c9 `DoPickFirstUnary`); FL-04 adds distribution and churn
+measurements at preregistered bounds. The FL-05
 official ~540-second backoff exercise is **not** replaced by the short
 fake-clock timeline.
 
