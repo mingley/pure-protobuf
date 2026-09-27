@@ -147,6 +147,28 @@ checked scenarios (at most one channel and 100 outstanding RPCs); see the
 [worker contract](../docs/benchmark-contract.md) for limits and qualification
 boundaries.
 
+### Async thread controls
+
+`async_server_threads` / `async_client_threads` are honored as explicit
+Tokio worker counts, not just accepted:
+
+- `0` (or absent) runs the benchmark server / load generator inline on
+  the shared worker runtime.
+- A positive count up to 1024 spawns a dedicated multi-thread runtime
+  with exactly that many workers (`qps-bench-server` /
+  `qps-bench-client` threads); channel connects and the serve loop run
+  there so I/O registers with the polling runtime. The control-plane
+  stream stays on the shared runtime.
+- Negative counts fail `INVALID_ARGUMENT`; counts above 1024 fail
+  `RESOURCE_EXHAUSTED` — both before bind/dial.
+
+The effective mapping is echoed to the worker log retained with every
+run (`RunServer port=…: async_server_threads=2 -> dedicated 2-worker
+Tokio runtime`). `SYNC_CLIENT` / `SYNC_SERVER` stay explicitly
+unsupported, as do security params, core pinning, `threads_per_cq`,
+channel args and the other controls the worker cannot faithfully
+implement; they fail before bind/dial, never silently ignored.
+
 ---
 
 ## 5. RT-07 Mixed-Load Diagnostic
