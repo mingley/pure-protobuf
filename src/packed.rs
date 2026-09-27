@@ -114,6 +114,7 @@ macro_rules! fixed_codec {
                 Ok(())
             }
             fn encode(elems: &[$elem], out: &mut Vec<u8>) {
+                crate::copy_counts::note_emit(elems.len() * $width);
                 #[cfg(target_endian = "little")]
                 {
                     let bytes = unsafe {

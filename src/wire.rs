@@ -36,6 +36,7 @@ impl<T: BufMut + ?Sized> WireOut for T {
 
     #[inline]
     fn put_slice(&mut self, data: &[u8]) {
+        crate::copy_counts::note_emit(data.len());
         <T as BufMut>::put_slice(self, data);
     }
 }

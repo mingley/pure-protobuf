@@ -142,6 +142,10 @@ struct CellResult {
 struct CopyCountsMed {
     wire_calls: f64,
     wire_bytes: f64,
+    #[serde(default)]
+    emit_calls: f64,
+    #[serde(default)]
+    emit_bytes: f64,
     carry_calls: f64,
     carry_bytes: f64,
     chunk_slices: f64,
@@ -166,6 +170,8 @@ fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
     CopyCountsMed {
         wire_calls: med!(wire_calls),
         wire_bytes: med!(wire_bytes),
+        emit_calls: med!(emit_calls),
+        emit_bytes: med!(emit_bytes),
         carry_calls: med!(carry_calls),
         carry_bytes: med!(carry_bytes),
         chunk_slices: med!(chunk_slices),
@@ -221,6 +227,10 @@ struct ChildOutput {
 struct CopyCountsJson {
     wire_calls: u64,
     wire_bytes: u64,
+    #[serde(default)]
+    emit_calls: u64,
+    #[serde(default)]
+    emit_bytes: u64,
     carry_calls: u64,
     carry_bytes: u64,
     chunk_slices: u64,
@@ -237,6 +247,8 @@ fn read_copy_counts() -> CopyCountsJson {
     CopyCountsJson {
         wire_calls: rt.wire_calls,
         wire_bytes: rt.wire_bytes,
+        emit_calls: rt.emit_calls,
+        emit_bytes: rt.emit_bytes,
         carry_calls: grpc.carry_calls,
         carry_bytes: grpc.carry_bytes,
         chunk_slices: grpc.chunk_slices,
