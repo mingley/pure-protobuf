@@ -126,8 +126,9 @@ FL-02 must prove these with a fake resolver and fake clock, including TTL
 absence, errors, duplicate addresses, empty answers and IPv4/IPv6 filtering.
 FL-03 added real loopback and pinned-peer `pick_first_unary` evidence
 (`tests/resolver.rs`: stick/failover/drain/backoff/shuffle/TLS plus a port
-of grpc-go@dd51b1c9 `DoPickFirstUnary`); FL-04 adds distribution and churn
-measurements at preregistered bounds. The FL-05
+of grpc-go@dd51b1c9 `DoPickFirstUnary`); FL-04 added distribution and
+churn evidence (exact rotation thirds, dead-backend skip, 3-phase
+remove/recover, all-down fail-fast, reconcile no-leak unit tests). The FL-05
 official ~540-second backoff exercise is **not** replaced by the short
 fake-clock timeline.
 

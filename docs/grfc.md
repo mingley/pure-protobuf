@@ -36,7 +36,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; `pick_first` registered (FL-03), more policies in CH-04+. |
 | A62 | pick_first | shipped | Sticky first-ready selection, in-order TF failover, shuffleAddressList, 1s×1.6^r±20%/120s-cap backoff (`lb/pick_first.rs`, FL-03). |
 | A113 | pick_first weighted shuffling | shipped | Efraimidis–Spirakis `u^(1/weight)` sort under `shuffleAddressList` with per-endpoint weights defaulting to 1 (CH-04). CDS-side normalized weight computation arrives with xDS. |
-| round_robin | (core policy, no gRFC number) | planned | Per-subchannel ready-list rotation. |
+| round_robin | (core policy, no gRFC number) | shipped | Strict rotation over ready endpoints, per-address backoff, graceful drain on removal (`lb/round_robin.rs` + pool `RrTable`, FL-04). Health-gated readiness arrives with CH-05. |
 | A58 | Client-side weighted round robin | planned | With ORCA utilization input (A114 names). |
 | A114 | WRR metric names for computing utilization | planned | With WRR. |
 | A42/A76 | Ring hash LB policy | planned | Request-hash ring with bounded state. |

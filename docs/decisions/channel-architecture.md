@@ -124,12 +124,14 @@ New components land in:
   health input, drain (CH-03/CH-04/CH-05).
 - `client/balancer.rs` — policy tree, snapshot publication, `Picker`
   trait + registry (CH-03).
-- `client/balancer/pick_first.rs`, `round_robin.rs`, … — one file per
-  policy as its card lands (CH-04/CH-06/CH-07/CH-09…).
+- `lb/pick_first.rs` (FL-03/CH-04, done), `lb/round_robin.rs`
+  (FL-04, done), … — one file per policy as its card lands
+  (top-level `lb/`, not `client/balancer/`).
 
-Tests: `tests/resolver.rs` (fake provider + paused clock, t0–t7),
-`tests/balancer.rs` (distribution, churn, O(1)-pick soak), extended by
-each policy card. Docs: this file plus the resolver contract.
+Tests: `tests/resolver.rs` carries resolver timelines plus per-policy
+distribution, churn, and soak coverage (no separate
+`tests/balancer.rs`), extended by each policy card. Docs: this file
+plus the resolver contract.
 
 ## Open decisions for the maintainer
 

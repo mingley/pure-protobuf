@@ -3157,6 +3157,13 @@
       "checks": [
         "native-rpc",
         "native-tls"
+      ],
+      "status": "done",
+      "implementer": "muse-code",
+      "evidence": [
+        "done: opt-in round_robin (commit 22495281): lb/round_robin.rs strict rotation over ready set with per-address backoff; LbPolicy enum + A24 selection; pool RrTable subchannels, acquire_rr, reconcile_rr graceful drain, discard_rr; LiveConn.rr_addr routes discards in call/retry/unary/streaming; shared transient_backoff.",
+        "checks: lb unit (4 RR) + pool unit (2 reconcile, incl stop-signal no-leak) + resolver e2e (exact 20/20/20 thirds and A/B/C order, dead-backend skip 20/20, 3-phase churn with frozen-counter removal and recovery, all-down fail-fast) green; churn 5/5 stress; fmt/clippy/doc clean; self-interop PASS; full suite green except pre-existing tls flake.",
+        "boundaries: RR subchannels skip idle/age close (slots watches are slot-indexed); external-LB (passthrough/direct) paths untouched; retry layers unchanged (discard routing only); fairness.json untouched (one of six cells executes; distribution asserted exactly in tests)."
       ]
     },
     {
