@@ -637,3 +637,36 @@ fn parse_bytes_matches_parse() {
         assert_eq!(Serialize::serialize(&shared).unwrap(), wire);
     }
 }
+
+#[test]
+fn small_bytes_field_does_not_pin_shared_frame() {
+    // PK-09 accept: below LazyBytes::SHARE_THRESHOLD a parsed field copies
+    // into owned storage; at/above it windows the shared frame. Pointer
+    // ranges make this exact: a copied field cannot overlap the live frame
+    // allocation, while a shared field must lie inside it.
+    assert!(100 < pbrs::rt::LazyBytes::SHARE_THRESHOLD);
+    let mut m = TestAllTypesProto3::new();
+    m.set_optional_bytes(vec![0x11u8; 100]);
+    m.repeated_bytes_mut().push(vec![0x22u8; 1 << 20]);
+    let wire = Serialize::serialize(&m).unwrap();
+    let frame = pbrs::rt::Bytes::copy_from_slice(&wire);
+    let start = frame.as_ptr() as usize;
+    let end = start + frame.len();
+    let parsed = TestAllTypesProto3::parse_bytes(frame).expect("parse_bytes");
+
+    let small = parsed.optional_bytes();
+    assert_eq!(small, vec![0x11u8; 100]);
+    let sp = small.as_ptr() as usize;
+    assert!(
+        sp < start || sp + small.len() <= start || sp >= end,
+        "small field pins the 1 MiB frame"
+    );
+
+    let big = parsed.repeated_bytes().get(0).expect("one element");
+    assert_eq!(big.len(), 1 << 20);
+    let bp = big.as_bytes().as_ptr() as usize;
+    assert!(
+        bp >= start && bp + big.len() <= end,
+        "large field is not shared with the frame"
+    );
+}

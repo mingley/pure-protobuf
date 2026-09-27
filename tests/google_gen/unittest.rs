@@ -4962,9 +4962,7 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.data.push(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            ));
+                            self.data.push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown
@@ -5894,9 +5892,7 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.data = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.data = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -9981,9 +9977,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.optional_bytes_extension =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -10725,9 +10719,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.repeated_bytes_extension
-                                .push(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                ));
+                                .push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown
@@ -11218,9 +11210,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.default_bytes_extension =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -11283,9 +11273,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.optional_bytes_cord_extension =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -11355,9 +11343,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.oneof_bytes_extension =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -14588,9 +14574,7 @@ mod __gen {
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -15322,9 +15306,7 @@ mod __gen {
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.repeated_bytes.push(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            ));
+                            self.repeated_bytes.push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown
@@ -15784,9 +15766,7 @@ mod __gen {
                     75 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -15858,9 +15838,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.optional_bytes_cord =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -15949,9 +15927,7 @@ mod __gen {
                             self.oneof_string_piece = None;
                             self.oneof_lazy_nested_message = Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -20075,9 +20051,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.optional_bytes_cord =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -20088,9 +20062,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.optional_bytes_cord_default =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -22709,9 +22681,7 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.bytes_field = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.bytes_field = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -25477,9 +25447,7 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.escaped_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.escaped_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -25720,9 +25688,7 @@ mod __gen {
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.bytes_with_zero = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.bytes_with_zero = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -28714,9 +28680,7 @@ mod __gen {
                     536870006 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -28853,9 +28817,7 @@ mod __gen {
                             self.oneof_test_all_types = Default::default();
                             self.oneof_string = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -40003,9 +39965,7 @@ mod __gen {
                             self.foo_lazy_message = Default::default();
                             self.foo_bytes_cord = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.foo_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.foo_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -40239,9 +40199,7 @@ mod __gen {
                             self.bar_string_piece_with_empty_default = None;
                             self.bar_bytes_with_empty_default = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.bar_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.bar_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -40378,9 +40336,7 @@ mod __gen {
                             self.bar_string_piece_with_empty_default = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.bar_bytes_with_empty_default =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                )));
+                                Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -40399,9 +40355,7 @@ mod __gen {
                             self.foogroup = None;
                             self.foo_lazy_message = Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.foo_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.foo_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown
@@ -48934,9 +48888,7 @@ mod __gen {
                     11 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.repeated_bytes11.push(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            ));
+                            self.repeated_bytes11.push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown
@@ -48946,9 +48898,7 @@ mod __gen {
                     12 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.repeated_bytes12.push(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            ));
+                            self.repeated_bytes12.push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown

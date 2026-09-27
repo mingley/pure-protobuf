@@ -386,12 +386,47 @@ pub enum LazyBytes {
 }
 
 impl LazyBytes {
+    /// Sharing threshold (PK-09): a parsed `bytes` field shorter than this
+    /// is copied into owned storage; at or above it, the field windows the
+    /// parent frame. Small fields therefore never pin a large shared frame,
+    /// on either the copying (`parse`) or shared (`parse_bytes`) path.
+    pub const SHARE_THRESHOLD: usize = 4096;
+
     pub fn owned(s: ProtoBytes) -> Self {
         if s.is_empty() {
             Self::Empty
         } else {
             Self::Owned(s)
         }
+    }
+
+    /// Parse a bytes span from the parent message bytes.
+    ///
+    /// Below [`Self::SHARE_THRESHOLD`] the span is copied and the parent
+    /// frame is not [`Wire::ensure`]d; at or above it, the span windows the
+    /// (possibly shared) parent. Generated `merge_inner` calls this with the
+    /// message's wire slot.
+    #[inline]
+    pub fn from_parse_span(
+        slot: &mut Option<Wire>,
+        data: &[u8],
+        rel_start: usize,
+        rel_end: usize,
+    ) -> Self {
+        if rel_end.saturating_sub(rel_start) < Self::SHARE_THRESHOLD {
+            return Self::from_bytes(&data[rel_start..rel_end]);
+        }
+        Self::from_wire(Wire::ensure(slot, data).window(rel_start, rel_end))
+    }
+
+    /// Same threshold policy as [`Self::from_parse_span`] for callers that
+    /// already hold the parent [`Wire`] (map entry decode).
+    #[inline]
+    pub fn from_wire_span(wire: &Wire, rel_start: usize, rel_end: usize) -> Self {
+        if rel_end.saturating_sub(rel_start) < Self::SHARE_THRESHOLD {
+            return Self::from_bytes(&wire.as_slice()[rel_start..rel_end]);
+        }
+        Self::from_wire(wire.window(rel_start, rel_end))
     }
 
     pub fn from_wire(w: Wire) -> Self {

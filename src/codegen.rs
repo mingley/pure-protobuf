@@ -5332,7 +5332,7 @@ fn emit_merge_arm(
                 src,
                 num,
                 &st,
-                "pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))",
+                "pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)",
             );
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
@@ -5432,13 +5432,9 @@ fn emit_merge_arm(
     }
     if f.field_type == FieldType::Bytes {
         let assign = if is_option(f) {
-            format!(
-                "{st} = Some(Box::new(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))))"
-            )
+            format!("{st} = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)))")
         } else {
-            format!(
-                "{st} = pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))"
-            )
+            format!("{st} = pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
@@ -5988,7 +5984,7 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
         FieldType::Bytes => {
             let _ = writeln!(
                 src,
-                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire(wire.window(s, e)); }},"
+                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire_span(wire, s, e); }},"
             );
         }
         FieldType::Message | FieldType::Group => {
