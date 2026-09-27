@@ -11,7 +11,7 @@
 //! Backoff follows the reference constants: 1s base, ×1.6, 20%
 //! jitter, 120s cap.
 
-use super::{HealthSignal, LbPolicyFactory, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, Readiness, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::service_config::ServiceConfig;
 use crate::status::Status;
@@ -376,6 +376,38 @@ impl PickFirst {
     #[must_use]
     pub fn watch(&self) -> watch::Receiver<u64> {
         self.changed.subscribe()
+    }
+
+    /// Child connectivity snapshot for priority failover (A56).
+    /// Ready when some address is dialable (past the global backoff
+    /// and neither unhealthy nor health-pending); Connecting when a
+    /// Watch is still in flight; else TransientFailure. Pure
+    /// observation: no timers move here.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        let state = self.state.lock().await;
+        if state.addresses.is_empty() {
+            return Readiness::TransientFailure;
+        }
+        if state
+            .backoff_until
+            .is_some_and(|until| until > tokio::time::Instant::now())
+        {
+            return Readiness::TransientFailure;
+        }
+        if state.addresses.iter().any(|entry| {
+            !state.unhealthy.contains(&entry.address)
+                && !state.health_pending.contains(&entry.address)
+        }) {
+            return Readiness::Ready;
+        }
+        if state
+            .addresses
+            .iter()
+            .any(|entry| state.health_pending.contains(&entry.address))
+        {
+            return Readiness::Connecting;
+        }
+        Readiness::TransientFailure
     }
 }
 

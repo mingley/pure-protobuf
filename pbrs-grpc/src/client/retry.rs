@@ -369,6 +369,20 @@ where
                         trailers,
                     )
                     .await;
+                    // A50 outlier detection: every hedged attempt's
+                    // outcome feeds the detectors.
+                    match &result {
+                        Ok(_) => super::pool::ingest_call_status(
+                            &channel.inner.endpoint,
+                            rr_addr.as_ref(),
+                            &Status::ok(),
+                        ),
+                        Err(status) => super::pool::ingest_call_status(
+                            &channel.inner.endpoint,
+                            rr_addr.as_ref(),
+                            status,
+                        ),
+                    }
                     if let Err(status) = &result {
                         if status.is_transport() {
                             channel

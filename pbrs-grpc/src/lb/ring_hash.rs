@@ -12,7 +12,7 @@
 //! down backend disturbs only its own hash range. Health gating
 //! matches `round_robin` (A17).
 
-use super::{HealthSignal, LbPolicyFactory, Pick, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, Pick, Readiness, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::service_config::RingHashConfig;
 use crate::status::Status;
@@ -200,14 +200,7 @@ impl RingHash {
     /// `None` (picks fail per A76).
     #[must_use]
     pub fn request_hash(&self, md: &crate::Metadata) -> Option<u64> {
-        if self.config.request_hash_header.is_empty() {
-            return None;
-        }
-        let values: Vec<&str> = md.get_all(&self.config.request_hash_header).collect();
-        if values.is_empty() {
-            return Some(super::SplitMix64::seed().next());
-        }
-        Some(xxh64(values.join(",").as_bytes(), 0))
+        hash_metadata_header(&self.config.request_hash_header, md)
     }
 
     /// Reconcile a new address list and rebuild the ring. Surviving
@@ -374,6 +367,47 @@ impl RingHash {
     pub fn watch(&self) -> watch::Receiver<u64> {
         self.changed.clone()
     }
+
+    /// Child connectivity snapshot for priority failover (A56).
+    /// Ready when some address is pickable; Connecting when a Watch
+    /// is still in flight (a dial is trying); else
+    /// TransientFailure. Pure observation: expired backoffs read as
+    /// usable but are not pruned here; picks do that.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        let state = self.state.lock().await;
+        let now = tokio::time::Instant::now();
+        let usable = |addr: &ResolvedAddress| {
+            state.down.get(addr).is_none_or(|down| down.until <= now)
+                && !state.unhealthy.contains(addr)
+                && !state.health_pending.contains(addr)
+        };
+        if state.addresses.iter().any(usable) {
+            return Readiness::Ready;
+        }
+        if state
+            .addresses
+            .iter()
+            .any(|addr| state.health_pending.contains(addr))
+        {
+            return Readiness::Connecting;
+        }
+        Readiness::TransientFailure
+    }
+}
+
+/// Derive a request hash from one header, shared by the ring
+/// and by wrappers (priority) that must hash synchronously. An
+/// empty header means no hash source (`None`); a configured but
+/// absent header hashes randomly (A76).
+pub(crate) fn hash_metadata_header(header: &str, md: &crate::Metadata) -> Option<u64> {
+    if header.is_empty() {
+        return None;
+    }
+    let values: Vec<&str> = md.get_all(header).collect();
+    if values.is_empty() {
+        return Some(super::SplitMix64::seed().next());
+    }
+    Some(xxh64(values.join(",").as_bytes(), 0))
 }
 
 /// Endpoint hash-key string: the address text (A76 explicit keys

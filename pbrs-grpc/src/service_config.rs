@@ -13,7 +13,7 @@
 //! entry.
 
 use crate::status::{Code, Status};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -345,7 +345,9 @@ pub enum LbPolicyConfig {
     /// Rendezvous subsetting over a child policy (A68).
     RandomSubsetting(RandomSubsettingConfig),
     /// Priority failover across localities (A56).
-    Priority,
+    Priority(PriorityConfig),
+    /// Heuristic ejection over a child policy (A50).
+    OutlierDetection(OutlierDetectionConfig),
     /// A policy name this kernel does not implement. Selection skips it.
     Unknown(String),
 }
@@ -362,8 +364,66 @@ impl LbPolicyConfig {
             Self::RingHash(_) => "ring_hash",
             Self::LeastRequest(_) => "least_request",
             Self::RandomSubsetting(_) => "random_subsetting_experimental",
-            Self::Priority => "priority",
+            Self::Priority(_) => "priority",
+            Self::OutlierDetection(_) => "outlier_detection",
             Self::Unknown(name) => name,
+        }
+    }
+
+    /// Whether this entry's subtree contains a ring that consumes
+    /// request hashes. Wrappers recurse into their child lists; a
+    /// ring entry always counts (its `pick_hash` uses whatever hash
+    /// the channel derived, even when its own header is unset).
+    #[must_use]
+    pub fn uses_request_hash(&self) -> bool {
+        match self {
+            Self::RingHash(_) => true,
+            Self::RandomSubsetting(config) => {
+                config.child_policy.iter().any(Self::uses_request_hash)
+            }
+            Self::Priority(config) => config
+                .children
+                .values()
+                .flat_map(|child| child.config.iter())
+                .any(Self::uses_request_hash),
+            Self::OutlierDetection(config) => {
+                config.child_policy.iter().any(Self::uses_request_hash)
+            }
+            Self::PickFirst { .. }
+            | Self::RoundRobin
+            | Self::WeightedRoundRobin(_)
+            | Self::LeastRequest(_)
+            | Self::Unknown(_) => false,
+        }
+    }
+
+    /// First non-empty `request_hash_header` in the subtree, for
+    /// wrappers that must derive a hash synchronously without
+    /// consulting their (possibly lazy) children. Ring picks use the
+    /// derived hash regardless of which entry named the header.
+    #[must_use]
+    pub fn first_hash_header(&self) -> Option<&str> {
+        match self {
+            Self::RingHash(config) if !config.request_hash_header.is_empty() => {
+                Some(config.request_hash_header.as_str())
+            }
+            Self::RandomSubsetting(config) => {
+                config.child_policy.iter().find_map(Self::first_hash_header)
+            }
+            Self::Priority(config) => config
+                .children
+                .values()
+                .flat_map(|child| child.config.iter())
+                .find_map(Self::first_hash_header),
+            Self::OutlierDetection(config) => {
+                config.child_policy.iter().find_map(Self::first_hash_header)
+            }
+            Self::RingHash(_)
+            | Self::PickFirst { .. }
+            | Self::RoundRobin
+            | Self::WeightedRoundRobin(_)
+            | Self::LeastRequest(_)
+            | Self::Unknown(_) => None,
         }
     }
 }
@@ -426,6 +486,115 @@ pub struct RandomSubsettingConfig {
     /// required, first registered entry wins. Nested subsetting is
     /// rejected.
     pub child_policy: Vec<LbPolicyConfig>,
+}
+
+/// A56 priority-failover tunables.
+#[derive(Clone, Debug, Default)]
+pub struct PriorityConfig {
+    /// Named children; names decouple children from priority slots so
+    /// updates can move a child across priorities without recreating
+    /// it. Sorted for deterministic iteration.
+    pub children: BTreeMap<String, PriorityChildConfig>,
+    /// Child names in decreasing priority order (first is highest).
+    /// May be empty; the runtime then reports TRANSIENT_FAILURE.
+    pub priorities: Vec<String>,
+}
+
+/// One A56 priority child entry.
+#[derive(Clone, Debug, Default)]
+pub struct PriorityChildConfig {
+    /// Child policy list; the first registered entry wins at build.
+    pub config: Vec<LbPolicyConfig>,
+    /// Ignore reresolution requests from this child (A37). Parsed;
+    /// inert until children can request reresolution.
+    pub ignore_reresolution_requests: bool,
+}
+
+/// A50 outlier-detection tunables.
+#[derive(Clone, Debug)]
+pub struct OutlierDetectionConfig {
+    /// Sweep interval; ejections, unejections, and multiplier decay
+    /// all happen on this cadence. Default 10s.
+    pub interval: Duration,
+    /// Base ejection duration, multiplied by the per-address ejection
+    /// count. Default 30s.
+    pub base_ejection_time: Duration,
+    /// Ejection duration cap. Default: 300s or base, whichever larger.
+    pub max_ejection_time: Option<Duration>,
+    /// Ejection cap in percent of the address list. Default 10.
+    pub max_ejection_percent: u32,
+    /// Success-rate detector; absent disables it.
+    pub success_rate_ejection: Option<SuccessRateEjectionConfig>,
+    /// Failure-percentage detector; absent disables it.
+    pub failure_percentage_ejection: Option<FailurePercentageEjectionConfig>,
+    /// Child policy list; the first registered entry wins at build.
+    pub child_policy: Vec<LbPolicyConfig>,
+}
+
+impl Default for OutlierDetectionConfig {
+    fn default() -> Self {
+        Self {
+            interval: Duration::from_secs(10),
+            base_ejection_time: Duration::from_secs(30),
+            max_ejection_time: None,
+            max_ejection_percent: 10,
+            success_rate_ejection: None,
+            failure_percentage_ejection: None,
+            child_policy: Vec::new(),
+        }
+    }
+}
+
+/// A50 success-rate ejection tunables.
+#[derive(Clone, Debug)]
+pub struct SuccessRateEjectionConfig {
+    /// Stdev factor in per-mille: an address ejects when its success
+    /// rate is below `mean - stdev * factor / 1000`. Default 1900.
+    pub stdev_factor: u32,
+    /// Percent chance an outlier is actually ejected. Default 100.
+    pub enforcement_percentage: u32,
+    /// Minimum qualifying addresses to run the detector. Default 5.
+    pub minimum_hosts: u32,
+    /// Minimum per-address requests in the interval to qualify it.
+    /// Default 100.
+    pub request_volume: u32,
+}
+
+impl Default for SuccessRateEjectionConfig {
+    fn default() -> Self {
+        Self {
+            stdev_factor: 1900,
+            enforcement_percentage: 100,
+            minimum_hosts: 5,
+            request_volume: 100,
+        }
+    }
+}
+
+/// A50 failure-percentage ejection tunables.
+#[derive(Clone, Debug)]
+pub struct FailurePercentageEjectionConfig {
+    /// Eject when failures * 100 / total strictly exceeds this.
+    /// Default 85.
+    pub threshold: u32,
+    /// Percent chance an outlier is actually ejected. Default 100.
+    pub enforcement_percentage: u32,
+    /// Minimum qualifying addresses to run the detector. Default 5.
+    pub minimum_hosts: u32,
+    /// Minimum per-address requests in the interval to qualify it.
+    /// Default 50.
+    pub request_volume: u32,
+}
+
+impl Default for FailurePercentageEjectionConfig {
+    fn default() -> Self {
+        Self {
+            threshold: 85,
+            enforcement_percentage: 100,
+            minimum_hosts: 5,
+            request_volume: 50,
+        }
+    }
 }
 
 /// A42/A76 ring-hash tunables.
@@ -817,7 +986,13 @@ fn parse_lb_entry(value: &serde_json::Value) -> Result<LbPolicyConfig, Status> {
         "random_subsetting_experimental" => Ok(LbPolicyConfig::RandomSubsetting(
             parse_random_subsetting(config)?,
         )),
-        "priority" => Ok(LbPolicyConfig::Priority),
+        // A56's `priority_experimental` normalizes to `priority`.
+        "priority" | "priority_experimental" => {
+            Ok(LbPolicyConfig::Priority(parse_priority(config)?))
+        }
+        "outlier_detection" => Ok(LbPolicyConfig::OutlierDetection(parse_outlier_detection(
+            config,
+        )?)),
         other => Ok(LbPolicyConfig::Unknown(other.to_owned())),
     }
 }
@@ -982,6 +1157,173 @@ fn parse_random_subsetting(value: &serde_json::Value) -> Result<RandomSubsetting
         subset_size,
         child_policy,
     })
+}
+
+fn parse_priority(value: &serde_json::Value) -> Result<PriorityConfig, Status> {
+    let mut out = PriorityConfig::default();
+    let Some(obj) = value.as_object() else {
+        return Ok(out);
+    };
+    if let Some(v) = obj.get("children") {
+        let map = v
+            .as_object()
+            .ok_or_else(|| Status::invalid_argument("priority.children must be an object"))?;
+        for (name, child) in map {
+            let entry = child.as_object().ok_or_else(|| {
+                Status::invalid_argument("priority.children entries must be objects")
+            })?;
+            let config = entry
+                .get("config")
+                .ok_or_else(|| {
+                    Status::invalid_argument(format!("priority.children[{name}] requires config"))
+                })
+                .and_then(parse_lb_list)?;
+            let ignore = entry
+                .get("ignoreReresolutionRequests")
+                .map(parse_json_bool)
+                .transpose()?
+                .unwrap_or(false);
+            out.children.insert(
+                name.clone(),
+                PriorityChildConfig {
+                    config,
+                    ignore_reresolution_requests: ignore,
+                },
+            );
+        }
+    }
+    if let Some(v) = obj.get("priorities") {
+        let list = v.as_array().ok_or_else(|| {
+            Status::invalid_argument("priority.priorities must be an array of strings")
+        })?;
+        for name in list {
+            let name = name.as_str().ok_or_else(|| {
+                Status::invalid_argument("priority.priorities must be an array of strings")
+            })?;
+            if !out.children.contains_key(name) {
+                return Err(Status::invalid_argument(format!(
+                    "priority.priorities references unknown child {name:?}"
+                )));
+            }
+            out.priorities.push(name.to_owned());
+        }
+    }
+    Ok(out)
+}
+
+fn parse_percent_field(value: &serde_json::Value, field: &str) -> Result<u32, Status> {
+    let n = value
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .ok_or_else(|| Status::invalid_argument(format!("{field} must be an unsigned integer")))?;
+    if n > 100 {
+        return Err(Status::invalid_argument(format!(
+            "{field} must be at most 100"
+        )));
+    }
+    Ok(n)
+}
+
+fn parse_u32_field(value: &serde_json::Value, field: &str) -> Result<u32, Status> {
+    value
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())
+        .ok_or_else(|| Status::invalid_argument(format!("{field} must be an unsigned integer")))
+}
+
+fn parse_success_rate_ejection(
+    value: &serde_json::Value,
+) -> Result<SuccessRateEjectionConfig, Status> {
+    let mut out = SuccessRateEjectionConfig::default();
+    let Some(obj) = value.as_object() else {
+        return Err(Status::invalid_argument(
+            "outlier_detection.successRateEjection must be an object",
+        ));
+    };
+    if let Some(v) = obj.get("stdevFactor") {
+        out.stdev_factor = parse_u32_field(v, "outlier_detection.successRateEjection.stdevFactor")?;
+    }
+    if let Some(v) = obj.get("enforcementPercentage") {
+        out.enforcement_percentage = parse_percent_field(
+            v,
+            "outlier_detection.successRateEjection.enforcementPercentage",
+        )?;
+    }
+    if let Some(v) = obj.get("minimumHosts") {
+        out.minimum_hosts =
+            parse_u32_field(v, "outlier_detection.successRateEjection.minimumHosts")?;
+    }
+    if let Some(v) = obj.get("requestVolume") {
+        out.request_volume =
+            parse_u32_field(v, "outlier_detection.successRateEjection.requestVolume")?;
+    }
+    Ok(out)
+}
+
+fn parse_failure_percentage_ejection(
+    value: &serde_json::Value,
+) -> Result<FailurePercentageEjectionConfig, Status> {
+    let mut out = FailurePercentageEjectionConfig::default();
+    let Some(obj) = value.as_object() else {
+        return Err(Status::invalid_argument(
+            "outlier_detection.failurePercentageEjection must be an object",
+        ));
+    };
+    if let Some(v) = obj.get("threshold") {
+        out.threshold =
+            parse_percent_field(v, "outlier_detection.failurePercentageEjection.threshold")?;
+    }
+    if let Some(v) = obj.get("enforcementPercentage") {
+        out.enforcement_percentage = parse_percent_field(
+            v,
+            "outlier_detection.failurePercentageEjection.enforcementPercentage",
+        )?;
+    }
+    if let Some(v) = obj.get("minimumHosts") {
+        out.minimum_hosts = parse_u32_field(
+            v,
+            "outlier_detection.failurePercentageEjection.minimumHosts",
+        )?;
+    }
+    if let Some(v) = obj.get("requestVolume") {
+        out.request_volume = parse_u32_field(
+            v,
+            "outlier_detection.failurePercentageEjection.requestVolume",
+        )?;
+    }
+    Ok(out)
+}
+
+fn parse_outlier_detection(value: &serde_json::Value) -> Result<OutlierDetectionConfig, Status> {
+    let mut out = OutlierDetectionConfig::default();
+    let Some(obj) = value.as_object() else {
+        return Err(Status::invalid_argument(
+            "outlier_detection requires a config object with childPolicy",
+        ));
+    };
+    if let Some(v) = obj.get("interval") {
+        out.interval = parse_json_duration(v)?;
+    }
+    if let Some(v) = obj.get("baseEjectionTime") {
+        out.base_ejection_time = parse_json_duration(v)?;
+    }
+    if let Some(v) = obj.get("maxEjectionTime") {
+        out.max_ejection_time = Some(parse_json_duration(v)?);
+    }
+    if let Some(v) = obj.get("maxEjectionPercent") {
+        out.max_ejection_percent = parse_percent_field(v, "outlier_detection.maxEjectionPercent")?;
+    }
+    if let Some(v) = obj.get("successRateEjection") {
+        out.success_rate_ejection = Some(parse_success_rate_ejection(v)?);
+    }
+    if let Some(v) = obj.get("failurePercentageEjection") {
+        out.failure_percentage_ejection = Some(parse_failure_percentage_ejection(v)?);
+    }
+    out.child_policy = obj
+        .get("childPolicy")
+        .ok_or_else(|| Status::invalid_argument("outlier_detection requires childPolicy"))
+        .and_then(parse_lb_list)?;
+    Ok(out)
 }
 
 fn parse_json_bool(value: &serde_json::Value) -> Result<bool, Status> {

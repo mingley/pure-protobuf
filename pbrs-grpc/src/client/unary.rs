@@ -389,6 +389,20 @@ impl super::Channel {
                                 trailers,
                             )
                             .await;
+                            // A50 outlier detection: every attempt's
+                            // outcome feeds the detectors.
+                            match &result {
+                                Ok(_) => super::pool::ingest_call_status(
+                                    &channel.inner.endpoint,
+                                    rr_addr.as_ref(),
+                                    &Status::ok(),
+                                ),
+                                Err(status) => super::pool::ingest_call_status(
+                                    &channel.inner.endpoint,
+                                    rr_addr.as_ref(),
+                                    status,
+                                ),
+                            }
                             if let Err(status) = &result {
                                 let cancelled = *cancel_rx.borrow();
                                 let per_attempt_timeout = status.code() == Code::DeadlineExceeded

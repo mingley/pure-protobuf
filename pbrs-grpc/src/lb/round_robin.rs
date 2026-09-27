@@ -8,7 +8,7 @@
 //! (no flap on reorder) and drop removed ones; removed connections
 //! drain in the pool, never migrate streams.
 
-use super::{HealthSignal, LbPolicyFactory, Pick, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, Pick, Readiness, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::status::Status;
 use std::collections::{HashMap, HashSet};
@@ -215,6 +215,32 @@ impl RoundRobin {
     #[must_use]
     pub fn watch(&self) -> watch::Receiver<u64> {
         self.changed.clone()
+    }
+
+    /// Child connectivity snapshot for priority failover (A56).
+    /// Ready when some address is pickable; Connecting when a Watch
+    /// is still in flight (a dial is trying); else
+    /// TransientFailure. Pure observation: expired backoffs read as
+    /// usable but are not pruned here; picks do that.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        let state = self.state.lock().await;
+        let now = tokio::time::Instant::now();
+        let usable = |addr: &ResolvedAddress| {
+            state.down.get(addr).is_none_or(|down| down.until <= now)
+                && !state.unhealthy.contains(addr)
+                && !state.health_pending.contains(addr)
+        };
+        if state.addresses.iter().any(usable) {
+            return Readiness::Ready;
+        }
+        if state
+            .addresses
+            .iter()
+            .any(|addr| state.health_pending.contains(addr))
+        {
+            return Readiness::Connecting;
+        }
+        Readiness::TransientFailure
     }
 }
 

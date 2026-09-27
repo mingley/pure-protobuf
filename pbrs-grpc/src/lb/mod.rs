@@ -8,8 +8,8 @@
 //! means no listed policy is available. Concrete policies ship per
 //! card: `pick_first` (FL-03/CH-04), `round_robin` (FL-04),
 //! `weighted_round_robin` (CH-06), `ring_hash`, `least_request`,
-//! `random_subsetting_experimental` (CH-07); the rest register as
-//! they land.
+//! `random_subsetting_experimental` (CH-07), `priority` and
+//! `outlier_detection` (CH-08).
 
 #![allow(
     clippy::disallowed_types,
@@ -22,7 +22,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 mod health;
 mod least_request;
+mod outlier;
 mod pick_first;
+mod priority;
 mod ring_hash;
 mod round_robin;
 mod subset;
@@ -31,10 +33,14 @@ mod wrr;
 pub use health::{HealthSignal, disables_health_check, signal_for};
 pub(crate) use least_request::ensure_registered as ensure_least_request_registered;
 pub use least_request::{LeastRequest, LeastRequestFactory, LrTrack};
+pub(crate) use outlier::ensure_registered as ensure_outlier_detection_registered;
+pub use outlier::{OutlierDetection, OutlierDetectionFactory, OutlierStats};
 pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
+pub(crate) use priority::ensure_registered as ensure_priority_registered;
+pub use priority::{Priority, PriorityFactory, PrioritySnapshot};
 pub(crate) use ring_hash::ensure_registered as ensure_ring_hash_registered;
 pub(crate) use ring_hash::xxh64;
 pub use ring_hash::{RingHash, RingHashFactory};
@@ -80,13 +86,33 @@ pub enum LbPolicy {
     LeastRequest(std::sync::Arc<LeastRequest>),
     /// Rendezvous subsetting over a child policy.
     RandomSubsetting(std::sync::Arc<RandomSubsetting>),
+    /// Failover across named child policies.
+    Priority(std::sync::Arc<Priority>),
+    /// Heuristic ejection over a child policy.
+    OutlierDetection(std::sync::Arc<OutlierDetection>),
+}
+
+/// Child connectivity as the priority policy observes it (A56).
+/// A56 has a fourth state, IDLE, but treats it identically to READY
+/// in every rule (selection, timer cancel, timer-reset memory), and
+/// our leaves have no demand-driven IDLE (the pool dials eagerly),
+/// so usable children report READY and the collapse is exact.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Readiness {
+    /// At least one usable address.
+    Ready,
+    /// Addresses exist but all await their first health report.
+    Connecting,
+    /// No usable address and nothing pending (backing off, unhealthy,
+    /// or no addresses at all).
+    TransientFailure,
 }
 
 /// Build a running policy from one config entry. Used for the
-/// top-level selection and for subset children alike, so both paths
+/// top-level selection and for wrapper children alike, so all paths
 /// construct identical runtimes. Entries without a runtime in this
-/// build (`Priority`, `Unknown`) fail; callers surface that as an
-/// invalid selection.
+/// build (`Unknown`) fail; callers surface that as an invalid
+/// selection.
 pub(crate) fn instantiate(
     entry: &crate::service_config::LbPolicyConfig,
 ) -> Result<LbPolicy, crate::status::Status> {
@@ -110,8 +136,9 @@ pub(crate) fn instantiate(
         LbPolicyConfig::RandomSubsetting(config) => Ok(LbPolicy::RandomSubsetting(
             RandomSubsetting::with_config(config)?,
         )),
-        LbPolicyConfig::Priority => Err(crate::status::Status::unimplemented(
-            "priority LB has no runtime in this build",
+        LbPolicyConfig::Priority(config) => Ok(LbPolicy::Priority(Priority::with_config(config)?)),
+        LbPolicyConfig::OutlierDetection(config) => Ok(LbPolicy::OutlierDetection(
+            OutlierDetection::with_config(config)?,
         )),
         LbPolicyConfig::Unknown(name) => Err(crate::status::Status::invalid_argument(format!(
             "LB policy {name:?} has no runtime in this build"
@@ -129,6 +156,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.update(addresses).await,
             Self::LeastRequest(policy) => policy.update(addresses).await,
             Self::RandomSubsetting(policy) => policy.update(addresses).await,
+            Self::Priority(policy) => policy.update(addresses).await,
+            Self::OutlierDetection(policy) => policy.update(addresses).await,
         }
     }
 
@@ -142,6 +171,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.watch(),
             Self::LeastRequest(policy) => policy.watch(),
             Self::RandomSubsetting(policy) => policy.watch(),
+            Self::Priority(policy) => policy.watch(),
+            Self::OutlierDetection(policy) => policy.watch(),
         }
     }
 
@@ -155,6 +186,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.note_health_pending(addr).await,
             Self::LeastRequest(policy) => policy.note_health_pending(addr).await,
             Self::RandomSubsetting(policy) => policy.note_health_pending(addr).await,
+            Self::Priority(policy) => policy.note_health_pending(addr).await,
+            Self::OutlierDetection(policy) => policy.note_health_pending(addr).await,
         }
     }
 
@@ -167,6 +200,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.note_health_gone(addr).await,
             Self::LeastRequest(policy) => policy.note_health_gone(addr).await,
             Self::RandomSubsetting(policy) => policy.note_health_gone(addr).await,
+            Self::Priority(policy) => policy.note_health_gone(addr).await,
+            Self::OutlierDetection(policy) => policy.note_health_gone(addr).await,
         }
     }
 
@@ -179,6 +214,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.note_health(addr, signal).await,
             Self::LeastRequest(policy) => policy.note_health(addr, signal).await,
             Self::RandomSubsetting(policy) => policy.note_health(addr, signal).await,
+            Self::Priority(policy) => policy.note_health(addr, signal).await,
+            Self::OutlierDetection(policy) => policy.note_health(addr, signal).await,
         }
     }
 
@@ -191,6 +228,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.health_of(addr).await,
             Self::LeastRequest(policy) => policy.health_of(addr).await,
             Self::RandomSubsetting(policy) => policy.health_of(addr).await,
+            Self::Priority(policy) => policy.health_of(addr).await,
+            Self::OutlierDetection(policy) => policy.health_of(addr).await,
         }
     }
 
@@ -207,6 +246,8 @@ impl LbPolicy {
         match self {
             Self::WeightedRoundRobin(policy) => policy.note_orca_report(addr, report, oob).await,
             Self::RandomSubsetting(policy) => policy.note_orca_report(addr, report, oob).await,
+            Self::Priority(policy) => policy.note_orca_report(addr, report, oob).await,
+            Self::OutlierDetection(policy) => policy.note_orca_report(addr, report, oob).await,
             Self::PickFirst(_)
             | Self::RoundRobin(_)
             | Self::RingHash(_)
@@ -222,6 +263,8 @@ impl LbPolicy {
             Self::WeightedRoundRobin(policy) => policy.pick().await,
             Self::LeastRequest(policy) => policy.pick().await,
             Self::RandomSubsetting(policy) => policy.pick().await,
+            Self::Priority(policy) => policy.pick().await,
+            Self::OutlierDetection(policy) => policy.pick().await,
             Self::RingHash(policy) => policy.pick_hash(None).await,
         }
     }
@@ -232,6 +275,8 @@ impl LbPolicy {
         match self {
             Self::RingHash(policy) => policy.pick_hash(hash).await,
             Self::RandomSubsetting(policy) => policy.pick_hash(hash).await,
+            Self::Priority(policy) => policy.pick_hash(hash).await,
+            Self::OutlierDetection(policy) => policy.pick_hash(hash).await,
             Self::PickFirst(policy) => policy.pick().await,
             Self::RoundRobin(policy) => policy.pick().await,
             Self::WeightedRoundRobin(policy) => policy.pick().await,
@@ -248,6 +293,8 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.note_success(addr).await,
             Self::LeastRequest(policy) => policy.note_success(addr).await,
             Self::RandomSubsetting(policy) => policy.note_success(addr).await,
+            Self::Priority(policy) => policy.note_success(addr).await,
+            Self::OutlierDetection(policy) => policy.note_success(addr).await,
         }
     }
 
@@ -265,15 +312,19 @@ impl LbPolicy {
             Self::RingHash(policy) => policy.note_failure(addr, status).await,
             Self::LeastRequest(policy) => policy.note_failure(addr, status).await,
             Self::RandomSubsetting(policy) => policy.note_failure(addr, status).await,
+            Self::Priority(policy) => policy.note_failure(addr, status).await,
+            Self::OutlierDetection(policy) => policy.note_failure(addr, status).await,
         }
     }
 
-    /// OOB reporting interval when the policy (or subset child)
-    /// enables OOB; `None` means per-call reports.
+    /// OOB reporting interval when the policy (or subset/priority/
+    /// outlier child) enables OOB; `None` means per-call reports.
     pub async fn wants_oob(&self) -> Option<std::time::Duration> {
         match self {
             Self::WeightedRoundRobin(policy) => policy.wants_oob().await,
             Self::RandomSubsetting(policy) => policy.wants_oob().await,
+            Self::Priority(policy) => policy.wants_oob().await,
+            Self::OutlierDetection(policy) => policy.wants_oob().await,
             _ => None,
         }
     }
@@ -283,6 +334,8 @@ impl LbPolicy {
         match self {
             Self::WeightedRoundRobin(policy) => policy.note_oob_started(addr).await,
             Self::RandomSubsetting(policy) => policy.note_oob_started(addr).await,
+            Self::Priority(policy) => policy.note_oob_started(addr).await,
+            Self::OutlierDetection(policy) => policy.note_oob_started(addr).await,
             _ => false,
         }
     }
@@ -292,28 +345,70 @@ impl LbPolicy {
         match self {
             Self::WeightedRoundRobin(policy) => policy.note_oob_gone(addr).await,
             Self::RandomSubsetting(policy) => policy.note_oob_gone(addr).await,
+            Self::Priority(policy) => policy.note_oob_gone(addr).await,
+            Self::OutlierDetection(policy) => policy.note_oob_gone(addr).await,
             _ => {}
         }
     }
 
-    /// Request hash for ring picks (through subset children).
-    /// `None` when no hashing policy applies.
+    /// Request hash for ring picks (through subset, priority, and
+    /// outlier children). `None` when no hashing policy applies.
     pub fn request_hash(&self, md: &crate::Metadata) -> Option<u64> {
         match self {
             Self::RingHash(policy) => policy.request_hash(md),
             Self::RandomSubsetting(policy) => policy.request_hash(md),
+            Self::Priority(policy) => policy.request_hash(md),
+            Self::OutlierDetection(policy) => policy.request_hash(md),
             _ => None,
         }
     }
 
     /// Start tracking one unary attempt for least-request counts
-    /// (through subset children). Other policies yield an empty
-    /// guard that counts nothing.
+    /// (through subset, priority, and outlier children). Other
+    /// policies yield an empty guard that counts nothing.
     pub async fn track_start(&self, addr: &crate::resolver::ResolvedAddress) -> LrTrack {
         match self {
             Self::LeastRequest(policy) => policy.track_start(addr).await,
             Self::RandomSubsetting(policy) => policy.track_start(addr).await,
+            Self::Priority(policy) => policy.track_start(addr).await,
+            Self::OutlierDetection(policy) => policy.track_start(addr).await,
             _ => LrTrack::empty(),
+        }
+    }
+
+    /// Record one completed call's outcome for outlier detection
+    /// (A50). Only `outlier_detection` consumes outcomes; wrappers
+    /// route to the owning child; other policies ignore them. Never
+    /// blocks: contended locks drop the sample.
+    pub fn note_call_status(
+        &self,
+        addr: &crate::resolver::ResolvedAddress,
+        status: &crate::status::Status,
+    ) {
+        match self {
+            Self::OutlierDetection(policy) => policy.note_call_status(addr, status),
+            Self::RandomSubsetting(policy) => policy.note_call_status(addr, status),
+            Self::Priority(policy) => policy.note_call_status(addr, status),
+            Self::PickFirst(_)
+            | Self::RoundRobin(_)
+            | Self::WeightedRoundRobin(_)
+            | Self::RingHash(_)
+            | Self::LeastRequest(_) => {}
+        }
+    }
+
+    /// Child connectivity snapshot for priority failover (A56).
+    /// Pure observation: no timers start, stop, or expire here.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        match self {
+            Self::PickFirst(policy) => policy.readiness().await,
+            Self::RoundRobin(policy) => policy.readiness().await,
+            Self::WeightedRoundRobin(policy) => policy.readiness().await,
+            Self::RingHash(policy) => policy.readiness().await,
+            Self::LeastRequest(policy) => policy.readiness().await,
+            Self::RandomSubsetting(policy) => policy.readiness().await,
+            Self::Priority(policy) => policy.readiness().await,
+            Self::OutlierDetection(policy) => policy.readiness().await,
         }
     }
 }

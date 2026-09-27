@@ -6,11 +6,13 @@ use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::health::{HealthCheckRequest, HealthCheckResponse};
 use crate::lb::{
-    HealthSignal, LbPolicy, LeastRequest, Pick, PickFirst, RandomSubsetting, RingHash, RoundRobin,
-    WeightedRoundRobin, disables_health_check, ensure_least_request_registered,
-    ensure_pick_first_registered, ensure_random_subsetting_registered, ensure_ring_hash_registered,
-    ensure_round_robin_registered, ensure_weighted_round_robin_registered, instantiate,
-    select_lb_policy, signal_for, transient_backoff,
+    HealthSignal, LbPolicy, LeastRequest, OutlierDetection, Pick, PickFirst, Priority,
+    RandomSubsetting, RingHash, RoundRobin, WeightedRoundRobin, disables_health_check,
+    ensure_least_request_registered, ensure_outlier_detection_registered,
+    ensure_pick_first_registered, ensure_priority_registered, ensure_random_subsetting_registered,
+    ensure_ring_hash_registered, ensure_round_robin_registered,
+    ensure_weighted_round_robin_registered, instantiate, select_lb_policy, signal_for,
+    transient_backoff,
 };
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::metadata::Metadata;
@@ -268,7 +270,9 @@ pub(crate) async fn connect_uri_inner(
     // Effective LB policy: explicit selection wins, else pick_first
     // is the default. Anything selected but unrunnable fails fast.
     ensure_least_request_registered();
+    ensure_outlier_detection_registered();
     ensure_pick_first_registered();
+    ensure_priority_registered();
     ensure_random_subsetting_registered();
     ensure_ring_hash_registered();
     ensure_round_robin_registered();
@@ -304,6 +308,8 @@ pub(crate) async fn connect_uri_inner(
             | Some(LbPolicy::RingHash(_))
             | Some(LbPolicy::LeastRequest(_))
             | Some(LbPolicy::RandomSubsetting(_))
+            | Some(LbPolicy::Priority(_))
+            | Some(LbPolicy::OutlierDetection(_))
     )
     .then(|| Arc::new(RrTable::new()));
     let initial_addrs = built.initial.addresses().to_vec();
@@ -530,6 +536,16 @@ impl ChannelInner {
                 LbPolicy::RandomSubsetting(subset) => {
                     return self
                         .acquire_subset(subset, hash, wait_for_ready, observer, health)
+                        .await;
+                }
+                LbPolicy::Priority(priority) => {
+                    return self
+                        .acquire_priority(priority, hash, wait_for_ready, observer, health)
+                        .await;
+                }
+                LbPolicy::OutlierDetection(outlier) => {
+                    return self
+                        .acquire_outlier(outlier, hash, wait_for_ready, observer, health)
                         .await;
                 }
             }
@@ -1535,6 +1551,313 @@ impl ChannelInner {
         }
     }
 
+    /// Acquire through priority failover: the policy picks the
+    /// current priority's child address (hashing through ring
+    /// children); one subchannel per address shared across
+    /// priorities. Connection handling matches
+    /// [`Self::acquire_subset`].
+    async fn acquire_priority(
+        self: &Arc<Self>,
+        policy: &Arc<Priority>,
+        hash: Option<u64>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let lb = LbPolicy::Priority(Arc::clone(policy));
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no priority table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick_hash(hash).await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        // OOB reports are advisory and never gate reuse.
+                        spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: repick on.
+                            continue;
+                        }
+                        // OOB reports are advisory and never gate dials.
+                        spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acquire through outlier_detection: the policy picks over the
+    /// live (non-ejected) set, hashing through ring children; one
+    /// subchannel per address. Connection handling matches
+    /// [`Self::acquire_subset`]; call outcomes flow back via
+    /// `note_call_status` on completion (see the unary/streaming
+    /// paths).
+    async fn acquire_outlier(
+        self: &Arc<Self>,
+        policy: &Arc<OutlierDetection>,
+        hash: Option<u64>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let lb = LbPolicy::OutlierDetection(Arc::clone(policy));
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no outlier_detection table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick_hash(hash).await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry and sweep timers bump nothing, so
+                    // re-poll as well as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        // OOB reports are advisory and never gate reuse.
+                        spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: repick on.
+                            continue;
+                        }
+                        // OOB reports are advisory and never gate dials.
+                        spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
     /// Drop a dead generation so the next [`Self::acquire`] redials.
     ///
     /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
@@ -2420,6 +2743,23 @@ pub(crate) async fn ingest_orca_report(
         return;
     };
     lb.note_orca_report(addr, &report, false).await;
+}
+
+/// Record one attempt's outcome for outlier detection (A50).
+/// No-ops without a per-address attempt or without a resolver LB
+/// policy. Sync and non-blocking; only outlier (sub)policies
+/// consume the outcome. Unary and hedged attempts report;
+/// streaming reports once streaming gains per-call hooks (the same
+/// coverage as per-call ORCA today).
+pub(crate) fn ingest_call_status(
+    endpoint: &Endpoint,
+    addr: Option<&ResolvedAddress>,
+    status: &Status,
+) {
+    let (Some(addr), Endpoint::Resolved { lb: Some(lb), .. }) = (addr, endpoint) else {
+        return;
+    };
+    lb.note_call_status(addr, status);
 }
 
 /// Start least-request tracking for one unary attempt (A48): an

@@ -13,7 +13,7 @@
 //! per-call ingestion pauses while OOB is enabled, and OOB failures never
 //! mark addresses unhealthy.
 
-use super::{HealthSignal, LbPolicyFactory, Pick, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, Pick, Readiness, register_lb_policy_factory};
 use crate::orca::OrcaLoadReport;
 use crate::resolver::ResolvedAddress;
 use crate::service_config::WeightedRoundRobinConfig;
@@ -560,6 +560,33 @@ impl WeightedRoundRobin {
     #[must_use]
     pub fn watch(&self) -> watch::Receiver<u64> {
         self.changed.clone()
+    }
+
+    /// Child connectivity snapshot for priority failover (A56).
+    /// Ready when some address is pickable; Connecting when a Watch
+    /// is still in flight (a dial is trying); else
+    /// TransientFailure. Pure observation: expired backoffs read as
+    /// usable but are not pruned here; picks do that. ORCA weights
+    /// never affect usability.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        let state = self.state.lock().await;
+        let now = tokio::time::Instant::now();
+        let usable = |addr: &ResolvedAddress| {
+            state.down.get(addr).is_none_or(|down| down.until <= now)
+                && !state.unhealthy.contains(addr)
+                && !state.health_pending.contains(addr)
+        };
+        if state.addresses.iter().any(usable) {
+            return Readiness::Ready;
+        }
+        if state
+            .addresses
+            .iter()
+            .any(|addr| state.health_pending.contains(addr))
+        {
+            return Readiness::Connecting;
+        }
+        Readiness::TransientFailure
     }
 }
 

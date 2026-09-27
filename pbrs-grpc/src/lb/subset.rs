@@ -10,7 +10,7 @@
 //! policy. Nested subsetting is rejected at parse. Without xDS the
 //! child list is the config's own; xDS supplies it per cluster.
 
-use super::{HealthSignal, LbPolicy, LbPolicyFactory, Pick, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicy, LbPolicyFactory, Pick, Readiness, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::service_config::RandomSubsettingConfig;
 use crate::status::Status;
@@ -208,6 +208,18 @@ impl RandomSubsetting {
     #[must_use]
     pub fn watch(&self) -> watch::Receiver<u64> {
         self.changed.clone()
+    }
+
+    /// Completed-call outcome through the child (A50).
+    pub fn note_call_status(&self, addr: &ResolvedAddress, status: &crate::status::Status) {
+        self.child.note_call_status(addr, status);
+    }
+
+    /// Child readiness (for nesting): the child sees only the
+    /// subset, so its observation is already subset-scoped.
+    pub(crate) async fn readiness(&self) -> Readiness {
+        // Boxed: the enum dispatches back here (E0733).
+        Box::pin(self.child.readiness()).await
     }
 }
 
