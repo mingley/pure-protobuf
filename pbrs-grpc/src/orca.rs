@@ -23,9 +23,13 @@ pub mod proto {
 
 pub use proto::OrcaLoadReport;
 
+mod recorder;
 mod report;
+mod service;
 
+pub use recorder::{OrcaRecorder, OrcaResponseHook, stamp};
 pub use report::{
     DEFAULT_MIN_REPORT_INTERVAL, TRAILER, clamp_report_interval, decode_trailer, encode_trailer,
     eps, filter_request_cost, qps, report_from_trailers, request_interval, utilization,
 };
+pub use service::{OrcaService, service};
