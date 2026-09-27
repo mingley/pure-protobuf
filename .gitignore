@@ -21,3 +21,5 @@
 /third_party/grpc
 .interop-bin
 .DS_Store
+__pycache__/
+*.pyc
