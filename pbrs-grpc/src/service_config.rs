@@ -377,6 +377,9 @@ pub struct WeightedRoundRobinConfig {
     pub weight_expiration_period: Duration,
     /// Penalty added to the utilization of endpoints with errors.
     pub error_utilization_penalty: f64,
+    /// ORCA metric names for computing utilization (A114). Empty means
+    /// the A58 `application_utilization`-then-`cpu_utilization` fallback.
+    pub metric_names_for_computing_utilization: Vec<String>,
 }
 
 impl Default for WeightedRoundRobinConfig {
@@ -388,6 +391,7 @@ impl Default for WeightedRoundRobinConfig {
             weight_update_period: Duration::from_secs(1),
             weight_expiration_period: Duration::from_secs(180),
             error_utilization_penalty: 1.0,
+            metric_names_for_computing_utilization: Vec::new(),
         }
     }
 }
@@ -797,6 +801,29 @@ fn parse_wrr(value: &serde_json::Value) -> Result<WeightedRoundRobinConfig, Stat
                 "weighted_round_robin.errorUtilizationPenalty must be a number",
             )
         })?;
+        if out.error_utilization_penalty < 0.0 {
+            return Err(Status::invalid_argument(
+                "weighted_round_robin.errorUtilizationPenalty must not be negative",
+            ));
+        }
+    }
+    if let Some(v) = obj.get("metricNamesForComputingUtilization") {
+        let names = v.as_array().ok_or_else(|| {
+            Status::invalid_argument(
+                "weighted_round_robin.metricNamesForComputingUtilization must be an array of strings",
+            )
+        })?;
+        for name in names {
+            out.metric_names_for_computing_utilization.push(
+                name.as_str()
+                    .ok_or_else(|| {
+                        Status::invalid_argument(
+                            "weighted_round_robin.metricNamesForComputingUtilization must be an array of strings",
+                        )
+                    })?
+                    .to_owned(),
+            );
+        }
     }
     Ok(out)
 }
@@ -984,6 +1011,26 @@ mod tests {
         assert!(service.retry_policy.is_none());
         let global = config.method_config("nope.Nope", "Nope").unwrap();
         assert_eq!(global.wait_for_ready, Some(true));
+    }
+
+    #[test]
+    fn wrr_parses_a114_names_and_rejects_negative_penalty() {
+        let doc = r#"{"loadBalancingConfig": [{"weighted_round_robin": {
+            "metricNamesForComputingUtilization": ["named_metrics.queue", "cpu_utilization"]
+        }}]}"#;
+        let config = ServiceConfig::parse(doc).unwrap();
+        let [LbPolicyConfig::WeightedRoundRobin(wrr)] = config.lb_policies() else {
+            panic!("expected WRR entry");
+        };
+        assert_eq!(
+            wrr.metric_names_for_computing_utilization,
+            vec!["named_metrics.queue", "cpu_utilization"]
+        );
+        assert_eq!(wrr.error_utilization_penalty, 1.0);
+        let bad = r#"{"loadBalancingConfig": [{"weighted_round_robin": {
+            "errorUtilizationPenalty": -1.0
+        }}]}"#;
+        assert!(ServiceConfig::parse(bad).is_err());
     }
 
     #[test]

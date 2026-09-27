@@ -455,10 +455,10 @@ fn interleave_families(entries: Vec<WeightedAddress>) -> Vec<WeightedAddress> {
 /// back-to-back shuffles never share correlated seeds (a bare
 /// xorshift seeded from the clock sticks permutations when loop
 /// iterations land in adjacent nanoseconds). No rng dependency.
-struct SplitMix64(u64);
+pub(crate) struct SplitMix64(u64);
 
 impl SplitMix64 {
-    fn seed() -> Self {
+    pub(crate) fn seed() -> Self {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -474,7 +474,7 @@ impl SplitMix64 {
         Self(mixed)
     }
 
-    fn next(&mut self) -> u64 {
+    pub(crate) fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.0;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);

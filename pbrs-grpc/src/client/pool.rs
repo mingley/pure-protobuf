@@ -6,9 +6,9 @@ use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::health::{HealthCheckRequest, HealthCheckResponse};
 use crate::lb::{
-    HealthSignal, LbPolicy, Pick, PickFirst, RoundRobin, disables_health_check,
-    ensure_pick_first_registered, ensure_round_robin_registered, select_lb_policy, signal_for,
-    transient_backoff,
+    HealthSignal, LbPolicy, Pick, PickFirst, RoundRobin, WeightedRoundRobin, disables_health_check,
+    ensure_pick_first_registered, ensure_round_robin_registered,
+    ensure_weighted_round_robin_registered, select_lb_policy, signal_for, transient_backoff,
 };
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::metadata::Metadata;
@@ -266,6 +266,7 @@ pub(crate) async fn connect_uri_inner(
     // is the default. Anything selected but unrunnable fails fast.
     ensure_pick_first_registered();
     ensure_round_robin_registered();
+    ensure_weighted_round_robin_registered();
     let doc = shared.get();
     let lb = match doc.as_ref().and_then(|state| {
         if state.config.lb_policies().is_empty() {
@@ -280,6 +281,11 @@ pub(crate) async fn connect_uri_inner(
         Some(Some(selected)) if selected.name == "round_robin" => {
             Some(LbPolicy::RoundRobin(RoundRobin::new()))
         }
+        Some(Some(selected)) if selected.name == "weighted_round_robin" => {
+            Some(LbPolicy::WeightedRoundRobin(
+                WeightedRoundRobin::from_config(doc.as_ref().map(|state| &state.config)),
+            ))
+        }
         Some(Some(selected)) => {
             return Err(Status::invalid_argument(format!(
                 "loadBalancingConfig selected {:?}, which has no runtime in this build",
@@ -293,7 +299,11 @@ pub(crate) async fn connect_uri_inner(
         }
         None => Some(LbPolicy::PickFirst(PickFirst::from_config(None))),
     };
-    let rr = matches!(lb, Some(LbPolicy::RoundRobin(_))).then(|| Arc::new(RrTable::new()));
+    let rr = matches!(
+        lb,
+        Some(LbPolicy::RoundRobin(_)) | Some(LbPolicy::WeightedRoundRobin(_))
+    )
+    .then(|| Arc::new(RrTable::new()));
     let initial_addrs = built.initial.addresses().to_vec();
     let mut handle = built.into_handle();
     if let Some(policy) = lb.clone() {
@@ -500,6 +510,11 @@ impl ChannelInner {
                 }
                 LbPolicy::RoundRobin(rr) => {
                     return self.acquire_rr(rr, wait_for_ready, observer, health).await;
+                }
+                LbPolicy::WeightedRoundRobin(wrr) => {
+                    return self
+                        .acquire_wrr(wrr, wait_for_ready, observer, health)
+                        .await;
                 }
             }
         }
@@ -864,6 +879,152 @@ impl ChannelInner {
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
                             // Unhealthy or died while waiting: rotate on.
+                            continue;
+                        }
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acquire through weighted_round_robin: EDF-schedule over ready
+    /// addresses, one subchannel each. Connection handling matches
+    /// [`Self::acquire_rr`]; only the pick order is weight-driven.
+    async fn acquire_wrr(
+        self: &Arc<Self>,
+        policy: &Arc<WeightedRoundRobin>,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let lb = LbPolicy::WeightedRoundRobin(Arc::clone(policy));
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no weighted_round_robin table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick().await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: schedule on.
                             continue;
                         }
                         return Ok(LiveConn {

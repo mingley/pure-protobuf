@@ -6,8 +6,9 @@
 //! returns the first entry whose policy is registered. Unknown or
 //! unregistered names are skipped, never fatal: an empty selection
 //! means no listed policy is available. Concrete policies ship per
-//! card: `pick_first` (FL-03/CH-04), `round_robin` (FL-04); WRR,
-//! ring hash, and the rest register as they land.
+//! card: `pick_first` (FL-03/CH-04), `round_robin` (FL-04),
+//! `weighted_round_robin` (CH-06); ring hash and the rest register
+//! as they land.
 
 #![allow(
     clippy::disallowed_types,
@@ -21,13 +22,17 @@ use std::sync::{Arc, Mutex, OnceLock};
 mod health;
 mod pick_first;
 mod round_robin;
+mod wrr;
 
 pub use health::{HealthSignal, disables_health_check, signal_for};
+pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
 pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
 pub use round_robin::{RoundRobin, RoundRobinFactory};
+pub(crate) use wrr::ensure_registered as ensure_weighted_round_robin_registered;
+pub use wrr::{WeightedRoundRobin, WeightedRoundRobinFactory, WrrStats};
 
 /// Builds one LB policy's runtime from its parsed config. Only the
 /// name is needed for selection; runtimes live behind [`LbPolicy`].
@@ -47,7 +52,7 @@ pub struct SelectedPolicy {
 }
 
 /// A running LB policy on a resolver-managed channel. Variants grow
-/// as policies land (WRR, ring hash, …); the pool dispatches acquire
+/// as policies land (ring hash, …); the pool dispatches acquire
 /// per variant because connection shapes differ (one sticky slot
 /// versus one subchannel per address).
 #[derive(Clone, Debug)]
@@ -56,6 +61,8 @@ pub enum LbPolicy {
     PickFirst(std::sync::Arc<PickFirst>),
     /// Rotation over ready endpoints.
     RoundRobin(std::sync::Arc<RoundRobin>),
+    /// EDF scheduling over ORCA-weighted endpoints.
+    WeightedRoundRobin(std::sync::Arc<WeightedRoundRobin>),
 }
 
 impl LbPolicy {
@@ -64,6 +71,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.update(addresses).await,
             Self::RoundRobin(policy) => policy.update(addresses).await,
+            Self::WeightedRoundRobin(policy) => policy.update(addresses).await,
         }
     }
 
@@ -73,6 +81,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.watch(),
             Self::RoundRobin(policy) => policy.watch(),
+            Self::WeightedRoundRobin(policy) => policy.watch(),
         }
     }
 
@@ -82,6 +91,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.note_health_pending(addr).await,
             Self::RoundRobin(policy) => policy.note_health_pending(addr).await,
+            Self::WeightedRoundRobin(policy) => policy.note_health_pending(addr).await,
         }
     }
 
@@ -90,6 +100,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.note_health_gone(addr).await,
             Self::RoundRobin(policy) => policy.note_health_gone(addr).await,
+            Self::WeightedRoundRobin(policy) => policy.note_health_gone(addr).await,
         }
     }
 
@@ -98,6 +109,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.note_health(addr, signal).await,
             Self::RoundRobin(policy) => policy.note_health(addr, signal).await,
+            Self::WeightedRoundRobin(policy) => policy.note_health(addr, signal).await,
         }
     }
 
@@ -106,6 +118,7 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.health_of(addr).await,
             Self::RoundRobin(policy) => policy.health_of(addr).await,
+            Self::WeightedRoundRobin(policy) => policy.health_of(addr).await,
         }
     }
 }
