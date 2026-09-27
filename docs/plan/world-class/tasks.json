@@ -5301,6 +5301,14 @@
    ],
    "relates": [
     "FL-02"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit def3119d: resolver/ tree (target URIs, Resolution snapshots, scheme registry, DNS refresh with explicit bounds + injected providers, static schemes, A10 skip predicate)",
+    "commit d8c9bfce: Endpoint::Resolved + tcp::connect_addr + Channel::connect_uri(_with)/connect_tls_uri(_with) + tests/resolver.rs (15) + dev-only tokio test-util; design module map corrected to top-level resolver/",
+    "checks: fmt clean, clippy zero new errors, rustdoc clean, native-lib green, resolver (15) green incl t0-t7 paused-clock timelines and 50k non-blocking picks, host:port path untouched (full suite green except pre-existing tls flake); self-interop PASS",
+    "boundaries: TXT service-config delivery is CH-03 (A2/A10 stay planned); subchannel/LB consumption of the watch is CH-03+; unix-abstract dial is Linux-only; pool.rs/tcp.rs touched minimally beyond the card write list (Endpoint variant + connect_addr)"
    ]
   },
   {
