@@ -1064,12 +1064,13 @@ impl super::Channel {
         };
         let endpoint = Endpoint::Once;
         let channelz = pool::register_channel_for(&endpoint);
+        let channel_id = channelz.id();
         Ok(pool::finish_channel(
             endpoint,
             parsed,
             config,
             None,
-            pool::live_slots(vec![send]),
+            pool::live_slots(vec![send], channel_id, false),
             None,
             SharedServiceConfig::default(),
             None,

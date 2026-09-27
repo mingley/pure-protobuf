@@ -206,12 +206,14 @@ pub(crate) async fn connect_inner(
         sends.push(handshake(&endpoint, config, tls.as_ref()).await?);
     }
     let channelz = register_channel_for(&endpoint);
+    let channel_id = channelz.id();
+    let secure = tls.is_some();
     Ok(finish_channel(
         endpoint,
         authority,
         config,
         tls,
-        live_slots(sends),
+        live_slots(sends, channel_id, secure),
         None,
         SharedServiceConfig::default(),
         None,
@@ -252,12 +254,13 @@ pub(crate) async fn connect_unix_inner(
         sends.push(handshake(&endpoint, config, None).await?);
     }
     let channelz = register_channel_for(&endpoint);
+    let channel_id = channelz.id();
     Ok(finish_channel(
         endpoint,
         unix_authority(),
         config,
         None,
-        live_slots(sends),
+        live_slots(sends, channel_id, false),
         None,
         SharedServiceConfig::default(),
         None,
@@ -526,17 +529,42 @@ pub(crate) fn rpc_slots_from(config: ChannelConfig) -> Option<Arc<Semaphore>> {
         .map(|n| Arc::new(Semaphore::new(n)))
 }
 
-pub(crate) fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
+pub(crate) fn live_slots(
+    dialed: Vec<Dialed>,
+    channel: crate::channelz::ChannelId,
+    tls: bool,
+) -> Vec<Mutex<ConnSlot>> {
     dialed
         .into_iter()
         .map(|d| {
+            // Channelz: eagerly dialed connections register their
+            // sockets here (the grab path reuses them and never runs
+            // `note_dial_ok`). Direct slots hang under the channel.
+            let security = if tls {
+                crate::channelz::SocketSecurity::Tls {
+                    local_certificate: Vec::new(),
+                    remote_certificate: Vec::new(),
+                }
+            } else {
+                crate::channelz::SocketSecurity::None
+            };
+            let global = crate::channelz::Registry::global();
+            global.set_channel_state(channel, crate::channelz::Connectivity::Ready);
+            let guard = crate::channelz::Registry::global_shared().register_socket(
+                crate::channelz::SocketParent::Channel(channel),
+                d.local_addr,
+                d.peer_addr,
+                None,
+                security,
+                false,
+            );
             Mutex::new(ConnSlot {
                 r#gen: 0,
                 send: Some(d.send),
                 stop: Some(d.stop),
                 busy: d.busy,
                 address: None,
-                channelz_socket: None,
+                channelz_socket: Some(guard),
                 channelz_subchannel: None,
             })
         })

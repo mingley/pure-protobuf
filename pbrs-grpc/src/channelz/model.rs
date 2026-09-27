@@ -193,6 +193,10 @@ pub(crate) struct SocketEntry {
     last_message_received_ms: AtomicU64,
 }
 
+/// The single process-global registry both [`Registry::global`] and
+/// [`Registry::global_shared`] draw from.
+static GLOBAL: OnceLock<Arc<Registry>> = OnceLock::new();
+
 /// Entity registry. See the module docs for the memory and locking contracts.
 #[derive(Debug, Default)]
 pub struct Registry {
@@ -219,14 +223,15 @@ impl Registry {
 
     /// Process-global registry backing every channelz hookup.
     pub fn global() -> &'static Registry {
-        static GLOBAL: OnceLock<Registry> = OnceLock::new();
-        GLOBAL.get_or_init(Self::new)
+        let shared: &'static Arc<Registry> = GLOBAL.get_or_init(|| Arc::new(Self::new()));
+        shared.as_ref()
     }
 
     /// Process-global registry as shared ownership (for the service).
+    /// Same registry as [`Self::global`]: handles and hookups must
+    /// agree, or registrations and counters split across two maps.
     #[must_use]
     pub fn global_shared() -> Arc<Registry> {
-        static GLOBAL: OnceLock<Arc<Registry>> = OnceLock::new();
         Arc::clone(GLOBAL.get_or_init(|| Arc::new(Self::new())))
     }
 

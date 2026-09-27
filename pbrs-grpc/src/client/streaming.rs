@@ -129,6 +129,11 @@ where
         )
         .await;
     }
+    // Channelz: the single request message went out (failed sends claim
+    // none, like unary).
+    if let Some(sock) = socket {
+        crate::channelz::Registry::global().note_messages(sock, true, 1);
+    }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Server-streaming sends one request with end-of-stream set.
         tap.log_written(log_frame);
