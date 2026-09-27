@@ -190,9 +190,9 @@ pub(crate) fn decode_frame<T: Parse + Default>(
             return Err(encoding_not_supported(false));
         }
         let raw = codec.decode_limited(&frame.payload, limits)?;
-        T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
+        T::parse_bytes(Bytes::from(raw)).map_err(|e| Status::internal(e.to_string()))?
     } else {
-        T::parse(frame.payload.as_ref()).map_err(|e| Status::internal(e.to_string()))?
+        T::parse_bytes(frame.payload).map_err(|e| Status::internal(e.to_string()))?
     };
     Ok(Framed {
         message,
