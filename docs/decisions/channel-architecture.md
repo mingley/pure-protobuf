@@ -91,7 +91,7 @@ the balancer (no extra tasks, no snapshot machinery).
 |---|---|---|---|
 | A5/A26 | grpclb | Boundary: superseded by xDS, not implemented | grfc.md row stays `boundary` |
 | A10 | Literals skip DNS-TXT service-config lookup | `resolver` (dns): IP literals never issue TXT | CH-02 unit tests |
-| A17 | Client-side health checking | `subchannel` health state + `HealthReporter` wiring | CH-05 e2e (existing `Check`/`Watch` stay) |
+| A17 | Client-side health checking | `lb/health` signals + pool same-conn Watch driver (CH-05, done) | `tests/lb_health` leave/rejoin/absence/failover/switch-off e2e |
 | A21 | Service-config error handling | `service_config` validation at resolver delivery | CH-03 invalid-document tests |
 | A24 | LB policy + config selection | `balancer` tree + `LbPolicyRegistry` | CH-03 selection/fallthrough tests |
 | A61 | Dualstack racing | `pool` Happy-Eyeballs full-dial race + `lb/pick_first` interleave (CH-04, done) | v4-only / v6-only / broken-v6 race + no-leak tests |

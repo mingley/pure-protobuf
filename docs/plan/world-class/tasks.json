@@ -5433,7 +5433,14 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 147fdb96: lb/health.rs A17 signals (SERVING-only healthy, UNIMPLEMENTED disables); RR skips unhealthy/pending in rotation, PF waits on pending current and fails over on unhealthy current, races exclude both; pool same-conn Watch driver per subchannel (backoff retry reset by messages, ends on stop); acquires ensure + await first report on dial and reuse; healthCheckConfig presence bit + ChannelConfig master switch resolved per acquire in grab",
+    "checks: lb unit (20, incl 4 health-hook) + lb_health e2e (5: leave-within-one-update + frozen counter, recovery rejoin, absence stays healthy 10/10, PF failover + no flap-back, switch-off disables) green; lib 297 + resolver 30 no-regression; fmt/clippy/doc clean; self-interop PASS; full suite green except pre-existing tls flake",
+    "boundaries: no channel-trace hookup for UNIMPLEMENTED (waits on channelz); enablement snapshots at dial (live doc changes apply to subsequently dialed subchannels); Watch uses base user-agent (per-clone prefix unavailable in pool) and an unbudgeted permit (control RPC); health RPC bypasses interceptors/retry by design"
+   ]
   },
   {
    "id": "CH-06",

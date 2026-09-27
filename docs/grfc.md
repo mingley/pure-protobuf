@@ -18,7 +18,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A8 | Client-side keepalive | shipped | `keep_alive_interval` / `keep_alive_timeout`, idle PINGs. |
 | A9 | Server-side connection management | shipped | `max_connection_age`/`idle`, GOAWAY drain, `serve_with_shutdown`. |
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
-| A17 | Client-side health checking | shipped | `grpc.health.v1` `Check`/`Watch`, `HealthReporter`. |
+| A17 | Client-side health checking | shipped | Server `Check`/`Watch`/`HealthReporter` plus client gating: per-subchannel same-conn Watch, unhealthy skips rotation (RR) / fails over (PF), UNIMPLEMENTED treated healthy, service-config opt-in with channel switch (CH-05). No channel-trace hookup yet. |
 | A90 | Health `List` method | shipped | `Health::list`. |
 | A18 | TCP user timeout | planned | `tcp_user_timeout` via socket2 on Linux. |
 | A61 | IPv4/IPv6 dualstack backends | shipped | Hostname resolution plus Happy-Eyeballs racing: 250ms-staggered full dials, fast-failure advance, first READY wins, family interleave after shuffle (CH-04). No RFC-6724 sort in the DNS resolver; no channel-arg delay knob. |
