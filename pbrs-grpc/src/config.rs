@@ -1054,6 +1054,7 @@ pub struct ChannelConfig {
     timeout: Option<Duration>,
     wait_for_ready: bool,
     max_concurrent_rpcs: Option<usize>,
+    health_checking: bool,
 }
 
 impl Default for ChannelConfig {
@@ -1090,6 +1091,7 @@ impl Default for ChannelConfig {
             timeout: None,
             wait_for_ready: false,
             max_concurrent_rpcs: None,
+            health_checking: true,
         }
     }
 }
@@ -1659,6 +1661,20 @@ impl ChannelConfig {
         self
     }
 
+    /// Master switch for client-side health checking (A17). Applies to
+    /// every call shape on resolver-managed channels.
+    ///
+    /// On by default; a service config still has to opt in with
+    /// `healthCheckConfig` before any `Watch` runs. Set false to
+    /// disable health gating even when the service config enables it.
+    /// Distinct from [`crate::ServiceConfig::health_service_name`],
+    /// which is the watched service name, not the switch.
+    #[must_use]
+    pub fn health_checking(mut self, enable: bool) -> Self {
+        self.health_checking = enable;
+        self
+    }
+
     /// Cap how many RPCs this channel will run at once, across every
     /// pooled connection. Applies to every call shape, including over TLS,
     /// mTLS, Unix, and [`crate::Channel::from_io`].
@@ -1909,6 +1925,14 @@ impl ChannelConfig {
     #[must_use]
     pub fn waits_for_ready(self) -> bool {
         self.wait_for_ready
+    }
+
+    /// Whether client-side health checking may run. See
+    /// [`Self::health_checking`]. Distinct from
+    /// [`Self::health_checking`], which sets it.
+    #[must_use]
+    pub fn health_checking_enabled(self) -> bool {
+        self.health_checking
     }
 
     /// Configured channel-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].

@@ -30,7 +30,7 @@ use tokio::sync::watch;
     clippy::too_many_arguments,
     reason = "thin cancel-logging wrapper over run_server_stream_inner"
 )]
-async fn run_server_stream<Resp>(
+pub(crate) async fn run_server_stream<Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,

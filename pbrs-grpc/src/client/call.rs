@@ -374,9 +374,10 @@ impl super::Channel {
         let _ = remaining_timeout(deadline)?;
         let inner = Arc::clone(&self.inner);
         let obs = self.observer.clone();
+        let health = self.health_directive();
         let grabbed = prefer_deadline(
             first_of(
-                inner.acquire(wait_for_ready, obs.as_deref()),
+                inner.acquire(wait_for_ready, obs.as_deref(), health),
                 cancel_rx,
                 deadline,
             )

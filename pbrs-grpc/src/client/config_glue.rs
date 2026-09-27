@@ -1,5 +1,6 @@
 //! Service-config glue: method lookup, throttling, and per-call wire settings.
 
+use super::pool::HealthDirective;
 use crate::config::Wire;
 use crate::service_config::MethodConfig;
 
@@ -9,6 +10,28 @@ impl super::Channel {
         let state = self.service_config.get()?;
         let (service, method) = crate::telemetry::split_path(path);
         state.config.method_config(service, method).cloned()
+    }
+
+    /// Client-side health checking for LB subchannels (A17): the
+    /// watched service name when the master switch is on and the
+    /// attached document opts in with `healthCheckConfig`. Resolved
+    /// per acquire so live adoption and per-clone documents apply;
+    /// subchannels snapshot it at dial.
+    pub(crate) fn health_directive(&self) -> Option<HealthDirective> {
+        if !self.config.health_checking_enabled() {
+            return None;
+        }
+        let state = self.service_config.get()?;
+        if !state.config.health_check_config() {
+            return None;
+        }
+        Some(HealthDirective {
+            service: state
+                .config
+                .health_service_name()
+                .unwrap_or_default()
+                .to_owned(),
+        })
     }
 
     /// Record a finished unary call in the throttling bucket, if configured.

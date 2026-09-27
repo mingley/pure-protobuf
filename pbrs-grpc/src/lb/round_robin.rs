@@ -8,10 +8,10 @@
 //! (no flap on reorder) and drop removed ones; removed connections
 //! drain in the pool, never migrate streams.
 
-use super::{LbPolicyFactory, Pick, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, Pick, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::status::Status;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::{Mutex, watch};
 
@@ -31,6 +31,13 @@ struct State {
     cursor: usize,
     /// Per-address failure state; absent means ready.
     down: HashMap<ResolvedAddress, Down>,
+    /// A17 health reports; absent means unknown (treated ready
+    /// unless the address is still awaiting its first Watch).
+    unhealthy: HashSet<ResolvedAddress>,
+    /// Addresses with a Watch in flight but no report yet. Skipped
+    /// like down addresses; subchannels stay CONNECTING until the
+    /// first response.
+    health_pending: HashSet<ResolvedAddress>,
     last_error: Option<Status>,
 }
 
@@ -50,6 +57,8 @@ impl RoundRobin {
                 addresses: Vec::new(),
                 cursor: 0,
                 down: HashMap::new(),
+                unhealthy: HashSet::new(),
+                health_pending: HashSet::new(),
                 last_error: None,
             }),
             changed,
@@ -66,6 +75,8 @@ impl RoundRobin {
             return;
         }
         state.down.retain(|addr, _| addresses.contains(addr));
+        state.unhealthy.retain(|addr| addresses.contains(addr));
+        state.health_pending.retain(|addr| addresses.contains(addr));
         state.addresses = addresses;
         if state.addresses.is_empty() {
             state.cursor = 0;
@@ -95,8 +106,20 @@ impl RoundRobin {
             if state.down.contains_key(&addr) {
                 continue;
             }
+            if state.unhealthy.contains(&addr) || state.health_pending.contains(&addr) {
+                continue;
+            }
             state.cursor = (index + 1) % n;
             return Pick::Use(addr);
+        }
+        // Nothing ready: pending Watch calls mean CONNECTING (wait),
+        // otherwise fail with the last dial error.
+        if state.addresses.iter().any(|addr| {
+            !state.down.contains_key(addr)
+                && !state.unhealthy.contains(addr)
+                && state.health_pending.contains(addr)
+        }) {
+            return Pick::Wait;
         }
         match state.last_error.clone() {
             Some(status) => Pick::Fail(status),
@@ -109,6 +132,63 @@ impl RoundRobin {
     pub async fn note_success(&self, addr: &ResolvedAddress) {
         let mut state = self.state.lock().await;
         state.down.remove(addr);
+    }
+
+    /// Record a Watch starting for a freshly dialed address: it stays
+    /// out of rotation until the first report (A17 CONNECTING).
+    /// Returns whether this call newly marked the address (false when
+    /// a Watch is already recorded in flight).
+    pub async fn note_health_pending(&self, addr: &ResolvedAddress) -> bool {
+        let mut state = self.state.lock().await;
+        if state.addresses.contains(addr) {
+            state.health_pending.insert(addr.clone())
+        } else {
+            false
+        }
+    }
+
+    /// Clear a Watch record without reporting: the Watch ended (drain,
+    /// discard, shutdown) before any terminal signal. Wakes waiters so
+    /// they re-check; a redial re-pends and spawns a fresh Watch.
+    pub async fn note_health_gone(&self, addr: &ResolvedAddress) {
+        let mut state = self.state.lock().await;
+        if state.health_pending.remove(addr) {
+            self.bump
+                .send_modify(|generation| *generation = generation.wrapping_add(1));
+        }
+    }
+
+    /// Record a Watch report: unhealthy addresses leave rotation
+    /// immediately; healthy ones (re)join. Unknown addresses (removed
+    /// mid-Watch) are ignored. Wakes waiters on any change.
+    pub async fn note_health(&self, addr: &ResolvedAddress, signal: HealthSignal) {
+        let mut state = self.state.lock().await;
+        if !state.addresses.contains(addr) {
+            return;
+        }
+        state.health_pending.remove(addr);
+        match signal {
+            HealthSignal::Healthy => state.unhealthy.remove(addr),
+            HealthSignal::Unhealthy => state.unhealthy.insert(addr.clone()),
+        };
+        // Every report moves waiters: a first report clears pending
+        // even when the unhealthy set itself is unchanged.
+        self.bump
+            .send_modify(|generation| *generation = generation.wrapping_add(1));
+    }
+
+    /// Last reported health: `None` while no Watch has reported.
+    /// Unknown addresses report `None`.
+    pub async fn health_of(&self, addr: &ResolvedAddress) -> Option<HealthSignal> {
+        let state = self.state.lock().await;
+        if !state.addresses.contains(addr) || state.health_pending.contains(addr) {
+            return None;
+        }
+        Some(if state.unhealthy.contains(addr) {
+            HealthSignal::Unhealthy
+        } else {
+            HealthSignal::Healthy
+        })
     }
 
     /// Record a failed dial: the address backs off exponentially
@@ -206,6 +286,52 @@ mod tests {
         rr.update(vec![tcp(1)]).await;
         rr.note_failure(&tcp(1), down()).await;
         assert!(matches!(rr.pick().await, Pick::Fail(_)));
+    }
+
+    #[tokio::test]
+    async fn health_pending_skips_until_first_report() {
+        use super::HealthSignal;
+        let rr = RoundRobin::new();
+        rr.update(vec![tcp(1), tcp(2)]).await;
+        assert!(rr.note_health_pending(&tcp(1)).await);
+        assert!(!rr.note_health_pending(&tcp(1)).await);
+        // Pending tcp(1) serves nothing until its Watch reports.
+        for _ in 0..3 {
+            assert!(matches!(rr.pick().await, Pick::Use(a) if a == tcp(2)));
+        }
+        assert_eq!(rr.health_of(&tcp(1)).await, None);
+        rr.note_health(&tcp(1), HealthSignal::Healthy).await;
+        assert_eq!(rr.health_of(&tcp(1)).await, Some(HealthSignal::Healthy));
+        let mut seen = [false; 2];
+        for _ in 0..4 {
+            match rr.pick().await {
+                Pick::Use(a) if a == tcp(1) => seen[0] = true,
+                Pick::Use(a) if a == tcp(2) => seen[1] = true,
+                _ => panic!("expected an address pick"),
+            }
+        }
+        assert!(seen.iter().all(|s| *s));
+    }
+
+    #[tokio::test]
+    async fn unhealthy_leaves_and_rejoins_on_recovery() {
+        use super::HealthSignal;
+        let rr = RoundRobin::new();
+        rr.update(vec![tcp(1), tcp(2)]).await;
+        rr.note_health(&tcp(1), HealthSignal::Unhealthy).await;
+        for _ in 0..3 {
+            assert!(matches!(rr.pick().await, Pick::Use(a) if a == tcp(2)));
+        }
+        rr.note_health(&tcp(1), HealthSignal::Healthy).await;
+        let mut seen = [false; 2];
+        for _ in 0..4 {
+            match rr.pick().await {
+                Pick::Use(a) if a == tcp(1) => seen[0] = true,
+                Pick::Use(a) if a == tcp(2) => seen[1] = true,
+                _ => panic!("expected an address pick"),
+            }
+        }
+        assert!(seen.iter().all(|s| *s));
     }
 
     #[tokio::test]

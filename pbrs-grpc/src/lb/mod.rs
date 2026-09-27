@@ -18,10 +18,13 @@ use crate::service_config::{LbPolicyConfig, ServiceConfig};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+mod health;
 mod pick_first;
 mod round_robin;
 
+pub use health::{HealthSignal, disables_health_check, signal_for};
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
+pub(crate) use pick_first::transient_backoff;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
 pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
 pub use round_robin::{RoundRobin, RoundRobinFactory};
@@ -70,6 +73,39 @@ impl LbPolicy {
         match self {
             Self::PickFirst(policy) => policy.watch(),
             Self::RoundRobin(policy) => policy.watch(),
+        }
+    }
+
+    /// Record a Watch starting for a freshly dialed address.
+    /// Returns whether this call newly marked the address.
+    pub async fn note_health_pending(&self, addr: &crate::resolver::ResolvedAddress) -> bool {
+        match self {
+            Self::PickFirst(policy) => policy.note_health_pending(addr).await,
+            Self::RoundRobin(policy) => policy.note_health_pending(addr).await,
+        }
+    }
+
+    /// Clear a Watch record without reporting.
+    pub async fn note_health_gone(&self, addr: &crate::resolver::ResolvedAddress) {
+        match self {
+            Self::PickFirst(policy) => policy.note_health_gone(addr).await,
+            Self::RoundRobin(policy) => policy.note_health_gone(addr).await,
+        }
+    }
+
+    /// Record a Watch report for an address.
+    pub async fn note_health(&self, addr: &crate::resolver::ResolvedAddress, signal: HealthSignal) {
+        match self {
+            Self::PickFirst(policy) => policy.note_health(addr, signal).await,
+            Self::RoundRobin(policy) => policy.note_health(addr, signal).await,
+        }
+    }
+
+    /// Last reported health: `None` while no Watch has reported.
+    pub async fn health_of(&self, addr: &crate::resolver::ResolvedAddress) -> Option<HealthSignal> {
+        match self {
+            Self::PickFirst(policy) => policy.health_of(addr).await,
+            Self::RoundRobin(policy) => policy.health_of(addr).await,
         }
     }
 }

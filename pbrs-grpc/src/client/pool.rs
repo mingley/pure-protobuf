@@ -1,19 +1,23 @@
 //! Connection pool: slots, dialing, handshake, and idle/age watches.
 
 use super::retry::RetryStatsRecorder;
+use super::streaming::run_server_stream;
 use super::{Channel, Target};
 use crate::config::ChannelConfig;
+use crate::health::{HealthCheckRequest, HealthCheckResponse};
 use crate::lb::{
-    LbPolicy, Pick, PickFirst, RoundRobin, ensure_pick_first_registered,
-    ensure_round_robin_registered, select_lb_policy,
+    HealthSignal, LbPolicy, Pick, PickFirst, RoundRobin, disables_health_check,
+    ensure_pick_first_registered, ensure_round_robin_registered, select_lb_policy, signal_for,
+    transient_backoff,
 };
-use crate::limits::ByteBudgetTracker;
+use crate::limits::{ByteBudgetTracker, BytePermit};
+use crate::metadata::Metadata;
 use crate::resolver::{
     Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, ResolverTask, parse_target_uri,
     resolver_for,
 };
 use crate::service_config::{ServiceConfig, SharedServiceConfig};
-use crate::status::Status;
+use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{LifecycleObserver, ReconnectEvent};
 use crate::tls::ClientTls;
@@ -81,6 +85,14 @@ pub(crate) struct RrTable {
     conns: Mutex<HashMap<ResolvedAddress, Arc<Mutex<ConnSlot>>>>,
 }
 
+/// Client-side health checking for one acquire (A17): the watched
+/// service name. Resolved per acquire from the channel's service
+/// config plus the master switch; subchannels snapshot it at dial.
+#[derive(Clone, Debug)]
+pub(crate) struct HealthDirective {
+    pub(crate) service: String,
+}
+
 impl RrTable {
     fn new() -> Self {
         Self {
@@ -96,6 +108,7 @@ const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
 pub(crate) struct ChannelInner {
     pub(crate) slots: Vec<Mutex<ConnSlot>>,
     pub(crate) next: AtomicUsize,
+    pub(crate) authority: Authority,
     pub(crate) endpoint: Endpoint,
     /// Keeps the refresh task alive; subchannels consume the watch in CH-03.
     #[allow(dead_code, reason = "task guard until CH-03 wires subchannels")]
@@ -369,6 +382,7 @@ pub(crate) fn finish_channel(
     let inner = Arc::new(ChannelInner {
         slots,
         next: AtomicUsize::new(0),
+        authority: authority.clone(),
         endpoint,
         resolver,
         tls,
@@ -472,6 +486,7 @@ impl ChannelInner {
         self: &Arc<Self>,
         wait_for_ready: bool,
         observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
     ) -> Result<LiveConn, Status> {
         if let Endpoint::Resolved {
             lb: Some(policy), ..
@@ -479,10 +494,12 @@ impl ChannelInner {
         {
             match policy {
                 LbPolicy::PickFirst(pick) => {
-                    return self.acquire_lb(pick, wait_for_ready, observer).await;
+                    return self
+                        .acquire_lb(pick, wait_for_ready, observer, health)
+                        .await;
                 }
                 LbPolicy::RoundRobin(rr) => {
-                    return self.acquire_rr(rr, wait_for_ready, observer).await;
+                    return self.acquire_rr(rr, wait_for_ready, observer, health).await;
                 }
             }
         }
@@ -581,11 +598,13 @@ impl ChannelInner {
     /// [`Self::acquire`].
     async fn acquire_lb(
         self: &Arc<Self>,
-        policy: &PickFirst,
+        policy: &Arc<PickFirst>,
         wait_for_ready: bool,
         observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
     ) -> Result<LiveConn, Status> {
         let display = self.endpoint.describe();
+        let lb = LbPolicy::PickFirst(Arc::clone(policy));
         let mut updates = policy.watch();
         let mut attempt = 0usize;
         loop {
@@ -627,20 +646,29 @@ impl ChannelInner {
             if slot_addr.as_ref() == Some(&addr) {
                 if let Some(handle) = handle {
                     if let Ok(ready) = handle.ready().await {
-                        return Ok(LiveConn {
-                            send: ready,
-                            lease,
-                            driver,
-                            slot: 0,
-                            r#gen,
-                            rr_addr: None,
-                        });
+                        if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await
+                        {
+                            return Ok(LiveConn {
+                                send: ready,
+                                lease,
+                                driver,
+                                slot: 0,
+                                r#gen,
+                                rr_addr: None,
+                            });
+                        }
+                        continue;
                     }
                 }
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
             let plan = policy.race_plan().await;
+            if plan.is_empty() {
+                // The picked address went unhealthy or pending between
+                // pick and plan: re-pick instead of racing nothing.
+                continue;
+            }
             let tried = plan.len();
             match dial_racing(&display, plan, self.dial, self.tls.as_ref()).await {
                 Ok((winner, dialed)) => {
@@ -661,7 +689,7 @@ impl ChannelInner {
                     let mut slot = self.slot(0)?.lock().await;
                     if slot.r#gen == r#gen {
                         let displaced = if slot.address.as_ref() != Some(&addr) {
-                            slot.address = Some(addr);
+                            slot.address = Some(addr.clone());
                             replace_for_handoff(&mut slot, dialed)
                         } else {
                             store_dialed(&mut slot, dialed);
@@ -682,6 +710,12 @@ impl ChannelInner {
                         }
                         spawn_idle_watch(Arc::clone(self), 0);
                         spawn_age_watch(Arc::clone(self), 0);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy (failover already advanced) or
+                            // died while waiting: re-pick.
+                            continue;
+                        }
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -731,11 +765,13 @@ impl ChannelInner {
     /// deadline by the caller, like [`Self::acquire`].
     async fn acquire_rr(
         self: &Arc<Self>,
-        policy: &RoundRobin,
+        policy: &Arc<RoundRobin>,
         wait_for_ready: bool,
         observer: Option<&dyn LifecycleObserver>,
+        health: Option<HealthDirective>,
     ) -> Result<LiveConn, Status> {
         let display = self.endpoint.describe();
+        let lb = LbPolicy::RoundRobin(Arc::clone(policy));
         let Some(table) = self.rr.clone() else {
             return Err(Status::unavailable(format!(
                 "resolve {display}: no round_robin table"
@@ -787,14 +823,17 @@ impl ChannelInner {
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
-                    return Ok(LiveConn {
-                        send: ready,
-                        lease,
-                        driver,
-                        slot: 0,
-                        r#gen,
-                        rr_addr: Some(addr),
-                    });
+                    if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    continue;
                 }
             }
             drop(lease);
@@ -822,6 +861,11 @@ impl ChannelInner {
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
                         drop(slot);
+                        if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
+                        {
+                            // Unhealthy or died while waiting: rotate on.
+                            continue;
+                        }
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -1343,6 +1387,223 @@ fn spawn_dial_attempt(
             ))),
         }
     });
+}
+
+/// One A17 Watch loop for a subchannel connection: streams
+/// `grpc.health.v1.Health/Watch` on the subchannel's own connection
+/// and reports [`HealthSignal`] to the LB policy. Only `SERVING` is
+/// healthy; `UNIMPLEMENTED` disables watching (treat as healthy);
+/// other failures report unhealthy and retry with backoff, reset by
+/// any received message. The loop ends silently when the
+/// subconnection's stop channel fires (drain, discard, shutdown).
+struct HealthWatch {
+    send: h2::client::SendRequest<Bytes>,
+    authority: Authority,
+    https: bool,
+    wire: crate::config::Wire,
+    frame: Bytes,
+    addr: ResolvedAddress,
+    policy: LbPolicy,
+    stop: watch::Receiver<bool>,
+    backoff_rounds: u32,
+    reported: Option<HealthSignal>,
+}
+
+/// How one Watch call ended.
+enum WatchEnd {
+    /// Backend has no health service: report healthy once, stop.
+    Disabled,
+    /// Subchannel drained or shut down: clear the record, stop.
+    Stopped,
+    /// Retryable end: report unhealthy, back off, retry.
+    Retry,
+}
+
+impl HealthWatch {
+    async fn run(mut self) {
+        loop {
+            match self.once().await {
+                WatchEnd::Disabled => {
+                    self.report(HealthSignal::Healthy).await;
+                    return;
+                }
+                WatchEnd::Stopped => {
+                    self.policy.note_health_gone(&self.addr).await;
+                    return;
+                }
+                WatchEnd::Retry => {
+                    self.report(HealthSignal::Unhealthy).await;
+                    let delay = transient_backoff(self.backoff_rounds);
+                    self.backoff_rounds = self.backoff_rounds.saturating_add(1);
+                    tokio::select! {
+                        () = tokio::time::sleep(delay) => {}
+                        _ = self.stop.changed() => {
+                            self.policy.note_health_gone(&self.addr).await;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    async fn once(&mut self) -> WatchEnd {
+        if *self.stop.borrow() {
+            return WatchEnd::Stopped;
+        }
+        let md = Metadata::new();
+        let response = run_server_stream::<HealthCheckResponse>(
+            self.send.clone(),
+            &self.authority,
+            "/grpc.health.v1.Health/Watch",
+            &md,
+            None,
+            None,
+            false,
+            self.frame.clone(),
+            self.stop.clone(),
+            self.wire,
+            crate::wire::PBRS_GRPC_UA,
+            self.https,
+            BytePermit::empty(),
+            None,
+        )
+        .await;
+        let response = match response {
+            Ok(response) => response,
+            Err(status) if disables_health_check(&status) => return WatchEnd::Disabled,
+            Err(status) if status.code() == Code::Cancelled => return WatchEnd::Stopped,
+            Err(_) => return WatchEnd::Retry,
+        };
+        let mut stream = response.into_inner();
+        loop {
+            tokio::select! {
+                biased;
+                _ = self.stop.changed() => return WatchEnd::Stopped,
+                message = stream.message() => {
+                    match message {
+                        Ok(Some(body)) => {
+                            // Any message resets the retry backoff.
+                            self.backoff_rounds = 0;
+                            self.report(signal_for(body.status())).await;
+                        }
+                        // A clean end is unexpected (Watch is
+                        // infinite): retry like a failure.
+                        Ok(None) => return WatchEnd::Retry,
+                        Err(status) if disables_health_check(&status) => {
+                            return WatchEnd::Disabled;
+                        }
+                        Err(status) if status.code() == Code::Cancelled => {
+                            return WatchEnd::Stopped;
+                        }
+                        Err(_) => return WatchEnd::Retry,
+                    }
+                }
+            }
+        }
+    }
+
+    /// Report on change only; the first report always goes out (it
+    /// clears the pending record and wakes initial waiters).
+    async fn report(&mut self, signal: HealthSignal) {
+        if self.reported != Some(signal) {
+            self.reported = Some(signal);
+            self.policy.note_health(&self.addr, signal).await;
+        }
+    }
+}
+
+/// Ensure a Watch runs for a live subchannel connection and wait for
+/// its first report (A17 CONNECTING). Returns the first signal, or
+/// `None` when the connection died while waiting (caller re-picks).
+/// With no directive, returns `Some(Healthy)` without watching.
+async fn ensure_health_watch(
+    inner: &ChannelInner,
+    policy: &LbPolicy,
+    addr: &ResolvedAddress,
+    send: h2::client::SendRequest<Bytes>,
+    stop: watch::Receiver<bool>,
+    directive: Option<&HealthDirective>,
+) -> Option<HealthSignal> {
+    let Some(directive) = directive else {
+        return Some(HealthSignal::Healthy);
+    };
+    if policy.note_health_pending(addr).await {
+        let wire = inner.dial.wire();
+        let mut request = HealthCheckRequest::new();
+        request.set_service(directive.service.clone());
+        let frame = match crate::wire::encode_msg(&request, false, wire.limits, wire.gzip_level) {
+            Ok(frame) => frame,
+            Err(_) => {
+                policy.note_health_gone(addr).await;
+                return None;
+            }
+        };
+        let watch = HealthWatch {
+            send,
+            authority: inner.authority.clone(),
+            https: inner.tls.is_some(),
+            wire,
+            frame,
+            addr: addr.clone(),
+            policy: policy.clone(),
+            stop: stop.clone(),
+            backoff_rounds: 0,
+            reported: None,
+        };
+        drop(tokio::spawn(watch.run()));
+    }
+    wait_for_health(policy, addr, stop).await
+}
+
+/// Gate connection reuse on health: with no directive the pooled
+/// connection is used as-is; otherwise ensure a Watch runs and wait
+/// for its first report. Returns false when the caller must re-pick
+/// (unhealthy, or the connection died while waiting).
+async fn reuse_health_ok(
+    inner: &ChannelInner,
+    policy: &LbPolicy,
+    addr: &ResolvedAddress,
+    send: &h2::client::SendRequest<Bytes>,
+    driver: &Option<watch::Sender<bool>>,
+    directive: Option<&HealthDirective>,
+) -> bool {
+    let Some(directive) = directive else {
+        return true;
+    };
+    let Some(stop) = driver.as_ref().map(watch::Sender::subscribe) else {
+        return true;
+    };
+    matches!(
+        ensure_health_watch(inner, policy, addr, send.clone(), stop, Some(directive)).await,
+        Some(HealthSignal::Healthy)
+    )
+}
+
+/// Wait for an address's first Watch report: `None` while no Watch
+/// has reported, `None` (no signal) when the connection dies first.
+async fn wait_for_health(
+    policy: &LbPolicy,
+    addr: &ResolvedAddress,
+    mut stop: watch::Receiver<bool>,
+) -> Option<HealthSignal> {
+    if *stop.borrow() {
+        return None;
+    }
+    let mut updates = policy.watch();
+    loop {
+        if let Some(signal) = policy.health_of(addr).await {
+            return Some(signal);
+        }
+        tokio::select! {
+            changed = updates.changed() => {
+                if changed.is_err() {
+                    return None;
+                }
+            }
+            _ = stop.changed() => return None,
+        }
+    }
 }
 
 pub(crate) async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Dialed, Status>

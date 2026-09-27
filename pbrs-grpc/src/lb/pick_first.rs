@@ -11,10 +11,11 @@
 //! Backoff follows the reference constants: 1s base, ×1.6, 20%
 //! jitter, 120s cap.
 
-use super::{LbPolicyFactory, register_lb_policy_factory};
+use super::{HealthSignal, LbPolicyFactory, register_lb_policy_factory};
 use crate::resolver::ResolvedAddress;
 use crate::service_config::ServiceConfig;
 use crate::status::Status;
+use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::{Mutex, watch};
@@ -44,6 +45,12 @@ struct State {
     backoff_rounds: u32,
     last_error: Option<Status>,
     shuffle: bool,
+    /// A17 health reports; absent means unknown. An unhealthy current
+    /// address fails over like a failed dial.
+    unhealthy: HashSet<ResolvedAddress>,
+    /// Addresses with a Watch in flight but no report yet. Picks wait
+    /// instead of using a pending current address.
+    health_pending: HashSet<ResolvedAddress>,
 }
 
 /// One dialable address with its A113 shuffle weight. Resolvers that
@@ -92,6 +99,8 @@ impl PickFirst {
                 backoff_rounds: 0,
                 last_error: None,
                 shuffle,
+                unhealthy: HashSet::new(),
+                health_pending: HashSet::new(),
             }),
             changed: watch::channel(0).0,
         })
@@ -141,6 +150,10 @@ impl PickFirst {
             .and_then(|addr| ordered.iter().position(|w| &w.address == addr))
             .unwrap_or(0);
         state.addresses = ordered;
+        let listed: Vec<ResolvedAddress> =
+            state.addresses.iter().map(|w| w.address.clone()).collect();
+        state.unhealthy.retain(|addr| listed.contains(addr));
+        state.health_pending.retain(|addr| listed.contains(addr));
         state.consecutive_failures = 0;
         state.backoff_until = None;
         state.backoff_rounds = 0;
@@ -151,7 +164,7 @@ impl PickFirst {
 
     /// Pick the current address, or wait/fail when none is usable.
     pub async fn pick(&self) -> Pick {
-        let state = self.state.lock().await;
+        let mut state = self.state.lock().await;
         if state.addresses.is_empty() {
             return Pick::Fail(Status::unavailable("pick_first: no addresses"));
         }
@@ -163,8 +176,30 @@ impl PickFirst {
                 };
             }
         }
-        match state.addresses.get(state.current) {
-            Some(weighted) => Pick::Use(weighted.address.clone()),
+        // Health gating (A17): a pending current address waits for its
+        // first Watch; an unhealthy one scans forward. Reports usually
+        // move the cursor eagerly; this covers reorder races.
+        let n = state.addresses.len();
+        for _ in 0..n {
+            let current = state.current.min(n.saturating_sub(1));
+            let Some(addr) = state.addresses.get(current).map(|w| w.address.clone()) else {
+                break;
+            };
+            if state.health_pending.contains(&addr) {
+                return Pick::Wait;
+            }
+            if !state.unhealthy.contains(&addr) {
+                return Pick::Use(addr);
+            }
+            state.current = (current + 1) % n;
+        }
+        if state.addresses.iter().any(|w| {
+            state.health_pending.contains(&w.address) && !state.unhealthy.contains(&w.address)
+        }) {
+            return Pick::Wait;
+        }
+        match &state.last_error {
+            Some(status) => Pick::Fail(status.clone()),
             None => Pick::Fail(Status::unavailable("pick_first: no addresses")),
         }
     }
@@ -184,6 +219,10 @@ impl PickFirst {
             }
         }
         let start = state.current.min(n.saturating_sub(1));
+        // Known-unhealthy addresses never race: their dials would win
+        // (the connection is fine) and route into an unhealthy backend.
+        // Pending addresses keep their pooled connections and watchers;
+        // they rejoin when their Watch reports.
         state
             .addresses
             .iter()
@@ -191,6 +230,7 @@ impl PickFirst {
             .skip(start)
             .take(n)
             .map(|weighted| weighted.address.clone())
+            .filter(|addr| !state.unhealthy.contains(addr) && !state.health_pending.contains(addr))
             .collect()
     }
 
@@ -216,6 +256,87 @@ impl PickFirst {
     /// backoff when the list is exhausted. Wakes waiters either way.
     pub async fn note_failure(&self, status: Status) {
         self.note_round_failed(1, status).await;
+    }
+
+    /// Record a Watch starting for a freshly dialed address: picks
+    /// wait instead of using it until the first report. Returns
+    /// whether this call newly marked the address (false when a Watch
+    /// is already recorded in flight).
+    pub async fn note_health_pending(&self, addr: &ResolvedAddress) -> bool {
+        let mut state = self.state.lock().await;
+        if state.addresses.iter().any(|w| &w.address == addr) {
+            state.health_pending.insert(addr.clone())
+        } else {
+            false
+        }
+    }
+
+    /// Clear a Watch record without reporting: the Watch ended (drain,
+    /// discard, shutdown) before any terminal signal. Wakes waiters so
+    /// they re-check; a redial re-pends and spawns a fresh Watch.
+    pub async fn note_health_gone(&self, addr: &ResolvedAddress) {
+        let mut state = self.state.lock().await;
+        if state.health_pending.remove(addr) {
+            self.changed
+                .send_modify(|generation| *generation = generation.wrapping_add(1));
+        }
+    }
+
+    /// Record a Watch report. An unhealthy current address fails over
+    /// exactly like a failed dial; other unhealthy addresses are
+    /// skipped by picks and races. Healthy addresses rejoin. Unknown
+    /// addresses (removed mid-Watch) are ignored.
+    pub async fn note_health(&self, addr: &ResolvedAddress, signal: HealthSignal) {
+        let failover = {
+            let mut state = self.state.lock().await;
+            if !state.addresses.iter().any(|w| &w.address == addr) {
+                return;
+            }
+            state.health_pending.remove(addr);
+            match signal {
+                HealthSignal::Healthy => {
+                    state.unhealthy.remove(addr);
+                    self.changed
+                        .send_modify(|generation| *generation = generation.wrapping_add(1));
+                    false
+                }
+                HealthSignal::Unhealthy => {
+                    state.unhealthy.insert(addr.clone());
+                    let current_is_addr = state
+                        .addresses
+                        .get(state.current)
+                        .is_some_and(|w| &w.address == addr);
+                    if !current_is_addr {
+                        // Failover bumps via note_failure below.
+                        self.changed
+                            .send_modify(|generation| *generation = generation.wrapping_add(1));
+                    }
+                    current_is_addr
+                }
+            }
+        };
+        if failover {
+            // Same accounting as a failed dial: advance or back off,
+            // waking waiters either way.
+            self.note_failure(Status::unavailable("health: backend not serving"))
+                .await;
+        }
+    }
+
+    /// Last reported health: `None` while no Watch has reported.
+    /// Unknown addresses report `None`.
+    pub async fn health_of(&self, addr: &ResolvedAddress) -> Option<HealthSignal> {
+        let state = self.state.lock().await;
+        if !state.addresses.iter().any(|w| &w.address == addr)
+            || state.health_pending.contains(addr)
+        {
+            return None;
+        }
+        Some(if state.unhealthy.contains(addr) {
+            HealthSignal::Unhealthy
+        } else {
+            HealthSignal::Healthy
+        })
     }
 
     /// Record a Happy-Eyeballs round in which `tried` addresses all
@@ -486,6 +607,32 @@ mod tests {
             }
         }
         assert!(seen.iter().all(|s| *s), "first-pick coverage: {seen:?}");
+    }
+
+    #[tokio::test]
+    async fn unhealthy_current_fails_over_like_a_failed_dial() {
+        use super::HealthSignal;
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp(1), tcp(2)]).await;
+        pf.note_health(&tcp(1), HealthSignal::Unhealthy).await;
+        assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(2)));
+        // Recovery rejoins the set but pick_first sticks to tcp(2).
+        pf.note_health(&tcp(1), HealthSignal::Healthy).await;
+        assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(2)));
+    }
+
+    #[tokio::test]
+    async fn pending_current_waits_for_first_report() {
+        use super::HealthSignal;
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp(1), tcp(2)]).await;
+        pf.note_health_pending(&tcp(1)).await;
+        assert!(matches!(pf.pick().await, Pick::Wait));
+        // Races skip the pending head; acquires never race on Wait.
+        assert_eq!(pf.race_plan().await, vec![tcp(2)]);
+        pf.note_health(&tcp(1), HealthSignal::Healthy).await;
+        assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(1)));
+        assert_eq!(pf.race_plan().await, vec![tcp(1), tcp(2)]);
     }
 
     #[tokio::test]

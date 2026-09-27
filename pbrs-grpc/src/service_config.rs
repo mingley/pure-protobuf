@@ -29,6 +29,7 @@ pub struct ServiceConfig {
     lb_policies: Vec<LbPolicyConfig>,
     throttling: Option<RetryThrottling>,
     health_service_name: Option<String>,
+    health_check_config: bool,
 }
 
 /// One `methodConfig` entry plus the names it covers.
@@ -77,6 +78,7 @@ impl ServiceConfig {
             .get("retryThrottling")
             .map(parse_throttling)
             .transpose()?;
+        let health_check_config = obj.get("healthCheckConfig").is_some();
         let health_service_name = obj
             .get("healthCheckConfig")
             .and_then(serde_json::Value::as_object)
@@ -89,6 +91,7 @@ impl ServiceConfig {
             lb_policies,
             throttling,
             health_service_name,
+            health_check_config,
         })
     }
 
@@ -159,6 +162,15 @@ impl ServiceConfig {
     #[must_use]
     pub fn health_service_name(&self) -> Option<&str> {
         self.health_service_name.as_deref()
+    }
+
+    /// Whether the document carries `healthCheckConfig` (A17 opt-in).
+    /// An empty object enables checking with the default name; only a
+    /// missing key disables it. The [`crate::ChannelConfig`] master
+    /// switch can still turn checking off.
+    #[must_use]
+    pub fn health_check_config(&self) -> bool {
+        self.health_check_config
     }
 
     /// Whether the document carries any method entries, LB config, or throttling.
