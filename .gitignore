@@ -1,5 +1,6 @@
 /target
 /bench/target
+/bench/devloop/target
 /bench/capture-*.json
 /bench/capture-*.err
 /tonic-bench/target

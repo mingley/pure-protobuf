@@ -1,0 +1,1295 @@
+//! Dev-loop measurement harness (SB-03): deterministic,
+//! iteration-friendly metrics for codec operations and loopback RPC
+//! shapes.
+//!
+//! Each cell runs in a child process (`devloop run-cell <id>`), which
+//! reports exact heap allocations/bytes (counting `GlobalAlloc`) and
+//! wall time as JSON. The parent optionally wraps the child in
+//! `perf stat` (instructions, syscalls), `strace -c` (syscalls), or
+//! valgrind/callgrind (instructions), and aggregates repeats into
+//! versioned JSON. Missing tools yield `not_run` for that metric,
+//! never a pass. `--baseline` compares two reports with the win-rule
+//! thresholds from the scoreboard.
+
+use serde::{Deserialize, Serialize};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::hint::black_box;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+/// Report schema version. Bump on any breaking JSON change.
+const SCHEMA: &str = "devloop/1";
+
+/// Counting allocator: exact per-run heap allocations and bytes.
+/// Only the timed phase counts (see [`AllocGuard`]); setup, teardown
+/// and JSON printing happen outside the window.
+struct CountingAlloc;
+
+static ALLOC_COUNT: AtomicU64 = AtomicU64::new(0);
+static ALLOC_BYTES: AtomicU64 = AtomicU64::new(0);
+static ALLOC_ARMED: AtomicU64 = AtomicU64::new(0);
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = unsafe { System.alloc(layout) };
+        if !ptr.is_null() && ALLOC_ARMED.load(Ordering::Relaxed) == 1 {
+            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(layout.size() as u64, Ordering::Relaxed);
+        }
+        ptr
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let out = unsafe { System.realloc(ptr, layout, new_size) };
+        if !out.is_null() && ALLOC_ARMED.load(Ordering::Relaxed) == 1 {
+            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(new_size as u64, Ordering::Relaxed);
+        }
+        out
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAlloc = CountingAlloc;
+
+/// Arms the counting window; disarms on drop and reports totals.
+struct AllocGuard;
+
+impl AllocGuard {
+    fn arm() -> Self {
+        ALLOC_COUNT.store(0, Ordering::Relaxed);
+        ALLOC_BYTES.store(0, Ordering::Relaxed);
+        ALLOC_ARMED.store(1, Ordering::Relaxed);
+        AllocGuard
+    }
+
+    fn totals(&self) -> (u64, u64) {
+        (
+            ALLOC_COUNT.load(Ordering::Relaxed),
+            ALLOC_BYTES.load(Ordering::Relaxed),
+        )
+    }
+}
+
+impl Drop for AllocGuard {
+    fn drop(&mut self) {
+        ALLOC_ARMED.store(0, Ordering::Relaxed);
+    }
+}
+
+/// One metric value: measured, or explicitly not run with a reason.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "status", content = "data", rename_all = "snake_case")]
+enum Metric {
+    Measured { value: f64, unit: String },
+    NotRun { reason: String },
+}
+
+impl Metric {
+    fn measured(value: f64, unit: &str) -> Self {
+        Metric::Measured {
+            value,
+            unit: unit.to_owned(),
+        }
+    }
+
+    fn not_run(reason: impl Into<String>) -> Self {
+        Metric::NotRun {
+            reason: reason.into(),
+        }
+    }
+}
+
+/// Aggregate of one cell over its repeats.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CellResult {
+    id: String,
+    kind: String,
+    codec: String,
+    iters: u64,
+    repeats: u32,
+    /// Per-operation medians across repeats.
+    instructions: Metric,
+    allocs: Metric,
+    alloc_bytes: Metric,
+    syscalls: Metric,
+    wall_ns: Metric,
+    /// Relative stddev of wall time across repeats (0..1), when known.
+    wall_cv: Option<f64>,
+}
+
+/// Whole-run report.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Report {
+    schema: String,
+    host: HostInfo,
+    devloop_commit: String,
+    cells: Vec<CellResult>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct HostInfo {
+    os: String,
+    arch: String,
+    cpu: String,
+    rustc: String,
+    perf: bool,
+    strace: bool,
+    valgrind: bool,
+}
+
+/// Child output: one JSON line on stdout.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ChildOutput {
+    cell: String,
+    iters: u64,
+    allocs: u64,
+    alloc_bytes: u64,
+    wall_ns: u64,
+}
+
+fn host_info() -> HostInfo {
+    HostInfo {
+        os: std::env::consts::OS.to_owned(),
+        arch: std::env::consts::ARCH.to_owned(),
+        cpu: cpu_name(),
+        rustc: rustc_version(),
+        perf: tool_exists("perf"),
+        strace: tool_exists("strace"),
+        valgrind: tool_exists("valgrind"),
+    }
+}
+
+fn tool_exists(name: &str) -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
+}
+
+fn cpu_name() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        std::fs::read_to_string("/proc/cpuinfo")
+            .ok()
+            .and_then(|info| {
+                info.lines().find_map(|line| {
+                    line.strip_prefix("model name")
+                        .and_then(|rest| rest.strip_prefix("\t: "))
+                        .map(str::to_owned)
+                })
+            })
+            .unwrap_or_else(|| "unknown".to_owned())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("sysctl")
+            .arg("-n")
+            .arg("machdep.cpu.brand_string")
+            .output()
+            .ok()
+            .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "unknown".to_owned())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        "unknown".to_owned()
+    }
+}
+
+fn rustc_version() -> String {
+    std::process::Command::new("rustc")
+        .arg("--version")
+        .output()
+        .ok()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn git_commit() -> String {
+    std::process::Command::new("git")
+        .args(["rev-parse", "--short=12", "HEAD"])
+        .output()
+        .ok()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+fn median(mut values: Vec<f64>) -> f64 {
+    values.sort_by(f64::total_cmp);
+    let n = values.len();
+    if n == 0 {
+        return 0.0;
+    }
+    if n % 2 == 1 {
+        values[n / 2]
+    } else {
+        (values[n / 2 - 1] + values[n / 2]) / 2.0
+    }
+}
+
+fn wall_cv(samples: &[f64]) -> Option<f64> {
+    if samples.len() < 2 {
+        return None;
+    }
+    let mean = samples.iter().sum::<f64>() / samples.len() as f64;
+    if mean <= 0.0 {
+        return None;
+    }
+    let var = samples.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / samples.len() as f64;
+    Some(var.sqrt() / mean)
+}
+
+fn usage() -> String {
+    "usage:\n\
+     \x20 devloop list\n\
+     \x20 devloop run-cell <id> --iters N [--warmup N]\n\
+     \x20 devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]\n\
+     \x20 devloop compare --baseline FILE [--current FILE] [--rpc]\n"
+        .to_owned()
+}
+
+// ---------------------------------------------------------------------------
+// Codec cells: one populated TestAllTypesProto3 specimen per codec.
+// The pbrs specimen is built by hand (mirroring bench's tat_populated);
+// prost and v4 specimens parse the same wire bytes, which also proves
+// wire compatibility. Touch walks a fixed representative field set.
+
+use pbrs::gencode::{NestedMessage, TestAllTypesProto3 as PbrsTat};
+use pbrs::prelude::*;
+use prost013::Message as _;
+use protobuf::Parse as _;
+
+fn pbrs_specimen() -> PbrsTat {
+    let mut nested = NestedMessage::new();
+    nested.set_a(9);
+    let mut m = PbrsTat::new();
+    m.set_optional_int32(7);
+    m.set_optional_int64(1 << 40);
+    m.set_optional_uint32(99);
+    m.set_optional_string("ada lovelace");
+    m.set_optional_bytes(&b"notes"[..]);
+    m.set_optional_nested_message(nested);
+    for i in 0..8 {
+        m.repeated_int32_mut().push(i);
+        m.packed_int32_mut().push(i * 3);
+    }
+    for i in 0..4 {
+        m.map_int32_int32_mut().insert(i, i * i);
+    }
+    m
+}
+
+fn touch_pbrs(m: &PbrsTat) -> u64 {
+    let mut acc = m.optional_int32() as u64;
+    acc = acc.wrapping_add(m.optional_int64() as u64);
+    acc = acc.wrapping_add(m.optional_uint32() as u64);
+    acc = acc.wrapping_add(m.optional_string().as_bytes().len() as u64);
+    acc = acc.wrapping_add(m.optional_bytes().len() as u64);
+    if let Some(n) = m.optional_nested_message_opt() {
+        acc = acc.wrapping_add(n.a() as u64);
+    }
+    for i in m.repeated_int32().iter() {
+        acc = acc.wrapping_add(i as u64);
+    }
+    for (k, v) in m.map_int32_int32().iter() {
+        acc = acc.wrapping_add(k as u64).wrapping_add(v as u64);
+    }
+    for i in m.packed_int32().iter() {
+        acc = acc.wrapping_add(i as u64);
+    }
+    acc
+}
+
+fn touch_prost(m: &prost_tat::TestAllTypesProto3) -> u64 {
+    let mut acc = m.optional_int32 as u64;
+    acc = acc.wrapping_add(m.optional_int64 as u64);
+    acc = acc.wrapping_add(m.optional_uint32 as u64);
+    acc = acc.wrapping_add(m.optional_string.len() as u64);
+    acc = acc.wrapping_add(m.optional_bytes.len() as u64);
+    if let Some(n) = &m.optional_nested_message {
+        acc = acc.wrapping_add(n.a as u64);
+    }
+    for i in m.repeated_int32.iter() {
+        acc = acc.wrapping_add(*i as u64);
+    }
+    for (k, v) in m.map_int32_int32.iter() {
+        acc = acc.wrapping_add(*k as u64).wrapping_add(*v as u64);
+    }
+    for i in m.packed_int32.iter() {
+        acc = acc.wrapping_add(*i as u64);
+    }
+    acc
+}
+
+fn touch_v4(m: &v4_tat::TestAllTypesProto3) -> u64 {
+    touch_v4_view(m.as_view())
+}
+
+fn touch_v4_view(m: v4_tat::TestAllTypesProto3View<'_>) -> u64 {
+    let mut acc = m.optional_int32() as u64;
+    acc = acc.wrapping_add(m.optional_int64() as u64);
+    acc = acc.wrapping_add(m.optional_uint32() as u64);
+    acc = acc.wrapping_add(m.optional_string().len() as u64);
+    acc = acc.wrapping_add(m.optional_bytes().len() as u64);
+    if m.has_optional_nested_message() {
+        acc = acc.wrapping_add(m.optional_nested_message().a() as u64);
+    }
+    for i in m.repeated_int32().iter() {
+        acc = acc.wrapping_add(i as u64);
+    }
+    for (k, v) in m.map_int32_int32().iter() {
+        acc = acc.wrapping_add(k as u64).wrapping_add(v as u64);
+    }
+    for i in m.packed_int32().iter() {
+        acc = acc.wrapping_add(i as u64);
+    }
+    acc
+}
+
+struct CodecCase {
+    wire: Vec<u8>,
+    pbrs_msg: PbrsTat,
+    prost_msg: prost_tat::TestAllTypesProto3,
+    v4_msg: v4_tat::TestAllTypesProto3,
+    /// Separately parsed messages for fresh-encode (parsed outside the
+    /// timer, each encoded exactly once).
+    pbrs_fresh: Vec<PbrsTat>,
+    prost_fresh: Vec<prost_tat::TestAllTypesProto3>,
+    v4_fresh: Vec<v4_tat::TestAllTypesProto3>,
+}
+
+impl CodecCase {
+    fn prepare(iters: u64) -> Self {
+        let pbrs_msg = pbrs_specimen();
+        let wire = pbrs::Serialize::serialize(&pbrs_msg).expect("pbrs wire");
+        let prost_msg =
+            prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("prost cross-parse");
+        let v4_msg = v4_tat::TestAllTypesProto3::parse(&wire).expect("v4 cross-parse");
+        // Checksums must agree: same observable content on all three.
+        let (a, b, c) = (
+            touch_pbrs(&PbrsTat::parse(&wire).expect("pbrs cross-parse")),
+            touch_prost(&prost_msg),
+            touch_v4(&v4_msg),
+        );
+        assert_eq!((a, b, c), (a, a, a), "touch checksums must agree");
+        let n = iters as usize;
+        let mut pbrs_fresh = Vec::with_capacity(n);
+        let mut prost_fresh = Vec::with_capacity(n);
+        let mut v4_fresh = Vec::with_capacity(n);
+        for _ in 0..n {
+            pbrs_fresh.push(PbrsTat::parse(&wire).expect("fresh pbrs"));
+            prost_fresh
+                .push(prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("fresh prost"));
+            v4_fresh.push(v4_tat::TestAllTypesProto3::parse(&wire).expect("fresh v4"));
+        }
+        CodecCase {
+            wire,
+            pbrs_msg,
+            prost_msg,
+            v4_msg,
+            pbrs_fresh,
+            prost_fresh,
+            v4_fresh,
+        }
+    }
+}
+
+/// Run one codec work unit; returns a sink to defeat DCE.
+fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
+    match cell {
+        "codec.pbrs.fresh_encode" => black_box(
+            pbrs::Serialize::serialize(&case.pbrs_fresh[i])
+                .expect("enc")
+                .len() as u64,
+        ),
+        "codec.pbrs.cached_encode" => black_box(
+            pbrs::Serialize::serialize(&case.pbrs_msg)
+                .expect("enc")
+                .len() as u64,
+        ),
+        "codec.pbrs.owned_decode" => {
+            black_box(PbrsTat::parse(&case.wire).expect("dec").optional_int32() as u64)
+        }
+        "codec.pbrs.parse_touch" => {
+            black_box(touch_pbrs(&PbrsTat::parse(&case.wire).expect("dec")))
+        }
+        "codec.prost.fresh_encode" => {
+            let mut buf = Vec::new();
+            prost013::Message::encode(&case.prost_fresh[i], &mut buf).expect("enc");
+            black_box(buf.len() as u64)
+        }
+        "codec.prost.cached_encode" => {
+            let mut buf = Vec::new();
+            prost013::Message::encode(&case.prost_msg, &mut buf).expect("enc");
+            black_box(buf.len() as u64)
+        }
+        "codec.prost.owned_decode" => black_box(
+            prost_tat::TestAllTypesProto3::decode(case.wire.as_slice())
+                .expect("dec")
+                .optional_int32 as u64,
+        ),
+        "codec.prost.parse_touch" => black_box(touch_prost(
+            &prost_tat::TestAllTypesProto3::decode(case.wire.as_slice()).expect("dec"),
+        )),
+        "codec.v4.fresh_encode" => black_box(
+            protobuf::Serialize::serialize(&case.v4_fresh[i])
+                .expect("enc")
+                .len() as u64,
+        ),
+        "codec.v4.cached_encode" => black_box(
+            protobuf::Serialize::serialize(&case.v4_msg)
+                .expect("enc")
+                .len() as u64,
+        ),
+        "codec.v4.owned_decode" => black_box(
+            v4_tat::TestAllTypesProto3::parse(&case.wire)
+                .expect("dec")
+                .optional_int32() as u64,
+        ),
+        "codec.v4.parse_touch" => black_box(touch_v4(
+            &v4_tat::TestAllTypesProto3::parse(&case.wire).expect("dec"),
+        )),
+        _ => panic!("unknown codec cell {cell}"),
+    }
+}
+
+fn codec_cells() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("codec.pbrs.fresh_encode", "pbrs"),
+        ("codec.pbrs.cached_encode", "pbrs"),
+        ("codec.pbrs.owned_decode", "pbrs"),
+        ("codec.pbrs.parse_touch", "pbrs"),
+        ("codec.prost.fresh_encode", "prost"),
+        ("codec.prost.cached_encode", "prost"),
+        ("codec.prost.owned_decode", "prost"),
+        ("codec.prost.parse_touch", "prost"),
+        ("codec.v4.fresh_encode", "v4-upb"),
+        ("codec.v4.cached_encode", "v4-upb"),
+        ("codec.v4.owned_decode", "v4-upb"),
+        ("codec.v4.parse_touch", "v4-upb"),
+    ]
+}
+
+// ---------------------------------------------------------------------------
+// RPC cells: closed-loop loopback (concurrency 1) over 127.0.0.1.
+// pbrs-grpc serves the in-tree helloworld Greeter; tonic serves the
+// echo.proto service. Codecs differ per stack by construction, so
+// cross-stack deltas are NOT fair transport comparisons until SB-01
+// qualifies the tonic setup; within-stack repeats are exact.
+
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::{Request, Streaming};
+
+struct Echod;
+
+fn hello_req(payload: &[u8]) -> HelloRequest {
+    let mut r = HelloRequest::new();
+    r.set_name(String::from_utf8_lossy(payload));
+    r
+}
+
+fn hello_reply(payload: &[u8]) -> HelloReply {
+    let mut r = HelloReply::new();
+    r.set_message(String::from_utf8_lossy(payload));
+    r
+}
+
+impl Greeter for Echod {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<pbrs_grpc::Response<HelloReply>, pbrs_grpc::Status> {
+        let name = request.get_ref().name().to_str().unwrap_or("").to_owned();
+        Ok(pbrs_grpc::Response::new(hello_reply(name.as_bytes())))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<pbrs_grpc::Response<HelloReply>, pbrs_grpc::Status> {
+        let mut inbound = request.into_inner();
+        let mut last = String::new();
+        while let Some(msg) = inbound.message().await? {
+            last = msg.name().to_str().unwrap_or("").to_owned();
+        }
+        Ok(pbrs_grpc::Response::new(hello_reply(last.as_bytes())))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<pbrs_grpc::Response<Streaming<HelloReply>>, pbrs_grpc::Status> {
+        let name = request.get_ref().name().to_str().unwrap_or("").to_owned();
+        let (tx, stream) = Streaming::channel(8);
+        drop(tokio::spawn(async move {
+            for part in name.split(',') {
+                if tx.send(hello_reply(part.as_bytes())).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(pbrs_grpc::Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<pbrs_grpc::Response<Streaming<HelloReply>>, pbrs_grpc::Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(8);
+        drop(tokio::spawn(async move {
+            while let Ok(Some(msg)) = inbound.message().await {
+                let name = msg.name().to_str().unwrap_or("").to_owned();
+                if tx.send(hello_reply(name.as_bytes())).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(pbrs_grpc::Response::new(stream))
+    }
+}
+
+pub mod echo {
+    tonic::include_proto!("devloop");
+}
+
+use echo::echo_server::{Echo as TonicEcho, EchoServer};
+use echo::{EchoReply as TonicReply, EchoRequest as TonicRequest};
+
+struct TonicEchod;
+
+#[tonic::async_trait]
+impl TonicEcho for TonicEchod {
+    async fn unary(
+        &self,
+        request: tonic::Request<TonicRequest>,
+    ) -> Result<tonic::Response<TonicReply>, tonic::Status> {
+        let payload = request.into_inner().payload;
+        Ok(tonic::Response::new(TonicReply { payload }))
+    }
+
+    type ServerStreamStream =
+        tokio_stream::wrappers::ReceiverStream<Result<TonicReply, tonic::Status>>;
+
+    async fn server_stream(
+        &self,
+        request: tonic::Request<TonicRequest>,
+    ) -> Result<tonic::Response<Self::ServerStreamStream>, tonic::Status> {
+        let req = request.into_inner();
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        drop(tokio::spawn(async move {
+            for _ in 0..req.replies.max(1) {
+                if tx
+                    .send(Ok(TonicReply {
+                        payload: req.payload.clone(),
+                    }))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        }));
+        Ok(tonic::Response::new(
+            tokio_stream::wrappers::ReceiverStream::new(rx),
+        ))
+    }
+}
+
+fn rpc_cells() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("rpc.pbrs.unary", "pbrs-grpc"),
+        ("rpc.pbrs.server_stream", "pbrs-grpc"),
+        ("rpc.tonic.unary", "tonic"),
+        ("rpc.tonic.server_stream", "tonic"),
+    ]
+}
+
+/// 1 KiB ASCII payload; valid UTF-8 so both codecs carry it as a string.
+fn rpc_payload() -> Vec<u8> {
+    vec![b'x'; 1024]
+}
+
+async fn rpc_pbrs_unary(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        GreeterServer::new(Echod)
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let client = GreeterClient::connect(addr).await.expect("connect");
+    // Warmup outside the window: one call to settle the connection.
+    client
+        .say_hello(Request::new(hello_req(payload)))
+        .await
+        .expect("warmup");
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .say_hello(Request::new(hello_req(payload)))
+            .await
+            .expect("unary");
+        sink = sink.wrapping_add(resp.into_inner().message().to_str().unwrap_or("").len() as u64);
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.pbrs.unary", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+async fn rpc_pbrs_server_stream(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        GreeterServer::new(Echod)
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let client = GreeterClient::connect(addr).await.expect("connect");
+    // Four comma-separated chunks -> four replies per RPC.
+    let chunk = String::from_utf8_lossy(&payload[..256]).into_owned();
+    let name = format!("{chunk},{chunk},{chunk},{chunk}");
+    let resp = client
+        .server_hello(Request::new(hello_req(name.as_bytes())))
+        .await
+        .expect("warmup headers");
+    let mut inbound = resp.into_inner();
+    while inbound.message().await.expect("warmup msg").is_some() {}
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .server_hello(Request::new(hello_req(name.as_bytes())))
+            .await
+            .expect("headers");
+        let mut inbound = resp.into_inner();
+        while let Some(msg) = inbound.message().await.expect("msg") {
+            sink = sink.wrapping_add(msg.message().to_str().unwrap_or("").len() as u64);
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.pbrs.server_stream", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+async fn rpc_tonic_unary(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        tonic::transport::Server::builder()
+            .add_service(EchoServer::new(TonicEchod))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    }));
+    let mut client = echo::echo_client::EchoClient::connect(format!("http://{addr}"))
+        .await
+        .expect("connect");
+    client
+        .unary(TonicRequest {
+            payload: payload.to_vec(),
+            replies: 0,
+        })
+        .await
+        .expect("warmup");
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .unary(TonicRequest {
+                payload: payload.to_vec(),
+                replies: 0,
+            })
+            .await
+            .expect("unary");
+        sink = sink.wrapping_add(resp.into_inner().payload.len() as u64);
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.tonic.unary", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+async fn rpc_tonic_server_stream(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        tonic::transport::Server::builder()
+            .add_service(EchoServer::new(TonicEchod))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    }));
+    let mut client = echo::echo_client::EchoClient::connect(format!("http://{addr}"))
+        .await
+        .expect("connect");
+    let mut warmup = client
+        .server_stream(TonicRequest {
+            payload: payload.to_vec(),
+            replies: 4,
+        })
+        .await
+        .expect("warmup headers")
+        .into_inner();
+    while warmup.message().await.expect("warmup msg").is_some() {}
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let mut stream = client
+            .server_stream(TonicRequest {
+                payload: payload.to_vec(),
+                replies: 4,
+            })
+            .await
+            .expect("headers")
+            .into_inner();
+        while let Some(msg) = stream.message().await.expect("msg") {
+            sink = sink.wrapping_add(msg.payload.len() as u64);
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.tonic.server_stream", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+// ---------------------------------------------------------------------------
+// Child protocol: `run-cell` prints exactly one `__CHILD__ <json>` line
+// on stderr (stdout stays clean for tool wrappers that merge streams).
+
+fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -> String {
+    serde_json::to_string(&ChildOutput {
+        cell: cell.to_owned(),
+        iters,
+        allocs,
+        alloc_bytes: bytes,
+        wall_ns: wall.as_nanos() as u64,
+    })
+    .expect("child json")
+}
+
+fn run_codec_cell(cell: &str, iters: u64, warmup: u64) {
+    let case = CodecCase::prepare(iters);
+    let n = iters as usize;
+    for i in 0..warmup as usize {
+        black_box(codec_work(cell, &case, i % n.max(1)));
+    }
+    // Fresh-encode cells consume one message per iter; decode cells reuse
+    // the wire bytes. All allocation happens inside the window.
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for i in 0..n {
+        sink = sink.wrapping_add(codec_work(cell, &case, i));
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!("__CHILD__ {}", child_json(cell, iters, allocs, bytes, wall));
+    black_box(sink);
+}
+
+fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
+    let mut out = Vec::new();
+    for (id, codec) in codec_cells() {
+        out.push((id, "codec", codec));
+    }
+    for (id, codec) in rpc_cells() {
+        out.push((id, "rpc", codec));
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Tool probes. Each returns a prefix argv to wrap the child, or None.
+// Instructions: perf first, valgrind/callgrind second, else not_run.
+// Syscalls: strace -c on Linux, else not_run.
+
+struct Tools {
+    perf: bool,
+    strace: bool,
+    valgrind: bool,
+}
+
+fn probe_tools() -> Tools {
+    Tools {
+        perf: tool_exists("perf"),
+        strace: tool_exists("strace"),
+        valgrind: tool_exists("valgrind"),
+    }
+}
+
+/// Run the child for one repeat, optionally under a wrapper. Returns
+/// the child output plus optional (instructions, syscalls).
+fn run_child(
+    exe: &std::path::Path,
+    cell: &str,
+    iters: u64,
+    tools: &Tools,
+) -> (ChildOutput, Option<f64>, Option<f64>) {
+    // Instructions wrapper preference: perf > valgrind > none.
+    let wrapper: Vec<String> = if tools.perf {
+        vec![
+            "perf".to_owned(),
+            "stat".to_owned(),
+            "-x,".to_owned(),
+            "-e".to_owned(),
+            "instructions".to_owned(),
+            "--".to_owned(),
+        ]
+    } else if tools.valgrind {
+        vec![
+            "valgrind".to_owned(),
+            "--tool=callgrind".to_owned(),
+            "--cache-sim=no".to_owned(),
+            "--quiet".to_owned(),
+        ]
+    } else {
+        Vec::new()
+    };
+    let mut cmd = std::process::Command::new(if wrapper.is_empty() {
+        exe.as_os_str().to_owned()
+    } else {
+        wrapper[0].clone().into()
+    });
+    if !wrapper.is_empty() {
+        cmd.args(&wrapper[1..]);
+        cmd.arg(exe);
+    }
+    cmd.arg("run-cell")
+        .arg(cell)
+        .arg("--iters")
+        .arg(iters.to_string());
+    let out = cmd.output().expect("spawn child");
+    assert!(
+        out.status.success(),
+        "cell {cell} child failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+            .chars()
+            .take(500)
+            .collect::<String>()
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let child_line = stderr
+        .lines()
+        .find_map(|line| line.strip_prefix("__CHILD__ "))
+        .unwrap_or_else(|| panic!("cell {cell} printed no __CHILD__ line"));
+    let child: ChildOutput = serde_json::from_str(child_line).expect("child json parses");
+    let instructions =
+        parse_perf_instructions(&stderr).or_else(|| parse_callgrind_instructions(&stderr));
+    // Syscalls need a second run under strace (perf stat -e syscalls
+    // counts entry+exit pairs inconsistently across kernels).
+    let syscalls = if tools.strace {
+        let sout = std::process::Command::new("strace")
+            .arg("-c")
+            .arg("-f")
+            .arg(exe)
+            .arg("run-cell")
+            .arg(cell)
+            .arg("--iters")
+            .arg(iters.to_string())
+            .output()
+            .expect("spawn strace");
+        if sout.status.success() {
+            parse_strace_total(&String::from_utf8_lossy(&sout.stderr))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    (child, instructions, syscalls)
+}
+
+/// Parse `perf stat -x,` output: `<count>,instructions,...`.
+fn parse_perf_instructions(stderr: &str) -> Option<f64> {
+    stderr.lines().find_map(|line| {
+        let mut parts = line.split(',');
+        let count = parts.next()?.trim().replace(' ', "");
+        let event = parts.next()?.trim();
+        if event == "instructions" {
+            count.parse::<f64>().ok()
+        } else {
+            None
+        }
+    })
+}
+
+/// Parse callgrind's summary line (`-bbi` off): `events: Ir ...` plus
+/// the `summary:` line callgrind prints with --quiet... valgrind's
+/// callgrind prints `I refs:` in its final summary; use that.
+fn parse_callgrind_instructions(stderr: &str) -> Option<f64> {
+    stderr.lines().find_map(|line| {
+        let line = line.trim();
+        line.strip_prefix("I   refs:").and_then(|rest| {
+            rest.trim()
+                .split_whitespace()
+                .next()
+                .and_then(|n| n.replace(',', "").parse::<f64>().ok())
+        })
+    })
+}
+
+/// Parse `strace -c` totals: the `total` line's first column is the
+/// call count... actually `% time seconds usecs/call calls ...`;
+/// use the `total` row's `calls` field (4th column).
+fn parse_strace_total(stderr: &str) -> Option<f64> {
+    stderr.lines().find_map(|line| {
+        let line = line.trim();
+        line.strip_prefix("total").and_then(|rest| {
+            rest.split_whitespace()
+                .nth(3)
+                .and_then(|n| n.parse::<f64>().ok())
+        })
+    })
+}
+
+fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
+    let exe = std::env::current_exe().expect("current exe");
+    let tools = probe_tools();
+    let registry: std::collections::HashMap<_, _> = all_cells()
+        .into_iter()
+        .map(|(id, kind, codec)| (id, (kind, codec)))
+        .collect();
+    let mut out = Vec::new();
+    for cell in cells {
+        let (kind, codec) = registry
+            .get(cell)
+            .unwrap_or_else(|| panic!("unknown cell {cell}"));
+        let cell_iters = if kind == &"rpc" {
+            iters.min(200)
+        } else {
+            iters
+        };
+        let mut allocs = Vec::new();
+        let mut alloc_bytes = Vec::new();
+        let mut walls = Vec::new();
+        let mut instrs = Vec::new();
+        let mut syscalls = Vec::new();
+        for _ in 0..repeats {
+            let (child, instr, sys) = run_child(&exe, cell, cell_iters, &tools);
+            assert_eq!(child.iters, cell_iters);
+            allocs.push(child.allocs as f64 / cell_iters as f64);
+            alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
+            walls.push(child.wall_ns as f64 / cell_iters as f64);
+            if let Some(v) = instr {
+                instrs.push(v / cell_iters as f64);
+            }
+            if let Some(v) = sys {
+                syscalls.push(v / cell_iters as f64);
+            }
+        }
+        // Codec allocation counts must be bit-exact across repeats;
+        // anything else is nondeterminism in the cell, not noise. RPC
+        // cells legitimately jitter by ~1 allocation (ephemeral port
+        // digits, hash seeds), so they report the median instead.
+        let alloc_exact = allocs.windows(2).all(|w| w[0] == w[1]);
+        let bytes_exact = alloc_bytes.windows(2).all(|w| w[0] == w[1]);
+        if kind == &"codec" {
+            assert!(
+                alloc_exact && bytes_exact,
+                "cell {cell} allocations vary across repeats: {allocs:?} / {alloc_bytes:?}"
+            );
+        } else if !(alloc_exact && bytes_exact) {
+            eprintln!("note: cell {cell} allocs vary across repeats, using median");
+        }
+        let (alloc_metric, bytes_metric) = if kind == &"codec" {
+            (
+                Metric::measured(allocs[0], "heap allocs per op (exact)"),
+                Metric::measured(alloc_bytes[0], "heap bytes per op (exact)"),
+            )
+        } else {
+            (
+                Metric::measured(median(allocs), "heap allocs per RPC (median)"),
+                Metric::measured(median(alloc_bytes), "heap bytes per RPC (median)"),
+            )
+        };
+        out.push(CellResult {
+            id: cell.to_string(),
+            kind: kind.to_string(),
+            codec: codec.to_string(),
+            iters: cell_iters,
+            repeats,
+            instructions: if instrs.is_empty() {
+                Metric::not_run("no perf or valgrind on PATH")
+            } else {
+                Metric::measured(median(instrs), "retired/callgrind-ir per op")
+            },
+            allocs: alloc_metric,
+            alloc_bytes: bytes_metric,
+            syscalls: if syscalls.is_empty() {
+                Metric::not_run("no strace on PATH")
+            } else {
+                Metric::measured(median(syscalls), "syscalls per op")
+            },
+            wall_ns: Metric::measured(median(walls.clone()), "ns per op (secondary)"),
+            wall_cv: wall_cv(&walls),
+        });
+    }
+    Report {
+        schema: SCHEMA.to_owned(),
+        host: host_info(),
+        devloop_commit: git_commit(),
+        cells: out,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Baseline comparison with scoreboard thresholds: instructions or
+// allocations fall ≥2% on targeted cells; no primary cell regresses
+// >1% (2% for RPC cells). Exits nonzero on regression; not_run never
+// passes or fails, it just skips.
+
+fn metric_value(m: &Metric) -> Option<f64> {
+    match m {
+        Metric::Measured { value, .. } => Some(*value),
+        Metric::NotRun { .. } => None,
+    }
+}
+
+fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
+    assert_eq!(baseline.schema, current.schema, "schema mismatch");
+    let base: std::collections::HashMap<_, _> =
+        baseline.cells.iter().map(|c| (c.id.as_str(), c)).collect();
+    let mut ok = true;
+    for cell in &current.cells {
+        let Some(old) = base.get(cell.id.as_str()) else {
+            println!("{}: new cell, no baseline", cell.id);
+            continue;
+        };
+        for (name, o, n, lower_better) in [
+            ("instructions", &old.instructions, &cell.instructions, true),
+            ("allocs", &old.allocs, &cell.allocs, true),
+            ("alloc_bytes", &old.alloc_bytes, &cell.alloc_bytes, true),
+            ("syscalls", &old.syscalls, &cell.syscalls, true),
+        ] {
+            let (Some(o), Some(n)) = (metric_value(o), metric_value(n)) else {
+                continue;
+            };
+            if o == 0.0 {
+                continue;
+            }
+            let delta = (n - o) / o;
+            let limit = if rpc || cell.kind == "rpc" {
+                0.02
+            } else {
+                0.01
+            };
+            let improved = if lower_better {
+                delta < 0.0
+            } else {
+                delta > 0.0
+            };
+            let regressed = if lower_better {
+                delta > limit
+            } else {
+                delta < -limit
+            };
+            if regressed {
+                println!(
+                    "{} {name}: REGRESSED {o:.1} -> {n:.1} ({:+.2}%, limit {:.0}%)",
+                    cell.id,
+                    delta * 100.0,
+                    limit * 100.0
+                );
+                ok = false;
+            } else if improved && delta.abs() >= 0.02 {
+                println!(
+                    "{} {name}: improved {o:.1} -> {n:.1} ({:+.2}%)",
+                    cell.id,
+                    delta * 100.0
+                );
+            }
+        }
+    }
+    ok
+}
+
+fn cmd_list() {
+    for (id, kind, codec) in all_cells() {
+        println!("{id} {kind} {codec}");
+    }
+}
+
+fn cmd_run_cell(args: &[String]) {
+    let mut id: Option<String> = None;
+    let mut iters = 1000u64;
+    let mut warmup = 100u64;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--iters" => {
+                iters = args[i + 1].parse().expect("--iters N");
+                i += 2;
+            }
+            "--warmup" => {
+                warmup = args[i + 1].parse().expect("--warmup N");
+                i += 2;
+            }
+            other if id.is_none() => {
+                id = Some(other.to_owned());
+                i += 1;
+            }
+            other => panic!("unexpected arg {other}"),
+        }
+    }
+    let id = id.expect("run-cell <id>");
+    if id.starts_with("codec.") {
+        run_codec_cell(&id, iters, warmup);
+    } else if id.starts_with("rpc.") {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let payload = rpc_payload();
+        rt.block_on(async {
+            match id.as_str() {
+                "rpc.pbrs.unary" => rpc_pbrs_unary(iters, &payload).await,
+                "rpc.pbrs.server_stream" => rpc_pbrs_server_stream(iters, &payload).await,
+                "rpc.tonic.unary" => rpc_tonic_unary(iters, &payload).await,
+                "rpc.tonic.server_stream" => rpc_tonic_server_stream(iters, &payload).await,
+                _ => panic!("unknown rpc cell {id}"),
+            }
+        });
+    } else {
+        panic!("unknown cell {id}");
+    }
+}
+
+fn cmd_run(args: &[String]) {
+    let mut cells: Option<String> = None;
+    let mut iters = 2000u64;
+    let mut repeats = 3u32;
+    let mut out: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--cells" => {
+                cells = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--iters" => {
+                iters = args[i + 1].parse().expect("--iters N");
+                i += 2;
+            }
+            "--repeats" => {
+                repeats = args[i + 1].parse().expect("--repeats N");
+                i += 2;
+            }
+            "--out" => {
+                out = Some(args[i + 1].clone());
+                i += 2;
+            }
+            other => panic!("unexpected arg {other}"),
+        }
+    }
+    let all: Vec<String> = all_cells()
+        .into_iter()
+        .map(|(id, _, _)| id.to_owned())
+        .collect();
+    let wanted: Vec<&str> = match &cells {
+        Some(list) => list.split(',').collect(),
+        None => all.iter().map(String::as_str).collect(),
+    };
+    let report = run_matrix(&wanted, iters, repeats);
+    let json = serde_json::to_string_pretty(&report).expect("report json");
+    match out {
+        Some(path) => std::fs::write(&path, format!("{json}\n")).expect("write report"),
+        None => println!("{json}"),
+    }
+}
+
+fn cmd_compare(args: &[String]) {
+    let mut baseline: Option<String> = None;
+    let mut current: Option<String> = None;
+    let mut rpc = false;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--baseline" => {
+                baseline = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--current" => {
+                current = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--rpc" => {
+                rpc = true;
+                i += 1;
+            }
+            other => panic!("unexpected arg {other}"),
+        }
+    }
+    let baseline = baseline.expect("--baseline FILE");
+    let base: Report =
+        serde_json::from_str(&std::fs::read_to_string(&baseline).expect("read baseline"))
+            .expect("parse baseline");
+    let current: Report = match current {
+        Some(path) => serde_json::from_str(&std::fs::read_to_string(&path).expect("read current"))
+            .expect("parse current"),
+        None => {
+            let stdin = std::io::read_to_string(std::io::stdin()).expect("read stdin");
+            serde_json::from_str(&stdin).expect("parse stdin")
+        }
+    };
+    if !compare_reports(&base, &current, rpc) {
+        std::process::exit(1);
+    }
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        eprint!("{}", usage());
+        std::process::exit(2);
+    }
+    match args[1].as_str() {
+        "list" => cmd_list(),
+        "run-cell" => cmd_run_cell(&args[2..]),
+        "run" => cmd_run(&args[2..]),
+        "compare" => cmd_compare(&args[2..]),
+        _ => {
+            eprint!("{}", usage());
+            std::process::exit(2);
+        }
+    }
+}

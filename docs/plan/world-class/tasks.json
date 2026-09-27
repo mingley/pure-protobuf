@@ -1383,7 +1383,13 @@
     "D4"
    ],
    "relates": [],
-   "notes": "Cargo.toml edit is limited to adding bench/devloop to the workspace exclude list."
+   "notes": "Cargo.toml edit is limited to adding bench/devloop to the workspace exclude list.",
+   "status": "done",
+   "evidence": [
+    "bench/devloop/ (16 cells, devloop/1 JSON, --baseline compare)",
+    "scripts/devloop.sh",
+    "bench/devloop/README.md (variance: codec allocs bit-exact; instr needs Linux perf)"
+   ]
   },
   {
    "id": "SB-04",

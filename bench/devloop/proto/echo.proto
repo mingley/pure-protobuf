@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package devloop;
+
+// Minimal echo shape for dev-loop RPC cells. Both sides implement the
+// same service: pbrs-grpc by hand, tonic from this file.
+service Echo {
+  rpc Unary(EchoRequest) returns (EchoReply);
+  rpc ServerStream(EchoRequest) returns (stream EchoReply);
+}
+
+message EchoRequest {
+  bytes payload = 1;
+  int32 replies = 2;
+}
+
+message EchoReply {
+  bytes payload = 1;
+}

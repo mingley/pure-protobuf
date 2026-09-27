@@ -2,6 +2,7 @@
 members = [".", "protobuf-tonic", "pbrs-grpc", "examples/greeter"]
 exclude = [
     "bench",
+    "bench/devloop",
     "tonic-bench",
     "rpc-bench",
     "v4_person",
