@@ -16,8 +16,9 @@
 //! explicit bounds, atomic generations, stale budgets, bounded drain of
 //! removed addresses by the caller.
 //!
-//! IP literals and `localhost` never consult DNS TXT records (A10); TXT
-//! service-config delivery itself arrives with CH-03.
+//! IP literals and `localhost` never consult DNS TXT records (A10);
+//! Other DNS names fetch `_grpc_config.` TXT service configs (A2),
+//! adopted with A21 fallback by resolver-managed channels.
 
 mod dns;
 mod fixed;

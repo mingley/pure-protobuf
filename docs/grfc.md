@@ -30,10 +30,10 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A2 | Service configs in DNS | planned | TXT-record service config in the DNS resolver. |
-| A10 | Avoid grpclb/service-config for localhost and IP literals | planned | Folded into the resolver: literals skip DNS-TXT lookup. |
-| A21 | Service-config error handling | partial | `ServiceConfig::parse` validates eagerly and rejects bad documents with `InvalidArgument` naming the entry. Resolver-delivered configs arrive with CH-03. |
-| A24 | LB policy config | planned | `loadBalancingConfig` selection in service config. |
+| A2 | Service configs in DNS | shipped | `_grpc_config.` TXT service config in the DNS resolver (UDP, single nameserver, no TCP fallback; failures/empty keep last config). |
+| A10 | Avoid grpclb/service-config for localhost and IP literals | shipped | Literals resolve statically without DNS; localhost and literals skip TXT (`skips_txt_lookup`). |
+| A21 | Service-config error handling | shipped | Eager validation; invalid initial TXT fails the channel, invalid updates keep the last good document. |
+| A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; policies register in CH-04+. |
 | A62 | pick_first | planned | Default LB policy with sticky transient-failure handling. |
 | A113 | pick_first weighted shuffling | planned | With pick_first. |
 | round_robin | (core policy, no gRFC number) | planned | Per-subchannel ready-list rotation. |

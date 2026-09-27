@@ -195,8 +195,10 @@ impl ResolverFactory for DnsScheme {
                 tx,
                 Arc::clone(&initial),
                 initial_txt,
-                txt,
-                txt_name,
+                TxtSource {
+                    provider: txt,
+                    name: txt_name,
+                },
             ));
             Ok(BuiltResolver::refreshing(
                 initial,
@@ -231,6 +233,13 @@ async fn fetch_txt(txt: &Option<Arc<dyn TxtLookup>>, name: Option<&str>) -> Opti
     Some(records.concat())
 }
 
+/// TXT source for the refresh loop: provider plus query name, or
+/// nothing when TXT is skipped (A10) or unconfigured.
+struct TxtSource {
+    provider: Option<Arc<dyn TxtLookup>>,
+    name: Option<String>,
+}
+
 /// One refresh task per resolver. Successful answers republish only on
 /// change (addresses or service config); failures serve the last
 /// success inside the stale budget, then publish authoritative empty
@@ -242,8 +251,7 @@ async fn refresh_loop(
     tx: watch::Sender<Arc<Resolution>>,
     initial: Arc<Resolution>,
     mut service_config: Option<String>,
-    txt: Option<Arc<dyn TxtLookup>>,
-    txt_name: Option<String>,
+    txt: TxtSource,
 ) {
     let mut current = initial;
     let mut generation = 0u64;
@@ -255,7 +263,7 @@ async fn refresh_loop(
             Ok(addrs) => {
                 backoff = dns.retry_min;
                 valid_until = tokio::time::Instant::now() + dns.refresh_without_ttl;
-                if let Some(txt) = fetch_txt(&txt, txt_name.as_deref()).await {
+                if let Some(txt) = fetch_txt(&txt.provider, txt.name.as_deref()).await {
                     service_config = Some(txt);
                 }
                 let next = Arc::new(

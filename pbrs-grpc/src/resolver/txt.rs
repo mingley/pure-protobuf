@@ -75,7 +75,7 @@ impl TxtLookup for SystemTxt {
         let nameserver = self.nameserver;
         let name = name.to_owned();
         Box::pin(async move {
-            let query = encode_query(&name)?;
+            let (id, query) = encode_query(&name)?;
             let sock = tokio::net::UdpSocket::bind("0.0.0.0:0").await?;
             sock.connect(nameserver).await?;
             sock.send(&query).await?;
@@ -85,8 +85,10 @@ impl TxtLookup for SystemTxt {
                 .map_err(|_| {
                     io::Error::new(io::ErrorKind::TimedOut, "dns txt query timed out")
                 })??;
-            let id = u16::from_be_bytes([query[0], query[1]]);
-            parse_response(&buf[..len], id)
+            let datagram = buf
+                .get(..len)
+                .ok_or_else(|| invalid("short datagram"))?;
+            parse_response(datagram, id)
         })
     }
 }
@@ -97,18 +99,19 @@ pub fn grpc_config_name(host: &str) -> String {
     format!("_grpc_config.{host}")
 }
 
-fn encode_query(name: &str) -> Result<Vec<u8>, io::Error> {
+fn encode_query(name: &str) -> Result<(u16, Vec<u8>), io::Error> {
     if name.is_empty() || name.len() > 253 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!("bad dns name {name:?}"),
         ));
     }
-    let id = (std::time::SystemTime::now()
+    let mixed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.subsec_nanos())
         .unwrap_or(0)
-        ^ std::process::id()) as u16;
+        ^ std::process::id();
+    let id = u16::try_from(mixed & 0xFFFF).unwrap_or(0);
     let mut out = Vec::with_capacity(32 + name.len());
     out.extend_from_slice(&id.to_be_bytes());
     out.extend_from_slice(&[0x01, 0x00]); // RD, opcode 0
@@ -133,7 +136,7 @@ fn encode_query(name: &str) -> Result<Vec<u8>, io::Error> {
     out.push(0);
     out.extend_from_slice(&16u16.to_be_bytes()); // TXT
     out.extend_from_slice(&1u16.to_be_bytes()); // IN
-    Ok(out)
+    Ok((id, out))
 }
 
 fn invalid(message: impl Into<String>) -> io::Error {
@@ -142,7 +145,10 @@ fn invalid(message: impl Into<String>) -> io::Error {
 
 /// Parse a DNS response, collecting every TXT record's strings.
 fn parse_response(buf: &[u8], want_id: u16) -> Result<Vec<String>, io::Error> {
-    let header = buf.get(..12).ok_or_else(|| invalid("short dns header"))?;
+    let header: &[u8; 12] = buf
+        .get(..12)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| invalid("short dns header"))?;
     let id = u16::from_be_bytes([header[0], header[1]]);
     if id != want_id {
         return Err(invalid("dns id mismatch"));
@@ -170,16 +176,21 @@ fn parse_response(buf: &[u8], want_id: u16) -> Result<Vec<String>, io::Error> {
     let mut txts = Vec::new();
     for _ in 0..an {
         off = skip_name(buf, off)?;
-        let fixed = buf.get(off..off + 10).ok_or_else(|| invalid("short rr"))?;
+        let end = off.checked_add(10).ok_or_else(|| invalid("short rr"))?;
+        let fixed: &[u8; 10] = buf
+            .get(off..end)
+            .and_then(|s| s.try_into().ok())
+            .ok_or_else(|| invalid("short rr"))?;
         let rtype = u16::from_be_bytes([fixed[0], fixed[1]]);
         let rdlen = usize::from(u16::from_be_bytes([fixed[8], fixed[9]]));
+        let rdata_end = end.checked_add(rdlen).ok_or_else(|| invalid("short rdata"))?;
         let rdata = buf
-            .get(off + 10..off + 10 + rdlen)
+            .get(end..rdata_end)
             .ok_or_else(|| invalid("short rdata"))?;
         if rtype == 16 {
             txts.push(parse_txt_rdata(rdata)?);
         }
-        off += 10 + rdlen;
+        off = rdata_end;
     }
     Ok(txts)
 }
@@ -190,11 +201,11 @@ fn parse_txt_rdata(rdata: &[u8]) -> Result<String, io::Error> {
     let mut rest = rdata;
     while let Some((len, tail)) = rest.split_first() {
         let len = usize::from(*len);
-        if tail.len() < len {
-            return Err(invalid("short txt string"));
-        }
-        out.extend_from_slice(&tail[..len]);
-        rest = &tail[len..];
+        let (head, remaining) = tail
+            .split_at_checked(len)
+            .ok_or_else(|| invalid("short txt string"))?;
+        out.extend_from_slice(head);
+        rest = remaining;
     }
     String::from_utf8(out).map_err(|_| invalid("non-utf8 txt"))
 }
@@ -243,7 +254,7 @@ mod tests {
     #[test]
     fn config_name_and_query_shape() {
         assert_eq!(grpc_config_name("example.com"), "_grpc_config.example.com");
-        let query = encode_query("_grpc_config.example.com").expect("query");
+        let (_, query) = encode_query("_grpc_config.example.com").expect("query");
         assert_eq!(u16::from_be_bytes([query[2], query[3]]), 0x0100);
         assert!(encode_query("").is_err());
         assert!(encode_query(&"x".repeat(300)).is_err());
