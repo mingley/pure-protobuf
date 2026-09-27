@@ -33,12 +33,12 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A2 | Service configs in DNS | shipped | `_grpc_config.` TXT service config in the DNS resolver (UDP, single nameserver, no TCP fallback; failures/empty keep last config). |
 | A10 | Avoid grpclb/service-config for localhost and IP literals | shipped | Literals resolve statically without DNS; localhost and literals skip TXT (`skips_txt_lookup`). |
 | A21 | Service-config error handling | shipped | Eager validation; invalid initial TXT fails the channel, invalid updates keep the last good document. |
-| A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; `pick_first` registered (FL-03), more policies in CH-04+. |
+| A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; `pick_first` (FL-03), `round_robin` (FL-04), `weighted_round_robin` (CH-06) registered. |
 | A62 | pick_first | shipped | Sticky first-ready selection, in-order TF failover, shuffleAddressList, 1s×1.6^r±20%/120s-cap backoff (`lb/pick_first.rs`, FL-03). |
 | A113 | pick_first weighted shuffling | shipped | Efraimidis–Spirakis `u^(1/weight)` sort under `shuffleAddressList` with per-endpoint weights defaulting to 1 (CH-04). CDS-side normalized weight computation arrives with xDS. |
 | round_robin | (core policy, no gRFC number) | shipped | Strict rotation over ready endpoints, per-address backoff, graceful drain on removal (`lb/round_robin.rs` + pool `RrTable`, FL-04). Health-gated readiness arrives with CH-05. |
-| A58 | Client-side weighted round robin | planned | With ORCA utilization input (A114 names). |
-| A114 | WRR metric names for computing utilization | planned | With WRR. |
+| A58 | Client-side weighted round robin | shipped | EDF scheduler over ORCA weights (`lb/wrr.rs`, CH-06): UpdateWeight/GetWeight with blackout/expiration, lazy rebuilds (period/ready-set/weight-move), <2 weighted degrades to RR, error penalty, health gating; per-call ingestion in unary/hedged loops, OOB pump per subchannel (UNIMPLEMENTED stops silently). WRR config snapshots at channel build; streaming per-call ingestion deferred to OOB. |
+| A114 | WRR metric names for computing utilization | shipped | `metricNamesForComputingUtilization` parsed + max-over-hits selection with A58 app-then-cpu fallback (`orca::utilization`, CH-06). |
 | A42/A76 | Ring hash LB policy | planned | Request-hash ring with bounded state. |
 | A56 | Priority LB policy | planned | Prioritized failover across localities. |
 | A115 | Remove priority-LB child-policy cache | planned | With priority LB. |
@@ -74,7 +74,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |
 | A66 | OTel stats | planned | Optional `opentelemetry` metrics bridge. |
 | A72 | OpenTelemetry tracing | planned | Optional OTel trace propagation + spans. |
-| A78 | gRPC metrics for WRR/PF/xDS | planned | With WRR/pick_first/xDS metrics. |
+| A78 | gRPC metrics for WRR/PF/xDS | partial | WRR hooks ship: `weights_snapshot` + `WrrStats` (accepted/ignored/rebuilds) for polling (CH-06). OTel instrument mapping rides the OTel bridge (A66); pick_first/xDS instruments with their lanes. |
 | A79 | Non-per-call metrics architecture | planned | With the OTel bridge. |
 | A80 | TCP telemetry | planned | TCP_INFO-based per-connection stats where available. |
 | A94 | Subchannel OTel metrics | planned | With the OTel bridge. |
@@ -144,7 +144,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A51 | Custom backend metrics (ORCA) | planned | Per-RPC + out-of-band load reports, WRR input. |
+| A51 | Custom backend metrics (ORCA) | shipped | `orca/` (CH-06): vendored v3 protos, `OrcaRecorder` (server/request + merge precedence), `OrcaResponseHook` per-call trailers on all reply shapes, builtin `OpenRcaService` (immediate snapshot + clamped interval + cost filtering), client decode + OOB pump. Wire-proven both directions against pinned grpc-go (byte-identical golden). One pump per address owned by WRR; cross-policy OOB subscription sharing arrives with xDS. |
 
 ## Out of scope by category
 

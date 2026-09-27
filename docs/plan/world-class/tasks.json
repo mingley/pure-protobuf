@@ -5478,6 +5478,14 @@
    "relates": [
     "EX-01",
     "EX-02"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commits a94168b3..6cb92d04 + tests: orca/ module (vendored xds v3 protos, two-fds codegen with extern_path; trailer encode/decode, A114 utilization selection, qps/eps normalization, request_cost filter, OOB interval clamp); OrcaRecorder (set/clear/delete, per-request-over-server merge) + OrcaResponseHook trailer stamp on all reply shapes + builtin OpenRcaService (immediate snapshot, clamped interval, cost filtering); lb/wrr.rs (EDF with renormalized deadlines, UpdateWeight/GetWeight with blackout/expiration, lazy rebuilds, <2-weighted RR fallback, error penalty, health gating, OOB slots, A78 weights_snapshot/WrrStats); pool selects WRR, shares per-address table, acquire_wrr; per-call ingestion in unary/hedged loops (OK + error trailers); OOB pump per subchannel (UNIMPLEMENTED stops silently, backoff retry, never gates acquire); A114 config field + negative-penalty rejection",
+    "checks: orca lib 13 + lb 31 (11 new WRR) + config 12 + lib 322 green; tests/orca.rs 5/5 (pinned-go golden decode + byte-identical encode, per-call 9:1 convergence, OOB convergence without trailers, UNIMPLEMENTED-even, trailer round-trip); fmt/lib-clippy/doc clean; workspace suite 2650 green + known TLS flake (passes alone); self-interop PASS",
+    "interop: tests/interop/go/orcagolden against pinned grpc-go v1.85.0-dev (dd51b1c90aaf): Go-marshaled report decodes field-exact in Rust (committed golden); our encoding is byte-identical and decodes field-exact in Go",
+    "boundaries: WRR config snapshots at channel build (no live re-resolve, like pick_first); streaming per-call ingestion deferred to OOB (A51 positions OOB for streaming workloads); one OOB pump per address owned by WRR (no cross-policy subscription sharing yet); A78 OTel instruments ride the OTel lane (hooks only)"
    ]
   },
   {

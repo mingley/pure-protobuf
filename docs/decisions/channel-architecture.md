@@ -94,14 +94,17 @@ the balancer (no extra tasks, no snapshot machinery).
 | A17 | Client-side health checking | `lb/health` signals + pool same-conn Watch driver (CH-05, done) | `tests/lb_health` leave/rejoin/absence/failover/switch-off e2e |
 | A21 | Service-config error handling | `service_config` validation at resolver delivery | CH-03 invalid-document tests |
 | A24 | LB policy + config selection | `balancer` tree + `LbPolicyRegistry` | CH-03 selection/fallthrough tests |
+| A51 | ORCA load reports | `orca/` recorders + trailer hook + OOB service/client (CH-06, done) | `tests/orca` golden/trailer/OOB e2e + pinned-go bidirectional wire check |
+| A58 | weighted_round_robin | `lb/wrr.rs` EDF + pool per-address acquire/OOB pump (CH-06, done) | `tests/orca` per-call + OOB convergence fixtures |
 | A61 | Dualstack racing | `pool` Happy-Eyeballs full-dial race + `lb/pick_first` interleave (CH-04, done) | v4-only / v6-only / broken-v6 race + no-leak tests |
 | A62 | pick_first | `lb/pick_first.rs` (FL-03, done) | `tests/resolver.rs` stick/failover/drain/backoff/shuffle + ported `pick_first_unary` procedure |
 | A105 | Scale on `max_concurrent_streams` | `pool` growth signals from subchannel caps | CH-08 scaling tests |
 | A113 | pick_first weighted shuffling | `lb/pick_first.rs` weighted shuffle (CH-04, done) | weighted distribution test (heavy-first share) |
+| A114 | WRR metric-name utilization | `orca::utilization` max-over-hits + fallback (CH-06, done) | config parse + selection unit tests |
 
 Follow-ups land in the same tree: ring hash / least request /
-subsetting (CH-07), ORCA + weighted round robin (CH-06), proxy + user
-timeout (CH-09), picker-cost qualification (CH-11).
+subsetting (CH-07), proxy + user timeout (CH-09), picker-cost
+qualification (CH-11).
 
 ## xDS plugin points (later, no divergence)
 
@@ -125,8 +128,8 @@ New components land in:
 - `client/balancer.rs` — policy tree, snapshot publication, `Picker`
   trait + registry (CH-03).
 - `lb/pick_first.rs` (FL-03/CH-04, done), `lb/round_robin.rs`
-  (FL-04, done), … — one file per policy as its card lands
-  (top-level `lb/`, not `client/balancer/`).
+  (FL-04, done), `lb/wrr.rs` (CH-06, done), … — one file per policy
+  as its card lands (top-level `lb/`, not `client/balancer/`).
 
 Tests: `tests/resolver.rs` carries resolver timelines plus per-policy
 distribution, churn, and soak coverage (no separate

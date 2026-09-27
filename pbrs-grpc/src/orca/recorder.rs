@@ -46,23 +46,27 @@ impl Recorded {
         if let Some(v) = overlay.eps.or(self.eps) {
             report.set_eps(v);
         }
-        let mut costs = report.request_cost_mut();
-        for (k, v) in self.request_cost.iter().chain(overlay.request_cost.iter()) {
-            costs.insert(k.as_str(), *v);
-        }
-        drop(costs);
-        let mut utils = report.utilization_mut();
-        for (k, v) in self.utilization.iter().chain(overlay.utilization.iter()) {
-            utils.insert(k.as_str(), *v);
-        }
-        drop(utils);
-        let mut named = report.named_metrics_mut();
-        for (k, v) in self
-            .named_metrics
-            .iter()
-            .chain(overlay.named_metrics.iter())
         {
-            named.insert(k.as_str(), *v);
+            let mut costs = report.request_cost_mut();
+            for (k, v) in self.request_cost.iter().chain(overlay.request_cost.iter()) {
+                costs.insert(k.as_str(), *v);
+            }
+        }
+        {
+            let mut utils = report.utilization_mut();
+            for (k, v) in self.utilization.iter().chain(overlay.utilization.iter()) {
+                utils.insert(k.as_str(), *v);
+            }
+        }
+        {
+            let mut named = report.named_metrics_mut();
+            for (k, v) in self
+                .named_metrics
+                .iter()
+                .chain(overlay.named_metrics.iter())
+            {
+                named.insert(k.as_str(), *v);
+            }
         }
         report
     }
@@ -218,9 +222,10 @@ impl OrcaRecorder {
 }
 
 /// A server-recorder trailer hook for every reply shape: register with
-/// [`Server::on_response`][crate::Server::on_response] (or per service) and
-/// each response carries the recorder snapshot in [`TRAILER`][super::TRAILER].
-/// Handlers needing per-request metrics stamp explicitly with [`stamp`].
+/// [`Router::on_response`][crate::Router::on_response] (or
+/// [`Server::on_response`][crate::Server::on_response]) and each response
+/// carries the recorder snapshot in [`TRAILER`][super::TRAILER]. Handlers
+/// needing per-request metrics stamp explicitly with [`stamp`].
 #[derive(Clone, Debug)]
 pub struct OrcaResponseHook {
     server: OrcaRecorder,
