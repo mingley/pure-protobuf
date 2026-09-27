@@ -5256,6 +5256,12 @@
    ],
    "relates": [
     "FL-01"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commit 58d1a6fc: docs/decisions/channel-architecture.md (pipeline, registries, states, performance rules, passthrough default, gRFC map A5/A10/A17/A21/A24/A61/A62/A105/A113, xDS seams, module map) + resolver-contract.md narrowed to DNS-profile detail",
+    "maintainer approval: granted 2026-09-26; unblocks CH-02 and XD-01"
    ]
   },
   {
