@@ -77,5 +77,10 @@
       "ping_pong": { "message_bytes": 0, "round_trips": 256 },
       "upload": { "message_bytes": 1024 }
     }
+  },
+  "tls": {
+    "supported": true,
+    "server_args_template": ["--use_tls=true"],
+    "notes": "Server loads test credentials via the upstream credentials provider. The native generator verifies with third_party/grpc/src/core/tsi/test_creds/ca.pem and server name foo.test.google.fr (pinned by test_credentials_provider.cc). Resolved by bench/stack-matrix/peertls.py."
   }
 }

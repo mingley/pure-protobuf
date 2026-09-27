@@ -70,5 +70,10 @@
       "ping_pong": { "message_bytes": 0, "round_trips": 256 },
       "upload": { "message_bytes": 1024 }
     }
+  },
+  "tls": {
+    "supported": true,
+    "server_args_template": ["-use_tls"],
+    "notes": "Server loads server1.pem/key from the pinned grpc-go module testdata. The native generator verifies with that module's testdata/ca.pem and server name foo.test.google.fr (server1.pem SANs). Soak clients stay plaintext-only. Resolved by bench/stack-matrix/peertls.py."
   }
 }

@@ -103,5 +103,9 @@
       "ping_pong": { "message_bytes": 0, "round_trips": 256 },
       "upload": { "message_bytes": 1024 }
     }
+  },
+  "tls": {
+    "supported": false,
+    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-pbrs/tonic-prost are unsupported with this reason, never silently plaintext."
   }
 }
