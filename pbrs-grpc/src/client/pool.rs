@@ -4,6 +4,9 @@ use super::retry::RetryStatsRecorder;
 use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::limits::ByteBudgetTracker;
+use crate::resolver::{
+    Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, parse_target_uri, resolver_for,
+};
 use crate::service_config::SharedServiceConfig;
 use crate::status::Status;
 use crate::stream::Streaming;
@@ -66,6 +69,9 @@ pub(crate) struct ChannelInner {
     pub(crate) slots: Vec<Mutex<ConnSlot>>,
     pub(crate) next: AtomicUsize,
     pub(crate) endpoint: Endpoint,
+    /// Keeps the refresh task alive; subchannels consume the watch in CH-03.
+    #[allow(dead_code, reason = "task guard until CH-03 wires subchannels")]
+    pub(crate) resolver: Option<ResolverHandle>,
     pub(crate) tls: Option<ClientTls>,
     /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
     /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
@@ -83,6 +89,14 @@ pub(crate) enum Endpoint {
     #[cfg(unix)]
     Unix(PathBuf),
     Once,
+    /// Resolver-managed target. `display` is the original target URI
+    /// (never a resolved IP); `current` is the latest snapshot. Each
+    /// dial borrows the current `Arc` without awaiting, so resolver
+    /// updates never block picks.
+    Resolved {
+        display: String,
+        current: watch::Receiver<Arc<Resolution>>,
+    },
 }
 
 impl Endpoint {
@@ -92,6 +106,7 @@ impl Endpoint {
             #[cfg(unix)]
             Self::Unix(path) => path.display().to_string(),
             Self::Once => "once".to_owned(),
+            Self::Resolved { display, .. } => display.clone(),
         }
     }
 
@@ -118,6 +133,7 @@ pub(crate) async fn connect_inner(
         config,
         tls,
         live_slots(sends),
+        None,
     ))
 }
 
@@ -134,6 +150,7 @@ pub(crate) fn connect_lazy_inner(
         config,
         tls,
         empty_slots(config.connection_count()),
+        None,
     ))
 }
 
@@ -154,6 +171,48 @@ pub(crate) async fn connect_unix_inner(
         config,
         None,
         live_slots(sends),
+        None,
+    ))
+}
+
+/// Resolve `uri` once, then serve dials from the live snapshot.
+/// Fails fast when the target is malformed, the scheme is unknown, or
+/// the initial lookup is empty or fails. Slots stay lazy: each dial
+/// borrows the current snapshot without awaiting.
+pub(crate) async fn connect_uri_inner(
+    uri: &str,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    resolver: ResolverConfig,
+) -> Result<Channel, Status> {
+    let target = parse_target_uri(uri)?;
+    if tls.is_some() && matches!(target.scheme.as_str(), "unix" | "unix-abstract") {
+        return Err(Status::invalid_argument(
+            "TLS over a Unix socket is not supported",
+        ));
+    }
+    let built = resolver_for(&target, &resolver).await?;
+    if built.initial.is_empty() {
+        return Err(Status::unavailable(format!(
+            "resolve {uri}: no addresses in initial snapshot"
+        )));
+    }
+    let authority = match target.scheme.as_str() {
+        "unix" | "unix-abstract" => unix_authority(),
+        _ => Target::from(target.authority()).parse()?,
+    };
+    let handle = built.into_handle();
+    let endpoint = Endpoint::Resolved {
+        display: uri.to_owned(),
+        current: handle.watch.clone(),
+    };
+    Ok(finish_channel(
+        endpoint,
+        authority,
+        config,
+        tls,
+        empty_slots(config.connection_count()),
+        Some(handle),
     ))
 }
 
@@ -163,12 +222,14 @@ pub(crate) fn finish_channel(
     config: ChannelConfig,
     tls: Option<ClientTls>,
     slots: Vec<Mutex<ConnSlot>>,
+    resolver: Option<ResolverHandle>,
 ) -> Channel {
     let https = tls.is_some();
     let inner = Arc::new(ChannelInner {
         slots,
         next: AtomicUsize::new(0),
         endpoint,
+        resolver,
         tls,
         dial: config,
     });
@@ -512,26 +573,16 @@ async fn handshake_io(
             let tcp = crate::tcp::connect(host, config.bound_local_address())
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
-            crate::tcp::tune(
-                &tcp,
-                config.tcp_keepalive_period(),
-                config.tcp_keepalive_probe_interval(),
-                config.tcp_keepalive_probe_retries(),
-            )
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-            match tls {
-                None => finish_h2(config, tcp).await,
-                Some(tls) => {
-                    let tls_stream = tls.connect(tcp).await?;
-                    finish_h2(config, tls_stream).await.map_err(|e| {
-                        if e.to_string().contains("connection closed") {
-                            Status::unauthenticated("tls: peer closed after handshake")
-                        } else {
-                            e
-                        }
-                    })
-                }
-            }
+            finish_tcp(tcp, config, tls).await
+        }
+        Endpoint::Resolved { display, current } => {
+            let snapshot = current.borrow().clone();
+            let addr = snapshot.addresses().first().cloned().ok_or_else(|| {
+                Status::unavailable(format!(
+                    "resolve {display}: no addresses in current snapshot"
+                ))
+            })?;
+            dial_resolved(display, addr, config, tls).await
         }
         #[cfg(unix)]
         Endpoint::Unix(path) => {
@@ -546,6 +597,97 @@ async fn handshake_io(
             finish_h2(config, io).await
         }
         Endpoint::Once => Err(Status::unavailable("channel has no address to redial")),
+    }
+}
+
+/// Tune a connected TCP stream, then run TLS (when configured) and the
+/// HTTP/2 handshake. Shared by plain and resolver-managed dials.
+async fn finish_tcp(
+    tcp: tokio::net::TcpStream,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+) -> Result<Dialed, Status> {
+    crate::tcp::tune(
+        &tcp,
+        config.tcp_keepalive_period(),
+        config.tcp_keepalive_probe_interval(),
+        config.tcp_keepalive_probe_retries(),
+    )
+    .map_err(|e| Status::unavailable(e.to_string()))?;
+    match tls {
+        None => finish_h2(config, tcp).await,
+        Some(tls) => {
+            let tls_stream = tls.connect(tcp).await?;
+            finish_h2(config, tls_stream).await.map_err(|e| {
+                if e.to_string().contains("connection closed") {
+                    Status::unauthenticated("tls: peer closed after handshake")
+                } else {
+                    e
+                }
+            })
+        }
+    }
+}
+
+/// Dial one resolver-chosen address. Unix paths reject TLS, matching
+/// the plain Unix dial; abstract names dial on Linux only.
+async fn dial_resolved(
+    display: &str,
+    addr: ResolvedAddress,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+) -> Result<Dialed, Status> {
+    match addr {
+        ResolvedAddress::Tcp(sock) => {
+            let tcp = crate::tcp::connect_addr(sock, config.bound_local_address())
+                .await
+                .map_err(|e| Status::unavailable(format!("connect {display} [{sock}]: {e}")))?;
+            finish_tcp(tcp, config, tls).await
+        }
+        ResolvedAddress::Unix(path) => {
+            #[cfg(unix)]
+            {
+                if tls.is_some() {
+                    return Err(Status::invalid_argument(
+                        "TLS over a Unix socket is not supported",
+                    ));
+                }
+                let io = UnixStream::connect(path)
+                    .await
+                    .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                finish_h2(config, io).await
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = (path, tls);
+                Err(Status::unavailable(format!(
+                    "connect {display}: unix: is not supported on this platform"
+                )))
+            }
+        }
+        ResolvedAddress::UnixAbstract(name) => {
+            #[cfg(target_os = "linux")]
+            {
+                if tls.is_some() {
+                    return Err(Status::invalid_argument(
+                        "TLS over a Unix socket is not supported",
+                    ));
+                }
+                let addr = tokio::net::unix::SocketAddr::from_abstract_name(name)
+                    .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                let io = UnixStream::connect_addr(&addr)
+                    .await
+                    .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
+                finish_h2(config, io).await
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                let _ = (name, tls);
+                Err(Status::unavailable(format!(
+                    "connect {display}: unix-abstract: is Linux-only"
+                )))
+            }
+        }
     }
 }
 

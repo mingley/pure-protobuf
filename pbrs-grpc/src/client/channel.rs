@@ -7,6 +7,7 @@ use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
 use crate::limits::ByteBudgetTracker;
 #[allow(unused_imports, reason = "intra-doc links resolve against these names")]
 use crate::request::{Call, Request};
+use crate::resolver::ResolverConfig;
 use crate::service_config::{ServiceConfig, SharedServiceConfig};
 #[allow(unused_imports, reason = "intra-doc links resolve against these names")]
 use crate::status::Code;
@@ -889,7 +890,55 @@ impl super::Channel {
             config,
             None,
             pool::empty_slots(config.connection_count()),
+            None,
         ))
+    }
+
+    /// Connect to a resolver target URI: `dns:///`, `passthrough:`,
+    /// `ipv4:`, `ipv6:`, `unix:`, or `unix-abstract:`.
+    ///
+    /// The initial lookup runs now, so an unresolvable target fails here;
+    /// sockets stay lazy and each dial reads the current snapshot without
+    /// awaiting, so resolver updates never block picks. `dns:` needs
+    /// explicit bounds via
+    /// [`ResolverConfig::with_dns`](crate::resolver::ResolverConfig::with_dns);
+    /// the static schemes use
+    /// [`ResolverConfig::static_only`](crate::resolver::ResolverConfig::static_only).
+    /// Plain `host:port` is not a URI: it stays on [`Self::connect`].
+    /// Applies to every call shape.
+    pub async fn connect_uri(uri: &str, resolver: ResolverConfig) -> Result<Self, Status> {
+        Self::connect_uri_with(uri, ChannelConfig::default(), resolver).await
+    }
+
+    /// [`Self::connect_uri`] with `config`. Applies to every call shape.
+    pub async fn connect_uri_with(
+        uri: &str,
+        config: ChannelConfig,
+        resolver: ResolverConfig,
+    ) -> Result<Self, Status> {
+        pool::connect_uri_inner(uri, config, None, resolver).await
+    }
+
+    /// [`Self::connect_uri`] over TLS. The configured [`ClientTls`]
+    /// server name verifies every resolved address; a resolved IP never
+    /// becomes the SNI name. Rejects `unix:`/`unix-abstract:` targets.
+    /// Applies to every call shape.
+    pub async fn connect_tls_uri(
+        uri: &str,
+        tls: ClientTls,
+        resolver: ResolverConfig,
+    ) -> Result<Self, Status> {
+        Self::connect_tls_uri_with(uri, ChannelConfig::default(), tls, resolver).await
+    }
+
+    /// [`Self::connect_tls_uri`] with `config`. Applies to every call shape.
+    pub async fn connect_tls_uri_with(
+        uri: &str,
+        config: ChannelConfig,
+        tls: ClientTls,
+        resolver: ResolverConfig,
+    ) -> Result<Self, Status> {
+        pool::connect_uri_inner(uri, config, Some(tls), resolver).await
     }
 
     /// Speak gRPC over an already-connected byte stream.
@@ -1014,6 +1063,7 @@ impl super::Channel {
             config,
             None,
             pool::live_slots(vec![send]),
+            None,
         ))
     }
 

@@ -117,8 +117,9 @@ Existing files keep their jobs (`channel.rs` facade, `call.rs`,
 `unary.rs`, `streaming.rs`, `retry.rs`, `pool.rs`, `config_glue.rs`).
 New components land in:
 
-- `client/resolver.rs` — `Target` URI parsing, `ResolverRegistry`,
-  `Resolution` snapshots, `dns` + `passthrough` providers (CH-02).
+- `resolver/` — target URI parsing, `ResolverRegistry`,
+  `Resolution` snapshots, `dns` + static providers (CH-02; top-level
+  per the card, not `client/resolver.rs`).
 - `client/subchannel.rs` — per-address state machine, dial/backoff,
   health input, drain (CH-03/CH-04/CH-05).
 - `client/balancer.rs` — policy tree, snapshot publication, `Picker`

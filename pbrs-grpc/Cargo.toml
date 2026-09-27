@@ -49,7 +49,9 @@ bytes = "1"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 h2 = "0.4.18"
 http = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+# test-util is dev-only: paused-clock resolver timelines. Production keeps
+# the minimal feature set above.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "test-util"] }
 
 [[bin]]
 name = "pbrs-grpc-hello"

@@ -49,7 +49,21 @@ pub fn parse_target_uri(input: &str) -> Result<ParsedTarget, Status> {
         )));
     }
     let scheme = scheme.to_ascii_lowercase();
-    let remainder = rest.trim_start_matches('/').to_owned();
+    if !matches!(
+        scheme.as_str(),
+        "dns" | "passthrough" | "ipv4" | "ipv6" | "unix" | "unix-abstract"
+    ) {
+        return Err(Status::invalid_argument(format!(
+            "unknown target scheme {scheme:?}; want one of dns:/// passthrough: ipv4: ipv6: unix: unix-abstract:, or plain host:port on Channel::connect"
+        )));
+    }
+    // `dns:///host` and `passthrough:///host` trim slashes; `unix:///abs`
+    // keeps one (absolute path); abstract names are opaque bytes.
+    let remainder = match scheme.as_str() {
+        "unix" => rest.strip_prefix("//").unwrap_or(rest).to_owned(),
+        "unix-abstract" => rest.to_owned(),
+        _ => rest.trim_start_matches('/').to_owned(),
+    };
     match scheme.as_str() {
         "dns" | "passthrough" => {
             check_host_port(&scheme, &remainder)?;
@@ -61,7 +75,7 @@ pub fn parse_target_uri(input: &str) -> Result<ParsedTarget, Status> {
             check_ip_list(&remainder, false)?;
         }
         "unix" => {
-            if remainder.is_empty() {
+            if remainder.trim_matches('/').is_empty() {
                 return Err(Status::invalid_argument(
                     "unix: target needs a socket path, e.g. unix:/run/grpc.sock",
                 ));
@@ -74,7 +88,7 @@ pub fn parse_target_uri(input: &str) -> Result<ParsedTarget, Status> {
                 ));
             }
         }
-        _ => {
+        scheme => {
             return Err(Status::invalid_argument(format!(
                 "unknown target scheme {scheme:?}; want one of dns:/// passthrough: ipv4: ipv6: unix: unix-abstract:, or plain host:port on Channel::connect"
             )));
@@ -174,6 +188,9 @@ mod tests {
         assert_eq!(v6.authority(), "[::1]:80");
         let unix = parse_target_uri("unix:/run/grpc.sock").expect("unix");
         assert_eq!(unix.authority(), "localhost");
+        // Triple-slash keeps the absolute path.
+        let abs = parse_target_uri("unix:///run/grpc.sock").expect("unix abs");
+        assert_eq!(abs.remainder, "/run/grpc.sock");
         let abs = parse_target_uri("unix-abstract:grpc").expect("abstract");
         assert_eq!(abs.authority(), "localhost");
     }

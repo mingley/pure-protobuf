@@ -22,6 +22,26 @@ pub(crate) async fn connect(host: &str, local: Option<SocketAddr>) -> std::io::R
     }
 }
 
+/// Dial a resolved address, optionally binding `local` first. Skips
+/// name resolution: the resolver already chose `remote`.
+pub(crate) async fn connect_addr(
+    remote: SocketAddr,
+    local: Option<SocketAddr>,
+) -> std::io::Result<TcpStream> {
+    match local {
+        None => TcpStream::connect(remote).await,
+        Some(local) => {
+            if local.is_ipv4() != remote.is_ipv4() {
+                return Err(Error::new(
+                    ErrorKind::AddrNotAvailable,
+                    format!("connect {remote} from {local}: address family mismatch"),
+                ));
+            }
+            bind_connect(local, remote).await
+        }
+    }
+}
+
 async fn connect_bound(host: &str, local: SocketAddr) -> std::io::Result<TcpStream> {
     let mut last_err = None;
     for remote in tokio::net::lookup_host(host).await? {

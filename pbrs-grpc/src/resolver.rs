@@ -2,7 +2,7 @@
 //!
 //! [`parse_target_uri`] accepts `dns:///`, `passthrough:`, `ipv4:`,
 //! `ipv6:`, `unix:`, and `unix-abstract:` targets. Each scheme has a
-//! [`ResolverFactory`] in the [`registry`]; factories build a resolver
+//! [`ResolverFactory`] in the scheme registry; factories build a resolver
 //! that publishes [`Resolution`] snapshots over a
 //! `tokio::sync::watch` channel. Readers hold an `Arc` snapshot, so
 //! updates never block RPC picks: dialing clones the current `Arc`
