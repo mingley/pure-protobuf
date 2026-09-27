@@ -7,7 +7,7 @@
 use crate::error::ParseError;
 use crate::map::MapKey;
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
-use std::sync::Arc;
+use bytes::Bytes;
 
 /// Proto3 string UTF-8 check via `simdutf8`.
 ///
@@ -22,24 +22,20 @@ pub fn require_utf8(b: &[u8]) -> Result<(), ParseError> {
     }
 }
 
-/// Shared immutable wire bytes. Windows are cheap (`Arc` clone + range).
+/// Shared immutable wire bytes. Windows are cheap (refcount clone + range).
+///
+/// Backed by [`Bytes`] (PK-09): [`Self::from_bytes`] shares the caller's
+/// buffer with zero copies, while [`Self::from_slice`] keeps the old one-copy
+/// behavior for borrowed input. Empty values normalize to the static empty
+/// so they never pin a large backing buffer.
 #[derive(Clone, Debug)]
 pub struct Wire {
-    buf: Arc<[u8]>,
-    start: u32,
-    end: u32,
+    buf: Bytes,
 }
 
 impl Wire {
     pub fn empty() -> Self {
-        static EMPTY: std::sync::OnceLock<Arc<[u8]>> = std::sync::OnceLock::new();
-        Self {
-            buf: EMPTY
-                .get_or_init(|| Arc::<[u8]>::from(&[] as &[u8]))
-                .clone(),
-            start: 0,
-            end: 0,
-        }
+        Self { buf: Bytes::new() }
     }
 
     pub fn from_slice(data: &[u8]) -> Self {
@@ -47,12 +43,22 @@ impl Wire {
             return Self::empty();
         }
         crate::copy_counts::note_wire(data.len());
-        let buf: Arc<[u8]> = Arc::from(data);
-        let end = buf.len() as u32;
-        Self { buf, start: 0, end }
+        Self {
+            buf: Bytes::copy_from_slice(data),
+        }
     }
 
-    /// One-pass copy of `s` into an Arc, with a high-bit scan.
+    /// Share `data` without copying. No copy counter fires: this is the
+    /// zero-copy entry point [`Parse::parse_bytes`](crate::Parse::parse_bytes)
+    /// builds on.
+    pub fn from_bytes(data: Bytes) -> Self {
+        if data.is_empty() {
+            return Self::empty();
+        }
+        Self { buf: data }
+    }
+
+    /// One-pass copy of `s` into a private buffer, with a high-bit scan.
     ///
     /// ASCII is valid UTF-8. Non-ASCII falls back to `str::from_utf8`.
     /// Used for long parsed strings so we do not pay `from_utf8` and then a
@@ -60,15 +66,21 @@ impl Wire {
     /// `blob_4kib` decode gap).
     #[inline]
     pub fn from_utf8_payload(s: &[u8]) -> Result<Self, ParseError> {
-        // memcpy into Arc first so the UTF-8/ASCII scan hits the copy (L1),
-        // instead of `str::from_utf8` on the source plus a second parent copy.
+        // memcpy into a private buffer first so the UTF-8/ASCII scan hits
+        // the copy (L1), instead of `str::from_utf8` on the source plus a
+        // second parent copy.
         let w = Self::from_slice(s);
         require_utf8(w.as_slice())?;
         Ok(w)
     }
 
     pub fn as_slice(&self) -> &[u8] {
-        &self.buf[self.start as usize..self.end as usize]
+        &self.buf
+    }
+
+    /// This window as a shareable [`Bytes`]: a refcount clone, never a copy.
+    pub fn as_bytes(&self) -> Bytes {
+        self.buf.clone()
     }
 
     /// Build a `Wire` the first time a lazy string/bytes/nested/packed-varint
@@ -80,13 +92,13 @@ impl Wire {
 
     /// `rel_start..rel_end` are indices into [`Self::as_slice`].
     pub fn window(&self, rel_start: usize, rel_end: usize) -> Self {
-        let start = self.start + rel_start as u32;
-        let end = self.start + rel_end as u32;
-        debug_assert!(end <= self.end);
+        debug_assert!(rel_end <= self.buf.len());
+        debug_assert!(rel_start <= rel_end);
+        if rel_start == rel_end {
+            return Self::empty();
+        }
         Self {
-            buf: Arc::clone(&self.buf),
-            start,
-            end,
+            buf: self.buf.slice(rel_start..rel_end),
         }
     }
 }
