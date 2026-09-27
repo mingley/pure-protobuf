@@ -695,12 +695,9 @@ async fn pick_first_skips_dead_first_address() {
     .await
     .expect("channel");
     let client = GreeterClient::new(channel);
-    // Fail-fast: the refused dial errors once, then the live address serves.
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("first dial refused");
-    assert_eq!(err.code(), Code::Unavailable);
+    // Happy Eyeballs: the refused head fails fast, the race moves to
+    // the live address immediately, and the first RPC already serves.
+    unary_tag_is(&client, "B:ada").await;
     unary_tag_is(&client, "B:ada").await;
 }
 
@@ -902,6 +899,162 @@ async fn shuffle_distributes_first_pick() {
 }
 
 #[tokio::test]
+async fn weighted_shuffle_favors_heavy_endpoint() {
+    let config = pbrs_grpc::ServiceConfig::parse(
+        r#"{"loadBalancingConfig": [{"pick_first": {"shuffleAddressList": true}}]}"#,
+    )
+    .expect("parses");
+    let heavy = ResolvedAddress::Tcp("10.0.1.1:80".parse().expect("addr"));
+    let lights = [
+        ResolvedAddress::Tcp("10.0.1.2:80".parse().expect("addr")),
+        ResolvedAddress::Tcp("10.0.1.3:80".parse().expect("addr")),
+        ResolvedAddress::Tcp("10.0.1.4:80".parse().expect("addr")),
+    ];
+    // Efraimidis–Spirakis first-pick share is weight/total: 12/15 =
+    // 0.8 here. Demand > 0.6 over 200 rounds (14σ of margin).
+    const ROUNDS: u32 = 200;
+    let mut heavy_first = 0u32;
+    for _ in 0..ROUNDS {
+        let policy = PickFirst::from_config(Some(&config));
+        policy
+            .update_weighted(vec![
+                (heavy.clone(), 12),
+                (lights[0].clone(), 1),
+                (lights[1].clone(), 1),
+                (lights[2].clone(), 1),
+            ])
+            .await;
+        match policy.pick().await {
+            pbrs_grpc::lb::Pick::Use(addr) if addr == heavy => heavy_first += 1,
+            pbrs_grpc::lb::Pick::Use(_) => {}
+            _ => panic!("expected an address pick"),
+        }
+    }
+    assert!(
+        heavy_first > 120,
+        "heavy-first {heavy_first}/{ROUNDS}, want > 120"
+    );
+}
+
+#[tokio::test]
+async fn ipv4_only_fixture_connects() {
+    let (addr, _unaries, _guard) = serve_named("V4").await;
+    let channel = Channel::connect_uri(
+        &format!("ipv4:{}:{}", addr.ip(), addr.port()),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    unary_tag_is(&GreeterClient::new(channel), "V4:ada").await;
+}
+
+async fn serve_named_v6(tag: &'static str) -> Option<(SocketAddr, Arc<AtomicUsize>, ServerGuard)> {
+    let listener = TcpListener::bind("[::1]:0").await.ok()?;
+    let addr = listener.local_addr().ok()?;
+    let unaries = Arc::new(AtomicUsize::new(0));
+    let worker = Arc::clone(&unaries);
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Named {
+            tag,
+            unaries: worker,
+        })
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    Some((addr, unaries, ServerGuard(handle)))
+}
+
+#[tokio::test]
+async fn ipv6_only_fixture_connects() {
+    // No loopback v6 on the host: nothing to prove; skip.
+    let Some((addr, _unaries, _guard)) = serve_named_v6("V6").await else {
+        return;
+    };
+    let channel = Channel::connect_uri(
+        &format!("ipv6:[{}]:{}", addr.ip(), addr.port()),
+        ResolverConfig::static_only(),
+    )
+    .await
+    .expect("channel");
+    unary_tag_is(&GreeterClient::new(channel), "V6:ada").await;
+}
+
+/// One fixed answer, repeated on every refresh.
+struct FixedAddrs(Vec<SocketAddr>);
+
+impl DnsLookup for FixedAddrs {
+    fn lookup(
+        &self,
+        _host: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
+        let addrs = self.0.clone();
+        Box::pin(async move { Ok(addrs) })
+    }
+}
+
+/// A listener that accepts and holds one connection without ever
+/// speaking HTTP/2. Signals when the peer's socket closes, proving
+/// the losing race attempt left no established connection behind.
+async fn blackhole_v6() -> Option<(SocketAddr, tokio::sync::oneshot::Receiver<()>)> {
+    use tokio::io::AsyncReadExt as _;
+    let listener = TcpListener::bind("[::1]:0").await.ok()?;
+    let addr = listener.local_addr().ok()?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        let Ok((mut sock, _)) = listener.accept().await else {
+            return;
+        };
+        let mut buf = [0u8; 1024];
+        loop {
+            match sock.read(&mut buf).await {
+                Ok(0) | Err(_) => break,
+                Ok(_) => continue,
+            }
+        }
+        tx.send(()).ok();
+    });
+    Some((addr, rx))
+}
+
+#[tokio::test]
+async fn broken_ipv6_races_to_ipv4_without_leak() {
+    // No loopback v6 on the host: nothing to prove; skip.
+    let Some((hole, eof)) = blackhole_v6().await else {
+        return;
+    };
+    let (addr_b, _unaries_b, _guard_b) = serve_named("B").await;
+    let dns = Arc::new(FixedAddrs(vec![hole, addr_b]));
+    let channel = Channel::connect_uri(
+        "dns:///dual.invalid:443",
+        ResolverConfig::with_dns_provider(fast_bounds(), dns),
+    )
+    .await
+    .expect("channel");
+    let client = GreeterClient::new(channel);
+    // The v6 head hangs in the HTTP/2 preface; the 250ms stagger
+    // must start the v4 attempt instead of serializing on the 20s
+    // handshake timeout.
+    let start = tokio::time::Instant::now();
+    unary_tag_is(&client, "B:ada").await;
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed >= Duration::from_millis(200),
+        "stagger fired before v4 won: {elapsed:?}"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "raced, not serialized: {elapsed:?}"
+    );
+    // The hung v6 attempt's socket closed: no duplicate established
+    // connection leaked.
+    tokio::time::timeout(Duration::from_secs(5), eof)
+        .await
+        .expect("eof signal arrives")
+        .expect("blackhole outlives the race");
+}
+
+#[tokio::test]
 async fn tls_failover_keeps_identity() {
     let tls =
         ServerTls::new(pbrs_grpc::Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity"))
@@ -932,11 +1085,8 @@ async fn tls_failover_keeps_identity() {
     )
     .await
     .expect("tls uri");
-    let client = GreeterClient::new(channel.clone());
-    client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("first dial refused");
-    // Failover dials TLS with the configured name, not the dead IP.
+    // The race skips the refused head transparently: the first RPC
+    // already serves, and the winning dial verified the configured
+    // TLS name rather than the dead IP.
     assert_eq!(say_hello(channel).await, "ada");
 }

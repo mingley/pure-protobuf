@@ -27,6 +27,7 @@ use std::time::Duration;
 #[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, watch};
+use tokio::task::JoinSet;
 
 /// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
 /// grabber that observed the previous generation die does not overwrite a
@@ -583,9 +584,12 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
-            match dial_resolved(&display, addr.clone(), self.dial, self.tls.as_ref()).await {
-                Ok(dialed) => {
-                    policy.note_success().await;
+            let plan = policy.race_plan().await;
+            let tried = plan.len();
+            match dial_racing(&display, plan, self.dial, self.tls.as_ref()).await {
+                Ok((winner, dialed)) => {
+                    let addr = winner;
+                    policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -633,7 +637,7 @@ impl ChannelInner {
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
-                    policy.note_failure(status.clone()).await;
+                    policy.note_round_failed(tried, status.clone()).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -972,6 +976,111 @@ async fn dial_resolved(
             }
         }
     }
+}
+
+/// Happy-Eyeballs connection-attempt delay (A61, RFC 8305 §5):
+/// start the next address when the previous attempt neither
+/// succeeds nor fails within 250ms. A61 allows a channel arg in
+/// [100ms, 2s]; no knob yet, so the default is fixed.
+const HAPPY_EYEBALLS_DELAY: Duration = Duration::from_millis(250);
+
+/// Race full dials over the policy's ordered plan (A61): attempts
+/// start staggered by [`HAPPY_EYEBALLS_DELAY`], a fast failure starts
+/// the next address immediately, and the first fully READY dial wins
+/// (TCP, TLS, and HTTP/2 all complete). Losers are aborted and any
+/// already-completed loser connection is shut down, so no duplicate
+/// established connection leaks. Each attempt is bounded by the
+/// handshake timeout, matching the direct dial path. All-failed
+/// returns the last error.
+async fn dial_racing(
+    display: &str,
+    plan: Vec<ResolvedAddress>,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+) -> Result<(ResolvedAddress, Dialed), Status> {
+    let mut rest = plan.into_iter();
+    let Some(first) = rest.next() else {
+        return Err(Status::unavailable(format!(
+            "resolve {display}: no ready address"
+        )));
+    };
+    let timeout = config.handshake_timeout();
+    let mut pending: JoinSet<Result<(ResolvedAddress, Dialed), Status>> = JoinSet::new();
+    spawn_dial_attempt(&mut pending, display, first, config, tls, timeout);
+    let mut stagger = Box::pin(tokio::time::sleep(HAPPY_EYEBALLS_DELAY));
+    let mut last_error: Option<Status> = None;
+    loop {
+        let has_more = rest.len() > 0;
+        tokio::select! {
+            () = &mut stagger, if has_more && !pending.is_empty() => {
+                if let Some(next) = rest.next() {
+                    spawn_dial_attempt(&mut pending, display, next, config, tls, timeout);
+                }
+                stagger.as_mut().reset(tokio::time::Instant::now() + HAPPY_EYEBALLS_DELAY);
+            }
+            result = pending.join_next() => {
+                match result {
+                    Some(Ok(Ok(won))) => {
+                        pending.abort_all();
+                        while let Some(done) = pending.join_next().await {
+                            if let Ok(Ok((_, dialed))) = done {
+                                dialed.stop.send(true).ok();
+                            }
+                        }
+                        return Ok(won);
+                    }
+                    other => {
+                        match other {
+                            Some(Ok(Err(status))) => last_error = Some(status),
+                            Some(Err(_)) if last_error.is_none() => {
+                                last_error = Some(Status::unavailable(format!(
+                                    "connect {display}: dial task ended"
+                                )));
+                            }
+                            Some(Ok(Ok(_))) | Some(Err(_)) | None => {}
+                        }
+                        if pending.is_empty() {
+                            if let Some(next) = rest.next() {
+                                spawn_dial_attempt(&mut pending, display, next, config, tls, timeout);
+                                stagger
+                                    .as_mut()
+                                    .reset(tokio::time::Instant::now() + HAPPY_EYEBALLS_DELAY);
+                            } else {
+                                return Err(last_error.unwrap_or_else(|| {
+                                    Status::unavailable(format!(
+                                        "connect {display}: no addresses answered"
+                                    ))
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Spawn one bounded dial attempt onto the race set.
+fn spawn_dial_attempt(
+    pending: &mut JoinSet<Result<(ResolvedAddress, Dialed), Status>>,
+    display: &str,
+    addr: ResolvedAddress,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+    timeout: Duration,
+) {
+    let display = display.to_owned();
+    let owned_tls = tls.cloned();
+    pending.spawn(async move {
+        let dial = dial_resolved(&display, addr.clone(), config, owned_tls.as_ref());
+        match tokio::time::timeout(timeout, dial).await {
+            Ok(Ok(dialed)) => Ok((addr, dialed)),
+            Ok(Err(status)) => Err(status),
+            Err(_) => Err(Status::unavailable(format!(
+                "connect {display} [{addr:?}]: timed out after {timeout:?}"
+            ))),
+        }
+    });
 }
 
 pub(crate) async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Dialed, Status>

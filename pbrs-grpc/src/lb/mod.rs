@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 mod pick_first;
 
 pub(crate) use pick_first::ensure_registered;
-pub use pick_first::{Pick, PickFirst, PickFirstFactory};
+pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
 
 /// Builds one LB policy's runtime from its parsed config. CH-03 needs
 /// only the name for selection; policy runtimes arrive with CH-04+.

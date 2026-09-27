@@ -1,12 +1,12 @@
 //! pick_first: one sticky connection with ordered failover (A62).
 //!
-//! The policy keeps the resolver's address order (shuffled once when
-//! the config sets `shuffleAddressList`) and sticks to the current
-//! address while it dials. A failed handshake advances to the next
-//! address; exhausting the list enters `TransientFailure` with
-//! exponential backoff, then restarts from the front. Any address-list
-//! change resets failure state. Weighted shuffling (A113) arrives
-//! with CH-04; the weighted fields are ignored here.
+//! Each address list runs the A61 pipeline — optional weighted shuffle
+//! (A113, Efraimidis–Spirakis keys), then v4/v6 interleave — and the
+//! policy sticks to the current address while it dials. A failed
+//! handshake advances to the next address; exhausting the list enters
+//! `TransientFailure` with exponential backoff, then restarts from the
+//! front. Any address-list change reorders and resets failure state,
+//! keeping the current address when it survives.
 //!
 //! Backoff follows the reference constants: 1s base, ×1.6, 20%
 //! jitter, 120s cap.
@@ -35,7 +35,7 @@ pub struct PickFirst {
 
 #[derive(Debug)]
 struct State {
-    addresses: Vec<ResolvedAddress>,
+    addresses: Vec<WeightedAddress>,
     current: usize,
     /// Failures since the last success or list change.
     consecutive_failures: u32,
@@ -44,6 +44,17 @@ struct State {
     backoff_rounds: u32,
     last_error: Option<Status>,
     shuffle: bool,
+}
+
+/// One dialable address with its A113 shuffle weight. Resolvers that
+/// carry no weights (DNS, static) use 1; xDS endpoints will carry
+/// normalized locality × endpoint products.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WeightedAddress {
+    /// The address to dial.
+    pub address: ResolvedAddress,
+    /// Shuffle weight; 0 is treated as 1.
+    pub weight: u32,
 }
 
 /// What a pick resolves to.
@@ -86,29 +97,54 @@ impl PickFirst {
         })
     }
 
-    /// Reconcile a new address list. The current address sticks when
-    /// still present; otherwise (or when the list changes at all)
-    /// failure state resets. Wakes [`Self::watch`] on any change.
+    /// Reconcile a new address list (all weight 1). Runs the A61
+    /// pipeline — shuffle when configured, then family interleave —
+    /// and keeps the current address when it survives. Wakes
+    /// [`Self::watch`] on any change.
     pub async fn update(&self, addresses: Vec<ResolvedAddress>) {
+        let weighted = addresses
+            .into_iter()
+            .map(|address| WeightedAddress { address, weight: 1 })
+            .collect();
+        self.update_ordered(weighted).await;
+    }
+
+    /// Reconcile a new address list with A113 shuffle weights.
+    /// Entries compare by address and weight, so a weight-only change
+    /// reshuffles. Zero weights are treated as 1.
+    pub async fn update_weighted(&self, entries: Vec<(ResolvedAddress, u32)>) {
+        let weighted = entries
+            .into_iter()
+            .map(|(address, weight)| WeightedAddress {
+                address,
+                weight: weight.max(1),
+            })
+            .collect();
+        self.update_ordered(weighted).await;
+    }
+
+    async fn update_ordered(&self, mut ordered: Vec<WeightedAddress>) {
         let mut state = self.state.lock().await;
-        if addresses == state.addresses {
+        if ordered == state.addresses {
             return;
         }
-        let current_addr = state.addresses.get(state.current).cloned();
-        state.addresses = addresses;
+        let current_addr = state
+            .addresses
+            .get(state.current)
+            .map(|weighted| weighted.address.clone());
+        if state.shuffle {
+            weighted_shuffle(&mut ordered);
+        }
+        let ordered = interleave_families(ordered);
         state.current = current_addr
             .as_ref()
-            .and_then(|addr| state.addresses.iter().position(|a| a == addr))
+            .and_then(|addr| ordered.iter().position(|w| &w.address == addr))
             .unwrap_or(0);
+        state.addresses = ordered;
         state.consecutive_failures = 0;
         state.backoff_until = None;
         state.backoff_rounds = 0;
         state.last_error = None;
-        if state.shuffle {
-            let current = state.current;
-            shuffle_from(&mut state.addresses, current);
-            state.current = 0;
-        }
         self.changed
             .send_modify(|generation| *generation = generation.wrapping_add(1));
     }
@@ -127,15 +163,49 @@ impl PickFirst {
                 };
             }
         }
-        match state.addresses.get(state.current).cloned() {
-            Some(addr) => Pick::Use(addr),
+        match state.addresses.get(state.current) {
+            Some(weighted) => Pick::Use(weighted.address.clone()),
             None => Pick::Fail(Status::unavailable("pick_first: no addresses")),
         }
     }
 
-    /// Record a successful dial: stick here and clear failure state.
-    pub async fn note_success(&self) {
+    /// Ordered dial plan for a Happy-Eyeballs race: the full list
+    /// starting at the current address. Empty while backing off or
+    /// when no addresses are known.
+    pub async fn race_plan(&self) -> Vec<ResolvedAddress> {
+        let state = self.state.lock().await;
+        let n = state.addresses.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        if let Some(until) = state.backoff_until {
+            if tokio::time::Instant::now() < until {
+                return Vec::new();
+            }
+        }
+        let start = state.current.min(n.saturating_sub(1));
+        state
+            .addresses
+            .iter()
+            .cycle()
+            .skip(start)
+            .take(n)
+            .map(|weighted| weighted.address.clone())
+            .collect()
+    }
+
+    /// Record a successful dial to `winner`: the winning address
+    /// becomes current (a Happy-Eyeballs race may have skipped past
+    /// the old head) and failure state clears.
+    pub async fn note_success(&self, winner: &ResolvedAddress) {
         let mut state = self.state.lock().await;
+        if let Some(position) = state
+            .addresses
+            .iter()
+            .position(|weighted| &weighted.address == winner)
+        {
+            state.current = position;
+        }
         state.consecutive_failures = 0;
         state.backoff_until = None;
         state.backoff_rounds = 0;
@@ -145,8 +215,16 @@ impl PickFirst {
     /// Record a failed dial: advance to the next address, or enter
     /// backoff when the list is exhausted. Wakes waiters either way.
     pub async fn note_failure(&self, status: Status) {
+        self.note_round_failed(1, status).await;
+    }
+
+    /// Record a Happy-Eyeballs round in which `tried` addresses all
+    /// failed: advance past them, or enter backoff when the failures
+    /// cover the list. Wakes waiters either way.
+    pub async fn note_round_failed(&self, tried: usize, status: Status) {
         let mut state = self.state.lock().await;
-        state.consecutive_failures = state.consecutive_failures.saturating_add(1);
+        let add = u32::try_from(tried).unwrap_or(u32::MAX);
+        state.consecutive_failures = state.consecutive_failures.saturating_add(add);
         state.last_error = Some(status);
         let n = state.addresses.len();
         if n == 0 {
@@ -160,7 +238,7 @@ impl PickFirst {
             state.consecutive_failures = 0;
             state.current = 0;
         } else {
-            state.current = (state.current + 1) % n;
+            state.current = (state.current + tried) % n;
         }
         self.changed
             .send_modify(|generation| *generation = generation.wrapping_add(1));
@@ -184,16 +262,73 @@ fn backoff_for(rounds: u32) -> Duration {
     Duration::from_secs_f64(capped * wobble).max(Duration::from_millis(1))
 }
 
-/// Fisher–Yates from `start`, time-seeded xorshift (no rng dependency).
-fn shuffle_from(addresses: &mut [ResolvedAddress], start: usize) {
-    let mut rng = xorshift_seed();
-    let mut i = addresses.len();
-    while i > start + 1 {
-        rng = xorshift_next(rng);
-        let j = start + (usize::try_from(rng).unwrap_or(usize::MAX) % (i - start));
-        i -= 1;
-        addresses.swap(i, j);
+/// Weighted random shuffle (A113): Efraimidis–Spirakis keys —
+/// `u^(1/weight)` per entry from a uniform `u` in `[0, 1)`, sorted
+/// descending. All-equal weights reduce to a uniform permutation.
+/// Time-seeded xorshift; no rng dependency.
+fn weighted_shuffle(entries: &mut [WeightedAddress]) {
+    if entries.len() < 2 {
+        return;
     }
+    const UNIT: f64 = 4_294_967_296.0;
+    let mut rng = xorshift_seed();
+    let mut keyed: Vec<(f64, usize)> = Vec::with_capacity(entries.len());
+    for (index, entry) in entries.iter().enumerate() {
+        rng = xorshift_next(rng);
+        let hi = u32::try_from(rng >> 32).unwrap_or(u32::MAX);
+        let u = f64::from(hi) / UNIT;
+        let weight = f64::from(entry.weight.max(1));
+        keyed.push((u.powf(1.0 / weight), index));
+    }
+    keyed.sort_by(|a, b| b.0.total_cmp(&a.0));
+    let snapshot = entries.to_vec();
+    for (slot, (_, index)) in entries.iter_mut().zip(keyed.iter()) {
+        if let Some(entry) = snapshot.get(*index) {
+            *slot = entry.clone();
+        }
+    }
+}
+
+/// Interleave the two IP families (RFC 8305 §4, A61 step 3):
+/// alternate addresses starting with the family of the first IP
+/// address, keeping each family's relative order. Non-IP addresses
+/// (unix targets are single-address in practice) keep the front in
+/// their original order. Single-family lists are unchanged.
+fn interleave_families(entries: Vec<WeightedAddress>) -> Vec<WeightedAddress> {
+    let first_is_v4 = entries.iter().find_map(|entry| match &entry.address {
+        ResolvedAddress::Tcp(sock) => Some(sock.is_ipv4()),
+        _ => None,
+    });
+    let Some(first_is_v4) = first_is_v4 else {
+        return entries;
+    };
+    let mut other = Vec::new();
+    let mut first = Vec::new();
+    let mut second = Vec::new();
+    for entry in entries {
+        match &entry.address {
+            ResolvedAddress::Tcp(sock) if sock.is_ipv4() == first_is_v4 => first.push(entry),
+            ResolvedAddress::Tcp(_) => second.push(entry),
+            _ => other.push(entry),
+        }
+    }
+    let mut ordered = other;
+    let mut first = first.into_iter();
+    let mut second = second.into_iter();
+    loop {
+        let a = first.next();
+        let b = second.next();
+        if a.is_none() && b.is_none() {
+            break;
+        }
+        if let Some(entry) = a {
+            ordered.push(entry);
+        }
+        if let Some(entry) = b {
+            ordered.push(entry);
+        }
+    }
+    ordered
 }
 
 fn xorshift_seed() -> u64 {
@@ -246,14 +381,17 @@ mod tests {
         let pf = PickFirst::from_config(None);
         pf.update(vec![tcp(1), tcp(2)]).await;
         assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(1)));
-        pf.note_success().await;
+        pf.note_success(&tcp(1)).await;
         assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(1)));
         // Failure advances; success sticks at the new address.
         pf.note_failure(crate::status::Status::unavailable("x"))
             .await;
         assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(2)));
-        pf.note_success().await;
+        pf.note_success(&tcp(2)).await;
         assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(2)));
+        // A race winner past the head becomes current.
+        pf.note_success(&tcp(1)).await;
+        assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(1)));
     }
 
     #[tokio::test]
@@ -278,6 +416,45 @@ mod tests {
         // Current removed: restart from the front.
         pf.update(vec![tcp(3)]).await;
         assert!(matches!(pf.pick().await, Pick::Use(a) if a == tcp(3)));
+    }
+
+    #[tokio::test]
+    async fn interleave_alternates_families_from_first() {
+        fn tcp6(n: u16) -> ResolvedAddress {
+            ResolvedAddress::Tcp(format!("[::1]:{n}").parse().expect("addr"))
+        }
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp(1), tcp(2), tcp6(1), tcp6(2), tcp(3)])
+            .await;
+        // v4 first: v4, v6, v4, v6, v4, each family in order.
+        assert_eq!(
+            pf.race_plan().await,
+            vec![tcp(1), tcp6(1), tcp(2), tcp6(2), tcp(3)]
+        );
+        // v6 first: families swap roles (fresh policy: no sticky
+        // current to rotate the plan).
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp6(1), tcp(1), tcp6(2), tcp(2)]).await;
+        assert_eq!(pf.race_plan().await, vec![tcp6(1), tcp(1), tcp6(2), tcp(2)]);
+    }
+
+    #[tokio::test]
+    async fn race_plan_rotates_from_current() {
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp(1), tcp(2), tcp(3)]).await;
+        pf.note_failure(crate::status::Status::unavailable("x"))
+            .await;
+        assert_eq!(pf.race_plan().await, vec![tcp(2), tcp(3), tcp(1)]);
+    }
+
+    #[tokio::test]
+    async fn round_failure_covers_list_enters_backoff() {
+        let pf = PickFirst::from_config(None);
+        pf.update(vec![tcp(1), tcp(2)]).await;
+        pf.note_round_failed(2, crate::status::Status::unavailable("down"))
+            .await;
+        assert!(matches!(pf.pick().await, Pick::Fail(_)));
+        assert!(pf.race_plan().await.is_empty());
     }
 
     #[test]
