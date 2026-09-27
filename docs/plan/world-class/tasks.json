@@ -5558,8 +5558,13 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress",
-   "implementer": "muse-code"
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commits 36b83204 + tests: lb/priority.rs (A56 lazy named children, P0-first/pending-hold/CONNECTING/last-child selection, 10s failover + 15m deactivation timers evaluated lazily, atomic config updates with immediate child destroy per A115, flat updates feed P0, sync hash-header derivation, full delegation); lb/outlier.rs (A50 success-rate + failure-percentage detectors, floor ejection cap in resolver order, base x total backoff capped at maxEjectionTime, lazy sweep/unejection, try_lock call reporting with Cancelled dropped, dial failures excluded); A91 OutlierMetrics hooks (per-method enforced + unenforced enforcement/overflow counters); leaf readiness() x6; pool acquire_priority/acquire_outlier; unary+hedged outcome plumbing via ingest_call_status",
+    "checks: tests/lb_priority.rs 5/5 e2e (3x stable); lib 359/0 (21 new: 11 priority + 10 outlier) incl. fake-clock A56 timelines (failover hold, deactivation destroy, failback) and A50 detectors (eject/uneject, backoff growth, cap trim, enforcement, min-hosts, cancelled-drop); clippy/fmt/doc clean",
+    "boundaries: per-priority membership needs xDS hierarchy attributes (update_priorities ready); streaming call outcomes unreported (same coverage as per-call ORCA); OTel export of A91 counters lands with the OTel metrics lane"
+   ]
   },
   {
    "id": "CH-09",

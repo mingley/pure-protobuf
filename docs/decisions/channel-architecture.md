@@ -52,7 +52,8 @@ Two init-time registries, both following the `authz` factory pattern
   (`dns`, `passthrough` ship in CH-02; `xds` arrives with XD-02).
 - `LbPolicyRegistry`: policy name → `PolicyFactory`
   (`pick_first`, `round_robin`, `ring_hash`, `least_request`,
-  `weighted_round_robin`, xDS policies).
+  `weighted_round_robin`, `random_subsetting_experimental`,
+  `priority`, `outlier_detection`, xDS policies).
 
 Policy configs come from `loadBalancingConfig`; unknown policy names
 fall through to the next entry, and an empty/unusable list fails the
@@ -97,6 +98,8 @@ the balancer (no extra tasks, no snapshot machinery).
 | A42/A76 | ring_hash | `lb/ring_hash.rs` XXH64 ring + pool hash threading (CH-07, done) | `tests/lb_ring_hash` affinity/spread/failover e2e |
 | A48 | least_request | `lb/least_request.rs` sampling + RAII guards (CH-07, done) | idle-preference e2e under load |
 | A68 | random subsetting | `lb/subset.rs` rendezvous + child delegation (CH-07, done) | subset membership + child e2e |
+| A56/A115 | priority | `lb/priority.rs` lazy children + failover/deactivation timers (CH-08, done) | `tests/lb_priority` serving/dead-skip/ring-affinity e2e + fake-clock timeline units |
+| A50/A91 | outlier detection | `lb/outlier.rs` detectors + ejection cap/backoff + A91 hooks (CH-08, done) | `tests/lb_priority` eject/uneject e2e + fake-clock detector units |
 | A51 | ORCA load reports | `orca/` recorders + trailer hook + OOB service/client (CH-06, done) | `tests/orca` golden/trailer/OOB e2e + pinned-go bidirectional wire check |
 | A58 | weighted_round_robin | `lb/wrr.rs` EDF + pool per-address acquire/OOB pump (CH-06, done) | `tests/orca` per-call + OOB convergence fixtures |
 | A61 | Dualstack racing | `pool` Happy-Eyeballs full-dial race + `lb/pick_first` interleave (CH-04, done) | v4-only / v6-only / broken-v6 race + no-leak tests |
@@ -131,7 +134,8 @@ New components land in:
   trait + registry (CH-03).
 - `lb/pick_first.rs` (FL-03/CH-04, done), `lb/round_robin.rs`
   (FL-04, done), `lb/wrr.rs` (CH-06, done), `lb/ring_hash.rs`,
-  `lb/least_request.rs`, `lb/subset.rs` (CH-07, done), … — one file
+  `lb/least_request.rs`, `lb/subset.rs` (CH-07, done),
+  `lb/priority.rs`, `lb/outlier.rs` (CH-08, done), … — one file
   per policy as its card lands (top-level `lb/`, not
   `client/balancer/`).
 

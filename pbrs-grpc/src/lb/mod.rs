@@ -34,7 +34,9 @@ pub use health::{HealthSignal, disables_health_check, signal_for};
 pub(crate) use least_request::ensure_registered as ensure_least_request_registered;
 pub use least_request::{LeastRequest, LeastRequestFactory, LrTrack};
 pub(crate) use outlier::ensure_registered as ensure_outlier_detection_registered;
-pub use outlier::{OutlierDetection, OutlierDetectionFactory, OutlierStats};
+pub use outlier::{
+    OutlierDetection, OutlierDetectionFactory, OutlierMethodMetrics, OutlierMetrics, OutlierStats,
+};
 pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;

@@ -40,8 +40,8 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A58 | Client-side weighted round robin | shipped | EDF scheduler over ORCA weights (`lb/wrr.rs`, CH-06): UpdateWeight/GetWeight with blackout/expiration, lazy rebuilds (period/ready-set/weight-move), <2 weighted degrades to RR, error penalty, health gating; per-call ingestion in unary/hedged loops, OOB pump per subchannel (UNIMPLEMENTED stops silently). WRR config snapshots at channel build; streaming per-call ingestion deferred to OOB. |
 | A114 | WRR metric names for computing utilization | shipped | `metricNamesForComputingUtilization` parsed + max-over-hits selection with A58 app-then-cpu fallback (`orca::utilization`, CH-06). |
 | A42/A76 | Ring hash LB policy | shipped | `lb/ring_hash.rs` (CH-07): vendored seeded XXH64 (Go-verified vectors), grpc-go-identical ring build (`key_idx` entries, normalized scale, sorted), hash walk with failover locality, `requestHashHeader` (validated, `-bin` rejected) with random-hash fallback, fail-fast without a hash source, health gating + backoff. `ring_hash_experimental` alias normalized at parse. Endpoint weights all 1 (xDS attributes lane). |
-| A56 | Priority LB policy | planned | Prioritized failover across localities. |
-| A115 | Remove priority-LB child-policy cache | planned | With priority LB. |
+| A56 | Priority LB policy | shipped | `lb/priority.rs` (CH-08): lazy named children with named-slot decoupling, P0-first/pending-hold/CONNECTING/last-child selection, 10s failover + 15m deactivation timers evaluated lazily (no background tasks), atomic config updates, flat resolver updates feed P0 (per-priority membership via `update_priorities` until resolvers carry hierarchy), sync hash-header derivation for ring children, full signal delegation. E2E: `tests/lb_priority.rs` (serving, dead-skip, ring affinity); exact timelines in fake-clock unit tests. |
+| A115 | Remove priority-LB child-policy cache | shipped | No retention cache: children removed from the config destroy immediately in `update_config` (CH-08); kept children with changed policy lists rebuild lazily. |
 | A68 | Random subsetting | shipped | `lb/subset.rs` (CH-07): seeded-XXH64 rendezvous top-N (grpc-go construction), first-registered child via shared `instantiate()`, full delegation (pick/hash/health/ORCA/OOB/load-track); nesting parse-rejected. |
 | A5/A26 | grpclb in DNS / selection | boundary | Superseded by xDS; not implemented. |
 
@@ -107,7 +107,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A32 | xDS circuit breaking | planned | Cluster circuit breakers in the xDS balancer. |
 | A33 | Fault injection | planned | Delay/abort injection as an opt-in filter. |
 | A48 | xDS least-request LB | shipped | `lb/least_request.rs` (CH-07): choice_count sampling (parse: reject <2, clamp >10), least in-flight wins (first sampled breaks ties); RAII guards count unary attempts (abort-safe); streams untracked pending completion plumbing. `least_request_experimental` alias normalized at parse. |
-| A50 | xDS outlier detection | planned | Success-rate ejection in the xDS balancer. |
+| A50 | xDS outlier detection | shipped | `lb/outlier.rs` (CH-08): success-rate (mean−stdev·factor) + failure-percentage detectors over per-address call outcomes, ejection cap (floor, resolver-order trim), `base × total_ejections` backoff capped at `maxEjectionTime` (default max(300s, base)), lazy sweep/unejection on picks and observations, `try_lock` call reporting (never blocks; Cancelled dropped); dial failures feed only child backoff. Unary + hedged attempts report via `ingest_call_status` (streaming pending, same coverage as per-call ORCA). E2E: `tests/lb_priority.rs` (eject/uneject a failing backend); detectors pinned by fake-clock unit tests. |
 | A52 | xDS custom LB policies | planned | Plugin registry for LB policies. |
 | A53 | xDS ignore resource deletion | planned | With the xDS client. |
 | A54 | Restrict control-plane status codes | planned | With the xDS client. |
@@ -121,7 +121,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A81 | xDS authority rewriting | planned | With the xDS client. |
 | A88 | xDS data error handling | planned | With the xDS client. |
 | A89 | Backend service metric label | planned | With ORCA/LRS. |
-| A91 | Outlier-detection metrics | planned | With outlier detection. |
+| A91 | Outlier-detection metrics | shipped | `OutlierMetrics` hooks (CH-08): per-method enforced + unenforced (enforcement-roll / cap-overflow) counters, cumulative and never pruned; OTel export (names, units, target labels) lands with the OTel metrics lane. |
 | A95 | xDS endpoint fallback | planned | With the xDS client. |
 
 ## xDS control plane

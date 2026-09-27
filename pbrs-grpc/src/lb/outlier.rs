@@ -78,6 +78,9 @@ struct State {
     /// Total ejections per address (backoff state). Monotonic while
     /// the address stays listed; ejection duration is `base * count`.
     ejections: HashMap<ResolvedAddress, u32>,
+    /// A91 cumulative counters. Never pruned: ejection decisions
+    /// stay reportable after their addresses leave.
+    metrics: OutlierMetrics,
     /// Next sweep deadline.
     next_sweep: Instant,
 }
@@ -90,6 +93,83 @@ pub struct OutlierStats {
     pub ejected: Vec<ResolvedAddress>,
     /// Total ejection counts, in resolver-list order.
     pub ejection_counts: Vec<(ResolvedAddress, u32)>,
+}
+
+/// A91 counters for one detection method. Cumulative; export to OTel
+/// instruments (names, units, target labels) lands with the OTel
+/// metrics lane — these hooks already carry the per-method and
+/// per-reason splits A91 requires.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OutlierMethodMetrics {
+    /// Enforced ejections (`ejections_enforced`).
+    pub enforced: u64,
+    /// Detected but skipped by the enforcement roll
+    /// (`ejections_unenforced{reason=enforcement_percentage}`).
+    pub unenforced_enforcement: u64,
+    /// Detected but trimmed by the ejection cap
+    /// (`ejections_unenforced{reason=max_ejection_overflow}`).
+    pub unenforced_overflow: u64,
+}
+
+/// A91 outlier-detection metric counters.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OutlierMetrics {
+    /// Success-rate detector (`detection_method=success_rate`).
+    pub success_rate: OutlierMethodMetrics,
+    /// Failure-percentage detector
+    /// (`detection_method=failure_percentage`).
+    pub failure_percentage: OutlierMethodMetrics,
+}
+
+impl OutlierMetrics {
+    fn enforced(&mut self, method: Detector) {
+        match method {
+            Detector::SuccessRate => {
+                self.success_rate.enforced = self.success_rate.enforced.saturating_add(1)
+            }
+            Detector::FailurePercentage => {
+                self.failure_percentage.enforced =
+                    self.failure_percentage.enforced.saturating_add(1)
+            }
+        }
+    }
+
+    fn unenforced_enforcement(&mut self, method: Detector) {
+        match method {
+            Detector::SuccessRate => {
+                self.success_rate.unenforced_enforcement =
+                    self.success_rate.unenforced_enforcement.saturating_add(1)
+            }
+            Detector::FailurePercentage => {
+                self.failure_percentage.unenforced_enforcement = self
+                    .failure_percentage
+                    .unenforced_enforcement
+                    .saturating_add(1)
+            }
+        }
+    }
+
+    fn unenforced_overflow(&mut self, method: Detector) {
+        match method {
+            Detector::SuccessRate => {
+                self.success_rate.unenforced_overflow =
+                    self.success_rate.unenforced_overflow.saturating_add(1)
+            }
+            Detector::FailurePercentage => {
+                self.failure_percentage.unenforced_overflow = self
+                    .failure_percentage
+                    .unenforced_overflow
+                    .saturating_add(1)
+            }
+        }
+    }
+}
+
+/// Which detector nominated a candidate (A91 `detection_method`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Detector {
+    SuccessRate,
+    FailurePercentage,
 }
 
 impl OutlierDetection {
@@ -145,6 +225,7 @@ impl OutlierDetection {
                 counts: HashMap::new(),
                 ejected: HashMap::new(),
                 ejections: HashMap::new(),
+                metrics: OutlierMetrics::default(),
                 next_sweep,
             }),
             changed,
@@ -211,20 +292,24 @@ impl OutlierDetection {
         }
         state.next_sweep = now + self.interval;
         // Candidates in resolver order with their nominating
-        // detector's enforcement percentage; an address nominated by
-        // both keeps the success-rate one (first wins).
-        let mut candidates: Vec<(ResolvedAddress, u32)> = Vec::new();
+        // detector's enforcement percentage and method; an address
+        // nominated by both keeps the success-rate one (first wins).
+        let mut candidates: Vec<(ResolvedAddress, u32, Detector)> = Vec::new();
         if let Some(detector) = &self.success_rate {
             for addr in Self::success_rate_outliers(state, detector) {
-                if !candidates.iter().any(|(known, _)| known == &addr) {
-                    candidates.push((addr, detector.enforcement_percentage));
+                if !candidates.iter().any(|(known, _, _)| known == &addr) {
+                    candidates.push((addr, detector.enforcement_percentage, Detector::SuccessRate));
                 }
             }
         }
         if let Some(detector) = &self.failure_percentage {
             for addr in Self::failure_percentage_outliers(state, detector) {
-                if !candidates.iter().any(|(known, _)| known == &addr) {
-                    candidates.push((addr, detector.enforcement_percentage));
+                if !candidates.iter().any(|(known, _, _)| known == &addr) {
+                    candidates.push((
+                        addr,
+                        detector.enforcement_percentage,
+                        Detector::FailurePercentage,
+                    ));
                 }
             }
         }
@@ -239,14 +324,19 @@ impl OutlierDetection {
         .unwrap_or(usize::MAX);
         let room = cap.saturating_sub(state.ejected.len());
         let mut enforced = 0usize;
-        for (addr, enforcement) in &candidates {
+        for (addr, enforcement, method) in &candidates {
             if enforced >= room {
-                break;
+                // A91: detected but trimmed by the cap.
+                state.metrics.unenforced_overflow(*method);
+                continue;
             }
             if state.ejected.contains_key(addr) {
+                // Invariant: detectors pre-filter ejected addresses.
                 continue;
             }
             if !roll_enforcement(*enforcement) {
+                // A91: detected but skipped by the enforcement roll.
+                state.metrics.unenforced_enforcement(*method);
                 continue;
             }
             let count = state.ejections.get(addr).copied().unwrap_or(0);
@@ -258,6 +348,7 @@ impl OutlierDetection {
                 .unwrap_or(Duration::MAX)
                 .min(self.cap);
             state.ejected.insert(addr.clone(), now + duration);
+            state.metrics.enforced(*method);
             enforced += 1;
         }
         state.counts.clear();
@@ -472,6 +563,11 @@ impl OutlierDetection {
             ejection_counts,
         }
     }
+
+    /// A91 cumulative counters (hooks for the OTel metrics lane).
+    pub async fn outlier_metrics(&self) -> OutlierMetrics {
+        self.state.lock().await.metrics.clone()
+    }
 }
 
 /// Enforcement roll: `percent` chance in 100. Deterministic at the
@@ -640,6 +736,20 @@ mod tests {
         let _ = policy.pick().await;
         // 25% of 4 rounds down to 1: only the first candidate ejects.
         assert_eq!(policy.outlier_stats().await.ejected, vec![tcp(1)]);
+        let metrics = policy.outlier_metrics().await;
+        assert_eq!(metrics.failure_percentage.enforced, 1);
+        assert_eq!(metrics.failure_percentage.unenforced_overflow, 1);
+        assert_eq!(
+            metrics,
+            super::OutlierMetrics {
+                success_rate: super::OutlierMethodMetrics::default(),
+                failure_percentage: super::OutlierMethodMetrics {
+                    enforced: 1,
+                    unenforced_enforcement: 0,
+                    unenforced_overflow: 1,
+                },
+            }
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -671,6 +781,12 @@ mod tests {
         tokio::time::advance(Duration::from_secs(11)).await;
         let _ = policy.pick().await;
         assert_eq!(policy.outlier_stats().await.ejected, vec![tcp(1)]);
+        let metrics = policy.outlier_metrics().await;
+        assert_eq!(metrics.success_rate.enforced, 1);
+        assert_eq!(
+            metrics.failure_percentage,
+            super::OutlierMethodMetrics::default()
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -697,6 +813,9 @@ mod tests {
         tokio::time::advance(Duration::from_secs(11)).await;
         let _ = policy.pick().await;
         assert!(policy.outlier_stats().await.ejected.is_empty());
+        let metrics = policy.outlier_metrics().await;
+        assert_eq!(metrics.failure_percentage.unenforced_enforcement, 1);
+        assert_eq!(metrics.failure_percentage.enforced, 0);
     }
 
     #[tokio::test(start_paused = true)]
