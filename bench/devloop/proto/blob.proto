@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package lpbench;
+
+// Synthetic large-payload schema for SB-13 copy attribution. One message
+// with small metadata fields and one large bytes field (64 KiB - 8 MiB
+// at runtime), plus a mixed shape of several 4 KiB fields to catch
+// buffer-pinning regressions.
+message BlobChunk {
+  uint64 id = 1;
+  string owner = 2;
+  fixed64 checksum = 3;
+  bytes data = 4;
+}
+
+message BlobMixed {
+  uint64 id = 1;
+  repeated bytes parts = 2;
+}

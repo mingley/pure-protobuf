@@ -8,8 +8,8 @@ license = "MIT OR Apache-2.0"
 [workspace]
 
 [dependencies]
-pbrs = { path = "../.." }
-pbrs-grpc = { path = "../../pbrs-grpc" }
+pbrs = { path = "../..", features = ["copy-counts"] }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts"] }
 prost = "0.14"
 prost013 = { package = "prost", version = "0.13" }
 prost_tat = { path = "../../prost_tat" }
@@ -24,6 +24,7 @@ serde_json = "1.0"
 
 [build-dependencies]
 tonic-prost-build = "0.14"
+pbrs = { path = "../.." }
 
 [[bin]]
 name = "devloop"

@@ -17,6 +17,8 @@ use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+mod blob;
+
 /// Report schema version. Bump on any breaking JSON change.
 const SCHEMA: &str = "devloop/1";
 
@@ -64,6 +66,10 @@ impl AllocGuard {
         ALLOC_COUNT.store(0, Ordering::Relaxed);
         ALLOC_BYTES.store(0, Ordering::Relaxed);
         ALLOC_ARMED.store(1, Ordering::Relaxed);
+        // The copy window matches the alloc window exactly: warmup runs
+        // before arming on every cell.
+        pbrs::copy_counts::reset_copy_counts();
+        pbrs_grpc::reset_copy_counts();
         AllocGuard
     }
 
@@ -125,6 +131,50 @@ struct CellResult {
     wall_ns: Metric,
     /// Relative stddev of wall time across repeats (0..1), when known.
     wall_cv: Option<f64>,
+    /// Per-op medians of the SB-13 copy counters across repeats.
+    /// Missing on reports predating the metric.
+    #[serde(default)]
+    copy_counts: Option<CopyCountsMed>,
+}
+
+/// Per-op medians of one cell's copy counters.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct CopyCountsMed {
+    wire_calls: f64,
+    wire_bytes: f64,
+    carry_calls: f64,
+    carry_bytes: f64,
+    chunk_slices: f64,
+    chunk_slice_bytes: f64,
+    encode_calls: f64,
+    encode_bytes: f64,
+    serialize_calls: f64,
+    serialize_bytes: f64,
+}
+
+fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
+    macro_rules! med {
+        ($field:ident) => {
+            median(
+                counts
+                    .iter()
+                    .map(|c| c.$field as f64 / iters as f64)
+                    .collect(),
+            )
+        };
+    }
+    CopyCountsMed {
+        wire_calls: med!(wire_calls),
+        wire_bytes: med!(wire_bytes),
+        carry_calls: med!(carry_calls),
+        carry_bytes: med!(carry_bytes),
+        chunk_slices: med!(chunk_slices),
+        chunk_slice_bytes: med!(chunk_slice_bytes),
+        encode_calls: med!(encode_calls),
+        encode_bytes: med!(encode_bytes),
+        serialize_calls: med!(serialize_calls),
+        serialize_bytes: med!(serialize_bytes),
+    }
 }
 
 fn metric_predates_locks() -> Metric {
@@ -159,6 +209,43 @@ struct ChildOutput {
     allocs: u64,
     alloc_bytes: u64,
     wall_ns: u64,
+    /// Per-site user-space copy counts over the timed window (SB-13).
+    /// Missing on outputs predating the metric; all zeros when the
+    /// `copy-counts` features are off.
+    #[serde(default)]
+    copy_counts: Option<CopyCountsJson>,
+}
+
+/// Serializable union of the pbrs and pbrs-grpc copy counters.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct CopyCountsJson {
+    wire_calls: u64,
+    wire_bytes: u64,
+    carry_calls: u64,
+    carry_bytes: u64,
+    chunk_slices: u64,
+    chunk_slice_bytes: u64,
+    encode_calls: u64,
+    encode_bytes: u64,
+    serialize_calls: u64,
+    serialize_bytes: u64,
+}
+
+fn read_copy_counts() -> CopyCountsJson {
+    let rt = pbrs::copy_counts::copy_counts();
+    let grpc = pbrs_grpc::copy_counts();
+    CopyCountsJson {
+        wire_calls: rt.wire_calls,
+        wire_bytes: rt.wire_bytes,
+        carry_calls: grpc.carry_calls,
+        carry_bytes: grpc.carry_bytes,
+        chunk_slices: grpc.chunk_slices,
+        chunk_slice_bytes: grpc.chunk_slice_bytes,
+        encode_calls: grpc.encode_calls,
+        encode_bytes: grpc.encode_bytes,
+        serialize_calls: grpc.serialize_calls,
+        serialize_bytes: grpc.serialize_bytes,
+    }
 }
 
 fn host_info() -> HostInfo {
@@ -258,7 +345,8 @@ fn usage() -> String {
      \x20 devloop list\n\
      \x20 devloop run-cell <id> --iters N [--warmup N]\n\
      \x20 devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]\n\
-     \x20 devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]\n"
+     \x20 devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]\n\
+     \x20 devloop sizes\n"
         .to_owned()
 }
 
@@ -468,7 +556,7 @@ fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
 }
 
 fn codec_cells() -> Vec<(&'static str, &'static str)> {
-    vec![
+    let mut out = vec![
         ("codec.pbrs.fresh_encode", "pbrs"),
         ("codec.pbrs.cached_encode", "pbrs"),
         ("codec.pbrs.owned_decode", "pbrs"),
@@ -481,7 +569,9 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
         ("codec.v4.cached_encode", "v4-upb"),
         ("codec.v4.owned_decode", "v4-upb"),
         ("codec.v4.parse_touch", "v4-upb"),
-    ]
+    ];
+    out.extend(blob::blob_cells());
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -845,13 +935,7 @@ fn lb_cells() -> Vec<(&'static str, &'static str)> {
 fn lb_ready_addrs() -> Vec<pbrs_grpc::resolver::ResolvedAddress> {
     use pbrs_grpc::resolver::ResolvedAddress;
     (0..3)
-        .map(|i| {
-            ResolvedAddress::Tcp(
-                format!("127.0.0.1:{}", 50_051 + i)
-                    .parse()
-                    .expect("addr"),
-            )
-        })
+        .map(|i| ResolvedAddress::Tcp(format!("127.0.0.1:{}", 50_051 + i).parse().expect("addr")))
         .collect()
 }
 
@@ -955,11 +1039,7 @@ async fn lb_weighted_round_robin_pick(iters: u64) -> u64 {
         ..Default::default()
     });
     policy.update(lb_ready_addrs()).await;
-    lb_guarded_loop!(
-        "lb.weighted_round_robin.pick",
-        iters,
-        policy.pick().await
-    )
+    lb_guarded_loop!("lb.weighted_round_robin.pick", iters, policy.pick().await)
 }
 
 async fn lb_ring_hash_pick(iters: u64) -> u64 {
@@ -969,7 +1049,10 @@ async fn lb_ring_hash_pick(iters: u64) -> u64 {
     let cell = "lb.ring_hash.pick";
     for _ in 0..2000 {
         assert!(
-            matches!(policy.pick_hash(Some(0x9E37_79B9)).await, pbrs_grpc::lb::Pick::Use(_)),
+            matches!(
+                policy.pick_hash(Some(0x9E37_79B9)).await,
+                pbrs_grpc::lb::Pick::Use(_)
+            ),
             "steady pick must stay Use"
         );
     }
@@ -978,7 +1061,10 @@ async fn lb_ring_hash_pick(iters: u64) -> u64 {
     let mut sink = 0u64;
     for _ in 0..iters {
         // Varying request hash, as real RPCs hash distinct metadata.
-        match policy.pick_hash(Some(sink.wrapping_mul(0x9E37_79B9_7F4A_7C15))).await {
+        match policy
+            .pick_hash(Some(sink.wrapping_mul(0x9E37_79B9_7F4A_7C15)))
+            .await
+        {
             pbrs_grpc::lb::Pick::Use(_) => sink = sink.wrapping_add(1),
             _ => panic!("steady pick must stay Use"),
         }
@@ -1030,11 +1116,7 @@ async fn lb_outlier_detection_pick(iters: u64) -> u64 {
     })
     .expect("outlier config");
     policy.update(lb_ready_addrs()).await;
-    lb_guarded_loop!(
-        "lb.outlier_detection.pick",
-        iters,
-        policy.pick().await
-    )
+    lb_guarded_loop!("lb.outlier_detection.pick", iters, policy.pick().await)
 }
 
 async fn lb_random_subsetting_pick(iters: u64) -> u64 {
@@ -1160,6 +1242,7 @@ fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -
         allocs,
         alloc_bytes: bytes,
         wall_ns: wall.as_nanos() as u64,
+        copy_counts: Some(read_copy_counts()),
     })
     .expect("child json")
 }
@@ -1177,6 +1260,26 @@ fn run_codec_cell(cell: &str, iters: u64, warmup: u64) {
     let mut sink = 0u64;
     for i in 0..n {
         sink = sink.wrapping_add(codec_work(cell, &case, i));
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!("__CHILD__ {}", child_json(cell, iters, allocs, bytes, wall));
+    black_box(sink);
+}
+
+fn run_blob_cell(cell: &str, iters: u64, warmup: u64) {
+    let size = blob::blob_size_of(cell).expect("blob size");
+    let case = blob::BlobCase::prepare(size);
+    let n = iters as usize;
+    for i in 0..warmup.min(iters) as usize {
+        black_box(blob::blob_work(cell, &case, i % n.max(1)));
+    }
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for i in 0..n {
+        sink = sink.wrapping_add(blob::blob_work(cell, &case, i));
     }
     let wall = start.elapsed();
     let (allocs, bytes) = guard.totals();
@@ -1381,6 +1484,11 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             .unwrap_or_else(|| panic!("unknown cell {cell}"));
         let cell_iters = if kind == &"rpc" {
             iters.min(200)
+        } else if blob::is_blob_cell(cell) {
+            match blob::blob_size_of(cell) {
+                Some(size) => size.matrix_iters(iters),
+                None => iters,
+            }
         } else {
             iters
         };
@@ -1390,12 +1498,16 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut instrs = Vec::new();
         let mut syscalls = Vec::new();
         let mut locks = Vec::new();
+        let mut copies = Vec::new();
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
             allocs.push(child.allocs as f64 / cell_iters as f64);
             alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
             walls.push(child.wall_ns as f64 / cell_iters as f64);
+            if let Some(c) = child.copy_counts {
+                copies.push(c);
+            }
             if let Some(v) = instr {
                 instrs.push(v / cell_iters as f64);
             }
@@ -1457,6 +1569,11 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             },
             wall_ns: Metric::measured(median(walls.clone()), "ns per op (secondary)"),
             wall_cv: wall_cv(&walls),
+            copy_counts: if copies.is_empty() {
+                None
+            } else {
+                Some(copy_medians(&copies, cell_iters))
+            },
         });
     }
     Report {
@@ -1568,7 +1685,9 @@ fn cmd_run_cell(args: &[String]) {
         }
     }
     let id = id.expect("run-cell <id>");
-    if id.starts_with("codec.") {
+    if blob::is_blob_cell(&id) {
+        run_blob_cell(&id, iters, warmup);
+    } else if id.starts_with("codec.") {
         run_codec_cell(&id, iters, warmup);
     } else if id.starts_with("lb.") {
         // Single-threaded: worker parking would pollute the locks metric.
@@ -1585,9 +1704,7 @@ fn cmd_run_cell(args: &[String]) {
                 "lb.least_request.pick" => lb_least_request_pick(iters).await,
                 "lb.priority.pick" => lb_priority_pick(iters).await,
                 "lb.outlier_detection.pick" => lb_outlier_detection_pick(iters).await,
-                "lb.random_subsetting_experimental.pick" => {
-                    lb_random_subsetting_pick(iters).await
-                }
+                "lb.random_subsetting_experimental.pick" => lb_random_subsetting_pick(iters).await,
                 _ => panic!("unknown lb cell {id}"),
             }
         });
@@ -1767,6 +1884,7 @@ fn main() {
         "run-cell" => cmd_run_cell(&args[2..]),
         "run" => cmd_run(&args[2..]),
         "compare" => cmd_compare(&args[2..]),
+        "sizes" => blob::print_sizes(),
         _ => {
             eprint!("{}", usage());
             std::process::exit(2);
