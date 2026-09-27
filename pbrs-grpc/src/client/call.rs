@@ -233,6 +233,8 @@ pub(crate) struct Opened {
     pub(crate) driver: Option<watch::Sender<bool>>,
     pub(crate) resp_fut: h2::client::ResponseFuture,
     pub(crate) send: h2::SendStream<Bytes>,
+    /// Channelz socket serving the stream, for stream/message counters.
+    pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
 #[cfg(test)]
@@ -415,8 +417,14 @@ impl super::Channel {
             let live = self
                 .grab(cancel_rx.clone(), deadline, wait, Some(md))
                 .await?;
-            let (slot, r#gen, lease, driver, rr_addr) =
-                (live.slot, live.r#gen, live.lease, live.driver, live.rr_addr);
+            let (slot, r#gen, lease, driver, rr_addr, channelz_socket) = (
+                live.slot,
+                live.r#gen,
+                live.lease,
+                live.driver,
+                live.rr_addr,
+                live.channelz_socket,
+            );
             match open(
                 live.send,
                 &self.authority,
@@ -438,6 +446,7 @@ impl super::Channel {
                         driver,
                         resp_fut,
                         send,
+                        channelz_socket,
                     });
                 }
                 Err(status)

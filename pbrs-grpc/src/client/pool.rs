@@ -56,6 +56,13 @@ pub(crate) struct ConnSlot {
     pub(crate) busy: Option<Arc<crate::keepalive::Busy>>,
     /// Pinned address on LB channels; `None` dials the channel endpoint.
     pub(crate) address: Option<ResolvedAddress>,
+    /// Channelz socket for the live connection; dropping unregisters.
+    /// Taken (unregistering) wherever `send` is cleared.
+    pub(crate) channelz_socket: Option<crate::channelz::SocketHandle>,
+    /// Channelz subchannel for this entry's address (round_robin-table
+    /// entries only; other slots hang sockets directly under the
+    /// channel). Lives with the entry across redials.
+    pub(crate) channelz_subchannel: Option<crate::channelz::SubchannelHandle>,
 }
 
 /// A finished handshake: the sender plus the handles that stop its driver.
@@ -63,6 +70,11 @@ pub(crate) struct Dialed {
     pub(crate) send: h2::client::SendRequest<Bytes>,
     pub(crate) stop: watch::Sender<bool>,
     pub(crate) busy: Option<Arc<crate::keepalive::Busy>>,
+    /// Local socket address, when the transport reports one (TCP;
+    /// Unix clients are unnamed).
+    pub(crate) local_addr: Option<crate::channelz::EndpointAddr>,
+    /// Connected peer address, when the transport reports one.
+    pub(crate) peer_addr: Option<crate::channelz::EndpointAddr>,
 }
 
 /// A sender taken from a pool slot, plus the generation so a raced `GOAWAY`
@@ -81,6 +93,11 @@ pub(crate) struct LiveConn {
     /// [`ChannelInner::slots`], `Some` discards by address in the
     /// round_robin table.
     pub(crate) rr_addr: Option<ResolvedAddress>,
+    /// Channelz socket serving this connection, for stream/message
+    /// counters. The registry resolves it per record, so a socket
+    /// that unregistered mid-RPC (handoff, discard) silently drops
+    /// late increments instead of misattributing them.
+    pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
 /// One subchannel per round_robin address, grown and shrunk with the
@@ -127,6 +144,9 @@ pub(crate) struct ChannelInner {
     /// stream_buffer, max_send_buffer_size, https_scheme, origin) do not change
     /// how a dead slot is redialed.
     pub(crate) dial: ChannelConfig,
+    /// Channelz channel registration; dropping the last [`Channel`]
+    /// unregisters the channel (and its direct sockets).
+    pub(crate) channelz: crate::channelz::ChannelHandle,
 }
 
 /// Where a handshake should connect. TCP is `host:port`; Unix is a filesystem
@@ -167,6 +187,12 @@ impl Endpoint {
     }
 }
 
+/// Register a channelz channel named for its endpoint.
+pub(crate) fn register_channel_for(endpoint: &Endpoint) -> crate::channelz::ChannelHandle {
+    let target = endpoint.describe();
+    crate::channelz::Registry::global_shared().register_channel(target.clone(), target)
+}
+
 pub(crate) async fn connect_inner(
     target: Target,
     config: ChannelConfig,
@@ -179,6 +205,7 @@ pub(crate) async fn connect_inner(
     for _ in 0..n {
         sends.push(handshake(&endpoint, config, tls.as_ref()).await?);
     }
+    let channelz = register_channel_for(&endpoint);
     Ok(finish_channel(
         endpoint,
         authority,
@@ -188,6 +215,7 @@ pub(crate) async fn connect_inner(
         None,
         SharedServiceConfig::default(),
         None,
+        channelz,
     ))
 }
 
@@ -198,6 +226,7 @@ pub(crate) fn connect_lazy_inner(
 ) -> Result<Channel, Status> {
     let endpoint = Endpoint::Tcp(target.authority().to_owned());
     let authority = target.parse()?;
+    let channelz = register_channel_for(&endpoint);
     Ok(finish_channel(
         endpoint,
         authority,
@@ -207,6 +236,7 @@ pub(crate) fn connect_lazy_inner(
         None,
         SharedServiceConfig::default(),
         None,
+        channelz,
     ))
 }
 
@@ -221,6 +251,7 @@ pub(crate) async fn connect_unix_inner(
     for _ in 0..n {
         sends.push(handshake(&endpoint, config, None).await?);
     }
+    let channelz = register_channel_for(&endpoint);
     Ok(finish_channel(
         endpoint,
         unix_authority(),
@@ -230,6 +261,7 @@ pub(crate) async fn connect_unix_inner(
         None,
         SharedServiceConfig::default(),
         None,
+        channelz,
     ))
 }
 
@@ -278,7 +310,7 @@ pub(crate) async fn connect_uri_inner(
     ensure_round_robin_registered();
     ensure_weighted_round_robin_registered();
     let doc = shared.get();
-    let lb = match doc.as_ref().and_then(|state| {
+    let (lb, lb_name) = match doc.as_ref().and_then(|state| {
         if state.config.lb_policies().is_empty() {
             None
         } else {
@@ -286,7 +318,7 @@ pub(crate) async fn connect_uri_inner(
         }
     }) {
         Some(Some(selected)) => match instantiate(&selected.policy) {
-            Ok(lb) => Some(lb),
+            Ok(lb) => (Some(lb), selected.name.clone()),
             Err(_) => {
                 return Err(Status::invalid_argument(format!(
                     "loadBalancingConfig selected {:?}, which has no runtime in this build",
@@ -299,7 +331,10 @@ pub(crate) async fn connect_uri_inner(
                 "loadBalancingConfig lists no registered policy",
             ));
         }
-        None => Some(LbPolicy::PickFirst(PickFirst::from_config(None))),
+        None => (
+            Some(LbPolicy::PickFirst(PickFirst::from_config(None))),
+            "pick_first (default)".to_owned(),
+        ),
     };
     let rr = matches!(
         lb,
@@ -314,11 +349,25 @@ pub(crate) async fn connect_uri_inner(
     .then(|| Arc::new(RrTable::new()));
     let initial_addrs = built.initial.addresses().to_vec();
     let mut handle = built.into_handle();
+    // Channelz registers before the resolver tasks spawn so they can
+    // trace into it; the handle moves into the channel below.
+    let channelz = crate::channelz::Registry::global_shared().register_channel(uri, uri);
+    let channel_id = channelz.id();
+    let global = crate::channelz::Registry::global();
+    global.trace_channel(
+        channel_id,
+        crate::channelz::TraceSeverity::Info,
+        format!(
+            "Initial resolution: {} addresses (LB policy: {lb_name})",
+            initial_addrs.len()
+        ),
+    );
     if let Some(policy) = lb.clone() {
-        policy.update(initial_addrs).await;
+        policy.update(initial_addrs.clone()).await;
         let watch = handle.watch.clone();
         let age_grace = config.age_grace();
         let table = rr.clone();
+        let mut prev = initial_addrs.len();
         handle.guard(ResolverTask::new(tokio::spawn(async move {
             let mut rx = watch;
             loop {
@@ -330,6 +379,33 @@ pub(crate) async fn connect_uri_inner(
                 policy.update(addrs.clone()).await;
                 if let Some(table) = table.as_ref() {
                     reconcile_rr(table, &addrs, age_grace).await;
+                }
+                // A3: interesting resolution events (0/N edges stand out).
+                if addrs.len() != prev {
+                    let global = crate::channelz::Registry::global();
+                    if prev == 0 {
+                        global.trace_channel(
+                            channel_id,
+                            crate::channelz::TraceSeverity::Info,
+                            format!("Address list repopulated: {} addresses", addrs.len()),
+                        );
+                    } else if addrs.is_empty() {
+                        global.trace_channel(
+                            channel_id,
+                            crate::channelz::TraceSeverity::Warning,
+                            "Address list emptied: 0 addresses".to_owned(),
+                        );
+                    } else {
+                        global.trace_channel(
+                            channel_id,
+                            crate::channelz::TraceSeverity::Info,
+                            format!(
+                                "Address list updated: {} addresses (was {prev})",
+                                addrs.len()
+                            ),
+                        );
+                    }
+                    prev = addrs.len();
                 }
             }
         })));
@@ -344,6 +420,7 @@ pub(crate) async fn connect_uri_inner(
         handle.watch.clone(),
         shared.clone(),
         adopted,
+        channel_id,
     ))));
     Ok(finish_channel(
         endpoint,
@@ -354,15 +431,18 @@ pub(crate) async fn connect_uri_inner(
         Some(handle),
         shared,
         rr,
+        channelz,
     ))
 }
 
 /// Adopt resolver-delivered service configs (A21): valid documents
-/// replace the lineage's config, invalid ones are ignored.
+/// replace the lineage's config, invalid ones are ignored. Adoptions
+/// trace on the channel (A3).
 async fn adopt_loop(
     mut watch: tokio::sync::watch::Receiver<std::sync::Arc<Resolution>>,
     shared: SharedServiceConfig,
     mut adopted: Option<String>,
+    channel_id: crate::channelz::ChannelId,
 ) {
     loop {
         if watch.changed().await.is_err() {
@@ -378,13 +458,18 @@ async fn adopt_loop(
         if let Ok(parsed) = ServiceConfig::parse(json) {
             shared.set(parsed);
             adopted = Some(json.to_owned());
+            crate::channelz::Registry::global().trace_channel(
+                channel_id,
+                crate::channelz::TraceSeverity::Info,
+                "Service config changed (adopted new document)".to_owned(),
+            );
         }
     }
 }
 
 #[allow(
     clippy::too_many_arguments,
-    reason = "channel assembly: endpoint, authority, config, tls, slots, resolver, service config, rr table"
+    reason = "channel assembly: endpoint, authority, config, tls, slots, resolver, service config, rr table, channelz"
 )]
 pub(crate) fn finish_channel(
     endpoint: Endpoint,
@@ -395,6 +480,7 @@ pub(crate) fn finish_channel(
     resolver: Option<ResolverHandle>,
     service_config: SharedServiceConfig,
     rr: Option<Arc<RrTable>>,
+    channelz: crate::channelz::ChannelHandle,
 ) -> Channel {
     let https = tls.is_some();
     let inner = Arc::new(ChannelInner {
@@ -406,6 +492,7 @@ pub(crate) fn finish_channel(
         tls,
         rr,
         dial: config,
+        channelz,
     });
     for i in 0..inner.slots.len() {
         spawn_idle_watch(Arc::clone(&inner), i);
@@ -449,6 +536,8 @@ pub(crate) fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
                 stop: Some(d.stop),
                 busy: d.busy,
                 address: None,
+                channelz_socket: None,
+                channelz_subchannel: None,
             })
         })
         .collect()
@@ -463,6 +552,8 @@ pub(crate) fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
                 stop: None,
                 busy: None,
                 address: None,
+                channelz_socket: None,
+                channelz_subchannel: None,
             })
         })
         .collect()
@@ -553,10 +644,16 @@ impl ChannelInner {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = self.slot(i)?.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -567,11 +664,13 @@ impl ChannelInner {
                         slot: i,
                         r#gen,
                         rr_addr: None,
+                        channelz_socket,
                     });
                 }
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_channel_dial_start();
             match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
                 Ok(dialed) => {
                     if let Some(obs) = observer {
@@ -589,10 +688,14 @@ impl ChannelInner {
                     }
                     let mut slot = self.slot(i)?.lock().await;
                     if slot.r#gen == r#gen {
+                        let dial_local = dialed.local_addr.clone();
+                        let dial_peer = dialed.peer_addr.clone();
                         let send = store_dialed(&mut slot, dialed);
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket =
+                            Some(self.note_dial_ok(&mut slot, None, dial_peer, dial_local));
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
                         spawn_age_watch(Arc::clone(self), i);
@@ -603,6 +706,7 @@ impl ChannelInner {
                             slot: i,
                             r#gen,
                             rr_addr: None,
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -621,6 +725,7 @@ impl ChannelInner {
                             });
                         }
                     }
+                    self.note_dial_err(None, None, &status).await;
                     if wait_for_ready && self.endpoint.can_redial() {
                         let delay_ms = WAIT_FOR_READY_BACKOFF_MS
                             .get(attempt)
@@ -679,7 +784,7 @@ impl ChannelInner {
                     continue;
                 }
             };
-            let (handle, lease, r#gen, driver, slot_addr) = {
+            let (handle, lease, r#gen, driver, slot_addr, channelz_socket) = {
                 let slot = self.slot(0)?.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                 (
@@ -688,6 +793,7 @@ impl ChannelInner {
                     slot.r#gen,
                     slot.stop.clone(),
                     slot.address.clone(),
+                    socket_id_of(&slot),
                 )
             };
             if slot_addr.as_ref() == Some(&addr) {
@@ -702,6 +808,7 @@ impl ChannelInner {
                                 slot: 0,
                                 r#gen,
                                 rr_addr: None,
+                                channelz_socket,
                             });
                         }
                         continue;
@@ -717,6 +824,7 @@ impl ChannelInner {
                 continue;
             }
             let tried = plan.len();
+            self.note_channel_dial_start();
             match dial_racing(&display, plan, self.dial, self.tls.as_ref()).await {
                 Ok((winner, dialed)) => {
                     let addr = winner;
@@ -735,6 +843,7 @@ impl ChannelInner {
                     }
                     let mut slot = self.slot(0)?.lock().await;
                     if slot.r#gen == r#gen {
+                        let dial_local = dialed.local_addr.clone();
                         let displaced = if slot.address.as_ref() != Some(&addr) {
                             slot.address = Some(addr.clone());
                             replace_for_handoff(&mut slot, dialed)
@@ -751,6 +860,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            None,
+                            Some(crate::channelz::EndpointAddr::from(&addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if let Some(old) = displaced {
                             spawn_handoff_drain(old, self.dial.age_grace());
@@ -770,12 +885,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: None,
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_round_failed(tried, status.clone()).await;
+                    self.note_dial_err(None, None, &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -860,13 +977,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -878,6 +1003,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -885,8 +1011,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -907,6 +1035,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -920,12 +1054,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1006,13 +1142,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1026,6 +1170,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1033,8 +1178,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1055,6 +1202,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1070,12 +1223,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1158,13 +1313,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1176,6 +1339,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1183,8 +1347,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1205,6 +1371,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1218,12 +1390,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1305,13 +1479,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1323,6 +1505,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1330,8 +1513,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1352,6 +1537,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1365,12 +1556,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1454,13 +1647,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1474,6 +1675,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1481,8 +1683,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1503,6 +1707,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1518,12 +1728,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1607,13 +1819,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1627,6 +1847,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1634,8 +1855,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1656,6 +1879,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1671,12 +1900,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1761,13 +1992,21 @@ impl ChannelInner {
                         stop: None,
                         busy: None,
                         address: Some(addr.clone()),
+                        channelz_socket: None,
+                        channelz_subchannel: None,
                     }))
                 }))
             };
-            let (handle, lease, r#gen, driver) = {
+            let (handle, lease, r#gen, driver, channelz_socket) = {
                 let slot = entry.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    socket_id_of(&slot),
+                )
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
@@ -1781,6 +2020,7 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     continue;
@@ -1788,8 +2028,10 @@ impl ChannelInner {
             }
             drop(lease);
             let dial_start = tokio::time::Instant::now();
+            self.note_dial_start(&entry, &addr).await;
             match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
-                Ok((_, dialed)) => {
+                Ok((won_addr, dialed)) => {
+                    let dial_local = dialed.local_addr.clone();
                     policy.note_success(&addr).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
@@ -1810,6 +2052,12 @@ impl ChannelInner {
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
                         let driver = slot.stop.clone();
                         let r#gen = slot.r#gen;
+                        let channelz_socket = Some(self.note_dial_ok(
+                            &mut slot,
+                            Some(&addr),
+                            Some(crate::channelz::EndpointAddr::from(&won_addr)),
+                            dial_local,
+                        ));
                         drop(slot);
                         if !reuse_health_ok(self, &lb, &addr, &send, &driver, health.as_ref()).await
                         {
@@ -1825,12 +2073,14 @@ impl ChannelInner {
                             slot: 0,
                             r#gen,
                             rr_addr: Some(addr),
+                            channelz_socket,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_failure(&addr, status.clone()).await;
+                    self.note_dial_err(Some(&entry), Some(&addr), &status).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -1858,6 +2108,127 @@ impl ChannelInner {
         }
     }
 
+    /// Channelz: a dial is starting on a round_robin-table entry.
+    /// Ensures the address subchannel, moves it to CONNECTING
+    /// (deriving the channel state), and traces the attempt (A3).
+    async fn note_dial_start(&self, entry: &Arc<Mutex<ConnSlot>>, addr: &ResolvedAddress) {
+        let registry = crate::channelz::Registry::global_shared();
+        let mut slot = entry.lock().await;
+        let sub = slot.channelz_subchannel.get_or_insert_with(|| {
+            registry.register_subchannel(self.channelz.id(), addr_text(addr))
+        });
+        let id = sub.id();
+        drop(slot);
+        let global = crate::channelz::Registry::global();
+        global.set_subchannel_state(id, crate::channelz::Connectivity::Connecting);
+        global.trace_subchannel(
+            id,
+            crate::channelz::TraceSeverity::Info,
+            format!("Starting TCP connection to {}", addr_text(addr)),
+        );
+    }
+
+    /// Channelz: a dial is starting on a pick_first/direct slot
+    /// (sockets hang directly under the channel there).
+    fn note_channel_dial_start(&self) {
+        let global = crate::channelz::Registry::global();
+        global.set_channel_state(
+            self.channelz.id(),
+            crate::channelz::Connectivity::Connecting,
+        );
+        global.trace_channel(
+            self.channelz.id(),
+            crate::channelz::TraceSeverity::Info,
+            "Starting TCP connection",
+        );
+    }
+
+    /// Channelz: a dial succeeded. Moves the subchannel (or channel)
+    /// to READY, registers the socket under it, and stores the guard
+    /// in the slot (replacing any previous generation, which
+    /// unregisters). Returns the new socket id for the [`LiveConn`].
+    /// Call only on the winning generation: lost-race dials must not
+    /// disturb the winner's registration.
+    fn note_dial_ok(
+        &self,
+        slot: &mut ConnSlot,
+        sub_addr: Option<&ResolvedAddress>,
+        remote: Option<crate::channelz::EndpointAddr>,
+        local: Option<crate::channelz::EndpointAddr>,
+    ) -> crate::channelz::SocketId {
+        let registry = crate::channelz::Registry::global_shared();
+        let global = crate::channelz::Registry::global();
+        let parent = match sub_addr {
+            Some(addr) if self.rr.is_some() => {
+                let sub = slot.channelz_subchannel.get_or_insert_with(|| {
+                    registry.register_subchannel(self.channelz.id(), addr_text(addr))
+                });
+                let id = sub.id();
+                global.set_subchannel_state(id, crate::channelz::Connectivity::Ready);
+                crate::channelz::SocketParent::Subchannel(id)
+            }
+            _ => {
+                global.set_channel_state(self.channelz.id(), crate::channelz::Connectivity::Ready);
+                crate::channelz::SocketParent::Channel(self.channelz.id())
+            }
+        };
+        let security = if self.tls.is_some() {
+            crate::channelz::SocketSecurity::Tls {
+                local_certificate: Vec::new(),
+                remote_certificate: Vec::new(),
+            }
+        } else {
+            crate::channelz::SocketSecurity::None
+        };
+        let guard = registry.register_socket(parent, local, remote, None, security, false);
+        let id = guard.id();
+        slot.channelz_socket = Some(guard);
+        id
+    }
+
+    /// Channelz: a dial failed. Moves the subchannel (or channel) to
+    /// TRANSIENT_FAILURE and traces the error (A3).
+    async fn note_dial_err(
+        &self,
+        entry: Option<&Arc<Mutex<ConnSlot>>>,
+        addr: Option<&ResolvedAddress>,
+        status: &Status,
+    ) {
+        let global = crate::channelz::Registry::global();
+        let sub = match (entry, addr) {
+            (Some(entry), Some(addr)) if self.rr.is_some() => {
+                let mut slot = entry.lock().await;
+                let sub = slot.channelz_subchannel.get_or_insert_with(|| {
+                    crate::channelz::Registry::global_shared()
+                        .register_subchannel(self.channelz.id(), addr_text(addr))
+                });
+                Some(sub.id())
+            }
+            _ => None,
+        };
+        match sub {
+            Some(id) => {
+                global.set_subchannel_state(id, crate::channelz::Connectivity::TransientFailure);
+                global.trace_subchannel(
+                    id,
+                    crate::channelz::TraceSeverity::Error,
+                    format!("TCP connection failed: {status}"),
+                );
+            }
+            None => {
+                global.set_channel_state(
+                    self.channelz.id(),
+                    crate::channelz::Connectivity::TransientFailure,
+                );
+                global.trace_channel(
+                    self.channelz.id(),
+                    crate::channelz::TraceSeverity::Error,
+                    format!("TCP connection failed: {status}"),
+                );
+            }
+        }
+    }
+
     /// Drop a dead generation so the next [`Self::acquire`] redials.
     ///
     /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
@@ -1872,6 +2243,7 @@ impl ChannelInner {
             return;
         }
         slot.send = None;
+        slot.channelz_socket = None;
         slot.busy = None;
         if let Some(stop) = slot.stop.take() {
             stop.send(true).ok();
@@ -1910,6 +2282,7 @@ impl ChannelInner {
             return;
         }
         slot.send = None;
+        slot.channelz_socket = None;
         slot.busy = None;
         if let Some(stop) = slot.stop.take() {
             stop.send(true).ok();
@@ -1939,8 +2312,35 @@ async fn reconcile_rr(table: &RrTable, addrs: &[ResolvedAddress], grace: Duratio
             let busy = slot.busy.take();
             slot.send = None;
             slot.r#gen = slot.r#gen.wrapping_add(1);
+            // The socket guard moves into the drain (staying
+            // registered until in-flight streams finish); the
+            // subchannel guard drops with the evicted entry.
+            let channelz_socket = slot.channelz_socket.take();
             drop(slot);
-            spawn_handoff_drain(Displaced { stop, busy }, grace);
+            spawn_handoff_drain(
+                Displaced {
+                    stop,
+                    busy,
+                    channelz_socket,
+                },
+                grace,
+            );
+        }
+    }
+}
+
+/// Channelz socket id currently serving a slot, if any.
+fn socket_id_of(slot: &ConnSlot) -> Option<crate::channelz::SocketId> {
+    slot.channelz_socket.as_ref().map(|guard| guard.id())
+}
+
+/// One-line address text for channelz subchannel names.
+fn addr_text(addr: &ResolvedAddress) -> String {
+    match addr {
+        ResolvedAddress::Tcp(sock) => sock.to_string(),
+        ResolvedAddress::Unix(path) => format!("unix:{}", path.display()),
+        ResolvedAddress::UnixAbstract(name) => {
+            format!("unix-abstract:@{}", String::from_utf8_lossy(name))
         }
     }
 }
@@ -1961,13 +2361,20 @@ fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<
 struct Displaced {
     stop: watch::Sender<bool>,
     busy: Option<Arc<crate::keepalive::Busy>>,
+    /// Socket stays registered until the drain ends, so in-flight
+    /// streams keep attributing to a live entity.
+    channelz_socket: Option<crate::channelz::SocketHandle>,
 }
 
 /// Store `dialed`, returning the displaced connection for graceful
 /// drain (instead of stopping it like [`store_dialed`]).
 fn replace_for_handoff(slot: &mut ConnSlot, dialed: Dialed) -> Option<Displaced> {
     let old = match (slot.stop.take(), slot.busy.take()) {
-        (Some(stop), busy) => Some(Displaced { stop, busy }),
+        (Some(stop), busy) => Some(Displaced {
+            stop,
+            busy,
+            channelz_socket: slot.channelz_socket.take(),
+        }),
         (None, _) => None,
     };
     slot.r#gen = slot.r#gen.wrapping_add(1);
@@ -1986,6 +2393,9 @@ fn spawn_handoff_drain(old: Displaced, grace: Duration) {
             }
         }
         old.stop.send(true).ok();
+        // Hold the old socket's registration until its drain completes so
+        // in-flight streams still attribute to a live socket.
+        drop(old.channelz_socket);
     }));
 }
 
@@ -2041,6 +2451,7 @@ async fn age_close(inner: Arc<ChannelInner>, i: usize, r#gen: u64, grace: Durati
             return;
         }
         slot.send = None;
+        slot.channelz_socket = None;
         let busy = slot.busy.take();
         let stop = slot.stop.take();
         slot.r#gen = slot.r#gen.wrapping_add(1);
@@ -2079,6 +2490,7 @@ async fn idle_watch(
                     continue;
                 }
                 slot.send = None;
+                slot.channelz_socket = None;
                 slot.busy = None;
                 if let Some(stop) = slot.stop.take() {
                     stop.send(true).ok();
@@ -2159,8 +2571,15 @@ async fn finish_tcp(
         config.tcp_keepalive_probe_retries(),
     )
     .map_err(|e| Status::unavailable(e.to_string()))?;
-    match tls {
-        None => finish_h2(config, tcp).await,
+    // Captured before the stream moves into the handshake: channelz
+    // socket addresses.
+    let local_addr = tcp
+        .local_addr()
+        .ok()
+        .map(crate::channelz::EndpointAddr::Tcp);
+    let peer_addr = tcp.peer_addr().ok().map(crate::channelz::EndpointAddr::Tcp);
+    let mut dialed = match tls {
+        None => finish_h2(config, tcp).await?,
         Some(tls) => {
             let tls_stream = tls.connect(tcp).await?;
             finish_h2(config, tls_stream).await.map_err(|e| {
@@ -2169,9 +2588,12 @@ async fn finish_tcp(
                 } else {
                     e
                 }
-            })
+            })?
         }
-    }
+    };
+    dialed.local_addr = local_addr;
+    dialed.peer_addr = peer_addr;
+    Ok(dialed)
 }
 
 /// Dial one resolver-chosen address. Unix paths reject TLS, matching
@@ -2451,6 +2873,9 @@ impl HealthWatch {
             self.https,
             BytePermit::empty(),
             None,
+            // Channelz: LB-internal maintenance stream, not attributed to
+            // the socket's data counters.
+            None,
         )
         .await;
         let response = match response {
@@ -2570,6 +2995,9 @@ impl OobWatch {
             crate::wire::PBRS_GRPC_UA,
             self.https,
             BytePermit::empty(),
+            None,
+            // Channelz: LB-internal maintenance stream, not attributed to
+            // the socket's data counters.
             None,
         )
         .await;
@@ -2854,6 +3282,8 @@ where
         send,
         stop: stop_tx,
         busy,
+        local_addr: None,
+        peer_addr: None,
     })
 }
 
@@ -2863,11 +3293,13 @@ pub(crate) fn attach_conn<T>(
     driver: Option<watch::Sender<bool>>,
     reset: Option<watch::Sender<bool>>,
     rpc_slot: Option<OwnedSemaphorePermit>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) -> crate::request::Response<Streaming<T>> {
     response.map(|stream| {
         stream
             .bind_conn(lease, driver, reset)
             .bind_rpc_slot(rpc_slot)
+            .bind_channelz_socket(channelz_socket)
     })
 }
 
@@ -2896,6 +3328,8 @@ mod tests {
                     stop: Some(stop_tx),
                     busy: None,
                     address: Some(tcp(1)),
+                    channelz_socket: None,
+                    channelz_subchannel: None,
                 })),
             );
             conns.insert(
@@ -2906,6 +3340,8 @@ mod tests {
                     stop: None,
                     busy: None,
                     address: Some(tcp(2)),
+                    channelz_socket: None,
+                    channelz_subchannel: None,
                 })),
             );
         }
@@ -2936,6 +3372,8 @@ mod tests {
                     stop: None,
                     busy: None,
                     address: Some(tcp(9)),
+                    channelz_socket: None,
+                    channelz_subchannel: None,
                 })),
             );
         }

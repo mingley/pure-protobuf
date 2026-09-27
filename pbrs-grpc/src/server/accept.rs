@@ -949,6 +949,8 @@ impl<S: Service> Server<S> {
     }
 
     fn into_single(self) -> (Single<S>, ServerConfig) {
+        // Channelz: one server entity per serve, named for the service.
+        let channelz = Some(crate::channelz::Registry::global_shared().register_server(S::NAME));
         (
             Single {
                 service: self.service,
@@ -957,6 +959,7 @@ impl<S: Service> Server<S> {
                 observer: self.observer,
                 byte_budget: self.byte_budget,
                 binlog: self.binlog,
+                channelz,
             },
             self.config,
         )
@@ -1317,6 +1320,29 @@ pub(crate) async fn accept_loop<D: Dispatch>(
     shutdown: impl Future<Output = ()> + Send,
     tls: Option<ServerTls>,
 ) -> Result<(), Status> {
+    // Channelz: the listen socket, held for the whole accept loop.
+    let _channelz_listen = dispatch.channelz_server().map(|server| {
+        let local = listener
+            .local_addr()
+            .ok()
+            .map(crate::channelz::EndpointAddr::Tcp);
+        let security = if tls.is_some() {
+            crate::channelz::SocketSecurity::Tls {
+                local_certificate: Vec::new(),
+                remote_certificate: Vec::new(),
+            }
+        } else {
+            crate::channelz::SocketSecurity::None
+        };
+        crate::channelz::Registry::global_shared().register_socket(
+            crate::channelz::SocketParent::Server(server),
+            local,
+            None,
+            None,
+            security,
+            true,
+        )
+    });
     // Dropping every clone of `drain_tx` is what tells us the last connection
     // task has finished.
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
@@ -1437,6 +1463,21 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
     config: ServerConfig,
     shutdown: impl Future<Output = ()> + Send,
 ) -> Result<(), Status> {
+    // Channelz: the listen socket, held for the whole accept loop.
+    let _channelz_listen = dispatch.channelz_server().map(|server| {
+        let local = listener.local_addr().ok().and_then(|addr| {
+            addr.as_pathname()
+                .map(|path| crate::channelz::EndpointAddr::Uds(path.display().to_string()))
+        });
+        crate::channelz::Registry::global_shared().register_socket(
+            crate::channelz::SocketParent::Server(server),
+            local,
+            None,
+            None,
+            crate::channelz::SocketSecurity::None,
+            true,
+        )
+    });
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
     let slots = connection_slots(config);

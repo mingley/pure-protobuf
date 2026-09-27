@@ -77,7 +77,6 @@ pub(crate) fn split_path(path: &str) -> (&str, &str) {
 ///     .await
 /// # }
 /// ```
-#[derive(Clone, Default)]
 pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
@@ -86,6 +85,9 @@ pub struct Router {
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
+    /// Channelz server registration, held for the whole serve so the
+    /// server (and its sockets) stays listed while serving.
+    pub(crate) channelz: Option<crate::channelz::ServerHandle>,
 }
 
 impl std::fmt::Debug for Router {
@@ -106,6 +108,29 @@ impl std::fmt::Debug for Router {
     }
 }
 
+impl Clone for Router {
+    fn clone(&self) -> Self {
+        // The channelz server registers at serve time, so a clone never
+        // carries a registration.
+        Self {
+            routes: self.routes.clone(),
+            config: self.config,
+            interceptor: self.interceptor.clone(),
+            response_interceptor: self.response_interceptor.clone(),
+            observer: self.observer.clone(),
+            byte_budget: self.byte_budget.clone(),
+            binlog: self.binlog.clone(),
+            channelz: None,
+        }
+    }
+}
+
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Router {
     /// An empty router with default configuration.
     #[must_use]
@@ -118,7 +143,23 @@ impl Router {
             observer: None,
             byte_budget: ByteBudgetTracker::default(),
             binlog: None,
+            channelz: None,
         }
+    }
+
+    /// Register the channelz server entity for this serve, named for
+    /// the mounted services. Every `serve_*` choke point calls this
+    /// before entering its accept loop.
+    fn with_channelz(mut self) -> Self {
+        let mut services: Vec<&str> = self.routes.keys().copied().collect();
+        services.sort_unstable();
+        let name = if services.is_empty() {
+            "router".to_owned()
+        } else {
+            services.join(",")
+        };
+        self.channelz = Some(crate::channelz::Registry::global_shared().register_server(name));
+        self
     }
 
     /// Set a transport byte budget for queued and in-flight buffers.
@@ -843,7 +884,14 @@ impl Router {
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
         let config = self.config;
-        accept_loop(Arc::new(self), listener, config, shutdown, None).await
+        accept_loop(
+            Arc::new(self.with_channelz()),
+            listener,
+            config,
+            shutdown,
+            None,
+        )
+        .await
     }
 
     /// Bind `addr` and serve until `shutdown` resolves, then drain.
@@ -890,7 +938,7 @@ impl Router {
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
         let config = self.config;
-        accept_unix_loop(Arc::new(self), listener, config, shutdown).await
+        accept_unix_loop(Arc::new(self.with_channelz()), listener, config, shutdown).await
     }
 
     /// Bind `path` and serve h2c until `shutdown` resolves, then drain.
@@ -937,7 +985,14 @@ impl Router {
         tls: ServerTls,
     ) -> Result<(), Status> {
         let config = self.config;
-        accept_loop(Arc::new(self), listener, config, shutdown, Some(tls)).await
+        accept_loop(
+            Arc::new(self.with_channelz()),
+            listener,
+            config,
+            shutdown,
+            Some(tls),
+        )
+        .await
     }
 
     /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain.
@@ -960,7 +1015,7 @@ impl Router {
         IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
         let config = self.config;
-        serve_one(Arc::new(self), io, None, config).await
+        serve_one(Arc::new(self.with_channelz()), io, None, config).await
     }
 
     /// Serve connections from `incoming` until it is exhausted.
@@ -982,7 +1037,7 @@ impl Router {
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
         let config = self.config;
-        accept_incoming(Arc::new(self), incoming, config, shutdown).await
+        accept_incoming(Arc::new(self.with_channelz()), incoming, config, shutdown).await
     }
 }
 
@@ -1020,5 +1075,9 @@ impl Dispatch for Router {
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         self.observer.as_ref()
+    }
+
+    fn channelz_server(&self) -> Option<crate::channelz::ServerId> {
+        self.channelz.as_ref().map(|handle| handle.id())
     }
 }

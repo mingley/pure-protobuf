@@ -884,8 +884,10 @@ impl super::Channel {
         path: impl AsRef<Path>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
+        let endpoint = Endpoint::Unix(path.as_ref().to_owned());
+        let channelz = pool::register_channel_for(&endpoint);
         Ok(pool::finish_channel(
-            Endpoint::Unix(path.as_ref().to_owned()),
+            endpoint,
             pool::unix_authority(),
             config,
             None,
@@ -893,6 +895,7 @@ impl super::Channel {
             None,
             SharedServiceConfig::default(),
             None,
+            channelz,
         ))
     }
 
@@ -1059,8 +1062,10 @@ impl super::Channel {
                 )));
             }
         };
+        let endpoint = Endpoint::Once;
+        let channelz = pool::register_channel_for(&endpoint);
         Ok(pool::finish_channel(
-            Endpoint::Once,
+            endpoint,
             parsed,
             config,
             None,
@@ -1068,6 +1073,7 @@ impl super::Channel {
             None,
             SharedServiceConfig::default(),
             None,
+            channelz,
         ))
     }
 

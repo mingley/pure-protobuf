@@ -193,8 +193,12 @@ impl super::Channel {
                     obs.on_call_start(&call_labels);
                 }
                 let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
-                let mut call_guard =
-                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+                let mut call_guard = CallGuard::new(
+                    observer.clone(),
+                    owned_labels.clone(),
+                    call_start,
+                    channel.inner.channelz.id(),
+                );
 
                 if let Err(status) = prepared {
                     call_guard.reject(RejectionReason::ClientInterceptor, &status);
@@ -315,6 +319,7 @@ impl super::Channel {
                         }
                     };
                     let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
+                    let live_socket = live.channelz_socket;
                     // A48 least-request: RAII in-flight count for this
                     // attempt; drops (releasing) on every exit path.
                     let _lr =
@@ -344,6 +349,12 @@ impl super::Channel {
                             deadline.map_or(capped, |overall| overall.min(capped))
                         })
                         .or(deadline);
+                    // Channelz: the attempt's stream starts here (past
+                    // setup rejects, so every start pairs with an end
+                    // below or a transparent retry).
+                    if let Some(socket) = live_socket {
+                        crate::channelz::Registry::global().note_stream_started(socket, true);
+                    }
                     match run_unary(
                         live.send,
                         &channel.authority,
@@ -370,6 +381,9 @@ impl super::Channel {
                             retried = true;
                             channel.retry_stats.record_transparent_retry();
                             attempt_guard.finish(&status);
+                            if let Some(socket) = live_socket {
+                                crate::channelz::Registry::global().note_stream_end(socket, false);
+                            }
                             channel
                                 .inner
                                 .discard_conn(slot, r#gen, rr_addr.as_ref())
@@ -377,6 +391,18 @@ impl super::Channel {
                             attempt_idx += 1;
                         }
                         result => {
+                            // Channelz: the attempt's stream ends here. A
+                            // completed unary claims one message each way;
+                            // failed attempts claim none (the write may
+                            // never have happened).
+                            if let Some(socket) = live_socket {
+                                let global = crate::channelz::Registry::global();
+                                global.note_stream_end(socket, result.is_ok());
+                                if result.is_ok() {
+                                    global.note_messages(socket, true, 1);
+                                    global.note_messages(socket, false, 1);
+                                }
+                            }
                             // A58 per-call ORCA: every attempt's trailers
                             // feed weights, including failed attempts.
                             let trailers = match &result {

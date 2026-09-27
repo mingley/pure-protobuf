@@ -213,6 +213,8 @@ pub(crate) fn incoming_rpc(
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
     peer: ConnectionInfo,
+    channelz_server: Option<crate::channelz::ServerId>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
     Rpc {
@@ -232,6 +234,26 @@ pub(crate) fn incoming_rpc(
         byte_budget: ByteBudgetTracker::default(),
         observer: None,
         binlog: None,
+        channelz_server,
+        channelz_socket,
+    }
+}
+
+/// Channelz for a request rejected before dispatch (bad headers or the
+/// concurrency cap): a started-and-failed call and stream, like the
+/// observer's start/reject/end triple. No messages flowed.
+fn note_rejected_call(
+    server: Option<crate::channelz::ServerId>,
+    socket: Option<crate::channelz::SocketId>,
+) {
+    let global = crate::channelz::Registry::global();
+    if let Some(server) = server {
+        global.note_server_call_started(server);
+        global.note_server_call_end(server, false);
+    }
+    if let Some(socket) = socket {
+        global.note_stream_started(socket, false);
+        global.note_stream_end(socket, false);
     }
 }
 
@@ -261,6 +283,31 @@ where
             return Ok(());
         }
     };
+    // Channelz: one socket per accepted connection, held (via
+    // `_channelz_socket`) until the connection task ends so in-flight
+    // RPCs attribute to a live socket.
+    let channelz_server = dispatch.channelz_server();
+    let _channelz_socket = channelz_server.map(|server| {
+        let local = peer.local.map(crate::channelz::EndpointAddr::Tcp);
+        let remote = peer.remote.map(crate::channelz::EndpointAddr::Tcp);
+        let security = if peer.scheme == Some("https") || peer.identity.is_some() {
+            crate::channelz::SocketSecurity::Tls {
+                local_certificate: Vec::new(),
+                remote_certificate: Vec::new(),
+            }
+        } else {
+            crate::channelz::SocketSecurity::None
+        };
+        crate::channelz::Registry::global_shared().register_socket(
+            crate::channelz::SocketParent::Server(server),
+            local,
+            remote,
+            None,
+            security,
+            false,
+        )
+    });
+    let channelz_socket_id = _channelz_socket.as_ref().map(|handle| handle.id());
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
     let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer.remote)));
@@ -313,6 +360,7 @@ where
                         });
                         obs.on_server_call_end(&labels, &status, Duration::ZERO);
                     }
+                    note_rejected_call(channelz_server, channelz_socket_id);
                     reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
@@ -334,6 +382,7 @@ where
                                 });
                                 obs.on_server_call_end(&labels, &status, Duration::ZERO);
                             }
+                            note_rejected_call(channelz_server, channelz_socket_id);
                             reject(
                                 &mut respond,
                                 status,
@@ -359,7 +408,14 @@ where
                         obs.on_server_queue_wait(&labels, queued_at.elapsed());
                     }
                     dispatch
-                        .dispatch(incoming_rpc(request, respond, config, rpc_peer))
+                        .dispatch(incoming_rpc(
+                            request,
+                            respond,
+                            config,
+                            rpc_peer,
+                            channelz_server,
+                            channelz_socket_id,
+                        ))
                         .await;
                 }));
             }

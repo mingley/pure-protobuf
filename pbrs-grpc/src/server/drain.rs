@@ -133,6 +133,10 @@ pub(crate) struct Prepared<T> {
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) call_start: tokio::time::Instant,
     pub(crate) binlog: Option<crate::binlog::CallLogger>,
+    /// Channelz server owning this RPC, for call counters.
+    pub(crate) channelz_server: Option<crate::channelz::ServerId>,
+    /// Channelz socket serving this RPC, for stream/message counters.
+    pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
 #[allow(
@@ -149,6 +153,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
@@ -182,6 +187,9 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     if let Some(obs) = observer {
         obs.on_bytes_sent(call_labels, frame.len());
     }
+    if let Some(socket) = channelz_socket {
+        crate::channelz::Registry::global().note_messages(socket, true, 1);
+    }
     send_bytes(&mut send, frame, false, wire.send_buffer)
         .await
         .ok();
@@ -211,6 +219,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Status {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
@@ -240,6 +249,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 observer,
                 call_labels,
                 tap.cloned(),
+                channelz_socket,
             )
             .await
         }
@@ -256,6 +266,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 observer,
                 call_labels,
                 tap.cloned(),
+                channelz_socket,
             ),
         )
         .await
@@ -323,6 +334,7 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
     tap: Option<crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Result<(), DrainError> {
     let mut batch = OutBatch::new(wire);
     if let Some(tap) = tap {
@@ -378,6 +390,9 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
             }
             if let Some(obs) = observer {
                 obs.on_bytes_sent(call_labels, frame_len);
+            }
+            if let Some(socket) = channelz_socket {
+                crate::channelz::Registry::global().note_messages(socket, true, 1);
             }
             if batch.is_full() {
                 batch.flush(send).await.map_err(|_| DrainError::Transport)?;

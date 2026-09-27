@@ -91,6 +91,11 @@ pub(crate) trait Dispatch: Send + Sync + 'static {
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         None
     }
+    /// Channelz server id for per-connection sockets and per-RPC
+    /// counters. `None` disables server-side channelz attribution.
+    fn channelz_server(&self) -> Option<crate::channelz::ServerId> {
+        None
+    }
 }
 
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
@@ -101,6 +106,9 @@ pub(crate) struct Single<S> {
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
+    /// Channelz server registration, held for the whole serve so the
+    /// server (and its sockets) stays listed while serving.
+    pub(crate) channelz: Option<crate::channelz::ServerHandle>,
 }
 
 impl<S: Service> Dispatch for Single<S> {
@@ -134,5 +142,9 @@ impl<S: Service> Dispatch for Single<S> {
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         self.observer.as_ref()
+    }
+
+    fn channelz_server(&self) -> Option<crate::channelz::ServerId> {
+        self.channelz.as_ref().map(|handle| handle.id())
     }
 }

@@ -63,6 +63,10 @@ pub struct Rpc {
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) binlog: Option<crate::binlog::CallLogger>,
+    /// Channelz server owning this RPC, for call counters.
+    pub(crate) channelz_server: Option<crate::channelz::ServerId>,
+    /// Channelz socket serving this RPC, for stream/message counters.
+    pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -501,6 +505,7 @@ impl Rpc {
     /// a method you do not have is a peer error, not a server error.
     pub fn unimplemented(mut self) {
         let status = Status::unimplemented(self.request.uri().path().to_string());
+        channelz_start(self.channelz_server, self.channelz_socket);
         if let Some(obs) = &self.observer {
             let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
             obs.on_server_call_start(&labels);
@@ -514,6 +519,7 @@ impl Rpc {
         if let Some(tap) = &self.binlog {
             tap.log_trailer(&Metadata::new(), &status);
         }
+        channelz_end(self.channelz_server, self.channelz_socket, false);
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -548,6 +554,7 @@ impl Rpc {
     /// }
     /// ```
     pub fn reject(mut self, status: Status) {
+        channelz_start(self.channelz_server, self.channelz_socket);
         if let Some(obs) = &self.observer {
             let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
             obs.on_server_call_start(&labels);
@@ -561,6 +568,8 @@ impl Rpc {
         if let Some(tap) = &self.binlog {
             tap.log_trailer(&Metadata::new(), &status);
         }
+        let ok = status.is_ok();
+        channelz_end(self.channelz_server, self.channelz_socket, ok);
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -605,6 +614,8 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -637,6 +648,7 @@ impl Rpc {
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
+                    channelz_end(channelz_server, channelz_socket, status.is_ok());
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -650,11 +662,13 @@ impl Rpc {
                         observer.as_deref(),
                         &call_labels,
                         binlog.as_ref(),
+                        channelz_socket,
                     )
                     .await;
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
                     }
+                    channelz_end(channelz_server, channelz_socket, true);
                 }
             }
         })
@@ -702,6 +716,8 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -734,6 +750,7 @@ impl Rpc {
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
+                    channelz_end(channelz_server, channelz_socket, status.is_ok());
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -747,11 +764,13 @@ impl Rpc {
                         observer.as_deref(),
                         &call_labels,
                         binlog.as_ref(),
+                        channelz_socket,
                     )
                     .await;
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
                     }
+                    channelz_end(channelz_server, channelz_socket, true);
                 }
             }
         })
@@ -806,6 +825,8 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -838,6 +859,7 @@ impl Rpc {
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
+                    channelz_end(channelz_server, channelz_socket, status.is_ok());
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -852,11 +874,13 @@ impl Rpc {
                         observer.as_deref(),
                         &call_labels,
                         binlog.as_ref(),
+                        channelz_socket,
                     )
                     .await;
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
                     }
+                    channelz_end(channelz_server, channelz_socket, final_status.is_ok());
                 }
             }
         })
@@ -911,6 +935,8 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -943,6 +969,7 @@ impl Rpc {
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
+                    channelz_end(channelz_server, channelz_socket, status.is_ok());
                     send_trailers_only(&mut respond, status, &Metadata::new())
                 }
                 Ok(response) => {
@@ -957,11 +984,13 @@ impl Rpc {
                         observer.as_deref(),
                         &call_labels,
                         binlog.as_ref(),
+                        channelz_socket,
                     )
                     .await;
                     if let Some(obs) = &observer {
                         obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
                     }
+                    channelz_end(channelz_server, channelz_socket, final_status.is_ok());
                 }
             }
         })
@@ -986,6 +1015,8 @@ impl Rpc {
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
+        let channelz_server = self.channelz_server;
+        let channelz_socket = self.channelz_socket;
         let call_start = tokio::time::Instant::now();
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
@@ -998,6 +1029,7 @@ impl Rpc {
         if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
             obs.on_server_call_start(&labels.as_borrowed());
         }
+        channelz_start(channelz_server, channelz_socket);
         let Self {
             request,
             mut respond,
@@ -1015,6 +1047,8 @@ impl Rpc {
             byte_budget,
             observer: _,
             binlog,
+            channelz_server: _,
+            channelz_socket: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1032,6 +1066,9 @@ impl Rpc {
                 binlog.as_ref(),
             )
             .await?;
+            if let Some(socket) = channelz_socket {
+                crate::channelz::Registry::global().note_messages(socket, false, 1);
+            }
             if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
                 obs.on_bytes_received(&labels.as_borrowed(), 0);
             }
@@ -1102,6 +1139,8 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         })
     }
 
@@ -1123,6 +1162,8 @@ impl Rpc {
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
+        let channelz_server = self.channelz_server;
+        let channelz_socket = self.channelz_socket;
         let call_start = tokio::time::Instant::now();
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
@@ -1135,6 +1176,7 @@ impl Rpc {
         if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
             obs.on_server_call_start(&labels.as_borrowed());
         }
+        channelz_start(channelz_server, channelz_socket);
         let Self {
             request,
             mut respond,
@@ -1152,6 +1194,8 @@ impl Rpc {
             byte_budget,
             observer: _,
             binlog,
+            channelz_server: _,
+            channelz_socket: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1165,7 +1209,10 @@ impl Rpc {
             deadline,
             config.accepts_compressed(),
             binlog.clone(),
-        ));
+        ))
+        // Channelz: count received messages through the handler's polls.
+        // Count-only: the terminal arms below own the stream end.
+        .bind_channelz_socket_count_only(channelz_socket);
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
@@ -1230,6 +1277,38 @@ impl Rpc {
             observer,
             call_start,
             binlog,
+            channelz_server,
+            channelz_socket,
         })
+    }
+}
+
+/// Channelz: a dispatched RPC started. The socket stream is
+/// remote-initiated (`local: false`).
+fn channelz_start(
+    server: Option<crate::channelz::ServerId>,
+    socket: Option<crate::channelz::SocketId>,
+) {
+    let global = crate::channelz::Registry::global();
+    if let Some(server) = server {
+        global.note_server_call_started(server);
+    }
+    if let Some(socket) = socket {
+        global.note_stream_started(socket, false);
+    }
+}
+
+/// Channelz: a dispatched RPC ended with `ok`.
+fn channelz_end(
+    server: Option<crate::channelz::ServerId>,
+    socket: Option<crate::channelz::SocketId>,
+    ok: bool,
+) {
+    let global = crate::channelz::Registry::global();
+    if let Some(server) = server {
+        global.note_server_call_end(server, ok);
+    }
+    if let Some(socket) = socket {
+        global.note_stream_end(socket, ok);
     }
 }

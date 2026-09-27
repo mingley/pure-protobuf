@@ -176,7 +176,8 @@ pub(crate) struct SocketEntry {
     pub id: SocketId,
     pub parent: SocketParent,
     pub name: String,
-    pub local: EndpointAddr,
+    /// Locally bound address, when the transport reports one.
+    pub local: Option<EndpointAddr>,
     pub remote: Option<EndpointAddr>,
     pub remote_name: Option<String>,
     pub security: SocketSecurity,
@@ -339,7 +340,7 @@ impl Registry {
     pub fn register_socket(
         self: &Arc<Self>,
         parent: SocketParent,
-        local: EndpointAddr,
+        local: Option<EndpointAddr>,
         remote: Option<EndpointAddr>,
         remote_name: Option<String>,
         security: SocketSecurity,
@@ -348,7 +349,10 @@ impl Registry {
         let id = SocketId(self.alloc());
         let name = format!(
             "{}→{}",
-            addr_text(&local),
+            local
+                .as_ref()
+                .map(addr_text)
+                .unwrap_or_else(|| "?".to_owned()),
             remote
                 .as_ref()
                 .map(addr_text)
@@ -1192,6 +1196,18 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+impl From<&crate::resolver::ResolvedAddress> for EndpointAddr {
+    fn from(addr: &crate::resolver::ResolvedAddress) -> Self {
+        match addr {
+            crate::resolver::ResolvedAddress::Tcp(sock) => Self::Tcp(*sock),
+            crate::resolver::ResolvedAddress::Unix(path) => Self::Uds(path.display().to_string()),
+            crate::resolver::ResolvedAddress::UnixAbstract(name) => {
+                Self::Uds(format!("@{}", String::from_utf8_lossy(name)))
+            }
+        }
+    }
+}
+
 /// One-line address text for socket names.
 fn addr_text(addr: &EndpointAddr) -> String {
     match addr {
@@ -1235,7 +1251,7 @@ mod tests {
         let sub = registry.register_subchannel(channel.id(), "10.0.0.1:80");
         let socket = registry.register_socket(
             SocketParent::Subchannel(sub.id()),
-            tcp(443),
+            Some(tcp(443)),
             Some(tcp(50051)),
             None,
             SocketSecurity::None,
@@ -1264,7 +1280,7 @@ mod tests {
         let channel = registry.register_channel("c", "passthrough:///x");
         let _socket = registry.register_socket(
             SocketParent::Channel(channel.id()),
-            tcp(443),
+            Some(tcp(443)),
             Some(tcp(50051)),
             None,
             SocketSecurity::None,
@@ -1313,7 +1329,7 @@ mod tests {
         let sub = registry.register_subchannel(channel.id(), "a");
         let socket = registry.register_socket(
             SocketParent::Subchannel(sub.id()),
-            tcp(443),
+            Some(tcp(443)),
             Some(tcp(50051)),
             None,
             SocketSecurity::None,

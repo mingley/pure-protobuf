@@ -314,6 +314,7 @@ where
                 Err(status) => break Err(status),
             };
             let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
+            let live_socket = live.channelz_socket;
             // A48 least-request: RAII in-flight count for this
             // attempt; drops (releasing) on every exit path and
             // on hedged-task abort.
@@ -325,6 +326,11 @@ where
             };
             if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
                 obs.on_bytes_sent(&call.as_borrowed(), frame.len());
+            }
+            // Channelz: the hedged attempt's stream starts here
+            // (past setup rejects, so every start pairs with an end).
+            if let Some(socket) = live_socket {
+                crate::channelz::Registry::global().note_stream_started(socket, true);
             }
             match run_unary(
                 live.send,
@@ -351,12 +357,25 @@ where
                 {
                     redialed = true;
                     channel.retry_stats.record_transparent_retry();
+                    if let Some(socket) = live_socket {
+                        crate::channelz::Registry::global().note_stream_end(socket, false);
+                    }
                     channel
                         .inner
                         .discard_conn(slot, r#gen, rr_addr.as_ref())
                         .await;
                 }
                 result => {
+                    // Channelz: the hedged attempt's stream ends here
+                    // (completed unaries claim one message each way).
+                    if let Some(socket) = live_socket {
+                        let global = crate::channelz::Registry::global();
+                        global.note_stream_end(socket, result.is_ok());
+                        if result.is_ok() {
+                            global.note_messages(socket, true, 1);
+                            global.note_messages(socket, false, 1);
+                        }
+                    }
                     // A58 per-call ORCA: every hedged attempt's trailers
                     // feed weights, including failed attempts.
                     let trailers = match &result {

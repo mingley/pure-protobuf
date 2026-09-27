@@ -131,6 +131,24 @@ pub struct Streaming<T> {
     /// Set when [`Self::poll_framed`] yields end-of-stream or `Err`, so
     /// combinators that honour [`FusedStream`] skip further polls.
     terminated: bool,
+    /// Channelz socket-stream attribution. `None` on application
+    /// channels and unbound streams.
+    channelz: Option<ChannelzStream>,
+}
+
+/// Channelz socket-stream state for a received stream: which socket
+/// to count messages on, and whether the stream end was recorded.
+#[derive(Debug)]
+struct ChannelzStream {
+    socket: crate::channelz::SocketId,
+    /// An explicit end (trailers or wire error) was recorded.
+    ended: bool,
+    /// A clean end-of-messages was observed through the polls.
+    clean_end: bool,
+    /// Count messages only; the owner records the stream end itself.
+    /// Server inbound streams use this: the RPC terminal arms own the
+    /// end, so the polls must not record it.
+    count_only: bool,
 }
 
 impl<T> Streaming<T> {
@@ -181,6 +199,7 @@ impl<T> Streaming<T> {
                 reset: None,
                 rpc_slot: None,
                 terminated: false,
+                channelz: None,
             },
         )
     }
@@ -202,6 +221,7 @@ impl<T> Streaming<T> {
             reset: None,
             rpc_slot: None,
             terminated: false,
+            channelz: None,
         }
     }
 
@@ -228,6 +248,53 @@ impl<T> Streaming<T> {
     ) -> Self {
         self.rpc_slot = rpc_slot;
         self
+    }
+
+    /// Attribute this stream's messages and end to a channelz
+    /// socket. Received messages count as observed through the poll
+    /// paths (`trailers()`-discarded ones are not counted); the end
+    /// records at `trailers()`, at a wire error, or at drop (clean
+    /// iff end-of-messages was observed).
+    pub(crate) fn bind_channelz_socket(
+        mut self,
+        socket: Option<crate::channelz::SocketId>,
+    ) -> Self {
+        self.channelz = socket.map(|socket| ChannelzStream {
+            socket,
+            ended: false,
+            clean_end: false,
+            count_only: false,
+        });
+        self
+    }
+
+    /// Attribute this stream's received messages to a channelz socket
+    /// without recording the stream end. Server inbound streams use
+    /// this: the RPC terminal arms own the end.
+    pub(crate) fn bind_channelz_socket_count_only(
+        mut self,
+        socket: Option<crate::channelz::SocketId>,
+    ) -> Self {
+        self.channelz = socket.map(|socket| ChannelzStream {
+            socket,
+            ended: false,
+            clean_end: false,
+            count_only: true,
+        });
+        self
+    }
+
+    /// Record the stream end once (first call wins). No-op on
+    /// count-only bindings: the owner records the end itself.
+    fn channelz_end(&mut self, ok: bool) {
+        if let Some(state) = self
+            .channelz
+            .as_mut()
+            .filter(|state| !state.ended && !state.count_only)
+        {
+            state.ended = true;
+            crate::channelz::Registry::global().note_stream_end(state.socket, ok);
+        }
     }
 
     fn finished(&self) -> bool {
@@ -267,6 +334,20 @@ impl<T> Streaming<T> {
         };
         if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
             self.terminated = true;
+        }
+        match &poll {
+            Poll::Ready(Ok(Some(_))) => {
+                if let Some(state) = self.channelz.as_ref() {
+                    crate::channelz::Registry::global().note_messages(state.socket, false, 1);
+                }
+            }
+            Poll::Ready(Ok(None)) => {
+                if let Some(state) = self.channelz.as_mut() {
+                    state.clean_end = true;
+                }
+            }
+            Poll::Ready(Err(_)) => self.channelz_end(false),
+            Poll::Pending => {}
         }
         poll
     }
@@ -315,6 +396,7 @@ impl<T> Streaming<T> {
             }
         };
         self.terminated = true;
+        self.channelz_end(result.is_ok());
         result
     }
 
@@ -382,6 +464,8 @@ impl<T> Drop for Streaming<T> {
                 reset.send(true).ok();
             }
         }
+        let clean = self.channelz.as_ref().is_some_and(|state| state.clean_end);
+        self.channelz_end(clean);
     }
 }
 

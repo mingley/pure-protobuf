@@ -902,6 +902,7 @@ pub(crate) struct CallGuard {
     start: std::time::Instant,
     completed: bool,
     cancelled: bool,
+    channelz: crate::channelz::ChannelId,
 }
 
 impl CallGuard {
@@ -909,13 +910,16 @@ impl CallGuard {
         observer: Option<Arc<dyn LifecycleObserver>>,
         labels: Option<OwnedCallLabels>,
         start: std::time::Instant,
+        channelz: crate::channelz::ChannelId,
     ) -> Self {
+        crate::channelz::Registry::global().note_call_started(channelz);
         Self {
             observer,
             labels,
             start,
             completed: false,
             cancelled: false,
+            channelz,
         }
     }
 
@@ -945,6 +949,7 @@ impl CallGuard {
     pub(crate) fn finish(&mut self, status: &Status) {
         if !self.completed {
             self.completed = true;
+            crate::channelz::Registry::global().note_call_end(self.channelz, status.is_ok());
             if let (Some(obs), Some(labels)) = (&self.observer, &self.labels) {
                 obs.on_call_end(&labels.as_borrowed(), status, self.start.elapsed());
             }

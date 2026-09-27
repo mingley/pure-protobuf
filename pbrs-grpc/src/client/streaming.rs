@@ -45,13 +45,14 @@ pub(crate) async fn run_server_stream<Resp>(
     https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: Parse + Default + Send + 'static,
 {
     let outcome = run_server_stream_inner(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, https, permit, tap,
+        user_agent, https, permit, tap, socket,
     )
     .await;
     if let (Some(tap), Err(status)) = (tap, &outcome) {
@@ -81,6 +82,7 @@ async fn run_server_stream_inner<Resp>(
     https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: Parse + Default + Send + 'static,
@@ -150,11 +152,30 @@ where
         deadline,
         Some(&mut send_stream),
     )
-    .await?;
-    // Half-closed send would otherwise drop here, so RecvStream-last-ref
-    // was the only RST after headers and CallHandle was a no-op.
-    reset_on_cancel(send_stream, cancel_rx, deadline);
-    Ok(response)
+    .await;
+    // Channelz: count the attempt's stream like unary (started on every
+    // post-setup attempt, end on failure now and on success via the bound
+    // Streaming's polls/drop). Early `?` exits above never started.
+    match response {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            // Half-closed send would otherwise drop here, so
+            // RecvStream-last-ref was the only RST after headers and
+            // CallHandle was a no-op.
+            reset_on_cancel(send_stream, cancel_rx, deadline);
+            Ok(response.map(|stream| stream.bind_channelz_socket(socket)))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
 }
 
 #[allow(
@@ -170,6 +191,7 @@ async fn run_client_stream<Req, Resp>(
     deadline: Option<tokio::time::Instant>,
     budget: ByteBudgetTracker,
     tap: Option<&CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -193,6 +215,7 @@ where
                 wire,
                 &budget,
                 tap.cloned(),
+                socket,
             );
             tokio::pin!(pump);
             let fut = async {
@@ -244,6 +267,17 @@ where
             tap.log_cancel();
         }
     }
+    // Channelz: the attempt's stream ends here, like unary. Sent messages
+    // were claimed by the pump as written; the single response claims one
+    // received message on success.
+    if let Some(sock) = socket {
+        let global = crate::channelz::Registry::global();
+        global.note_stream_started(sock, true);
+        global.note_stream_end(sock, result.is_ok());
+        if result.is_ok() {
+            global.note_messages(sock, false, 1);
+        }
+    }
     result
 }
 
@@ -254,6 +288,7 @@ async fn pump_outbound_budget<T: Serialize>(
     wire: Wire,
     budget: &ByteBudgetTracker,
     tap: Option<CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
 ) -> PumpEnd {
     let mut batch = OutBatch::new(wire);
     if let Some(tap) = &tap {
@@ -307,6 +342,11 @@ async fn pump_outbound_budget<T: Serialize>(
             if let Err(status) = batch.encode(item) {
                 return PumpEnd::Failed(status);
             }
+            // Channelz: each encoded message counts as sent (a later
+            // flush failure can only overcount a doomed stream).
+            if let Some(socket) = channelz_socket {
+                crate::channelz::Registry::global().note_messages(socket, true, 1);
+            }
             if batch.is_full() {
                 if batch.flush(send).await.is_err() {
                     send.send_reset(Reason::INTERNAL_ERROR);
@@ -353,6 +393,7 @@ async fn run_bidi<Req, Resp>(
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
     budget: ByteBudgetTracker,
+    socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -372,8 +413,15 @@ where
             let mut send = send_stream;
             let tap = pump_tap;
             let end = {
-                let pump =
-                    pump_outbound_budget(&mut send, rx, cancel_rx.clone(), wire, &budget, tap);
+                let pump = pump_outbound_budget(
+                    &mut send,
+                    rx,
+                    cancel_rx.clone(),
+                    wire,
+                    &budget,
+                    tap,
+                    socket,
+                );
                 tokio::pin!(pump);
                 let until_deadline = async {
                     match deadline {
@@ -450,7 +498,25 @@ where
             tap.log_cancel();
         }
     }
-    result
+    // Channelz: count the attempt's stream like unary (started on every
+    // post-setup attempt, end on failure now and on success via the bound
+    // Streaming's polls/drop). Sent messages were claimed by the pump.
+    match result {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            Ok(response.map(|stream| stream.bind_channelz_socket(socket)))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
 }
 
 impl super::Channel {
@@ -519,8 +585,12 @@ impl super::Channel {
                     obs.on_call_start(&call_labels);
                 }
                 let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
-                let mut call_guard =
-                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+                let mut call_guard = CallGuard::new(
+                    observer.clone(),
+                    owned_labels.clone(),
+                    call_start,
+                    channel.inner.channelz.id(),
+                );
 
                 if let Err(status) = prepared {
                     call_guard.reject(RejectionReason::ClientInterceptor, &status);
@@ -616,8 +686,14 @@ impl super::Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, r#gen, lease, driver, rr_addr) =
-                        (live.slot, live.r#gen, live.lease, live.driver, live.rr_addr);
+                    let (slot, r#gen, lease, driver, rr_addr, live_socket) = (
+                        live.slot,
+                        live.r#gen,
+                        live.lease,
+                        live.driver,
+                        live.rr_addr,
+                        live.channelz_socket,
+                    );
                     let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -657,6 +733,7 @@ impl super::Channel {
                         https,
                         byte_permit,
                         tap.as_ref(),
+                        live_socket,
                     )
                     .await
                     {
@@ -674,6 +751,7 @@ impl super::Channel {
                                         driver,
                                         Some(reset),
                                         permit,
+                                        live_socket,
                                     ));
                                 }
                                 Err(status) => {
@@ -880,8 +958,12 @@ impl super::Channel {
                     obs.on_call_start(&call_labels);
                 }
                 let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
-                let mut call_guard =
-                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+                let mut call_guard = CallGuard::new(
+                    observer.clone(),
+                    owned_labels.clone(),
+                    call_start,
+                    channel.inner.channelz.id(),
+                );
 
                 if let Err(status) = prepared {
                     call_guard.reject(RejectionReason::ClientInterceptor, &status);
@@ -970,6 +1052,7 @@ impl super::Channel {
                     deadline,
                     budget,
                     tap.as_ref(),
+                    opened.channelz_socket,
                 )
                 .await
                 {
@@ -1079,8 +1162,12 @@ impl super::Channel {
                     obs.on_call_start(&call_labels);
                 }
                 let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
-                let mut call_guard =
-                    CallGuard::new(observer.clone(), owned_labels.clone(), call_start);
+                let mut call_guard = CallGuard::new(
+                    observer.clone(),
+                    owned_labels.clone(),
+                    call_start,
+                    channel.inner.channelz.id(),
+                );
 
                 if let Err(status) = prepared {
                     call_guard.reject(RejectionReason::ClientInterceptor, &status);
@@ -1169,6 +1256,7 @@ impl super::Channel {
                     tap,
                     deadline,
                     budget,
+                    opened.channelz_socket,
                 )
                 .await
                 {
@@ -1195,6 +1283,7 @@ impl super::Channel {
                     opened.driver,
                     Some(reset),
                     permit,
+                    opened.channelz_socket,
                 ))
             }),
         );

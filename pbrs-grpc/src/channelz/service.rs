@@ -450,7 +450,9 @@ fn socket_to_proto(entry: &super::model::SocketEntry) -> Socket {
     // Flow-control windows, socket options, GOAWAY codes, and peer
     // stream caps stay absent: the h2 facade does not expose them.
     out.set_data(data);
-    out.set_local(addr_to_proto(&entry.local));
+    if let Some(local) = &entry.local {
+        out.set_local(addr_to_proto(local));
+    }
     if let Some(remote) = &entry.remote {
         out.set_remote(addr_to_proto(remote));
     }
