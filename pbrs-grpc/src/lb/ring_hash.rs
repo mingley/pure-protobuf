@@ -425,7 +425,7 @@ fn build_ring(addresses: &[ResolvedAddress], min_size: u64, max_size: u64) -> Ve
             current += 1.0;
         }
     }
-    ring.sort_by(|a, b| a.0.cmp(&b.0));
+    ring.sort_by_key(|a| a.0);
     ring
 }
 

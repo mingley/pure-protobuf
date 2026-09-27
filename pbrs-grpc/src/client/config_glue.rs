@@ -43,10 +43,7 @@ impl super::Channel {
         let super::pool::Endpoint::Resolved { lb: Some(lb), .. } = &self.inner.endpoint else {
             return None;
         };
-        let crate::lb::LbPolicy::RingHash(policy) = lb else {
-            return None;
-        };
-        policy.request_hash(md)
+        lb.request_hash(md)
     }
 
     /// Record a finished unary call in the throttling bucket, if configured.

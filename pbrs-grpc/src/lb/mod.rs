@@ -29,9 +29,8 @@ mod subset;
 mod wrr;
 
 pub use health::{HealthSignal, disables_health_check, signal_for};
-pub(crate) use least_request::LrTrack;
 pub(crate) use least_request::ensure_registered as ensure_least_request_registered;
-pub use least_request::{LeastRequest, LeastRequestFactory};
+pub use least_request::{LeastRequest, LeastRequestFactory, LrTrack};
 pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;
@@ -294,6 +293,16 @@ impl LbPolicy {
             Self::WeightedRoundRobin(policy) => policy.note_oob_gone(addr).await,
             Self::RandomSubsetting(policy) => policy.note_oob_gone(addr).await,
             _ => {}
+        }
+    }
+
+    /// Request hash for ring picks (through subset children).
+    /// `None` when no hashing policy applies.
+    pub fn request_hash(&self, md: &crate::Metadata) -> Option<u64> {
+        match self {
+            Self::RingHash(policy) => policy.request_hash(md),
+            Self::RandomSubsetting(policy) => policy.request_hash(md),
+            _ => None,
         }
     }
 

@@ -39,10 +39,10 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | round_robin | (core policy, no gRFC number) | shipped | Strict rotation over ready endpoints, per-address backoff, graceful drain on removal (`lb/round_robin.rs` + pool `RrTable`, FL-04). Health-gated readiness arrives with CH-05. |
 | A58 | Client-side weighted round robin | shipped | EDF scheduler over ORCA weights (`lb/wrr.rs`, CH-06): UpdateWeight/GetWeight with blackout/expiration, lazy rebuilds (period/ready-set/weight-move), <2 weighted degrades to RR, error penalty, health gating; per-call ingestion in unary/hedged loops, OOB pump per subchannel (UNIMPLEMENTED stops silently). WRR config snapshots at channel build; streaming per-call ingestion deferred to OOB. |
 | A114 | WRR metric names for computing utilization | shipped | `metricNamesForComputingUtilization` parsed + max-over-hits selection with A58 app-then-cpu fallback (`orca::utilization`, CH-06). |
-| A42/A76 | Ring hash LB policy | planned | Request-hash ring with bounded state. |
+| A42/A76 | Ring hash LB policy | shipped | `lb/ring_hash.rs` (CH-07): vendored seeded XXH64 (Go-verified vectors), grpc-go-identical ring build (`key_idx` entries, normalized scale, sorted), hash walk with failover locality, `requestHashHeader` (validated, `-bin` rejected) with random-hash fallback, fail-fast without a hash source, health gating + backoff. `ring_hash_experimental` alias normalized at parse. Endpoint weights all 1 (xDS attributes lane). |
 | A56 | Priority LB policy | planned | Prioritized failover across localities. |
 | A115 | Remove priority-LB child-policy cache | planned | With priority LB. |
-| A68 | Random subsetting | planned | Bounded subset selector for large endpoint sets. |
+| A68 | Random subsetting | shipped | `lb/subset.rs` (CH-07): seeded-XXH64 rendezvous top-N (grpc-go construction), first-registered child via shared `instantiate()`, full delegation (pick/hash/health/ORCA/OOB/load-track); nesting parse-rejected. |
 | A5/A26 | grpclb in DNS / selection | boundary | Superseded by xDS; not implemented. |
 
 ## Proxies and transports
@@ -106,7 +106,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A31 | xDS timeout support and config selector | planned | With the xDS client. |
 | A32 | xDS circuit breaking | planned | Cluster circuit breakers in the xDS balancer. |
 | A33 | Fault injection | planned | Delay/abort injection as an opt-in filter. |
-| A48 | xDS least-request LB | planned | With the xDS client. |
+| A48 | xDS least-request LB | shipped | `lb/least_request.rs` (CH-07): choice_count sampling (parse: reject <2, clamp >10), least in-flight wins (first sampled breaks ties); RAII guards count unary attempts (abort-safe); streams untracked pending completion plumbing. `least_request_experimental` alias normalized at parse. |
 | A50 | xDS outlier detection | planned | Success-rate ejection in the xDS balancer. |
 | A52 | xDS custom LB policies | planned | Plugin registry for LB policies. |
 | A53 | xDS ignore resource deletion | planned | With the xDS client. |

@@ -198,6 +198,11 @@ impl RandomSubsetting {
         Box::pin(self.child.track_start(addr)).await
     }
 
+    /// Request hash through the child policy, if it hashes.
+    pub fn request_hash(&self, md: &crate::Metadata) -> Option<u64> {
+        self.child.request_hash(md)
+    }
+
     /// Movement notifications: subset updates and failures. The
     /// child bumps its own watchers too; waiters hold both.
     #[must_use]
@@ -227,7 +232,7 @@ pub(crate) fn rendezvous_subset(
             (super::xxh64(key.as_bytes(), seed), addr)
         })
         .collect();
-    hashed.sort_by(|a, b| a.0.cmp(&b.0));
+    hashed.sort_by_key(|a| a.0);
     let keep = usize::try_from(size)
         .unwrap_or(usize::MAX)
         .min(hashed.len());

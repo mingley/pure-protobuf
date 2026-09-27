@@ -842,6 +842,20 @@ async fn replacing_tls_policy_requires_fresh_client_identity() {
     assert_eq!(name_of(before.get_ref()), "before");
 
     drop(old_server);
+    // ServerGuard::drop aborts the serve task asynchronously: until the abort
+    // is processed, the old pooled connection still answers RPCs. Drain it
+    // first so no post-replacement RPC can succeed on the dying server.
+    for _ in 0..200 {
+        match tokio::time::timeout(
+            Duration::from_secs(1),
+            old_client.say_hello(Request::new(req("drain"))),
+        )
+        .await
+        {
+            Ok(Ok(_)) => continue,
+            _ => break,
+        }
+    }
     let _new_server = serve_tls_at(
         addr,
         ServerTls::mtls(server_identity(), CA).expect("replacement mTLS server"),

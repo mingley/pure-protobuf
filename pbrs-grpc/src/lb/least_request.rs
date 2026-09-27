@@ -60,7 +60,7 @@ struct Down {
 /// every completion path — including hedged-task aborts — releases
 /// the count. Created by [`LeastRequest::track_start`].
 #[derive(Debug)]
-pub(crate) struct LrTrack {
+pub struct LrTrack {
     counter: Option<Arc<AtomicU64>>,
 }
 
