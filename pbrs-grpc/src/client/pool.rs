@@ -3,6 +3,7 @@
 use super::retry::RetryStatsRecorder;
 use super::{Channel, Target};
 use crate::config::ChannelConfig;
+use crate::lb::{Pick, PickFirst, ensure_registered, select_lb_policy};
 use crate::limits::ByteBudgetTracker;
 use crate::resolver::{
     Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, ResolverTask, parse_target_uri,
@@ -39,6 +40,8 @@ pub(crate) struct ConnSlot {
     pub(crate) stop: Option<watch::Sender<bool>>,
     /// Outstanding RPCs; `None` when neither idle-close nor age is configured.
     pub(crate) busy: Option<Arc<crate::keepalive::Busy>>,
+    /// Pinned address on LB channels; `None` dials the channel endpoint.
+    pub(crate) address: Option<ResolvedAddress>,
 }
 
 /// A finished handshake: the sender plus the handles that stop its driver.
@@ -97,6 +100,9 @@ pub(crate) enum Endpoint {
     Resolved {
         display: String,
         current: watch::Receiver<Arc<Resolution>>,
+        /// pick_first driver; `None` dials the first snapshot address
+        /// (a selected policy with no runtime yet).
+        lb: Option<Arc<PickFirst>>,
     },
 }
 
@@ -213,10 +219,54 @@ pub(crate) async fn connect_uri_inner(
         shared.set(ServiceConfig::parse(json)?);
         adopted = Some(json.to_owned());
     }
+    // Effective LB policy: explicit selection wins, else pick_first
+    // is the default. Anything selected but unrunnable fails fast.
+    ensure_registered();
+    let doc = shared.get();
+    let lb = match doc.as_ref().and_then(|state| {
+        if state.config.lb_policies().is_empty() {
+            None
+        } else {
+            Some(select_lb_policy(&state.config))
+        }
+    }) {
+        Some(Some(selected)) if selected.name == "pick_first" => Some(PickFirst::from_config(
+            doc.as_ref().map(|state| &state.config),
+        )),
+        Some(Some(selected)) => {
+            return Err(Status::invalid_argument(format!(
+                "loadBalancingConfig selected {:?}, which has no runtime in this build",
+                selected.name
+            )));
+        }
+        Some(None) => {
+            return Err(Status::invalid_argument(
+                "loadBalancingConfig lists no registered policy",
+            ));
+        }
+        None => Some(PickFirst::from_config(None)),
+    };
+    let initial_addrs = built.initial.addresses().to_vec();
     let mut handle = built.into_handle();
+    if let Some(policy) = lb.as_ref() {
+        policy.update(initial_addrs).await;
+        let watch = handle.watch.clone();
+        let worker = Arc::clone(policy);
+        handle.guard(ResolverTask::new(tokio::spawn(async move {
+            let mut rx = watch;
+            loop {
+                if rx.changed().await.is_err() {
+                    return;
+                }
+                let snapshot = rx.borrow_and_update().clone();
+                worker.update(snapshot.addresses().to_vec()).await;
+            }
+        })));
+    }
     let endpoint = Endpoint::Resolved {
         display: uri.to_owned(),
         current: handle.watch.clone(),
+        lb,
     };
     // Later documents adopt live; invalid ones keep the last good.
     handle.guard(ResolverTask::new(tokio::spawn(adopt_loop(
@@ -319,6 +369,7 @@ pub(crate) fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
                 send: Some(d.send),
                 stop: Some(d.stop),
                 busy: d.busy,
+                address: None,
             })
         })
         .collect()
@@ -332,6 +383,7 @@ pub(crate) fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
                 send: None,
                 stop: None,
                 busy: None,
+                address: None,
             })
         })
         .collect()
@@ -374,6 +426,12 @@ impl ChannelInner {
         wait_for_ready: bool,
         observer: Option<&dyn LifecycleObserver>,
     ) -> Result<LiveConn, Status> {
+        if let Endpoint::Resolved {
+            lb: Some(policy), ..
+        } = &self.endpoint
+        {
+            return self.acquire_lb(policy, wait_for_ready, observer).await;
+        }
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
@@ -458,6 +516,148 @@ impl ChannelInner {
         }
     }
 
+    /// Acquire through pick_first: one sticky slot whose address tracks
+    /// the policy. A live connection to the picked address is reused;
+    /// otherwise the address is dialed and stored, displacing a
+    /// different address with a graceful handoff (in-flight streams on
+    /// the old connection finish within the age grace; they are never
+    /// migrated). Raced against the RPC deadline by the caller, like
+    /// [`Self::acquire`].
+    async fn acquire_lb(
+        self: &Arc<Self>,
+        policy: &PickFirst,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick().await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let (handle, lease, r#gen, driver, slot_addr) = {
+                let slot = self.slot(0)?.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (
+                    slot.send.clone(),
+                    lease,
+                    slot.r#gen,
+                    slot.stop.clone(),
+                    slot.address.clone(),
+                )
+            };
+            if slot_addr.as_ref() == Some(&addr) {
+                if let Some(handle) = handle {
+                    if let Ok(ready) = handle.ready().await {
+                        return Ok(LiveConn {
+                            send: ready,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                        });
+                    }
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_resolved(&display, addr.clone(), self.dial, self.tls.as_ref()).await {
+                Ok(dialed) => {
+                    policy.note_success().await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = self.slot(0)?.lock().await;
+                    if slot.r#gen == r#gen {
+                        let displaced = if slot.address.as_ref() != Some(&addr) {
+                            slot.address = Some(addr);
+                            replace_for_handoff(&mut slot, dialed)
+                        } else {
+                            store_dialed(&mut slot, dialed);
+                            None
+                        };
+                        let send = slot.send.clone().ok_or_else(|| {
+                            Status::unavailable("connection vanished after store")
+                        })?;
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        if let Some(old) = displaced {
+                            spawn_handoff_drain(old, self.dial.age_grace());
+                        }
+                        spawn_idle_watch(Arc::clone(self), 0);
+                        spawn_age_watch(Arc::clone(self), 0);
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
     /// Drop a dead generation so the next [`Self::acquire`] redials.
     ///
     /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
@@ -489,6 +689,39 @@ fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<
     slot.stop = Some(dialed.stop);
     slot.busy = dialed.busy;
     dialed.send
+}
+
+/// A displaced connection awaiting its drain: in-flight streams finish
+/// within the grace, then the driver stops.
+struct Displaced {
+    stop: watch::Sender<bool>,
+    busy: Option<Arc<crate::keepalive::Busy>>,
+}
+
+/// Store `dialed`, returning the displaced connection for graceful
+/// drain (instead of stopping it like [`store_dialed`]).
+fn replace_for_handoff(slot: &mut ConnSlot, dialed: Dialed) -> Option<Displaced> {
+    let old = match (slot.stop.take(), slot.busy.take()) {
+        (Some(stop), busy) => Some(Displaced { stop, busy }),
+        (None, _) => None,
+    };
+    slot.r#gen = slot.r#gen.wrapping_add(1);
+    slot.send = Some(dialed.send.clone());
+    slot.stop = Some(dialed.stop);
+    slot.busy = dialed.busy;
+    old
+}
+
+fn spawn_handoff_drain(old: Displaced, grace: Duration) {
+    drop(tokio::spawn(async move {
+        if let Some(busy) = old.busy {
+            tokio::select! {
+                () = busy.wait_idle() => {}
+                () = tokio::time::sleep(grace) => {}
+            }
+        }
+        old.stop.send(true).ok();
+    }));
 }
 
 fn spawn_idle_watch(inner: Arc<ChannelInner>, i: usize) {
@@ -620,7 +853,9 @@ async fn handshake_io(
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
             finish_tcp(tcp, config, tls).await
         }
-        Endpoint::Resolved { display, current } => {
+        Endpoint::Resolved {
+            display, current, ..
+        } => {
             let snapshot = current.borrow().clone();
             let addr = snapshot.addresses().first().cloned().ok_or_else(|| {
                 Status::unavailable(format!(

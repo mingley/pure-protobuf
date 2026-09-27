@@ -17,6 +17,11 @@ use crate::service_config::{LbPolicyConfig, ServiceConfig};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+mod pick_first;
+
+pub(crate) use pick_first::ensure_registered;
+pub use pick_first::{Pick, PickFirst, PickFirstFactory};
+
 /// Builds one LB policy's runtime from its parsed config. CH-03 needs
 /// only the name for selection; policy runtimes arrive with CH-04+.
 pub trait LbPolicyFactory: Send + Sync + 'static {
