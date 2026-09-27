@@ -22,6 +22,7 @@ pub enum ResolvedAddress {
 pub struct Resolution {
     addresses: Vec<ResolvedAddress>,
     generation: u64,
+    service_config: Option<String>,
 }
 
 impl Resolution {
@@ -38,17 +39,27 @@ impl Resolution {
         Self {
             addresses: out,
             generation,
+            service_config: None,
         }
+    }
+
+    /// Attach a resolver-delivered service-config document (raw JSON).
+    #[must_use]
+    pub fn with_service_config(mut self, json: Option<String>) -> Self {
+        self.service_config = json;
+        self
     }
 
     /// Authoritative empty result at `generation`: no address is
     /// eligible for new calls. Distinct from a lookup failure, which
     /// keeps serving the last snapshot inside the stale budget.
+    /// Carries no service config.
     #[must_use]
     pub fn empty(generation: u64) -> Self {
         Self {
             addresses: Vec::new(),
             generation,
+            service_config: None,
         }
     }
 
@@ -62,6 +73,14 @@ impl Resolution {
     #[must_use]
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// Resolver-delivered service-config JSON, if the resolver provides
+    /// one (DNS TXT via A2). Consumers parse and adopt with A21
+    /// fallback: invalid replaces nothing.
+    #[must_use]
+    pub fn service_config(&self) -> Option<&str> {
+        self.service_config.as_deref()
     }
 
     /// Whether no address is eligible.

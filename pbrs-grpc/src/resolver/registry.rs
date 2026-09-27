@@ -14,6 +14,7 @@
 use super::dns::{DnsConfig, DnsLookup};
 use super::snapshot::Resolution;
 use super::target::ParsedTarget;
+use super::txt::TxtLookup;
 use crate::status::Status;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -41,6 +42,7 @@ pub trait ResolverFactory: Send + Sync + 'static {
 pub struct ResolverConfig {
     dns: Option<DnsConfig>,
     dns_provider: Option<Arc<dyn DnsLookup>>,
+    txt_provider: Option<Arc<dyn TxtLookup>>,
 }
 
 impl core::fmt::Debug for ResolverConfig {
@@ -48,6 +50,7 @@ impl core::fmt::Debug for ResolverConfig {
         f.debug_struct("ResolverConfig")
             .field("dns", &self.dns)
             .field("dns_provider", &self.dns_provider.is_some())
+            .field("txt_provider", &self.txt_provider.is_some())
             .finish()
     }
 }
@@ -67,6 +70,7 @@ impl ResolverConfig {
         Self {
             dns: Some(dns),
             dns_provider: None,
+            txt_provider: None,
         }
     }
 
@@ -77,7 +81,16 @@ impl ResolverConfig {
         Self {
             dns: Some(dns),
             dns_provider: Some(provider),
+            txt_provider: None,
         }
+    }
+
+    /// Override the TXT provider (tests and custom DNS stacks;
+    /// production uses [`SystemTxt`](super::SystemTxt)).
+    #[must_use]
+    pub fn with_txt_provider(mut self, provider: Arc<dyn TxtLookup>) -> Self {
+        self.txt_provider = Some(provider);
+        self
     }
 
     /// DNS bounds, or `None` for [`Self::static_only`].
@@ -90,6 +103,12 @@ impl ResolverConfig {
     #[must_use]
     pub fn dns_provider(&self) -> Option<&Arc<dyn DnsLookup>> {
         self.dns_provider.as_ref()
+    }
+
+    /// Injected TXT provider, if any.
+    #[must_use]
+    pub fn txt_provider(&self) -> Option<&Arc<dyn TxtLookup>> {
+        self.txt_provider.as_ref()
     }
 }
 
@@ -141,12 +160,12 @@ impl BuiltResolver {
     }
 
     /// Split off the parts a channel holds: the update stream plus the
-    /// task guard that keeps refreshing alive.
+    /// task guards that keep refreshing (and adopting) alive.
     #[must_use]
     pub fn into_handle(self) -> ResolverHandle {
         ResolverHandle {
             watch: self.watch,
-            task: self.task,
+            tasks: self.task.into_iter().collect(),
         }
     }
 }
@@ -156,8 +175,15 @@ impl BuiltResolver {
 pub struct ResolverHandle {
     /// Update stream for dial-time snapshots (CH-02) and subchannels (CH-03+).
     pub watch: watch::Receiver<Arc<Resolution>>,
-    #[allow(dead_code, reason = "task guard: dropping the handle aborts refresh")]
-    task: Option<ResolverTask>,
+    #[allow(dead_code, reason = "task guards: dropping the handle aborts refresh")]
+    tasks: Vec<ResolverTask>,
+}
+
+impl ResolverHandle {
+    /// Guard another channel-owned task (service-config adoption).
+    pub(crate) fn guard(&mut self, task: ResolverTask) {
+        self.tasks.push(task);
+    }
 }
 
 /// A refresh task that aborts when its last owner drops, so no lookup

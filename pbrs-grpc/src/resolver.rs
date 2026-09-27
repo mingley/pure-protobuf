@@ -24,6 +24,7 @@ mod fixed;
 mod registry;
 mod snapshot;
 mod target;
+mod txt;
 
 pub use dns::{DnsConfig, DnsLookup, DnsScheme, SystemDns, skips_txt_lookup};
 pub use fixed::{Ipv4Scheme, Ipv6Scheme, PassthroughScheme, UnixAbstractScheme, UnixScheme};
@@ -33,3 +34,4 @@ pub use registry::{
 };
 pub use snapshot::{Resolution, ResolvedAddress};
 pub use target::{ParsedTarget, parse_target_uri};
+pub use txt::{SystemTxt, TxtLookup, grpc_config_name};

@@ -5,9 +5,10 @@ use super::{Channel, Target};
 use crate::config::ChannelConfig;
 use crate::limits::ByteBudgetTracker;
 use crate::resolver::{
-    Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, parse_target_uri, resolver_for,
+    Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, ResolverTask, parse_target_uri,
+    resolver_for,
 };
-use crate::service_config::SharedServiceConfig;
+use crate::service_config::{ServiceConfig, SharedServiceConfig};
 use crate::status::Status;
 use crate::stream::Streaming;
 use crate::telemetry::{LifecycleObserver, ReconnectEvent};
@@ -134,6 +135,7 @@ pub(crate) async fn connect_inner(
         tls,
         live_slots(sends),
         None,
+        SharedServiceConfig::default(),
     ))
 }
 
@@ -151,6 +153,7 @@ pub(crate) fn connect_lazy_inner(
         tls,
         empty_slots(config.connection_count()),
         None,
+        SharedServiceConfig::default(),
     ))
 }
 
@@ -172,6 +175,7 @@ pub(crate) async fn connect_unix_inner(
         None,
         live_slots(sends),
         None,
+        SharedServiceConfig::default(),
     ))
 }
 
@@ -201,11 +205,25 @@ pub(crate) async fn connect_uri_inner(
         "unix" | "unix-abstract" => unix_authority(),
         _ => Target::from(target.authority()).parse()?,
     };
-    let handle = built.into_handle();
+    // A21: adopt the initial document, failing the channel when it is
+    // invalid and nothing good precedes it.
+    let shared = SharedServiceConfig::default();
+    let mut adopted = None;
+    if let Some(json) = built.initial.service_config() {
+        shared.set(ServiceConfig::parse(json)?);
+        adopted = Some(json.to_owned());
+    }
+    let mut handle = built.into_handle();
     let endpoint = Endpoint::Resolved {
         display: uri.to_owned(),
         current: handle.watch.clone(),
     };
+    // Later documents adopt live; invalid ones keep the last good.
+    handle.guard(ResolverTask::new(tokio::spawn(adopt_loop(
+        handle.watch.clone(),
+        shared.clone(),
+        adopted,
+    ))));
     Ok(finish_channel(
         endpoint,
         authority,
@@ -213,7 +231,33 @@ pub(crate) async fn connect_uri_inner(
         tls,
         empty_slots(config.connection_count()),
         Some(handle),
+        shared,
     ))
+}
+
+/// Adopt resolver-delivered service configs (A21): valid documents
+/// replace the lineage's config, invalid ones are ignored.
+async fn adopt_loop(
+    mut watch: tokio::sync::watch::Receiver<std::sync::Arc<Resolution>>,
+    shared: SharedServiceConfig,
+    mut adopted: Option<String>,
+) {
+    loop {
+        if watch.changed().await.is_err() {
+            return;
+        }
+        let snapshot = watch.borrow_and_update().clone();
+        let Some(json) = snapshot.service_config() else {
+            continue;
+        };
+        if adopted.as_deref() == Some(json) {
+            continue;
+        }
+        if let Ok(parsed) = ServiceConfig::parse(json) {
+            shared.set(parsed);
+            adopted = Some(json.to_owned());
+        }
+    }
 }
 
 pub(crate) fn finish_channel(
@@ -223,6 +267,7 @@ pub(crate) fn finish_channel(
     tls: Option<ClientTls>,
     slots: Vec<Mutex<ConnSlot>>,
     resolver: Option<ResolverHandle>,
+    service_config: SharedServiceConfig,
 ) -> Channel {
     let https = tls.is_some();
     let inner = Arc::new(ChannelInner {
@@ -253,7 +298,7 @@ pub(crate) fn finish_channel(
         https,
         authority,
         observer: None,
-        service_config: SharedServiceConfig::default(),
+        service_config,
         retry_stats: Arc::new(RetryStatsRecorder::new()),
         binlog: None,
     }

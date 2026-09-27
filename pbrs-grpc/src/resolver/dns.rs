@@ -9,6 +9,7 @@
 use super::registry::{BuiltResolver, ResolverConfig, ResolverFactory, ResolverTask};
 use super::snapshot::{Resolution, ResolvedAddress};
 use super::target::{ParsedTarget, split_host_port};
+use super::txt::{SystemTxt, TxtLookup, grpc_config_name};
 use crate::status::Status;
 use std::future::Future;
 use std::io;
@@ -167,12 +168,36 @@ impl ResolverFactory for DnsScheme {
                 .cloned()
                 .unwrap_or_else(|| Arc::new(SystemDns));
             let dial = target.remainder.clone();
+            let (host, _) = split_host_port(&dial).ok_or_else(|| {
+                Status::invalid_argument(format!("dns: target needs host:port, got {dial:?}"))
+            })?;
+            // Literals and localhost never issue TXT (A10); without a
+            // readable resolv.conf there is simply no TXT source.
+            let txt_name = (!skips_txt_lookup(host)).then(|| grpc_config_name(host));
+            let txt: Option<Arc<dyn TxtLookup>> = match config.txt_provider().cloned() {
+                Some(provider) => Some(provider),
+                None => SystemTxt::new().await.ok().map(|t| {
+                    let t: Arc<dyn TxtLookup> = Arc::new(t);
+                    t
+                }),
+            };
             let initial = lookup_snapshot(&provider, &dial).await.map_err(|e| {
                 Status::unavailable(format!("dns: initial lookup of {dial:?} failed: {e}"))
             })?;
-            let initial = Arc::new(Resolution::new(initial, 0));
+            let initial_txt = fetch_txt(&txt, txt_name.as_deref()).await;
+            let initial =
+                Arc::new(Resolution::new(initial, 0).with_service_config(initial_txt.clone()));
             let (tx, rx) = watch::channel(Arc::clone(&initial));
-            let task = tokio::spawn(refresh_loop(provider, dial, dns, tx, Arc::clone(&initial)));
+            let task = tokio::spawn(refresh_loop(
+                provider,
+                dial,
+                dns,
+                tx,
+                Arc::clone(&initial),
+                initial_txt,
+                txt,
+                txt_name,
+            ));
             Ok(BuiltResolver::refreshing(
                 initial,
                 rx,
@@ -194,30 +219,52 @@ async fn lookup_snapshot(
         .collect())
 }
 
+/// Fetch the service-config TXT set, joined into one document.
+/// `None` when TXT is skipped, fails, or answers empty: failures and
+/// empty answers keep the previous config rather than clearing it.
+async fn fetch_txt(txt: &Option<Arc<dyn TxtLookup>>, name: Option<&str>) -> Option<String> {
+    let (provider, name) = (txt.as_ref()?, name?);
+    let records = provider.fetch_txt(name).await.ok()?;
+    if records.iter().all(|r| r.is_empty()) {
+        return None;
+    }
+    Some(records.concat())
+}
+
 /// One refresh task per resolver. Successful answers republish only on
-/// change; failures serve the last success inside the stale budget,
-/// then publish authoritative empty while retrying with capped backoff.
+/// change (addresses or service config); failures serve the last
+/// success inside the stale budget, then publish authoritative empty
+/// while retrying with capped backoff.
 async fn refresh_loop(
     provider: Arc<dyn DnsLookup>,
     dial: String,
     dns: DnsConfig,
     tx: watch::Sender<Arc<Resolution>>,
     initial: Arc<Resolution>,
+    mut service_config: Option<String>,
+    txt: Option<Arc<dyn TxtLookup>>,
+    txt_name: Option<String>,
 ) {
     let mut current = initial;
     let mut generation = 0u64;
     let mut valid_until = tokio::time::Instant::now() + dns.refresh_without_ttl;
     let mut backoff = dns.retry_min;
-    // CH-03 hangs TXT service-config delivery next to each A lookup,
-    // gated by `skips_txt_lookup` (A10: literals and localhost skip).
     loop {
         tokio::time::sleep(dns.refresh_without_ttl).await;
         match lookup_snapshot(&provider, &dial).await {
             Ok(addrs) => {
                 backoff = dns.retry_min;
                 valid_until = tokio::time::Instant::now() + dns.refresh_without_ttl;
-                let next = Arc::new(Resolution::new(addrs, generation + 1));
-                if next.addresses() != current.addresses() {
+                if let Some(txt) = fetch_txt(&txt, txt_name.as_deref()).await {
+                    service_config = Some(txt);
+                }
+                let next = Arc::new(
+                    Resolution::new(addrs, generation + 1)
+                        .with_service_config(service_config.clone()),
+                );
+                if next.addresses() != current.addresses()
+                    || next.service_config() != current.service_config()
+                {
                     generation += 1;
                     current = next;
                     if tx.send(Arc::clone(&current)).is_err() {
