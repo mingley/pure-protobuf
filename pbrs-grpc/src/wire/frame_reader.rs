@@ -129,33 +129,13 @@ impl FrameReader {
         }
         crate::copy_counts::note_carry(next.len());
         self.carry.extend_from_slice(&next);
-        self.reserve_for_header();
-    }
-
-    /// Phase 1a: once the 5-byte header of the spanning frame is in
-    /// `carry`, reserve the whole frame at once so the remaining chunks
-    /// append without regrowth copies. The reservation is capped by the
-    /// decode limit (a hostile length fails `check_decode` here and again
-    /// at pop, where the error surfaces); `carry` always starts at a frame
-    /// boundary because complete frames are split off by `next_frame`.
-    fn reserve_for_header(&mut self) {
-        if self.carry.len() < codec::HEADER_LEN {
-            return;
-        }
-        let Some(header) = self.carry.get(1..codec::HEADER_LEN) else {
-            return;
-        };
-        let mut len_be = [0u8; 4];
-        len_be.copy_from_slice(header);
-        let Ok(len) = usize::try_from(u32::from_be_bytes(len_be)) else {
-            return;
-        };
-        if self.limits.check_decode(len).is_err() {
-            return;
-        }
-        if let Some(total) = codec::HEADER_LEN.checked_add(len) {
-            self.carry.reserve(total.saturating_sub(self.carry.len()));
-        }
+        // NOTE (PK-09): a reserve-once here (Phase 1a) removes regrowth
+        // copies in isolation (5x microbench win, fewer cycles/faults/RSS)
+        // but reproducibly costs -18% on loopback 8 MiB RPCs: both sides do
+        // less CPU work yet wait longer in recvfrom, an emergent
+        // pipeline/batch interaction, not CPU. Reverted per ship-only-if-
+        // faster-or-better; Phase 3 (segmented receive) re-asks framing
+        // with fresh data. See docs/evidence/pk09-zero-copy.md.
     }
 
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
@@ -659,38 +639,14 @@ mod tests {
     }
 
     #[test]
-    fn reserve_once_covers_the_spanning_frame() {
-        // Once the header lands in carry, capacity covers the whole frame:
-        // later chunks append without regrowth.
-        let wire = framed(&vec![0xCDu8; 64 * 1024]);
-        let mut reader = FrameReader::new(MessageLimits::new());
-        reader.push(Bytes::copy_from_slice(&wire[..8]));
-        reader.push(Bytes::copy_from_slice(&wire[8..16]));
-        assert!(
-            reader.carry.capacity() >= wire.len(),
-            "carry capacity {} < frame {}",
-            reader.carry.capacity(),
-            wire.len()
-        );
-        reader.push(Bytes::copy_from_slice(&wire[16..]));
-        let frame = reader.next_frame().expect("frame").expect("one frame");
-        assert_eq!(frame.payload.len(), 64 * 1024);
-    }
-
-    #[test]
-    fn hostile_header_does_not_reserve() {
-        // A length past the decode limit reserves nothing; the error still
-        // surfaces at pop.
+    fn hostile_header_still_errors_at_pop() {
+        // A length past the decode limit surfaces at pop (reserve-once was
+        // reverted; see the NOTE on push).
         let mut wire = framed(&[9u8; 16]);
         wire[1..5].copy_from_slice(&u32::MAX.to_be_bytes());
         let mut reader = FrameReader::new(MessageLimits::new());
         reader.push(Bytes::copy_from_slice(&wire[..8]));
         reader.push(Bytes::copy_from_slice(&wire[8..]));
-        assert!(
-            reader.carry.capacity() < 1024,
-            "hostile header reserved {}",
-            reader.carry.capacity()
-        );
         assert!(reader.next_frame().is_err());
     }
 }
