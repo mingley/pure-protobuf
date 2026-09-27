@@ -6110,7 +6110,13 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "0bf88acd GF-03 (1/4)+(2/4): channelz.proto vendor + codegen + A3 trace core + A14 registry",
+    "d999bd6e GF-03 (3/4): grpc.channelz.v1 service + client/server hookups",
+    "6bbbaaeb GF-03 (4/4): tests/channelz.rs (5 tests) + hookup fixes + grpcurl interop"
+   ]
   },
   {
    "id": "GF-04",
