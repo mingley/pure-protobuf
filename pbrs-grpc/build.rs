@@ -92,4 +92,28 @@ fn main() {
             &[&proto_dir],
         )
         .expect("codegen google.rpc error details");
+
+    // ORCA load reports (A51/CH-06): the report message plus the
+    // OpenRcaService OOB streaming service. Two descriptor sets because the
+    // generated stubs address the report message by package path; the
+    // `extern_path` below points that path at the message's own generated
+    // module, included as `orca::proto` next to the stubs.
+    pbrs::codegen::Config::new()
+        .include_source_info(true)
+        .compile_descriptor_set(
+            proto_dir.join("orca_report.fds"),
+            &["xds/data/orca/v3/orca_load_report.proto"],
+            &[&proto_dir],
+        )
+        .expect("codegen xds ORCA report");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .include_source_info(true)
+        .extern_path(".xds.data.orca.v3", "crate::orca::proto")
+        .compile_descriptor_set(
+            proto_dir.join("orca.fds"),
+            &["xds/service/orca/v3/orca.proto"],
+            &[&proto_dir],
+        )
+        .expect("codegen xds ORCA");
 }

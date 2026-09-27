@@ -1062,6 +1062,7 @@ pub mod timeout;
 
 pub mod health;
 pub mod hello;
+pub mod orca;
 pub mod pb;
 pub mod reflection;
 pub mod testing;
