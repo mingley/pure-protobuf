@@ -286,6 +286,56 @@ impl LbPolicy {
         }
     }
 
+    /// Pick through a child policy, boxing only wrapper children.
+    /// Wrappers recurse through this enum at the type level (E0733),
+    /// so their arm boxes; leaf arms await directly and allocate
+    /// nothing. Same result as [`Self::pick`] on every child: wrapper
+    /// nesting is parse-rejected, so the box never fires at runtime.
+    pub(crate) async fn pick_direct(&self) -> Pick {
+        match self {
+            Self::PickFirst(policy) => policy.pick().await,
+            Self::RoundRobin(policy) => policy.pick().await,
+            Self::WeightedRoundRobin(policy) => policy.pick().await,
+            Self::RingHash(policy) => policy.pick_hash(None).await,
+            Self::LeastRequest(policy) => policy.pick().await,
+            Self::RandomSubsetting(policy) => Box::pin(policy.pick()).await,
+            Self::Priority(policy) => Box::pin(policy.pick()).await,
+            Self::OutlierDetection(policy) => Box::pin(policy.pick()).await,
+        }
+    }
+
+    /// Hashed pick through a child policy, boxing only wrapper
+    /// children. Same result as [`Self::pick_hash`]; see
+    /// [`Self::pick_direct`] for why the box is unreachable.
+    pub(crate) async fn pick_hash_direct(&self, hash: Option<u64>) -> Pick {
+        match self {
+            Self::RingHash(policy) => policy.pick_hash(hash).await,
+            Self::PickFirst(policy) => policy.pick().await,
+            Self::RoundRobin(policy) => policy.pick().await,
+            Self::WeightedRoundRobin(policy) => policy.pick().await,
+            Self::LeastRequest(policy) => policy.pick().await,
+            Self::RandomSubsetting(policy) => Box::pin(policy.pick_hash(hash)).await,
+            Self::Priority(policy) => Box::pin(policy.pick_hash(hash)).await,
+            Self::OutlierDetection(policy) => Box::pin(policy.pick_hash(hash)).await,
+        }
+    }
+
+    /// Readiness through a child policy, boxing only wrapper
+    /// children. Same result as [`Self::readiness`]; see
+    /// [`Self::pick_direct`] for why the box is unreachable.
+    pub(crate) async fn readiness_direct(&self) -> Readiness {
+        match self {
+            Self::PickFirst(policy) => policy.readiness().await,
+            Self::RoundRobin(policy) => policy.readiness().await,
+            Self::WeightedRoundRobin(policy) => policy.readiness().await,
+            Self::RingHash(policy) => policy.readiness().await,
+            Self::LeastRequest(policy) => policy.readiness().await,
+            Self::RandomSubsetting(policy) => Box::pin(policy.readiness()).await,
+            Self::Priority(policy) => Box::pin(policy.readiness()).await,
+            Self::OutlierDetection(policy) => Box::pin(policy.readiness()).await,
+        }
+    }
+
     /// Record a successful dial on an address.
     pub async fn note_success(&self, addr: &crate::resolver::ResolvedAddress) {
         match self {
@@ -434,6 +484,22 @@ pub fn is_policy_registered(name: &str) -> bool {
     registry()
         .lock()
         .is_ok_and(|guard| guard.contains_key(name))
+}
+
+/// Register every policy factory this build ships. Channels call
+/// this at build; direct constructors of wrapper policies
+/// (`priority`, `outlier_detection`, `random_subsetting_experimental`)
+/// need it too, since child selection resolves through the registry.
+/// Idempotent.
+pub fn ensure_default_policies_registered() {
+    ensure_least_request_registered();
+    ensure_outlier_detection_registered();
+    ensure_pick_first_registered();
+    ensure_priority_registered();
+    ensure_random_subsetting_registered();
+    ensure_ring_hash_registered();
+    ensure_round_robin_registered();
+    ensure_weighted_round_robin_registered();
 }
 
 /// Select the first `loadBalancingConfig` entry with a registered

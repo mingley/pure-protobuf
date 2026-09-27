@@ -127,12 +127,12 @@ impl RandomSubsetting {
 
     /// Pick through the child policy.
     pub async fn pick(&self) -> Pick {
-        Box::pin(self.child.pick()).await
+        self.child.pick_direct().await
     }
 
     /// Hashed pick through the child policy (ring children hash).
     pub async fn pick_hash(&self, hash: Option<u64>) -> Pick {
-        Box::pin(self.child.pick_hash(hash)).await
+        self.child.pick_hash_direct(hash).await
     }
 
     /// Record a successful dial through the child policy.
@@ -218,8 +218,7 @@ impl RandomSubsetting {
     /// Child readiness (for nesting): the child sees only the
     /// subset, so its observation is already subset-scoped.
     pub(crate) async fn readiness(&self) -> Readiness {
-        // Boxed: the enum dispatches back here (E0733).
-        Box::pin(self.child.readiness()).await
+        self.child.readiness_direct().await
     }
 }
 

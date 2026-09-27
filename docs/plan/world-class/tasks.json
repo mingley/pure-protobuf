@@ -7168,7 +7168,15 @@
     "C2",
     "C8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "8 lb.*.pick cells (all 7 card policies + random_subsetting per the card title's 'every shipped policy'), sharing a 3-address ready steady state with wrappers over a round_robin child (nesting is parse-rejected, so leaf children are the only runtime shape).",
+    "Baseline harness caught per-pick allocs on 6/8 cells (WRR/ring/LR/subset 1, outlier 2, priority 5); all fixed to 0 with behavior-preserving changes: ring seen-set removed (usability pure over locked state), LR r-th-ready walk (identical sampling distribution), WRR/outlier fast paths when healthy, priority choose via index iteration + split borrows, LbPolicy::{pick,pick_hash,readiness}_direct boxing only wrapper arms (E0733), plus public lb::ensure_default_policies_registered for direct wrapper construction.",
+    "picker.json extended to all 8 cells at {allocs: 0, locks: 0}; perf lane runs the full suite so all cells are gated with no workflow change. Gate verified both ways: clean report exits 0, tampered +5 allocs report fails with BUDGET EXCEEDED exit 1.",
+    "docs/evidence/picker-cost.md records cells, steady states, before/after table, and the degraded-paths-may-allocate boundary. Full pbrs-grpc suite green unmodified (385 lib incl 65 lb::, all integration targets); lib clippy-clean (channelz.rs test lint errors pre-exist); documentation tests 18/18."
+   ]
   },
   {
    "id": "XD-03b",

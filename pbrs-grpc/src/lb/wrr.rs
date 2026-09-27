@@ -287,6 +287,35 @@ impl WeightedRoundRobin {
             return Pick::Fail(Status::unavailable("weighted_round_robin: no addresses"));
         }
         let now = Instant::now();
+        let update_period = self
+            .config
+            .weight_update_period
+            .max(MIN_WEIGHT_UPDATE_PERIOD);
+        // Fast path: nothing failing, unhealthy, or health-pending, so
+        // the ready set is the address list itself and the pick needs
+        // no Vec. Anything degraded (or a stale scheduler) falls
+        // through to the slow path below.
+        if state.down.is_empty() && state.unhealthy.is_empty() && state.health_pending.is_empty() {
+            let fresh = match state.scheduler.as_ref() {
+                Some(scheduler) => {
+                    scheduler.members == state.addresses
+                        && scheduler.weights_version == state.weights_version
+                        && now.duration_since(scheduler.built_at) < update_period
+                }
+                None => false,
+            };
+            if fresh {
+                let index = state
+                    .scheduler
+                    .as_mut()
+                    .map(|scheduler| scheduler.edf.pick())
+                    .unwrap_or(0);
+                return match state.addresses.get(index).cloned() {
+                    Some(addr) => Pick::Use(addr),
+                    None => Pick::Wait,
+                };
+            }
+        }
         let expired: Vec<ResolvedAddress> = state
             .down
             .iter()
@@ -325,10 +354,6 @@ impl WeightedRoundRobin {
                 None => Pick::Wait,
             };
         }
-        let update_period = self
-            .config
-            .weight_update_period
-            .max(MIN_WEIGHT_UPDATE_PERIOD);
         let stale = match state.scheduler.as_ref() {
             None => true,
             Some(scheduler) => {

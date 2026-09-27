@@ -824,10 +824,35 @@ async fn rpc_pbrs_server_stream_compressed(iters: u64) -> u64 {
 }
 
 fn lb_cells() -> Vec<(&'static str, &'static str)> {
-    // CH-11 adds one cell per shipped policy following
-    // `lb_pick_first_pick`; pick_first single-ready is the
-    // passthrough-equivalent hot path.
-    vec![("lb.pick_first.pick", "pbrs-grpc")]
+    // One cell per shipped policy (CH-11); each follows
+    // `lb_pick_first_pick`. pick_first single-ready is the
+    // passthrough-equivalent hot path; the rest share a three-address
+    // ready steady state, wrappers over a round_robin child.
+    vec![
+        ("lb.pick_first.pick", "pbrs-grpc"),
+        ("lb.round_robin.pick", "pbrs-grpc"),
+        ("lb.weighted_round_robin.pick", "pbrs-grpc"),
+        ("lb.ring_hash.pick", "pbrs-grpc"),
+        ("lb.least_request.pick", "pbrs-grpc"),
+        ("lb.priority.pick", "pbrs-grpc"),
+        ("lb.outlier_detection.pick", "pbrs-grpc"),
+        ("lb.random_subsetting_experimental.pick", "pbrs-grpc"),
+    ]
+}
+
+/// Shared three-address ready steady state for the multi-endpoint
+/// picker cells.
+fn lb_ready_addrs() -> Vec<pbrs_grpc::resolver::ResolvedAddress> {
+    use pbrs_grpc::resolver::ResolvedAddress;
+    (0..3)
+        .map(|i| {
+            ResolvedAddress::Tcp(
+                format!("127.0.0.1:{}", 50_051 + i)
+                    .parse()
+                    .expect("addr"),
+            )
+        })
+        .collect()
 }
 
 /// Steady-state pick cost for one policy (CH-10 harness).
@@ -873,6 +898,160 @@ async fn lb_pick_first_pick(iters: u64) -> u64 {
         child_json("lb.pick_first.pick", iters, allocs, bytes, wall)
     );
     black_box(sink)
+}
+
+/// Guarded steady-state pick loop shared by the multi-endpoint
+/// cells: `pick` runs once per op and must return `Pick::Use`
+/// without allocating. The hash lane feeds ring hashing a varying
+/// request hash (the wrapping op counter) so the loop cannot
+/// over-fit one ring position.
+macro_rules! lb_guarded_loop {
+    ($cell:literal, $iters:expr, $pick:expr) => {{
+        let iters: u64 = $iters;
+        for _ in 0..2000 {
+            assert!(
+                matches!($pick, pbrs_grpc::lb::Pick::Use(_)),
+                "steady pick must stay Use"
+            );
+        }
+        // Warmup absorbs lazy growth (runtime, scheduler builds,
+        // child creation) so the guarded loop measures the pick
+        // alone: it must allocate nothing.
+        let guard = AllocGuard::arm();
+        let start = Instant::now();
+        let mut sink = 0u64;
+        for _ in 0..iters {
+            match $pick {
+                pbrs_grpc::lb::Pick::Use(_) => sink = sink.wrapping_add(1),
+                _ => panic!("steady pick must stay Use"),
+            }
+        }
+        let wall = start.elapsed();
+        let (allocs, bytes) = guard.totals();
+        drop(guard);
+        eprintln!(
+            "__CHILD__ {}",
+            child_json($cell, iters, allocs, bytes, wall)
+        );
+        black_box(sink)
+    }};
+}
+
+async fn lb_round_robin_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::RoundRobin;
+    let policy = RoundRobin::new();
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!("lb.round_robin.pick", iters, policy.pick().await)
+}
+
+async fn lb_weighted_round_robin_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::WeightedRoundRobin;
+    use pbrs_grpc::service_config::WeightedRoundRobinConfig;
+    // Hourly weight recompute: the scheduler builds once in warmup
+    // and the guarded loop measures steady EDF picks between
+    // recomputes (the cadence is deployment-tunable; default 1s).
+    let policy = WeightedRoundRobin::with_config(WeightedRoundRobinConfig {
+        weight_update_period: Duration::from_secs(3600),
+        ..Default::default()
+    });
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!(
+        "lb.weighted_round_robin.pick",
+        iters,
+        policy.pick().await
+    )
+}
+
+async fn lb_ring_hash_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::RingHash;
+    let policy = RingHash::from_config(None);
+    policy.update(lb_ready_addrs()).await;
+    let cell = "lb.ring_hash.pick";
+    for _ in 0..2000 {
+        assert!(
+            matches!(policy.pick_hash(Some(0x9E37_79B9)).await, pbrs_grpc::lb::Pick::Use(_)),
+            "steady pick must stay Use"
+        );
+    }
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        // Varying request hash, as real RPCs hash distinct metadata.
+        match policy.pick_hash(Some(sink.wrapping_mul(0x9E37_79B9_7F4A_7C15))).await {
+            pbrs_grpc::lb::Pick::Use(_) => sink = sink.wrapping_add(1),
+            _ => panic!("steady pick must stay Use"),
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!("__CHILD__ {}", child_json(cell, iters, allocs, bytes, wall));
+    black_box(sink)
+}
+
+async fn lb_least_request_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::LeastRequest;
+    let policy = LeastRequest::from_config(None);
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!("lb.least_request.pick", iters, policy.pick().await)
+}
+
+async fn lb_priority_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::{Priority, ensure_default_policies_registered};
+    use pbrs_grpc::service_config::{LbPolicyConfig, PriorityChildConfig, PriorityConfig};
+    ensure_default_policies_registered();
+    let policy = Priority::with_config(&PriorityConfig {
+        children: [(
+            "p0".to_owned(),
+            PriorityChildConfig {
+                config: vec![LbPolicyConfig::RoundRobin],
+                ignore_reresolution_requests: false,
+            },
+        )]
+        .into_iter()
+        .collect(),
+        priorities: vec!["p0".to_owned()],
+    })
+    .expect("priority config");
+    // Flat update: all addresses feed the single priority.
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!("lb.priority.pick", iters, policy.pick().await)
+}
+
+async fn lb_outlier_detection_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::{OutlierDetection, ensure_default_policies_registered};
+    use pbrs_grpc::service_config::{LbPolicyConfig, OutlierDetectionConfig};
+    ensure_default_policies_registered();
+    let policy = OutlierDetection::with_config(&OutlierDetectionConfig {
+        interval: Duration::from_secs(3600),
+        child_policy: vec![LbPolicyConfig::RoundRobin],
+        ..Default::default()
+    })
+    .expect("outlier config");
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!(
+        "lb.outlier_detection.pick",
+        iters,
+        policy.pick().await
+    )
+}
+
+async fn lb_random_subsetting_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::{RandomSubsetting, ensure_default_policies_registered};
+    use pbrs_grpc::service_config::{LbPolicyConfig, RandomSubsettingConfig};
+    ensure_default_policies_registered();
+    let policy = RandomSubsetting::with_config(&RandomSubsettingConfig {
+        subset_size: 2,
+        child_policy: vec![LbPolicyConfig::RoundRobin],
+    })
+    .expect("subset config");
+    policy.update(lb_ready_addrs()).await;
+    lb_guarded_loop!(
+        "lb.random_subsetting_experimental.pick",
+        iters,
+        policy.pick().await
+    )
 }
 
 async fn rpc_tonic_unary(iters: u64, payload: &[u8]) -> u64 {
@@ -1400,6 +1579,15 @@ fn cmd_run_cell(args: &[String]) {
         rt.block_on(async {
             match id.as_str() {
                 "lb.pick_first.pick" => lb_pick_first_pick(iters).await,
+                "lb.round_robin.pick" => lb_round_robin_pick(iters).await,
+                "lb.weighted_round_robin.pick" => lb_weighted_round_robin_pick(iters).await,
+                "lb.ring_hash.pick" => lb_ring_hash_pick(iters).await,
+                "lb.least_request.pick" => lb_least_request_pick(iters).await,
+                "lb.priority.pick" => lb_priority_pick(iters).await,
+                "lb.outlier_detection.pick" => lb_outlier_detection_pick(iters).await,
+                "lb.random_subsetting_experimental.pick" => {
+                    lb_random_subsetting_pick(iters).await
+                }
                 _ => panic!("unknown lb cell {id}"),
             }
         });

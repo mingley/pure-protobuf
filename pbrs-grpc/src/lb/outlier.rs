@@ -279,7 +279,7 @@ impl OutlierDetection {
         let mut state = self.state.lock().await;
         self.maybe_sweep(&mut state, Instant::now());
         self.republish(&mut state).await;
-        Box::pin(self.child.pick_hash(hash)).await
+        self.child.pick_hash_direct(hash).await
     }
 
     /// Sweep when the interval has elapsed. Idempotent: sets the next
@@ -439,6 +439,18 @@ impl OutlierDetection {
     /// Publish the live (non-ejected) set to the child, waking
     /// waiters on change.
     async fn republish(&self, state: &mut State) {
+        // Fast path: nothing ejected, so the live set is the address
+        // list itself and the pick needs no Vec.
+        if state.ejected.is_empty() {
+            if state.addresses != state.published {
+                let live = state.addresses.clone();
+                Box::pin(self.child.update(live.clone())).await;
+                state.published = live;
+                self.bump
+                    .send_modify(|generation| *generation = generation.wrapping_add(1));
+            }
+            return;
+        }
         let live: Vec<ResolvedAddress> = state
             .addresses
             .iter()
@@ -534,7 +546,7 @@ impl OutlierDetection {
         let mut state = self.state.lock().await;
         self.uneject_expired(&mut state, Instant::now());
         self.republish(&mut state).await;
-        Box::pin(self.child.readiness()).await
+        self.child.readiness_direct().await
     }
 
     /// A50 ejection snapshot, expirations evaluated first.

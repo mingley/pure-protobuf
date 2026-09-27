@@ -252,20 +252,21 @@ impl RingHash {
         if start >= state.ring.len() {
             start = 0;
         }
-        let mut seen = HashSet::new();
         for offset in 0..state.ring.len() {
             let index = (start + offset) % state.ring.len();
             let Some((_, addr_index)) = state.ring.get(index) else {
                 continue;
             };
-            let Some(addr) = state.addresses.get(*addr_index).cloned() else {
+            let Some(addr) = state.addresses.get(*addr_index) else {
                 continue;
             };
-            if !seen.insert(addr.clone()) {
-                continue;
-            }
-            if usable(&state, &addr) {
-                return Pick::Use(addr);
+            // No seen-set: usability is pure over the locked state,
+            // so a repeated ring entry re-checks to the same answer
+            // (the loop stays bounded by the ring length). This keeps
+            // the pick allocation-free; the address clones once, on
+            // the return.
+            if usable(&state, addr) {
+                return Pick::Use(addr.clone());
             }
         }
         // Nothing usable: pending Watch calls mean CONNECTING (wait),

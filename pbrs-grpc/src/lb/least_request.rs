@@ -150,17 +150,13 @@ impl LeastRequest {
         }
         let now = Instant::now();
         state.down.retain(|_, down| down.until > now);
-        let ready: Vec<ResolvedAddress> = state
-            .addresses
-            .iter()
-            .filter(|addr| {
-                !state.down.contains_key(*addr)
-                    && !state.unhealthy.contains(*addr)
-                    && !state.health_pending.contains(*addr)
-            })
-            .cloned()
-            .collect();
-        if ready.is_empty() {
+        let usable = |addr: &ResolvedAddress| {
+            !state.down.contains_key(addr)
+                && !state.unhealthy.contains(addr)
+                && !state.health_pending.contains(addr)
+        };
+        let ready_count = state.addresses.iter().filter(|addr| usable(addr)).count();
+        if ready_count == 0 {
             // Nothing ready: pending Watch calls mean CONNECTING (wait),
             // otherwise fail with the last dial error.
             if state.addresses.iter().any(|addr| {
@@ -178,19 +174,33 @@ impl LeastRequest {
         let mut rng = super::SplitMix64::seed();
         let mut best: Option<(ResolvedAddress, u64)> = None;
         for _ in 0..self.config.choice_count.max(1) {
-            let span = u64::try_from(ready.len()).unwrap_or(u64::MAX);
-            let idx = usize::try_from(rng.next() % span).unwrap_or(0);
-            let Some(addr) = ready.get(idx).cloned() else {
+            // Uniform over the ready set without collecting it: walk
+            // to the r-th ready address (same distribution as
+            // indexing a collected Vec; choice counts are tiny).
+            let span = u64::try_from(ready_count).unwrap_or(u64::MAX);
+            let want = usize::try_from(rng.next() % span).unwrap_or(0);
+            let mut addr: Option<&ResolvedAddress> = None;
+            let mut seen_ready = 0usize;
+            for candidate in &state.addresses {
+                if usable(candidate) {
+                    if seen_ready == want {
+                        addr = Some(candidate);
+                        break;
+                    }
+                    seen_ready += 1;
+                }
+            }
+            let Some(addr) = addr else {
                 continue;
             };
             let load = state
                 .in_flight
-                .get(&addr)
+                .get(addr)
                 .map(|counter| counter.load(Ordering::SeqCst))
                 .unwrap_or(0);
             match &best {
                 Some((_, best_load)) if load >= *best_load => {}
-                _ => best = Some((addr, load)),
+                _ => best = Some((addr.clone(), load)),
             }
         }
         match best {

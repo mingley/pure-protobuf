@@ -22,7 +22,7 @@ use super::{
     register_lb_policy_factory,
 };
 use crate::resolver::ResolvedAddress;
-use crate::service_config::{PriorityConfig, ServiceConfig};
+use crate::service_config::{PriorityChildConfig, PriorityConfig, ServiceConfig};
 use crate::status::Status;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
@@ -287,16 +287,28 @@ impl Priority {
             state.current = None;
             return;
         }
-        // Slots clone out: `observe` needs `&mut State`.
-        let slots = state.config.priorities.clone();
-        // (slot index, readiness); indices stay correct when a slot
-        // cannot be observed and is skipped.
-        let mut observed = Vec::with_capacity(slots.len());
-        for (index, name) in slots.iter().enumerate() {
-            let Some((readiness, failover_pending)) = self.observe(state, name, now).await else {
+        // Index iteration with split borrows: `observe` takes the maps
+        // separately so the hot path clones neither the slot list nor
+        // the per-slot observations.
+        let len = state.config.priorities.len();
+        let mut first_connecting: Option<usize> = None;
+        for index in 0..len {
+            let observed = {
+                let Some(name) = state.config.priorities.get(index) else {
+                    continue;
+                };
+                self.observe(
+                    &mut state.children,
+                    &state.membership,
+                    &state.config.children,
+                    name,
+                    now,
+                )
+                .await
+            };
+            let Some((readiness, failover_pending)) = observed else {
                 continue;
             };
-            observed.push((index, readiness));
             if readiness == Readiness::Ready {
                 self.set_current(state, index, true, now);
                 return;
@@ -305,39 +317,43 @@ impl Priority {
                 self.set_current(state, index, false, now);
                 return;
             }
-        }
-        for (index, readiness) in &observed {
-            if *readiness == Readiness::Connecting {
-                self.set_current(state, *index, false, now);
-                return;
+            if readiness == Readiness::Connecting && first_connecting.is_none() {
+                first_connecting = Some(index);
             }
         }
-        let last = slots.len() - 1;
-        self.set_current(state, last, false, now);
+        if let Some(index) = first_connecting {
+            self.set_current(state, index, false, now);
+            return;
+        }
+        self.set_current(state, len - 1, false, now);
     }
 
     /// Create-or-get a child, reactivate it, publish pending address
     /// changes, and observe its readiness, applying the A56 timer
     /// rules. Returns the readiness plus whether its failover timer
     /// is pending, or `None` when creation cannot proceed (only when
-    /// registration changed underfoot; configs are validated).
+    /// registration changed underfoot; configs are validated). The
+    /// state maps arrive split so callers can borrow the slot name
+    /// without cloning it.
     async fn observe(
         &self,
-        state: &mut State,
+        children: &mut HashMap<String, PriorityChild>,
+        membership: &BTreeMap<String, Vec<ResolvedAddress>>,
+        child_configs: &BTreeMap<String, PriorityChildConfig>,
         name: &str,
         now: Instant,
     ) -> Option<(Readiness, bool)> {
-        if !state.children.contains_key(name) {
-            let entry = state.config.children.get(name).and_then(|child| {
+        if !children.contains_key(name) {
+            let entry = child_configs.get(name).and_then(|child| {
                 child
                     .config
                     .iter()
                     .find(|entry| is_policy_registered(entry.name()))
             })?;
             let policy = super::instantiate(entry).ok()?;
-            let addresses = state.membership.get(name).cloned().unwrap_or_default();
+            let addresses = membership.get(name).cloned().unwrap_or_default();
             Box::pin(policy.update(addresses.clone())).await;
-            state.children.insert(
+            children.insert(
                 name.to_owned(),
                 PriorityChild {
                     policy,
@@ -350,16 +366,16 @@ impl Priority {
                 },
             );
         }
-        let child = state.children.get_mut(name)?;
+        let child = children.get_mut(name)?;
         child.deactivated = false;
         child.deactivate_at = None;
-        if let Some(addresses) = state.membership.get(name) {
+        if let Some(addresses) = membership.get(name) {
             if child.addresses != *addresses {
                 Box::pin(child.policy.update(addresses.clone())).await;
                 child.addresses.clone_from(addresses);
             }
         }
-        let readiness = Box::pin(child.policy.readiness()).await;
+        let readiness = child.policy.readiness_direct().await;
         match readiness {
             Readiness::Ready => {
                 child.failover_at = None;
@@ -385,10 +401,12 @@ impl Priority {
     fn set_current(&self, state: &mut State, index: usize, deactivate_lower: bool, now: Instant) {
         if deactivate_lower {
             for slot in index + 1..state.config.priorities.len() {
-                let Some(name) = state.config.priorities.get(slot).cloned() else {
+                // Split borrows: the name borrows the config while the
+                // child map mutates, so no per-pick clone.
+                let Some(name) = state.config.priorities.get(slot) else {
                     continue;
                 };
-                if let Some(child) = state.children.get_mut(&name) {
+                if let Some(child) = state.children.get_mut(name) {
                     child.deactivated = true;
                     child.deactivate_at = Some(now + DEACTIVATION_TIMEOUT);
                 }
@@ -435,7 +453,7 @@ impl Priority {
                 "priority policy has empty priority list",
             ));
         };
-        Box::pin(child.pick_hash(hash)).await
+        child.pick_hash_direct(hash).await
     }
 
     /// Record a successful dial through the owning child, then
@@ -599,7 +617,7 @@ impl Priority {
         let Some(child) = child else {
             return Readiness::TransientFailure;
         };
-        Box::pin(child.readiness()).await
+        child.readiness_direct().await
     }
 
     /// A56 state snapshot, timers evaluated first.
