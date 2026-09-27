@@ -370,14 +370,16 @@ impl super::Channel {
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
+        md: Option<&crate::metadata::Metadata>,
     ) -> Result<LiveConn, Status> {
         let _ = remaining_timeout(deadline)?;
         let inner = Arc::clone(&self.inner);
         let obs = self.observer.clone();
         let health = self.health_directive();
+        let hash = md.and_then(|md| self.ring_request_hash(md));
         let grabbed = prefer_deadline(
             first_of(
-                inner.acquire(wait_for_ready, obs.as_deref(), health),
+                inner.acquire(wait_for_ready, obs.as_deref(), health, hash),
                 cancel_rx,
                 deadline,
             )
@@ -410,7 +412,9 @@ impl super::Channel {
         let mut retried = false;
         loop {
             let _ = remaining_timeout(deadline)?;
-            let live = self.grab(cancel_rx.clone(), deadline, wait).await?;
+            let live = self
+                .grab(cancel_rx.clone(), deadline, wait, Some(md))
+                .await?;
             let (slot, r#gen, lease, driver, rr_addr) =
                 (live.slot, live.r#gen, live.lease, live.driver, live.rr_addr);
             match open(

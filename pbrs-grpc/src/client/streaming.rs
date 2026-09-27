@@ -587,7 +587,10 @@ impl super::Channel {
                         attempt_start,
                     );
                     let queue_start = tokio::time::Instant::now();
-                    let live = match channel.grab(cancel_rx.clone(), deadline, wait).await {
+                    let live = match channel
+                        .grab(cancel_rx.clone(), deadline, wait, Some(&md))
+                        .await
+                    {
                         Ok(live) => {
                             if let Some(obs) = &observer {
                                 obs.on_queue_wait(&call_labels, queue_start.elapsed());

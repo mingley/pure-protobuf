@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 mod health;
 mod pick_first;
+mod ring_hash;
 mod round_robin;
 mod wrr;
 
@@ -29,6 +30,8 @@ pub(crate) use pick_first::SplitMix64;
 pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub(crate) use pick_first::transient_backoff;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
+pub(crate) use ring_hash::ensure_registered as ensure_ring_hash_registered;
+pub use ring_hash::{RingHash, RingHashFactory};
 pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
 pub use round_robin::{RoundRobin, RoundRobinFactory};
 pub(crate) use wrr::ensure_registered as ensure_weighted_round_robin_registered;
@@ -63,6 +66,8 @@ pub enum LbPolicy {
     RoundRobin(std::sync::Arc<RoundRobin>),
     /// EDF scheduling over ORCA-weighted endpoints.
     WeightedRoundRobin(std::sync::Arc<WeightedRoundRobin>),
+    /// Consistent hashing over endpoints.
+    RingHash(std::sync::Arc<RingHash>),
 }
 
 impl LbPolicy {
@@ -72,6 +77,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.update(addresses).await,
             Self::RoundRobin(policy) => policy.update(addresses).await,
             Self::WeightedRoundRobin(policy) => policy.update(addresses).await,
+            Self::RingHash(policy) => policy.update(addresses).await,
         }
     }
 
@@ -82,6 +88,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.watch(),
             Self::RoundRobin(policy) => policy.watch(),
             Self::WeightedRoundRobin(policy) => policy.watch(),
+            Self::RingHash(policy) => policy.watch(),
         }
     }
 
@@ -92,6 +99,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.note_health_pending(addr).await,
             Self::RoundRobin(policy) => policy.note_health_pending(addr).await,
             Self::WeightedRoundRobin(policy) => policy.note_health_pending(addr).await,
+            Self::RingHash(policy) => policy.note_health_pending(addr).await,
         }
     }
 
@@ -101,6 +109,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.note_health_gone(addr).await,
             Self::RoundRobin(policy) => policy.note_health_gone(addr).await,
             Self::WeightedRoundRobin(policy) => policy.note_health_gone(addr).await,
+            Self::RingHash(policy) => policy.note_health_gone(addr).await,
         }
     }
 
@@ -110,6 +119,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.note_health(addr, signal).await,
             Self::RoundRobin(policy) => policy.note_health(addr, signal).await,
             Self::WeightedRoundRobin(policy) => policy.note_health(addr, signal).await,
+            Self::RingHash(policy) => policy.note_health(addr, signal).await,
         }
     }
 
@@ -119,6 +129,7 @@ impl LbPolicy {
             Self::PickFirst(policy) => policy.health_of(addr).await,
             Self::RoundRobin(policy) => policy.health_of(addr).await,
             Self::WeightedRoundRobin(policy) => policy.health_of(addr).await,
+            Self::RingHash(policy) => policy.health_of(addr).await,
         }
     }
 
@@ -134,7 +145,7 @@ impl LbPolicy {
     ) {
         match self {
             Self::WeightedRoundRobin(policy) => policy.note_orca_report(addr, report, oob).await,
-            Self::PickFirst(_) | Self::RoundRobin(_) => {}
+            Self::PickFirst(_) | Self::RoundRobin(_) | Self::RingHash(_) => {}
         }
     }
 }

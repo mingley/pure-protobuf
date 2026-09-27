@@ -301,7 +301,10 @@ where
         let mut redialed = false;
         let outcome: Result<Response<Resp>, Status> = loop {
             let queue_start = tokio::time::Instant::now();
-            let live = match channel.grab(cancel_rx.clone(), deadline, wait).await {
+            let live = match channel
+                .grab(cancel_rx.clone(), deadline, wait, Some(&md))
+                .await
+            {
                 Ok(live) => {
                     if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
                         obs.on_queue_wait(&call.as_borrowed(), queue_start.elapsed());

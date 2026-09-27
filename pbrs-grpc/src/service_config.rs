@@ -403,6 +403,9 @@ pub struct RingHashConfig {
     pub min_ring_size: u64,
     /// Maximum ring entries. Default 4096.
     pub max_ring_size: u64,
+    /// Request header to hash for non-xDS picks (A76). Empty means
+    /// the xDS hash policy, which fails picks without xDS.
+    pub request_hash_header: String,
 }
 
 impl Default for RingHashConfig {
@@ -410,6 +413,7 @@ impl Default for RingHashConfig {
         Self {
             min_ring_size: 1024,
             max_ring_size: 4096,
+            request_hash_header: String::new(),
         }
     }
 }
@@ -769,7 +773,11 @@ fn parse_lb_entry(value: &serde_json::Value) -> Result<LbPolicyConfig, Status> {
         }
         "round_robin" => Ok(LbPolicyConfig::RoundRobin),
         "weighted_round_robin" => Ok(LbPolicyConfig::WeightedRoundRobin(parse_wrr(config)?)),
-        "ring_hash" => Ok(LbPolicyConfig::RingHash(parse_ring_hash(config)?)),
+        // `ring_hash_experimental` is the A42/grpc-go/grpc-C++ spelling;
+        // it normalizes to the same config as this repo's `ring_hash`.
+        "ring_hash" | "ring_hash_experimental" => {
+            Ok(LbPolicyConfig::RingHash(parse_ring_hash(config)?))
+        }
         "priority" => Ok(LbPolicyConfig::Priority),
         other => Ok(LbPolicyConfig::Unknown(other.to_owned())),
     }
@@ -847,6 +855,22 @@ fn parse_ring_hash(value: &serde_json::Value) -> Result<RingHashConfig, Status> 
         return Err(Status::invalid_argument(
             "ring_hash requires 0 < minRingSize <= maxRingSize",
         ));
+    }
+    if let Some(v) = obj.get("requestHashHeader") {
+        let header = v.as_str().ok_or_else(|| {
+            Status::invalid_argument("ring_hash.requestHashHeader must be a string")
+        })?;
+        if http::HeaderName::from_str(header).is_err() {
+            return Err(Status::invalid_argument(
+                "ring_hash.requestHashHeader must be a valid header name",
+            ));
+        }
+        if header.to_ascii_lowercase().ends_with("-bin") {
+            return Err(Status::invalid_argument(
+                "ring_hash.requestHashHeader must not be a binary header",
+            ));
+        }
+        out.request_hash_header = header.to_owned();
     }
     Ok(out)
 }
@@ -1031,6 +1055,35 @@ mod tests {
             "errorUtilizationPenalty": -1.0
         }}]}"#;
         assert!(ServiceConfig::parse(bad).is_err());
+    }
+
+    #[test]
+    fn ring_hash_parses_header_and_alias() {
+        let doc = r#"{"loadBalancingConfig": [{"ring_hash": {
+            "minRingSize": 100, "maxRingSize": 1000,
+            "requestHashHeader": "x-session"
+        }}]}"#;
+        let config = ServiceConfig::parse(doc).unwrap();
+        let [LbPolicyConfig::RingHash(rh)] = config.lb_policies() else {
+            panic!("expected ring_hash entry");
+        };
+        assert_eq!(rh.min_ring_size, 100);
+        assert_eq!(rh.max_ring_size, 1000);
+        assert_eq!(rh.request_hash_header, "x-session");
+        // The A42 experimental spelling normalizes to the same config.
+        let alias = r#"{"loadBalancingConfig": [{"ring_hash_experimental": {}}]}"#;
+        let config = ServiceConfig::parse(alias).unwrap();
+        assert!(matches!(
+            config.lb_policies()[0],
+            LbPolicyConfig::RingHash(_)
+        ));
+        // Binary and invalid header names are rejected.
+        let bad_bin = r#"{"loadBalancingConfig": [{"ring_hash": {
+            "requestHashHeader": "x-id-bin"}}]}"#;
+        assert!(ServiceConfig::parse(bad_bin).is_err());
+        let bad_name = r#"{"loadBalancingConfig": [{"ring_hash": {
+            "requestHashHeader": "not a header"}}]}"#;
+        assert!(ServiceConfig::parse(bad_name).is_err());
     }
 
     #[test]

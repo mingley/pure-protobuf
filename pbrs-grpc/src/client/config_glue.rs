@@ -34,6 +34,21 @@ impl super::Channel {
         })
     }
 
+    /// Request hash for ring_hash picks (A76): the configured header's
+    /// value hashed, a random hash when the header is configured but
+    /// absent, or `None` when this channel runs another policy or the
+    /// policy has no hash source (picks fail then). Resolved per
+    /// acquire from the call's metadata.
+    pub(crate) fn ring_request_hash(&self, md: &crate::metadata::Metadata) -> Option<u64> {
+        let super::pool::Endpoint::Resolved { lb: Some(lb), .. } = &self.inner.endpoint else {
+            return None;
+        };
+        let crate::lb::LbPolicy::RingHash(policy) = lb else {
+            return None;
+        };
+        policy.request_hash(md)
+    }
+
     /// Record a finished unary call in the throttling bucket, if configured.
     ///
     /// Success refunds `tokenRatio`; any failure (including cancellation and
