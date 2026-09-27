@@ -73,7 +73,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A40 | CSDS support | planned | With the xDS client. |
 | A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |
 | A66 | OTel stats | shipped | Optional `otel` feature: `otel::Metrics` observer records client attempt started/duration, call duration, and server started/duration with method/target/status labels (GF-01, `tests/otel.rs`). |
-| A72 | OpenTelemetry tracing | planned | Optional OTel trace propagation + spans. |
+| A72 | OpenTelemetry tracing | partial | W3C propagation both directions (`ClientTracing` inject / `ServerTracing` extract) + server spans with safe-by-default RPC attributes (GF-02, `tests/otel_trace.rs`). Automatic client spans need a per-call client completion hook; error-path spans end without a status code (GF-02b). |
 | A78 | gRPC metrics for WRR/PF/xDS | partial | WRR hooks ship: `weights_snapshot` + `WrrStats` (accepted/ignored/rebuilds) for polling (CH-06). OTel instrument mapping rides the OTel bridge (A66); pick_first/xDS instruments with their lanes. |
 | A79 | Non-per-call metrics architecture | planned | With the OTel bridge. |
 | A80 | TCP telemetry | planned | TCP_INFO-based per-connection stats where available. |

@@ -53,6 +53,9 @@ use opentelemetry::metrics::{Counter, Histogram, Meter};
 use opentelemetry::{KeyValue, global};
 use std::sync::Arc;
 
+/// W3C propagation plus server spans (GF-02, A72).
+pub mod trace;
+
 /// Attribute keys per A66/A79/A94.
 pub mod label {
     /// Full `service/Method` name.
