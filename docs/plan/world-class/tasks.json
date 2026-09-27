@@ -5680,7 +5680,15 @@
     "C2",
     "C8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "New lb.pick_first.pick dev-loop cell measuring a ready-state pick (round_robin-equivalent passthrough path) across iters: instructions + candidate-alloc intercept + strace futex lock accounting, with repeats-median and variance notes.",
+    "Absolute budget recorded in bench/devloop/baselines/picker.json (instructions + zero-alloc/zero-lock gates); devloop-compare fails the perf lane when a pick allocates, takes a futex, or exceeds the instruction budget. Perf-lane workflow runs the picker cell.",
+    "Measured: 0 allocs, 0 futex locks per pick; instruction budget baselined from x86-64 Linux CI (macOS local runs report wall/allocs only). Other cells verified unaffected (locks correctly not_run without strace).",
+    "Cell implemented inline in bench/devloop/src/main.rs following the existing match-arm cell convention (card's cells/picker.rs path was aspirational; layout stays monolithic). CH-11 qualifies further policies against this budget."
+   ]
   },
   {
    "id": "XD-01",

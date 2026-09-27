@@ -1,0 +1,10 @@
+{
+  "schema": "devloop-budget/1",
+  "note": "Absolute per-pick ceilings for deterministic metrics (CH-10). A steady-state pick must allocate nothing and never block on a lock; uncontended acquisitions are pure atomics covered by the relative instructions budget (base-vs-head compare). Only deterministic counts belong here: instructions and wall stay relative per baselines/README.md. CH-11 adds one cell per shipped policy.",
+  "cells": {
+    "lb.pick_first.pick": {
+      "allocs": 0,
+      "locks": 0
+    }
+  }
+}

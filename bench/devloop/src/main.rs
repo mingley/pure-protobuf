@@ -117,9 +117,18 @@ struct CellResult {
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
+    /// Blocking lock waits (futex) per op. Uncontended acquisitions are
+    /// pure atomics and land in `instructions`; a hot path must never
+    /// block. Missing on reports predating the metric.
+    #[serde(default = "metric_predates_locks")]
+    locks: Metric,
     wall_ns: Metric,
     /// Relative stddev of wall time across repeats (0..1), when known.
     wall_cv: Option<f64>,
+}
+
+fn metric_predates_locks() -> Metric {
+    Metric::not_run("report predates the locks metric")
 }
 
 /// Whole-run report.
@@ -249,7 +258,7 @@ fn usage() -> String {
      \x20 devloop list\n\
      \x20 devloop run-cell <id> --iters N [--warmup N]\n\
      \x20 devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]\n\
-     \x20 devloop compare --baseline FILE [--current FILE] [--rpc]\n"
+     \x20 devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]\n"
         .to_owned()
 }
 
@@ -814,6 +823,58 @@ async fn rpc_pbrs_server_stream_compressed(iters: u64) -> u64 {
     black_box(sink)
 }
 
+fn lb_cells() -> Vec<(&'static str, &'static str)> {
+    // CH-11 adds one cell per shipped policy following
+    // `lb_pick_first_pick`; pick_first single-ready is the
+    // passthrough-equivalent hot path.
+    vec![("lb.pick_first.pick", "pbrs-grpc")]
+}
+
+/// Steady-state pick cost for one policy (CH-10 harness).
+///
+/// The policy is preloaded to its ready steady state outside the guard;
+/// the loop measures one `pick()` per op: allocations (must be zero),
+/// instructions, and blocking lock waits. A `current_thread` runtime
+/// keeps worker-park futexes out of the locks metric. CH-11 adds the
+/// remaining policies by constructing theirs here.
+async fn lb_pick_first_pick(iters: u64) -> u64 {
+    use pbrs_grpc::lb::{Pick, PickFirst};
+    use pbrs_grpc::resolver::ResolvedAddress;
+
+    let policy = PickFirst::from_config(None);
+    policy
+        .update(vec![ResolvedAddress::Tcp(
+            "127.0.0.1:50051".parse().expect("addr"),
+        )])
+        .await;
+    for _ in 0..2000 {
+        assert!(
+            matches!(policy.pick().await, Pick::Use(_)),
+            "steady pick must stay Use"
+        );
+    }
+    // Warmup absorbs tokio's lazy runtime growth (the semaphore defer
+    // queue reaches steady capacity), so the guarded loop measures the
+    // pick alone: it must allocate nothing.
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        match policy.pick().await {
+            Pick::Use(_) => sink = sink.wrapping_add(1),
+            _ => panic!("steady pick must stay Use"),
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("lb.pick_first.pick", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
 async fn rpc_tonic_unary(iters: u64, payload: &[u8]) -> u64 {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -953,6 +1014,9 @@ fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
     for (id, codec) in rpc_cells() {
         out.push((id, "rpc", codec));
     }
+    for (id, codec) in lb_cells() {
+        out.push((id, "lb", codec));
+    }
     out
 }
 
@@ -982,7 +1046,7 @@ fn run_child(
     cell: &str,
     iters: u64,
     tools: &Tools,
-) -> (ChildOutput, Option<f64>, Option<f64>) {
+) -> (ChildOutput, Option<f64>, Option<f64>, Option<f64>) {
     // Instructions wrapper preference: perf > valgrind > none.
     let wrapper: Vec<String> = if tools.perf {
         vec![
@@ -1034,8 +1098,9 @@ fn run_child(
     let instructions =
         parse_perf_instructions(&stderr).or_else(|| parse_callgrind_instructions(&stderr));
     // Syscalls need a second run under strace (perf stat -e syscalls
-    // counts entry+exit pairs inconsistently across kernels).
-    let syscalls = if tools.strace {
+    // counts entry+exit pairs inconsistently across kernels). The locks
+    // metric is parsed from the same output: no extra run.
+    let (syscalls, locks) = if tools.strace {
         let sout = std::process::Command::new("strace")
             .arg("-c")
             .arg("-f")
@@ -1047,14 +1112,15 @@ fn run_child(
             .output()
             .expect("spawn strace");
         if sout.status.success() {
-            parse_strace_total(&String::from_utf8_lossy(&sout.stderr))
+            let text = String::from_utf8_lossy(&sout.stderr);
+            (parse_strace_total(&text), Some(parse_strace_futex(&text)))
         } else {
-            None
+            (None, None)
         }
     } else {
-        None
+        (None, None)
     };
-    (child, instructions, syscalls)
+    (child, instructions, syscalls, locks)
 }
 
 /// Parse `perf stat -x,` output: `<count>,instructions,...`.
@@ -1100,6 +1166,28 @@ fn parse_strace_total(stderr: &str) -> Option<f64> {
     })
 }
 
+/// Parse blocking lock waits from `strace -c`: the `calls` column of the
+/// `futex` row plus `futex_waitv` (newer kernels split the wait family).
+/// No such row means no waits: strace has known `futex` since 2003, so a
+/// missing row is a zero, not a skip.
+fn parse_strace_futex(stderr: &str) -> f64 {
+    let mut total = 0.0;
+    for line in stderr.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(name) = parts.next_back() else {
+            continue;
+        };
+        if name == "futex" || name == "futex_waitv" {
+            let mut cols = line.split_whitespace();
+            // %time seconds usecs/call calls errors syscall
+            if let Some(calls) = cols.nth(3).and_then(|n| n.parse::<f64>().ok()) {
+                total += calls;
+            }
+        }
+    }
+    total
+}
+
 fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
     let exe = std::env::current_exe().expect("current exe");
     let tools = probe_tools();
@@ -1122,8 +1210,9 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut walls = Vec::new();
         let mut instrs = Vec::new();
         let mut syscalls = Vec::new();
+        let mut locks = Vec::new();
         for _ in 0..repeats {
-            let (child, instr, sys) = run_child(&exe, cell, cell_iters, &tools);
+            let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
             allocs.push(child.allocs as f64 / cell_iters as f64);
             alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
@@ -1134,14 +1223,18 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             if let Some(v) = sys {
                 syscalls.push(v / cell_iters as f64);
             }
+            if let Some(v) = futex {
+                locks.push(v / cell_iters as f64);
+            }
         }
         // Codec allocation counts must be bit-exact across repeats;
-        // anything else is nondeterminism in the cell, not noise. RPC
+        // anything else is nondeterminism in the cell, not noise. LB
+        // picks are pure in-memory decisions with the same bar. RPC
         // cells legitimately jitter by ~1 allocation (ephemeral port
         // digits, hash seeds), so they report the median instead.
         let alloc_exact = allocs.windows(2).all(|w| w[0] == w[1]);
         let bytes_exact = alloc_bytes.windows(2).all(|w| w[0] == w[1]);
-        if kind == &"codec" {
+        if kind == &"codec" || kind == &"lb" {
             assert!(
                 alloc_exact && bytes_exact,
                 "cell {cell} allocations vary across repeats: {allocs:?} / {alloc_bytes:?}"
@@ -1149,7 +1242,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         } else if !(alloc_exact && bytes_exact) {
             eprintln!("note: cell {cell} allocs vary across repeats, using median");
         }
-        let (alloc_metric, bytes_metric) = if kind == &"codec" {
+        let (alloc_metric, bytes_metric) = if kind == &"codec" || kind == &"lb" {
             (
                 Metric::measured(allocs[0], "heap allocs per op (exact)"),
                 Metric::measured(alloc_bytes[0], "heap bytes per op (exact)"),
@@ -1177,6 +1270,11 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                 Metric::not_run("no strace on PATH")
             } else {
                 Metric::measured(median(syscalls), "syscalls per op")
+            },
+            locks: if locks.is_empty() {
+                Metric::not_run("no strace on PATH")
+            } else {
+                Metric::measured(median(locks), "blocking lock waits per op (futex)")
             },
             wall_ns: Metric::measured(median(walls.clone()), "ns per op (secondary)"),
             wall_cv: wall_cv(&walls),
@@ -1218,6 +1316,7 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             ("allocs", &old.allocs, &cell.allocs, true),
             ("alloc_bytes", &old.alloc_bytes, &cell.alloc_bytes, true),
             ("syscalls", &old.syscalls, &cell.syscalls, true),
+            ("locks", &old.locks, &cell.locks, true),
         ] {
             let (Some(o), Some(n)) = (metric_value(o), metric_value(n)) else {
                 continue;
@@ -1292,6 +1391,18 @@ fn cmd_run_cell(args: &[String]) {
     let id = id.expect("run-cell <id>");
     if id.starts_with("codec.") {
         run_codec_cell(&id, iters, warmup);
+    } else if id.starts_with("lb.") {
+        // Single-threaded: worker parking would pollute the locks metric.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            match id.as_str() {
+                "lb.pick_first.pick" => lb_pick_first_pick(iters).await,
+                _ => panic!("unknown lb cell {id}"),
+            }
+        });
     } else if id.starts_with("rpc.") {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -1362,6 +1473,7 @@ fn cmd_run(args: &[String]) {
 fn cmd_compare(args: &[String]) {
     let mut baseline: Option<String> = None;
     let mut current: Option<String> = None;
+    let mut budget: Option<String> = None;
     let mut rpc = false;
     let mut i = 0;
     while i < args.len() {
@@ -1372,6 +1484,10 @@ fn cmd_compare(args: &[String]) {
             }
             "--current" => {
                 current = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--budget" => {
+                budget = Some(args[i + 1].clone());
                 i += 2;
             }
             "--rpc" => {
@@ -1393,9 +1509,63 @@ fn cmd_compare(args: &[String]) {
             serde_json::from_str(&stdin).expect("parse stdin")
         }
     };
-    if !compare_reports(&base, &current, rpc) {
+    let mut ok = compare_reports(&base, &current, rpc);
+    if let Some(path) = budget {
+        ok &= check_budgets(&path, &current);
+    }
+    if !ok {
         std::process::exit(1);
     }
+}
+
+/// Absolute per-cell budgets for deterministic metrics (CH-10).
+///
+/// Unlike base-vs-head comparison, budgets pin exact ceilings that hold
+/// on every host: allocations and blocking lock waits per op. Only
+/// deterministic counts belong here; instructions and wall stay relative
+/// (see `baselines/README.md`). `not_run` metrics skip, per policy.
+#[derive(Debug, serde::Deserialize)]
+struct BudgetFile {
+    schema: String,
+    cells: std::collections::HashMap<String, CellBudget>,
+}
+
+/// Ceilings per metric; absent entries are unbudgeted.
+#[derive(Debug, serde::Deserialize)]
+struct CellBudget {
+    #[serde(default)]
+    allocs: Option<f64>,
+    #[serde(default)]
+    locks: Option<f64>,
+}
+
+fn check_budgets(path: &str, current: &Report) -> bool {
+    let file: BudgetFile =
+        serde_json::from_str(&std::fs::read_to_string(path).expect("read budget"))
+            .expect("parse budget");
+    assert_eq!(file.schema, "devloop-budget/1", "budget schema mismatch");
+    let mut ok = true;
+    for cell in &current.cells {
+        let Some(budget) = file.cells.get(&cell.id) else {
+            continue;
+        };
+        for (name, metric, ceiling) in [
+            ("allocs", &cell.allocs, budget.allocs),
+            ("locks", &cell.locks, budget.locks),
+        ] {
+            let (Some(value), Some(ceiling)) = (metric_value(metric), ceiling) else {
+                continue;
+            };
+            if value > ceiling {
+                println!(
+                    "{} {name}: BUDGET EXCEEDED {value:.1} > {ceiling:.1}",
+                    cell.id,
+                );
+                ok = false;
+            }
+        }
+    }
+    ok
 }
 
 fn main() {

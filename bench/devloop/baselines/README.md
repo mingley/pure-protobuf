@@ -22,6 +22,17 @@ recorded inside the JSON (`host` block). Compare locally with:
 scripts/devloop.sh --baseline bench/devloop/baselines/<file>.json --out /tmp/now.json
 ```
 
+## Absolute budgets (CH-10)
+
+The one exception to "no committed numbers": `picker.json` pins absolute
+ceilings for metrics that are exact counts, identical on every host and
+toolchain — heap allocations and blocking lock waits per pick. A steady
+pick must do zero of both. Instructions and wall stay out: they are
+host-specific and gated relatively (base-vs-head). `compare --budget`
+checks the current report against these ceilings and fails on violation;
+`not_run` metrics skip, per policy. The perf lane passes this file on
+every run (see `.github/workflows/perf.yml`).
+
 ## Minimal example cell
 
 ```json

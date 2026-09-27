@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           BIN="bench/devloop/target/release/devloop"
           set +e
-          "$BIN" compare --baseline base.json --current head.json > compare.txt 2>&1
+          "$BIN" compare --baseline base.json --current head.json --budget bench/devloop/baselines/picker.json > compare.txt 2>&1
           COMPARE_EXIT=$?
           set -e
           echo "compare exit: $COMPARE_EXIT (non-blocking)"

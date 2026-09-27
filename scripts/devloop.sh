@@ -39,7 +39,11 @@ if [ -n "$BASELINE" ]; then
   TMP="$(mktemp -t devloop.XXXXXX.json)"
   trap 'rm -f "$TMP"' EXIT
   "$BIN" "${ARGS[@]}" --out "$TMP"
-  "$BIN" compare --baseline "$BASELINE" --current "$TMP"
+  BUDGET_ARGS=()
+  if [ -f bench/devloop/baselines/picker.json ]; then
+    BUDGET_ARGS=(--budget bench/devloop/baselines/picker.json)
+  fi
+  "$BIN" compare --baseline "$BASELINE" --current "$TMP" "${BUDGET_ARGS[@]}"
   if [ -n "$OUT" ]; then cp "$TMP" "$OUT"; fi
 else
   if [ -n "$OUT" ]; then ARGS+=(--out "$OUT"); fi
