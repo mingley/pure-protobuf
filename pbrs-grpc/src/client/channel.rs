@@ -892,6 +892,7 @@ impl super::Channel {
             pool::empty_slots(config.connection_count()),
             None,
             SharedServiceConfig::default(),
+            None,
         ))
     }
 
@@ -1066,6 +1067,7 @@ impl super::Channel {
             pool::live_slots(vec![send]),
             None,
             SharedServiceConfig::default(),
+            None,
         ))
     }
 

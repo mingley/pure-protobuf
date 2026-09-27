@@ -613,8 +613,8 @@ impl super::Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, r#gen, lease, driver) =
-                        (live.slot, live.r#gen, live.lease, live.driver);
+                    let (slot, r#gen, lease, driver, rr_addr) =
+                        (live.slot, live.r#gen, live.lease, live.driver, live.rr_addr);
                     let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -697,7 +697,10 @@ impl super::Channel {
                             retried = true;
                             channel.retry_stats.record_transparent_retry();
                             attempt_guard.finish(&status);
-                            channel.inner.discard(slot, r#gen).await;
+                            channel
+                                .inner
+                                .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                .await;
                             attempt_idx += 1;
                         }
                         Err(status) => {
@@ -730,7 +733,10 @@ impl super::Channel {
                                         channel.retry_stats.record_per_attempt_timeout();
                                     }
                                     if status.is_transport() {
-                                        channel.inner.discard(slot, r#gen).await;
+                                        channel
+                                            .inner
+                                            .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                            .await;
                                     }
                                     attempt_guard.finish(&status);
                                     let slept = first_of(
@@ -776,7 +782,10 @@ impl super::Channel {
                                 }
                             }
                             if status.is_transport() {
-                                channel.inner.discard(slot, r#gen).await;
+                                channel
+                                    .inner
+                                    .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                    .await;
                             }
                             if *cancel_rx.borrow() {
                                 attempt_guard.cancel(CancellationReason::CallerCancelled);

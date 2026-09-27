@@ -232,7 +232,7 @@ impl PickFirst {
         }
         if usize::try_from(state.consecutive_failures).unwrap_or(usize::MAX) >= n {
             // Exhausted: back off, then restart from the front.
-            let delay = backoff_for(state.backoff_rounds);
+            let delay = transient_backoff(state.backoff_rounds);
             state.backoff_rounds = state.backoff_rounds.saturating_add(1);
             state.backoff_until = Some(tokio::time::Instant::now() + delay);
             state.consecutive_failures = 0;
@@ -253,7 +253,8 @@ impl PickFirst {
 }
 
 /// Backoff for an exhausted round: 1s × 1.6^rounds ± 20%, capped.
-fn backoff_for(rounds: u32) -> Duration {
+/// Shared with round_robin per-address backoff.
+pub(crate) fn transient_backoff(rounds: u32) -> Duration {
     let scaled = BACKOFF_BASE.as_secs_f64()
         * BACKOFF_MULTIPLIER.powi(i32::try_from(rounds.min(16)).unwrap_or(16));
     let capped = scaled.min(BACKOFF_MAX.as_secs_f64());
@@ -382,7 +383,7 @@ pub(crate) fn ensure_registered() {
 
 #[cfg(test)]
 mod tests {
-    use super::{Pick, PickFirst, backoff_for};
+    use super::{Pick, PickFirst, transient_backoff};
     use crate::resolver::ResolvedAddress;
     use std::time::Duration;
 
@@ -499,9 +500,9 @@ mod tests {
 
     #[test]
     fn backoff_grows_and_caps() {
-        let first = backoff_for(0);
+        let first = transient_backoff(0);
         assert!(first >= Duration::from_millis(800) && first <= Duration::from_millis(1200));
-        let later = backoff_for(100);
+        let later = transient_backoff(100);
         assert!(later <= Duration::from_secs(120));
         assert!(later >= Duration::from_secs(90));
     }

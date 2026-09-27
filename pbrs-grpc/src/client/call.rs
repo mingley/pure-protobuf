@@ -410,7 +410,8 @@ impl super::Channel {
         loop {
             let _ = remaining_timeout(deadline)?;
             let live = self.grab(cancel_rx.clone(), deadline, wait).await?;
-            let (slot, r#gen, lease, driver) = (live.slot, live.r#gen, live.lease, live.driver);
+            let (slot, r#gen, lease, driver, rr_addr) =
+                (live.slot, live.r#gen, live.lease, live.driver, live.rr_addr);
             match open(
                 live.send,
                 &self.authority,
@@ -440,11 +441,11 @@ impl super::Channel {
                         && self.inner.endpoint.can_redial() =>
                 {
                     retried = true;
-                    self.inner.discard(slot, r#gen).await;
+                    self.inner.discard_conn(slot, r#gen, rr_addr.as_ref()).await;
                 }
                 Err(status) => {
                     if status.is_transport() {
-                        self.inner.discard(slot, r#gen).await;
+                        self.inner.discard_conn(slot, r#gen, rr_addr.as_ref()).await;
                     }
                     return Err(status);
                 }

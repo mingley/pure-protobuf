@@ -3,7 +3,10 @@
 use super::retry::RetryStatsRecorder;
 use super::{Channel, Target};
 use crate::config::ChannelConfig;
-use crate::lb::{Pick, PickFirst, ensure_registered, select_lb_policy};
+use crate::lb::{
+    LbPolicy, Pick, PickFirst, RoundRobin, ensure_pick_first_registered,
+    ensure_round_robin_registered, select_lb_policy,
+};
 use crate::limits::ByteBudgetTracker;
 use crate::resolver::{
     Resolution, ResolvedAddress, ResolverConfig, ResolverHandle, ResolverTask, parse_target_uri,
@@ -16,6 +19,7 @@ use crate::telemetry::{LifecycleObserver, ReconnectEvent};
 use crate::tls::ClientTls;
 use bytes::Bytes;
 use http::uri::Authority;
+use std::collections::HashMap;
 use std::future::Future;
 #[cfg(unix)]
 use std::path::{Path, PathBuf};
@@ -64,6 +68,25 @@ pub(crate) struct LiveConn {
     pub(crate) driver: Option<watch::Sender<bool>>,
     pub(crate) slot: usize,
     pub(crate) r#gen: u64,
+    /// round_robin subchannel address; `None` uses `slot`/`gen` in
+    /// [`ChannelInner::slots`], `Some` discards by address in the
+    /// round_robin table.
+    pub(crate) rr_addr: Option<ResolvedAddress>,
+}
+
+/// One subchannel per round_robin address, grown and shrunk with the
+/// resolver list. Entries are never reindexed, so an in-flight
+/// [`LiveConn`] keeps its address identity across churn.
+pub(crate) struct RrTable {
+    conns: Mutex<HashMap<ResolvedAddress, Arc<Mutex<ConnSlot>>>>,
+}
+
+impl RrTable {
+    fn new() -> Self {
+        Self {
+            conns: Mutex::new(HashMap::new()),
+        }
+    }
 }
 
 /// Backoff between wait-for-ready handshake attempts, in milliseconds.
@@ -78,6 +101,9 @@ pub(crate) struct ChannelInner {
     #[allow(dead_code, reason = "task guard until CH-03 wires subchannels")]
     pub(crate) resolver: Option<ResolverHandle>,
     pub(crate) tls: Option<ClientTls>,
+    /// Per-address subchannels for round_robin; `None` on direct and
+    /// pick_first channels, which use [`Self::slots`].
+    pub(crate) rr: Option<Arc<RrTable>>,
     /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
     /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
     /// stream_buffer, max_send_buffer_size, https_scheme, origin) do not change
@@ -101,9 +127,9 @@ pub(crate) enum Endpoint {
     Resolved {
         display: String,
         current: watch::Receiver<Arc<Resolution>>,
-        /// pick_first driver; `None` dials the first snapshot address
+        /// LB driver; `None` dials the first snapshot address
         /// (a selected policy with no runtime yet).
-        lb: Option<Arc<PickFirst>>,
+        lb: Option<LbPolicy>,
     },
 }
 
@@ -143,6 +169,7 @@ pub(crate) async fn connect_inner(
         live_slots(sends),
         None,
         SharedServiceConfig::default(),
+        None,
     ))
 }
 
@@ -161,6 +188,7 @@ pub(crate) fn connect_lazy_inner(
         empty_slots(config.connection_count()),
         None,
         SharedServiceConfig::default(),
+        None,
     ))
 }
 
@@ -183,6 +211,7 @@ pub(crate) async fn connect_unix_inner(
         live_slots(sends),
         None,
         SharedServiceConfig::default(),
+        None,
     ))
 }
 
@@ -222,7 +251,8 @@ pub(crate) async fn connect_uri_inner(
     }
     // Effective LB policy: explicit selection wins, else pick_first
     // is the default. Anything selected but unrunnable fails fast.
-    ensure_registered();
+    ensure_pick_first_registered();
+    ensure_round_robin_registered();
     let doc = shared.get();
     let lb = match doc.as_ref().and_then(|state| {
         if state.config.lb_policies().is_empty() {
@@ -231,9 +261,12 @@ pub(crate) async fn connect_uri_inner(
             Some(select_lb_policy(&state.config))
         }
     }) {
-        Some(Some(selected)) if selected.name == "pick_first" => Some(PickFirst::from_config(
-            doc.as_ref().map(|state| &state.config),
+        Some(Some(selected)) if selected.name == "pick_first" => Some(LbPolicy::PickFirst(
+            PickFirst::from_config(doc.as_ref().map(|state| &state.config)),
         )),
+        Some(Some(selected)) if selected.name == "round_robin" => {
+            Some(LbPolicy::RoundRobin(RoundRobin::new()))
+        }
         Some(Some(selected)) => {
             return Err(Status::invalid_argument(format!(
                 "loadBalancingConfig selected {:?}, which has no runtime in this build",
@@ -245,14 +278,16 @@ pub(crate) async fn connect_uri_inner(
                 "loadBalancingConfig lists no registered policy",
             ));
         }
-        None => Some(PickFirst::from_config(None)),
+        None => Some(LbPolicy::PickFirst(PickFirst::from_config(None))),
     };
+    let rr = matches!(lb, Some(LbPolicy::RoundRobin(_))).then(|| Arc::new(RrTable::new()));
     let initial_addrs = built.initial.addresses().to_vec();
     let mut handle = built.into_handle();
-    if let Some(policy) = lb.as_ref() {
+    if let Some(policy) = lb.clone() {
         policy.update(initial_addrs).await;
         let watch = handle.watch.clone();
-        let worker = Arc::clone(policy);
+        let age_grace = config.age_grace();
+        let table = rr.clone();
         handle.guard(ResolverTask::new(tokio::spawn(async move {
             let mut rx = watch;
             loop {
@@ -260,7 +295,11 @@ pub(crate) async fn connect_uri_inner(
                     return;
                 }
                 let snapshot = rx.borrow_and_update().clone();
-                worker.update(snapshot.addresses().to_vec()).await;
+                let addrs = snapshot.addresses().to_vec();
+                policy.update(addrs.clone()).await;
+                if let Some(table) = table.as_ref() {
+                    reconcile_rr(table, &addrs, age_grace).await;
+                }
             }
         })));
     }
@@ -283,6 +322,7 @@ pub(crate) async fn connect_uri_inner(
         empty_slots(config.connection_count()),
         Some(handle),
         shared,
+        rr,
     ))
 }
 
@@ -311,6 +351,10 @@ async fn adopt_loop(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "channel assembly: endpoint, authority, config, tls, slots, resolver, service config, rr table"
+)]
 pub(crate) fn finish_channel(
     endpoint: Endpoint,
     authority: Authority,
@@ -319,6 +363,7 @@ pub(crate) fn finish_channel(
     slots: Vec<Mutex<ConnSlot>>,
     resolver: Option<ResolverHandle>,
     service_config: SharedServiceConfig,
+    rr: Option<Arc<RrTable>>,
 ) -> Channel {
     let https = tls.is_some();
     let inner = Arc::new(ChannelInner {
@@ -327,6 +372,7 @@ pub(crate) fn finish_channel(
         endpoint,
         resolver,
         tls,
+        rr,
         dial: config,
     });
     for i in 0..inner.slots.len() {
@@ -431,7 +477,14 @@ impl ChannelInner {
             lb: Some(policy), ..
         } = &self.endpoint
         {
-            return self.acquire_lb(policy, wait_for_ready, observer).await;
+            match policy {
+                LbPolicy::PickFirst(pick) => {
+                    return self.acquire_lb(pick, wait_for_ready, observer).await;
+                }
+                LbPolicy::RoundRobin(rr) => {
+                    return self.acquire_rr(rr, wait_for_ready, observer).await;
+                }
+            }
         }
         let i = self.pick()?;
         let mut attempt = 0usize;
@@ -449,6 +502,7 @@ impl ChannelInner {
                         driver,
                         slot: i,
                         r#gen,
+                        rr_addr: None,
                     });
                 }
             }
@@ -484,6 +538,7 @@ impl ChannelInner {
                             driver,
                             slot: i,
                             r#gen,
+                            rr_addr: None,
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -578,6 +633,7 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
+                            rr_addr: None,
                         });
                     }
                 }
@@ -632,12 +688,153 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
+                            rr_addr: None,
                         });
                     }
                     dialed.stop.send(true).ok();
                 }
                 Err(status) => {
                     policy.note_round_failed(tried, status.clone()).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: Some(status.code()),
+                            });
+                        }
+                    }
+                    if wait_for_ready {
+                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                            .get(attempt)
+                            .copied()
+                            .unwrap_or(1000);
+                        attempt = attempt.saturating_add(1);
+                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    } else {
+                        return Err(status);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Acquire through round_robin: rotate over ready addresses, one
+    /// subchannel each. A live connection to the picked address is
+    /// reused; otherwise the address alone is dialed (no cross-address
+    /// race: the policy already chose) and stored in its table entry.
+    /// Failed dials mark the address down with backoff; removed
+    /// addresses drain via [`reconcile_rr`]. Raced against the RPC
+    /// deadline by the caller, like [`Self::acquire`].
+    async fn acquire_rr(
+        self: &Arc<Self>,
+        policy: &RoundRobin,
+        wait_for_ready: bool,
+        observer: Option<&dyn LifecycleObserver>,
+    ) -> Result<LiveConn, Status> {
+        let display = self.endpoint.describe();
+        let Some(table) = self.rr.clone() else {
+            return Err(Status::unavailable(format!(
+                "resolve {display}: no round_robin table"
+            )));
+        };
+        let mut updates = policy.watch();
+        let mut attempt = 0usize;
+        loop {
+            let addr = match policy.pick().await {
+                Pick::Use(addr) => addr,
+                Pick::Wait => {
+                    if !wait_for_ready {
+                        return Err(Status::unavailable(format!(
+                            "resolve {display}: no ready address"
+                        )));
+                    }
+                    updates.changed().await.ok();
+                    continue;
+                }
+                Pick::Fail(status) => {
+                    if !wait_for_ready {
+                        return Err(status);
+                    }
+                    // Backoff expiry bumps nothing, so re-poll as well
+                    // as watching for policy movement.
+                    tokio::select! {
+                        _ = updates.changed() => {}
+                        () = tokio::time::sleep(Duration::from_millis(20)) => {}
+                    }
+                    continue;
+                }
+            };
+            let entry = {
+                let mut conns = table.conns.lock().await;
+                Arc::clone(conns.entry(addr.clone()).or_insert_with(|| {
+                    Arc::new(Mutex::new(ConnSlot {
+                        r#gen: 0,
+                        send: None,
+                        stop: None,
+                        busy: None,
+                        address: Some(addr.clone()),
+                    }))
+                }))
+            };
+            let (handle, lease, r#gen, driver) = {
+                let slot = entry.lock().await;
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.r#gen, slot.stop.clone())
+            };
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    return Ok(LiveConn {
+                        send: ready,
+                        lease,
+                        driver,
+                        slot: 0,
+                        r#gen,
+                        rr_addr: Some(addr),
+                    });
+                }
+            }
+            drop(lease);
+            let dial_start = tokio::time::Instant::now();
+            match dial_racing(&display, vec![addr.clone()], self.dial, self.tls.as_ref()).await {
+                Ok((_, dialed)) => {
+                    policy.note_success(&addr).await;
+                    if let Some(obs) = observer {
+                        if r#gen > 0 || attempt > 0 {
+                            let attempt_u32 =
+                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                            obs.on_reconnect(&ReconnectEvent {
+                                target: &display,
+                                attempt: attempt_u32,
+                                duration: dial_start.elapsed(),
+                                status: None,
+                            });
+                        }
+                    }
+                    let mut slot = entry.lock().await;
+                    if slot.r#gen == r#gen {
+                        let send = store_dialed(&mut slot, dialed);
+                        slot.busy.get_or_insert_with(crate::keepalive::Busy::new);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
+                        let r#gen = slot.r#gen;
+                        drop(slot);
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            driver,
+                            slot: 0,
+                            r#gen,
+                            rr_addr: Some(addr),
+                        });
+                    }
+                    dialed.stop.send(true).ok();
+                }
+                Err(status) => {
+                    policy.note_failure(&addr, status.clone()).await;
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
                             let attempt_u32 =
@@ -684,6 +881,71 @@ impl ChannelInner {
             stop.send(true).ok();
         }
         slot.r#gen = slot.r#gen.wrapping_add(1);
+    }
+
+    /// Discard a connection handed out as [`LiveConn`]: by
+    /// round_robin address when `rr_addr` is set, else by pool slot.
+    pub(crate) async fn discard_conn(
+        &self,
+        slot: usize,
+        r#gen: u64,
+        rr_addr: Option<&ResolvedAddress>,
+    ) {
+        if let Some(addr) = rr_addr {
+            self.discard_rr(addr, r#gen).await;
+        } else {
+            self.discard(slot, r#gen).await;
+        }
+    }
+
+    /// Drop a dead round_robin subchannel generation by address, so
+    /// the next acquire redials it. Same generation guard as
+    /// [`Self::discard`]; unknown addresses are already gone.
+    pub(crate) async fn discard_rr(&self, addr: &ResolvedAddress, r#gen: u64) {
+        let Some(table) = self.rr.as_ref() else {
+            return;
+        };
+        let entry = table.conns.lock().await.get(addr).cloned();
+        let Some(entry) = entry else {
+            return;
+        };
+        let mut slot = entry.lock().await;
+        if slot.r#gen != r#gen {
+            return;
+        }
+        slot.send = None;
+        slot.busy = None;
+        if let Some(stop) = slot.stop.take() {
+            stop.send(true).ok();
+        }
+        slot.r#gen = slot.r#gen.wrapping_add(1);
+    }
+}
+
+/// Drop round_robin subchannels for removed addresses. Live
+/// connections drain gracefully within `grace`; in-flight streams
+/// are never migrated. New addresses connect lazily on first pick.
+async fn reconcile_rr(table: &RrTable, addrs: &[ResolvedAddress], grace: Duration) {
+    let removed: Vec<Arc<Mutex<ConnSlot>>> = {
+        let mut conns = table.conns.lock().await;
+        let gone: Vec<ResolvedAddress> = conns
+            .keys()
+            .filter(|addr| !addrs.contains(addr))
+            .cloned()
+            .collect();
+        gone.into_iter()
+            .filter_map(|addr| conns.remove(&addr))
+            .collect()
+    };
+    for entry in removed {
+        let mut slot = entry.lock().await;
+        if let Some(stop) = slot.stop.take() {
+            let busy = slot.busy.take();
+            slot.send = None;
+            slot.r#gen = slot.r#gen.wrapping_add(1);
+            drop(slot);
+            spawn_handoff_drain(Displaced { stop, busy }, grace);
+        }
     }
 }
 
@@ -1149,4 +1411,77 @@ pub(crate) fn attach_conn<T>(
             .bind_conn(lease, driver, reset)
             .bind_rpc_slot(rpc_slot)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConnSlot, RrTable, reconcile_rr};
+    use crate::resolver::ResolvedAddress;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    fn tcp(n: u8) -> ResolvedAddress {
+        ResolvedAddress::Tcp(format!("10.0.0.{n}:80").parse().expect("addr"))
+    }
+
+    #[tokio::test]
+    async fn reconcile_drops_removed_and_stops_live_conns() {
+        let table = RrTable::new();
+        let (stop_tx, mut stop_rx) = tokio::sync::watch::channel(false);
+        {
+            let mut conns = table.conns.lock().await;
+            conns.insert(
+                tcp(1),
+                Arc::new(tokio::sync::Mutex::new(ConnSlot {
+                    r#gen: 3,
+                    send: None,
+                    stop: Some(stop_tx),
+                    busy: None,
+                    address: Some(tcp(1)),
+                })),
+            );
+            conns.insert(
+                tcp(2),
+                Arc::new(tokio::sync::Mutex::new(ConnSlot {
+                    r#gen: 0,
+                    send: None,
+                    stop: None,
+                    busy: None,
+                    address: Some(tcp(2)),
+                })),
+            );
+        }
+        reconcile_rr(&table, &[tcp(2)], Duration::from_millis(1)).await;
+        // Removed entry is gone; the survivor is untouched.
+        let conns = table.conns.lock().await;
+        assert!(!conns.contains_key(&tcp(1)));
+        assert!(conns.contains_key(&tcp(2)));
+        drop(conns);
+        // The live connection's driver was stopped: no leak.
+        tokio::time::timeout(Duration::from_secs(5), stop_rx.changed())
+            .await
+            .expect("stop arrives")
+            .expect("sender alive");
+        assert!(*stop_rx.borrow());
+    }
+
+    #[tokio::test]
+    async fn reconcile_ignores_never_connected_entries() {
+        let table = RrTable::new();
+        {
+            let mut conns = table.conns.lock().await;
+            conns.insert(
+                tcp(9),
+                Arc::new(tokio::sync::Mutex::new(ConnSlot {
+                    r#gen: 0,
+                    send: None,
+                    stop: None,
+                    busy: None,
+                    address: Some(tcp(9)),
+                })),
+            );
+        }
+        reconcile_rr(&table, &[], Duration::from_millis(1)).await;
+        assert!(table.conns.lock().await.is_empty());
+    }
 }

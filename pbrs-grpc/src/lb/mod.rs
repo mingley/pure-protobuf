@@ -5,8 +5,9 @@
 //! parsed document's `loadBalancingConfig` in preference order and
 //! returns the first entry whose policy is registered. Unknown or
 //! unregistered names are skipped, never fatal: an empty selection
-//! means no listed policy is available. Concrete policies
-//! (`pick_first`, `round_robin`, …) register in CH-04+.
+//! means no listed policy is available. Concrete policies ship per
+//! card: `pick_first` (FL-03/CH-04), `round_robin` (FL-04); WRR,
+//! ring hash, and the rest register as they land.
 
 #![allow(
     clippy::disallowed_types,
@@ -18,12 +19,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 mod pick_first;
+mod round_robin;
 
-pub(crate) use pick_first::ensure_registered;
+pub(crate) use pick_first::ensure_registered as ensure_pick_first_registered;
 pub use pick_first::{Pick, PickFirst, PickFirstFactory, WeightedAddress};
+pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
+pub use round_robin::{RoundRobin, RoundRobinFactory};
 
-/// Builds one LB policy's runtime from its parsed config. CH-03 needs
-/// only the name for selection; policy runtimes arrive with CH-04+.
+/// Builds one LB policy's runtime from its parsed config. Only the
+/// name is needed for selection; runtimes live behind [`LbPolicy`].
 pub trait LbPolicyFactory: Send + Sync + 'static {
     /// Policy name as it appears in `loadBalancingConfig`
     /// (`pick_first`, `round_robin`, …).
@@ -37,6 +41,37 @@ pub struct SelectedPolicy {
     pub name: String,
     /// The winning `loadBalancingConfig` entry.
     pub policy: LbPolicyConfig,
+}
+
+/// A running LB policy on a resolver-managed channel. Variants grow
+/// as policies land (WRR, ring hash, …); the pool dispatches acquire
+/// per variant because connection shapes differ (one sticky slot
+/// versus one subchannel per address).
+#[derive(Clone, Debug)]
+pub enum LbPolicy {
+    /// One sticky connection with ordered failover.
+    PickFirst(std::sync::Arc<PickFirst>),
+    /// Rotation over ready endpoints.
+    RoundRobin(std::sync::Arc<RoundRobin>),
+}
+
+impl LbPolicy {
+    /// Reconcile a new address list.
+    pub async fn update(&self, addresses: Vec<crate::resolver::ResolvedAddress>) {
+        match self {
+            Self::PickFirst(policy) => policy.update(addresses).await,
+            Self::RoundRobin(policy) => policy.update(addresses).await,
+        }
+    }
+
+    /// Movement notifications: list updates and failures.
+    #[must_use]
+    pub fn watch(&self) -> tokio::sync::watch::Receiver<u64> {
+        match self {
+            Self::PickFirst(policy) => policy.watch(),
+            Self::RoundRobin(policy) => policy.watch(),
+        }
+    }
 }
 
 fn registry() -> &'static Mutex<HashMap<String, Arc<dyn LbPolicyFactory>>> {

@@ -310,7 +310,7 @@ where
                 }
                 Err(status) => break Err(status),
             };
-            let (slot, r#gen) = (live.slot, live.r#gen);
+            let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
             let byte_permit = match channel.byte_budget.acquire(frame.len()) {
                 Ok(permit) => permit,
                 Err(status) => break Err(status),
@@ -343,12 +343,18 @@ where
                 {
                     redialed = true;
                     channel.retry_stats.record_transparent_retry();
-                    channel.inner.discard(slot, r#gen).await;
+                    channel
+                        .inner
+                        .discard_conn(slot, r#gen, rr_addr.as_ref())
+                        .await;
                 }
                 result => {
                     if let Err(status) = &result {
                         if status.is_transport() {
-                            channel.inner.discard(slot, r#gen).await;
+                            channel
+                                .inner
+                                .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                .await;
                         }
                     }
                     break result;

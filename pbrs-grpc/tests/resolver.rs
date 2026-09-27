@@ -22,7 +22,7 @@ use common::{Echo, ServerGuard, greeter_client, reply, req};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::lb::PickFirst;
 use pbrs_grpc::resolver::{
-    BuiltResolver, DnsConfig, DnsLookup, Resolution, ResolvedAddress, ResolverConfig,
+    BuiltResolver, DnsConfig, DnsLookup, Resolution, ResolvedAddress, ResolverConfig, TxtLookup,
     parse_target_uri, resolver_for,
 };
 use pbrs_grpc::{Channel, ClientTls, Code, Request, Response, ServerTls, Status, Streaming};
@@ -1089,4 +1089,166 @@ async fn tls_failover_keeps_identity() {
     // already serves, and the winning dial verified the configured
     // TLS name rather than the dead IP.
     assert_eq!(say_hello(channel).await, "ada");
+}
+
+/// One TXT document, served on every fetch.
+struct FixedTxt(&'static str);
+
+impl TxtLookup for FixedTxt {
+    fn fetch_txt(
+        &self,
+        _name: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, io::Error>> + Send + '_>> {
+        let doc = self.0.to_owned();
+        Box::pin(async move { Ok(vec![doc]) })
+    }
+}
+
+const RR_DOC: &str = r#"{"loadBalancingConfig": [{"round_robin": {}}]}"#;
+
+/// A round_robin channel over scripted DNS answers plus a TXT service
+/// config selecting `round_robin`.
+async fn rr_channel_with(dns: Arc<dyn DnsLookup>, host: &str) -> Channel {
+    let txt = Arc::new(FixedTxt(RR_DOC));
+    let config = ResolverConfig::with_dns_provider(fast_bounds(), dns).with_txt_provider(txt);
+    Channel::connect_uri(&format!("dns:///{host}:443"), config)
+        .await
+        .expect("channel")
+}
+
+async fn unary_tag(client: &GreeterClient) -> String {
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary")
+        .into_inner()
+        .message()
+        .to_string()
+}
+
+#[tokio::test]
+async fn round_robin_distributes_evenly() {
+    let (addr_a, unaries_a, _guard_a) = serve_named("A").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let (addr_c, unaries_c, _guard_c) = serve_named("C").await;
+    let dns = Arc::new(FixedAddrs(vec![addr_a, addr_b, addr_c]));
+    let channel = rr_channel_with(dns, "rr.invalid").await;
+    let client = GreeterClient::new(channel);
+
+    // Strict rotation: exact order, then exact thirds over 60 RPCs.
+    let mut tags = Vec::new();
+    for _ in 0..6 {
+        tags.push(unary_tag(&client).await);
+    }
+    assert_eq!(
+        tags,
+        vec!["A:ada", "B:ada", "C:ada", "A:ada", "B:ada", "C:ada"]
+    );
+    for _ in 0..54 {
+        unary_tag(&client).await;
+    }
+    assert_eq!(unaries_a.load(Ordering::SeqCst), 20);
+    assert_eq!(unaries_b.load(Ordering::SeqCst), 20);
+    assert_eq!(unaries_c.load(Ordering::SeqCst), 20);
+}
+
+#[tokio::test]
+async fn round_robin_skips_dead_backend() {
+    let (closed, listener) = bind().await;
+    drop(listener);
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let (addr_c, unaries_c, _guard_c) = serve_named("C").await;
+    let dns = Arc::new(FixedAddrs(vec![closed, addr_b, addr_c]));
+    let channel = rr_channel_with(dns, "rr.invalid").await;
+    let client = GreeterClient::new(channel);
+
+    // Fail-fast: the first rotation hits the dead port and errors
+    // once; afterwards the survivors split evenly.
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("first rotation hits the dead port");
+    assert_eq!(err.code(), Code::Unavailable);
+    for _ in 0..40 {
+        let tag = unary_tag(&client).await;
+        assert!(tag == "B:ada" || tag == "C:ada", "no stale route: {tag}");
+    }
+    assert_eq!(unaries_b.load(Ordering::SeqCst), 20);
+    assert_eq!(unaries_c.load(Ordering::SeqCst), 20);
+}
+
+#[tokio::test]
+async fn round_robin_churn_removes_and_recovers() {
+    let (addr_a, unaries_a, _guard_a) = serve_named("A").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
+    let dns = Arc::new(SwitchA {
+        steps: tokio::sync::Mutex::new(vec![
+            vec![addr_a, addr_b],
+            vec![addr_b],
+            vec![addr_a, addr_b],
+        ]),
+    });
+    let channel = rr_channel_with(dns, "rr.invalid").await;
+    let client = GreeterClient::new(channel);
+
+    // Phase 1: both serve in rotation.
+    let mut tags = Vec::new();
+    for _ in 0..4 {
+        tags.push(unary_tag(&client).await);
+    }
+    assert_eq!(tags, vec!["A:ada", "B:ada", "A:ada", "B:ada"]);
+
+    // Phase 2: A leaves; tight loop until 6 consecutive B-only
+    // (phases last one refresh interval, so detect in milliseconds,
+    // not sleeps), then prove A routes nothing further (10 more
+    // RPCs, counter frozen).
+    let mut consecutive_b = 0;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while consecutive_b < 6 {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "A removed from rotation"
+        );
+        if unary_tag(&client).await == "B:ada" {
+            consecutive_b += 1;
+        } else {
+            consecutive_b = 0;
+        }
+    }
+    let frozen_a = unaries_a.load(Ordering::SeqCst);
+    for _ in 0..10 {
+        assert_eq!(unary_tag(&client).await, "B:ada");
+    }
+    assert_eq!(unaries_a.load(Ordering::SeqCst), frozen_a);
+
+    // Phase 3: A returns and serves again (fresh dial, no stale conn).
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    let mut recovered = false;
+    while tokio::time::Instant::now() < deadline {
+        if unary_tag(&client).await == "A:ada" {
+            recovered = true;
+            break;
+        }
+    }
+    assert!(recovered, "A rejoins rotation");
+    assert!(unaries_b.load(Ordering::SeqCst) > 0);
+}
+
+#[tokio::test]
+async fn round_robin_all_down_fails_fast() {
+    let (closed_a, listener_a) = bind().await;
+    drop(listener_a);
+    let (closed_b, listener_b) = bind().await;
+    drop(listener_b);
+    let dns = Arc::new(FixedAddrs(vec![closed_a, closed_b]));
+    let channel = rr_channel_with(dns, "rr.invalid").await;
+    let client = GreeterClient::new(channel);
+
+    for _ in 0..2 {
+        let err = client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("all backends down");
+        assert_eq!(err.code(), Code::Unavailable);
+    }
 }
