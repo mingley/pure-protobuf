@@ -293,16 +293,14 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     let req_bytes = parse_bytes("--req-bytes")?;
     let resp_bytes = parse_bytes("--resp-bytes")?;
 
-    let stream_msgs = if let Some(val) = get_arg_val(args, "--stream-msgs")
-        .or_else(|| get_arg_val(args, "--stream_msgs"))
+    let stream_msgs = if let Some(val) =
+        get_arg_val(args, "--stream-msgs").or_else(|| get_arg_val(args, "--stream_msgs"))
     {
         let n: u32 = val
             .parse()
             .map_err(|e| format!("invalid --stream-msgs '{val}': {e}"))?;
         if n == 0 {
-            return Err(format!(
-                "invalid --stream-msgs '{val}': must be at least 1"
-            ));
+            return Err(format!("invalid --stream-msgs '{val}': must be at least 1"));
         }
         Some(n)
     } else {
@@ -316,8 +314,8 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     };
 
     let tls_ca = get_arg_val(args, "--tls-ca").or_else(|| get_arg_val(args, "--tls_ca"));
-    let tls_server_name = get_arg_val(args, "--tls-server-name")
-        .or_else(|| get_arg_val(args, "--tls_server_name"));
+    let tls_server_name =
+        get_arg_val(args, "--tls-server-name").or_else(|| get_arg_val(args, "--tls_server_name"));
     if tls_ca.is_some() != tls_server_name.is_some() {
         return Err(
             "TLS needs both --tls-ca and --tls-server-name (verification is not optional)"
@@ -835,15 +833,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
             .await?
         }
         LoadTransport::Tonic => {
-            run_load_tonic(
-                &load_gen,
-                addr,
-                shape,
-                req_bytes,
-                resp_bytes,
-                stream_msgs,
-            )
-            .await?
+            run_load_tonic(&load_gen, addr, shape, req_bytes, resp_bytes, stream_msgs).await?
         }
     };
 
@@ -1188,27 +1178,24 @@ mod tests {
         assert!(parse_load_cli_args(&load_args(&["--transport=go"])).is_err());
         // TLS needs both halves.
         assert!(parse_load_cli_args(&load_args(&["--tls-ca=/tmp/ca.pem"])).is_err());
-        assert!(
-            parse_load_cli_args(&load_args(&["--tls-server-name=localhost"])).is_err()
-        );
+        assert!(parse_load_cli_args(&load_args(&["--tls-server-name=localhost"])).is_err());
         // TLS + tonic is explicitly unsupported.
-        assert!(parse_load_cli_args(&load_args(&[
-            "--transport=tonic",
-            "--tls-ca=/tmp/ca.pem",
-            "--tls-server-name=localhost",
-        ]))
-        .is_err());
+        assert!(
+            parse_load_cli_args(&load_args(&[
+                "--transport=tonic",
+                "--tls-ca=/tmp/ca.pem",
+                "--tls-server-name=localhost",
+            ]))
+            .is_err()
+        );
         // BenchmarkService is native unary only.
-        assert!(parse_load_cli_args(&load_args(&[
-            "--benchmark-service",
-            "--transport=tonic",
-        ]))
-        .is_err());
-        assert!(parse_load_cli_args(&load_args(&[
-            "--benchmark-service",
-            "--shape=bidi",
-        ]))
-        .is_err());
+        assert!(
+            parse_load_cli_args(&load_args(&["--benchmark-service", "--transport=tonic",]))
+                .is_err()
+        );
+        assert!(
+            parse_load_cli_args(&load_args(&["--benchmark-service", "--shape=bidi",])).is_err()
+        );
         // Valid TLS pair parses.
         let opts = parse_load_cli_args(&load_args(&[
             "--tls-ca=/tmp/ca.pem",

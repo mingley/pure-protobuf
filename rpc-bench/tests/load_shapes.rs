@@ -70,10 +70,7 @@ fn assert_clean_cell(args: &[&str]) {
     let (code, text) = run_load(args);
     assert_eq!(code, 0, "load {args:?} exited {code}: {text}");
     let (successes, failures, timeouts, overflows) = counters(&text);
-    assert!(
-        successes > 0,
-        "load {args:?} reported no successes: {text}"
-    );
+    assert!(successes > 0, "load {args:?} reported no successes: {text}");
     assert_eq!(failures, 0, "load {args:?} failures: {text}");
     assert_eq!(timeouts, 0, "load {args:?} timeouts: {text}");
     assert_eq!(overflows, 0, "load {args:?} overflows: {text}");
@@ -149,10 +146,7 @@ fn load_rejects_invalid_flag_mixes() {
     assert!(text.contains("no TLS support"), "tonic+tls: {text}");
 
     // TLS without an explicit server is rejected before bind.
-    let (code, text) = run_load(&[
-        "--tls-ca=/tmp/ca.pem",
-        "--tls-server-name=localhost",
-    ]);
+    let (code, text) = run_load(&["--tls-ca=/tmp/ca.pem", "--tls-server-name=localhost"]);
     assert_eq!(code, 1, "tls loopback: {text}");
     assert!(text.contains("plaintext-only"), "tls loopback: {text}");
 }
