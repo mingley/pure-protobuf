@@ -275,6 +275,13 @@ pub struct RpcMetrics {
     /// Detailed server process resource utilization (User/System CPU, Peak RSS).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_resources: Option<ProcessResources>,
+    /// Schedule-relative end-to-end latency (completion minus scheduled
+    /// dispatch): the SLO input. None when no completed calls exist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub e2e_latency_nanos: Option<LatencyDistribution>,
+    /// Service latency excluding generator scheduling lag. None when empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service_latency_nanos: Option<LatencyDistribution>,
 }
 
 impl RpcMetrics {
@@ -311,6 +318,8 @@ impl RpcMetrics {
             queue_overflows: None,
             client_resources: None,
             server_resources: None,
+            e2e_latency_nanos: None,
+            service_latency_nanos: None,
         }
     }
 

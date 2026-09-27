@@ -316,6 +316,8 @@ impl LoadRecord {
         m.timeouts = Some(self.timed_out_calls);
         m.status_errors = self.status_errors.clone();
         m.scheduling_lag_nanos = SchedulingLagNanos::from_samples(&self.scheduling_lags_nanos);
+        m.e2e_latency_nanos = self.e2e_latency_distribution();
+        m.service_latency_nanos = self.service_latency_distribution();
         m
     }
 
