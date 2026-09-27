@@ -125,6 +125,141 @@ fn load_tonic_cells_against_native_loopback() {
     ]);
 }
 
+fn tls_data() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../pbrs-grpc/tests/tls_data")
+}
+
+fn read_ready_port(child: &mut std::process::Child) -> u16 {
+    use std::io::BufRead as _;
+    let stdout = child.stdout.take().expect("server stdout pipe");
+    let mut reader = std::io::BufReader::new(stdout);
+    // The server prints READY immediately or exits; EOF means it died.
+    for _ in 0..50 {
+        let mut line = String::new();
+        match reader.read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => {
+                if let Some(rest) = line.strip_prefix("READY ") {
+                    for kv in rest.split_whitespace() {
+                        if let Some(value) = kv.strip_prefix("port=") {
+                            if let Ok(port) = value.parse::<u16>() {
+                                return port;
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                child.kill().ok();
+                panic!("reading server stdout: {e}");
+            }
+        }
+        if let Some(status) = child.try_wait().expect("poll server") {
+            panic!("server exited {status} before READY");
+        }
+    }
+    child.kill().ok();
+    panic!("server never printed READY");
+}
+
+#[test]
+fn load_tls_unary_against_tls_server() {
+    let data = tls_data();
+    let cert = data.join("server.crt");
+    let key = data.join("server.key");
+    let ca = data.join("ca.crt");
+    for path in [&cert, &key, &ca] {
+        assert!(path.is_file(), "missing test cert {}", path.display());
+    }
+
+    let binary = env!("CARGO_BIN_EXE_rpc-bench");
+    let mut server = Command::new(binary)
+        .arg("server")
+        .arg("--transport=native")
+        .arg("--port=0")
+        .arg("--timeout-secs=30")
+        .arg(format!("--tls-cert={}", cert.display()))
+        .arg(format!("--tls-key={}", key.display()))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn TLS server");
+    let port = read_ready_port(&mut server);
+
+    // Verified TLS load: zero failures.
+    let out = Command::new(binary)
+        .arg("load")
+        .arg("--quick")
+        .arg(format!("--server_addr=127.0.0.1:{port}"))
+        .arg("--resp-bytes=1024")
+        .arg(format!("--tls-ca={}", ca.display()))
+        .arg("--tls-server-name=localhost")
+        .output()
+        .expect("run TLS load");
+    let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
+    server.kill().ok();
+    let _ = server.wait();
+    assert!(out.status.success(), "TLS load failed: {text}");
+    let (successes, failures, timeouts, _) = counters(&text);
+    assert!(successes > 0, "TLS load no successes: {text}");
+    assert_eq!(failures, 0, "TLS load failures: {text}");
+    assert_eq!(timeouts, 0, "TLS load timeouts: {text}");
+
+    // Wrong server name must fail verification, not silently connect.
+    let mut server = Command::new(binary)
+        .arg("server")
+        .arg("--transport=native")
+        .arg("--port=0")
+        .arg("--timeout-secs=30")
+        .arg(format!("--tls-cert={}", cert.display()))
+        .arg(format!("--tls-key={}", key.display()))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn TLS server");
+    let port = read_ready_port(&mut server);
+    let out = Command::new(binary)
+        .arg("load")
+        .arg("--quick")
+        .arg(format!("--server_addr=127.0.0.1:{port}"))
+        .arg(format!("--tls-ca={}", ca.display()))
+        .arg("--tls-server-name=wrong.example")
+        .output()
+        .expect("run TLS load with wrong name");
+    server.kill().ok();
+    let _ = server.wait();
+    assert!(
+        !out.status.success(),
+        "wrong-name TLS load must fail verification"
+    );
+}
+
+#[test]
+fn server_rejects_invalid_tls_mixes() {
+    let binary = env!("CARGO_BIN_EXE_rpc-bench");
+    // Half a pair.
+    let out = Command::new(binary)
+        .arg("server")
+        .arg("--tls-cert=/tmp/x.crt")
+        .arg("--timeout-secs=2")
+        .output()
+        .expect("run server");
+    assert_eq!(out.status.code(), Some(2));
+    // tonic + TLS.
+    let out = Command::new(binary)
+        .arg("server")
+        .arg("--transport=tonic")
+        .arg("--tls-cert=/tmp/x.crt")
+        .arg("--tls-key=/tmp/x.key")
+        .arg("--timeout-secs=2")
+        .output()
+        .expect("run server");
+    assert_eq!(out.status.code(), Some(2));
+    let text = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(text.contains("native-only"), "tonic+tls: {text}");
+}
+
 #[test]
 fn load_rejects_invalid_flag_mixes() {
     // Unknown shape exits 2 with a parse error.

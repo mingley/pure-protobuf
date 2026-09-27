@@ -67,13 +67,7 @@ use tokio::net::TcpListener;
 
 /// Create a router mounting both `TestService` and `BenchmarkService`.
 pub fn create_dual_server() -> pbrs_grpc::Router {
-    pbrs_grpc::Router::new()
-        .add_service(pbrs_grpc::TestServiceServer::new(
-            pbrs_grpc::InteropTestService,
-        ))
-        .add_service(benchmark_service::BenchmarkServiceServer::new(
-            benchmark_service::BenchmarkServiceImpl,
-        ))
+    benchmark_service::dual_router()
 }
 
 /// Call shape driven by the `load` subcommand (SB-11 stack-matrix cells).

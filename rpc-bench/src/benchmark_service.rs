@@ -87,6 +87,16 @@ const ECHO_TRAILING: &str = "x-grpc-test-echo-trailing-bin";
 /// Maximum response payload for this bounded benchmark worker.
 pub const MAX_BENCHMARK_PAYLOAD_SIZE: usize = pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE;
 
+/// Router mounting both `TestService` and `BenchmarkService` (SB-11 cells
+/// address either service on one endpoint).
+pub fn dual_router() -> pbrs_grpc::Router {
+    pbrs_grpc::Router::new()
+        .add_service(pbrs_grpc::TestServiceServer::new(
+            pbrs_grpc::InteropTestService,
+        ))
+        .add_service(BenchmarkServiceServer::new(BenchmarkServiceImpl))
+}
+
 #[derive(Default)]
 struct Echo {
     initial: Option<String>,

@@ -131,6 +131,10 @@ pub struct ServerConfig {
     pub port: u16,
     pub transport: TransportMode,
     pub timeout_secs: Option<u64>,
+    /// PEM certificate chain for native TLS (`--tls-cert`; needs `tls_key`).
+    pub tls_cert: Option<String>,
+    /// PEM private key for native TLS (`--tls-key`; needs `tls_cert`).
+    pub tls_key: Option<String>,
 }
 
 /// Client configuration.
@@ -1256,15 +1260,37 @@ pub async fn run_server(
         .map_err(|e| format!("failed to bind to {bind_addr}: {e}"))?;
     let local_addr = listener.local_addr()?;
 
+    // TLS identity loads before READY: a bad cert/key fails the cell
+    // instead of serving plaintext on a TLS port.
+    let server_tls = match (&config.tls_cert, &config.tls_key) {
+        (Some(cert_path), Some(key_path)) => {
+            let cert_pem = std::fs::read(cert_path)
+                .map_err(|e| format!("failed to read --tls-cert '{cert_path}': {e}"))?;
+            let key_pem = std::fs::read(key_path)
+                .map_err(|e| format!("failed to read --tls-key '{key_path}': {e}"))?;
+            let identity = pbrs_grpc::Identity::from_pem(&cert_pem, &key_pem)
+                .map_err(|e| format!("invalid TLS certificate or key: {e}"))?;
+            Some(
+                pbrs_grpc::ServerTls::new(identity)
+                    .map_err(|e| format!("failed to configure TLS: {e}"))?,
+            )
+        }
+        _ => None,
+    };
+    let tls_mode = server_tls.is_some();
+
     // Output readiness line on stdout
     println!(
-        "READY port={} addr={} transport={}",
+        "READY port={} addr={} transport={} tls={tls_mode}",
         local_addr.port(),
         local_addr,
         config.transport
     );
     std::io::stdout().flush()?;
-    eprintln!("server listening on {local_addr} ({})", config.transport);
+    eprintln!(
+        "server listening on {local_addr} ({}, tls={tls_mode})",
+        config.transport
+    );
 
     let max_duration = config.timeout_secs.map(Duration::from_secs);
 
@@ -1273,10 +1299,19 @@ pub async fn run_server(
     let tonic_stats = NodelayStats::default();
     let server_fut = async {
         match config.transport {
-            TransportMode::Native => TestServiceServer::new(InteropTestService)
-                .serve_listener(listener)
-                .await
-                .map_err(|e| format!("native server error: {e}")),
+            TransportMode::Native => {
+                let router = crate::benchmark_service::dual_router();
+                match server_tls {
+                    Some(tls) => router
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .map_err(|e| format!("native TLS server error: {e}")),
+                    None => router
+                        .serve_listener(listener)
+                        .await
+                        .map_err(|e| format!("native server error: {e}")),
+                }
+            }
             TransportMode::Tonic => {
                 let incoming = NodelayIncoming::with_stats(listener, tonic_stats.clone());
                 fair_tonic_server()
@@ -2106,7 +2141,9 @@ pub fn usage() -> &'static str {
        --port <PORT>            Port to listen on (default: 0 for dynamic/random)\n  \
        --host <HOST>            Host to bind to (default: 127.0.0.1)\n  \
        --transport <MODE>       Transport mode: native or tonic (default: native)\n  \
-       --timeout-secs <SECS>    Maximum runtime before clean shutdown (default: infinite)\n\n\
+       --timeout-secs <SECS>    Maximum runtime before clean shutdown (default: infinite)\n  \
+       --tls-cert <PATH>        PEM certificate chain (native only; requires --tls-key)\n  \
+       --tls-key <PATH>         PEM private key (native only; requires --tls-cert)\n\n\
      Client options:\n  \
        --server_addr <ADDR>     Target host:port (required for client)\n  \
        --transport <MODE>       Client transport: native or tonic (default: native)\n  \
@@ -2197,11 +2234,33 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             .map(|s| s.parse().map_err(|e| format!("invalid timeout '{s}': {e}")))
             .transpose()?;
 
+        let tls_cert = get_arg_val(args, "--tls-cert")
+            .or_else(|| get_arg_val(args, "--tls_cert"))
+            .or_else(|| get_arg_val(args, "--tls-cert-file"))
+            .or_else(|| get_arg_val(args, "--tls_cert_file"));
+        let tls_key = get_arg_val(args, "--tls-key")
+            .or_else(|| get_arg_val(args, "--tls_key"))
+            .or_else(|| get_arg_val(args, "--tls-key-file"))
+            .or_else(|| get_arg_val(args, "--tls_key_file"));
+        if tls_cert.is_some() != tls_key.is_some() {
+            return Err("server TLS needs both --tls-cert and --tls-key (or neither)".to_string());
+        }
+        if tls_cert.is_some() && transport != TransportMode::Native {
+            return Err(
+                "server TLS is native-only: the tonic transport has no TLS support in rpc-bench \
+                 (tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust \
+                 dependency policy)"
+                    .to_string(),
+            );
+        }
+
         return Ok(ProcessRole::Server(ServerConfig {
             host,
             port,
             transport,
             timeout_secs,
+            tls_cert,
+            tls_key,
         }));
     }
 
