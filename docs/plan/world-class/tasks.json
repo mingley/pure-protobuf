@@ -1334,7 +1334,13 @@
     "docs-contract"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "bench/scoreboard/categories.json (sb02/1, 52/52 categories)",
+    "docs/scoreboard.md (standings + benchmarks.md claim mapping)",
+    "cargo test -p pbrs --test documentation: 18 passed"
+   ]
   },
   {
    "id": "SB-03",
