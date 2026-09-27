@@ -18,11 +18,14 @@
 use std::collections::HashSet;
 use std::io::Write as _;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::task::{Context, Poll};
 use std::time::{Duration, Instant, SystemTime};
-use tokio::net::TcpListener;
-use tonic::transport::{Channel, Server};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_stream::wrappers::TcpListenerStream;
+use tonic::transport::{Channel, Endpoint, Server};
 use tonic::{Request, Response, Status};
 
 use crate::report::{
@@ -33,8 +36,10 @@ use crate::report::{
 use crate::tonic_gen;
 
 use pbrs_grpc::{
-    Empty, InteropTestService, Payload, Request as KReq, ResponseParameters, SimpleRequest,
-    StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
+    DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
+    DEFAULT_WINDOW_SIZE, Empty, InteropTestService, Payload, Request as KReq, ResponseParameters,
+    SimpleRequest, StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient,
+    TestServiceServer,
 };
 
 pub const LARGE_REQ: i32 = 271828;
@@ -435,8 +440,7 @@ pub fn upload_want_bytes(msgs: i32, size: i32) -> i32 {
 }
 
 pub async fn tonic_channel(addr: SocketAddr) -> Result<Channel, String> {
-    Channel::from_shared(format!("http://{addr}"))
-        .map_err(|e| format!("invalid tonic URI http://{addr}: {e}"))?
+    fair_tonic_endpoint(format!("http://{addr}"))?
         .connect()
         .await
         .map_err(|e| format!("tonic failed to connect to {addr}: {e}"))
@@ -1264,17 +1268,23 @@ pub async fn run_server(
 
     let max_duration = config.timeout_secs.map(Duration::from_secs);
 
+    // SB-01: adapter counters live outside the serve future so the
+    // fairness report survives timeout cancellation.
+    let tonic_stats = NodelayStats::default();
     let server_fut = async {
         match config.transport {
             TransportMode::Native => TestServiceServer::new(InteropTestService)
                 .serve_listener(listener)
                 .await
                 .map_err(|e| format!("native server error: {e}")),
-            TransportMode::Tonic => Server::builder()
-                .add_service(tonic_gen::TestServiceServer::new(TonicInterop))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
-                .await
-                .map_err(|e| format!("tonic server error: {e}")),
+            TransportMode::Tonic => {
+                let incoming = NodelayIncoming::with_stats(listener, tonic_stats.clone());
+                fair_tonic_server()
+                    .add_service(tonic_gen::TestServiceServer::new(TonicInterop))
+                    .serve_with_incoming(incoming)
+                    .await
+                    .map_err(|e| format!("tonic server error: {e}"))
+            }
         }
     };
 
@@ -1293,6 +1303,33 @@ pub async fn run_server(
     } else if let Err(e) = server_fut.await {
         eprintln!("{e}");
         return Err(e.into());
+    }
+
+    match config.transport {
+        // Native sockets are tuned inside pbrs_grpc (NODELAY always);
+        // no accept hook exists, so nodelay is configured, not observed.
+        TransportMode::Native => print_server_fairness("native", None, 0, 0),
+        TransportMode::Tonic => {
+            let accepted = tonic_stats.accepted();
+            let verified = tonic_stats.verified();
+            print_server_fairness(
+                "tonic",
+                if accepted > 0 {
+                    Some(verified == accepted)
+                } else {
+                    None
+                },
+                accepted,
+                verified,
+            );
+            if accepted > 0 && verified != accepted {
+                return Err(format!(
+                    "tonic server fairness tainted: only {verified}/{accepted} accepted \
+                     connections verified TCP_NODELAY; refusing comparable results"
+                )
+                .into());
+            }
+        }
     }
 
     Ok(())
@@ -1639,6 +1676,29 @@ pub async fn run_client(
         report.schema_version
     );
 
+    // SB-01: per-endpoint fairness sidecar next to the report.
+    let transport_name = match config.transport {
+        TransportMode::Native => "native",
+        TransportMode::Tonic => "tonic",
+    };
+    let client_record = client_fairness(transport_name);
+    if let Err(reason) = check_fairness(&client_record) {
+        return Err(format!("client endpoint unfair: {reason}").into());
+    }
+    if let Some(ref path) = config.output_file {
+        let sidecar = format!("{path}.fairness.json");
+        match serde_json::to_string_pretty(&client_record) {
+            Ok(json) => {
+                if let Err(e) = std::fs::write(&sidecar, json) {
+                    eprintln!("failed to save fairness sidecar to {sidecar}: {e}");
+                } else {
+                    println!("saved fairness sidecar to {sidecar}");
+                }
+            }
+            Err(e) => eprintln!("fairness record serialize failed: {e}"),
+        }
+    }
+
     Ok(report)
 }
 
@@ -1670,14 +1730,38 @@ pub async fn run_smoke(
 
     let t_listener = TcpListener::bind("127.0.0.1:0").await?;
     let t_addr = t_listener.local_addr()?;
+    let (t_incoming, t_stats) = NodelayIncoming::new(t_listener);
     tokio::spawn(async move {
-        Server::builder()
+        fair_tonic_server()
             .add_service(tonic_gen::TestServiceServer::new(TonicInterop))
-            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(t_listener))
+            .serve_with_incoming(t_incoming)
             .await
             .ok();
     });
     tokio::time::sleep(Duration::from_millis(100)).await;
+    // SB-01: side-by-side numbers print only while every endpoint role
+    // meets the fairness spec; otherwise the comparison is refused.
+    let mut unfair: Option<String> = None;
+    macro_rules! compare {
+        ($fmt:literal) => {
+            if unfair.is_none() {
+                unfair = smoke_fairness_gate(&t_stats);
+            }
+            match &unfair {
+                None => println!($fmt),
+                Some(reason) => println!("{reason}"),
+            }
+        };
+        ($fmt:literal, $($arg:tt)+) => {
+            if unfair.is_none() {
+                unfair = smoke_fairness_gate(&t_stats);
+            }
+            match &unfair {
+                None => println!($fmt, $($arg)+),
+                Some(reason) => println!("{reason}"),
+            }
+        };
+    }
 
     let (k_empty, k_large) = latency_kernel(k_addr, &bench_cfg).await?;
     let (t_empty, t_large) = latency_tonic(t_addr, &bench_cfg).await?;
@@ -1724,13 +1808,19 @@ pub async fn run_smoke(
         &git_commit,
     ));
 
-    println!(
+    compare!(
         "empty_unary kernel_p50={} kernel_p99={} tonic_p50={} tonic_p99={}",
-        k_empty.latency.p50, k_empty.latency.p99, t_empty.latency.p50, t_empty.latency.p99
+        k_empty.latency.p50,
+        k_empty.latency.p99,
+        t_empty.latency.p50,
+        t_empty.latency.p99
     );
-    println!(
+    compare!(
         "large_unary kernel_p50={} kernel_p99={} tonic_p50={} tonic_p99={}",
-        k_large.latency.p50, k_large.latency.p99, t_large.latency.p50, t_large.latency.p99
+        k_large.latency.p50,
+        k_large.latency.p99,
+        t_large.latency.p50,
+        t_large.latency.p99
     );
 
     let dur = Duration::from_secs_f64(bench_cfg.qps_secs);
@@ -1783,7 +1873,7 @@ pub async fn run_smoke(
                 ));
             }
 
-            println!(
+            compare!(
                 "qps {shape} {label} conc={conc} conns={conns} kernel={kernel} tonic={tonic} \
                  kernel_err={kerr} tonic_err={terr}"
             );
@@ -1820,7 +1910,7 @@ pub async fn run_smoke(
     }
 
     let bytes_per_msg = bench_cfg.stream_size as u64;
-    println!(
+    compare!(
         "stream msgs={} size={} kernel_msgs_per_s={} \
          tonic_msgs_per_s={} kernel_mib_per_s={} tonic_mib_per_s={}",
         bench_cfg.stream_msgs,
@@ -1860,10 +1950,12 @@ pub async fn run_smoke(
         ));
     }
 
-    println!(
+    compare!(
         "ping_pong pairs={} kernel_round_trips_per_s={} \
          tonic_round_trips_per_s={}",
-        bench_cfg.ping_pongs, k_ping.best, t_ping.best
+        bench_cfg.ping_pongs,
+        k_ping.best,
+        t_ping.best
     );
 
     let k_upload = upload_kernel(k_addr, &bench_cfg).await?;
@@ -1895,7 +1987,7 @@ pub async fn run_smoke(
         ));
     }
 
-    println!(
+    compare!(
         "upload msgs={} size={} kernel_msgs_per_s={} \
          tonic_msgs_per_s={} kernel_mib_per_s={} tonic_mib_per_s={}",
         bench_cfg.stream_msgs,
@@ -1974,6 +2066,23 @@ pub async fn run_smoke(
     if errors != 0 {
         eprintln!("rpc-bench failed: {errors} RPC errors");
         failed = true;
+    }
+
+    // SB-01: final fairness verdict over the whole run. A late taint
+    // fails here even if early comparisons already printed.
+    let tonic_record = tonic_server_fairness(&t_stats);
+    print_server_fairness(
+        "tonic",
+        tonic_record.tcp_nodelay_observed,
+        tonic_record.accepted_conns,
+        tonic_record.nodelay_verified_conns,
+    );
+    if unfair.is_none() {
+        unfair = smoke_fairness_gate(&t_stats);
+    }
+    if let Some(reason) = unfair {
+        eprintln!("{reason}");
+        return Err("smoke refused: endpoints unfair".into());
     }
 
     if failed {
@@ -2156,4 +2265,363 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
         output_file,
         print_json,
     }))
+}
+
+// ---------------------------------------------------------------------------
+// SB-01: transport fairness (tonic peer matched to the native peer)
+// ---------------------------------------------------------------------------
+//
+// The native peer sets TCP_NODELAY on every socket (pbrs_grpc tcp::tune)
+// and advertises fixed 16 MiB HTTP/2 windows, 1 MiB frames, 256 streams,
+// and a 16 KiB header list. tonic's builder `tcp_nodelay` is IGNORED
+// under `serve_with_incoming` (tonic docs), so a bare tonic peer
+// benchmarks Nagle-delayed small writes against a nodelay native peer.
+// These helpers close that gap plus the window/frame/adaptive gaps, and
+// `EndpointFairness` records per-endpoint observed settings so a
+// comparison only prints for spec-conformant endpoints.
+
+/// Getsockopt-verified accepted-connection counts.
+#[derive(Debug, Clone, Default)]
+pub struct NodelayStats {
+    accepted: Arc<AtomicU64>,
+    verified: Arc<AtomicU64>,
+}
+
+impl NodelayStats {
+    /// Connections accepted so far.
+    pub fn accepted(&self) -> u64 {
+        self.accepted.load(Ordering::Relaxed)
+    }
+
+    /// Accepted connections with TCP_NODELAY verified on via getsockopt.
+    pub fn verified(&self) -> u64 {
+        self.verified.load(Ordering::Relaxed)
+    }
+
+    /// True once every accepted connection verified (and at least one ran).
+    pub fn clean(&self) -> bool {
+        let accepted = self.accepted();
+        accepted > 0 && self.verified() == accepted
+    }
+}
+
+/// Incoming stream that sets TCP_NODELAY on every accepted socket and
+/// verifies it with getsockopt, recording both counters.
+pub struct NodelayIncoming {
+    inner: TcpListenerStream,
+    stats: NodelayStats,
+}
+
+impl NodelayIncoming {
+    /// Wrap `listener`; the returned stats share live counters.
+    pub fn new(listener: TcpListener) -> (Self, NodelayStats) {
+        let stats = NodelayStats::default();
+        (Self::with_stats(listener, stats.clone()), stats)
+    }
+
+    /// Wrap `listener`, recording into externally owned `stats` so the
+    /// counts survive serve-future cancellation (timeout shutdown).
+    pub fn with_stats(listener: TcpListener, stats: NodelayStats) -> Self {
+        Self {
+            inner: TcpListenerStream::new(listener),
+            stats,
+        }
+    }
+}
+
+impl pbrs_grpc::Stream for NodelayIncoming {
+    type Item = Result<TcpStream, std::io::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match Pin::new(&mut self.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(sock))) => {
+                self.stats.accepted.fetch_add(1, Ordering::Relaxed);
+                let verified = sock
+                    .set_nodelay(true)
+                    .and_then(|()| sock.nodelay())
+                    .unwrap_or(false);
+                if verified {
+                    self.stats.verified.fetch_add(1, Ordering::Relaxed);
+                }
+                Poll::Ready(Some(Ok(sock)))
+            }
+            other => other,
+        }
+    }
+}
+
+/// Tonic server with native-matched transport settings.
+pub fn fair_tonic_server() -> Server {
+    Server::builder()
+        .initial_stream_window_size(DEFAULT_WINDOW_SIZE)
+        .initial_connection_window_size(DEFAULT_WINDOW_SIZE)
+        .max_frame_size(DEFAULT_MAX_FRAME_SIZE)
+        .max_concurrent_streams(DEFAULT_MAX_CONCURRENT_STREAMS)
+        .http2_adaptive_window(Some(false))
+        .http2_max_header_list_size(DEFAULT_MAX_HEADER_LIST_SIZE)
+        // Honored for serve(); the NodelayIncoming adapter covers
+        // serve_with_incoming, where tonic ignores this setting.
+        .tcp_nodelay(true)
+}
+
+/// Tonic client endpoint with native-matched transport settings.
+pub fn fair_tonic_endpoint(uri: String) -> Result<Endpoint, String> {
+    Endpoint::from_shared(uri)
+        .map_err(|e| format!("invalid tonic URI: {e}"))
+        .map(|endpoint| {
+            endpoint
+                .tcp_nodelay(true)
+                .initial_stream_window_size(DEFAULT_WINDOW_SIZE)
+                .initial_connection_window_size(DEFAULT_WINDOW_SIZE)
+                .max_frame_size(DEFAULT_MAX_FRAME_SIZE)
+                .http2_adaptive_window(false)
+                .http2_max_header_list_size(DEFAULT_MAX_HEADER_LIST_SIZE)
+        })
+}
+
+/// Per-endpoint observed transport settings (SB-01 Result-JSON record).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EndpointFairness {
+    /// "native" or "tonic".
+    pub transport: String,
+    /// "client" or "server".
+    pub role: String,
+    /// Getsockopt-observed TCP_NODELAY; None where no hook exists
+    /// (native sockets are set inside pbrs_grpc tcp::tune).
+    pub tcp_nodelay_observed: Option<bool>,
+    /// Accepted connections (server role).
+    pub accepted_conns: u64,
+    /// Getsockopt-verified nodelay connections (server role).
+    pub nodelay_verified_conns: u64,
+    /// Advertised HTTP/2 stream window.
+    pub stream_window: u32,
+    /// Advertised HTTP/2 connection window.
+    pub conn_window: u32,
+    /// Max HTTP/2 frame size.
+    pub frame_size: u32,
+    /// Max concurrent streams (server role).
+    pub max_streams: u32,
+    /// Adaptive flow control enabled.
+    pub adaptive_window: bool,
+    /// Tokio worker threads available to the process.
+    pub runtime_threads: u32,
+}
+
+/// Fairness spec every comparable endpoint must meet: the native
+/// defaults, which are the constants both peers build from.
+pub fn fairness_spec(transport: &str, role: &str) -> EndpointFairness {
+    EndpointFairness {
+        transport: transport.to_string(),
+        role: role.to_string(),
+        tcp_nodelay_observed: Some(true),
+        accepted_conns: 0,
+        nodelay_verified_conns: 0,
+        stream_window: DEFAULT_WINDOW_SIZE,
+        conn_window: DEFAULT_WINDOW_SIZE,
+        frame_size: DEFAULT_MAX_FRAME_SIZE,
+        max_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
+        adaptive_window: false,
+        runtime_threads: runtime_threads(),
+    }
+}
+
+/// Print one `FAIRNESS {...}` JSON line for a server role (SB-01
+/// per-endpoint record; the matrix log keeps it for review).
+pub fn print_server_fairness(
+    transport: &str,
+    nodelay_observed: Option<bool>,
+    accepted: u64,
+    verified: u64,
+) {
+    let mut record = fairness_spec(transport, "server");
+    record.tcp_nodelay_observed = nodelay_observed;
+    record.accepted_conns = accepted;
+    record.nodelay_verified_conns = verified;
+    match serde_json::to_string(&record) {
+        Ok(json) => println!("FAIRNESS {json}"),
+        Err(e) => eprintln!("fairness record serialize failed: {e}"),
+    }
+    let _ = std::io::stdout().flush();
+}
+
+/// Worker threads available to this process.
+pub fn runtime_threads() -> u32 {
+    std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(1)
+}
+
+/// Fail unless `observed` meets the spec: scalars must match, getsockopt
+/// must never report nodelay off, and every accepted connection must
+/// verify. `None` nodelay (unhookable native sockets) passes: pbrs sets
+/// it unconditionally in tcp::tune.
+pub fn check_fairness(observed: &EndpointFairness) -> Result<(), String> {
+    let spec = fairness_spec(&observed.transport, &observed.role);
+    if observed.stream_window != spec.stream_window
+        || observed.conn_window != spec.conn_window
+        || observed.frame_size != spec.frame_size
+        || observed.max_streams != spec.max_streams
+        || observed.adaptive_window != spec.adaptive_window
+    {
+        return Err(format!(
+            "{} {} transport settings differ from spec: windows {}/{} frame {} streams {} adaptive {}",
+            observed.transport,
+            observed.role,
+            observed.stream_window,
+            observed.conn_window,
+            observed.frame_size,
+            observed.max_streams,
+            observed.adaptive_window,
+        ));
+    }
+    if observed.tcp_nodelay_observed == Some(false) {
+        return Err(format!(
+            "{} {} getsockopt reports TCP_NODELAY off",
+            observed.transport, observed.role,
+        ));
+    }
+    if observed.accepted_conns > 0 && observed.nodelay_verified_conns != observed.accepted_conns {
+        return Err(format!(
+            "{} {} only {}/{} accepted connections verified nodelay",
+            observed.transport,
+            observed.role,
+            observed.nodelay_verified_conns,
+            observed.accepted_conns,
+        ));
+    }
+    if observed.runtime_threads != spec.runtime_threads {
+        return Err(format!(
+            "{} {} runtime threads {} != {}",
+            observed.transport, observed.role, observed.runtime_threads, spec.runtime_threads,
+        ));
+    }
+    Ok(())
+}
+
+/// Refuse to print a comparison unless both endpoints meet the spec.
+/// Returns the refusal reason instead of printing side-by-side numbers.
+pub fn refuse_unfair_comparison(
+    native: &EndpointFairness,
+    tonic: &EndpointFairness,
+) -> Option<String> {
+    if let Err(reason) = check_fairness(native) {
+        return Some(format!("REFUSED native endpoint unfair: {reason}"));
+    }
+    if let Err(reason) = check_fairness(tonic) {
+        return Some(format!("REFUSED tonic endpoint unfair: {reason}"));
+    }
+    None
+}
+
+/// Live tonic server record from adapter counters.
+pub fn tonic_server_fairness(stats: &NodelayStats) -> EndpointFairness {
+    let accepted = stats.accepted();
+    let mut record = fairness_spec("tonic", "server");
+    record.tcp_nodelay_observed = if accepted > 0 {
+        Some(stats.clean())
+    } else {
+        None
+    };
+    record.accepted_conns = accepted;
+    record.nodelay_verified_conns = stats.verified();
+    record
+}
+
+/// Native server record: spec scalars (TestServiceServer defaults) with
+/// nodelay unobservable (set inside pbrs_grpc tcp::tune, no accept hook).
+pub fn native_server_fairness() -> EndpointFairness {
+    let mut record = fairness_spec("native", "server");
+    record.tcp_nodelay_observed = None;
+    record
+}
+
+/// Client record: spec scalars (Channel defaults / fair Endpoint), with
+/// nodelay builder-set but unhookable on either stack.
+pub fn client_fairness(transport: &str) -> EndpointFairness {
+    let mut record = fairness_spec(transport, "client");
+    record.tcp_nodelay_observed = None;
+    record
+}
+
+/// Smoke comparison gate: all four endpoint roles must meet the spec.
+/// Returns the refusal reason when any role diverges.
+pub fn smoke_fairness_gate(tonic_stats: &NodelayStats) -> Option<String> {
+    for record in [
+        native_server_fairness(),
+        client_fairness("native"),
+        tonic_server_fairness(tonic_stats),
+        client_fairness("tonic"),
+    ] {
+        if let Err(reason) = check_fairness(&record) {
+            return Some(format!(
+                "REFUSED comparison: {} {} unfair: {reason}",
+                record.transport, record.role,
+            ));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod fairness_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn nodelay_adapter_verifies_accepted_socket() {
+        use tokio_stream::StreamExt as _;
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let (mut incoming, stats) = NodelayIncoming::new(listener);
+        let probe = tokio::spawn(async move { TcpStream::connect(addr).await.expect("connect") });
+        let accepted = incoming.next().await.expect("item").expect("accept");
+        probe.await.expect("probe");
+        assert!(accepted.nodelay().expect("getsockopt"), "NODELAY set");
+        assert_eq!(stats.accepted(), 1);
+        assert_eq!(stats.verified(), 1);
+        assert!(stats.clean());
+        drop(accepted);
+    }
+
+    #[test]
+    fn spec_pins_native_transport_values() {
+        // Both peers build from these pbrs constants; pin the VALUES so a
+        // pbrs default change forces a conscious comparability review.
+        assert_eq!(DEFAULT_WINDOW_SIZE, 16 * 1024 * 1024);
+        assert_eq!(DEFAULT_MAX_FRAME_SIZE, 1024 * 1024);
+        assert_eq!(DEFAULT_MAX_CONCURRENT_STREAMS, 256);
+        assert_eq!(DEFAULT_MAX_HEADER_LIST_SIZE, 16 * 1024);
+        let spec = fairness_spec("tonic", "server");
+        assert!(check_fairness(&spec).is_ok());
+        // Builders apply without panic; client nodelay is readable back.
+        let _server = fair_tonic_server();
+        let endpoint = fair_tonic_endpoint("http://127.0.0.1:9".to_string()).expect("endpoint");
+        assert!(endpoint.get_tcp_nodelay());
+    }
+
+    #[test]
+    fn check_rejects_mismatch() {
+        let mut rec = fairness_spec("tonic", "server");
+        rec.stream_window = 65_535;
+        assert!(check_fairness(&rec).is_err(), "window drift fails");
+        let mut rec = fairness_spec("tonic", "server");
+        rec.tcp_nodelay_observed = Some(false);
+        assert!(check_fairness(&rec).is_err(), "nodelay off fails");
+        let mut rec = fairness_spec("tonic", "server");
+        rec.accepted_conns = 3;
+        rec.nodelay_verified_conns = 2;
+        assert!(check_fairness(&rec).is_err(), "partial verify fails");
+        // Unhookable native sockets pass on configured values.
+        assert!(check_fairness(&native_server_fairness()).is_ok());
+        assert!(check_fairness(&client_fairness("tonic")).is_ok());
+    }
+
+    #[test]
+    fn refusal_names_culprit() {
+        let native = native_server_fairness();
+        let mut tonic = fairness_spec("tonic", "server");
+        assert!(refuse_unfair_comparison(&native, &tonic).is_none());
+        tonic.frame_size = 16_384;
+        let refusal = refuse_unfair_comparison(&native, &tonic).expect("refused");
+        assert!(refusal.contains("tonic"), "{refusal}");
+    }
 }

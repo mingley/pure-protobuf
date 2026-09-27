@@ -70,3 +70,15 @@ This document consolidates architectural invariants, design choices, and functio
 | **xDS Protocol** | **Omitted** | Dynamic xDS control planes are best terminated at Envoy / service-mesh sidecars. |
 | **Channelz & Binary Logging** | **Omitted** | Observability is provided via tracing extensions and structured metrics. |
 | **Dynamic Config Reload** | **Omitted** | Configuration is immutable per server/channel instance; use graceful restart. |
+
+## 6. Benchmark fairness (SB-01)
+
+Transport comparisons in `rpc-bench` run both peers against one spec:
+TCP_NODELAY on, 16 MiB HTTP/2 windows, 1 MiB frames, 256 streams, no
+adaptive window, 16 KiB header list — the native defaults, which the
+tonic peer is configured to match. tonic ignores `tcp_nodelay` under
+`serve_with_incoming`, so the harness sets it per accepted socket and
+verifies it with getsockopt; `FAIRNESS {...}` records carry the
+per-endpoint observed settings, and the harness refuses to print
+side-by-side numbers when any endpoint diverges. Pre-SB-01 tables in
+`docs/benchmarks.md` ran an unmatched tonic peer and are superseded.

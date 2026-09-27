@@ -438,6 +438,7 @@ dependencies = [
  "rustls",
  "rustls-graviola",
  "rustls-pemfile",
+ "serde_json",
  "socket2",
  "tokio",
  "tokio-rustls",

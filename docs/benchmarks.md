@@ -550,6 +550,13 @@ Excluded crate `rpc-bench/`. Both sides serve the same official
 transport, so a delta here is a transport delta and not a serialization
 one.
 
+> **SUPERSEDED (SB-01).** The Xeon tables below ran the tonic peer with a
+> bare builder: Nagle on (tonic ignores `tcp_nodelay` under
+> `serve_with_incoming`), 64 KiB windows against the kernel's 16 MiB, and
+> 16 KiB frames against 1 MiB. They measure settings mismatch, not
+> transports. The [SB-01 fair rerun](#sb-01-fair-rerun-dev-loop-host)
+> replaces them; the old tables stay for archaeology only.
+
 Host: 4-core Intel Xeon, Linux x86_64. Client, kernel server, and tonic
 server all share one tokio runtime, so absolute numbers are contended;
 the ratio is the number to read. Three consecutive release runs, all
@@ -570,13 +577,16 @@ warmup.
 | 2 | large | **822 µs** | 1.71 ms | **1.60 ms** | 45.3 ms |
 | 3 | large | **821 µs** | 1.49 ms | **1.04 ms** | 45.3 ms |
 
-Process-gated: the kernel must be strictly faster on both p50 and p99, on
-both cases.
+Process-gated in code: the kernel must be strictly faster on both p50
+and p99, on both cases. (Status after SB-01: the p50 legs hold; the
+empty-unary p99 leg is red under fair settings — kernel ~125 µs vs
+tonic ~110 µs, stable across runs. SB-20 owns noise-based thresholds;
+until then the gate result is data, not a verdict.)
 
-The p99 gap is two orders of magnitude, not a rounding difference. tonic's
-tail sits at 42-45 ms on every run because its `Channel` is a `tower`
-stack with a buffer in front; the kernel issues the request on the calling
-task and has nothing to queue behind.
+The 42-45 ms tonic tail in the table above was Nagle plus 64 KiB
+windows, not transport architecture: with matched settings it collapses
+to ~110 µs (see the fair rerun). The earlier tower-buffering
+explanation is retracted — it was never measured, only theorized.
 
 ### Sustained unary throughput
 
@@ -594,8 +604,8 @@ errors fail the process, so these are also a correctness check.
 
 At `conc=1` the kernel sustains close to its inverse latency
 (73.6k ≈ 1/13.6 µs of client-side work per RPC), while tonic sustains far
-below its own measured latency. That is the same buffering that produces
-its p99.
+below its own measured latency. (Superseded: that gap was Nagle — the
+fair rerun shows 1.3x at `conc=1`, not 30x.)
 
 ### Server-streaming throughput
 
@@ -680,11 +690,50 @@ This host, one release run, kernel and tonic sharing one process:
 
 The 90% gate passed. These numbers are not the Xeon tables.
 
+### SB-01 fair rerun (dev-loop host)
+
+SB-01 matches the tonic peer to the native peer: TCP_NODELAY set plus
+getsockopt-verified on every accepted socket (34/34 below), 16 MiB
+stream/connection windows, 1 MiB frames, 256 streams, no adaptive
+window, 16 KiB header list. Both sides run the same `TestService` over
+the same codec; `rpc-bench` refuses to print comparisons unless every
+endpoint role meets that spec. Host: Apple M4 Pro, macOS; release;
+two consecutive runs (FAIRNESS record from run 1):
+
+| case | kernel p50 | tonic p50 | kernel p99 | tonic p99 |
+|---|---|---:|---:|---:|---:|
+| empty (run 1) | **70.1 µs** | 94.5 µs | 123.0 µs | **110.3 µs** |
+| empty (run 2) | **69.5 µs** | 94.6 µs | 131.4 µs | **109.4 µs** |
+| large (run 1) | **345.6 µs** | 378.8 µs | **384.7 µs** | 463.4 µs |
+| large (run 2) | **348.3 µs** | 377.8 µs | **412.2 µs** | 426.3 µs |
+
+| case | conc | conns | kernel QPS | tonic QPS |
+|---|---:|---:|---:|---:|
+| empty | 1 | 1 | **13.1k** | 9.8k |
+| large | 1 | 1 | **2.5k** | 2.0k |
+| empty | 16 | 4 | **30.0k** | 18.3k |
+| large | 16 | 4 | **3.0k** | 2.2k |
+
+| axis | kernel | tonic | ratio |
+|---|---:|---:|---:|
+| server-stream msgs/s | **636-672k** | 461-472k | **~1.4x** |
+| ping-pong round-trips/s | 12.8-13.8k | **13.3-14.5k** | 0.95x |
+| upload msgs/s | **683-755k** | 305-333k | **~2.2x** |
+
+Read: kernel leads p50 latency (~1.3x), throughput (1.2-2.2x), and
+streaming; tonic leads empty-unary p99 (~1.15x, stable — a real
+kernel-tail finding for the perf lane, not noise). The old 30x QPS and
+100x p99 gaps were the settings mismatch, now closed.
+
 ### Re-run
 
 ```bash
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
+
+`FAIRNESS {...}` lines in the output carry the per-endpoint observed
+settings; a `REFUSED` line plus nonzero exit means an endpoint diverged
+from the spec and the side-by-side numbers must not be read.
 
 The separate-process RT-07 [mixed-load diagnostic](../rpc-bench/README.md#5-rt-07-mixed-load-diagnostic)
 now runs scheduled small unary calls alongside repeating bulk streams in the

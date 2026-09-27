@@ -1303,6 +1303,15 @@
    ],
    "relates": [
     "BM-07"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "rpc-bench/src/process.rs: NodelayIncoming (set+getsockopt-verify per accepted socket), fair_tonic_server/endpoint (16MiB windows, 1MiB frames, 256 streams, no adaptive window, 16KiB headers), EndpointFairness records + spec gate, FAIRNESS lines, client sidecar, smoke refusal gate",
+    "tests: 4 unit (adapter/getsockopt, spec pins, rejection, refusal) + black-box tonic_fairness (2 conns verified, scalars match); full rpc-bench suite green (77+84+1+1); CI runs the new target",
+    "docs/benchmarks.md: Xeon tables superseded, Tower-buffer claim retracted (was Nagle: tonic p99 42ms -> 110us fair), new SB-01 fair rerun tables (dev-loop host, 2 runs); comparison.md fairness section",
+    "fair result (M4, release): kernel leads p50 ~1.3x, QPS 1.2-1.6x (was 30x), stream 1.4x, upload 2.2x; tonic leads empty p99 ~1.15x (stable kernel-tail finding); old strictly-faster p99 gate now red -> SB-20 owns thresholds",
+    "follow-up: dev-loop rpc.tonic.* cells need the same matched-settings treatment (SB-01 write list covers rpc-bench only); suggest card"
    ]
   },
   {
