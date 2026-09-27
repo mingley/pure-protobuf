@@ -63,3 +63,14 @@ Rules enforced by `scripts/rpc-bench-matrix.py`:
 - A missing peer (or unsupported role) marks the report `matrix_complete: false`
   with explicit `failed_pairs`/`skipped_pairs`, prints an `[INCOMPLETE MATRIX]`
   banner, and exits 1: a partial table is never a comparison win.
+
+## TLS (SB-11 stack-matrix cells)
+
+Each manifest's `tls` section records whether the peer can serve a TLS
+cell and what verifies it. Native serves `--tls-cert/--tls-key` (in-tree
+test PKI); go/cpp serve their upstream test credentials (`-use_tls` /
+`--use_tls=true`) verified by the native generator with the matching
+test CA and `foo.test.google.fr` override. Tonic is explicitly
+unsupported (tonic 0.14 TLS pulls a C crypto provider, vs QG-04), and
+soak clients stay plaintext-only; both are recorded with reasons, never
+silently plaintext. See `docs/evidence/stack-matrix-sb11.md`.

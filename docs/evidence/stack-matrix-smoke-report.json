@@ -1,0 +1,880 @@
+{
+  "schema": "stack-matrix/1",
+  "stage": "smoke",
+  "created_at": "2026-09-27T19:46:18Z",
+  "params": {
+    "warmup_s": 1.0,
+    "duration_s": 2.0,
+    "seed": 1592598566,
+    "slo_p99_s": 0.05,
+    "start_rate": 500.0,
+    "max_rate": 8000.0,
+    "growth": 2.0,
+    "max_steps": 6,
+    "matched_rate": 1000.0
+  },
+  "cpu_constraints": {
+    "effective_cpu_count": 14,
+    "affinity_cpus": null,
+    "affinity_count": null,
+    "cgroup_quota_millicpus": null,
+    "source": "os-cpu-count"
+  },
+  "pinning": {
+    "supported": false,
+    "method": "none",
+    "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin"
+  },
+  "peers": {
+    "native": "$ROOT/target/release/rpc-bench",
+    "cpp-server": "$ROOT/target/interop-cpp/interop_server",
+    "cpp-client": "$ROOT/target/interop-cpp/interop_client",
+    "go-server": "$ROOT/target/interop-go/go-interop-server",
+    "go-client": "$ROOT/target/interop-go/go-interop-client",
+    "tonic-pbrs": "$ROOT/target/release/rpc-bench",
+    "tonic-prost": "$ROOT/target/release/tonic-interop"
+  },
+  "cells": [
+    {
+      "id": "server-native-unary-empty-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52133",
+      "slo": {
+        "sustained_qps": 7935.354751688102,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.58012914151425,
+            "p99_s": 0.002701318,
+            "p50_s": 0.001372148,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1978,
+            "successful_calls": 1978,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 989.1780109910909,
+            "p99_s": 0.002534388,
+            "p50_s": 0.001239748,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1990.6255756285,
+            "p99_s": 0.002325322,
+            "p50_s": 0.001096252,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4032.292068074475,
+            "p99_s": 0.002289828,
+            "p50_s": 0.001105984,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15881,
+            "successful_calls": 15881,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7935.354751688102,
+            "p99_s": 0.002245135,
+            "p50_s": 0.001180585,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7935.4,
+        "p50_s": 0.001180585,
+        "p99_s": 0.002245135,
+        "server_cpu_per_rpc": 5.9558e-05,
+        "client_cpu_per_rpc": 0.0,
+        "server_peak_rss_mib": 6.812,
+        "client_peak_rss_mib": 7.719,
+        "server_cpu_seconds": 0.945843,
+        "client_cpu_seconds": 0.0,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "server-tonic-pbrs-unary-empty-plain-1cpu",
+      "role": "server",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52163",
+      "slo": {
+        "sustained_qps": 7939.608644780485,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.549515983728,
+            "p99_s": 0.002702776,
+            "p50_s": 0.001373163,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1978,
+            "successful_calls": 1978,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 989.2142885452561,
+            "p99_s": 0.002401857,
+            "p50_s": 0.001204847,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1988.6118955325853,
+            "p99_s": 0.002359088,
+            "p50_s": 0.001118855,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4033.4244208266837,
+            "p99_s": 0.002220215,
+            "p50_s": 0.001110749,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15880,
+            "successful_calls": 15880,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7939.608644780485,
+            "p99_s": 0.002324184,
+            "p50_s": 0.001181626,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7939.6,
+        "p50_s": 0.001181626,
+        "p99_s": 0.002324184,
+        "server_cpu_per_rpc": 6.1848e-05,
+        "client_cpu_per_rpc": 6.2566e-05,
+        "server_peak_rss_mib": 6.359,
+        "client_peak_rss_mib": 7.672,
+        "server_cpu_seconds": 0.982144,
+        "client_cpu_seconds": 0.993547,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "server-tonic-prost-unary-empty-plain-1cpu",
+      "role": "server",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/tonic-interop",
+      "server_codec": "prost",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52183",
+      "slo": {
+        "sustained_qps": 7943.242287349151,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.5902997530138,
+            "p99_s": 0.002828393,
+            "p50_s": 0.001369506,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1978,
+            "successful_calls": 1978,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 989.3353431292363,
+            "p99_s": 0.002438084,
+            "p50_s": 0.001240926,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1989.8169953163576,
+            "p99_s": 0.002335277,
+            "p50_s": 0.001085193,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4033.1661996724392,
+            "p99_s": 0.002241618,
+            "p50_s": 0.00108534,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15884,
+            "successful_calls": 15884,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7943.242287349151,
+            "p99_s": 0.002226905,
+            "p50_s": 0.001157703,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7943.2,
+        "p50_s": 0.001157703,
+        "p99_s": 0.002226905,
+        "server_cpu_per_rpc": 5.9962e-05,
+        "client_cpu_per_rpc": 0.0,
+        "server_peak_rss_mib": 5.562,
+        "client_peak_rss_mib": 7.875,
+        "server_cpu_seconds": 0.952436,
+        "client_cpu_seconds": 0.0,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "server-go-unary-empty-plain-1cpu",
+      "role": "server",
+      "server_peer": "go",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/interop-go/go-interop-server",
+      "server_codec": "protobuf-go",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52208",
+      "slo": {
+        "sustained_qps": 7939.083045405364,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.3948326227598,
+            "p99_s": 0.002728818,
+            "p50_s": 0.001378616,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1978,
+            "successful_calls": 1978,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 989.3127049277116,
+            "p99_s": 0.002374584,
+            "p50_s": 0.001239628,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1990.113877110506,
+            "p99_s": 0.002335872,
+            "p50_s": 0.001094353,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4034.2281938754377,
+            "p99_s": 0.00217828,
+            "p50_s": 0.001064377,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15883,
+            "successful_calls": 15883,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7939.083045405364,
+            "p99_s": 0.002229255,
+            "p50_s": 0.00114902,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7939.1,
+        "p50_s": 0.00114902,
+        "p99_s": 0.002229255,
+        "server_cpu_per_rpc": 5.4248e-05,
+        "client_cpu_per_rpc": 7.2193e-05,
+        "server_peak_rss_mib": 24.469,
+        "client_peak_rss_mib": 7.828,
+        "server_cpu_seconds": 0.861616,
+        "client_cpu_seconds": 1.146649,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "server-cpp-unary-empty-plain-1cpu",
+      "role": "server",
+      "server_peer": "cpp",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/interop-cpp/interop_server",
+      "server_codec": "protobuf-cpp",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52241",
+      "slo": {
+        "sustained_qps": 7943.83502589098,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.56211831859974,
+            "p99_s": 0.002704586,
+            "p50_s": 0.001401865,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1976,
+            "successful_calls": 1976,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 987.9647622608245,
+            "p99_s": 0.00245159,
+            "p50_s": 0.001287057,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1989.7864536236916,
+            "p99_s": 0.002382042,
+            "p50_s": 0.00116703,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4034.3870371629596,
+            "p99_s": 0.002218087,
+            "p50_s": 0.001149398,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15884,
+            "successful_calls": 15884,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7943.83502589098,
+            "p99_s": 0.002223315,
+            "p50_s": 0.001205514,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7943.8,
+        "p50_s": 0.001205514,
+        "p99_s": 0.002223315,
+        "server_cpu_per_rpc": 9.663e-05,
+        "client_cpu_per_rpc": 0.0,
+        "server_peak_rss_mib": 16.203,
+        "client_peak_rss_mib": 7.875,
+        "server_cpu_seconds": 1.534864,
+        "client_cpu_seconds": 0.0,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "client-native-unary-empty-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52264",
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 1976,
+        "successful_calls": 1976,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 987.4514090265727,
+        "p99_s": 0.002391292,
+        "p50_s": 0.001227507,
+        "gen_saturated": false,
+        "valid": true,
+        "invalid_reason": ""
+      },
+      "headroom": {
+        "ok": true,
+        "server_avg_cpu_pct": 6.2,
+        "server_cpu_seconds": 0.128426,
+        "wall_s": 2.06,
+        "budget_cpu_pct": 100.0,
+        "pinned": false,
+        "reason": ""
+      },
+      "sustained": {
+        "success_qps": 987.5,
+        "p50_s": 0.001227507,
+        "p99_s": 0.002391292,
+        "server_cpu_per_rpc": 6.4993e-05,
+        "client_cpu_per_rpc": 0.0,
+        "server_peak_rss_mib": 5.797,
+        "client_peak_rss_mib": 6.047,
+        "server_cpu_seconds": 0.128426,
+        "client_cpu_seconds": 0.0,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-empty-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52270",
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 1976,
+        "successful_calls": 1976,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 987.7696851996959,
+        "p99_s": 0.002878634,
+        "p50_s": 0.001291204,
+        "gen_saturated": false,
+        "valid": true,
+        "invalid_reason": ""
+      },
+      "headroom": {
+        "ok": true,
+        "server_avg_cpu_pct": 6.8,
+        "server_cpu_seconds": 0.140071,
+        "wall_s": 2.047,
+        "budget_cpu_pct": 100.0,
+        "pinned": false,
+        "reason": ""
+      },
+      "sustained": {
+        "success_qps": 987.8,
+        "p50_s": 0.001291204,
+        "p99_s": 0.002878634,
+        "server_cpu_per_rpc": 7.0886e-05,
+        "client_cpu_per_rpc": 0.000107236,
+        "server_peak_rss_mib": 5.875,
+        "client_peak_rss_mib": 5.969,
+        "server_cpu_seconds": 0.140071,
+        "client_cpu_seconds": 0.211898,
+        "cpus": 1
+      }
+    },
+    {
+      "id": "client-go-unary-empty-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "go",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "interop-soak",
+      "soak_summary": "[go empty_unary] \nempty_unary go_p50=0 go_p99=1000000\n[go large_unary] \nlarge_unary go_p50=1000000 go_p99=3000000\n[ENDPOINTS] Client (go): codec=google.golang.org/protobuf, workload=interop-soak, binary=$ROOT/target/interop-go/go-interop-client\n[ENDPOINTS] Server (native): codec=pbrs, binary=$ROOT/target/release/rpc-bench\n[RESOURCES] Client (go): user=0.0189s, sys=0.0356s, peak_rss=31.9 MiB, threads=11\n[RESOURCES] Server (native): user=0.0012s, sys=0.0064s, peak_rss=6.8 MiB, threads=15\n[SATURATION] Load generator: avg_cpu=104.0%, spare_capacity=90.5% -> PASS",
+      "status": "pass",
+      "sustained": {
+        "successful_rpcs": 25,
+        "client_cpu_seconds": 0.054492,
+        "client_cpu_per_rpc": 0.00217968,
+        "note": "soak workload: closed-loop interop loops, not offered-load rated"
+      }
+    },
+    {
+      "id": "client-cpp-unary-empty-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "cpp",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": false,
+      "cpus": 1,
+      "workload": "interop-soak",
+      "soak_summary": "[cpp empty_unary] \nempty_unary cpp_p50=0 cpp_p99=5000000\n[cpp large_unary] \nlarge_unary cpp_p50=0 cpp_p99=2000000\n[ENDPOINTS] Client (cpp): codec=google::protobuf (upb/C++), workload=interop-soak, binary=$ROOT/target/interop-cpp/interop_client\n[ENDPOINTS] Server (native): codec=pbrs, binary=$ROOT/target/release/rpc-bench\n[RESOURCES] Client (cpp): user=0.0193s, sys=0.0189s, peak_rss=17.0 MiB, threads=18\n[RESOURCES] Server (native): user=0.0006s, sys=0.0028s, peak_rss=6.5 MiB, threads=15\n[SATURATION] Load generator: avg_cpu=80.7%, spare_capacity=95.5% -> PASS",
+      "status": "pass",
+      "sustained": {
+        "successful_rpcs": 25,
+        "client_cpu_seconds": 0.038259,
+        "client_cpu_per_rpc": 0.00153036,
+        "note": "soak workload: closed-loop interop loops, not offered-load rated"
+      }
+    },
+    {
+      "id": "server-native-unary-empty-tls-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "empty",
+      "tls": {
+        "peer": "native",
+        "server_args": "--tls-cert=$ROOT/pbrs-grpc/tests/tls_data/server.crt --tls-key=$ROOT/pbrs-grpc/tests/tls_data/server.key",
+        "ca_file": "$ROOT/pbrs-grpc/tests/tls_data/ca.crt",
+        "server_name": "localhost",
+        "provenance": "pbrs-grpc/tests/tls_data (test-only, loopback)"
+      },
+      "cpus": 1,
+      "workload": "open-loop-load",
+      "status": "pass",
+      "server_binary": "$ROOT/target/release/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": false,
+        "method": "none",
+        "reason": "CPU pinning needs Linux taskset/cpusets; this host is darwin",
+        "actual": {
+          "supported": false,
+          "reason": "taskset unavailable"
+        }
+      },
+      "addr": "127.0.0.1:52288",
+      "slo": {
+        "sustained_qps": 7939.399896901785,
+        "sustained_step": 4,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 996,
+            "successful_calls": 996,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 498.2484600648352,
+            "p99_s": 0.003517213,
+            "p50_s": 0.001530972,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 1000.0,
+            "offered_calls": 1976,
+            "successful_calls": 1976,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 987.8758773475147,
+            "p99_s": 0.002857176,
+            "p50_s": 0.001344268,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 2000.0,
+            "offered_calls": 3981,
+            "successful_calls": 3981,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 1989.5915435480538,
+            "p99_s": 0.002649057,
+            "p50_s": 0.001221048,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 4000.0,
+            "offered_calls": 8069,
+            "successful_calls": 8069,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 4032.3437042041774,
+            "p99_s": 0.002410175,
+            "p50_s": 0.001182194,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          },
+          {
+            "offered_rate": 8000.0,
+            "offered_calls": 15881,
+            "successful_calls": 15881,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 7939.399896901785,
+            "p99_s": 0.002396636,
+            "p50_s": 0.001273864,
+            "gen_saturated": false,
+            "valid": true,
+            "invalid_reason": ""
+          }
+        ],
+        "ceiling_reason": "reached max_rate 8000 without a ceiling"
+      },
+      "sustained": {
+        "success_qps": 7939.4,
+        "p50_s": 0.001273864,
+        "p99_s": 0.002396636,
+        "server_cpu_per_rpc": 6.7334e-05,
+        "client_cpu_per_rpc": 6.6903e-05,
+        "server_peak_rss_mib": 8.5,
+        "client_peak_rss_mib": 9.422,
+        "server_cpu_seconds": 1.069331,
+        "client_cpu_seconds": 1.062485,
+        "cpus": 1
+      }
+    }
+  ],
+  "matrix_complete": true
+}

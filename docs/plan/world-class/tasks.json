@@ -1732,6 +1732,12 @@
    ],
    "relates": [
     "BM-07"
+   ],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/stack-matrix-sb11.md",
+    "docs/evidence/stack-matrix-smoke-report.json",
+    "docs/evidence/stack-matrix-smoke.log"
    ]
   },
   {
