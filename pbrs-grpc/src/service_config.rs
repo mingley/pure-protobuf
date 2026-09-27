@@ -334,6 +334,22 @@ pub enum LbPolicyConfig {
     Unknown(String),
 }
 
+impl LbPolicyConfig {
+    /// Policy name as it appears in `loadBalancingConfig`, for
+    /// registry selection (A24).
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::PickFirst { .. } => "pick_first",
+            Self::RoundRobin => "round_robin",
+            Self::WeightedRoundRobin(_) => "weighted_round_robin",
+            Self::RingHash(_) => "ring_hash",
+            Self::Priority => "priority",
+            Self::Unknown(name) => name,
+        }
+    }
+}
+
 /// A58 client-side weighted-round-robin tunables.
 #[derive(Clone, Debug)]
 pub struct WeightedRoundRobinConfig {
@@ -858,9 +874,23 @@ fn parse_duration_str(raw: &str) -> Option<Duration> {
 }
 
 /// Shared, cloneable service-config handle for [`crate::Channel`].
+///
+/// Clones share one cell, so a resolver-delivered update adopted on the
+/// lineage is visible to every clone. Manual
+/// [`Channel::service_config`](crate::Channel::service_config) instead
+/// replaces the handle, affecting only that clone, as before.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SharedServiceConfig {
-    inner: Option<Arc<ServiceConfigState>>,
+    inner: Arc<SharedCell>,
+}
+
+#[derive(Debug, Default)]
+struct SharedCell {
+    #[allow(
+        clippy::disallowed_types,
+        reason = "short RwLock held only across an Arc clone or swap; never across await"
+    )]
+    state: std::sync::RwLock<Option<Arc<ServiceConfigState>>>,
 }
 
 #[derive(Debug)]
@@ -874,15 +904,28 @@ pub(crate) struct ServiceConfigState {
 impl SharedServiceConfig {
     /// Attach a parsed document, building its throttling bucket.
     pub(crate) fn new(config: ServiceConfig) -> Self {
+        let shared = Self::default();
+        shared.set(config);
+        shared
+    }
+
+    /// Replace the lineage's document (A21 adoption), rebuilding its
+    /// throttling bucket. In-flight calls keep their old `Arc`.
+    pub(crate) fn set(&self, config: ServiceConfig) {
         let throttler = config.retry_throttling().map(RetryThrottler::new);
-        Self {
-            inner: Some(Arc::new(ServiceConfigState { config, throttler })),
+        let state = Arc::new(ServiceConfigState { config, throttler });
+        match self.inner.state.write() {
+            Ok(mut guard) => *guard = Some(state),
+            Err(poisoned) => *poisoned.into_inner() = Some(state),
         }
     }
 
     /// The attached state, if any.
-    pub(crate) fn get(&self) -> Option<&ServiceConfigState> {
-        self.inner.as_deref()
+    pub(crate) fn get(&self) -> Option<Arc<ServiceConfigState>> {
+        match self.inner.state.read() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
     }
 }
 

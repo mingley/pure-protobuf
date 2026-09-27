@@ -1107,8 +1107,8 @@ impl super::Channel {
     /// The attached service-config document, if any.
     /// Distinct from [`Self::config`]: that is typed handshake fields; this is the parsed JSON document.
     #[must_use]
-    pub fn service_config_doc(&self) -> Option<&ServiceConfig> {
-        self.service_config.get().map(|state| &state.config)
+    pub fn service_config_doc(&self) -> Option<ServiceConfig> {
+        self.service_config.get().map(|state| state.config.clone())
     }
 
     /// A snapshot of this channel's retry statistics.

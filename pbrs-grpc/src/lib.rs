@@ -1079,6 +1079,8 @@ mod interceptor;
 #[forbid(unsafe_code)]
 mod keepalive;
 #[forbid(unsafe_code)]
+pub mod lb;
+#[forbid(unsafe_code)]
 mod limits;
 #[forbid(unsafe_code)]
 mod metadata;

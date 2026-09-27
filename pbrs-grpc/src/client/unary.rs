@@ -236,7 +236,7 @@ impl super::Channel {
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let (retry_policy, hedging_policy) = channel
                     .method_config_for(path)
-                    .map(|method| (method.retry_policy.clone(), method.hedging_policy.clone()))
+                    .map(|method| (method.retry_policy, method.hedging_policy))
                     .unwrap_or((None, None));
                 if let Some(policy) = hedging_policy {
                     return channel

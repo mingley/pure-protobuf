@@ -562,7 +562,7 @@ impl super::Channel {
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let retry_policy = channel
                     .method_config_for(path)
-                    .and_then(|method| method.retry_policy.clone());
+                    .and_then(|method| method.retry_policy);
                 let mut attempt_idx = 1u32;
                 let mut policy_attempts = 1u32;
                 let mut retried = false;

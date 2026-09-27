@@ -5,10 +5,10 @@ use crate::service_config::MethodConfig;
 
 impl super::Channel {
     /// The method entry covering `path`, if a document is attached and covers it.
-    pub(crate) fn method_config_for(&self, path: &str) -> Option<&MethodConfig> {
+    pub(crate) fn method_config_for(&self, path: &str) -> Option<MethodConfig> {
         let state = self.service_config.get()?;
         let (service, method) = crate::telemetry::split_path(path);
-        state.config.method_config(service, method)
+        state.config.method_config(service, method).cloned()
     }
 
     /// Record a finished unary call in the throttling bucket, if configured.
@@ -33,11 +33,8 @@ impl super::Channel {
     ///
     /// `true` when no `retryThrottling` is configured.
     pub(crate) async fn retry_allowed(&self) -> bool {
-        match self
-            .service_config
-            .get()
-            .and_then(|state| state.throttler.as_ref())
-        {
+        let state = self.service_config.get();
+        match state.as_ref().and_then(|state| state.throttler.as_ref()) {
             Some(throttler) => throttler.retry_allowed().await,
             None => true,
         }
