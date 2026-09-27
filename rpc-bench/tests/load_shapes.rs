@@ -106,6 +106,39 @@ fn load_native_streaming_cells() {
         "--stream-msgs=4",
         "--resp-bytes=16",
     ]);
+    assert_clean_cell(&[
+        "--transport=native",
+        "--shape=client_stream",
+        "--stream-msgs=4",
+        "--req-bytes=1024",
+    ]);
+}
+
+#[test]
+fn load_large_payload_loopback() {
+    // 8 MiB unary up+down against the loopback server with raised limits.
+    assert_clean_cell(&[
+        "--transport=native",
+        "--req-bytes=8388608",
+        "--resp-bytes=8388608",
+        "--max-message-size=16777216",
+    ]);
+    // 8x1 MiB client-streaming upload in one RPC.
+    assert_clean_cell(&[
+        "--transport=native",
+        "--shape=client_stream",
+        "--stream-msgs=8",
+        "--req-bytes=1048576",
+        "--max-message-size=16777216",
+    ]);
+    // Tonic client over the same loopback at 1 MiB.
+    assert_clean_cell(&[
+        "--transport=tonic",
+        "--shape=client_stream",
+        "--stream-msgs=4",
+        "--req-bytes=1048576",
+        "--max-message-size=16777216",
+    ]);
 }
 
 #[test]

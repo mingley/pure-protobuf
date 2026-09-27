@@ -135,6 +135,9 @@ pub struct ServerConfig {
     pub tls_cert: Option<String>,
     /// PEM private key for native TLS (`--tls-key`; needs `tls_cert`).
     pub tls_key: Option<String>,
+    /// Max decoded message bytes (`--max-message-size`; transport default
+    /// of 4 MiB when unset).
+    pub max_message_size: Option<usize>,
 }
 
 /// Client configuration.
@@ -1300,7 +1303,11 @@ pub async fn run_server(
     let server_fut = async {
         match config.transport {
             TransportMode::Native => {
-                let router = crate::benchmark_service::dual_router();
+                let router = crate::benchmark_service::dual_router(config.max_message_size);
+                let router = match config.max_message_size {
+                    Some(n) => router.max_decoding_message_size(n),
+                    None => router,
+                };
                 match server_tls {
                     Some(tls) => router
                         .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -1314,8 +1321,13 @@ pub async fn run_server(
             }
             TransportMode::Tonic => {
                 let incoming = NodelayIncoming::with_stats(listener, tonic_stats.clone());
+                let service = tonic_gen::TestServiceServer::new(TonicInterop);
+                let service = match config.max_message_size {
+                    Some(n) => service.max_decoding_message_size(n),
+                    None => service,
+                };
                 fair_tonic_server()
-                    .add_service(tonic_gen::TestServiceServer::new(TonicInterop))
+                    .add_service(service)
                     .serve_with_incoming(incoming)
                     .await
                     .map_err(|e| format!("tonic server error: {e}"))
@@ -2143,7 +2155,8 @@ pub fn usage() -> &'static str {
        --transport <MODE>       Transport mode: native or tonic (default: native)\n  \
        --timeout-secs <SECS>    Maximum runtime before clean shutdown (default: infinite)\n  \
        --tls-cert <PATH>        PEM certificate chain (native only; requires --tls-key)\n  \
-       --tls-key <PATH>         PEM private key (native only; requires --tls-cert)\n\n\
+       --tls-key <PATH>         PEM private key (native only; requires --tls-cert)\n  \
+       --max-message-size <N>   Max decoded message bytes (default: 4 MiB)\n\n\
      Client options:\n  \
        --server_addr <ADDR>     Target host:port (required for client)\n  \
        --transport <MODE>       Client transport: native or tonic (default: native)\n  \
@@ -2254,6 +2267,17 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             );
         }
 
+        let max_message_size = get_arg_val(args, "--max-message-size")
+            .or_else(|| get_arg_val(args, "--max_message_size"))
+            .map(|s| {
+                s.parse::<usize>()
+                    .map_err(|e| format!("invalid --max-message-size '{s}': {e}"))
+            })
+            .transpose()?;
+        if max_message_size.is_some_and(|n| n == 0 || n > 1024 * 1024 * 1024) {
+            return Err("invalid --max-message-size: want 1..=1073741824".to_string());
+        }
+
         return Ok(ProcessRole::Server(ServerConfig {
             host,
             port,
@@ -2261,6 +2285,7 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             timeout_secs,
             tls_cert,
             tls_key,
+            max_message_size,
         }));
     }
 

@@ -88,13 +88,20 @@ const ECHO_TRAILING: &str = "x-grpc-test-echo-trailing-bin";
 pub const MAX_BENCHMARK_PAYLOAD_SIZE: usize = pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE;
 
 /// Router mounting both `TestService` and `BenchmarkService` (SB-11 cells
-/// address either service on one endpoint).
-pub fn dual_router() -> pbrs_grpc::Router {
-    pbrs_grpc::Router::new()
-        .add_service(pbrs_grpc::TestServiceServer::new(
+/// address either service on one endpoint). `max_response_body` raises the
+/// generated-response cap above the 4 MiB demo default for large-payload
+/// cells; `None` keeps the default.
+pub fn dual_router(max_response_body: Option<usize>) -> pbrs_grpc::Router {
+    let router =
+        pbrs_grpc::Router::new().add_service(BenchmarkServiceServer::new(BenchmarkServiceImpl));
+    match max_response_body {
+        Some(n) => router.add_service(pbrs_grpc::TestServiceServer::new(
+            pbrs_grpc::SizedInteropTestService::new(n),
+        )),
+        None => router.add_service(pbrs_grpc::TestServiceServer::new(
             pbrs_grpc::InteropTestService,
-        ))
-        .add_service(BenchmarkServiceServer::new(BenchmarkServiceImpl))
+        )),
+    }
 }
 
 #[derive(Default)]

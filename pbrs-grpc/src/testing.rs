@@ -185,19 +185,19 @@ pub struct InteropTestService;
 
 const MAX_INTEROP_RESPONSE_BODY_SIZE: usize = crate::DEFAULT_MAX_DECODING_MESSAGE_SIZE;
 
-fn checked_response_body_size(size: i32) -> Result<usize, Status> {
+fn checked_response_body_size(cap: usize, size: i32) -> Result<usize, Status> {
     let n = usize::try_from(size)
         .map_err(|_| Status::invalid_argument("negative TestService response size"))?;
-    if n > MAX_INTEROP_RESPONSE_BODY_SIZE {
-        return Err(Status::resource_exhausted(
-            "TestService response body exceeds the 4 MiB demo limit",
-        ));
+    if n > cap {
+        return Err(Status::resource_exhausted(format!(
+            "TestService response body exceeds the {cap}-byte cap"
+        )));
     }
     Ok(n)
 }
 
-fn zeros_payload(n: i32) -> Result<Payload, Status> {
-    let n = checked_response_body_size(n)?;
+fn zeros_payload(cap: usize, n: i32) -> Result<Payload, Status> {
+    let n = checked_response_body_size(cap, n)?;
     let mut p = Payload::new();
     p.set_body(vec![0u8; n]);
     Ok(p)
@@ -231,9 +231,10 @@ fn response_plan(req: &StreamingOutputCallRequest) -> ResponsePlan {
 async fn emit_plan(
     tx: &StreamSender<StreamingOutputCallResponse>,
     plan: ResponsePlan,
+    cap: usize,
 ) -> Result<bool, Status> {
     for (size, interval_us, compress) in plan {
-        let payload = zeros_payload(size)?;
+        let payload = zeros_payload(cap, size)?;
         if interval_us > 0 {
             let us = u64::try_from(interval_us).unwrap_or(0);
             tokio::time::sleep(Duration::from_micros(us)).await;
@@ -260,6 +261,7 @@ async fn unary_reply(
     echo: &Echo,
     request: SimpleRequest,
     compressed: bool,
+    cap: usize,
 ) -> Result<Response<SimpleResponse>, Status> {
     if request.has_expect_compressed() && request.expect_compressed().value() && !compressed {
         return Err(Status::invalid_argument("request not compressed"));
@@ -269,7 +271,7 @@ async fn unary_reply(
         return Err(echoed_status(st.code(), st.message().to_string()));
     }
     let mut msg = SimpleResponse::new();
-    msg.set_payload(zeros_payload(request.response_size())?);
+    msg.set_payload(zeros_payload(cap, request.response_size())?);
     let mut resp = Response::new(msg);
     echo.apply(&mut resp);
     if request.has_response_compressed() && request.response_compressed().value() {
@@ -278,21 +280,126 @@ async fn unary_reply(
     Ok(resp)
 }
 
+/// Shared handler bodies parameterized by the response-body cap.
+/// [`InteropTestService`] passes the 4 MiB demo cap;
+/// [`SizedInteropTestService`] passes its configured cap.
+async fn unary_call_impl(
+    cap: usize,
+    request: Request<SimpleRequest>,
+) -> Result<Response<SimpleResponse>, Status> {
+    let echo = Echo::capture(&request);
+    let compressed = request.compressed();
+    unary_reply(&echo, request.into_inner(), compressed, cap).await
+}
+
+async fn streaming_output_call_impl(
+    cap: usize,
+    request: Request<StreamingOutputCallRequest>,
+) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+    let echo = Echo::capture(&request);
+    let inner = request.into_inner();
+    if inner.has_response_status() {
+        let st = inner.response_status();
+        return Err(echoed_status(st.code(), st.message().to_string()));
+    }
+    let plan = response_plan(&inner);
+    if let Some((size, _, _)) = plan.first() {
+        checked_response_body_size(cap, *size)?;
+    }
+    let want_gzip = plan.iter().any(|(_, _, compress)| *compress);
+    let (tx, stream) = Streaming::channel(8);
+    drop(tokio::spawn(async move {
+        if let Err(status) = emit_plan(&tx, plan, cap).await {
+            tx.fail(status).await;
+        }
+    }));
+    let mut resp = Response::new(stream);
+    echo.apply(&mut resp);
+    if want_gzip {
+        resp.set_compress(true);
+    }
+    Ok(resp)
+}
+
+async fn streaming_input_call_impl(
+    request: Request<Streaming<StreamingInputCallRequest>>,
+) -> Result<Response<StreamingInputCallResponse>, Status> {
+    let echo = Echo::capture(&request);
+    let mut stream = request.into_inner();
+    let mut total: i32 = 0;
+    while let Some(item) = stream.next_framed().await? {
+        if item.message.has_expect_compressed()
+            && item.message.expect_compressed().value()
+            && !item.compressed
+        {
+            return Err(Status::invalid_argument("request not compressed"));
+        }
+        let n = item.message.payload().body().len();
+        total = checked_input_total(total, n)?;
+    }
+    let mut msg = StreamingInputCallResponse::new();
+    msg.set_aggregated_payload_size(total);
+    let mut resp = Response::new(msg);
+    echo.apply(&mut resp);
+    Ok(resp)
+}
+
+async fn full_duplex_call_impl(
+    cap: usize,
+    request: Request<Streaming<StreamingOutputCallRequest>>,
+) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+    let echo = Echo::capture(&request);
+    let mut inbound = request.into_inner();
+    let (tx, stream) = Streaming::channel(8);
+    drop(tokio::spawn(async move {
+        loop {
+            match inbound.message().await {
+                Ok(Some(req)) => {
+                    if req.has_response_status() {
+                        let st = req.response_status();
+                        tx.fail(echoed_status(st.code(), st.message().to_string()))
+                            .await;
+                        return;
+                    }
+                    match emit_plan(&tx, response_plan(&req), cap).await {
+                        Ok(true) => {}
+                        Ok(false) => return,
+                        Err(status) => {
+                            tx.fail(status).await;
+                            return;
+                        }
+                    }
+                }
+                Ok(None) => return,
+                Err(status) => {
+                    tx.fail(status).await;
+                    return;
+                }
+            }
+        }
+    }));
+    let mut resp = Response::new(stream);
+    echo.apply(&mut resp);
+    Ok(resp)
+}
+
+async fn empty_call_impl(request: Request<Empty>) -> Result<Response<Empty>, Status> {
+    let echo = Echo::capture(&request);
+    let mut resp = Response::new(Empty::new());
+    echo.apply(&mut resp);
+    Ok(resp)
+}
+
 impl TestService for InteropTestService {
     async fn empty_call(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {
-        let echo = Echo::capture(&request);
-        let mut resp = Response::new(Empty::new());
-        echo.apply(&mut resp);
-        Ok(resp)
+        empty_call_impl(request).await
     }
 
     async fn unary_call(
         &self,
         request: Request<SimpleRequest>,
     ) -> Result<Response<SimpleResponse>, Status> {
-        let echo = Echo::capture(&request);
-        let compressed = request.compressed();
-        unary_reply(&echo, request.into_inner(), compressed).await
+        unary_call_impl(MAX_INTEROP_RESPONSE_BODY_SIZE, request).await
     }
 
     /// Identical to `UnaryCall`; the interop suite only cares that it answers.
@@ -300,101 +407,28 @@ impl TestService for InteropTestService {
         &self,
         request: Request<SimpleRequest>,
     ) -> Result<Response<SimpleResponse>, Status> {
-        let echo = Echo::capture(&request);
-        let compressed = request.compressed();
-        unary_reply(&echo, request.into_inner(), compressed).await
+        unary_call_impl(MAX_INTEROP_RESPONSE_BODY_SIZE, request).await
     }
 
     async fn streaming_output_call(
         &self,
         request: Request<StreamingOutputCallRequest>,
     ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
-        let echo = Echo::capture(&request);
-        let inner = request.into_inner();
-        if inner.has_response_status() {
-            let st = inner.response_status();
-            return Err(echoed_status(st.code(), st.message().to_string()));
-        }
-        let plan = response_plan(&inner);
-        if let Some((size, _, _)) = plan.first() {
-            checked_response_body_size(*size)?;
-        }
-        let want_gzip = plan.iter().any(|(_, _, compress)| *compress);
-        let (tx, stream) = Streaming::channel(8);
-        drop(tokio::spawn(async move {
-            if let Err(status) = emit_plan(&tx, plan).await {
-                tx.fail(status).await;
-            }
-        }));
-        let mut resp = Response::new(stream);
-        echo.apply(&mut resp);
-        if want_gzip {
-            resp.set_compress(true);
-        }
-        Ok(resp)
+        streaming_output_call_impl(MAX_INTEROP_RESPONSE_BODY_SIZE, request).await
     }
 
     async fn streaming_input_call(
         &self,
         request: Request<Streaming<StreamingInputCallRequest>>,
     ) -> Result<Response<StreamingInputCallResponse>, Status> {
-        let echo = Echo::capture(&request);
-        let mut stream = request.into_inner();
-        let mut total: i32 = 0;
-        while let Some(item) = stream.next_framed().await? {
-            if item.message.has_expect_compressed()
-                && item.message.expect_compressed().value()
-                && !item.compressed
-            {
-                return Err(Status::invalid_argument("request not compressed"));
-            }
-            let n = item.message.payload().body().len();
-            total = checked_input_total(total, n)?;
-        }
-        let mut msg = StreamingInputCallResponse::new();
-        msg.set_aggregated_payload_size(total);
-        let mut resp = Response::new(msg);
-        echo.apply(&mut resp);
-        Ok(resp)
+        streaming_input_call_impl(request).await
     }
 
     async fn full_duplex_call(
         &self,
         request: Request<Streaming<StreamingOutputCallRequest>>,
     ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
-        let echo = Echo::capture(&request);
-        let mut inbound = request.into_inner();
-        let (tx, stream) = Streaming::channel(8);
-        drop(tokio::spawn(async move {
-            loop {
-                match inbound.message().await {
-                    Ok(Some(req)) => {
-                        if req.has_response_status() {
-                            let st = req.response_status();
-                            tx.fail(echoed_status(st.code(), st.message().to_string()))
-                                .await;
-                            return;
-                        }
-                        match emit_plan(&tx, response_plan(&req)).await {
-                            Ok(true) => {}
-                            Ok(false) => return,
-                            Err(status) => {
-                                tx.fail(status).await;
-                                return;
-                            }
-                        }
-                    }
-                    Ok(None) => return,
-                    Err(status) => {
-                        tx.fail(status).await;
-                        return;
-                    }
-                }
-            }
-        }));
-        let mut resp = Response::new(stream);
-        echo.apply(&mut resp);
-        Ok(resp)
+        full_duplex_call_impl(MAX_INTEROP_RESPONSE_BODY_SIZE, request).await
     }
 
     async fn half_duplex_call(
@@ -405,6 +439,84 @@ impl TestService for InteropTestService {
     }
 
     /// The interop suite requires this to answer `UNIMPLEMENTED`.
+    async fn unimplemented_call(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented(
+            "grpc.testing.TestService/UnimplementedCall",
+        ))
+    }
+}
+
+/// [`InteropTestService`] with a configurable generated-response cap.
+///
+/// Benchmarks that need responses above the 4 MiB demo cap (SB-13 large
+/// payloads) mount this instead of raising the shared demo default.
+/// Semantics are identical; only the cap differs.
+#[derive(Debug, Clone, Copy)]
+pub struct SizedInteropTestService {
+    max_response_body_size: usize,
+}
+
+impl SizedInteropTestService {
+    /// Serve generated response bodies up to `max_response_body_size`
+    /// bytes. Requests above the cap fail `RESOURCE_EXHAUSTED`, exactly
+    /// like the demo default.
+    pub fn new(max_response_body_size: usize) -> Self {
+        Self {
+            max_response_body_size,
+        }
+    }
+}
+
+impl TestService for SizedInteropTestService {
+    async fn empty_call(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {
+        empty_call_impl(request).await
+    }
+
+    async fn unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        unary_call_impl(self.max_response_body_size, request).await
+    }
+
+    async fn cacheable_unary_call(
+        &self,
+        request: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        unary_call_impl(self.max_response_body_size, request).await
+    }
+
+    async fn streaming_output_call(
+        &self,
+        request: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        streaming_output_call_impl(self.max_response_body_size, request).await
+    }
+
+    async fn streaming_input_call(
+        &self,
+        request: Request<Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        streaming_input_call_impl(request).await
+    }
+
+    async fn full_duplex_call(
+        &self,
+        request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        full_duplex_call_impl(self.max_response_body_size, request).await
+    }
+
+    async fn half_duplex_call(
+        &self,
+        request: Request<Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<Streaming<StreamingOutputCallResponse>>, Status> {
+        self.full_duplex_call(request).await
+    }
+
     async fn unimplemented_call(
         &self,
         _request: Request<Empty>,
@@ -428,22 +540,31 @@ mod tests {
             MAX_INTEROP_RESPONSE_BODY_SIZE,
             crate::DEFAULT_MAX_DECODING_MESSAGE_SIZE
         );
-        assert_eq!(zeros_payload(0).expect("empty body").body().len(), 0);
+        let cap = MAX_INTEROP_RESPONSE_BODY_SIZE;
+        assert_eq!(zeros_payload(cap, 0).expect("empty body").body().len(), 0);
         for size in [-1, i32::MIN] {
             assert_eq!(
-                zeros_payload(size).expect_err("negative size").code(),
+                zeros_payload(cap, size).expect_err("negative size").code(),
                 Code::InvalidArgument
             );
         }
         let max = i32::try_from(MAX_INTEROP_RESPONSE_BODY_SIZE).expect("4 MiB fits i32");
         for size in [max + 1, i32::MAX] {
             assert_eq!(
-                zeros_payload(size).expect_err("oversize body").code(),
+                zeros_payload(cap, size).expect_err("oversize body").code(),
                 Code::ResourceExhausted
             );
         }
+        // A raised cap admits what the default rejects.
+        assert_eq!(
+            zeros_payload(2 * cap, max + 1)
+                .expect("raised cap")
+                .body()
+                .len(),
+            MAX_INTEROP_RESPONSE_BODY_SIZE + 1
+        );
         let mut response = SimpleResponse::new();
-        response.set_payload(zeros_payload(max).expect("body at cap"));
+        response.set_payload(zeros_payload(cap, max).expect("body at cap"));
         assert_eq!(
             response.payload().body().len(),
             MAX_INTEROP_RESPONSE_BODY_SIZE

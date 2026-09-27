@@ -1177,7 +1177,7 @@ pub use hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest}
 pub use interop_cases::run_case;
 pub use testing::{
     BoolValue, EchoStatus, Empty, InteropTestService, Payload, ResponseParameters, SimpleRequest,
-    SimpleResponse, StreamingInputCallRequest, StreamingInputCallResponse,
+    SimpleResponse, SizedInteropTestService, StreamingInputCallRequest, StreamingInputCallResponse,
     StreamingOutputCallRequest, StreamingOutputCallResponse, TestService, TestServiceClient,
     TestServiceServer,
 };

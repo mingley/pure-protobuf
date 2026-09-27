@@ -66,8 +66,10 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 /// Create a router mounting both `TestService` and `BenchmarkService`.
-pub fn create_dual_server() -> pbrs_grpc::Router {
-    benchmark_service::dual_router()
+/// `max_response_body` raises the generated-response cap for
+/// large-payload runs; `None` keeps the 4 MiB demo default.
+pub fn create_dual_server(max_response_body: Option<usize>) -> pbrs_grpc::Router {
+    benchmark_service::dual_router(max_response_body)
 }
 
 /// Call shape driven by the `load` subcommand (SB-11 stack-matrix cells).
@@ -79,6 +81,9 @@ pub enum LoadShape {
     ServerStream,
     /// One lockstep `TestService.FullDuplexCall` ping-pong exchange per RPC.
     Bidi,
+    /// One `TestService.StreamingInputCall` uploading `stream_msgs`
+    /// requests of `req_bytes` each per RPC.
+    ClientStream,
 }
 
 impl std::str::FromStr for LoadShape {
@@ -89,8 +94,9 @@ impl std::str::FromStr for LoadShape {
             "unary" => Ok(LoadShape::Unary),
             "server_stream" | "server-stream" | "stream" => Ok(LoadShape::ServerStream),
             "bidi" | "ping_pong" | "ping-pong" => Ok(LoadShape::Bidi),
+            "client_stream" | "client-stream" | "upload" => Ok(LoadShape::ClientStream),
             other => Err(format!(
-                "unknown load shape '{other}': expected unary, server_stream, or bidi"
+                "unknown load shape '{other}': expected unary, server_stream, bidi, or client_stream"
             )),
         }
     }
@@ -102,6 +108,7 @@ impl std::fmt::Display for LoadShape {
             LoadShape::Unary => write!(f, "unary"),
             LoadShape::ServerStream => write!(f, "server_stream"),
             LoadShape::Bidi => write!(f, "bidi"),
+            LoadShape::ClientStream => write!(f, "client_stream"),
         }
     }
 }
@@ -160,6 +167,7 @@ pub struct LoadCliArgs {
     pub transport: Option<LoadTransport>,
     pub tls_ca: Option<String>,
     pub tls_server_name: Option<String>,
+    pub max_message_size: Option<usize>,
 }
 
 fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
@@ -337,6 +345,22 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         );
     }
 
+    let max_message_size = if let Some(val) =
+        get_arg_val(args, "--max-message-size").or_else(|| get_arg_val(args, "--max_message_size"))
+    {
+        let n: usize = val
+            .parse()
+            .map_err(|e| format!("invalid --max-message-size '{val}': {e}"))?;
+        if n == 0 || n > 1024 * 1024 * 1024 {
+            return Err(format!(
+                "invalid --max-message-size '{val}': want 1..=1073741824"
+            ));
+        }
+        Some(n)
+    } else {
+        None
+    };
+
     Ok(LoadCliArgs {
         distribution,
         rate,
@@ -355,6 +379,7 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         transport,
         tls_ca,
         tls_server_name,
+        max_message_size,
     })
 }
 
@@ -368,13 +393,14 @@ pub fn extended_usage() -> String {
            --max-in-flight <CAP>    Maximum in-flight calls before queue overflow (default: 1000)\n  \
            --duration-secs <SECS>   Duration of load test in seconds\n  \
            --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.UnaryCall\n  \
-           --shape <SHAPE>          Load call shape: unary, server_stream, bidi (default: unary)\n  \
+           --shape <SHAPE>          Load call shape: unary, server_stream, bidi, client_stream (default: unary)\n  \
            --req-bytes <N>          Unary request payload bytes (default: 0)\n  \
            --resp-bytes <N>         Unary response bytes, or bytes per streaming message (default: 0; 1024 with --benchmark-service)\n  \
            --stream-msgs <N>        Messages per streaming RPC (default: 2000 server_stream, 256 bidi)\n  \
            --transport <MODE>       Load client transport: native or tonic (default: native; tonic is plaintext only)\n  \
            --tls-ca <PATH>          PEM CA to verify the server (requires --tls-server-name; native only)\n  \
-           --tls-server-name <N>    Server name to verify against the CA\n\
+           --tls-server-name <N>    Server name to verify against the CA\n  \
+           --max-message-size <N>   Max decoded message bytes (default: transport default, 4 MiB)\n\
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
            --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
@@ -390,8 +416,9 @@ async fn load_native_channel(
     addr: SocketAddr,
     tls_ca: Option<&str>,
     tls_server_name: Option<&str>,
+    max_message_size: Option<usize>,
 ) -> Result<pbrs_grpc::Channel, String> {
-    match (tls_ca, tls_server_name) {
+    let channel = match (tls_ca, tls_server_name) {
         (Some(ca_path), Some(name)) => {
             let ca_pem = std::fs::read(ca_path)
                 .map_err(|e| format!("failed to read --tls-ca '{ca_path}': {e}"))?;
@@ -399,12 +426,16 @@ async fn load_native_channel(
                 .map_err(|e| format!("invalid TLS config: {e}"))?;
             pbrs_grpc::Channel::connect_tls(addr, tls)
                 .await
-                .map_err(|e| format!("TLS connect to {addr} as {name}: {e}"))
+                .map_err(|e| format!("TLS connect to {addr} as {name}: {e}"))?
         }
         _ => pbrs_grpc::Channel::connect(addr)
             .await
-            .map_err(|e| format!("failed to connect to {addr}: {e}")),
-    }
+            .map_err(|e| format!("failed to connect to {addr}: {e}"))?,
+    };
+    Ok(match max_message_size {
+        Some(n) => channel.max_decoding_message_size(n),
+        None => channel,
+    })
 }
 
 fn unary_request(req_bytes: usize, resp_bytes: usize) -> pbrs_grpc::SimpleRequest {
@@ -456,8 +487,9 @@ async fn run_load_native(
     resp_bytes: usize,
     stream_msgs: u32,
     benchmark_service: bool,
+    max_message_size: Option<usize>,
 ) -> Result<load::LoadRecord, String> {
-    let channel = load_native_channel(addr, tls_ca, tls_server_name).await?;
+    let channel = load_native_channel(addr, tls_ca, tls_server_name, max_message_size).await?;
     match (shape, benchmark_service) {
         (LoadShape::Unary, true) => {
             let client = benchmark_service::BenchmarkServiceClient::new(channel);
@@ -547,6 +579,41 @@ async fn run_load_native(
                 })
                 .await)
         }
+        (LoadShape::ClientStream, _) => {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            let template = process::upload_kernel_req(req_bytes as i32);
+            let want = process::upload_want_bytes(stream_msgs as i32, req_bytes as i32);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let (tx, call) = client.streaming_input_call(pbrs_grpc::Request::new(()));
+                        let send = async move {
+                            for i in 0..stream_msgs {
+                                tx.send(template.clone()).await.map_err(|e| {
+                                    load::RpcCallError::Other(format!("upload send msg {i}: {e}"))
+                                })?;
+                            }
+                            tx.close();
+                            Ok::<(), load::RpcCallError>(())
+                        };
+                        let (send_res, resp_res) = tokio::join!(send, call);
+                        send_res?;
+                        let got = resp_res
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner()
+                            .aggregated_payload_size();
+                        if got != want {
+                            return Err(load::RpcCallError::Other(format!(
+                                "upload aggregate mismatch: got {got}, want {want}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
         (LoadShape::Bidi, _) => {
             let client = pbrs_grpc::TestServiceClient::new(channel);
             let template = bidi_request(resp_bytes);
@@ -601,6 +668,17 @@ async fn run_load_native(
     }
 }
 
+fn tonic_load_client(
+    channel: tonic::transport::Channel,
+    max_message_size: Option<usize>,
+) -> tonic_gen::TestServiceClient<tonic::transport::Channel> {
+    let client = tonic_gen::TestServiceClient::new(channel);
+    match max_message_size {
+        Some(n) => client.max_decoding_message_size(n),
+        None => client,
+    }
+}
+
 async fn run_load_tonic(
     load_gen: &load::LoadGenerator,
     addr: SocketAddr,
@@ -608,11 +686,12 @@ async fn run_load_tonic(
     req_bytes: usize,
     resp_bytes: usize,
     stream_msgs: u32,
+    max_message_size: Option<usize>,
 ) -> Result<load::LoadRecord, String> {
     let channel = process::tonic_channel(addr).await?;
     match shape {
         LoadShape::Unary => {
-            let client = tonic_gen::TestServiceClient::new(channel);
+            let client = tonic_load_client(channel, max_message_size);
             Ok(load_gen
                 .run(move || {
                     let client = client.clone();
@@ -636,7 +715,7 @@ async fn run_load_tonic(
                 .await)
         }
         LoadShape::ServerStream => {
-            let client = tonic_gen::TestServiceClient::new(channel);
+            let client = tonic_load_client(channel, max_message_size);
             let template = process::stream_tonic_req(stream_msgs as i32, resp_bytes as i32);
             Ok(load_gen
                 .run(move || {
@@ -673,8 +752,47 @@ async fn run_load_tonic(
                 })
                 .await)
         }
+        LoadShape::ClientStream => {
+            let client = tonic_load_client(channel, max_message_size);
+            let template = process::upload_tonic_req(req_bytes as i32);
+            let want = process::upload_want_bytes(stream_msgs as i32, req_bytes as i32);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let mut client = client;
+                        let (tx, rx) = tokio::sync::mpsc::channel(8);
+                        let send = async move {
+                            for i in 0..stream_msgs {
+                                tx.send(template.clone()).await.map_err(|_| {
+                                    load::RpcCallError::Other(format!("upload send msg {i} failed"))
+                                })?;
+                            }
+                            drop(tx);
+                            Ok::<(), load::RpcCallError>(())
+                        };
+                        let recv = client.streaming_input_call(tonic::Request::new(
+                            tokio_stream::wrappers::ReceiverStream::new(rx),
+                        ));
+                        let (send_res, resp_res) = tokio::join!(send, recv);
+                        send_res?;
+                        let got = resp_res
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner()
+                            .aggregated_payload_size();
+                        if got != want {
+                            return Err(load::RpcCallError::Other(format!(
+                                "upload aggregate mismatch: got {got}, want {want}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
         LoadShape::Bidi => {
-            let client = tonic_gen::TestServiceClient::new(channel);
+            let client = tonic_load_client(channel, max_message_size);
             let template = bidi_tonic_request(resp_bytes);
             Ok(load_gen
                 .run(move || {
@@ -775,6 +893,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
     let stream_msgs = opts.stream_msgs.unwrap_or(match shape {
         LoadShape::ServerStream => 2000,
         LoadShape::Bidi => 256,
+        LoadShape::ClientStream => 8,
         LoadShape::Unary => 0,
     });
 
@@ -804,8 +923,14 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
         let bound = listener
             .local_addr()
             .map_err(|e| format!("failed to get local addr: {e}"))?;
+        let max_message_size = opts.max_message_size;
         tokio::spawn(async move {
-            create_dual_server().serve_listener(listener).await.ok();
+            let router = create_dual_server(max_message_size);
+            let router = match max_message_size {
+                Some(n) => router.max_decoding_message_size(n),
+                None => router,
+            };
+            router.serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
         bound
@@ -823,11 +948,21 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 resp_bytes,
                 stream_msgs,
                 opts.benchmark_service,
+                opts.max_message_size,
             )
             .await?
         }
         LoadTransport::Tonic => {
-            run_load_tonic(&load_gen, addr, shape, req_bytes, resp_bytes, stream_msgs).await?
+            run_load_tonic(
+                &load_gen,
+                addr,
+                shape,
+                req_bytes,
+                resp_bytes,
+                stream_msgs,
+                opts.max_message_size,
+            )
+            .await?
         }
     };
 
@@ -954,7 +1089,7 @@ async fn main() {
             local_addr.port(),
             local_addr
         );
-        if let Err(e) = create_dual_server().serve_listener(listener).await {
+        if let Err(e) = create_dual_server(None).serve_listener(listener).await {
             eprintln!("Server error: {e}");
             std::process::exit(1);
         }
@@ -1221,7 +1356,7 @@ mod tests {
         let addr = listener.local_addr().unwrap();
 
         tokio::spawn(async move {
-            create_dual_server().serve_listener(listener).await.ok();
+            create_dual_server(None).serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
 
