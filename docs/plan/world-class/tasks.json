@@ -1841,7 +1841,13 @@
     "docs-contract"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/profiling.md",
+    "scripts/profile.sh",
+    ".github/pull_request_template.md"
+   ]
   },
   {
    "id": "SB-15",

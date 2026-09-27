@@ -276,8 +276,10 @@ still applies in full. This program adds the following rules.
    Capture dev-loop baseline JSON and a flamegraph on the base SHA. State one
    hypothesis and name the target categories. Make one coherent change.
    Capture the after-JSON and compare it. Fill in the perf-PR template
-   (SB-14). A change that fails the dev-loop win rule does not merge as a
-   performance change.
+   ([pull_request_template.md](../../../.github/pull_request_template.md),
+   SB-14; kit: [profiling.md](../../profiling.md),
+   `scripts/profile.sh`). A change that fails the dev-loop win rule does
+   not merge as a performance change.
 4. **Gates never regress.** Run the card's `checks` plus every gate it can
    affect: conformance (F1) for codec/codegen changes; interop and hostile
    tests (F2/F3) for transport changes; Miri for new `unsafe`. Add a failing
