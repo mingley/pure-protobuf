@@ -7,6 +7,13 @@ use std::fmt::Debug;
 pub trait Parse: SealedInternal + Sized {
     fn parse(serialized: &[u8]) -> Result<Self, ParseError>;
     fn parse_dont_enforce_required(serialized: &[u8]) -> Result<Self, ParseError>;
+    /// Parse, retaining `serialized` as shared backing for large fields
+    /// instead of copying (PK-09). Falls back to [`Self::parse`] unless the
+    /// message overrides
+    /// [`ClearAndParse::merge_from_bytes_shared`].
+    fn parse_bytes(serialized: bytes::Bytes) -> Result<Self, ParseError> {
+        Self::parse(&serialized)
+    }
 }
 
 impl<T> Parse for T
@@ -20,6 +27,15 @@ where
         }
         let mut msg = Self::default();
         ClearAndParse::merge_from_bytes(&mut msg, serialized).map(|()| msg)
+    }
+
+    #[inline(always)]
+    fn parse_bytes(serialized: bytes::Bytes) -> Result<Self, ParseError> {
+        if serialized.is_empty() && T::EMPTY_PARSE_OK {
+            return Ok(Self::default());
+        }
+        let mut msg = Self::default();
+        ClearAndParse::merge_from_bytes_shared(&mut msg, serialized).map(|()| msg)
     }
 
     #[inline]
@@ -60,6 +76,12 @@ pub trait ClearAndParse: SealedInternal {
     fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), ParseError>;
     fn merge_from_bytes_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError> {
         self.merge_from_bytes(data)
+    }
+    /// Merge, retaining `data` as shared backing for large fields (PK-09).
+    /// The default copies via [`Self::merge_from_bytes`]; generated messages
+    /// override this to window the shared buffer.
+    fn merge_from_bytes_shared(&mut self, data: bytes::Bytes) -> Result<(), ParseError> {
+        self.merge_from_bytes(&data)
     }
 }
 

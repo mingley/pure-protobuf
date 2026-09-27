@@ -619,3 +619,21 @@ fn invalidation_safety_cached_size_and_dirty_tracking() {
     let roundtrip2 = TestAllTypesProto3::parse(&re_serialized).expect("parse2");
     assert_eq!(roundtrip2.optional_nested_message().a(), 99);
 }
+
+#[test]
+fn parse_bytes_matches_parse() {
+    // PK-09: the shared-backing entry point decodes identically to parse,
+    // for empty, small and large bytes payloads.
+    for len in [0usize, 7, 1024, 1 << 20] {
+        let mut a = Any::new();
+        a.set_type_url("type.googleapis.com/x.B");
+        a.set_value(vec![0xABu8; len]);
+        let wire = Serialize::serialize(&a).unwrap();
+        let shared =
+            Any::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&wire)).expect("parse_bytes");
+        let plain = Any::parse(&wire).expect("parse");
+        assert_eq!(shared.type_url(), plain.type_url());
+        assert_eq!(shared.value(), plain.value());
+        assert_eq!(Serialize::serialize(&shared).unwrap(), wire);
+    }
+}

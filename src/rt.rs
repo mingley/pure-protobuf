@@ -17,6 +17,7 @@ pub use crate::wire::{
     encode_zigzag32, encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64,
     read_len_bytes, read_len_span, skip_field, tag_len, varint_len,
 };
+pub use bytes::Bytes;
 
 /// Encoded-size cache (C++ `cached_size_`). Ignored by `PartialEq`.
 #[derive(Debug)]
