@@ -5518,7 +5518,15 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "commits 08ed0de9..8db4bac7 + tests: lb/ring_hash.rs (vendored seeded XXH64, Go-verified vectors via tests/interop/go/xxhcheck, grpc-go-identical ring build, hash walk with failover, requestHashHeader + ring_hash_experimental alias, fail-fast, health gating + backoff); lb/least_request.rs (choice_count sampling, RAII LrTrack guards on unary attempts; least_request_experimental alias); lb/subset.rs (seeded-XXH64 rendezvous top-N, first-registered child via shared instantiate(), full delegation, nesting parse-rejected); pool dispatch + request-hash threading",
+    "checks: tests/lb_ring_hash.rs 7/7 e2e; workspace 2902/0; clippy --all-targets/doc/fmt clean; self-interop PASS; MSRV 1.85 lib suites 39+338",
+    "stability: 40-run probe confirmed p=3/4 avoidance (mean 75.6%) so n=20->100 at a 60% bar; spread tightened to a 5-80 smoke band (port-dependent ring shares; exact distribution pinned by the fixed-address unit test); fixed pre-existing tls.rs policy-replacement race via pre-rebind drain",
+    "boundaries: endpoint weights all 1 (xDS attributes lane); least-request counts unary attempts only; subset nesting parse-rejected"
+   ]
   },
   {
    "id": "CH-08",
@@ -5549,7 +5557,9 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress",
+   "implementer": "muse-code"
   },
   {
    "id": "CH-09",
