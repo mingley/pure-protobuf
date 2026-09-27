@@ -49,6 +49,11 @@ webpki-roots = "1"
 # OpenTelemetry metrics bridge (GF-01). Off by default; enabling the
 # feature without installing an observer costs nothing (Option checks).
 otel = ["dep:opentelemetry"]
+# Bench-only user-space copy counters (SB-13). Off by default; every
+# note call compiles to nothing without it. Bench binaries only.
+# Enables the pbrs runtime counters too so one feature gives full-path
+# attribution (transport + Wire::ensure).
+copy-counts = ["pbrs/copy-counts"]
 
 [dev-dependencies]
 # In-memory metrics assertions for tests/otel.rs (GF-01).

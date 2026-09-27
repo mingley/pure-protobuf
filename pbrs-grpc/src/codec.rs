@@ -135,6 +135,7 @@ pub(crate) fn pop_from_chunk(
         return Ok(None);
     }
     drop(chunk.split_to(HEADER_LEN));
+    crate::copy_counts::note_chunk_slice(len);
     Ok(Some(Frame {
         compressed: flag == 1,
         payload: chunk.split_to(len),

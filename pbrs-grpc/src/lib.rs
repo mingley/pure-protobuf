@@ -1054,6 +1054,8 @@ pub mod codec;
 #[forbid(unsafe_code)]
 pub mod compression;
 #[forbid(unsafe_code)]
+pub mod copy_counts;
+#[forbid(unsafe_code)]
 pub mod gzip;
 #[forbid(unsafe_code)]
 pub mod interop_cases;
@@ -1134,6 +1136,7 @@ pub use config::{
     DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_RESET_STREAM_DURATION, DEFAULT_STREAM_BUFFER,
     DEFAULT_WINDOW_SIZE, ServerConfig,
 };
+pub use copy_counts::{CopyCounts, copy_counts, reset_copy_counts};
 /// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
 pub use futures_core::Stream;
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by

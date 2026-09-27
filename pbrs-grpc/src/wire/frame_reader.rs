@@ -123,9 +123,11 @@ impl FrameReader {
             return;
         }
         if !self.chunk.is_empty() {
+            crate::copy_counts::note_carry(self.chunk.len());
             self.carry.extend_from_slice(&self.chunk);
             self.chunk = Bytes::new();
         }
+        crate::copy_counts::note_carry(next.len());
         self.carry.extend_from_slice(&next);
     }
 

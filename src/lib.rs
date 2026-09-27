@@ -65,6 +65,7 @@ pub mod __internal {
 }
 
 pub mod codegen;
+pub mod copy_counts;
 mod dynamic;
 mod error;
 pub mod gen_support;

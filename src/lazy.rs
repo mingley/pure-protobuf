@@ -46,6 +46,7 @@ impl Wire {
         if data.is_empty() {
             return Self::empty();
         }
+        crate::copy_counts::note_wire(data.len());
         let buf: Arc<[u8]> = Arc::from(data);
         let end = buf.len() as u32;
         Self { buf, start: 0, end }

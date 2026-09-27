@@ -15,6 +15,7 @@ pub(crate) fn frame_from_msg<T: Serialize>(msg: &T, len: usize) -> Result<Bytes,
     buf.put_u8(0);
     buf.put_u32(prefix);
     T::encode(msg, &mut buf).map_err(|e| Status::internal(e.to_string()))?;
+    crate::copy_counts::note_encode(len);
     Ok(buf.freeze())
 }
 
@@ -30,6 +31,7 @@ pub(crate) fn encode_msg<T: Serialize>(
         return frame_from_msg(msg, len);
     };
     let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
+    crate::copy_counts::note_serialize(body.len());
     // Compress straight into the framed buffer: one allocation instead of
     // two, and no second copy of the compressed bytes. The length prefix
     // is patched once the stream ends.
@@ -81,6 +83,7 @@ pub(crate) fn append_frame<T: Serialize>(
     limits.check_encode(len)?;
     if let Some(codec) = codec {
         let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
+        crate::copy_counts::note_serialize(body.len());
         buf.reserve(codec::HEADER_LEN + body.len() / 2 + 32);
         let at = buf.len();
         buf.put_u8(1);
