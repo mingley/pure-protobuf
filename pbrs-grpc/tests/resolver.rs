@@ -486,12 +486,10 @@ async fn unix_abstract_uri_dials_on_linux() {
     let mut raw = Vec::with_capacity(name.len() + 1);
     raw.push(0u8);
     raw.extend_from_slice(name.as_bytes());
-    let sock = socket2::SockAddr::unix(std::path::Path::new(std::ffi::OsStr::from_bytes(
-        &raw,
-    )))
-    .expect("abstract sockaddr");
-    let socket = socket2::Socket::new(socket2::Domain::UNIX, socket2::Type::STREAM, None)
-        .expect("socket");
+    let sock = socket2::SockAddr::unix(std::path::Path::new(std::ffi::OsStr::from_bytes(&raw)))
+        .expect("abstract sockaddr");
+    let socket =
+        socket2::Socket::new(socket2::Domain::UNIX, socket2::Type::STREAM, None).expect("socket");
     socket.bind(&sock).expect("bind");
     socket.listen(128).expect("listen");
     let std_listener: std::os::unix::net::UnixListener = socket.into();
