@@ -1064,6 +1064,8 @@ pub mod channelz;
 pub mod health;
 pub mod hello;
 pub mod orca;
+#[cfg(feature = "otel")]
+pub mod otel;
 pub mod pb;
 pub mod reflection;
 pub mod testing;

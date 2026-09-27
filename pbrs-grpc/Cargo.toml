@@ -25,6 +25,9 @@ futures-core = { version = "0.3", default-features = false }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 h2 = "0.4.18"
 http = "1"
+# Optional OpenTelemetry metrics bridge (GF-01). Pure Rust, no C.
+# Default off: zero cost when disabled (module compiles out).
+opentelemetry = { version = "0.31", default-features = false, features = ["metrics"], optional = true }
 pbrs = { version = "0.1.0", path = ".." }
 # rustls default features pull in aws-lc-rs, which compiles C. We disable
 # them and supply Graviola, which builds with rustc only.
@@ -42,7 +45,14 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time",
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 webpki-roots = "1"
 
+[features]
+# OpenTelemetry metrics bridge (GF-01). Off by default; enabling the
+# feature without installing an observer costs nothing (Option checks).
+otel = ["dep:opentelemetry"]
+
 [dev-dependencies]
+# In-memory metrics assertions for tests/otel.rs (GF-01).
+opentelemetry_sdk = { version = "0.31", default-features = false, features = ["metrics", "testing", "experimental_metrics_custom_reader"] }
 # The hostile-peer tests speak raw HTTP/2 so they can send bytes no
 # well-behaved client would.
 bytes = "1"

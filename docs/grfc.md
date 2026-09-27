@@ -72,14 +72,14 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |
 | A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |
-| A66 | OTel stats | planned | Optional `opentelemetry` metrics bridge. |
+| A66 | OTel stats | shipped | Optional `otel` feature: `otel::Metrics` observer records client attempt started/duration, call duration, and server started/duration with method/target/status labels (GF-01, `tests/otel.rs`). |
 | A72 | OpenTelemetry tracing | planned | Optional OTel trace propagation + spans. |
 | A78 | gRPC metrics for WRR/PF/xDS | partial | WRR hooks ship: `weights_snapshot` + `WrrStats` (accepted/ignored/rebuilds) for polling (CH-06). OTel instrument mapping rides the OTel bridge (A66); pick_first/xDS instruments with their lanes. |
 | A79 | Non-per-call metrics architecture | planned | With the OTel bridge. |
 | A80 | TCP telemetry | planned | TCP_INFO-based per-connection stats where available. |
-| A94 | Subchannel OTel metrics | planned | With the OTel bridge. |
+| A94 | Subchannel OTel metrics | partial | Connection-attempt counters ride `on_reconnect`, which fires for redials only; initial dials stay invisible until the pool gains dial hooks (GF-01b). |
 | A96 | Retry OTel stats | planned | With retry stats. |
-| A108 | OTel custom per-call labels | planned | With the OTel bridge. |
+| A108 | OTel custom per-call labels | partial | Static channel-level attributes via `with_custom_attributes`; dynamic per-RPC values need a tags channel (GF-01b). |
 | A118 | TLS telemetry | planned | Handshake/session telemetry hooks. |
 
 ## Security
