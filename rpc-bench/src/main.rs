@@ -76,6 +76,76 @@ pub fn create_dual_server() -> pbrs_grpc::Router {
         ))
 }
 
+/// Call shape driven by the `load` subcommand (SB-11 stack-matrix cells).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadShape {
+    /// One `TestService.UnaryCall` (or `BenchmarkService.UnaryCall`) per RPC.
+    Unary,
+    /// One `TestService.StreamingOutputCall` draining every response per RPC.
+    ServerStream,
+    /// One lockstep `TestService.FullDuplexCall` ping-pong exchange per RPC.
+    Bidi,
+}
+
+impl std::str::FromStr for LoadShape {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "unary" => Ok(LoadShape::Unary),
+            "server_stream" | "server-stream" | "stream" => Ok(LoadShape::ServerStream),
+            "bidi" | "ping_pong" | "ping-pong" => Ok(LoadShape::Bidi),
+            other => Err(format!(
+                "unknown load shape '{other}': expected unary, server_stream, or bidi"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for LoadShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadShape::Unary => write!(f, "unary"),
+            LoadShape::ServerStream => write!(f, "server_stream"),
+            LoadShape::Bidi => write!(f, "bidi"),
+        }
+    }
+}
+
+/// Client transport driven by the `load` subcommand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadTransport {
+    Native,
+    Tonic,
+}
+
+impl std::str::FromStr for LoadTransport {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "native" => Ok(LoadTransport::Native),
+            "tonic" => Ok(LoadTransport::Tonic),
+            other => Err(format!(
+                "unknown load transport '{other}': expected native or tonic"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for LoadTransport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadTransport::Native => write!(f, "native"),
+            LoadTransport::Tonic => write!(f, "tonic"),
+        }
+    }
+}
+
+/// Largest request/response payload the `load` subcommand will allocate.
+/// SB-11 cells peak at 64 KiB; anything past this is a typo, not a cell.
+pub const LOAD_MAX_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
+
 /// CLI options for load generation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoadCliArgs {
@@ -89,6 +159,13 @@ pub struct LoadCliArgs {
     pub print_json: bool,
     pub quick: bool,
     pub benchmark_service: bool,
+    pub shape: Option<LoadShape>,
+    pub req_bytes: Option<usize>,
+    pub resp_bytes: Option<usize>,
+    pub stream_msgs: Option<u32>,
+    pub transport: Option<LoadTransport>,
+    pub tls_ca: Option<String>,
+    pub tls_server_name: Option<String>,
 }
 
 fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
@@ -185,6 +262,89 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         || has_flag(args, "--benchmark_service")
         || get_arg_val(args, "--service").as_deref() == Some("benchmark");
 
+    // `--shape` also belongs to the `client`/`server`/`smoke` roles with a
+    // different vocabulary (all/qps/upload); only the `load` role owns the
+    // LoadShape values parsed here.
+    let shape = if args.get(1).map(String::as_str) == Some("load") {
+        if let Some(val) = get_arg_val(args, "--shape") {
+            Some(val.parse::<LoadShape>()?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let parse_bytes = |flag: &str| -> Result<Option<usize>, String> {
+        if let Some(val) = get_arg_val(args, flag) {
+            let n: usize = val
+                .parse()
+                .map_err(|e| format!("invalid {flag} '{val}': {e}"))?;
+            if n > LOAD_MAX_PAYLOAD_BYTES {
+                return Err(format!(
+                    "invalid {flag} '{val}': exceeds {LOAD_MAX_PAYLOAD_BYTES} bytes"
+                ));
+            }
+            Ok(Some(n))
+        } else {
+            Ok(None)
+        }
+    };
+    let req_bytes = parse_bytes("--req-bytes")?;
+    let resp_bytes = parse_bytes("--resp-bytes")?;
+
+    let stream_msgs = if let Some(val) = get_arg_val(args, "--stream-msgs")
+        .or_else(|| get_arg_val(args, "--stream_msgs"))
+    {
+        let n: u32 = val
+            .parse()
+            .map_err(|e| format!("invalid --stream-msgs '{val}': {e}"))?;
+        if n == 0 {
+            return Err(format!(
+                "invalid --stream-msgs '{val}': must be at least 1"
+            ));
+        }
+        Some(n)
+    } else {
+        None
+    };
+
+    let transport = if let Some(val) = get_arg_val(args, "--transport") {
+        Some(val.parse::<LoadTransport>()?)
+    } else {
+        None
+    };
+
+    let tls_ca = get_arg_val(args, "--tls-ca").or_else(|| get_arg_val(args, "--tls_ca"));
+    let tls_server_name = get_arg_val(args, "--tls-server-name")
+        .or_else(|| get_arg_val(args, "--tls_server_name"));
+    if tls_ca.is_some() != tls_server_name.is_some() {
+        return Err(
+            "TLS needs both --tls-ca and --tls-server-name (verification is not optional)"
+                .to_string(),
+        );
+    }
+    if tls_ca.is_some() && transport == Some(LoadTransport::Tonic) {
+        return Err(
+            "tonic transport has no TLS support in rpc-bench: tonic 0.14 TLS pulls a C crypto provider, \
+             conflicting with the pure-Rust dependency policy; use --transport=native for TLS cells"
+                .to_string(),
+        );
+    }
+    if benchmark_service && transport == Some(LoadTransport::Tonic) {
+        return Err(
+            "tonic transport cannot drive --benchmark-service (no tonic BenchmarkService client); \
+             use TestService shapes or --transport=native"
+                .to_string(),
+        );
+    }
+    if benchmark_service && shape.is_some_and(|s| s != LoadShape::Unary) {
+        return Err(
+            "--benchmark-service only supports --shape=unary (BenchmarkService has no streaming methods)"
+                .to_string(),
+        );
+    }
+
     Ok(LoadCliArgs {
         distribution,
         rate,
@@ -196,6 +356,13 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         print_json,
         quick,
         benchmark_service,
+        shape,
+        req_bytes,
+        resp_bytes,
+        stream_msgs,
+        transport,
+        tls_ca,
+        tls_server_name,
     })
 }
 
@@ -208,7 +375,14 @@ pub fn extended_usage() -> String {
            --seed <SEED>            Random seed for Poisson arrival schedule\n  \
            --max-in-flight <CAP>    Maximum in-flight calls before queue overflow (default: 1000)\n  \
            --duration-secs <SECS>   Duration of load test in seconds\n  \
-           --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.EmptyCall\n\
+           --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.UnaryCall\n  \
+           --shape <SHAPE>          Load call shape: unary, server_stream, bidi (default: unary)\n  \
+           --req-bytes <N>          Unary request payload bytes (default: 0)\n  \
+           --resp-bytes <N>         Unary response bytes, or bytes per streaming message (default: 0; 1024 with --benchmark-service)\n  \
+           --stream-msgs <N>        Messages per streaming RPC (default: 2000 server_stream, 256 bidi)\n  \
+           --transport <MODE>       Load client transport: native or tonic (default: native; tonic is plaintext only)\n  \
+           --tls-ca <PATH>          PEM CA to verify the server (requires --tls-server-name; native only)\n  \
+           --tls-server-name <N>    Server name to verify against the CA\n\
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
            --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
@@ -217,6 +391,352 @@ pub fn extended_usage() -> String {
                                     Separate-process native/native bulk + scheduled unary; never a qualification pass\n",
         process::usage()
     )
+}
+
+/// Connect a native channel, plaintext or TLS-verified against a CA.
+async fn load_native_channel(
+    addr: SocketAddr,
+    tls_ca: Option<&str>,
+    tls_server_name: Option<&str>,
+) -> Result<pbrs_grpc::Channel, String> {
+    match (tls_ca, tls_server_name) {
+        (Some(ca_path), Some(name)) => {
+            let ca_pem = std::fs::read(ca_path)
+                .map_err(|e| format!("failed to read --tls-ca '{ca_path}': {e}"))?;
+            let tls = pbrs_grpc::ClientTls::ca(name, &ca_pem)
+                .map_err(|e| format!("invalid TLS config: {e}"))?;
+            pbrs_grpc::Channel::connect_tls(addr, tls)
+                .await
+                .map_err(|e| format!("TLS connect to {addr} as {name}: {e}"))
+        }
+        _ => pbrs_grpc::Channel::connect(addr)
+            .await
+            .map_err(|e| format!("failed to connect to {addr}: {e}")),
+    }
+}
+
+fn unary_request(req_bytes: usize, resp_bytes: usize) -> pbrs_grpc::SimpleRequest {
+    let mut req = pbrs_grpc::SimpleRequest::new();
+    if req_bytes > 0 {
+        let mut payload = pbrs_grpc::Payload::new();
+        payload.set_body(vec![0u8; req_bytes]);
+        req.set_payload(payload);
+    }
+    req.set_response_size(resp_bytes as i32);
+    req
+}
+
+fn unary_tonic_request(req_bytes: usize, resp_bytes: usize) -> tonic_gen::SimpleRequest {
+    let mut req = tonic_gen::SimpleRequest::new();
+    if req_bytes > 0 {
+        let mut payload = tonic_gen::Payload::new();
+        payload.set_body(vec![0u8; req_bytes]);
+        req.set_payload(payload);
+    }
+    req.set_response_size(resp_bytes as i32);
+    req
+}
+
+fn bidi_request(resp_bytes: usize) -> pbrs_grpc::StreamingOutputCallRequest {
+    let mut req = pbrs_grpc::StreamingOutputCallRequest::new();
+    let mut p = pbrs_grpc::ResponseParameters::new();
+    p.set_size(resp_bytes as i32);
+    req.response_parameters_mut().push(p);
+    req
+}
+
+fn bidi_tonic_request(resp_bytes: usize) -> tonic_gen::StreamingOutputCallRequest {
+    let mut req = tonic_gen::StreamingOutputCallRequest::new();
+    let mut p = tonic_gen::ResponseParameters::new();
+    p.set_size(resp_bytes as i32);
+    req.response_parameters_mut().push(p);
+    req
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_load_native(
+    load_gen: &load::LoadGenerator,
+    addr: SocketAddr,
+    tls_ca: Option<&str>,
+    tls_server_name: Option<&str>,
+    shape: LoadShape,
+    req_bytes: usize,
+    resp_bytes: usize,
+    stream_msgs: u32,
+    benchmark_service: bool,
+) -> Result<load::LoadRecord, String> {
+    let channel = load_native_channel(addr, tls_ca, tls_server_name).await?;
+    match (shape, benchmark_service) {
+        (LoadShape::Unary, true) => {
+            let client = benchmark_service::BenchmarkServiceClient::new(channel);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        let mut req = benchmark_service::SimpleRequest::new();
+                        if req_bytes > 0 {
+                            let mut payload = benchmark_service::Payload::new();
+                            payload.set_body(vec![0u8; req_bytes]);
+                            req.set_payload(payload);
+                        }
+                        req.set_response_size(resp_bytes as i32);
+                        let resp = client
+                            .unary_call(pbrs_grpc::Request::new(req))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                        let got = resp.into_inner().payload().body().len();
+                        if got != resp_bytes {
+                            return Err(load::RpcCallError::Other(format!(
+                                "response size mismatch: got {got}, want {resp_bytes}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+        (LoadShape::Unary, false) => {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        let resp = client
+                            .unary_call(pbrs_grpc::Request::new(unary_request(
+                                req_bytes, resp_bytes,
+                            )))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                        let got = resp.into_inner().payload().body().len();
+                        if got != resp_bytes {
+                            return Err(load::RpcCallError::Other(format!(
+                                "response size mismatch: got {got}, want {resp_bytes}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+        (LoadShape::ServerStream, _) => {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            let template = process::stream_kernel_req(stream_msgs as i32, resp_bytes as i32);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let mut inbound = client
+                            .streaming_output_call(pbrs_grpc::Request::new(template))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner();
+                        let mut n = 0u32;
+                        while let Some(msg) = inbound
+                            .message()
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                        {
+                            if msg.payload().body().len() != resp_bytes {
+                                return Err(load::RpcCallError::Other(format!(
+                                    "stream msg {n} size mismatch: got {}, want {resp_bytes}",
+                                    msg.payload().body().len()
+                                )));
+                            }
+                            n += 1;
+                        }
+                        if n != stream_msgs {
+                            return Err(load::RpcCallError::Other(format!(
+                                "stream count mismatch: got {n}, want {stream_msgs}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+        (LoadShape::Bidi, _) => {
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            let template = bidi_request(resp_bytes);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let (tx, call) = client.full_duplex_call(pbrs_grpc::Request::new(()));
+                        let mut inbound = call
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner();
+                        for i in 0..stream_msgs {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                            })?;
+                            let reply = inbound
+                                .message()
+                                .await
+                                .map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi recv pair {i}: {e}"))
+                                })?
+                                .ok_or_else(|| {
+                                    load::RpcCallError::Other(format!(
+                                        "bidi stream ended early at pair {i}"
+                                    ))
+                                })?;
+                            if reply.payload().body().len() != resp_bytes {
+                                return Err(load::RpcCallError::Other(format!(
+                                    "bidi pair {i} size mismatch: got {}, want {resp_bytes}",
+                                    reply.payload().body().len()
+                                )));
+                            }
+                        }
+                        tx.close();
+                        while inbound
+                            .message()
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .is_some()
+                        {
+                            return Err(load::RpcCallError::Other(
+                                "bidi unexpected extra message after close".to_string(),
+                            ));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+    }
+}
+
+async fn run_load_tonic(
+    load_gen: &load::LoadGenerator,
+    addr: SocketAddr,
+    shape: LoadShape,
+    req_bytes: usize,
+    resp_bytes: usize,
+    stream_msgs: u32,
+) -> Result<load::LoadRecord, String> {
+    let channel = process::tonic_channel(addr).await?;
+    match shape {
+        LoadShape::Unary => {
+            let client = tonic_gen::TestServiceClient::new(channel);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    async move {
+                        let mut client = client;
+                        let resp = client
+                            .unary_call(tonic::Request::new(unary_tonic_request(
+                                req_bytes, resp_bytes,
+                            )))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                        let got = resp.into_inner().payload().body().len();
+                        if got != resp_bytes {
+                            return Err(load::RpcCallError::Other(format!(
+                                "response size mismatch: got {got}, want {resp_bytes}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+        LoadShape::ServerStream => {
+            let client = tonic_gen::TestServiceClient::new(channel);
+            let template = process::stream_tonic_req(stream_msgs as i32, resp_bytes as i32);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let mut client = client;
+                        let mut inbound = client
+                            .streaming_output_call(tonic::Request::new(template))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner();
+                        let mut n = 0u32;
+                        while let Some(msg) = inbound
+                            .message()
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                        {
+                            if msg.payload().body().len() != resp_bytes {
+                                return Err(load::RpcCallError::Other(format!(
+                                    "stream msg {n} size mismatch: got {}, want {resp_bytes}",
+                                    msg.payload().body().len()
+                                )));
+                            }
+                            n += 1;
+                        }
+                        if n != stream_msgs {
+                            return Err(load::RpcCallError::Other(format!(
+                                "stream count mismatch: got {n}, want {stream_msgs}"
+                            )));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+        LoadShape::Bidi => {
+            let client = tonic_gen::TestServiceClient::new(channel);
+            let template = bidi_tonic_request(resp_bytes);
+            Ok(load_gen
+                .run(move || {
+                    let client = client.clone();
+                    let template = template.clone();
+                    async move {
+                        let mut client = client;
+                        let (tx, rx) = tokio::sync::mpsc::channel(1);
+                        let mut inbound = client
+                            .full_duplex_call(tonic::Request::new(
+                                tokio_stream::wrappers::ReceiverStream::new(rx),
+                            ))
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .into_inner();
+                        for i in 0..stream_msgs {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                            })?;
+                            let reply = inbound
+                                .message()
+                                .await
+                                .map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi recv pair {i}: {e}"))
+                                })?
+                                .ok_or_else(|| {
+                                    load::RpcCallError::Other(format!(
+                                        "bidi stream ended early at pair {i}"
+                                    ))
+                                })?;
+                            if reply.payload().body().len() != resp_bytes {
+                                return Err(load::RpcCallError::Other(format!(
+                                    "bidi pair {i} size mismatch: got {}, want {resp_bytes}",
+                                    reply.payload().body().len()
+                                )));
+                            }
+                        }
+                        drop(tx);
+                        while inbound
+                            .message()
+                            .await
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .is_some()
+                        {
+                            return Err(load::RpcCallError::Other(
+                                "bidi unexpected extra message after close".to_string(),
+                            ));
+                        }
+                        Ok(())
+                    }
+                })
+                .await)
+        }
+    }
 }
 
 async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), String> {
@@ -254,98 +774,76 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
     }
     cfg = cfg.with_timeout(Duration::from_secs(5));
 
+    let shape = opts.shape.unwrap_or(LoadShape::Unary);
+    let transport = opts.transport.unwrap_or(LoadTransport::Native);
+    let req_bytes = opts.req_bytes.unwrap_or(0);
+    let resp_bytes = opts
+        .resp_bytes
+        .unwrap_or(if opts.benchmark_service { 1024 } else { 0 });
+    let stream_msgs = opts.stream_msgs.unwrap_or(match shape {
+        LoadShape::ServerStream => 2000,
+        LoadShape::Bidi => 256,
+        LoadShape::Unary => 0,
+    });
+
     println!(
-        "running load benchmark: distribution={distribution}, rate={:?}, duration={:.1}s, max_in_flight={}",
-        rate,
-        duration.as_secs_f64(),
-        cfg.max_in_flight
+        "running load benchmark: distribution={distribution}, rate={rate:?}, duration={duration:.1}s, max_in_flight={}, shape={shape}, transport={transport}, req_bytes={req_bytes}, resp_bytes={resp_bytes}, stream_msgs={stream_msgs}, tls={}",
+        cfg.max_in_flight,
+        opts.tls_ca.is_some(),
+        duration = duration.as_secs_f64(),
     );
 
     let load_gen = load::LoadGenerator::new(cfg);
 
-    let record = if let Some(ref addr_str) = opts.server_addr {
-        let addr: SocketAddr = addr_str
+    let addr: SocketAddr = if let Some(ref addr_str) = opts.server_addr {
+        addr_str
             .parse()
-            .map_err(|e| format!("invalid --server_addr '{addr_str}': {e}"))?;
-        let channel = pbrs_grpc::Channel::connect(addr)
-            .await
-            .map_err(|e| format!("failed to connect to {addr}: {e}"))?;
-        if opts.benchmark_service {
-            let client = benchmark_service::BenchmarkServiceClient::new(channel);
-            load_gen
-                .run(move || {
-                    let client = client.clone();
-                    async move {
-                        let mut req = benchmark_service::SimpleRequest::new();
-                        req.set_response_size(1024);
-                        client
-                            .unary_call(pbrs_grpc::Request::new(req))
-                            .await
-                            .map(|_| ())
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
-                    }
-                })
-                .await
-        } else {
-            let client = pbrs_grpc::TestServiceClient::new(channel);
-            load_gen
-                .run(move || {
-                    let client = client.clone();
-                    async move {
-                        client
-                            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
-                            .await
-                            .map(|_| ())
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
-                    }
-                })
-                .await
-        }
+            .map_err(|e| format!("invalid --server_addr '{addr_str}': {e}"))?
     } else {
+        if opts.tls_ca.is_some() {
+            return Err(
+                "TLS needs an explicit --server_addr: the loopback server is plaintext-only"
+                    .to_string(),
+            );
+        }
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .map_err(|e| format!("failed to bind listener: {e}"))?;
-        let addr = listener
+        let bound = listener
             .local_addr()
             .map_err(|e| format!("failed to get local addr: {e}"))?;
         tokio::spawn(async move {
             create_dual_server().serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
+        bound
+    };
 
-        let channel = pbrs_grpc::Channel::connect(addr)
-            .await
-            .map_err(|e| format!("failed to connect to loopback server {addr}: {e}"))?;
-        if opts.benchmark_service {
-            let client = benchmark_service::BenchmarkServiceClient::new(channel);
-            load_gen
-                .run(move || {
-                    let client = client.clone();
-                    async move {
-                        let mut req = benchmark_service::SimpleRequest::new();
-                        req.set_response_size(1024);
-                        client
-                            .unary_call(pbrs_grpc::Request::new(req))
-                            .await
-                            .map(|_| ())
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
-                    }
-                })
-                .await
-        } else {
-            let client = pbrs_grpc::TestServiceClient::new(channel);
-            load_gen
-                .run(move || {
-                    let client = client.clone();
-                    async move {
-                        client
-                            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
-                            .await
-                            .map(|_| ())
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))
-                    }
-                })
-                .await
+    let record = match transport {
+        LoadTransport::Native => {
+            run_load_native(
+                &load_gen,
+                addr,
+                opts.tls_ca.as_deref(),
+                opts.tls_server_name.as_deref(),
+                shape,
+                req_bytes,
+                resp_bytes,
+                stream_msgs,
+                opts.benchmark_service,
+            )
+            .await?
+        }
+        LoadTransport::Tonic => {
+            run_load_tonic(
+                &load_gen,
+                addr,
+                shape,
+                req_bytes,
+                resp_bytes,
+                stream_msgs,
+            )
+            .await?
         }
     };
 
@@ -641,6 +1139,99 @@ mod tests {
         let args_bench = vec!["rpc-bench".to_string(), "--benchmark-service".to_string()];
         let opts_bench = parse_load_cli_args(&args_bench).unwrap();
         assert!(opts_bench.benchmark_service);
+    }
+
+    fn load_args(extra: &[&str]) -> Vec<String> {
+        let mut args = vec!["rpc-bench".to_string(), "load".to_string()];
+        args.extend(extra.iter().map(|s| s.to_string()));
+        args
+    }
+
+    #[test]
+    fn test_parse_load_shape_payload_transport() {
+        let opts = parse_load_cli_args(&load_args(&[
+            "--shape=server_stream",
+            "--req-bytes=1024",
+            "--resp-bytes=65536",
+            "--stream-msgs=2000",
+            "--transport=tonic",
+        ]))
+        .unwrap();
+        assert_eq!(opts.shape, Some(LoadShape::ServerStream));
+        assert_eq!(opts.req_bytes, Some(1024));
+        assert_eq!(opts.resp_bytes, Some(65536));
+        assert_eq!(opts.stream_msgs, Some(2000));
+        assert_eq!(opts.transport, Some(LoadTransport::Tonic));
+
+        // Aliases.
+        let opts = parse_load_cli_args(&load_args(&["--shape=stream"])).unwrap();
+        assert_eq!(opts.shape, Some(LoadShape::ServerStream));
+        let opts = parse_load_cli_args(&load_args(&["--shape=ping_pong"])).unwrap();
+        assert_eq!(opts.shape, Some(LoadShape::Bidi));
+
+        // Defaults stay unset (resolved at run time).
+        let opts = parse_load_cli_args(&load_args(&[])).unwrap();
+        assert_eq!(opts.shape, None);
+        assert_eq!(opts.transport, None);
+        assert_eq!(opts.tls_ca, None);
+    }
+
+    #[test]
+    fn test_parse_load_shape_tls_validation() {
+        // Unknown shape.
+        assert!(parse_load_cli_args(&load_args(&["--shape=all"])).is_err());
+        // Oversized payload.
+        assert!(parse_load_cli_args(&load_args(&["--req-bytes=134217729"])).is_err());
+        // Zero stream messages.
+        assert!(parse_load_cli_args(&load_args(&["--stream-msgs=0"])).is_err());
+        // Unknown transport.
+        assert!(parse_load_cli_args(&load_args(&["--transport=go"])).is_err());
+        // TLS needs both halves.
+        assert!(parse_load_cli_args(&load_args(&["--tls-ca=/tmp/ca.pem"])).is_err());
+        assert!(
+            parse_load_cli_args(&load_args(&["--tls-server-name=localhost"])).is_err()
+        );
+        // TLS + tonic is explicitly unsupported.
+        assert!(parse_load_cli_args(&load_args(&[
+            "--transport=tonic",
+            "--tls-ca=/tmp/ca.pem",
+            "--tls-server-name=localhost",
+        ]))
+        .is_err());
+        // BenchmarkService is native unary only.
+        assert!(parse_load_cli_args(&load_args(&[
+            "--benchmark-service",
+            "--transport=tonic",
+        ]))
+        .is_err());
+        assert!(parse_load_cli_args(&load_args(&[
+            "--benchmark-service",
+            "--shape=bidi",
+        ]))
+        .is_err());
+        // Valid TLS pair parses.
+        let opts = parse_load_cli_args(&load_args(&[
+            "--tls-ca=/tmp/ca.pem",
+            "--tls-server-name=localhost",
+        ]))
+        .unwrap();
+        assert_eq!(opts.tls_ca.as_deref(), Some("/tmp/ca.pem"));
+        assert_eq!(opts.tls_server_name.as_deref(), Some("localhost"));
+    }
+
+    #[test]
+    fn test_client_shape_vocabulary_not_rejected() {
+        // The client role owns --shape=all/qps/upload; the load parser must
+        // not reject those values when the role is not `load`.
+        for shape in ["all", "qps", "upload", "unary", "stream", "ping_pong"] {
+            let args = vec![
+                "rpc-bench".to_string(),
+                "client".to_string(),
+                format!("--shape={shape}"),
+            ];
+            let opts = parse_load_cli_args(&args).unwrap();
+            assert_eq!(opts.shape, None);
+        }
     }
 
     #[tokio::test]
