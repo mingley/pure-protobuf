@@ -1420,7 +1420,15 @@
     "devloop-compare"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    ".github/workflows/perf.yml: non-blocking PR lane (base+head in one Linux job, 20min cap, path-filtered), per-cell instruction/alloc delta summary, base+head JSON artifacts (180d retention)",
+    "bench/devloop/baselines/README.md: baseline policy (CI compares base-vs-head; no host-specific committed baseline)",
+    "validated: renderer tested on real reports; cross-SHA rehearsal (GF-02 base vs QG-04 head) builds+runs+compares clean (exit 0); full suite ~2s native so the lane fits easily",
+    "robustness: enables perf via sysctl when possible, hides present-but-broken perf (devloop asserts on wrapper failure); fetches cargo deps + third_party/protobuf (prost_tat build need found in rehearsal)"
+   ]
   },
   {
    "id": "SB-05",
