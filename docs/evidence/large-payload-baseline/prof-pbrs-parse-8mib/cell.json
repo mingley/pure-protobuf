@@ -1,0 +1,21 @@
+{
+  "cell": "codec.pbrs.blob_parse_8mib",
+  "iters": 91324,
+  "allocs": 91324,
+  "alloc_bytes": 766085620544,
+  "wall_ns": 9785806500,
+  "copy_counts": {
+    "wire_calls": 91324,
+    "wire_bytes": 766083702740,
+    "emit_calls": 0,
+    "emit_bytes": 0,
+    "carry_calls": 0,
+    "carry_bytes": 0,
+    "chunk_slices": 0,
+    "chunk_slice_bytes": 0,
+    "encode_calls": 0,
+    "encode_bytes": 0,
+    "serialize_calls": 0,
+    "serialize_bytes": 0
+  }
+}

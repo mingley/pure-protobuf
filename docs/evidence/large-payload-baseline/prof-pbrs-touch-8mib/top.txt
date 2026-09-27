@@ -1,0 +1,5 @@
+    9289   59.5%  _platform_memmove
+    4203   26.9%  DYLD-STUB$$memcpy
+    2130   13.6%  devloop::blob::blob_work
+
+# 3 distinct symbols, 15622 samples/frames

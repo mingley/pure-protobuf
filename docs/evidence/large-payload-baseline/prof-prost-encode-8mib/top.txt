@@ -1,0 +1,5 @@
+    4555   59.9%  _platform_memmove
+    3041   40.0%  _platform_memset
+      13    0.2%  mach_absolute_time
+
+# 3 distinct symbols, 7609 samples/frames
