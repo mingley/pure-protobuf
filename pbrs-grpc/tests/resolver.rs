@@ -478,9 +478,25 @@ async fn unix_uri_dials_a_socket_path() {
 #[cfg(target_os = "linux")]
 #[tokio::test]
 async fn unix_abstract_uri_dials_on_linux() {
+    use std::os::unix::ffi::OsStrExt as _;
+
+    // tokio has no abstract-namespace constructor; socket2 builds one
+    // from a leading-NUL path instead.
     let name = format!("pbrs-resolver-{}", std::process::id());
-    let addr = tokio::net::unix::SocketAddr::from_abstract_name(&name).expect("abstract");
-    let listener = tokio::net::UnixListener::bind_addr(&addr).expect("bind");
+    let mut raw = Vec::with_capacity(name.len() + 1);
+    raw.push(0u8);
+    raw.extend_from_slice(name.as_bytes());
+    let sock = socket2::SockAddr::unix(std::path::Path::new(std::ffi::OsStr::from_bytes(
+        &raw,
+    )))
+    .expect("abstract sockaddr");
+    let socket = socket2::Socket::new(socket2::Domain::UNIX, socket2::Type::STREAM, None)
+        .expect("socket");
+    socket.bind(&sock).expect("bind");
+    socket.listen(128).expect("listen");
+    let std_listener: std::os::unix::net::UnixListener = socket.into();
+    std_listener.set_nonblocking(true).expect("nonblocking");
+    let listener = tokio::net::UnixListener::from_std(std_listener).expect("from_std");
     let handle = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .serve_unix_listener(listener)
