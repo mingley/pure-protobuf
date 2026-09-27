@@ -6294,7 +6294,14 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "scripts/grfc-drift.py (stdlib-only): lists merged A/G files + open numbered PRs via GitHub API at pinned/latest ref, parses grfc.md tables, exits 1 on new-merged/stale drift; --self-test fixture covers parse/diff/render offline",
+    "live run vs grpc/proposal@6342be72: 91 merged, 91 tracked, no drift, 21 upcoming PRs (incl. A98 channelz-v2, A117 ring-hash exit_idle)",
+    ".github/workflows/compatibility.yml grfc-drift job: self-test gates, live check uploads markdown report artifact + step summary, never red on drift (YAML-validated)"
+   ]
   },
   {
    "id": "QG-01",

@@ -213,3 +213,29 @@ jobs:
           name: compatibility-sanitizer-logs
           path: target/sanitizer-logs/
           if-no-files-found: warn
+
+  # Diff docs/grfc.md against grpc/proposal. Informational only: drift and
+  # API hiccups surface as a report artifact, never as a red job. Only the
+  # offline self-test can fail this job (a script regression). Opens nothing
+  # externally.
+  grfc-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test the drift script
+        run: python3 scripts/grfc-drift.py --self-test
+      - name: Check gRFC drift vs grpc/proposal
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          python3 scripts/grfc-drift.py --format markdown --output grfc-drift.md || true
+          cat grfc-drift.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grfc-drift-report
+          path: grfc-drift.md
+          if-no-files-found: warn
