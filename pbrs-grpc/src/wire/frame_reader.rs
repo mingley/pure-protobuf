@@ -142,8 +142,11 @@ impl FrameReader {
         if self.carry.len() < codec::HEADER_LEN {
             return;
         }
+        let Some(header) = self.carry.get(1..codec::HEADER_LEN) else {
+            return;
+        };
         let mut len_be = [0u8; 4];
-        len_be.copy_from_slice(&self.carry[1..codec::HEADER_LEN]);
+        len_be.copy_from_slice(header);
         let Ok(len) = usize::try_from(u32::from_be_bytes(len_be)) else {
             return;
         };
