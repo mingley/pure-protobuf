@@ -13,6 +13,7 @@ use super::drain::{
     send_unary_response,
 };
 use super::router::split_path;
+use crate::compression::Codec;
 use crate::config::ServerConfig;
 use crate::limits::{ByteBudgetTracker, MessageLimits};
 use crate::metadata::Metadata;
@@ -25,7 +26,9 @@ use crate::telemetry::{
     diagnostic_identity,
 };
 use crate::tls::PeerIdentity;
-use crate::wire::{WireStream, read_one_message, send_trailers_only, wrap_timeout};
+use crate::wire::{
+    WireStream, accepts_codec, inbound_codec, read_one_message, send_trailers_only, wrap_timeout,
+};
 use bytes::Bytes;
 use h2::RecvStream;
 use pbrs::{Parse, Serialize};
@@ -603,6 +606,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel,
             path,
             gzip_level,
@@ -658,6 +662,7 @@ impl Rpc {
                         wire,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        peer_accepts_deflate,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -705,6 +710,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel,
             path,
             gzip_level,
@@ -760,6 +766,7 @@ impl Rpc {
                         wire,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        peer_accepts_deflate,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -815,6 +822,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel,
             path,
             gzip_level,
@@ -870,6 +878,7 @@ impl Rpc {
                         deadline,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        peer_accepts_deflate,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -925,6 +934,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel,
             path,
             gzip_level,
@@ -980,6 +990,7 @@ impl Rpc {
                         deadline,
                         prefer_gzip,
                         peer_accepts_gzip,
+                        peer_accepts_deflate,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -1013,6 +1024,8 @@ impl Rpc {
         let peer_timeout = self.peer_timeout();
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
+        let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
         let channelz_server = self.channelz_server;
@@ -1063,6 +1076,7 @@ impl Rpc {
                 &mut recv,
                 limits,
                 config.accepts_compressed(),
+                request_codec,
                 binlog.as_ref(),
             )
             .await?;
@@ -1129,6 +1143,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),
@@ -1160,6 +1175,8 @@ impl Rpc {
         let peer_timeout = self.peer_timeout();
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
+        let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
         let channelz_server = self.channelz_server;
@@ -1208,6 +1225,7 @@ impl Rpc {
             limits,
             deadline,
             config.accepts_compressed(),
+            request_codec,
             binlog.clone(),
         ))
         // Channelz: count received messages through the handler's polls.
@@ -1267,6 +1285,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            peer_accepts_deflate,
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),

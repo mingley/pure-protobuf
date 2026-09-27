@@ -46,7 +46,7 @@ impl OutBatch {
         if let Err(status) = append_frame(
             &mut self.buf,
             &item.message,
-            item.compressed,
+            item.compressed.then_some(self.wire.send_codec),
             self.wire.limits,
             self.wire.gzip_level,
         ) {

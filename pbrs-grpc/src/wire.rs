@@ -12,9 +12,9 @@ pub(crate) use frame_reader::{
     WireStream, finish_stream, finish_unary, read_one_message, status_from,
 };
 pub(crate) use headers::{
-    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, accepts_gzip, check_request, effective_timeout,
-    grpc_encoding, grpc_request, gzip_outbound, gzip_stream_frame, soonest, timeout_from_headers,
-    user_agent_value,
+    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, accepts_codec, accepts_gzip, check_request,
+    effective_timeout, grpc_encoding, grpc_request, inbound_codec, preferred_codec,
+    select_outbound_codec, select_stream_codec, soonest, timeout_from_headers, user_agent_value,
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{
@@ -33,10 +33,11 @@ pub(crate) use send::percent_encode;
 mod tests {
     use super::{
         DEFAULT_UA, FrameReader, PBRS_GRPC_UA, accepts_gzip, effective_timeout, grpc_content_type,
-        grpc_encoding, grpc_encoding_supported, grpc_request, gzip_outbound, gzip_stream_frame,
-        percent_decode, percent_encode, soonest,
+        grpc_encoding, grpc_encoding_supported, grpc_request, percent_decode, percent_encode,
+        preferred_codec, select_outbound_codec, select_stream_codec, soonest,
     };
     use crate::codec;
+    use crate::compression::Codec;
     use crate::gzip;
     use crate::limits::MessageLimits;
     use crate::metadata::Metadata;
@@ -52,7 +53,7 @@ mod tests {
             "/svc/Method",
             &Metadata::new(),
             None,
-            false,
+            None,
             true,
             &PBRS_GRPC_UA,
             false,
@@ -75,7 +76,7 @@ mod tests {
             "/svc/Method",
             &Metadata::new(),
             None,
-            false,
+            None,
             true,
             &PBRS_GRPC_UA,
             true,
@@ -121,18 +122,22 @@ mod tests {
             "Gzip",
             " gzip ",
             "gzip;q=1.0",
+            "deflate",
+            "DEFLATE",
+            " deflate;q=1.0 ",
             "identity",
             "IDENTITY",
             " identity ",
         ] {
             assert!(grpc_encoding_supported(ok), "{ok}");
         }
-        for no in ["snappy", "deflate", "gzip,identity", "", "br"] {
+        for no in ["snappy", "gzip,identity", "", "br"] {
             assert!(!grpc_encoding_supported(no), "{no}");
         }
         assert!(super::grpc_encoding_admitted("identity", false));
         assert!(!super::grpc_encoding_admitted("gzip", false));
         assert!(!super::grpc_encoding_admitted("GZIP", false));
+        assert!(!super::grpc_encoding_admitted("deflate", false));
     }
 
     #[test]
@@ -143,7 +148,7 @@ mod tests {
             "/svc/Method",
             &Metadata::new(),
             None,
-            false,
+            None,
             true,
             &PBRS_GRPC_UA,
             false,
@@ -153,14 +158,14 @@ mod tests {
             gzip.headers()
                 .get("grpc-accept-encoding")
                 .and_then(|v| v.to_str().ok()),
-            Some("identity,gzip")
+            Some("identity,gzip,deflate")
         );
         let identity = grpc_request(
             &authority,
             "/svc/Method",
             &Metadata::new(),
             None,
-            false,
+            None,
             false,
             &PBRS_GRPC_UA,
             false,
@@ -206,20 +211,32 @@ mod tests {
             headers.insert("grpc-encoding", HeaderValue::from_static(identity));
             assert_eq!(grpc_encoding(&headers), None, "{identity}");
         }
-        assert!(!gzip_outbound(Some(true), true, false));
-        assert!(gzip_outbound(None, true, true));
-        assert!(gzip_outbound(Some(true), false, true));
-        assert!(!gzip_outbound(None, false, true));
-        assert!(!gzip_outbound(Some(false), true, true));
+        let gzip = Some(Codec::Gzip);
+        assert_eq!(select_outbound_codec(Some(true), true, None), None);
+        assert_eq!(select_outbound_codec(None, true, gzip), gzip);
+        assert_eq!(select_outbound_codec(Some(true), false, gzip), gzip);
+        assert_eq!(select_outbound_codec(None, false, gzip), None);
+        assert_eq!(select_outbound_codec(Some(false), true, gzip), None);
         // Mixed stream: set_compress(true) advertises gzip and must not rewrite
         // identity send() frames. Overlay still fills those when the envelope
         // is unset; set_compress(false) opts that fill out.
-        assert!(gzip_stream_frame(true, Some(true), false, true));
-        assert!(!gzip_stream_frame(false, Some(true), false, true));
-        assert!(gzip_stream_frame(false, None, true, true));
-        assert!(!gzip_stream_frame(false, Some(false), true, true));
-        assert!(gzip_stream_frame(true, Some(false), true, true));
-        assert!(!gzip_stream_frame(true, Some(true), true, false));
+        assert_eq!(select_stream_codec(true, Some(true), false, gzip), gzip);
+        assert_eq!(select_stream_codec(false, Some(true), false, gzip), None);
+        assert_eq!(select_stream_codec(false, None, true, gzip), gzip);
+        assert_eq!(select_stream_codec(false, Some(false), true, gzip), None);
+        assert_eq!(select_stream_codec(true, Some(false), true, gzip), gzip);
+        assert_eq!(select_stream_codec(true, Some(true), true, None), None);
+        // Negotiation prefers the configured coding and falls back.
+        assert_eq!(preferred_codec(Codec::Gzip, true, true), Some(Codec::Gzip));
+        assert_eq!(
+            preferred_codec(Codec::Deflate, true, true),
+            Some(Codec::Deflate)
+        );
+        assert_eq!(
+            preferred_codec(Codec::Deflate, true, false),
+            Some(Codec::Gzip)
+        );
+        assert_eq!(preferred_codec(Codec::Gzip, false, false), None);
     }
 
     #[test]

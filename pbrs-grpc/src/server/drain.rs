@@ -9,8 +9,8 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{CallLabels, LifecycleObserver};
 use crate::wire::{
-    OutBatch, encode_msg, grpc_trailers, gzip_outbound, gzip_stream_frame, let_producer_catch_up,
-    send_bytes, send_ok_headers, send_trailers_only,
+    OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
+    select_outbound_codec, select_stream_codec, send_bytes, send_ok_headers, send_trailers_only,
 };
 use bytes::Bytes;
 use pbrs::Serialize;
@@ -122,6 +122,7 @@ pub(crate) struct Prepared<T> {
     pub(crate) outcome: Result<T, Status>,
     pub(crate) prefer_gzip: bool,
     pub(crate) peer_accepts_gzip: bool,
+    pub(crate) peer_accepts_deflate: bool,
     pub(crate) cancel: CancelOnDrop,
     /// Kernel-stamped onto the handler [`Response`] before `on_response`.
     pub(crate) path: Option<String>,
@@ -149,6 +150,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     wire: Wire,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
@@ -156,8 +158,9 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     channelz_socket: Option<crate::channelz::SocketId>,
 ) {
     let (msg, headers, trailers, compress) = response.split();
-    let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
-    let frame = match encode_msg(&msg, gzip, wire.limits, wire.gzip_level) {
+    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    let frame = match encode_msg(&msg, codec, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
         Err(status) => {
             if let Some(tap) = tap {
@@ -177,7 +180,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
             return;
         }
     };
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
         return;
     };
     if let Some(tap) = tap {
@@ -215,6 +218,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
@@ -224,8 +228,9 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
     // initial metadata is not blocked behind handler work.
-    let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
+    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
         return Status::unavailable("failed to send response headers");
     };
     if let Some(tap) = tap {
@@ -245,6 +250,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 compress,
                 prefer_gzip,
                 peer_accepts_gzip,
+                peer_accepts_deflate,
                 budget,
                 observer,
                 call_labels,
@@ -262,6 +268,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 compress,
                 prefer_gzip,
                 peer_accepts_gzip,
+                peer_accepts_deflate,
                 budget,
                 observer,
                 call_labels,
@@ -326,16 +333,22 @@ pub(crate) async fn flush_queued_before_error(
 pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     stream: &mut Streaming<Resp>,
     send: &mut h2::SendStream<Bytes>,
-    wire: Wire,
+    mut wire: Wire,
     envelope: Option<bool>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
     tap: Option<crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Result<(), DrainError> {
+    // Negotiated once per response: every frame shares the `grpc-encoding`
+    // the headers advertised, so per-message selection only decides the
+    // Compressed-Flag.
+    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    wire.send_codec = negotiated.unwrap_or_default();
     let mut batch = OutBatch::new(wire);
     if let Some(tap) = tap {
         batch.set_tap(tap);
@@ -376,7 +389,7 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
                 }
             };
             item.compressed =
-                gzip_stream_frame(item.compressed, envelope, prefer_gzip, peer_accepts_gzip);
+                select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated).is_some();
             let frame_len = 5 + item.message.serialized_len();
             let permit = match budget.acquire(frame_len) {
                 Ok(permit) => permit,

@@ -2,10 +2,11 @@
 
 use super::headers::{
     APPLICATION_GRPC, GRPC_ACCEPT_ENCODING, GRPC_ENCODING, GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS,
-    GRPC_STATUS, GRPC_STATUS_DETAILS_BIN, GZIP, HEADER_CAPACITY, RequestReject, STATUS_OK,
-    accept_encoding_value,
+    GRPC_STATUS, GRPC_STATUS_DETAILS_BIN, HEADER_CAPACITY, RequestReject, STATUS_OK,
+    accept_encoding_value, encoding_value,
 };
 use super::out_batch::{OutBatch, let_producer_catch_up};
+use crate::compression::Codec;
 use crate::config::Wire;
 use crate::metadata::Metadata;
 use crate::status::{Code, Pushback, Status};
@@ -199,7 +200,7 @@ pub(crate) fn send_http(respond: &mut h2::server::SendResponse<Bytes>, status: S
 pub(crate) fn send_ok_headers(
     respond: &mut h2::server::SendResponse<Bytes>,
     md: &Metadata,
-    send_gzip: bool,
+    send_codec: Option<Codec>,
     accept_gzip: bool,
 ) -> Result<SendStream<Bytes>, Status> {
     let mut res = Response::new(());
@@ -208,8 +209,8 @@ pub(crate) fn send_ok_headers(
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));
-    if send_gzip {
-        headers.insert(GRPC_ENCODING, GZIP);
+    if let Some(codec) = send_codec {
+        headers.insert(GRPC_ENCODING, encoding_value(codec));
     }
     md.write_to(headers)?;
     respond

@@ -22,7 +22,7 @@ bytes = "1"
 # a per-message allocation. No C.
 futures-core = { version = "0.3", default-features = false }
 # `rust_backend` is miniz_oxide: pure Rust, no C in the compression path.
-flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = "0.4.18"
 http = "1"
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
@@ -56,7 +56,7 @@ opentelemetry_sdk = { version = "0.31", default-features = false, features = ["m
 # The hostile-peer tests speak raw HTTP/2 so they can send bytes no
 # well-behaved client would.
 bytes = "1"
-flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = "0.4.18"
 http = "1"
 # test-util is dev-only: paused-clock resolver timelines. Production keeps

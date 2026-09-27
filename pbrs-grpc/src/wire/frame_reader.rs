@@ -2,11 +2,11 @@
 
 use super::headers::{
     GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS, GRPC_STATUS, GRPC_STATUS_DETAILS_BIN,
-    encoding_not_supported, grpc_encoding,
+    encoding_not_supported, grpc_encoding, inbound_codec,
 };
 use crate::binlog::{CallLogger, Logger};
 use crate::codec::{self, Frame};
-use crate::gzip;
+use crate::compression::Codec;
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
@@ -154,12 +154,13 @@ pub(crate) fn decode_frame<T: Parse + Default>(
     frame: Frame,
     limits: MessageLimits,
     accept_gzip: bool,
+    codec: Codec,
 ) -> Result<Framed<T>, Status> {
     let message = if frame.compressed {
         if !accept_gzip {
             return Err(encoding_not_supported(false));
         }
-        let raw = gzip::decode_limited(&frame.payload, limits)?;
+        let raw = codec.decode_limited(&frame.payload, limits)?;
         T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
     } else {
         T::parse(frame.payload.as_ref()).map_err(|e| Status::internal(e.to_string()))?
@@ -178,6 +179,7 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
     recv: &mut RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
+    codec: Codec,
     tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
@@ -193,7 +195,7 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
             if let Some(tap) = tap {
                 tap.log_read(&frame.payload);
             }
-            found = Some(decode_frame(frame, limits, accept_gzip)?);
+            found = Some(decode_frame(frame, limits, accept_gzip, codec)?);
         }
     }
     reader.finish()?;
@@ -222,8 +224,9 @@ pub(crate) struct WireStream<T> {
     limits: MessageLimits,
     /// Bound at construction, where `T: Parse` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
-    decode: fn(Frame, MessageLimits, bool) -> Result<Framed<T>, Status>,
+    decode: fn(Frame, MessageLimits, bool, Codec) -> Result<Framed<T>, Status>,
     accept_gzip: bool,
+    codec: Codec,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not
     /// just the call setup: a server that answers with headers and then goes
     /// quiet would otherwise hang the reader forever.
@@ -241,6 +244,7 @@ impl<T: Parse + Default> WireStream<T> {
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
         accept_gzip: bool,
+        codec: Codec,
         tap: Option<CallLogger>,
     ) -> Self {
         Self {
@@ -249,6 +253,7 @@ impl<T: Parse + Default> WireStream<T> {
             limits,
             decode: decode_frame::<T>,
             accept_gzip,
+            codec,
             deadline,
             sleep: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
             ended: false,
@@ -310,7 +315,7 @@ impl<T> WireStream<T> {
                         tap.log_read(&frame.payload);
                     }
                     return Poll::Ready(
-                        (self.decode)(frame, self.limits, self.accept_gzip).map(Some),
+                        (self.decode)(frame, self.limits, self.accept_gzip, self.codec).map(Some),
                     );
                 }
                 Ok(None) => {}
@@ -403,12 +408,22 @@ impl<T> WireStream<T> {
     }
 }
 
-/// Refuse a gzip reply when this channel opted out of inbound gzip.
-pub(crate) fn refuse_gzip_reply(headers: &HeaderMap, accept_gzip: bool) -> Result<(), Status> {
-    if accept_gzip {
+/// Refuse a reply coding this channel will not inflate.
+///
+/// A coding the registry does not know is refused even when inbound
+/// compression is on: failing the gunzip with `Internal` would hide a
+/// negotiation bug as a data error. A known coding is refused only when
+/// the channel opted out of inbound compression.
+pub(crate) fn refuse_encoding_reply(headers: &HeaderMap, accept_gzip: bool) -> Result<(), Status> {
+    let Some(token) = grpc_encoding(headers) else {
         return Ok(());
+    };
+    if Codec::parse(token).is_none() {
+        return Err(Status::unimplemented(format!(
+            "grpc-encoding {token} not supported; this client accepts identity, gzip, and deflate"
+        )));
     }
-    if grpc_encoding(headers).is_some_and(|token| token.eq_ignore_ascii_case("gzip")) {
+    if !accept_gzip {
         return Err(Status::unimplemented(
             "grpc-encoding not supported; this client accepts identity",
         ));
@@ -448,13 +463,14 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
     if let Some(tap) = tap {
         tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
     }
-    if let Err(status) = refuse_gzip_reply(&parts.headers, accept_gzip) {
+    if let Err(status) = refuse_encoding_reply(&parts.headers, accept_gzip) {
         if let Some(tap) = tap {
             tap.log_trailer(&Metadata::new(), &status);
         }
         return Err(status);
     }
-    let framed = match read_one_message::<Resp>(&mut body, limits, accept_gzip, tap).await {
+    let codec = inbound_codec(&parts.headers);
+    let framed = match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap).await {
         Ok(framed) => framed,
         Err(status) => {
             if let Some(tap) = tap {
@@ -521,7 +537,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
             return Err(status);
         }
     }
-    if let Err(status) = refuse_gzip_reply(&parts.headers, accept_gzip) {
+    if let Err(status) = refuse_encoding_reply(&parts.headers, accept_gzip) {
         if let Some(tap) = &tap {
             tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
             tap.log_trailer(&Metadata::new(), &status);
@@ -529,6 +545,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
         return Err(status);
     }
     let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
+    let codec = inbound_codec(&parts.headers);
     let header_md = Metadata::from_owned_headers(parts.headers);
     if let Some(tap) = &tap {
         tap.log_server_header(&header_md);
@@ -539,6 +556,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
             limits,
             deadline,
             accept_gzip,
+            codec,
             tap,
         )),
         header_md,

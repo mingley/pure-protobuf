@@ -3093,7 +3093,7 @@ async fn spawn_oob_watch(
         .report_interval_mut()
         .set_nanos(i32::try_from(period.subsec_nanos()).unwrap_or(i32::MAX));
     let wire = inner.dial.wire();
-    let frame = match crate::wire::encode_msg(&request, false, wire.limits, wire.gzip_level) {
+    let frame = match crate::wire::encode_msg(&request, None, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
         Err(_) => {
             lb.note_oob_gone(addr).await;
@@ -3133,7 +3133,7 @@ async fn ensure_health_watch(
         let wire = inner.dial.wire();
         let mut request = HealthCheckRequest::new();
         request.set_service(directive.service.clone());
-        let frame = match crate::wire::encode_msg(&request, false, wire.limits, wire.gzip_level) {
+        let frame = match crate::wire::encode_msg(&request, None, wire.limits, wire.gzip_level) {
             Ok(frame) => frame,
             Err(_) => {
                 policy.note_health_gone(addr).await;

@@ -1,6 +1,7 @@
 //! Official `--test_case` procedures driven through the shipped kernel client.
 
 use crate::Request;
+use crate::compression::Codec;
 use crate::status::{Code, Status};
 use crate::stream::Framed;
 use crate::testing::{
@@ -39,6 +40,19 @@ fn incompressible(n: i32) -> Result<Payload, Status> {
     let mut payload = Payload::new();
     payload.set_body(body);
     Ok(payload)
+}
+
+/// The reply coding, if the server compressed with a registry coding.
+///
+/// Mirrors the official C++ client: when compression was requested, any
+/// non-identity coding the registry knows is accepted (`None` when the
+/// server sent identity). Servers pick from our `grpc-accept-encoding`,
+/// and C-core prefers deflate, so hard-coding gzip would fail interop.
+fn compressed_coding(resp: &crate::Response<crate::testing::SimpleResponse>) -> Option<Codec> {
+    let enc = resp
+        .encoding()
+        .or_else(|| resp.metadata().get("grpc-encoding"))?;
+    Codec::parse(enc)
 }
 
 fn bool_val(v: bool) -> BoolValue {
@@ -519,21 +533,20 @@ pub async fn server_compressed_unary(client: &TestServiceClient) -> Result<(), S
             )));
         }
         if flag {
-            let enc = resp
-                .encoding()
-                .or_else(|| resp.metadata().get("grpc-encoding"));
-            if enc != Some("gzip") {
+            if compressed_coding(&resp).is_none() {
                 return Err(Status::internal(format!(
-                    "expected grpc-encoding: gzip, got {enc:?}"
+                    "expected a compressed grpc-encoding, got {:?}",
+                    resp.encoding()
+                        .or_else(|| resp.metadata().get("grpc-encoding"))
                 )));
             }
         } else {
             let enc = resp
                 .encoding()
                 .or_else(|| resp.metadata().get("grpc-encoding"));
-            if enc.is_some_and(|e| e.eq_ignore_ascii_case("gzip")) {
+            if enc.is_some_and(|e| Codec::parse(e).is_some()) {
                 return Err(Status::internal(format!(
-                    "uncompressed response must not advertise gzip encoding: {enc:?}"
+                    "uncompressed response must not advertise a compressed encoding: {enc:?}"
                 )));
             }
         }
@@ -598,9 +611,9 @@ pub async fn server_compressed_streaming(client: &TestServiceClient) -> Result<(
     let enc = resp
         .encoding()
         .or_else(|| resp.metadata().get("grpc-encoding"));
-    if enc != Some("gzip") {
+    if enc.is_none_or(|e| Codec::parse(e).is_none()) {
         return Err(Status::internal(format!(
-            "server_compressed_streaming: expected grpc-encoding: gzip, got {enc:?}"
+            "server_compressed_streaming: expected a compressed grpc-encoding, got {enc:?}"
         )));
     }
     let mut inbound = resp.into_inner();

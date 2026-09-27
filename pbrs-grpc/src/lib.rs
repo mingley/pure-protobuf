@@ -1052,6 +1052,8 @@ extern crate self as pbrs_grpc;
 #[forbid(unsafe_code)]
 pub mod codec;
 #[forbid(unsafe_code)]
+pub mod compression;
+#[forbid(unsafe_code)]
 pub mod gzip;
 #[forbid(unsafe_code)]
 pub mod interop_cases;
@@ -1122,6 +1124,7 @@ pub mod codegen_support {
 }
 
 pub use client::{Channel, RetryStats, Target};
+pub use compression::Codec;
 pub use config::{
     ChannelConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,
     DEFAULT_GZIP_COMPRESSION_LEVEL, DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT,

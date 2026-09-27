@@ -31,10 +31,10 @@ mod common;
 use bytes::{BufMut, Bytes, BytesMut};
 use common::{serve, spawn_greeter_server};
 use flate2::Compression;
-use flate2::write::GzEncoder;
+use flate2::write::{GzEncoder, ZlibEncoder};
 use http::{HeaderValue, Method, Request as HttpRequest, StatusCode};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Code, Request, Response, ServerConfig, Status, Streaming};
+use pbrs_grpc::{Code, Codec, Request, Response, ServerConfig, Status, Streaming};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::task::{Context, Poll};
@@ -157,6 +157,13 @@ fn gzip(payload: &[u8]) -> Vec<u8> {
 
 fn gzip_with(payload: &[u8], level: Compression) -> Vec<u8> {
     let mut enc = GzEncoder::new(Vec::new(), level);
+    enc.write_all(payload).expect("write");
+    enc.finish().expect("finish")
+}
+
+fn deflate(payload: &[u8]) -> Vec<u8> {
+    // gRPC `deflate` is the zlib wrapper (RFC 1950), not a raw stream.
+    let mut enc = ZlibEncoder::new(Vec::new(), Compression::fast());
     enc.write_all(payload).expect("write");
     enc.finish().expect("finish")
 }
@@ -395,7 +402,7 @@ async fn an_unsupported_encoding_is_unimplemented_and_advertises_what_works() {
             .headers()
             .get("grpc-accept-encoding")
             .and_then(|v| v.to_str().ok()),
-        Some("identity,gzip"),
+        Some("identity,gzip,deflate"),
         "the spec requires telling the client what to retry with"
     );
 }
@@ -438,6 +445,87 @@ async fn a_compressed_flag_is_refused_when_inbound_gzip_is_off() {
     peer.call(SAY_HELLO, body)
         .await
         .expect_code(Code::Unimplemented);
+}
+
+#[tokio::test]
+async fn deflate_request_decodes_and_gets_a_reply() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("deflate"));
+    let body = deflate(&hello_request());
+    let answer = peer
+        .call_with(
+            request,
+            frame_with_declared_len(1, body.len() as u32, &body),
+        )
+        .await;
+    answer.expect_code(Code::Ok);
+    assert_eq!(answer.payload_frames, 1, "deflate RPC must get a reply");
+}
+
+#[tokio::test]
+async fn deflate_coding_is_refused_when_inbound_compression_is_off() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().accept_compressed(false)).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("deflate"));
+    peer.call_with(request, frame(&hello_request()))
+        .await
+        .expect_code(Code::Unimplemented);
+}
+
+#[tokio::test]
+async fn gzip_bytes_under_deflate_coding_are_an_error() {
+    // The decoder must follow the RPC's coding, not sniff the bytes: gzip
+    // bytes under a deflate coding fail instead of decoding.
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("deflate"));
+    let body = gzip(&hello_request());
+    peer.call_with(
+        request,
+        frame_with_declared_len(1, body.len() as u32, &body),
+    )
+    .await
+    .expect_code(Code::Internal);
+}
+
+#[tokio::test]
+async fn deflate_configured_server_falls_back_to_gzip_only_peer() {
+    let (addr, _guard) = spawn_greeter_server(
+        ServerConfig::new()
+            .send_compressed(true)
+            .compression_codec(Codec::Deflate),
+    )
+    .await;
+    let peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request.headers_mut().insert(
+        "grpc-accept-encoding",
+        HeaderValue::from_static("identity,gzip"),
+    );
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    let (response, mut stream) = send.send_request(request, false).expect("send_request");
+    stream
+        .send_data(frame(&hello_request()), true)
+        .expect("send_data");
+    let response = response.await.expect("response");
+    assert_eq!(
+        response
+            .headers()
+            .get("grpc-encoding")
+            .and_then(|v| v.to_str().ok()),
+        Some("gzip"),
+        "must compress with the coding the peer accepts"
+    );
 }
 
 #[tokio::test]

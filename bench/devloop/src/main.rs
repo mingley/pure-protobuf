@@ -483,7 +483,7 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
 // qualifies the tonic setup; within-stack repeats are exact.
 
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
-use pbrs_grpc::{Request, Streaming};
+use pbrs_grpc::{Channel, ChannelConfig, Request, Streaming};
 
 struct Echod;
 
@@ -605,6 +605,8 @@ fn rpc_cells() -> Vec<(&'static str, &'static str)> {
     vec![
         ("rpc.pbrs.unary", "pbrs-grpc"),
         ("rpc.pbrs.server_stream", "pbrs-grpc"),
+        ("rpc.pbrs.unary_compressed", "pbrs-grpc"),
+        ("rpc.pbrs.server_stream_compressed", "pbrs-grpc"),
         ("rpc.tonic.unary", "tonic"),
         ("rpc.tonic.server_stream", "tonic"),
     ]
@@ -692,6 +694,122 @@ async fn rpc_pbrs_server_stream(iters: u64, payload: &[u8]) -> u64 {
     eprintln!(
         "__CHILD__ {}",
         child_json("rpc.pbrs.server_stream", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+/// 32 KiB mixed payload: compressible text plus deterministic
+/// incompressible bytes, so the compressed cells exercise the codec at a
+/// realistic ratio instead of memcpy-of-zeros or pure entropy.
+fn rpc_compressed_payload() -> Vec<u8> {
+    let mut out = Vec::with_capacity(32 * 1024);
+    let mut x: u64 = 0x243f_6a88_85a3_08d3;
+    while out.len() < 32 * 1024 {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        if out.len() % 64 < 32 {
+            out.extend_from_slice(b"the quick brown fox jumps over ");
+        } else {
+            out.extend_from_slice(&x.to_le_bytes());
+        }
+    }
+    out.truncate(32 * 1024);
+    out
+}
+
+async fn rpc_pbrs_unary_compressed(iters: u64) -> u64 {
+    let payload = rpc_compressed_payload();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        GreeterServer::new(Echod)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let channel = Channel::connect_with(addr, ChannelConfig::new().send_compressed(true))
+        .await
+        .expect("connect");
+    let client = GreeterClient::new(channel);
+    client
+        .say_hello(Request::new(hello_req(&payload)))
+        .await
+        .expect("warmup");
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .say_hello(Request::new(hello_req(&payload)))
+            .await
+            .expect("unary");
+        sink = sink.wrapping_add(resp.into_inner().message().to_str().unwrap_or("").len() as u64);
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.pbrs.unary_compressed", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+async fn rpc_pbrs_server_stream_compressed(iters: u64) -> u64 {
+    let payload = rpc_compressed_payload();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        GreeterServer::new(Echod)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let channel = Channel::connect_with(addr, ChannelConfig::new().send_compressed(true))
+        .await
+        .expect("connect");
+    let client = GreeterClient::new(channel);
+    // Four comma-separated chunks -> four replies per RPC.
+    let chunk = String::from_utf8_lossy(&payload[..8192]).into_owned();
+    let name = format!("{chunk},{chunk},{chunk},{chunk}");
+    let resp = client
+        .server_hello(Request::new(hello_req(name.as_bytes())))
+        .await
+        .expect("warmup headers");
+    let mut inbound = resp.into_inner();
+    while inbound.message().await.expect("warmup msg").is_some() {}
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .server_hello(Request::new(hello_req(name.as_bytes())))
+            .await
+            .expect("headers");
+        let mut inbound = resp.into_inner();
+        while let Some(msg) = inbound.message().await.expect("msg") {
+            sink = sink.wrapping_add(msg.message().to_str().unwrap_or("").len() as u64);
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json(
+            "rpc.pbrs.server_stream_compressed",
+            iters,
+            allocs,
+            bytes,
+            wall
+        )
     );
     black_box(sink)
 }
@@ -1184,6 +1302,10 @@ fn cmd_run_cell(args: &[String]) {
             match id.as_str() {
                 "rpc.pbrs.unary" => rpc_pbrs_unary(iters, &payload).await,
                 "rpc.pbrs.server_stream" => rpc_pbrs_server_stream(iters, &payload).await,
+                "rpc.pbrs.unary_compressed" => rpc_pbrs_unary_compressed(iters).await,
+                "rpc.pbrs.server_stream_compressed" => {
+                    rpc_pbrs_server_stream_compressed(iters).await
+                }
                 "rpc.tonic.unary" => rpc_tonic_unary(iters, &payload).await,
                 "rpc.tonic.server_stream" => rpc_tonic_server_stream(iters, &payload).await,
                 _ => panic!("unknown rpc cell {id}"),

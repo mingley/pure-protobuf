@@ -386,6 +386,7 @@ fn parse_status(head: &[u8]) -> Option<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
     use tokio::net::TcpListener;
 
     #[cfg(target_os = "linux")]

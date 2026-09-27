@@ -33,10 +33,10 @@ use common::{
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::telemetry::DiagnosticConfig;
 use pbrs_grpc::{
-    Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, FusedStream, Identity,
-    Incoming, InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity,
-    Request, Response, ResponseParameters, ResponseParts, Router, Rpc, Server, ServerConfig,
-    ServerTls, Service, ServiceExt, SimpleRequest, SimpleResponse, Status,
+    Call, Channel, ChannelConfig, ClientTls, Code, Codec, ConnectionInfo, Empty, FusedStream,
+    Identity, Incoming, InteropTestService, MessageLimits, Outgoing, Payload, PeerCred,
+    PeerIdentity, Request, Response, ResponseParameters, ResponseParts, Router, Rpc, Server,
+    ServerConfig, ServerTls, Service, ServiceExt, SimpleRequest, SimpleResponse, Status, Streaming,
     StreamingInputCallRequest, StreamingInputCallResponse, StreamingOutputCallRequest,
     StreamingOutputCallResponse, TestService, TestServiceClient, TestServiceServer,
 };
@@ -7551,7 +7551,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`Self::accept_compressed`], which sets it.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
+            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Configured outbound compression coding. See [`Self::compression_codec`].\n    /// Applies to every call shape.\n    /// Distinct from [`Self::compression_codec`], which sets it.\n    #[must_use]\n    pub fn send_codec(self) -> Codec {\n        self.compression_codec\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`Self::accept_compressed`], which sets it.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
         ),
         "ServerConfig::gzip_level must Distinct the setter"
     );
@@ -7627,13 +7627,13 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Passing `false` omits gzip from `grpc-accept-encoding` and refuses a\n    /// `grpc-encoding: gzip` reply as [`crate::Code::Unimplemented`] without\n    /// inflating."
+            "Passing `false` omits gzip and deflate from `grpc-accept-encoding`\n    /// and refuses a compressed reply as [`crate::Code::Unimplemented`]\n    /// without inflating."
         ),
         "ChannelConfig::accept_compressed must omit gzip from accept-encoding"
     );
     assert!(
         src.contains(
-            "Passing `false` refuses `grpc-encoding: gzip` as\n    /// [`crate::Code::Unimplemented`] before a handler runs, advertises"
+            "Passing `false` refuses `grpc-encoding: gzip` and `deflate` as\n    /// [`crate::Code::Unimplemented`] before a handler runs, advertises"
         ),
         "ServerConfig::accept_compressed must refuse gzip before the handler"
     );
@@ -8049,8 +8049,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert_eq!(
         src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
             .count(),
-        2,
-        "ServerConfig and ChannelConfig gzip_compression_level must Distinct deflate effort from on/off"
+        4,
+        "ServerConfig and ChannelConfig gzip_compression_level + compression_codec must Distinct effort/coding from on/off"
     );
     assert_eq!(
         src.matches(
@@ -38116,6 +38116,158 @@ async fn channel_config_gzip_compression_level_still_gzips_every_shape() {
     .await;
     assert_eq!(ch.gzip_level(), 9);
     gzip_every_shape(&GreeterClient::new(ch)).await;
+    task.abort();
+}
+
+/// Records the `grpc-encoding` + Compressed-Flag of every request it sees.
+struct EncodingRecorder {
+    seen: Arc<Mutex<Vec<(Option<String>, bool)>>>,
+}
+
+impl EncodingRecorder {
+    fn record<T>(&self, request: &Request<T>) {
+        self.seen
+            .lock()
+            .expect("seen")
+            .push((request.encoding().map(str::to_owned), request.compressed()));
+    }
+}
+
+impl Greeter for EncodingRecorder {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.record(&request);
+        Ok(Response::new(common::reply(name_of_request(
+            request.get_ref(),
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.record(&request);
+        let mut stream = request.into_inner();
+        let mut names = Vec::new();
+        while let Some(msg) = stream.message().await? {
+            names.push(name_of_request(&msg));
+        }
+        Ok(Response::new(common::reply(names.join(","))))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        self.record(&request);
+        let name = name_of_request(request.get_ref());
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            for part in name.split(',') {
+                if tx.send(common::reply(part.to_string())).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        self.record(&request);
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            while let Ok(Some(msg)) = inbound.message().await {
+                if tx.send(common::reply(name_of_request(&msg))).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::test]
+async fn deflate_codec_round_trips_both_directions_every_shape() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let recorder = EncodingRecorder { seen: seen.clone() };
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(recorder))
+            .config(
+                ServerConfig::new()
+                    .send_compressed(true)
+                    .compression_codec(Codec::Deflate),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        channel_cfg(
+            addr,
+            ChannelConfig::new()
+                .send_compressed(true)
+                .compression_codec(Codec::Deflate),
+        )
+        .await,
+    );
+
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert!(reply.compressed(), "deflate unary reply must set the flag");
+    assert_eq!(reply.encoding(), Some("deflate"));
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let reply = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(reply.encoding(), Some("deflate"));
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(framed.compressed, "deflate stream frames must set the flag");
+    assert_eq!(name_of(&framed.message), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert!(reply.compressed());
+    assert_eq!(reply.encoding(), Some("deflate"));
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("deflate"));
+    let mut inbound = reply.into_inner();
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("message");
+    assert!(framed.compressed);
+    assert_eq!(name_of(&framed.message), "ada");
+
+    // The client half: every request arrived deflate-coded. The unary
+    // shapes also expose the first frame's Compressed-Flag; streaming
+    // requests always report `false` there (each flag rides its `Framed`).
+    let seen = seen.lock().expect("seen");
+    assert_eq!(seen.len(), 4, "one recording per shape");
+    for (encoding, _) in seen.iter() {
+        assert_eq!(*encoding, Some("deflate".to_string()));
+    }
+    assert!(seen[0].1, "unary request must be flagged");
+    assert!(seen[1].1, "server-streaming request must be flagged");
     task.abort();
 }
 

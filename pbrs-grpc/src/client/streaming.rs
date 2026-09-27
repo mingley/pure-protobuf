@@ -99,7 +99,7 @@ where
         timeout,
         deadline,
         cancel_rx.clone(),
-        compress,
+        compress.then_some(wire.send_codec),
         wire.accept_gzip,
         &user_agent,
         https,
@@ -614,7 +614,12 @@ impl super::Channel {
                 let (msg, md, _, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = match encode_msg(&msg, compress, wire.limits, wire.gzip_level) {
+                let frame = match encode_msg(
+                    &msg,
+                    compress.then_some(wire.send_codec),
+                    wire.limits,
+                    wire.gzip_level,
+                ) {
                     Ok(f) => f,
                     Err(status) => {
                         call_guard.reject(RejectionReason::MessageEncode, &status);

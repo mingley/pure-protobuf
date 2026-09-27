@@ -1,5 +1,6 @@
 //! Transport tuning and resource caps for servers and channels.
 
+use crate::compression::Codec;
 use crate::limits::MessageLimits;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -106,10 +107,15 @@ pub const DEFAULT_RESET_STREAM_DURATION: Duration = Duration::from_secs(1);
 pub(crate) struct Wire {
     pub(crate) limits: MessageLimits,
     pub(crate) send_buffer: usize,
-    /// Inflate inbound gzip. Default on; [`ServerConfig::accept_compressed`] /
+    /// Inflate inbound gzip and deflate. Default on;
+    /// [`ServerConfig::accept_compressed`] /
     /// [`ChannelConfig::accept_compressed`]`(false)` opts out.
     pub(crate) accept_gzip: bool,
-    /// Deflate effort for outbound gzip. Default 1.
+    /// Coding for outbound compressed frames. From
+    /// [`ServerConfig::compression_codec`] /
+    /// [`ChannelConfig::compression_codec`]; default gzip.
+    pub(crate) send_codec: Codec,
+    /// Deflate effort for outbound compressed frames. Default 1.
     pub(crate) gzip_level: u32,
 }
 
@@ -156,6 +162,7 @@ pub struct ServerConfig {
     send_compressed: bool,
     accept_compressed: bool,
     gzip_compression_level: u32,
+    compression_codec: Codec,
 }
 
 impl Default for ServerConfig {
@@ -189,6 +196,7 @@ impl Default for ServerConfig {
             send_compressed: false,
             accept_compressed: true,
             gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
+            compression_codec: Codec::default(),
         }
     }
 }
@@ -717,15 +725,29 @@ impl ServerConfig {
         self
     }
 
+    /// Coding for outbound compressed responses. Default gzip.
+    /// Applies to every call shape.
+    ///
+    /// The server still only compresses for a peer that advertised the
+    /// negotiated coding, falling back to the other coding when the peer
+    /// accepts only that one. Inbound accepts gzip and deflate regardless
+    /// of this setting (see [`Self::accept_compressed`]).
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    #[must_use]
+    pub fn compression_codec(mut self, codec: Codec) -> Self {
+        self.compression_codec = codec;
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
     ///
-    /// Passing `false` refuses `grpc-encoding: gzip` as
+    /// Passing `false` refuses `grpc-encoding: gzip` and `deflate` as
     /// [`crate::Code::Unimplemented`] before a handler runs, advertises
     /// `grpc-accept-encoding: identity` only, and does not inflate a
     /// Compressed-Flag. Distinct from [`Self::send_compressed`], which is
     /// outbound. Distinct from tonic's `accept_compressed`, which starts
-    /// opt-in; this kernel starts on so interop gzip keeps working.
+    /// opt-in; this kernel starts on so interop compression keeps working.
     ///
     /// [`crate::Server::accept_compressed`], [`crate::Router::accept_compressed`],
     /// and generated `FooServer::accept_compressed` set this without building
@@ -791,6 +813,14 @@ impl ServerConfig {
     #[must_use]
     pub fn gzip_level(self) -> u32 {
         self.gzip_compression_level
+    }
+
+    /// Configured outbound compression coding. See [`Self::compression_codec`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::compression_codec`], which sets it.
+    #[must_use]
+    pub fn send_codec(self) -> Codec {
+        self.compression_codec
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -964,6 +994,7 @@ impl ServerConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
+            send_codec: self.compression_codec,
             gzip_level: self.gzip_compression_level,
         }
     }
@@ -1051,6 +1082,7 @@ pub struct ChannelConfig {
     send_compressed: bool,
     accept_compressed: bool,
     gzip_compression_level: u32,
+    compression_codec: Codec,
     timeout: Option<Duration>,
     wait_for_ready: bool,
     max_concurrent_rpcs: Option<usize>,
@@ -1088,6 +1120,7 @@ impl Default for ChannelConfig {
             send_compressed: false,
             accept_compressed: true,
             gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
+            compression_codec: Codec::default(),
             timeout: None,
             wait_for_ready: false,
             max_concurrent_rpcs: None,
@@ -1605,14 +1638,27 @@ impl ChannelConfig {
         self
     }
 
+    /// Coding for outbound compressed requests. Default gzip.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
+    ///
+    /// Inbound accepts gzip and deflate regardless of this setting (see
+    /// [`Self::accept_compressed`]).
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    #[must_use]
+    pub fn compression_codec(mut self, codec: Codec) -> Self {
+        self.compression_codec = codec;
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     ///
-    /// Passing `false` omits gzip from `grpc-accept-encoding` and refuses a
-    /// `grpc-encoding: gzip` reply as [`crate::Code::Unimplemented`] without
-    /// inflating. Distinct from [`Self::send_compressed`], which is outbound.
-    /// Distinct from tonic's `accept_compressed`, which starts opt-in; this
-    /// kernel starts on so interop gzip keeps working.
+    /// Passing `false` omits gzip and deflate from `grpc-accept-encoding`
+    /// and refuses a compressed reply as [`crate::Code::Unimplemented`]
+    /// without inflating. Distinct from [`Self::send_compressed`], which is
+    /// outbound. Distinct from tonic's `accept_compressed`, which starts
+    /// opt-in; this kernel starts on so interop compression keeps working.
     ///
     /// [`crate::Channel::accept_compressed`] and generated
     /// `FooClient::accept_compressed` set this without building a
@@ -1901,6 +1947,14 @@ impl ChannelConfig {
         self.gzip_compression_level
     }
 
+    /// Configured outbound compression coding. See [`Self::compression_codec`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::compression_codec`], which sets it.
+    #[must_use]
+    pub fn send_codec(self) -> Codec {
+        self.compression_codec
+    }
+
     /// Whether inbound gzip is inflated. Default `true`.
     /// See [`Self::accept_compressed`]. Applies to every call shape.
     /// Distinct from [`Self::accept_compressed`], which sets it.
@@ -1958,6 +2012,7 @@ impl ChannelConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
+            send_codec: self.compression_codec,
             gzip_level: self.gzip_compression_level,
         }
     }

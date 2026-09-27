@@ -62,7 +62,7 @@ contract §6–§10.
 | E1 grpc_bench-style | unmeasured | No campaign yet |
 | E2 WorkerService | unmeasured | Blocked on SB-10 runnable scenarios |
 | E3 TLS | unmeasured | No campaign yet |
-| E4 compression | unmeasured | No campaign yet |
+| E4 compression | unmeasured | Dev-loop cells only (no peer campaign): `rpc.pbrs.unary_compressed` 85.3 allocs/RPC, `server_stream_compressed` 880.3 (-2.28%/-7.27% vs pre-RX-06 framing, allocs medians); C++ 8/8 compression interop both directions; Go gzip both directions. See `docs/decisions/compression.md`. |
 | E5 real-network RTT | unmeasured | No stage-3 runs |
 | F1 conformance | win | CI `conformance` job green on main |
 | F2 interop | win | CI `grpc-interop` + `grpc-interop-cpp` jobs green on main |

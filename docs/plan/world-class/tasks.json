@@ -4366,6 +4366,17 @@
    ],
    "relates": [
     "SP-04"
+   ],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "Backend kept: miniz_oxide beats flate2/zlib-rs at default L1 on ARM64 (throwaway /tmp/zbench A/B: enc/dec ~8-10% faster; zlib-rs wins only L6 encode); flate2 1.1.9->1.1.10 + runtime_detection (free SIMD). No new deps; dep-audit pure.",
+    "deflate added as zlib/RFC-1950 (C-core inflateInit2(15)-compatible; raw-stream first cut caught by C++ interop): Codec enum, per-RPC decode, identity,gzip,deflate advertisement, ChannelConfig/ServerConfig::compression_codec (default gzip) with gzip fallback, unknown codings UNIMPLEMENTED.",
+    "C++ 8/8 compression interop both directions (pinned grpc@d1487957) + 14/14 with custom_metadata/large_unary/ping_pong; Go gzip both directions (5 shapes pbrs->Go compressed, Go->pbrs compressed custom_metadata).",
+    "Compressed dev-loop cells added (rpc.pbrs.unary_compressed/server_stream_compressed, 32KiB mixed); fused compression into frame buffer (-1 alloc -1 copy/message): allocs -2.28%/-7.27%, both clear 2% bar; uncompressed cells at parity. Wall within host noise; instructions verdict to Linux CI perf lane.",
+    "zstd deferred with reasons in docs/decisions/compression.md (no peer support, ruzstd MSRV 1.87 > 1.85 + immature encoder, no interop procedure).",
+    "Tests: lib compression:: 20 (incl CPython-zlib vectors + raw-stream rejection), hostile +4 (decode/refuse/mismatch/fallback), serving deflate e2e all 4 shapes both directions. Full pbrs-grpc suite green; clippy clean on touched files (channelz.rs errors pre-exist).",
+    "boundaries (RX-06b): no per-RPC codec override (channel/server default only); no Server/Router/Channel/codegen compression_codec overlays; x86-64 Linux backend re-measure trigger open."
    ]
   },
   {
