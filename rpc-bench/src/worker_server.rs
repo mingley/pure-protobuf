@@ -36,7 +36,6 @@ pub use proto::{
 use pbrs_grpc::{Request, Response, Status, Streaming};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::TcpListener;
 
 use crate::benchmark_service::{BenchmarkServiceImpl, BenchmarkServiceServer};
 use crate::resources::ResourceSnapshot;
@@ -79,11 +78,41 @@ pub(crate) fn checked_system_cores(
     checked_core_count(count.get())
 }
 
+/// Sanity cap for `async_server_threads` / `async_client_threads`: an
+/// explicit control is honored literally, but thread spawns are real
+/// resources, so absurd counts fail fast instead of OOMing the worker.
+pub(crate) const MAX_WORKER_RUNTIME_THREADS: usize = 1024;
+
+/// Map an async thread control to a dedicated runtime size: 0/absent
+/// runs inline on the shared worker runtime, a positive count up to
+/// the cap gets a dedicated Tokio runtime with exactly that many
+/// workers, and anything else fails before bind/dial.
+pub(crate) fn checked_thread_count(
+    value: i32,
+    name: &'static str,
+) -> Result<Option<usize>, Status> {
+    if value < 0 {
+        return Err(Status::invalid_argument(format!(
+            "{name} cannot be negative"
+        )));
+    }
+    let count = usize::try_from(value).map_err(|_| {
+        Status::resource_exhausted(format!("{name} {value} exceeds the worker thread range"))
+    })?;
+    if count == 0 {
+        return Ok(None);
+    }
+    if count > MAX_WORKER_RUNTIME_THREADS {
+        return Err(Status::resource_exhausted(format!(
+            "{name} {count} exceeds the worker limit of {MAX_WORKER_RUNTIME_THREADS}"
+        )));
+    }
+    Ok(Some(count))
+}
+
 pub(crate) fn unsupported_server_option(config: &ServerConfig) -> Option<&'static str> {
     if config.has_security_params() {
         Some("security_params")
-    } else if config.async_server_threads() != 0 {
-        Some("async_server_threads")
     } else if config.core_limit() > 0 {
         Some("core_limit")
     } else if !config.core_list().is_empty() {
@@ -133,13 +162,95 @@ async fn fail_after_server_cleanup(
     tx: pbrs_grpc::StreamSender<ServerStatus>,
     status: Status,
     shutdown: tokio::sync::oneshot::Sender<()>,
-    handle: &mut tokio::task::JoinHandle<()>,
+    owned: OwnedServer,
 ) {
-    let status = match stop_owned_server(shutdown, handle).await {
+    let status = match shutdown_owned_server(shutdown, owned).await {
         Ok(()) => status,
         Err(error) => Status::internal(format!("{status}; cleanup failed: {error}")),
     };
     tx.fail(status).await;
+}
+
+/// A benchmark server owned by one `RunServer` stream: the serve task
+/// plus the Tokio runtime it runs on (`None` runs inline on the
+/// shared worker runtime; `Some` is a dedicated `async_server_threads`
+/// runtime). Always shut down via [`shutdown_owned_server`]: dropping
+/// a live `Runtime` on an async path panics.
+pub(crate) struct OwnedServer {
+    handle: tokio::task::JoinHandle<()>,
+    runtime: Option<tokio::runtime::Runtime>,
+}
+
+async fn serve_benchmark(
+    listener: std::net::TcpListener,
+    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+) {
+    let router = create_benchmark_router();
+    match tokio::net::TcpListener::from_std(listener) {
+        Ok(listener) => {
+            if let Err(error) = router
+                .serve_with_shutdown(listener, async move {
+                    let _ = shutdown_rx.await;
+                })
+                .await
+            {
+                eprintln!("benchmark server exited with error: {error}");
+            }
+        }
+        Err(error) => eprintln!("benchmark server failed to adopt listener: {error}"),
+    }
+}
+
+impl OwnedServer {
+    /// Spawn the benchmark server: inline on the worker runtime for
+    /// `None`, or on a dedicated runtime with exactly `count` workers.
+    /// The std listener is adopted inside the task so its I/O always
+    /// registers with the runtime that polls it.
+    fn spawn(
+        threads: Option<usize>,
+        listener: std::net::TcpListener,
+        shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+    ) -> Result<Self, Status> {
+        match threads {
+            None => Ok(Self {
+                handle: tokio::spawn(serve_benchmark(listener, shutdown_rx)),
+                runtime: None,
+            }),
+            Some(count) => {
+                let runtime = tokio::runtime::Builder::new_multi_thread()
+                    .worker_threads(count)
+                    .thread_name("qps-bench-server")
+                    .enable_all()
+                    .build()
+                    .map_err(|error| {
+                        Status::internal(format!(
+                            "failed to build {count}-worker benchmark server runtime: {error}"
+                        ))
+                    })?;
+                let handle = runtime.spawn(serve_benchmark(listener, shutdown_rx));
+                Ok(Self {
+                    handle,
+                    runtime: Some(runtime),
+                })
+            }
+        }
+    }
+}
+
+/// Stop an owned server and release its runtime. Consumes the server:
+/// every `RunServer` exit path ends the stream right after.
+async fn shutdown_owned_server(
+    shutdown: tokio::sync::oneshot::Sender<()>,
+    mut owned: OwnedServer,
+) -> Result<(), Status> {
+    let result = stop_owned_server(shutdown, &mut owned.handle).await;
+    if let Some(runtime) = owned.runtime.take() {
+        // Runtime::drop blocks for worker shutdown; keep it off the
+        // async path. The serve task is already gone, so this only
+        // stops idle workers.
+        let _ = tokio::task::spawn_blocking(move || drop(runtime)).await;
+    }
+    result
 }
 
 /// Create a router mounting the benchmark and test services.
@@ -286,20 +397,37 @@ impl WorkerService for WorkerServiceImpl {
                 .await;
                 return;
             }
-
-            // 3. Bind TCP listener and determine effective listening port.
-            let listener = match TcpListener::bind(format!("0.0.0.0:{port}")).await {
-                Ok(l) => l,
-                Err(_) => match TcpListener::bind(format!("127.0.0.1:{port}")).await {
-                    Ok(l) => l,
-                    Err(e) => {
-                        tx.fail(Status::internal(format!("failed to bind port {port}: {e}")))
-                            .await;
+            let server_threads =
+                match checked_thread_count(cfg.async_server_threads(), "async_server_threads") {
+                    Ok(threads) => threads,
+                    Err(status) => {
+                        tx.fail(status).await;
                         return;
                     }
-                },
+                };
+
+            // 3. Bind TCP listener and determine effective listening port.
+            // A std listener binds without a runtime; the serve task
+            // adopts it so I/O registers with whichever runtime polls
+            // it (shared worker or dedicated thread runtime).
+            let std_listener = match std::net::TcpListener::bind(format!("0.0.0.0:{port}"))
+                .or_else(|_| std::net::TcpListener::bind(format!("127.0.0.1:{port}")))
+            {
+                Ok(listener) => listener,
+                Err(e) => {
+                    tx.fail(Status::internal(format!("failed to bind port {port}: {e}")))
+                        .await;
+                    return;
+                }
             };
-            let bound_port = match listener.local_addr() {
+            if let Err(e) = std_listener.set_nonblocking(true) {
+                tx.fail(Status::internal(format!(
+                    "failed to set nonblocking on port {port}: {e}"
+                )))
+                .await;
+                return;
+            }
+            let bound_port = match std_listener.local_addr() {
                 Ok(a) => a.port() as i32,
                 Err(e) => {
                     tx.fail(Status::internal(format!("failed to get local addr: {e}")))
@@ -332,20 +460,29 @@ impl WorkerService for WorkerServiceImpl {
 
             // 4. Spawn benchmark server with graceful shutdown trigger.
             let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-            let mut server_handle = tokio::spawn(async move {
-                let router = create_benchmark_router();
-                let _ = router
-                    .serve_with_shutdown(listener, async move {
-                        let _ = shutdown_rx.await;
-                    })
-                    .await;
-            });
+            let owned = match OwnedServer::spawn(server_threads, std_listener, shutdown_rx) {
+                Ok(owned) => owned,
+                Err(status) => {
+                    tx.fail(status).await;
+                    return;
+                }
+            };
+            match server_threads {
+                Some(count) => eprintln!(
+                    "RunServer port={bound_port}: async_server_threads={count} -> \
+                     dedicated {count}-worker Tokio runtime"
+                ),
+                None => eprintln!(
+                    "RunServer port={bound_port}: async_server_threads=0 -> \
+                     shared worker runtime"
+                ),
+            }
 
             // 5. Build and send initial ServerStatus.
             let initial_snapshot = match require_snapshot(resource_capture(), "RunServer initial") {
                 Ok(snapshot) => snapshot,
                 Err(status) => {
-                    fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle).await;
+                    fail_after_server_cleanup(tx, status, shutdown_tx, owned).await;
                     return;
                 }
             };
@@ -360,7 +497,7 @@ impl WorkerService for WorkerServiceImpl {
             initial_status.set_stats(initial_stats);
 
             if tx.send(initial_status).await.is_err() {
-                if let Err(error) = stop_owned_server(shutdown_tx, &mut server_handle).await {
+                if let Err(error) = shutdown_owned_server(shutdown_tx, owned).await {
                     eprintln!("{error}");
                 }
                 return;
@@ -375,7 +512,7 @@ impl WorkerService for WorkerServiceImpl {
                     Ok(Some(a)) => a,
                     Ok(None) => break, // Closing inbound stream triggers graceful shutdown
                     Err(e) => {
-                        fail_after_server_cleanup(tx, e, shutdown_tx, &mut server_handle).await;
+                        fail_after_server_cleanup(tx, e, shutdown_tx, owned).await;
                         return;
                     }
                 };
@@ -386,7 +523,7 @@ impl WorkerService for WorkerServiceImpl {
                         tx,
                         Status::invalid_argument("duplicate ServerConfig setup received"),
                         shutdown_tx,
-                        &mut server_handle,
+                        owned,
                     )
                     .await;
                     return;
@@ -397,7 +534,7 @@ impl WorkerService for WorkerServiceImpl {
                         tx,
                         Status::invalid_argument("expected Mark in subsequent ServerArgs"),
                         shutdown_tx,
-                        &mut server_handle,
+                        owned,
                     )
                     .await;
                     return;
@@ -411,8 +548,7 @@ impl WorkerService for WorkerServiceImpl {
                 {
                     Ok(snapshot) => snapshot,
                     Err(status) => {
-                        fail_after_server_cleanup(tx, status, shutdown_tx, &mut server_handle)
-                            .await;
+                        fail_after_server_cleanup(tx, status, shutdown_tx, owned).await;
                         return;
                     }
                 };
@@ -443,7 +579,7 @@ impl WorkerService for WorkerServiceImpl {
 
             // Closing inbound stream triggers graceful shutdown of the test server
             // and terminates the RPC with OK status.
-            if let Err(status) = stop_owned_server(shutdown_tx, &mut server_handle).await {
+            if let Err(status) = shutdown_owned_server(shutdown_tx, owned).await {
                 tx.fail(status).await;
             }
             // Dropping tx ends with OK only after the owned server stops.

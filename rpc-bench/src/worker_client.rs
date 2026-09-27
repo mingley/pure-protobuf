@@ -32,7 +32,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, TryAcquireError};
 
 use crate::benchmark_service::BenchmarkServiceClient;
 use crate::load::{LoadConfig, LoadGenerator, RpcCallError};
-use crate::worker_server::{ResourceCapture, require_snapshot};
+use crate::worker_server::{ResourceCapture, checked_thread_count, require_snapshot};
 
 pub(crate) const MAX_WORKER_CLIENT_CHANNELS: usize = 64;
 pub(crate) const MAX_WORKER_IN_FLIGHT_RPCS: usize = 256;
@@ -307,20 +307,45 @@ async fn fail_after_client_cleanup(
     tx: pbrs_grpc::StreamSender<ClientStatus>,
     status: Status,
     cancel: &tokio::sync::watch::Sender<bool>,
-    handle: &mut tokio::task::JoinHandle<()>,
+    owned: OwnedGenerator,
 ) {
-    let status = match stop_owned_generator(cancel, handle).await {
+    let status = match shutdown_owned_generator(cancel, owned).await {
         Ok(()) => status,
         Err(error) => Status::internal(format!("{status}; cleanup failed: {error}")),
     };
     tx.fail(status).await;
 }
 
+/// A load generator owned by one `RunClient` stream: the generator
+/// task plus the Tokio runtime it runs on (`None` runs inline on the
+/// shared worker runtime; `Some` is a dedicated
+/// `async_client_threads` runtime). Always shut down via
+/// [`shutdown_owned_generator`]: dropping a live `Runtime` on an
+/// async path panics.
+pub(crate) struct OwnedGenerator {
+    handle: tokio::task::JoinHandle<()>,
+    runtime: Option<tokio::runtime::Runtime>,
+}
+
+/// Stop an owned generator and release its runtime. Consumes the
+/// generator: every `RunClient` exit path ends the stream right after.
+async fn shutdown_owned_generator(
+    cancel: &tokio::sync::watch::Sender<bool>,
+    mut owned: OwnedGenerator,
+) -> Result<(), Status> {
+    let result = stop_owned_generator(cancel, &mut owned.handle).await;
+    if let Some(runtime) = owned.runtime.take() {
+        // Runtime::drop blocks for worker shutdown; keep it off the
+        // async path. The generator task is already gone, so this only
+        // stops idle workers.
+        let _ = tokio::task::spawn_blocking(move || drop(runtime)).await;
+    }
+    result
+}
+
 pub(crate) fn unsupported_client_option(config: &ClientConfig) -> Option<&'static str> {
     if config.has_security_params() {
         Some("security_params")
-    } else if config.async_client_threads() > 0 {
-        Some("async_client_threads")
     } else if config.core_limit() > 0 {
         Some("core_limit")
     } else if !config.core_list().is_empty() {
@@ -446,13 +471,6 @@ pub(crate) async fn run_client(
                 .await;
             return;
         }
-        if cfg.async_client_threads() < 0 {
-            tx.fail(Status::invalid_argument(
-                "async_client_threads cannot be negative",
-            ))
-            .await;
-            return;
-        }
         if cfg.client_type() != ClientType::AsyncClient {
             tx.fail(Status::invalid_argument(format!(
                 "unsupported client_type {:?}: only ASYNC_CLIENT is implemented",
@@ -468,6 +486,14 @@ pub(crate) async fn run_client(
             .await;
             return;
         }
+        let client_threads =
+            match checked_thread_count(cfg.async_client_threads(), "async_client_threads") {
+                Ok(threads) => threads,
+                Err(status) => {
+                    tx.fail(status).await;
+                    return;
+                }
+            };
         // Protocol: only HTTP2 (0) supported
         if cfg.protocol() != Protocol::Http2 {
             tx.fail(Status::invalid_argument(format!(
@@ -589,30 +615,77 @@ pub(crate) async fn run_client(
                 return;
             }
         };
-        let mut channels = Vec::with_capacity(num_channels);
-        for i in 0..num_channels {
-            let target_str = targets
-                .get(i % targets.len())
-                .map(|s| s.as_str())
-                .expect("validated server_targets are nonempty");
-            let clean_target = target_str
-                .strip_prefix("dns:///")
-                .or_else(|| target_str.strip_prefix("ipv4:"))
-                .or_else(|| target_str.strip_prefix("http://"))
-                .unwrap_or(target_str);
-
-            let channel = match pbrs_grpc::Channel::connect(clean_target).await {
-                Ok(ch) => ch,
-                Err(e) => {
+        // Dedicated load runtime for async_client_threads: connects and
+        // the generator run on exactly `count` workers so the control
+        // is honored, not just accepted. Built after validation so a
+        // bad config never strands a runtime on this async path.
+        let dedicated: Option<tokio::runtime::Runtime> = match client_threads {
+            None => None,
+            Some(count) => match tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(count)
+                .thread_name("qps-bench-client")
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => Some(runtime),
+                Err(error) => {
                     tx.fail(Status::internal(format!(
-                        "failed to connect to channel {i} at {target_str}: {e}"
+                        "failed to build {count}-worker benchmark client runtime: {error}"
                     )))
                     .await;
                     return;
                 }
-            };
-            channels.push(BenchmarkServiceClient::new(channel));
-        }
+            },
+        };
+        // Owned connect future: runs inline, or spawned on the
+        // dedicated runtime so channel I/O registers with the runtime
+        // that polls it.
+        let connect_all = async move {
+            let mut channels = Vec::with_capacity(num_channels);
+            for i in 0..num_channels {
+                let target_str = targets
+                    .get(i % targets.len())
+                    .map(|s| s.as_str())
+                    .expect("validated server_targets are nonempty");
+                let clean_target = target_str
+                    .strip_prefix("dns:///")
+                    .or_else(|| target_str.strip_prefix("ipv4:"))
+                    .or_else(|| target_str.strip_prefix("http://"))
+                    .unwrap_or(target_str);
+
+                let channel = match pbrs_grpc::Channel::connect(clean_target).await {
+                    Ok(ch) => ch,
+                    Err(e) => {
+                        return Err(Status::internal(format!(
+                            "failed to connect to channel {i} at {target_str}: {e}"
+                        )));
+                    }
+                };
+                channels.push(BenchmarkServiceClient::new(channel));
+            }
+            Ok::<Vec<BenchmarkServiceClient>, Status>(channels)
+        };
+        let channels = match dedicated.as_ref() {
+            None => connect_all.await,
+            Some(runtime) => match runtime.spawn(connect_all).await {
+                Ok(result) => result,
+                Err(error) => Err(Status::internal(format!(
+                    "benchmark client connect task failed: {error}"
+                ))),
+            },
+        };
+        let channels = match channels {
+            Ok(channels) => channels,
+            Err(status) => {
+                // No OwnedGenerator yet: release the runtime explicitly
+                // (dropping it here would panic).
+                if let Some(runtime) = dedicated {
+                    let _ = tokio::task::spawn_blocking(move || drop(runtime)).await;
+                }
+                tx.fail(status).await;
+                return;
+            }
+        };
 
         // 4. Configure LoadGenerator and stats tracker
         let load_cfg = if cfg.load_params().has_closed_loop() {
@@ -717,19 +790,34 @@ pub(crate) async fn run_client(
 
         let generator = LoadGenerator::new(load_cfg);
         let rejection_tracker = stats_tracker.clone();
-        let mut gen_handle = tokio::spawn(async move {
+        let run_generator = async move {
             generator
                 .run_with_rejections(invoke, || {
                     rejection_tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
                 })
                 .await;
-        });
+        };
+        let owned = OwnedGenerator {
+            handle: match dedicated.as_ref() {
+                None => tokio::spawn(run_generator),
+                Some(runtime) => runtime.spawn(run_generator),
+            },
+            runtime: dedicated,
+        };
+        match client_threads {
+            Some(count) => eprintln!(
+                "RunClient: async_client_threads={count} -> dedicated {count}-worker Tokio runtime"
+            ),
+            None => {
+                eprintln!("RunClient: async_client_threads=0 -> shared worker runtime");
+            }
+        }
 
         // 5. Build and send initial ClientStatus
         let initial_snapshot = match require_snapshot(resource_capture(), "RunClient initial") {
             Ok(snapshot) => snapshot,
             Err(status) => {
-                fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                fail_after_client_cleanup(tx, status, &cancel_tx, owned).await;
                 return;
             }
         };
@@ -743,7 +831,7 @@ pub(crate) async fn run_client(
         initial_status.set_stats(initial_stats);
 
         if tx.send(initial_status).await.is_err() {
-            if let Err(error) = stop_owned_generator(&cancel_tx, &mut gen_handle).await {
+            if let Err(error) = shutdown_owned_generator(&cancel_tx, owned).await {
                 eprintln!("{error}");
             }
             return;
@@ -758,7 +846,7 @@ pub(crate) async fn run_client(
                 Ok(Some(a)) => a,
                 Ok(None) => break, // Closing inbound stream triggers clean termination
                 Err(e) => {
-                    fail_after_client_cleanup(tx, e, &cancel_tx, &mut gen_handle).await;
+                    fail_after_client_cleanup(tx, e, &cancel_tx, owned).await;
                     return;
                 }
             };
@@ -769,7 +857,7 @@ pub(crate) async fn run_client(
                     tx,
                     Status::invalid_argument("duplicate ClientConfig setup received"),
                     &cancel_tx,
-                    &mut gen_handle,
+                    owned,
                 )
                 .await;
                 return;
@@ -780,7 +868,7 @@ pub(crate) async fn run_client(
                     tx,
                     Status::invalid_argument("expected Mark in subsequent ClientArgs"),
                     &cancel_tx,
-                    &mut gen_handle,
+                    owned,
                 )
                 .await;
                 return;
@@ -793,7 +881,7 @@ pub(crate) async fn run_client(
             let current_snapshot = match require_snapshot(resource_capture(), "RunClient Mark") {
                 Ok(snapshot) => snapshot,
                 Err(status) => {
-                    fail_after_client_cleanup(tx, status, &cancel_tx, &mut gen_handle).await;
+                    fail_after_client_cleanup(tx, status, &cancel_tx, owned).await;
                     return;
                 }
             };
@@ -822,7 +910,7 @@ pub(crate) async fn run_client(
         }
 
         // 7. Clean shutdown: notify cancellation and abort generator
-        if let Err(status) = stop_owned_generator(&cancel_tx, &mut gen_handle).await {
+        if let Err(status) = shutdown_owned_generator(&cancel_tx, owned).await {
             tx.fail(status).await;
         }
         // Dropping tx ends with OK only after the owned generator stops.

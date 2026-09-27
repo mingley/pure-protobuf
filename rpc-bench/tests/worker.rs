@@ -300,12 +300,10 @@ fn test_worker_core_count_rejects_missing_or_unrepresentable_values() {
 #[test]
 fn explicit_worker_options_are_not_silently_ignored() {
     type ServerOption = (&'static str, fn(&mut ServerConfig));
-    let server_options: [ServerOption; 9] = [
+    // async_server_threads is honored (dedicated runtime), not rejected.
+    let server_options: [ServerOption; 8] = [
         ("security_params", |cfg| {
             cfg.set_security_params(SecurityParams::new())
-        }),
-        ("async_server_threads", |cfg| {
-            cfg.set_async_server_threads(2)
         }),
         ("core_limit", |cfg| cfg.set_core_limit(2)),
         ("core_list", |cfg| cfg.core_list_mut().push(1)),
@@ -335,12 +333,10 @@ fn explicit_worker_options_are_not_silently_ignored() {
     }
 
     type ClientOption = (&'static str, fn(&mut ClientConfig));
-    let client_options: [ClientOption; 13] = [
+    // async_client_threads is honored (dedicated runtime), not rejected.
+    let client_options: [ClientOption; 12] = [
         ("security_params", |cfg| {
             cfg.set_security_params(SecurityParams::new())
-        }),
-        ("async_client_threads", |cfg| {
-            cfg.set_async_client_threads(2)
         }),
         ("core_limit", |cfg| cfg.set_core_limit(2)),
         ("core_list", |cfg| cfg.core_list_mut().push(1)),
@@ -373,6 +369,122 @@ fn explicit_worker_options_are_not_silently_ignored() {
             worker_client::unsupported_client_option(&config),
             Some(name)
         );
+    }
+}
+
+#[test]
+fn async_thread_counts_map_to_explicit_runtime_sizes() {
+    use worker_server::{MAX_WORKER_RUNTIME_THREADS, checked_thread_count};
+    assert_eq!(
+        checked_thread_count(0, "async_server_threads").unwrap(),
+        None
+    );
+    assert_eq!(
+        checked_thread_count(2, "async_server_threads").unwrap(),
+        Some(2)
+    );
+    assert_eq!(
+        checked_thread_count(1, "async_client_threads").unwrap(),
+        Some(1)
+    );
+    let err = checked_thread_count(-1, "async_server_threads").unwrap_err();
+    assert_eq!(err.code(), pbrs_grpc::Code::InvalidArgument);
+    let over = i32::try_from(MAX_WORKER_RUNTIME_THREADS + 1).unwrap();
+    let err = checked_thread_count(over, "async_client_threads").unwrap_err();
+    assert_eq!(err.code(), pbrs_grpc::Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn async_server_threads_runs_lifecycle_on_dedicated_runtime() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    let (tx, call) = client.run_server(Request::new(()));
+    let mut out_stream = call.await.unwrap().into_inner();
+
+    let mut setup_args = ServerArgs::new();
+    let mut config = async_server_config();
+    config.set_port(0);
+    config.set_async_server_threads(2);
+    setup_args.set_setup(config);
+    tx.send(setup_args).await.unwrap();
+
+    let init_status = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive initial ServerStatus");
+    let server_port = init_status.port();
+    assert!(server_port > 0, "bound port must be > 0");
+
+    // The dedicated-runtime server actually serves benchmark RPCs.
+    let bench_addr: std::net::SocketAddr = format!("127.0.0.1:{server_port}").parse().unwrap();
+    let bench_channel = pbrs_grpc::Channel::connect(bench_addr).await.unwrap();
+    let bench_client = benchmark_service::BenchmarkServiceClient::new(bench_channel);
+    let mut req = benchmark_service::SimpleRequest::new();
+    req.set_response_size(1024);
+    let resp = bench_client
+        .unary_call(Request::new(req))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(resp.payload().body().len(), 1024);
+
+    // Marks flow, then closing the stream shuts down the owned server
+    // and releases its runtime without hanging or panicking.
+    let mut mark_arg = ServerArgs::new();
+    let mut mark = Mark::new();
+    mark.set_reset(false);
+    mark_arg.set_mark(mark);
+    tx.send(mark_arg).await.unwrap();
+    let marked = out_stream
+        .message()
+        .await
+        .unwrap()
+        .expect("must receive mark ServerStatus");
+    assert!(marked.has_stats());
+
+    drop(tx);
+    let end = out_stream.message().await.unwrap();
+    assert!(end.is_none(), "stream must terminate with None / OK status");
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    if let Ok(ch) = pbrs_grpc::Channel::connect(bench_addr).await {
+        let probe_client = benchmark_service::BenchmarkServiceClient::new(ch);
+        let mut req = benchmark_service::SimpleRequest::new();
+        req.set_response_size(10);
+        assert!(
+            probe_client.unary_call(Request::new(req)).await.is_err(),
+            "calls must fail after dedicated-runtime shutdown"
+        );
+    }
+}
+
+#[tokio::test]
+async fn async_server_threads_rejects_bad_counts_before_bind() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    for (threads, code) in [
+        (-1, pbrs_grpc::Code::InvalidArgument),
+        (1_000_000, pbrs_grpc::Code::ResourceExhausted),
+    ] {
+        let (tx, call) = client.run_server(Request::new(()));
+        let mut out_stream = call.await.unwrap().into_inner();
+        let mut setup_args = ServerArgs::new();
+        let mut config = async_server_config();
+        config.set_port(0);
+        config.set_async_server_threads(threads);
+        setup_args.set_setup(config);
+        tx.send(setup_args).await.unwrap();
+        let res = out_stream.message().await;
+        assert!(
+            res.is_err(),
+            "async_server_threads={threads} must be rejected"
+        );
+        assert_eq!(res.unwrap_err().code(), code);
     }
 }
 
@@ -1076,6 +1188,116 @@ async fn test_run_client_poisson_load_lifecycle() {
     let _ = server_out.message().await;
 }
 
+fn closed_loop_client_config(target: &str) -> ClientConfig {
+    let mut config = ClientConfig::new();
+    config.set_server_targets(lazy_targets(&[target]));
+    config.set_client_channels(1);
+    config.set_outstanding_rpcs_per_channel(1);
+    config.set_client_type(ClientType::AsyncClient);
+    config.set_rpc_type(RpcType::Unary);
+    let mut load_params = LoadParams::new();
+    load_params.set_closed_loop(ClosedLoopParams::new());
+    config.set_load_params(load_params);
+    let mut hist_params = HistogramParams::new();
+    hist_params.set_resolution(0.01);
+    hist_params.set_max_possible(60_000_000_000.0);
+    config.set_histogram_params(hist_params);
+    config
+}
+
+#[tokio::test]
+async fn async_client_threads_runs_lifecycle_on_dedicated_runtime() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // Benchmark server for the client to drive.
+    let (server_tx, server_call) = client.run_server(Request::new(()));
+    let mut server_out = server_call.await.unwrap().into_inner();
+    let mut setup_args = ServerArgs::new();
+    let mut server_config = async_server_config();
+    server_config.set_port(0);
+    setup_args.set_setup(server_config);
+    server_tx.send(setup_args).await.unwrap();
+    let server_status = server_out
+        .message()
+        .await
+        .unwrap()
+        .expect("server init status");
+    let server_port = server_status.port();
+    assert!(server_port > 0);
+
+    // Client with an explicit thread count.
+    let (client_tx, client_call) = client.run_client(Request::new(()));
+    let mut client_out = client_call.await.unwrap().into_inner();
+    let mut client_args = ClientArgs::new();
+    let mut client_config = closed_loop_client_config(&format!("127.0.0.1:{server_port}"));
+    client_config.set_async_client_threads(2);
+    client_args.set_setup(client_config);
+    client_tx.send(client_args).await.unwrap();
+
+    let init_status = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("client init status");
+    assert!(init_status.has_stats());
+
+    tokio::time::sleep(Duration::from_millis(80)).await;
+
+    let mut mark_arg = ClientArgs::new();
+    let mut mark = Mark::new();
+    mark.set_reset(false);
+    mark_arg.set_mark(mark);
+    client_tx.send(mark_arg).await.unwrap();
+    let marked = client_out
+        .message()
+        .await
+        .unwrap()
+        .expect("mark client status");
+    assert!(marked.has_stats());
+    assert!(
+        marked.stats().latencies().count() > 0.0,
+        "dedicated-runtime client must complete RPCs"
+    );
+
+    // Clean shutdown releases the runtime without hanging or panicking.
+    drop(client_tx);
+    let end = client_out.message().await.unwrap();
+    assert!(end.is_none());
+
+    drop(server_tx);
+    let _ = server_out.message().await;
+}
+
+#[tokio::test]
+async fn async_client_threads_rejects_bad_counts_before_dial() {
+    let (addr, _quit_tx) = spawn_worker_service().await;
+    let channel = pbrs_grpc::Channel::connect(addr).await.unwrap();
+    let client = WorkerServiceClient::new(channel);
+
+    // Unroutable target: a dial attempt would fail differently, so the
+    // validation error proves the count fails before dialing.
+    for (threads, code) in [
+        (-1, pbrs_grpc::Code::InvalidArgument),
+        (1_000_000, pbrs_grpc::Code::ResourceExhausted),
+    ] {
+        let (tx, call) = client.run_client(Request::new(()));
+        let mut out_stream = call.await.unwrap().into_inner();
+        let mut args = ClientArgs::new();
+        let mut config = closed_loop_client_config("192.0.2.1:9");
+        config.set_async_client_threads(threads);
+        args.set_setup(config);
+        tx.send(args).await.unwrap();
+        let res = out_stream.message().await;
+        assert!(
+            res.is_err(),
+            "async_client_threads={threads} must be rejected"
+        );
+        assert_eq!(res.unwrap_err().code(), code);
+    }
+}
+
 #[tokio::test]
 async fn test_run_client_unsupported_options_fail_clearly() {
     let (addr, _quit_tx) = spawn_worker_service().await;
@@ -1249,9 +1471,11 @@ async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
     let mut proto_with_generic_payload = async_server_config();
     proto_with_generic_payload.set_payload_config(PayloadConfig::new());
     reject_server(&client, proto_with_generic_payload, "payload_config").await;
-    let mut server_threads = async_server_config();
-    server_threads.set_async_server_threads(2);
-    reject_server(&client, server_threads, "unsupported server config option").await;
+    // async_server_threads is honored (dedicated runtime); only bad
+    // counts reject. Covered by async_server_threads_* tests.
+    let mut negative_threads = async_server_config();
+    negative_threads.set_async_server_threads(-1);
+    reject_server(&client, negative_threads, "cannot be negative").await;
 
     let mut valid = ClientConfig::new();
     valid.set_server_targets(lazy_targets(&["127.0.0.1:50051"]));
@@ -1262,13 +1486,15 @@ async fn unsupported_benchmark_worker_modes_fail_before_peer_work() {
     load.set_closed_loop(ClosedLoopParams::new());
     valid.set_load_params(load);
 
-    let mut client_threads = valid.clone();
-    client_threads.set_async_client_threads(2);
+    // async_client_threads is honored (dedicated runtime); only bad
+    // counts reject. Covered by async_client_threads_* tests.
+    let mut negative_threads = valid.clone();
+    negative_threads.set_async_client_threads(-1);
     reject_client(
         &client,
-        client_threads,
+        negative_threads,
         pbrs_grpc::Code::InvalidArgument,
-        "unsupported client config option async_client_threads",
+        "cannot be negative",
     )
     .await;
 
