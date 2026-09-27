@@ -265,17 +265,15 @@ fn backoff_for(rounds: u32) -> Duration {
 /// Weighted random shuffle (A113): Efraimidis–Spirakis keys —
 /// `u^(1/weight)` per entry from a uniform `u` in `[0, 1)`, sorted
 /// descending. All-equal weights reduce to a uniform permutation.
-/// Time-seeded xorshift; no rng dependency.
 fn weighted_shuffle(entries: &mut [WeightedAddress]) {
     if entries.len() < 2 {
         return;
     }
     const UNIT: f64 = 4_294_967_296.0;
-    let mut rng = xorshift_seed();
+    let mut rng = SplitMix64::seed();
     let mut keyed: Vec<(f64, usize)> = Vec::with_capacity(entries.len());
     for (index, entry) in entries.iter().enumerate() {
-        rng = xorshift_next(rng);
-        let hi = u32::try_from(rng >> 32).unwrap_or(u32::MAX);
+        let hi = u32::try_from(rng.next() >> 32).unwrap_or(u32::MAX);
         let u = f64::from(hi) / UNIT;
         let weight = f64::from(entry.weight.max(1));
         keyed.push((u.powf(1.0 / weight), index));
@@ -331,20 +329,36 @@ fn interleave_families(entries: Vec<WeightedAddress>) -> Vec<WeightedAddress> {
     ordered
 }
 
-fn xorshift_seed() -> u64 {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| u64::from(d.subsec_nanos()))
-        .unwrap_or(0x9E37_79B9);
-    let pid = u64::from(std::process::id()).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    (nanos ^ pid).max(1)
-}
+/// SplitMix64 generator: strong avalanche per output, so
+/// back-to-back shuffles never share correlated seeds (a bare
+/// xorshift seeded from the clock sticks permutations when loop
+/// iterations land in adjacent nanoseconds). No rng dependency.
+struct SplitMix64(u64);
 
-fn xorshift_next(mut x: u64) -> u64 {
-    x ^= x << 13;
-    x ^= x >> 7;
-    x ^= x << 17;
-    x.max(1)
+impl SplitMix64 {
+    fn seed() -> Self {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| u64::from(d.subsec_nanos()))
+            .unwrap_or(0x9E37_79B9);
+        let pid = u64::from(std::process::id());
+        let calls = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // Goldens: distinct odd multiples keep the three lanes apart.
+        let mixed = nanos
+            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+            .wrapping_add(pid.wrapping_mul(0xBF58_476D_1CE4_E5B9))
+            .wrapping_add(calls.wrapping_mul(0x94D0_49BB_1331_11EB));
+        Self(mixed)
+    }
+
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
 }
 
 /// Factory registering `pick_first` for A24 selection.
@@ -445,6 +459,32 @@ mod tests {
         pf.note_failure(crate::status::Status::unavailable("x"))
             .await;
         assert_eq!(pf.race_plan().await, vec![tcp(2), tcp(3), tcp(1)]);
+    }
+
+    #[tokio::test]
+    async fn rapid_shuffles_do_not_stick() {
+        // Regression: back-to-back updates must not repeat one
+        // permutation (a clock-seeded bare xorshift sticks when loop
+        // iterations share adjacent nanoseconds).
+        let config = crate::service_config::ServiceConfig::parse(
+            r#"{"loadBalancingConfig": [{"pick_first": {"shuffleAddressList": true}}]}"#,
+        )
+        .expect("parses");
+        let addrs = vec![tcp(1), tcp(2), tcp(3), tcp(4)];
+        let mut seen = [false; 4];
+        for _ in 0..40 {
+            let pf = PickFirst::from_config(Some(&config));
+            pf.update(addrs.clone()).await;
+            match pf.pick().await {
+                Pick::Use(addr) => {
+                    if let Some(n) = addrs.iter().position(|a| a == &addr) {
+                        seen[n] = true;
+                    }
+                }
+                _ => panic!("expected an address pick"),
+            }
+        }
+        assert!(seen.iter().all(|s| *s), "first-pick coverage: {seen:?}");
     }
 
     #[tokio::test]
