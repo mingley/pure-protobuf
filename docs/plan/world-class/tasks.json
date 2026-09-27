@@ -5628,7 +5628,15 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "proxy.rs (A1 CONNECT, NO_PROXY, basic auth) + tcp.rs per-dial consult + tests/proxy.rs 7/7 (incl TLS end-to-end through proxy); lib unit proxy:: 3 passed",
+    "A18: PBRS_TCP_USER_TIMEOUT_MS applied on every dial via Linux-only raw setsockopt (proxy::set_user_timeout/get_user_timeout round-trip test on Linux); pure-rust audit still pure (libc is Linux-only FFI bindings)",
+    "G1: custom_metadata passes both directions vs grpc-go (DoCustomMetadata -> pbrs server; pbrs client -> Go NewTestServer, throwaway /tmp/go-custom-md probes) and vs pinned C++ peer (grpc-interop-cpp.sh custom_metadata: kernel_client_to_cpp_server + cpp_client_to_kernel_server passed, grpc/grpc@d1487957)",
+    "boundaries (CH-09b): no ChannelConfig surface for proxy/user-timeout yet (env-only); Linux user-timeout test runs in CI (this host is macOS)"
+   ]
   },
   {
    "id": "CH-10",

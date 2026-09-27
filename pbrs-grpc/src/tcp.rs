@@ -15,7 +15,12 @@ use tokio::net::{TcpSocket, TcpStream};
 ///
 /// `local` `None` is [`TcpStream::connect`]. A bound address must share the
 /// remote's family; otherwise the dial fails with [`ErrorKind::AddrNotAvailable`].
+/// When `HTTPS_PROXY` is set and `host` is not bypassed, dials the proxy
+/// and tunnels with `CONNECT` (A1, CH-09).
 pub(crate) async fn connect(host: &str, local: Option<SocketAddr>) -> std::io::Result<TcpStream> {
+    if let Some(tunneled) = dial_via_proxy(host, local).await? {
+        return Ok(tunneled);
+    }
     match local {
         None => TcpStream::connect(host).await,
         Some(local) => connect_bound(host, local).await,
@@ -23,11 +28,16 @@ pub(crate) async fn connect(host: &str, local: Option<SocketAddr>) -> std::io::R
 }
 
 /// Dial a resolved address, optionally binding `local` first. Skips
-/// name resolution: the resolver already chose `remote`.
+/// name resolution: the resolver already chose `remote`. Proxying uses
+/// the IP literal as the `CONNECT` target and for `NO_PROXY` matching;
+/// domain rules cannot match here because the name is already resolved.
 pub(crate) async fn connect_addr(
     remote: SocketAddr,
     local: Option<SocketAddr>,
 ) -> std::io::Result<TcpStream> {
+    if let Some(tunneled) = dial_via_proxy(&remote.to_string(), local).await? {
+        return Ok(tunneled);
+    }
     match local {
         None => TcpStream::connect(remote).await,
         Some(local) => {
@@ -40,6 +50,26 @@ pub(crate) async fn connect_addr(
             bind_connect(local, remote).await
         }
     }
+}
+
+/// Dial `target` (`host:port`) through the env-configured proxy, or
+/// `None` when no proxy applies. `local` binds the proxy leg.
+async fn dial_via_proxy(
+    target: &str,
+    local: Option<SocketAddr>,
+) -> std::io::Result<Option<TcpStream>> {
+    let Some(proxy) = crate::proxy::ProxyConfig::from_env() else {
+        return Ok(None);
+    };
+    if proxy.bypasses(target) {
+        return Ok(None);
+    }
+    let dial = proxy.dial();
+    let stream = match local {
+        None => TcpStream::connect(dial).await?,
+        Some(local) => connect_bound(&dial, local).await?,
+    };
+    crate::proxy::tunnel(stream, target, &proxy).await.map(Some)
 }
 
 async fn connect_bound(host: &str, local: SocketAddr) -> std::io::Result<TcpStream> {
@@ -74,7 +104,8 @@ async fn bind_connect(local: SocketAddr, remote: SocketAddr) -> std::io::Result<
 /// `TCP_NODELAY` always; `SO_KEEPALIVE` when `keepalive` is `Some`.
 /// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time.
 /// `keepalive_retries` is `TCP_KEEPCNT`. Neither turns `SO_KEEPALIVE` on by
-/// itself.
+/// itself. `TCP_USER_TIMEOUT` (A18, Linux only) comes from
+/// `PBRS_TCP_USER_TIMEOUT_MS`; a `ChannelConfig` surface is a follow-up.
 pub(crate) fn tune(
     tcp: &TcpStream,
     keepalive: Option<Duration>,
@@ -82,6 +113,7 @@ pub(crate) fn tune(
     keepalive_retries: Option<u32>,
 ) -> std::io::Result<()> {
     tcp.set_nodelay(true)?;
+    apply_user_timeout(tcp)?;
     if let Some(time) = keepalive {
         let ka = socket2::TcpKeepalive::new().with_time(time);
         let ka = apply_keepalive_interval(ka, keepalive_interval);
@@ -91,6 +123,32 @@ pub(crate) fn tune(
         let _ = (keepalive_interval, keepalive_retries);
     }
     Ok(())
+}
+
+/// Apply A18 `TCP_USER_TIMEOUT` from `PBRS_TCP_USER_TIMEOUT_MS`
+/// (milliseconds; absent/invalid/zero disables). Linux only; socket2
+/// exposes no public API, so this uses one raw setsockopt.
+fn apply_user_timeout(tcp: &TcpStream) -> std::io::Result<()> {
+    let Some(timeout) = user_timeout_from_env() else {
+        return Ok(());
+    };
+    crate::proxy::set_user_timeout(tcp, timeout)
+}
+
+/// Parse the user-timeout env value (pure; milliseconds).
+fn parse_user_timeout_ms(raw: &str) -> Option<Duration> {
+    let ms: u64 = raw.trim().parse().ok()?;
+    if ms == 0 {
+        return None;
+    }
+    Some(Duration::from_millis(ms))
+}
+
+/// Read the user-timeout env var from the process environment.
+fn user_timeout_from_env() -> Option<Duration> {
+    std::env::var("PBRS_TCP_USER_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| parse_user_timeout_ms(&raw))
 }
 
 #[cfg(any(

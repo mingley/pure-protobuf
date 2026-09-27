@@ -1088,6 +1088,7 @@ pub mod lb;
 mod limits;
 #[forbid(unsafe_code)]
 mod metadata;
+mod proxy;
 #[forbid(unsafe_code)]
 mod request;
 #[forbid(unsafe_code)]

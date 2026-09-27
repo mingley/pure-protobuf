@@ -79,5 +79,10 @@ path = "src/bin/pbrs-grpc-interop-client.rs"
 name = "pbrs-grpc-http2-client"
 path = "src/bin/pbrs-grpc-http2-client.rs"
 
+# Linux-only raw TCP_USER_TIMEOUT setsockopt (A18, CH-09). socket2
+# exposes no public API for it. FFI bindings only; compiles no C.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
 [lints]
 workspace = true

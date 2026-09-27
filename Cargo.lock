@@ -516,6 +516,7 @@ dependencies = [
  "futures-core",
  "h2",
  "http",
+ "libc",
  "opentelemetry",
  "opentelemetry_sdk",
  "pbrs",

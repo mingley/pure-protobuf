@@ -20,11 +20,11 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
 | A17 | Client-side health checking | shipped | Server `Check`/`Watch`/`HealthReporter` plus client gating: per-subchannel same-conn Watch, unhealthy skips rotation (RR) / fails over (PF), UNIMPLEMENTED treated healthy, service-config opt-in with channel switch (CH-05). No channel-trace hookup yet. |
 | A90 | Health `List` method | shipped | `Health::list`. |
-| A18 | TCP user timeout | planned | `tcp_user_timeout` via socket2 on Linux. |
+| A18 | TCP user timeout | shipped | `PBRS_TCP_USER_TIMEOUT_MS` applied on every dial via Linux-only raw `TCP_USER_TIMEOUT` setsockopt (`proxy::set_user_timeout`; socket2 exposes no API); round-trip unit test runs on Linux, no-op elsewhere (CH-09). `ChannelConfig` surface is a follow-up. |
 | A61 | IPv4/IPv6 dualstack backends | shipped | Hostname resolution plus Happy-Eyeballs racing: 250ms-staggered full dials, fast-failure advance, first READY wins, family interleave after shuffle (CH-04). No RFC-6724 sort in the DNS resolver; no channel-arg delay knob. |
 | A101 | SNI setting and SNI/SAN validation | partial → in progress | rustls sends SNI from the name; explicit server-name override in progress. |
 | A105 | `max_concurrent_streams` connection scaling | planned | Grow the pool when the server lowers the stream cap. |
-| G1 | True binary metadata | planned | Interop-verified binary metadata handling. |
+| G1 | True binary metadata | shipped | `-bin` values base64 on the wire, padded/unpadded accepted; official `custom_metadata` passes both directions against grpc-go and pinned C++ (`grpc/grpc@d1487957`, CH-09). |
 
 ## Name resolution, balancing, routing
 
@@ -49,7 +49,7 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A1 | HTTP CONNECT proxy support | planned | CONNECT tunneling, `HTTPS_PROXY`/`NO_PROXY` mapping. |
+| A1 | HTTP CONNECT proxy support | shipped | Env-driven CONNECT tunneling (`HTTPS_PROXY`/`NO_PROXY` with uppercase-wins, `*`/suffix/IP/CIDR bypass, basic auth, TLS end-to-end above the tunnel) consulted on every dial (`proxy.rs`, CH-09). `tests/proxy.rs` 7/7. No per-channel config surface yet. |
 | A86 | xDS HTTP CONNECT | planned | With the xDS client. |
 | G2 | HTTP/3 protocol | boundary | QUIC transport is a separate transport project, not this kernel. |
 
