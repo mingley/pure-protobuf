@@ -6461,7 +6461,15 @@
    "scoreboard": [
     "F7"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "implementer": "muse-code",
+   "evidence": [
+    "scripts/pure-rust-audit.sh: per-profile feature-resolved audit (cargo tree --all-features --target all) failing on C crates (ring/aws-lc/openssl/zlib/cc/cmake), cc/cmake build-deps, links keys, non-approved licenses; prints each crate set",
+    ".github/workflows/ci.yml dep-audit job (YAML-validated)",
+    "standing: all 4 profiles pure (core 15, grpc 73, tonic 75, codegen 15 crates); negative test with poisoned denylist fails as expected",
+    "method note: raw cargo-metadata resolve is feature-unaware and false-positives ring via rustls-webpki; the gate uses cargo-tree resolution (verified: no ring/cc in any real closure)"
+   ]
   },
   {
    "id": "MX-00",

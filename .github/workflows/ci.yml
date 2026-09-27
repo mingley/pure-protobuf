@@ -238,6 +238,17 @@ jobs:
       - run: cargo fetch
       - run: cargo test --test package_consumer -- --nocapture
 
+  # QG-04: every shipping profile (core, native gRPC, tonic adapter,
+  # Rust-only codegen) must resolve to pure-Rust crates with approved
+  # licenses: no C build steps, no links keys outside the allowlist.
+  dep-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: scripts/pure-rust-audit.sh
+
   # Drift among bundled hello/WKT copies, and stub-flavour selection, must
   # fail the required lane (not only a local onboarding run).
   generated-output:
