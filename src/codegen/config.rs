@@ -1,0 +1,1226 @@
+//! MX-01 split of `super`: config (mechanical move, no behavior change).
+
+use super::*;
+use crate::error::ParseError;
+use std::cell::{Cell, RefCell};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+/// An error that occurred during protobuf code generation.
+#[derive(Debug)]
+pub enum CodegenError {
+    /// The `protoc` executable was not found in PATH or failed to execute.
+    MissingProtoc {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// Execution of `protoc` failed with a non-zero exit status.
+    ProtocExecution {
+        status: std::process::ExitStatus,
+        stderr: String,
+        protos: Vec<PathBuf>,
+    },
+    /// An imported proto file could not be found.
+    MissingImport {
+        import: String,
+        proto: PathBuf,
+        detail: String,
+    },
+    /// A protobuf descriptor or CodeGeneratorRequest is malformed or invalid.
+    MalformedDescriptor {
+        detail: String,
+        path: Option<PathBuf>,
+    },
+    /// The output directory or file could not be created or written.
+    UnwritableOutput {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// The `OUT_DIR` environment variable was not set and no output directory was specified.
+    MissingOutDir,
+    /// An I/O error occurred on a specific file path.
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    /// An unknown plugin parameter key was encountered.
+    UnknownParameter { key: String, detail: String },
+    /// An invalid value was supplied for a recognized plugin parameter.
+    InvalidParameter { key: String, detail: String },
+    /// Multiple proto files share the same stem in an ambiguous single-file request.
+    AmbiguousStem {
+        stem: String,
+        matches: Vec<(String, String)>,
+    },
+    /// A requested proto file is not present in the descriptor set.
+    UnknownFile {
+        file: String,
+        available: Vec<(String, String)>,
+    },
+}
+
+impl CodegenError {
+    /// The primary path associated with this error, if any.
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::MissingProtoc { path, .. }
+            | Self::UnwritableOutput { path, .. }
+            | Self::Io { path, .. } => Some(path),
+            Self::MissingImport { proto, .. } => Some(proto),
+            Self::MalformedDescriptor { path, .. } => path.as_deref(),
+            Self::ProtocExecution { protos, .. } => protos.first().map(PathBuf::as_path),
+            Self::MissingOutDir
+            | Self::UnknownParameter { .. }
+            | Self::InvalidParameter { .. }
+            | Self::AmbiguousStem { .. }
+            | Self::UnknownFile { .. } => None,
+        }
+    }
+
+    /// The protoc stderr output, if this error was caused by a protoc failure.
+    pub fn stderr(&self) -> Option<&str> {
+        match self {
+            Self::ProtocExecution { stderr, .. } => Some(stderr.as_str()),
+            Self::MissingImport { detail, .. } => Some(detail.as_str()),
+            _ => None,
+        }
+    }
+
+    /// The parameter key associated with this error, if any.
+    pub fn parameter_key(&self) -> Option<&str> {
+        match self {
+            Self::UnknownParameter { key, .. } | Self::InvalidParameter { key, .. } => {
+                Some(key.as_str())
+            }
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for CodegenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingProtoc { path, source } => {
+                write!(
+                    f,
+                    "protoc executable not found or failed to execute at '{}': {}",
+                    path.display(),
+                    source
+                )
+            }
+            Self::ProtocExecution {
+                status,
+                stderr,
+                protos,
+            } => {
+                let proto_list = protos
+                    .iter()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if stderr.is_empty() {
+                    write!(
+                        f,
+                        "protoc failed with {status} while compiling [{proto_list}]"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "protoc failed with {status} while compiling [{proto_list}]:\n{stderr}"
+                    )
+                }
+            }
+            Self::MissingImport {
+                import,
+                proto,
+                detail,
+            } => {
+                write!(
+                    f,
+                    "missing import '{}' required by '{}':\n{}",
+                    import,
+                    proto.display(),
+                    detail
+                )
+            }
+            Self::MalformedDescriptor { detail, path } => {
+                if let Some(p) = path {
+                    write!(
+                        f,
+                        "malformed protobuf descriptor at '{}': {}",
+                        p.display(),
+                        detail
+                    )
+                } else {
+                    write!(f, "malformed protobuf descriptor: {}", detail)
+                }
+            }
+            Self::UnwritableOutput { path, source } => {
+                write!(
+                    f,
+                    "failed to write codegen output to '{}': {}",
+                    path.display(),
+                    source
+                )
+            }
+            Self::MissingOutDir => {
+                f.write_str("OUT_DIR environment variable is not set and no out_dir was configured")
+            }
+            Self::Io { path, source } => {
+                write!(f, "IO error at '{}': {}", path.display(), source)
+            }
+            Self::UnknownParameter { key, detail } => {
+                if detail.is_empty() {
+                    write!(f, "unknown codegen parameter: {key}")
+                } else {
+                    write!(f, "unknown codegen parameter '{key}': {detail}")
+                }
+            }
+            Self::InvalidParameter { key, detail } => {
+                if detail.is_empty() {
+                    write!(f, "invalid codegen parameter: {key}")
+                } else {
+                    write!(f, "invalid codegen parameter '{key}': {detail}")
+                }
+            }
+            Self::AmbiguousStem { stem, matches } => {
+                write!(f, "ambiguous proto stem '{stem}' across multiple files:")?;
+                for (path, pkg) in matches {
+                    write!(f, "\n  - {path} (package {pkg})")?;
+                }
+                write!(
+                    f,
+                    "\nUse the hierarchical path or include the root mod.rs instead."
+                )
+            }
+            Self::UnknownFile { file, available } => {
+                write!(
+                    f,
+                    "unknown proto file '{file}': not present in the descriptor set."
+                )?;
+                if !available.is_empty() {
+                    write!(f, "\nAvailable files:")?;
+                    for (path, pkg) in available {
+                        if pkg.is_empty() {
+                            write!(f, "\n  - {path}")?;
+                        } else {
+                            write!(f, "\n  - {path} (package {pkg})")?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl std::error::Error for CodegenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::MissingProtoc { source, .. }
+            | Self::UnwritableOutput { source, .. }
+            | Self::Io { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
+
+impl From<CodegenError> for ParseError {
+    fn from(_: CodegenError) -> Self {
+        ParseError
+    }
+}
+
+thread_local! {
+    pub(crate) static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
+    pub(crate) static FIELD_IDENTS: RefCell<std::collections::BTreeMap<u32, String>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
+    pub(crate) static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
+    pub(crate) static STUBS: Cell<Stubs> = const { Cell::new(Stubs::Kernel) };
+    pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
+    pub(crate) static TYPE_FILES: RefCell<std::collections::BTreeMap<String, (String, String)>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
+    pub(crate) static EXTERN_PATHS: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static RUNTIME_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    pub(crate) static GRPC_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    pub(crate) static TONIC_CRATE: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+}
+
+pub(crate) struct CodegenStateGuard;
+
+impl CodegenStateGuard {
+    pub(crate) fn new() -> Self {
+        Self::reset();
+        Self
+    }
+
+    fn reset() {
+        IDENTS.with(|c| c.borrow_mut().clear());
+        FIELD_IDENTS.with(|c| c.borrow_mut().clear());
+        FIELD_RAWS.with(|c| c.borrow_mut().clear());
+        STUBS.with(|c| c.set(Stubs::Kernel));
+        EMIT_DEPS.with(|c| c.set(false));
+        NO_WKT.with(|c| c.set(false));
+        SHARED_POOL.with(|c| c.set(false));
+        NO_REFLECT.with(|c| c.set(false));
+        CURRENT_TARGET.with(|c| c.borrow_mut().clear());
+        TYPE_FILES.with(|c| c.borrow_mut().clear());
+        EXTERN_PATHS.with(|c| c.borrow_mut().clear());
+        RUNTIME_CRATE.with(|c| *c.borrow_mut() = None);
+        GRPC_CRATE.with(|c| *c.borrow_mut() = None);
+        TONIC_CRATE.with(|c| *c.borrow_mut() = None);
+    }
+}
+
+impl Drop for CodegenStateGuard {
+    fn drop(&mut self) {
+        Self::reset();
+    }
+}
+
+/// Which gRPC service stubs to emit alongside generated messages.
+///
+/// A `.proto` `service` block turns into client and server types. Which flavour
+/// you get depends on which gRPC stack you are using; the two are mutually
+/// exclusive because they claim the same `FooClient` / `FooServer` names.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Stubs {
+    /// Messages only.
+    None,
+    /// `tonic` 0.14 stubs over `protobuf_tonic::ProtobufCodec`.
+    /// Select with [`Config::emit_tonic_stubs`].
+    Tonic,
+    /// Native `pbrs-grpc` stubs. The default. Requires the generating crate
+    /// to depend on `pbrs-grpc`. `FooClient` dials with `connect` /
+    /// `connect_tls` / `connect_unix` / `from_io`; `FooServer` serves with
+    /// `serve` / `serve_tls` / `serve_unix`.
+    /// The `protoc-gen-pbrs` plugin uses this default; set
+    /// `PURE_PROTOBUF_STUBS=tonic` for tonic stubs.
+    #[default]
+    Kernel,
+}
+
+/// Resolve the stub flavour from the active thread-local config.
+#[allow(dead_code, reason = "helper for inspecting current stub flavour")]
+pub(crate) fn stubs_setting() -> Stubs {
+    STUBS.with(Cell::get)
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ExplicitOptions {
+    stubs: Option<Stubs>,
+    emit_deps: Option<bool>,
+    no_wkt: Option<bool>,
+    shared_pool: Option<bool>,
+    no_reflect: Option<bool>,
+    pub(crate) extern_paths: Vec<(String, String)>,
+    pub(crate) runtime_crate: Option<String>,
+    pub(crate) grpc_crate: Option<String>,
+    pub(crate) tonic_crate: Option<String>,
+    include_source_info: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ResolvedConfig {
+    pub(crate) stubs: Stubs,
+    pub(crate) emit_deps: bool,
+    pub(crate) no_wkt: bool,
+    pub(crate) shared_pool: bool,
+    pub(crate) no_reflect: bool,
+    pub(crate) extern_paths: Vec<(String, String)>,
+    pub(crate) runtime_crate: Option<String>,
+    pub(crate) grpc_crate: Option<String>,
+    pub(crate) tonic_crate: Option<String>,
+    pub(crate) include_source_info: bool,
+}
+
+pub(crate) fn parse_bool_param(key: &str, val: Option<&str>) -> Result<bool, CodegenError> {
+    match val {
+        None | Some("true") | Some("1") => Ok(true),
+        Some("false") | Some("0") => Ok(false),
+        Some(other) => Err(CodegenError::InvalidParameter {
+            key: key.to_string(),
+            detail: format!("expected 'true' or 'false' for '{key}', got '{other}'"),
+        }),
+    }
+}
+
+pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions, CodegenError> {
+    let mut explicit = ExplicitOptions::default();
+    for item in parameter.split(',') {
+        let item = item.trim();
+        if item.is_empty() {
+            continue;
+        }
+        let (key, val) = match item.split_once('=') {
+            Some((k, v)) => (k.trim(), Some(v.trim())),
+            None => (item, None),
+        };
+        match key {
+            "stubs" => {
+                let s = match val {
+                    Some("kernel") => Stubs::Kernel,
+                    Some("tonic") => Stubs::Tonic,
+                    Some("none") => Stubs::None,
+                    Some(other) => {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "stubs".to_string(),
+                            detail: format!(
+                                "expected 'kernel', 'tonic', or 'none' for 'stubs', got '{other}'"
+                            ),
+                        });
+                    }
+                    None => {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "stubs".to_string(),
+                            detail: "expected value for 'stubs' parameter ('kernel', 'tonic', or 'none')"
+                                .to_string(),
+                        });
+                    }
+                };
+                explicit.stubs = Some(s);
+            }
+            "emit_deps" => {
+                explicit.emit_deps = Some(parse_bool_param("emit_deps", val)?);
+            }
+            "no_wkt" => {
+                explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
+            }
+            "shared_pool" => {
+                explicit.shared_pool = Some(parse_bool_param("shared_pool", val)?);
+            }
+            "no_reflect" => {
+                explicit.no_reflect = Some(parse_bool_param("no_reflect", val)?);
+            }
+            "extern_path" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "extern_path".to_string(),
+                    detail: "expected 'proto_path=rust_path' for 'extern_path'".to_string(),
+                })?;
+                let (proto_path, rust_path) =
+                    val_str
+                        .split_once('=')
+                        .ok_or_else(|| CodegenError::InvalidParameter {
+                            key: "extern_path".to_string(),
+                            detail: format!(
+                                "expected 'proto_path=rust_path' for 'extern_path', got '{val_str}'"
+                            ),
+                        })?;
+                let proto_path = proto_path.trim();
+                let rust_path = rust_path.trim();
+                if proto_path.is_empty() || rust_path.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "extern_path".to_string(),
+                        detail: format!(
+                            "invalid empty proto_path or rust_path in 'extern_path={val_str}'"
+                        ),
+                    });
+                }
+                let norm_proto = proto_path.trim_start_matches('.');
+                if let Some((_, existing_rust)) = explicit
+                    .extern_paths
+                    .iter()
+                    .find(|(p, _)| p.trim_start_matches('.') == norm_proto)
+                {
+                    if existing_rust != rust_path {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "extern_path".to_string(),
+                            detail: format!(
+                                "conflicting mapping for '{proto_path}': already mapped to '{existing_rust}', cannot remap to '{rust_path}'"
+                            ),
+                        });
+                    }
+                } else {
+                    explicit
+                        .extern_paths
+                        .push((proto_path.to_string(), rust_path.to_string()));
+                }
+            }
+            "runtime_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "runtime_crate".to_string(),
+                    detail: "expected value for 'runtime_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "runtime_crate".to_string(),
+                        detail: "empty crate alias for 'runtime_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.runtime_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "runtime_crate".to_string(),
+                            detail: format!(
+                                "conflicting runtime_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.runtime_crate = Some(val_str.to_string());
+            }
+            "grpc_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "grpc_crate".to_string(),
+                    detail: "expected value for 'grpc_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "grpc_crate".to_string(),
+                        detail: "empty crate alias for 'grpc_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.grpc_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "grpc_crate".to_string(),
+                            detail: format!(
+                                "conflicting grpc_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.grpc_crate = Some(val_str.to_string());
+            }
+            "tonic_crate" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "tonic_crate".to_string(),
+                    detail: "expected value for 'tonic_crate'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "tonic_crate".to_string(),
+                        detail: "empty crate alias for 'tonic_crate'".to_string(),
+                    });
+                }
+                if let Some(existing) = &explicit.tonic_crate {
+                    if existing != val_str {
+                        return Err(CodegenError::InvalidParameter {
+                            key: "tonic_crate".to_string(),
+                            detail: format!(
+                                "conflicting tonic_crate: already set to '{existing}', cannot reset to '{val_str}'"
+                            ),
+                        });
+                    }
+                }
+                explicit.tonic_crate = Some(val_str.to_string());
+            }
+            "include_source_info" | "source_info" | "preserve_comments" => {
+                explicit.include_source_info = Some(parse_bool_param(key, val)?);
+            }
+            other => {
+                return Err(CodegenError::UnknownParameter {
+                    key: other.to_string(),
+                    detail: format!("unrecognized plugin parameter key: '{other}'"),
+                });
+            }
+        }
+    }
+    Ok(explicit)
+}
+
+pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
+    let stubs = if let Some(s) = explicit.stubs {
+        s
+    } else {
+        match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
+            Ok("kernel") => Stubs::Kernel,
+            Ok("tonic") => Stubs::Tonic,
+            Ok("none") => Stubs::None,
+            _ => Stubs::Kernel,
+        }
+    };
+    let emit_deps = if let Some(d) = explicit.emit_deps {
+        d
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_EMIT_DEPS").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let no_wkt = if let Some(w) = explicit.no_wkt {
+        w
+    } else {
+        match std::env::var("PURE_PROTOBUF_NO_WKT") {
+            Ok(v) => !v.is_empty() && v != "0" && v != "false",
+            Err(_) => false,
+        }
+    };
+    let shared_pool = if let Some(p) = explicit.shared_pool {
+        p
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_SHARED_POOL").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let no_reflect = if let Some(r) = explicit.no_reflect {
+        r
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    let runtime_crate = explicit.runtime_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_RUNTIME_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let grpc_crate = explicit.grpc_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_GRPC_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let tonic_crate = explicit.tonic_crate.clone().or_else(|| {
+        std::env::var("PURE_PROTOBUF_TONIC_CRATE")
+            .ok()
+            .filter(|s| !s.is_empty())
+    });
+    let include_source_info = if let Some(si) = explicit.include_source_info {
+        si
+    } else {
+        matches!(
+            std::env::var("PURE_PROTOBUF_INCLUDE_SOURCE_INFO").as_deref(),
+            Ok("1") | Ok("true")
+        )
+    };
+    ResolvedConfig {
+        stubs,
+        emit_deps,
+        no_wkt,
+        shared_pool,
+        no_reflect,
+        extern_paths: explicit.extern_paths.clone(),
+        runtime_crate,
+        grpc_crate,
+        tonic_crate,
+        include_source_info,
+    }
+}
+
+/// Options for [`compile_protos`] and [`Config::compile_descriptor_set`].
+///
+/// # Configuration precedence
+///
+/// Every option resolves in the same order, so equivalent [`Config`] and
+/// `--pbrs_opt` plugin-parameter inputs select identical options:
+///
+/// 1. Explicit selection: a [`Config`] builder call or a `--pbrs_opt`
+///    `key=value` entry. This always wins and is never silently overridden
+///    by ambient environment.
+/// 2. `PURE_PROTOBUF_*` environment variable, kept as a legacy-compatibility
+///    fallback for existing build scripts (`PURE_PROTOBUF_STUBS`,
+///    `PURE_PROTOBUF_EMIT_DEPS`, `PURE_PROTOBUF_NO_WKT`,
+///    `PURE_PROTOBUF_SHARED_POOL`, `PURE_PROTOBUF_NO_REFLECT`,
+///    `PURE_PROTOBUF_RUNTIME_CRATE`, `PURE_PROTOBUF_GRPC_CRATE`,
+///    `PURE_PROTOBUF_TONIC_CRATE`, `PURE_PROTOBUF_INCLUDE_SOURCE_INFO`).
+///    New code should prefer explicit options.
+/// 3. Built-in default (kernel stubs; all other switches off).
+///
+/// Unknown plugin parameter keys and invalid values are rejected with
+/// [`CodegenError::UnknownParameter`] / [`CodegenError::InvalidParameter`]
+/// instead of being ignored, and each generation call resolves its own
+/// configuration, so sequential or parallel mixed-config calls cannot leak
+/// settings into each other.
+///
+/// Note: `protoc` always attaches source-code info to the descriptors it
+/// sends to plugins, while [`Config::compile_protos`] requests it only with
+/// [`Config::include_source_info`]; the embedded `FILE_DESCRIPTOR_SET`
+/// reflection bytes can therefore differ between entry points even for
+/// identical options. All message, enum, and stub output is otherwise
+/// byte-identical for equivalent inputs.
+#[derive(Clone, Debug, Default)]
+pub struct Config {
+    protoc_path: Option<PathBuf>,
+    out_dir: Option<PathBuf>,
+    stubs: Option<Stubs>,
+    emit_deps: Option<bool>,
+    no_wkt: Option<bool>,
+    shared_pool: Option<bool>,
+    no_reflect: Option<bool>,
+    pub(crate) extern_paths: Vec<(String, String)>,
+    pub(crate) runtime_crate: Option<String>,
+    pub(crate) grpc_crate: Option<String>,
+    pub(crate) tonic_crate: Option<String>,
+    include_source_info: Option<bool>,
+}
+
+impl Config {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Explicitly configure the path to the `protoc` compiler executable.
+    ///
+    /// If unset, defaults to the `PROTOC` environment variable, or searches `PATH` for `protoc`.
+    pub fn protoc_path(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+        self.protoc_path = Some(path.into());
+        self
+    }
+
+    /// Returns the explicit `protoc` path configured, if any.
+    #[must_use]
+    pub fn get_protoc_path(&self) -> Option<&Path> {
+        self.protoc_path.as_deref()
+    }
+
+    /// Resolve the `protoc` executable to use: either the explicit configured path,
+    /// or the path from the `PROTOC` environment variable, or `"protoc"` (searching `PATH`).
+    #[must_use]
+    pub fn resolve_protoc_path(&self) -> PathBuf {
+        self.protoc_path
+            .clone()
+            .or_else(|| {
+                std::env::var_os("PROTOC")
+                    .filter(|s| !s.is_empty())
+                    .map(PathBuf::from)
+            })
+            .unwrap_or_else(|| PathBuf::from("protoc"))
+    }
+
+    /// Returns the resolved `protoc` executable path.
+    #[must_use]
+    pub fn selected_protoc_path(&self) -> PathBuf {
+        self.resolve_protoc_path()
+    }
+
+    /// Query the configured or discovered `protoc` compiler version string (e.g. `libprotoc 29.3`).
+    pub fn protoc_version(&self) -> Result<String, CodegenError> {
+        let protoc_bin = self.resolve_protoc_path();
+        let output = match Command::new(&protoc_bin).arg("--version").output() {
+            Ok(o) => o,
+            Err(e) => {
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: e,
+                });
+            }
+        };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if output.status.code() == Some(127)
+                && (stderr.is_empty() || stderr.contains("not found"))
+            {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 127 (not found or executable failed)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, msg),
+                });
+            }
+            if output.status.code() == Some(126) {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 126 (permission denied or not executable)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, msg),
+                });
+            }
+            return Err(CodegenError::ProtocExecution {
+                status: output.status,
+                stderr,
+                protos: Vec::new(),
+            });
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(stdout)
+    }
+
+    pub fn out_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+        self.out_dir = Some(path.into());
+        self
+    }
+
+    /// Choose which gRPC stub flavour to emit. Default [`Stubs::Kernel`].
+    pub fn stubs(&mut self, stubs: Stubs) -> &mut Self {
+        self.stubs = Some(stubs);
+        self
+    }
+
+    /// Emit tonic `FooClient`/`FooServer` stubs.
+    ///
+    /// Needed because the default is [`Stubs::Kernel`]. `false` means
+    /// messages only. Mutually exclusive with [`Self::emit_kernel_stubs`];
+    /// the last call wins.
+    pub fn emit_tonic_stubs(&mut self, enable: bool) -> &mut Self {
+        self.stubs = Some(if enable { Stubs::Tonic } else { Stubs::None });
+        self
+    }
+
+    /// Emit native `pbrs-grpc` `FooClient`/`FooServer` stubs.
+    ///
+    /// This is the default for [`Config::new`] / [`compile_protos`]. Pass
+    /// `true` to be explicit; `false` is messages only. The generating crate
+    /// must depend on `pbrs-grpc`. `FooClient` gets the same dialers as
+    /// `Channel` (`connect`, `connect_tls`, `connect_unix`, `from_io`, and
+    /// the lazy/`_with` variants) and the same overlays, including
+    /// `https_scheme` for already-encrypted `from_io` streams and `origin`
+    /// for `:authority`. Read those
+    /// overlays with `scheme` / `authority` / `grpc_user_agent` /
+    /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
+    /// `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits` / `config`.
+    /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
+    /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
+    ///
+    /// ```no_run
+    /// // build.rs
+    /// pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])
+    ///     .expect("codegen");
+    /// ```
+    pub fn emit_kernel_stubs(&mut self, enable: bool) -> &mut Self {
+        self.stubs = Some(if enable { Stubs::Kernel } else { Stubs::None });
+        self
+    }
+
+    /// Emit imported non-WKT messages into the same generated file.
+    ///
+    /// Needed for `grpc.testing.test.proto`, which imports
+    /// `messages.proto` / `empty.proto`. `PURE_PROTOBUF_EMIT_DEPS=1`
+    /// remains the plugin/env equivalent.
+    pub fn emit_deps(&mut self, enable: bool) -> &mut Self {
+        self.emit_deps = Some(enable);
+        self
+    }
+
+    /// Disable emission of Well-Known Types (WKTs).
+    pub fn no_wkt(&mut self, enable: bool) -> &mut Self {
+        self.no_wkt = Some(enable);
+        self
+    }
+
+    /// Use a shared DescriptorPool instead of embedding the FileDescriptorSet.
+    pub fn shared_pool(&mut self, enable: bool) -> &mut Self {
+        self.shared_pool = Some(enable);
+        self
+    }
+
+    /// Skip embedding FileDescriptorSet and JSON/text methods for lightweight accessors.
+    pub fn no_reflect(&mut self, enable: bool) -> &mut Self {
+        self.no_reflect = Some(enable);
+        self
+    }
+
+    /// Map a protobuf package or message path to an external Rust type or module path.
+    pub fn extern_path(
+        &mut self,
+        proto_path: impl Into<String>,
+        rust_path: impl Into<String>,
+    ) -> &mut Self {
+        self.extern_paths
+            .push((proto_path.into(), rust_path.into()));
+        self
+    }
+
+    /// Override the runtime crate path (default: "pbrs").
+    pub fn runtime_crate(&mut self, crate_name: impl Into<String>) -> &mut Self {
+        self.runtime_crate = Some(crate_name.into());
+        self
+    }
+
+    /// Override the native pbrs-grpc crate path (default: "::pbrs_grpc").
+    pub fn grpc_crate(&mut self, rust_path: impl Into<String>) -> &mut Self {
+        self.grpc_crate = Some(rust_path.into());
+        self
+    }
+
+    /// Override the protobuf-tonic crate path (default: "protobuf_tonic").
+    pub fn tonic_crate(&mut self, rust_path: impl Into<String>) -> &mut Self {
+        self.tonic_crate = Some(rust_path.into());
+        self
+    }
+
+    /// Include source code info (locations and comments) in generated descriptors and code.
+    pub fn include_source_info(&mut self, enable: bool) -> &mut Self {
+        self.include_source_info = Some(enable);
+        self
+    }
+
+    /// Alias for [`Self::include_source_info`].
+    pub fn preserve_comments(&mut self, enable: bool) -> &mut Self {
+        self.include_source_info(enable)
+    }
+
+    fn to_parameter_string(&self) -> String {
+        let mut opts = Vec::new();
+        if let Some(stubs) = self.stubs {
+            match stubs {
+                Stubs::Kernel => opts.push("stubs=kernel".to_string()),
+                Stubs::Tonic => opts.push("stubs=tonic".to_string()),
+                Stubs::None => opts.push("stubs=none".to_string()),
+            }
+        }
+        if let Some(emit_deps) = self.emit_deps {
+            opts.push(format!("emit_deps={emit_deps}"));
+        }
+        if let Some(no_wkt) = self.no_wkt {
+            opts.push(format!("no_wkt={no_wkt}"));
+        }
+        if let Some(shared_pool) = self.shared_pool {
+            opts.push(format!("shared_pool={shared_pool}"));
+        }
+        if let Some(no_reflect) = self.no_reflect {
+            opts.push(format!("no_reflect={no_reflect}"));
+        }
+        for (proto, rust) in &self.extern_paths {
+            opts.push(format!("extern_path={proto}={rust}"));
+        }
+        if let Some(rc) = &self.runtime_crate {
+            opts.push(format!("runtime_crate={rc}"));
+        }
+        if let Some(gc) = &self.grpc_crate {
+            opts.push(format!("grpc_crate={gc}"));
+        }
+        if let Some(tc) = &self.tonic_crate {
+            opts.push(format!("tonic_crate={tc}"));
+        }
+        if let Some(si) = self.include_source_info {
+            opts.push(format!("include_source_info={si}"));
+        }
+        opts.join(",")
+    }
+
+    fn output_dir(&self) -> Result<PathBuf, CodegenError> {
+        let out = match &self.out_dir {
+            Some(p) => p.clone(),
+            None => {
+                let var = std::env::var("OUT_DIR").map_err(|_| CodegenError::MissingOutDir)?;
+                PathBuf::from(var)
+            }
+        };
+        std::fs::create_dir_all(&out).map_err(|source| CodegenError::UnwritableOutput {
+            path: out.clone(),
+            source,
+        })?;
+        Ok(out)
+    }
+
+    /// Write Rust output from a precompiled `FileDescriptorSet`, without invoking `protoc`.
+    ///
+    /// `descriptor_set` is a path to a checked-in or prebuilt descriptor set
+    /// containing the requested proto files and their imports (for example,
+    /// produced with `protoc --include_imports`). `files_to_generate` accepts
+    /// proto names in the set or paths under `includes`, just like
+    /// [`Self::compile_protos`]. The descriptor set is always tracked for Cargo
+    /// rebuilds; any available source and imported proto files under `includes`
+    /// are also tracked, but are not required at generation time.
+    ///
+    /// Configuration, output layout, and errors match [`Self::compile_protos`].
+    /// Source locations and comments must already be present in the descriptor
+    /// set; [`Self::include_source_info`] cannot add them after compilation.
+    ///
+    /// ```no_run
+    /// pbrs::codegen::Config::new()
+    ///     .emit_kernel_stubs(false)
+    ///     .compile_descriptor_set("proto/schema.fds", &["message.proto"], &["proto"])
+    ///     .expect("generate from descriptor set");
+    /// ```
+    pub fn compile_descriptor_set(
+        &self,
+        descriptor_set: impl AsRef<Path>,
+        files_to_generate: &[impl AsRef<Path>],
+        includes: &[impl AsRef<Path>],
+    ) -> Result<(), CodegenError> {
+        let param = self.to_parameter_string();
+        if !param.is_empty() {
+            parse_plugin_parameter(&param)?;
+        }
+        let out = self.output_dir()?;
+        let descriptor_set = descriptor_set.as_ref();
+        let bytes = std::fs::read(descriptor_set).map_err(|source| CodegenError::Io {
+            path: descriptor_set.to_path_buf(),
+            source,
+        })?;
+        let names: Vec<String> = files_to_generate
+            .iter()
+            .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
+            .collect();
+        let files = generate_from_file_descriptor_set_with_parameter(
+            &bytes,
+            &names,
+            if param.is_empty() { None } else { Some(&param) },
+            true,
+        )
+        .map_err(|error| match error {
+            CodegenError::MalformedDescriptor { detail, .. } => CodegenError::MalformedDescriptor {
+                detail,
+                path: Some(descriptor_set.to_path_buf()),
+            },
+            other => other,
+        })?;
+
+        emit_codegen_config_rerun_if_env_changed();
+        let mut seen_canonical = std::collections::BTreeSet::new();
+        emit_rerun_if_changed(descriptor_set, &mut seen_canonical);
+        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        for (name, src) in files {
+            write_file_atomic_if_changed(&out.join(name), &src)?;
+        }
+        Ok(())
+    }
+
+    pub fn compile_protos(
+        &self,
+        protos: &[impl AsRef<Path>],
+        includes: &[impl AsRef<Path>],
+    ) -> Result<(), CodegenError> {
+        let param = self.to_parameter_string();
+        if !param.is_empty() {
+            parse_plugin_parameter(&param)?;
+        }
+        let out = self.output_dir()?;
+
+        println!("cargo:rerun-if-env-changed=PROTOC");
+        emit_codegen_config_rerun_if_env_changed();
+
+        let mut seen_canonical = std::collections::BTreeSet::new();
+        let mut sorted_protos: Vec<PathBuf> =
+            protos.iter().map(|p| p.as_ref().to_path_buf()).collect();
+        sorted_protos.sort();
+        sorted_protos.dedup();
+
+        for p in &sorted_protos {
+            emit_rerun_if_changed(p, &mut seen_canonical);
+        }
+
+        let protoc_bin = self.resolve_protoc_path();
+        let fds_path = out.join("pbrs.fds");
+        let mut cmd = Command::new(&protoc_bin);
+        cmd.arg("--include_imports");
+        if self.include_source_info.unwrap_or(false)
+            || matches!(
+                std::env::var("PURE_PROTOBUF_INCLUDE_SOURCE_INFO").as_deref(),
+                Ok("1") | Ok("true")
+            )
+        {
+            cmd.arg("--include_source_info");
+        }
+        let mut fds_arg = std::ffi::OsString::from("--descriptor_set_out=");
+        fds_arg.push(fds_path.as_os_str());
+        cmd.arg(fds_arg);
+        for inc in includes {
+            cmd.arg("-I").arg(inc.as_ref());
+        }
+        for p in &sorted_protos {
+            let rel = resolve_proto_rel_path(p, includes);
+            if !rel.is_empty() && !Path::new(&rel).is_absolute() {
+                cmd.arg(&rel);
+            } else {
+                cmd.arg(p);
+            }
+        }
+        let output = match cmd.output() {
+            Ok(o) => o,
+            Err(e) => {
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: e,
+                });
+            }
+        };
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if output.status.code() == Some(127)
+                && (stderr.is_empty() || stderr.contains("not found"))
+            {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 127 (not found or executable failed)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::NotFound, msg),
+                });
+            }
+            if output.status.code() == Some(126) {
+                let msg = if stderr.is_empty() {
+                    "protoc command failed with exit code 126 (permission denied or not executable)"
+                        .to_string()
+                } else {
+                    stderr
+                };
+                return Err(CodegenError::MissingProtoc {
+                    path: protoc_bin,
+                    source: std::io::Error::new(std::io::ErrorKind::PermissionDenied, msg),
+                });
+            }
+            if let Some((import_name, proto_file)) = parse_missing_import(&stderr) {
+                return Err(CodegenError::MissingImport {
+                    import: import_name,
+                    proto: missing_import_source(proto_file, protos, includes),
+                    detail: stderr,
+                });
+            }
+            return Err(CodegenError::ProtocExecution {
+                status: output.status,
+                stderr,
+                protos: protos.iter().map(|p| p.as_ref().to_path_buf()).collect(),
+            });
+        }
+        let bytes = std::fs::read(&fds_path).map_err(|e| CodegenError::Io {
+            path: fds_path.clone(),
+            source: e,
+        })?;
+
+        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        let names: Vec<String> = sorted_protos
+            .iter()
+            .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
+            .collect();
+        let files = generate_from_file_descriptor_set_with_parameter(
+            &bytes,
+            &names,
+            if param.is_empty() { None } else { Some(&param) },
+            false,
+        );
+        let files = match files {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = std::fs::remove_file(&fds_path);
+                return Err(match e {
+                    CodegenError::MalformedDescriptor { detail, path: None } => {
+                        CodegenError::MalformedDescriptor {
+                            detail,
+                            path: Some(fds_path.clone()),
+                        }
+                    }
+                    other => other,
+                });
+            }
+        };
+        for (name, src) in files {
+            let target_path = out.join(name);
+            write_file_atomic_if_changed(&target_path, &src)?;
+        }
+        let _ = std::fs::remove_file(&fds_path);
+        Ok(())
+    }
+}
+
+pub(crate) fn emit_codegen_config_rerun_if_env_changed() {
+    println!("cargo:rerun-if-env-changed=PURE_PROTOBUF_*");
+    for var in &[
+        "PURE_PROTOBUF_STUBS",
+        "PURE_PROTOBUF_EMIT_DEPS",
+        "PURE_PROTOBUF_NO_WKT",
+        "PURE_PROTOBUF_SHARED_POOL",
+        "PURE_PROTOBUF_NO_REFLECT",
+        "PURE_PROTOBUF_RUNTIME_CRATE",
+        "PURE_PROTOBUF_GRPC_CRATE",
+        "PURE_PROTOBUF_TONIC_CRATE",
+        "PURE_PROTOBUF_INCLUDE_SOURCE_INFO",
+    ] {
+        println!("cargo:rerun-if-env-changed={var}");
+    }
+}
+
+pub(crate) fn emit_rerun_if_changed(
+    path: &Path,
+    seen_canonical: &mut std::collections::BTreeSet<PathBuf>,
+) {
+    let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if seen_canonical.insert(canon) {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+}
+
+pub(crate) fn emit_descriptor_source_rerun_if_changed(
+    bytes: &[u8],
+    includes: &[impl AsRef<Path>],
+    seen_canonical: &mut std::collections::BTreeSet<PathBuf>,
+) {
+    for name in extract_fds_file_names(bytes) {
+        let clean_name = name.trim_start_matches('/').trim_start_matches("./");
+        let mut resolved = None;
+        if Path::new(&name).is_absolute() && Path::new(&name).exists() {
+            resolved = Some(PathBuf::from(&name));
+        } else {
+            for inc in includes {
+                let candidate = inc.as_ref().join(clean_name);
+                if candidate.exists() {
+                    resolved = Some(candidate);
+                    break;
+                }
+            }
+            if resolved.is_none() {
+                let direct = Path::new(clean_name);
+                if direct.exists() {
+                    resolved = Some(direct.to_path_buf());
+                }
+            }
+        }
+        if let Some(path) = resolved {
+            emit_rerun_if_changed(&path, seen_canonical);
+        }
+    }
+}
+
+pub(crate) fn write_file_atomic_if_changed(
+    target_path: &Path,
+    content: &str,
+) -> Result<bool, CodegenError> {
+    if let Some(parent) = target_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| CodegenError::UnwritableOutput {
+            path: parent.to_path_buf(),
+            source: e,
+        })?;
+    }
+
+    if let Ok(existing) = std::fs::read(target_path) {
+        if existing == content.as_bytes() {
+            return Ok(false);
+        }
+    }
+
+    let parent = target_path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = target_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("output");
+
+    pub(crate) static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let pid = std::process::id();
+    let tmp_path = parent.join(format!(".{file_name}.tmp.{pid}_{count}"));
+
+    if let Err(e) = std::fs::write(&tmp_path, content) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(CodegenError::UnwritableOutput {
+            path: target_path.to_path_buf(),
+            source: e,
+        });
+    }
+
+    if let Err(e) = std::fs::rename(&tmp_path, target_path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(CodegenError::UnwritableOutput {
+            path: target_path.to_path_buf(),
+            source: e,
+        });
+    }
+
+    Ok(true)
+}

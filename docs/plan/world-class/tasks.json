@@ -1180,7 +1180,11 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "notes": "Land before PK-07, GN-02, SV-04, H2-10 and TC-03, which all edit codegen. Rebase over any open codegen PR first."
+   "notes": "Land before PK-07, GN-02, SV-04, H2-10 and TC-03, which all edit codegen. Rebase over any open codegen PR first.",
+   "status": "done",
+   "evidence": [
+    "docs/evidence/mx01-split.md"
+   ]
   },
   {
    "id": "MX-02",
