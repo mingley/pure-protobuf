@@ -138,6 +138,9 @@ pub struct ServerConfig {
     /// Max decoded message bytes (`--max-message-size`; transport default
     /// of 4 MiB when unset).
     pub max_message_size: Option<usize>,
+    /// Per-core shard count (`--cores`; native only, `None` keeps the
+    /// shared work-stealing accept loop).
+    pub cores: Option<usize>,
 }
 
 /// Client configuration.
@@ -1258,10 +1261,42 @@ pub async fn run_server(
                 )
             })?;
 
-    let listener = TcpListener::bind(bind_addr)
-        .await
-        .map_err(|e| format!("failed to bind to {bind_addr}: {e}"))?;
-    let local_addr = listener.local_addr()?;
+    // Native per-core shards bind before READY so the resolved port is
+    // reported; the shared loop keeps the single Tokio listener.
+    let native_router: Option<pbrs_grpc::Router> = match config.transport {
+        TransportMode::Native => {
+            let router = crate::benchmark_service::dual_router(config.max_message_size);
+            Some(match config.max_message_size {
+                Some(n) => router.max_decoding_message_size(n),
+                None => router,
+            })
+        }
+        TransportMode::Tonic => None,
+    };
+    let per_core: Option<(SocketAddr, Vec<std::net::TcpListener>)> =
+        match (&native_router, config.cores) {
+            (Some(router), Some(cores)) => {
+                let (bound, shards) = router
+                    .bind_per_core(bind_addr, cores)
+                    .map_err(|e| format!("per-core bind failed: {e}"))?;
+                Some((bound, shards))
+            }
+            _ => None,
+        };
+    let single_listener: Option<TcpListener> = if per_core.is_some() {
+        None
+    } else {
+        Some(
+            TcpListener::bind(bind_addr)
+                .await
+                .map_err(|e| format!("failed to bind to {bind_addr}: {e}"))?,
+        )
+    };
+    let local_addr = match (&per_core, &single_listener) {
+        (Some((bound, _)), _) => *bound,
+        (None, Some(listener)) => listener.local_addr()?,
+        (None, None) => unreachable!("one bind path always runs"),
+    };
 
     // TLS identity loads before READY: a bad cert/key fails the cell
     // instead of serving plaintext on a TLS port.
@@ -1284,10 +1319,11 @@ pub async fn run_server(
 
     // Output readiness line on stdout
     println!(
-        "READY port={} addr={} transport={} tls={tls_mode}",
+        "READY port={} addr={} transport={} tls={tls_mode} cores={}",
         local_addr.port(),
         local_addr,
-        config.transport
+        config.transport,
+        config.cores.unwrap_or(0),
     );
     std::io::stdout().flush()?;
     eprintln!(
@@ -1303,23 +1339,31 @@ pub async fn run_server(
     let server_fut = async {
         match config.transport {
             TransportMode::Native => {
-                let router = crate::benchmark_service::dual_router(config.max_message_size);
-                let router = match config.max_message_size {
-                    Some(n) => router.max_decoding_message_size(n),
-                    None => router,
-                };
-                match server_tls {
-                    Some(tls) => router
+                let router = native_router.expect("native router built above");
+                match (per_core, single_listener, server_tls) {
+                    (Some((_, shards)), _, tls) => match tls {
+                        Some(tls) => router
+                            .serve_tls_per_core_on(shards, std::future::pending(), tls)
+                            .await
+                            .map_err(|e| format!("native TLS per-core error: {e}")),
+                        None => router
+                            .serve_per_core_on(shards, std::future::pending())
+                            .await
+                            .map_err(|e| format!("native per-core error: {e}")),
+                    },
+                    (None, Some(listener), Some(tls)) => router
                         .serve_tls_with_shutdown(listener, std::future::pending(), tls)
                         .await
                         .map_err(|e| format!("native TLS server error: {e}")),
-                    None => router
+                    (None, Some(listener), None) => router
                         .serve_listener(listener)
                         .await
                         .map_err(|e| format!("native server error: {e}")),
+                    (None, None, _) => unreachable!("one bind path always runs"),
                 }
             }
             TransportMode::Tonic => {
+                let listener = single_listener.expect("tonic always takes the single path");
                 let incoming = NodelayIncoming::with_stats(listener, tonic_stats.clone());
                 let service = tonic_gen::TestServiceServer::new(TonicInterop);
                 let service = match config.max_message_size {
@@ -2156,7 +2200,8 @@ pub fn usage() -> &'static str {
        --timeout-secs <SECS>    Maximum runtime before clean shutdown (default: infinite)\n  \
        --tls-cert <PATH>        PEM certificate chain (native only; requires --tls-key)\n  \
        --tls-key <PATH>         PEM private key (native only; requires --tls-cert)\n  \
-       --max-message-size <N>   Max decoded message bytes (default: 4 MiB)\n\n\
+       --max-message-size <N>   Max decoded message bytes (default: 4 MiB)\n  \
+       --cores <N>              Native per-core SO_REUSEPORT shards (default: shared loop)\n\n\
      Client options:\n  \
        --server_addr <ADDR>     Target host:port (required for client)\n  \
        --transport <MODE>       Client transport: native or tonic (default: native)\n  \
@@ -2278,6 +2323,23 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             return Err("invalid --max-message-size: want 1..=1073741824".to_string());
         }
 
+        let cores = get_arg_val(args, "--cores")
+            .or_else(|| get_arg_val(args, "--num-cores"))
+            .map(|s| {
+                s.parse::<usize>()
+                    .map_err(|e| format!("invalid --cores '{s}': {e}"))
+            })
+            .transpose()?;
+        if cores.is_some_and(|n| n == 0 || n > 1024) {
+            return Err("invalid --cores: want 1..=1024".to_string());
+        }
+        if cores.is_some() && transport != TransportMode::Native {
+            return Err(
+                "server --cores is native-only: the tonic transport has no per-core mode"
+                    .to_string(),
+            );
+        }
+
         return Ok(ProcessRole::Server(ServerConfig {
             host,
             port,
@@ -2286,6 +2348,7 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
             tls_cert,
             tls_key,
             max_message_size,
+            cores,
         }));
     }
 
@@ -2707,5 +2770,28 @@ mod fairness_tests {
         tonic.frame_size = 16_384;
         let refusal = refuse_unfair_comparison(&native, &tonic).expect("refused");
         assert!(refusal.contains("tonic"), "{refusal}");
+    }
+
+    fn server_args(extra: &[&str]) -> Vec<String> {
+        let mut args = vec!["rpc-bench".to_string(), "server".to_string()];
+        args.extend(extra.iter().map(|s| s.to_string()));
+        args
+    }
+
+    #[test]
+    fn server_cores_parses() {
+        let role = parse_args(&server_args(&["--cores=4"])).expect("cores");
+        let ProcessRole::Server(cfg) = role else {
+            panic!("expected server role");
+        };
+        assert_eq!(cfg.cores, Some(4));
+        let role = parse_args(&server_args(&[])).expect("defaults");
+        let ProcessRole::Server(cfg) = role else {
+            panic!("expected server role");
+        };
+        assert_eq!(cfg.cores, None);
+        assert!(parse_args(&server_args(&["--cores=0"])).is_err());
+        assert!(parse_args(&server_args(&["--cores=1025"])).is_err());
+        assert!(parse_args(&server_args(&["--cores=2", "--transport=tonic"])).is_err());
     }
 }

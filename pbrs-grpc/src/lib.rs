@@ -1097,7 +1097,8 @@ mod proxy;
 mod request;
 #[forbid(unsafe_code)]
 pub mod resolver;
-#[forbid(unsafe_code)]
+// `rt::per_core` pins threads with one Linux affinity syscall; the rest of
+// the seam stays safe-only (see the forbid on `mod manual`).
 mod rt;
 #[forbid(unsafe_code)]
 mod server;

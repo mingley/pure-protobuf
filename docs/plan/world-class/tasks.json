@@ -4293,7 +4293,12 @@
     "D8",
     "C2"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/rx02-per-core.md"
+   ],
+   "note": "Per-core mode: rt/per_core shards+pinning, Server+Router serve_per_core/bind_per_core/serve_per_core_on (+TLS) via shared supervisor, Channel::connect_per_core; rpc-bench server --cores + load --connections. Scaling (empty-unary saturation, median of 3): per-core 77-80k QPS at 1/2/4/8/14 shards vs work-stealing 35.7k vs tonic 36.6k. Gates: lib 399, serving 1098, per_core 11, rpc 11, gaps 6, hostile 37, tls 20, telemetry 25, binlog 32, health 180, resolver 30, bench 81, doctests 171, self-interop PASS, stack-matrix smoke True (10/10), clippy -D warnings clean (lib), fmt clean."
   },
   {
    "id": "RX-03",

@@ -25,7 +25,9 @@
 //! their own Tokio timers; they migrate when their cards come up.
 
 #[cfg(test)]
+#[forbid(unsafe_code)]
 pub(crate) mod manual;
+pub(crate) mod per_core;
 
 use std::future::Future;
 use std::time::Duration;

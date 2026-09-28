@@ -168,6 +168,7 @@ pub struct LoadCliArgs {
     pub tls_ca: Option<String>,
     pub tls_server_name: Option<String>,
     pub max_message_size: Option<usize>,
+    pub connections: Option<usize>,
 }
 
 fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
@@ -315,6 +316,17 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         None
     };
 
+    let connections = get_arg_val(args, "--connections")
+        .or_else(|| get_arg_val(args, "--conns"))
+        .map(|val| {
+            val.parse::<usize>()
+                .map_err(|e| format!("invalid --connections '{val}': {e}"))
+        })
+        .transpose()?;
+    if connections.is_some_and(|n| n == 0 || n > 256) {
+        return Err("invalid --connections: want 1..=256".to_string());
+    }
+
     let tls_ca = get_arg_val(args, "--tls-ca").or_else(|| get_arg_val(args, "--tls_ca"));
     let tls_server_name =
         get_arg_val(args, "--tls-server-name").or_else(|| get_arg_val(args, "--tls_server_name"));
@@ -380,6 +392,7 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         tls_ca,
         tls_server_name,
         max_message_size,
+        connections,
     })
 }
 
@@ -400,7 +413,8 @@ pub fn extended_usage() -> String {
            --transport <MODE>       Load client transport: native or tonic (default: native; tonic is plaintext only)\n  \
            --tls-ca <PATH>          PEM CA to verify the server (requires --tls-server-name; native only)\n  \
            --tls-server-name <N>    Server name to verify against the CA\n  \
-           --max-message-size <N>   Max decoded message bytes (default: transport default, 4 MiB)\n\
+           --max-message-size <N>   Max decoded message bytes (default: transport default, 4 MiB)\n  \
+           --connections <N>        Client connections to pool over (default: 1)\n\
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
            --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
@@ -417,18 +431,20 @@ async fn load_native_channel(
     tls_ca: Option<&str>,
     tls_server_name: Option<&str>,
     max_message_size: Option<usize>,
+    connections: usize,
 ) -> Result<pbrs_grpc::Channel, String> {
+    let config = pbrs_grpc::ChannelConfig::default().connections(connections);
     let channel = match (tls_ca, tls_server_name) {
         (Some(ca_path), Some(name)) => {
             let ca_pem = std::fs::read(ca_path)
                 .map_err(|e| format!("failed to read --tls-ca '{ca_path}': {e}"))?;
             let tls = pbrs_grpc::ClientTls::ca(name, &ca_pem)
                 .map_err(|e| format!("invalid TLS config: {e}"))?;
-            pbrs_grpc::Channel::connect_tls(addr, tls)
+            pbrs_grpc::Channel::connect_tls_with(addr, config, tls)
                 .await
                 .map_err(|e| format!("TLS connect to {addr} as {name}: {e}"))?
         }
-        _ => pbrs_grpc::Channel::connect(addr)
+        _ => pbrs_grpc::Channel::connect_with(addr, config)
             .await
             .map_err(|e| format!("failed to connect to {addr}: {e}"))?,
     };
@@ -488,8 +504,10 @@ async fn run_load_native(
     stream_msgs: u32,
     benchmark_service: bool,
     max_message_size: Option<usize>,
+    connections: usize,
 ) -> Result<load::LoadRecord, String> {
-    let channel = load_native_channel(addr, tls_ca, tls_server_name, max_message_size).await?;
+    let channel =
+        load_native_channel(addr, tls_ca, tls_server_name, max_message_size, connections).await?;
     match (shape, benchmark_service) {
         (LoadShape::Unary, true) => {
             let client = benchmark_service::BenchmarkServiceClient::new(channel);
@@ -687,8 +705,19 @@ async fn run_load_tonic(
     resp_bytes: usize,
     stream_msgs: u32,
     max_message_size: Option<usize>,
+    connections: usize,
 ) -> Result<load::LoadRecord, String> {
-    let channel = process::tonic_channel(addr).await?;
+    // Pool like the native client: one h2 driver task per connection on
+    // both sides, or the peer comparison measures client framing.
+    let channel = if connections <= 1 {
+        process::tonic_channel(addr).await?
+    } else {
+        let mut endpoints = Vec::with_capacity(connections);
+        for _ in 0..connections {
+            endpoints.push(process::fair_tonic_endpoint(format!("http://{addr}"))?);
+        }
+        tonic::transport::Channel::balance_list(endpoints.into_iter())
+    };
     match shape {
         LoadShape::Unary => {
             let client = tonic_load_client(channel, max_message_size);
@@ -936,6 +965,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
         bound
     };
 
+    let connections = opts.connections.unwrap_or(1);
     let record = match transport {
         LoadTransport::Native => {
             run_load_native(
@@ -949,6 +979,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 stream_msgs,
                 opts.benchmark_service,
                 opts.max_message_size,
+                connections,
             )
             .await?
         }
@@ -961,6 +992,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 resp_bytes,
                 stream_msgs,
                 opts.max_message_size,
+                connections,
             )
             .await?
         }
@@ -1293,6 +1325,14 @@ mod tests {
         assert_eq!(opts.shape, None);
         assert_eq!(opts.transport, None);
         assert_eq!(opts.tls_ca, None);
+        assert_eq!(opts.connections, None);
+
+        let opts = parse_load_cli_args(&load_args(&["--connections=8"])).unwrap();
+        assert_eq!(opts.connections, Some(8));
+        let opts = parse_load_cli_args(&load_args(&["--conns", "4"])).unwrap();
+        assert_eq!(opts.connections, Some(4));
+        assert!(parse_load_cli_args(&load_args(&["--connections=0"])).is_err());
+        assert!(parse_load_cli_args(&load_args(&["--connections=257"])).is_err());
     }
 
     #[test]

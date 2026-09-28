@@ -1166,6 +1166,105 @@ impl<S: Service> Server<S> {
             .await
     }
 
+    /// Serve `cores` shards of this service on `addr` until `shutdown`
+    /// resolves, then drain. Applies to every call shape.
+    ///
+    /// Each shard is its own OS thread running its own current-thread
+    /// runtime, pinned to its core on Linux, accepting on its own
+    /// `SO_REUSEPORT` listener. A connection is accepted, served, and
+    /// drained on one thread: no task migration, no work stealing, no
+    /// cross-core synchronization on the RPC path.
+    ///
+    /// Shutdown and drain match [`Self::serve_with_shutdown`]: in-flight
+    /// RPCs finish on every shard before this returns, and a shard whose
+    /// accept loop fails stops the rest, like the single loop failing.
+    /// Limits: the connection budget is shared across shards (exact
+    /// aggregate; the accept path is cold), while `max_concurrent_rpcs`
+    /// divides into `max(1, limit / cores)` per shard. Keep the RPC limit
+    /// at least `cores` for an exact aggregate.
+    ///
+    /// Returns `invalid_argument` when `cores` is zero. Pass a shard count
+    /// near the machine's CPU count; oversubscribing only adds threads.
+    /// Unix sockets have no `SO_REUSEPORT` equivalent; this mode is TCP
+    /// only. Pair [`Self::bind_per_core`] with [`Self::serve_per_core_on`]
+    /// when the bound address is needed up front (port `0`).
+    pub async fn serve_per_core(
+        self,
+        addr: SocketAddr,
+        cores: usize,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        let (_, listeners) = self.bind_per_core(addr, cores)?;
+        self.serve_per_core_on(listeners, shutdown).await
+    }
+
+    /// [`Self::serve_per_core`] over TLS. Applies to every call shape,
+    /// including mTLS.
+    pub async fn serve_tls_per_core(
+        self,
+        addr: SocketAddr,
+        cores: usize,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        let (_, listeners) = self.bind_per_core(addr, cores)?;
+        self.serve_tls_per_core_on(listeners, shutdown, tls).await
+    }
+
+    /// Bind `cores` `SO_REUSEPORT` shards on `addr`, resolving port `0` to
+    /// the address the kernel chose. Serve them with
+    /// [`Self::serve_per_core_on`].
+    ///
+    /// The shards are std listeners on purpose: each shard converts its
+    /// own to Tokio on its own thread, so readiness never depends on the
+    /// reactor that called this. Returns `invalid_argument` when `cores`
+    /// is zero. A bad address fails here, before any thread starts.
+    pub fn bind_per_core(
+        &self,
+        addr: SocketAddr,
+        cores: usize,
+    ) -> Result<(SocketAddr, Vec<std::net::TcpListener>), Status> {
+        bind_reuseport_shards(addr, cores)
+    }
+
+    /// [`Self::serve_per_core`] on pre-bound shards from
+    /// [`Self::bind_per_core`]. The shard count is the listener count.
+    /// Applies to every call shape.
+    pub async fn serve_per_core_on(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_per_core_inner(listeners, shutdown, None).await
+    }
+
+    /// [`Self::serve_per_core_on`] over TLS. Applies to every call shape,
+    /// including mTLS.
+    pub async fn serve_tls_per_core_on(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        self.serve_per_core_inner(listeners, shutdown, Some(tls))
+            .await
+    }
+
+    async fn serve_per_core_inner(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: Option<ServerTls>,
+    ) -> Result<(), Status> {
+        let config = self.server_config();
+        let mut dispatches = Vec::with_capacity(listeners.len());
+        for _ in 0..listeners.len() {
+            let (dispatch, _) = self.clone().into_single();
+            dispatches.push(Arc::new(dispatch));
+        }
+        serve_per_core_shards(dispatches, config, listeners, shutdown, tls).await
+    }
+
     /// Serve a single already-accepted byte stream until it closes.
     /// Applies to every call shape.
     ///
@@ -1292,6 +1391,262 @@ pub(crate) fn connection_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {
         .map(|n| Arc::new(Semaphore::new(n)))
 }
 
+/// Bind `cores` `SO_REUSEPORT` shards on `addr`, resolving port `0` to the
+/// address the kernel chose. Shared by [`Server::bind_per_core`] and
+/// [`Router::bind_per_core`].
+fn bind_reuseport_shards(
+    addr: SocketAddr,
+    cores: usize,
+) -> Result<(SocketAddr, Vec<std::net::TcpListener>), Status> {
+    if cores == 0 {
+        return Err(Status::invalid_argument(
+            "per-core serve needs at least one core",
+        ));
+    }
+    let first = crate::rt::per_core::reuseport_listener(addr)
+        .map_err(|e| Status::unavailable(e.to_string()))?;
+    let bound = first
+        .local_addr()
+        .map_err(|e| Status::unavailable(e.to_string()))?;
+    let mut listeners = Vec::with_capacity(cores);
+    listeners.push(first);
+    for _ in 1..cores {
+        let shard = crate::rt::per_core::reuseport_listener(bound)
+            .map_err(|e| Status::unavailable(e.to_string()))?;
+        listeners.push(shard);
+    }
+    Ok((bound, listeners))
+}
+
+/// Supervise one pinned current-thread shard per listener, each running
+/// [`accept_loop_with_slots`] on its own dispatch. Shared by
+/// [`Server`] and [`Router`] per-core serve; the only difference is how
+/// each builds its per-shard dispatch. `dispatches` must pair one to one
+/// with `listeners`.
+async fn serve_per_core_shards<D: Dispatch>(
+    dispatches: Vec<Arc<D>>,
+    config: ServerConfig,
+    listeners: Vec<std::net::TcpListener>,
+    shutdown: impl Future<Output = ()> + Send,
+    tls: Option<ServerTls>,
+) -> Result<(), Status> {
+    let cores = listeners.len();
+    if cores == 0 || dispatches.len() != cores {
+        return Err(Status::invalid_argument(
+            "per-core serve needs at least one core",
+        ));
+    }
+    let conn_slots = connection_slots(config);
+    let rpc_each = config.concurrent_rpc_limit().map(|n| (n / cores).max(1));
+    // Stateful broadcast: a shard that boots after shutdown still sees
+    // it, which a `Notify` would miss.
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let (done_tx, mut done_rx) = mpsc::channel::<Result<(), Status>>(cores);
+    let mut joins = Vec::with_capacity(cores);
+    for ((core, listener), dispatch) in listeners.into_iter().enumerate().zip(dispatches) {
+        let stopped = shutdown_rx.clone();
+        let finished = done_tx.clone();
+        let tls = tls.clone();
+        let conn_slots = conn_slots.clone();
+        let rpc_slots = rpc_each.map(|n| Arc::new(Semaphore::new(n)));
+        let worker = std::thread::Builder::new()
+            .name(format!("pbrs-per-core-{core}"))
+            .spawn(move || {
+                // A refused pin only costs placement; the shard still
+                // serves correctly, just unpinned.
+                crate::rt::per_core::pin_current_thread_to(core);
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                let outcome = match runtime {
+                    Ok(runtime) => runtime.block_on(async move {
+                        // Convert on the shard thread: `from_std`
+                        // registers with the ambient reactor, which must
+                        // be this shard's, not the caller's.
+                        let listener = match TcpListener::from_std(listener) {
+                            Ok(listener) => listener,
+                            Err(e) => {
+                                return Err(Status::unavailable(e.to_string()));
+                            }
+                        };
+                        accept_loop_with_slots(
+                            dispatch,
+                            listener,
+                            config,
+                            async move {
+                                let mut stopped = stopped;
+                                stopped.wait_for(|stop| *stop).await.ok();
+                            },
+                            tls,
+                            conn_slots,
+                            rpc_slots,
+                        )
+                        .await
+                    }),
+                    Err(e) => Err(Status::unavailable(e.to_string())),
+                };
+                finished.blocking_send(outcome).ok();
+            });
+        match worker {
+            Ok(join) => joins.push(join),
+            Err(e) => {
+                // Stop the shards that did start; nothing serves half-built.
+                shutdown_tx.send(true).ok();
+                for join in joins {
+                    drop(join.join());
+                }
+                return Err(Status::unavailable(e.to_string()));
+            }
+        }
+    }
+    drop(done_tx);
+    let mut shutdown = std::pin::pin!(shutdown);
+    let mut stopping = false;
+    let mut results = Vec::with_capacity(cores);
+    while results.len() < cores {
+        tokio::select! {
+            biased;
+            _ = &mut shutdown, if !stopping => {
+                stopping = true;
+                shutdown_tx.send(true).ok();
+            }
+            recvd = done_rx.recv() => {
+                match recvd {
+                    Some(outcome) => {
+                        if outcome.is_err() {
+                            // Shard parity with the single loop: one
+                            // failed accept loop stops the serve.
+                            stopping = true;
+                            shutdown_tx.send(true).ok();
+                        }
+                        results.push(outcome);
+                    }
+                    None => break,
+                }
+            }
+        }
+    }
+    // Reap off the executor: every shard already reported, so the joins
+    // return at once, but a block is still a block.
+    let reaped = tokio::task::spawn_blocking(move || {
+        for join in joins {
+            drop(join.join());
+        }
+    })
+    .await;
+    if let Err(e) = reaped {
+        return Err(Status::internal(e.to_string()));
+    }
+    let mut result = Ok(());
+    for outcome in results {
+        if result.is_ok() {
+            result = outcome;
+        }
+    }
+    result
+}
+
+impl Router {
+    /// Opt-in thread-per-core serve: `cores` pinned current-thread
+    /// shards on `SO_REUSEPORT` listeners, each owning its connections.
+    /// Same contract as [`Server::serve_per_core`], for multi-service
+    /// routers. The connection budget is shared across shards (exact
+    /// aggregate), while `max_concurrent_rpcs` divides into
+    /// `max(1, limit / cores)` per shard. Applies to every call shape.
+    ///
+    /// Returns `invalid_argument` when `cores` is zero. TCP only.
+    /// Pair [`Self::bind_per_core`] with [`Self::serve_per_core_on`]
+    /// when the bound address is needed up front (port `0`).
+    pub async fn serve_per_core(
+        self,
+        addr: SocketAddr,
+        cores: usize,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        let (_, listeners) = self.bind_per_core(addr, cores)?;
+        self.serve_per_core_on(listeners, shutdown).await
+    }
+
+    /// [`Self::serve_per_core`] over TLS. Applies to every call shape,
+    /// including mTLS.
+    pub async fn serve_tls_per_core(
+        self,
+        addr: SocketAddr,
+        cores: usize,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        let (_, listeners) = self.bind_per_core(addr, cores)?;
+        self.serve_tls_per_core_on(listeners, shutdown, tls).await
+    }
+
+    /// Bind `cores` `SO_REUSEPORT` shards on `addr`, resolving port `0` to
+    /// the address the kernel chose. Serve them with
+    /// [`Self::serve_per_core_on`].
+    ///
+    /// The shards are std listeners on purpose: each shard converts its
+    /// own to Tokio on its own thread, so readiness never depends on the
+    /// reactor that called this. Returns `invalid_argument` when `cores`
+    /// is zero. A bad address fails here, before any thread starts.
+    pub fn bind_per_core(
+        &self,
+        addr: SocketAddr,
+        cores: usize,
+    ) -> Result<(SocketAddr, Vec<std::net::TcpListener>), Status> {
+        bind_reuseport_shards(addr, cores)
+    }
+
+    /// [`Self::serve_per_core`] on pre-bound shards from
+    /// [`Self::bind_per_core`]. The shard count is the listener count.
+    /// Applies to every call shape.
+    pub async fn serve_per_core_on(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_per_core_inner(listeners, shutdown, None).await
+    }
+
+    /// [`Self::serve_per_core_on`] over TLS. Applies to every call shape,
+    /// including mTLS.
+    pub async fn serve_tls_per_core_on(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        self.serve_per_core_inner(listeners, shutdown, Some(tls))
+            .await
+    }
+
+    async fn serve_per_core_inner(
+        self,
+        listeners: Vec<std::net::TcpListener>,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: Option<ServerTls>,
+    ) -> Result<(), Status> {
+        // Channelz: one server entity per shard, named like
+        // `with_channelz` (one entity per serve there). Each shard owns
+        // its dispatch, so each registers its own.
+        let mut services: Vec<&str> = self.service_names().collect();
+        services.sort_unstable();
+        let name = if services.is_empty() {
+            "router".to_owned()
+        } else {
+            services.join(",")
+        };
+        let config = self.server_config();
+        let mut dispatches = Vec::with_capacity(listeners.len());
+        for _ in 0..listeners.len() {
+            let mut shard = self.clone();
+            shard.channelz =
+                Some(crate::channelz::Registry::global_shared().register_server(name.clone()));
+            dispatches.push(Arc::new(shard));
+        }
+        serve_per_core_shards(dispatches, config, listeners, shutdown, tls).await
+    }
+}
+
 /// Returns `None` when `max_concurrent_rpcs` is unset. Otherwise a semaphore
 /// of that many permits, created once per accept loop so every connection
 /// shares the process-wide budget.
@@ -1320,6 +1675,23 @@ pub(crate) async fn accept_loop<D: Dispatch>(
     shutdown: impl Future<Output = ()> + Send,
     tls: Option<ServerTls>,
 ) -> Result<(), Status> {
+    let slots = connection_slots(config);
+    let rpcs = rpc_slots(config);
+    accept_loop_with_slots(dispatch, listener, config, shutdown, tls, slots, rpcs).await
+}
+
+/// [`accept_loop`] with caller-supplied limit semaphores, so the per-core
+/// mode can share the connection budget across shards while dividing the
+/// per-RPC budget.
+pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
+    dispatch: Arc<D>,
+    listener: TcpListener,
+    config: ServerConfig,
+    shutdown: impl Future<Output = ()> + Send,
+    tls: Option<ServerTls>,
+    slots: Option<Arc<Semaphore>>,
+    rpcs: Option<Arc<Semaphore>>,
+) -> Result<(), Status> {
     // Channelz: the listen socket, held for the whole accept loop.
     let _channelz_listen = dispatch.channelz_server().map(|server| {
         let local = listener
@@ -1347,8 +1719,6 @@ pub(crate) async fn accept_loop<D: Dispatch>(
     // task has finished.
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
-    let slots = connection_slots(config);
-    let rpcs = rpc_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());

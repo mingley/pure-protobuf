@@ -242,6 +242,74 @@ pub(crate) fn connect_lazy_inner(
     ))
 }
 
+fn connect_per_core_inner(
+    target: Target,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    cores: usize,
+) -> Result<Vec<Channel>, Status> {
+    if cores == 0 {
+        return Err(Status::invalid_argument(
+            "per-core connect needs at least one core",
+        ));
+    }
+    let mut channels = Vec::with_capacity(cores);
+    for _ in 0..cores {
+        channels.push(connect_lazy_inner(target.clone(), config, tls.clone())?);
+    }
+    Ok(channels)
+}
+
+// Per-core constructors live with the pool rather than on `Channel`'s home
+// module: each channel owns an independent pool, and this is where pools
+// are built.
+impl Channel {
+    /// Connect one lazy channel per core, each with an independent pool.
+    ///
+    /// Drive `channels[i]` from core `i`'s thread and no pool mutex is ever
+    /// contended cross-core. Channels dial on first use, on whatever
+    /// runtime drives them, so construct (or first call) each channel from
+    /// its own core's runtime to keep dials and connection drivers local
+    /// too. Applies to every call shape.
+    ///
+    /// Returns `invalid_argument` when `cores` is zero.
+    pub fn connect_per_core(
+        target: impl Into<Target>,
+        cores: usize,
+    ) -> Result<Vec<Channel>, Status> {
+        Self::connect_per_core_with(target, ChannelConfig::default(), cores)
+    }
+
+    /// [`Self::connect_per_core`] with `config`. Applies to every call shape.
+    pub fn connect_per_core_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+        cores: usize,
+    ) -> Result<Vec<Channel>, Status> {
+        connect_per_core_inner(target.into(), config, None, cores)
+    }
+
+    /// [`Self::connect_per_core`] over TLS. Applies to every call shape.
+    pub fn connect_tls_per_core(
+        target: impl Into<Target>,
+        cores: usize,
+        tls: ClientTls,
+    ) -> Result<Vec<Channel>, Status> {
+        Self::connect_tls_per_core_with(target, ChannelConfig::default(), cores, tls)
+    }
+
+    /// [`Self::connect_tls_per_core`] with `config`. Applies to every call
+    /// shape.
+    pub fn connect_tls_per_core_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+        cores: usize,
+        tls: ClientTls,
+    ) -> Result<Vec<Channel>, Status> {
+        connect_per_core_inner(target.into(), config, Some(tls), cores)
+    }
+}
+
 #[cfg(unix)]
 pub(crate) async fn connect_unix_inner(
     path: &Path,
@@ -3333,10 +3401,26 @@ pub(crate) fn attach_conn<T>(
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnSlot, RrTable, reconcile_rr};
+    use super::{Channel, ConnSlot, RrTable, reconcile_rr};
     use crate::resolver::ResolvedAddress;
+    use crate::status::Code;
     use std::sync::Arc;
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn per_core_channels_own_independent_pools() {
+        let channels = Channel::connect_per_core("127.0.0.1:1", 4).expect("channels");
+        assert_eq!(channels.len(), 4);
+        for pair in channels.windows(2) {
+            let (a, b) = (&pair[0], &pair[1]);
+            assert!(
+                !Arc::ptr_eq(&a.inner, &b.inner),
+                "per-core channels must not share a pool"
+            );
+        }
+        let err = Channel::connect_per_core("127.0.0.1:1", 0).expect_err("zero cores");
+        assert_eq!(err.code(), Code::InvalidArgument);
+    }
 
     fn tcp(n: u8) -> ResolvedAddress {
         ResolvedAddress::Tcp(format!("10.0.0.{n}:80").parse().expect("addr"))
