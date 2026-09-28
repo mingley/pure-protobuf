@@ -8,6 +8,22 @@
 pub use crate::dynamic::{Comments, SourceCodeInfo, SourceLocation};
 use std::fmt::Write as _;
 
+/// Lowercase hex digits for byte-literal emission without `core::fmt`.
+pub(crate) const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
+
+/// Pre-rendered `0x..,` chunks, one per byte value.
+pub(crate) const HEX_BYTE_CHUNK: [[u8; 5]; 256] = build_hex_byte_chunk();
+
+const fn build_hex_byte_chunk() -> [[u8; 5]; 256] {
+    let mut table = [[0u8; 5]; 256];
+    let mut b = 0usize;
+    while b < 256 {
+        table[b] = [b'0', b'x', HEX_DIGITS[b >> 4], HEX_DIGITS[b & 0xf], b','];
+        b += 1;
+    }
+    table
+}
+
 mod config;
 mod descriptors;
 mod encode;

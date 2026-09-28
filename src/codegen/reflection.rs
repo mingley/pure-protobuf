@@ -50,22 +50,31 @@ pub(crate) fn extract_fds_file_names(bytes: &[u8]) -> Vec<String> {
     names
 }
 
-pub(crate) fn emit_fds(src: &mut String, fds: &[u8]) {
-    src.push_str("/// FileDescriptorSet bytes for reflection and dynamic schema inspection.\n");
-    src.push_str("pub const FILE_DESCRIPTOR_SET: &[u8] = &[\n");
+/// Render the `FILE_DESCRIPTOR_SET` block once; every target file embeds
+/// the identical bytes, so callers share one rendering.
+pub(crate) fn fds_hex_block(fds: &[u8]) -> String {
+    // 5 chars per byte ("0x..,"), plus indent/newlines. Table push is
+    // byte-identical to the old per-byte write!("0x{b:02x},").
+    let mut buf = Vec::with_capacity(128 + fds.len() * 5 + fds.len() / 16 * 5 + 8);
+    buf.extend_from_slice(
+        b"/// FileDescriptorSet bytes for reflection and dynamic schema inspection.\n",
+    );
+    buf.extend_from_slice(b"pub const FILE_DESCRIPTOR_SET: &[u8] = &[\n");
     for (i, b) in fds.iter().enumerate() {
         if i % 16 == 0 {
-            src.push_str("    ");
+            buf.extend_from_slice(b"    ");
         }
-        let _ = write!(src, "0x{b:02x},");
+        buf.extend_from_slice(&HEX_BYTE_CHUNK[*b as usize]);
         if i % 16 == 15 {
-            src.push('\n');
+            buf.push(b'\n');
         }
     }
     if fds.len() % 16 != 0 {
-        src.push('\n');
+        buf.push(b'\n');
     }
-    src.push_str("];\n\n");
+    buf.extend_from_slice(b"];\n\n");
+    // Table, indent and punctuation are pure ASCII by construction.
+    String::from_utf8(buf).expect("hex table output is ASCII-only")
 }
 
 pub(crate) fn encode_varint_field(out: &mut Vec<u8>, n: u32, v: u64) {

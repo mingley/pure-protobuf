@@ -4,7 +4,12 @@ use super::*;
 use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
 use std::path::PathBuf;
 
-pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024: bool) {
+pub(crate) fn emit_codec(
+    src: &mut String,
+    desc: &MessageDescriptor,
+    edition2024: bool,
+    cold: ColdPlacement,
+) {
     let required: Vec<_> = desc
         .fields
         .values()
@@ -71,7 +76,7 @@ pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024
         for f in &lights {
             let _ = writeln!(src, "            if n == {} {{", f.number);
             let _ = writeln!(src, "                match w {{");
-            emit_merge_arm(src, desc, f, edition2024);
+            emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
                 "                    _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -94,7 +99,7 @@ pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024
                 continue;
             }
             let _ = writeln!(src, "            {} => match w {{", f.number);
-            emit_merge_arm(src, desc, f, edition2024);
+            emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
                 "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -124,7 +129,7 @@ pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024
         let _ = writeln!(src, "        match n {{");
         for f in &heavies {
             let _ = writeln!(src, "            {} => match w {{", f.number);
-            emit_merge_arm(src, desc, f, edition2024);
+            emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
                 "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
@@ -205,12 +210,12 @@ pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024
     if desc.message_set_wire_format {
         emit_message_set_size(src, desc);
     } else {
-        for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
+        for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
             emit_size(src, f, "self");
         }
-        if uses_cold_storage(desc) {
+        if cold.uses_cold_storage() {
             let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
-            for f in desc.fields.values().filter(|f| stored_cold(desc, f)) {
+            for f in desc.fields.values().filter(|f| cold.stored_cold(f)) {
                 emit_size(src, f, "c");
             }
             let _ = writeln!(src, "        }}");
@@ -227,12 +232,12 @@ pub(crate) fn emit_codec(src: &mut String, desc: &MessageDescriptor, edition2024
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
     } else {
-        for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
+        for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
             emit_write(src, f, "self");
         }
-        if uses_cold_storage(desc) {
+        if cold.uses_cold_storage() {
             let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
-            for f in desc.fields.values().filter(|f| stored_cold(desc, f)) {
+            for f in desc.fields.values().filter(|f| cold.stored_cold(f)) {
                 emit_write(src, f, "c");
             }
             let _ = writeln!(src, "        }}");
@@ -462,8 +467,9 @@ pub(crate) fn emit_merge_arm(
     desc: &MessageDescriptor,
     f: &FieldDescriptor,
     edition2024: bool,
+    cold: ColdPlacement,
 ) {
-    let st = store_mut(desc, f);
+    let st = cold.store_mut(f);
     let num = f.number;
     if f.is_map {
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
@@ -543,7 +549,7 @@ pub(crate) fn emit_merge_arm(
         let t = scalar_type(f);
         if f.field_type == FieldType::Group || f.delimited {
             let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{");
-            emit_oneof_clear(src, desc, f);
+            emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
                 "                    match &mut {st} {{ Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}"
@@ -551,7 +557,7 @@ pub(crate) fn emit_merge_arm(
             let _ = writeln!(src, "                    }}");
         } else {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
-            emit_oneof_clear(src, desc, f);
+            emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
                 "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
@@ -579,7 +585,7 @@ pub(crate) fn emit_merge_arm(
             format!("{st} = {parse}")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
-        emit_oneof_clear(src, desc, f);
+        emit_oneof_clear(src, desc, f, cold);
         let _ = writeln!(
             src,
             "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?; {assign};"
@@ -594,7 +600,7 @@ pub(crate) fn emit_merge_arm(
             format!("{st} = pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
-        emit_oneof_clear(src, desc, f);
+        emit_oneof_clear(src, desc, f, cold);
         let _ = writeln!(
             src,
             "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?; {assign};"
@@ -624,7 +630,7 @@ pub(crate) fn emit_merge_arm(
                 src,
                 "                pbrs::rt::WIRE_VARINT => {{ let value = pbrs::rt::decode_varint(data, pos)?; if {is_known} {{"
             );
-            emit_oneof_clear(src, desc, f);
+            emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(src, "                    {assign};");
             let _ = writeln!(
                 src,
@@ -643,7 +649,7 @@ pub(crate) fn emit_merge_arm(
         format!("{st} = {expr}")
     };
     let _ = writeln!(src, "                {w} => {{");
-    emit_oneof_clear(src, desc, f);
+    emit_oneof_clear(src, desc, f, cold);
     let _ = writeln!(src, "                    {assign};");
     let _ = writeln!(src, "                    }}");
 }

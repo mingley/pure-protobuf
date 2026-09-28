@@ -219,6 +219,9 @@ pub fn generate_from_code_generator_request(
     }
     TYPE_FILES.with(|c| *c.borrow_mut() = type_files);
 
+    // Every emitted file embeds the same descriptor bytes; render the hex
+    // block once and share it rather than re-formatting per target.
+    let fds_block = (!resolved.no_reflect && !resolved.shared_pool).then(|| fds_hex_block(&fds));
     let mut out_files = Vec::new();
     for target in &targets {
         let norm_target = normalize_proto_path_str(target);
@@ -264,6 +267,9 @@ use pbrs::prelude::*;\n\
 use pbrs::{{Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError, UnknownEnumValue}};\n\
 use pbrs::UnknownFields;\n\n"
         );
+        // Generated text dwarfs the descriptor bytes; pre-size the buffer
+        // so per-message emission does not repeatedly reallocate + memcpy.
+        src.reserve(fds.len() * 8);
         if resolved.no_reflect {
             // Accessor/binary tests: skip FileDescriptorSet hex and JSON/text.
         } else if resolved.shared_pool {
@@ -271,7 +277,11 @@ use pbrs::UnknownFields;\n\n"
                 "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    pbrs::gencode::conformance_pool()\n}\n\n",
             );
         } else {
-            emit_fds(&mut src, &fds);
+            src.push_str(
+                fds_block
+                    .as_deref()
+                    .expect("FDS block prebuilt when reflection is on"),
+            );
             src.push_str(
                 "#[allow(clippy::expect_used, reason = \"embedded descriptor bytes were validated during code generation\")]\nfn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    static P: std::sync::OnceLock<std::sync::Arc<pbrs::DescriptorPool>> = std::sync::OnceLock::new();\n    P.get_or_init(|| {\n        std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }).clone()\n}\n\n",
             );
@@ -707,6 +717,9 @@ pub fn encode_code_generator_response_error(error: &str) -> Vec<u8> {
 }
 
 pub(crate) fn normalize_proto_path_str(s: &str) -> String {
+    if !s.contains('\\') && !s.contains("//") && !s.starts_with("./") && !s.starts_with('/') {
+        return s.to_string();
+    }
     let mut out = String::with_capacity(s.len());
     let replaced = s.replace('\\', "/");
     let mut prev_slash = false;
@@ -763,6 +776,8 @@ pub(crate) fn file_matches(wanted: &std::collections::BTreeSet<String>, file_nam
     }
     let file_norm = normalize_proto_path_str(file_name);
     let file_norm_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
+    let suff = format!("/{file_norm}");
+    let suff_no_proto = format!("/{file_norm_no_proto}");
     wanted.iter().any(|w| {
         let w_norm = normalize_proto_path_str(w);
         if w_norm == "generated.proto" || w_norm == "generated" {
@@ -772,8 +787,6 @@ pub(crate) fn file_matches(wanted: &std::collections::BTreeSet<String>, file_nam
         if w_norm == file_norm || w_norm_no_proto == file_norm_no_proto {
             return true;
         }
-        let suff = format!("/{file_norm}");
-        let suff_no_proto = format!("/{file_norm_no_proto}");
         if w_norm.ends_with(&suff) || w_norm_no_proto.ends_with(&suff_no_proto) {
             return true;
         }

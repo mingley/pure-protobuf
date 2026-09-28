@@ -501,12 +501,13 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let view = format!("{name}View");
     let mut_ = format!("{name}Mut");
     let cold_name = format!("{name}Cold");
-    let use_cold = uses_cold_storage(desc);
+    let cold = ColdPlacement::for_message(desc);
+    let use_cold = cold.uses_cold_storage();
     if use_cold {
         emit_zeroed_fields_struct(
             src,
             &cold_name,
-            desc.fields.values().filter(|f| stored_cold(desc, f)),
+            desc.fields.values().filter(|f| cold.stored_cold(f)),
         );
     }
     emit_doc_comments(src, &desc.comments, "");
@@ -521,7 +522,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     }
     let _ = writeln!(src, "#[derive(Clone, Debug)]");
     let _ = writeln!(src, "pub struct {name} {{");
-    for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
+    for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
         emit_doc_comments(src, &f.comments, "    ");
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
@@ -533,7 +534,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl PartialEq for {name} {{");
     let _ = writeln!(src, "    fn eq(&self, other: &Self) -> bool {{");
-    for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
+    for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
         let id = field_id(f);
         let _ = writeln!(
             src,
@@ -585,9 +586,9 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         desc.full_name
     );
     for f in desc.fields.values() {
-        emit_accessors(src, desc, f);
+        emit_accessors(src, desc, f, cold);
     }
-    emit_codec(src, desc, edition2024);
+    emit_codec(src, desc, edition2024, cold);
     if std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref() != Ok("1") {
         emit_json_text(src, desc);
     }
@@ -595,7 +596,12 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
 }
 
-pub(crate) fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+pub(crate) fn emit_oneof_clear(
+    src: &mut String,
+    desc: &MessageDescriptor,
+    f: &FieldDescriptor,
+    cold: ColdPlacement,
+) {
     let Some(idx) = f.oneof_index else {
         return;
     };
@@ -609,7 +615,7 @@ pub(crate) fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &F
             continue;
         }
         if let Some(sib) = desc.field(*n) {
-            let st = store_mut(desc, sib);
+            let st = cold.store_mut(sib);
             if is_lazy_msg(sib) {
                 let _ = writeln!(src, "        {st} = Default::default();");
             } else if is_option(sib) && sib.field_type == FieldType::Bool {
@@ -625,14 +631,19 @@ pub(crate) fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &F
     }
 }
 
-pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+pub(crate) fn emit_accessors(
+    src: &mut String,
+    desc: &MessageDescriptor,
+    f: &FieldDescriptor,
+    cold: ColdPlacement,
+) {
     let id = field_id(f);
     let m = field_raw(f);
     if f.is_map {
         let (k, v) = map_kv(f);
-        let st = store_mut(desc, f);
+        let st = cold.store_mut(f);
         emit_field_getter_doc(src, desc, f);
-        if stored_cold(desc, f) {
+        if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(MapView::empty) }}"
@@ -657,9 +668,9 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
     }
     if f.cardinality == Cardinality::Repeated {
         let t = scalar_type(f);
-        let st = store_mut(desc, f);
+        let st = cold.store_mut(f);
         emit_field_getter_doc(src, desc, f);
-        if stored_cold(desc, f) {
+        if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
                 "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(|| RepeatedView::from_slice(&[])) }}"
@@ -691,8 +702,8 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
     }
     if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         let t = scalar_type(f);
-        let st = store_mut(desc, f);
-        if stored_cold(desc, f) {
+        let st = cold.store_mut(f);
+        if cold.stored_cold(f) {
             emit_has_doc(src, f);
             let _ = writeln!(
                 src,
@@ -733,7 +744,7 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
         emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {t}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
-        emit_oneof_clear(src, desc, f);
+        emit_oneof_clear(src, desc, f, cold);
         if is_lazy_msg(f) {
             let _ = writeln!(src, "        {st} = pbrs::rt::LazyMsg::from_owned(v);");
         } else {
@@ -766,13 +777,13 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
     }
     if f.field_type == FieldType::String {
         let fallback = string_default_lit(f);
-        let st = store_mut(desc, f);
-        let read = if stored_cold(desc, f) {
+        let st = cold.store_mut(f);
+        let read = if cold.stored_cold(f) {
             format!("self.cold.as_ref().and_then(|c| c.{id}.as_ref())")
         } else {
             format!("self.{id}.as_ref()")
         };
-        let read_view = if stored_cold(desc, f) {
+        let read_view = if cold.stored_cold(f) {
             format!("self.cold.as_ref().map(|c| c.{id}.as_view())")
         } else {
             format!("Some(self.{id}.as_view())")
@@ -799,7 +810,7 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
                 "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{"
             );
             let _ = writeln!(src, "        self.cached_size.dirty();");
-            emit_oneof_clear(src, desc, f);
+            emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
                 "        {st} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
@@ -826,13 +837,13 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
     }
     if f.field_type == FieldType::Bytes {
         let fallback = bytes_default_lit(f);
-        let st = store_mut(desc, f);
-        let read = if stored_cold(desc, f) {
+        let st = cold.store_mut(f);
+        let read = if cold.stored_cold(f) {
             format!("self.cold.as_ref().and_then(|c| c.{id}.as_ref())")
         } else {
             format!("self.{id}.as_ref()")
         };
-        let read_bytes = if stored_cold(desc, f) {
+        let read_bytes = if cold.stored_cold(f) {
             format!("self.cold.as_ref().map(|c| c.{id}.as_bytes())")
         } else {
             format!("Some(self.{id}.as_bytes())")
@@ -911,7 +922,7 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
         emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: bool) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
-        emit_oneof_clear(src, desc, f);
+        emit_oneof_clear(src, desc, f, cold);
         let _ = writeln!(src, "        self.{id} = pbrs::rt::OptBool::some(v);");
         let _ = writeln!(src, "    }}");
         emit_clear_doc(src, f);
@@ -938,7 +949,7 @@ pub(crate) fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &Fie
         emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {set_ty}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
-        emit_oneof_clear(src, desc, f);
+        emit_oneof_clear(src, desc, f, cold);
         let _ = writeln!(src, "        self.{id} = Some({set_val});");
         let _ = writeln!(src, "    }}");
         emit_clear_doc(src, f);
@@ -1039,6 +1050,7 @@ pub(crate) fn scalar_default_expr(f: &FieldDescriptor) -> String {
 
 pub(crate) fn rust_byte_lit(bytes: &[u8]) -> String {
     let mut out = String::from("b\"");
+    out.reserve(bytes.len() + 1);
     for &b in bytes {
         match b {
             b'\\' => out.push_str("\\\\"),
@@ -1048,7 +1060,9 @@ pub(crate) fn rust_byte_lit(bytes: &[u8]) -> String {
             b'\t' => out.push_str("\\t"),
             0x20..=0x7e => out.push(b as char),
             _ => {
-                let _ = write!(out, "\\x{b:02x}");
+                out.push_str("\\x");
+                out.push(HEX_DIGITS[(b >> 4) as usize] as char);
+                out.push(HEX_DIGITS[(b & 0xf) as usize] as char);
             }
         }
     }

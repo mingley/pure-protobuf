@@ -505,45 +505,62 @@ pub(crate) fn is_cold_field(f: &FieldDescriptor) -> bool {
     is_lazy_msg(f) && is_wkt_msg(f)
 }
 
-pub(crate) fn uses_sparse_cold(desc: &MessageDescriptor) -> bool {
-    !desc.message_set_wire_format
-        && (1..=4).contains(
-            &desc
-                .fields
-                .values()
-                .filter(|f| is_light_merge_field(f))
-                .count(),
-        )
-        && desc
-            .fields
-            .values()
-            .filter(|f| !is_light_merge_field(f))
-            .count()
-            >= 3
+/// Per-message cold-placement answers, computed once.
+///
+/// The placement predicates scan every field; calling them per field is
+/// quadratic in field count. Emitters build this once per message and
+/// query it per field.
+#[derive(Clone, Copy)]
+pub(crate) struct ColdPlacement {
+    sparse: bool,
+    cold_storage: bool,
 }
 
-pub(crate) fn uses_cold_storage(desc: &MessageDescriptor) -> bool {
-    uses_sparse_cold(desc) || desc.fields.values().filter(|f| is_cold_field(f)).count() >= 6
-}
-
-pub(crate) fn stored_hot(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
-    !stored_cold(desc, f)
-}
-
-pub(crate) fn stored_cold(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
-    if uses_sparse_cold(desc) {
-        !is_light_merge_field(f)
-    } else {
-        uses_cold_storage(desc) && is_cold_field(f)
+impl ColdPlacement {
+    pub(crate) fn for_message(desc: &MessageDescriptor) -> Self {
+        let mut light = 0usize;
+        let mut cold = 0usize;
+        let mut total = 0usize;
+        for f in desc.fields.values() {
+            total += 1;
+            if is_light_merge_field(f) {
+                light += 1;
+            }
+            if is_cold_field(f) {
+                cold += 1;
+            }
+        }
+        let sparse =
+            !desc.message_set_wire_format && (1..=4).contains(&light) && total - light >= 3;
+        Self {
+            sparse,
+            cold_storage: sparse || cold >= 6,
+        }
     }
-}
 
-pub(crate) fn store_mut(desc: &MessageDescriptor, f: &FieldDescriptor) -> String {
-    let id = field_id(f);
-    if stored_cold(desc, f) {
-        format!("self.cold_mut().{id}")
-    } else {
-        format!("self.{id}")
+    pub(crate) fn uses_cold_storage(&self) -> bool {
+        self.cold_storage
+    }
+
+    pub(crate) fn stored_cold(&self, f: &FieldDescriptor) -> bool {
+        if self.sparse {
+            !is_light_merge_field(f)
+        } else {
+            self.cold_storage && is_cold_field(f)
+        }
+    }
+
+    pub(crate) fn stored_hot(&self, f: &FieldDescriptor) -> bool {
+        !self.stored_cold(f)
+    }
+
+    pub(crate) fn store_mut(&self, f: &FieldDescriptor) -> String {
+        let id = field_id(f);
+        if self.stored_cold(f) {
+            format!("self.cold_mut().{id}")
+        } else {
+            format!("self.{id}")
+        }
     }
 }
 
