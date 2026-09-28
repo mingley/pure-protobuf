@@ -6489,7 +6489,14 @@
    ],
    "relates": [
     "RT-09"
-   ]
+   ],
+   "status": "done",
+   "evidence": [
+    "scripts/fuzz-campaign.sh",
+    ".github/workflows/compatibility.yml",
+    "docs/upstream/oss-fuzz.md"
+   ],
+   "note": "Campaign runner auto-discovers all 4 targets from fuzz/Cargo.toml, builds, fuzzes with per-target budget + JSON manifest, triages crashes (tmin, crash-<sha16>.bin retention replayed as regression seeds, in-tree const). libFuzzer writes to a scratch dir under target/fuzz-logs, never the repo. fuzz-campaign job in the weekly compat lane; OSS-Fuzz packet ready, not submitted. Validated: build-only all 4, smoke campaigns clean, compat YAML parses, fuzz-build check green."
   },
   {
    "id": "QG-03",

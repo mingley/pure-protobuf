@@ -216,6 +216,36 @@ jobs:
           path: target/sanitizer-logs/
           if-no-files-found: warn
 
+  # QG-02: weekly scheduled fuzz campaign over every cargo-fuzz target.
+  # The runner discovers targets from fuzz/Cargo.toml, so new targets join
+  # automatically. Goes red on any new crasher; logs, manifest, and
+  # minimized crashers upload as artifacts for triage.
+  fuzz-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Run campaign
+        run: ./scripts/fuzz-campaign.sh
+      - name: Upload campaign logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-campaign-logs
+          path: target/fuzz-logs/
+          retention-days: 30
+      - name: Upload new crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: fuzz/corpus/**/crash-*.bin
+          retention-days: 90
+
   # Diff docs/grfc.md against grpc/proposal. Informational only: drift and
   # API hiccups surface as a report artifact, never as a red job. Only the
   # offline self-test can fail this job (a script regression). Opens nothing

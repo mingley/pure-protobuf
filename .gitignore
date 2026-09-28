@@ -6,6 +6,7 @@
 /tonic-bench/target
 /rpc-bench/target
 /fuzz/target
+/fuzz/artifacts
 /v4_person/target
 /v4_tat/target
 /buffa_tat/target
