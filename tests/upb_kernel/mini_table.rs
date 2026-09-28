@@ -1,8 +1,6 @@
 //! MiniTable schema decoding and linking (`src/runtime/mini_table.rs`).
 
-use pbrs::runtime::{
-    FieldType, build_enum_mini_table, build_mini_table, link_mini_table,
-};
+use pbrs::runtime::{FieldType, build_enum_mini_table, build_mini_table, link_mini_table};
 
 #[test]
 fn address_table_has_one_string_field() {
