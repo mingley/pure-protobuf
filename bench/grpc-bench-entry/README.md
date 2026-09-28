@@ -33,3 +33,7 @@ harness's `--network=host` + `127.0.0.1`.
 
 Peer build/run failures are recorded and skipped; a pbrs cell
 failure exits nonzero. No upstream PR is opened (operator action).
+
+If the pinned (amd64) ghz client caps throughput on an arm64 host,
+raise `GRPC_CLIENT_CPUS` until the client stops being the ceiling
+and record the deviation; see `docs/evidence/grpc-bench.md`.

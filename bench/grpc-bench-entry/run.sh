@@ -145,7 +145,8 @@ run_cell() { # $1 entry, $2 cpus, $3 rep
   if [ "$GRPC_BENCHMARK_WARMUP" != "0s" ]; then
     ghz_run "$GRPC_BENCHMARK_WARMUP" > /dev/null || true
   fi
-  ./collect_stats.sh "$name" "$RESULTS_DIR" &
+  rm -f "$RESULTS_DIR/$entry.stats"
+  ./collect_stats.sh "$entry" "$RESULTS_DIR" &
   local stats_pid=$!
   if ! ghz_run "$GRPC_BENCHMARK_DURATION" >"$RESULTS_DIR/${name}.report" 2>"$RESULTS_DIR/${name}.ghz-stderr"; then
     echo "RUN-FAIL $name ghz error" | tee -a "$FAILURES"
@@ -155,6 +156,7 @@ run_cell() { # $1 entry, $2 cpus, $3 rep
   fi
   kill -INT "$stats_pid" 2>/dev/null || true
   wait "$stats_pid" 2>/dev/null || true
+  mv -f "$RESULTS_DIR/$entry.stats" "$RESULTS_DIR/${name}.stats" 2>/dev/null || true
   docker container stop "$entry" >/dev/null 2>&1 || true
   return 0
 }
