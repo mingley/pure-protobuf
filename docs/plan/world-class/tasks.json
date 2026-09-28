@@ -6448,7 +6448,13 @@
    ],
    "relates": [
     "PB-07"
-   ]
+   ],
+   "status": "done",
+   "evidence": [
+    ".github/workflows/miri-kernels.yml",
+    "docs/unsafe-invariants.md"
+   ],
+   "note": "Policy section 7 + PR-time Miri workflow (path-filtered, blocking) + scheduled-lane pbrs-h2 extension. Miri proven green locally (43/43). Separate workflow file so kernel PRs skip the 30-min interop matrix; maintainer must still mark the job required in branch protection."
   },
   {
    "id": "QG-02",

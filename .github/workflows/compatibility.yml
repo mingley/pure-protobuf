@@ -190,7 +190,8 @@ jobs:
             cargo miri test -p pbrs --test runtime &&
             cargo miri test --manifest-path rust_out_shared/Cargo.toml --locked \
               --test accessors_map_test --test accessors_repeated_test \
-              --test message_copy_merge_test
+              --test message_copy_merge_test &&
+            if [ -f pbrs-h2/Cargo.toml ]; then cargo miri test -p pbrs-h2 --lib; fi
           } 2>&1 | tee target/sanitizer-logs/miri.log
       - name: Run AddressSanitizer and LeakSanitizer
         env:
@@ -204,7 +205,8 @@ jobs:
           {
             rustc --version &&
             cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std &&
-            cargo test -p pbrs --test runtime --target x86_64-unknown-linux-gnu -Zbuild-std
+            cargo test -p pbrs --test runtime --target x86_64-unknown-linux-gnu -Zbuild-std &&
+            if [ -f pbrs-h2/Cargo.toml ]; then cargo test -p pbrs-h2 --lib --target x86_64-unknown-linux-gnu -Zbuild-std; fi
           } 2>&1 | tee target/sanitizer-logs/asan.log
       - name: Retain sanitizer proof and failure logs
         if: always()

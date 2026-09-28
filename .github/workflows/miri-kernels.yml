@@ -1,0 +1,69 @@
+name: miri-kernels
+
+# QG-01: PR-time Miri for new kernels and engines. Runs on every PR that
+# touches a kernel path and blocks on failure (once marked a required
+# status check in the repository settings). Kept separate from
+# compatibility.yml so kernel PRs do not pay for the 30-minute interop
+# matrix; the scheduled lane there remains the deep ASan/LSan proof.
+
+on:
+  pull_request:
+    paths:
+      - 'pbrs-h2/**'
+      - 'src/runtime/**'
+      - 'src/table.rs'
+      - 'src/packed.rs'
+      - 'src/wire.rs'
+      - 'src/lazy.rs'
+      - 'src/string.rs'
+      - 'fuzz/fuzz_targets/h2_frame.rs'
+      - 'fuzz/fuzz_targets/varint_diff.rs'
+      - 'fuzz/fuzz_targets/segmented.rs'
+      - '.github/workflows/miri-kernels.yml'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'pbrs-h2/**'
+      - 'src/runtime/**'
+      - 'src/table.rs'
+      - 'src/packed.rs'
+      - 'src/wire.rs'
+      - 'src/lazy.rs'
+      - 'src/string.rs'
+      - 'fuzz/fuzz_targets/h2_frame.rs'
+      - 'fuzz/fuzz_targets/varint_diff.rs'
+      - 'fuzz/fuzz_targets/segmented.rs'
+      - '.github/workflows/miri-kernels.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  miri:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Miri on pbrs core unit tests
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          rustc --version
+          cargo miri --version
+          cargo miri test --locked -p pbrs --lib
+      - name: Miri on pbrs-h2 unit tests
+        # Activates automatically once H2-04 lands the crate.
+        if: hashFiles('pbrs-h2/Cargo.toml') != ''
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          cargo miri test --locked -p pbrs-h2 --lib

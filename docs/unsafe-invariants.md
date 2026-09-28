@@ -364,3 +364,47 @@ shared suites), each with `-- --test-threads=1`. This supersedes the older
 dirty-checkout Miri proof for these source files; it is still a local
 one-architecture run, not a same-SHA scheduled Miri CI artifact, a Linux
 ASan/LSan result, a 32-bit/big-endian proof, or approval for sustained fuzzing.
+
+On 2026-09-27, a fresh macOS arm64 run against clean tracked `main` at
+`edd29d78` with installed nightly `miri 0.1.0 (e7769602ac 2026-08-24)` and
+`MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-strict-provenance'` passed
+`cargo +nightly miri test --offline -p pbrs --lib` (43/43, including the
+PK-11 segmented-send unit tests). Same limits as above: local
+one-architecture run, not CI proof.
+
+---
+
+## 7. New Kernels and Engines Policy (QG-01)
+
+The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules
+(UK-03/UK-04), and SIMD/table parse kernels (PK-04/PK-06) land under
+stricter rules than the historical code above, because their `unsafe`
+has no production track record yet:
+
+1. **`// SAFETY:` comments are required** on every new `unsafe` block,
+   `unsafe fn`, and `unsafe trait` impl, following the §1 bar
+   (preconditions, maintained invariants, why UB is impossible).
+   Reviewers reject unsafe code without one, even if Miri is green.
+2. **Pre-register invariants in this document.** The landing PR must add
+   (or extend) a section naming each new unsafe site, its preconditions,
+   and its layout/aliasing argument — before or alongside the code, not
+   after.
+3. **PR-time Miri is blocking.** `.github/workflows/miri-kernels.yml`
+   runs Miri on the unit tests of every PR touching a kernel path
+   (`pbrs-h2/**`, `src/runtime/**`, `src/table.rs`, `src/packed.rs`,
+   `src/wire.rs`, kernel fuzz targets); a red job blocks the merge.
+   (Enforcement also requires marking the job a required status check
+   in the repository settings; the workflow alone only reports it.)
+4. **Linux sanitizers stay scheduled.** The `compatibility.yml`
+   `miri-sanitizers` lane (weekly + manual dispatch) covers the new
+   crates when they exist and remains the ASan/LSan proof; PRs are not
+   gated on it because `-Zbuild-std` sanitizer builds are too slow for
+   the PR path.
+5. **New `unsafe` needs a second pair of eyes.** At least one reviewer
+   other than the author must approve the SAFETY argument (relates
+   PB-07, which qualifies the invariants on additional targets).
+
+Until `pbrs-h2` exists, the PR-time job exercises the in-crate kernel
+paths (`pbrs --lib`); the `pbrs-h2` steps activate automatically once
+the crate lands, via directory guards rather than hardcoded package
+lists.
