@@ -1605,7 +1605,8 @@
    ],
    "relates": [
     "BM-03"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "SB-09",
@@ -2010,7 +2011,8 @@
    "relates": [
     "OP-01"
    ],
-   "notes": "Executes OP-01 on dev-loop evidence instead of waiting for BM-13 dedicated hosts; claim-grade confirmation stays with SB-15."
+   "notes": "Executes OP-01 on dev-loop evidence instead of waiting for BM-13 dedicated hosts; claim-grade confirmation stays with SB-15.",
+   "status": "in_progress"
   },
   {
    "id": "PK-02",
@@ -2043,7 +2045,8 @@
     "B6",
     "B8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "PK-03",
@@ -2767,7 +2770,8 @@
    "relates": [
     "CG-19",
     "CG-20"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "GN-02",
@@ -2888,7 +2892,8 @@
     "B1",
     "B2"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "GN-05",
@@ -4528,7 +4533,8 @@
    ],
    "relates": [
     "CP-01"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "CL-02",
@@ -4569,7 +4575,8 @@
    ],
    "relates": [
     "CP-02"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "CL-03",
@@ -4610,7 +4617,8 @@
    ],
    "relates": [
     "CP-02"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "CL-04",
@@ -4683,7 +4691,8 @@
    "scoreboard": [
     "C3"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "CL-06",
@@ -4757,7 +4766,8 @@
    ],
    "relates": [
     "SP-01"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "SV-02",
@@ -4796,7 +4806,8 @@
    ],
    "relates": [
     "SP-03"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "SV-03",
@@ -4910,7 +4921,8 @@
     "D2",
     "D4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "SV-06",
@@ -5012,7 +5024,11 @@
    ],
    "checks": [],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/decisions/better-tonic.md"
+   ]
   },
   {
    "id": "TC-02",
@@ -5048,7 +5064,8 @@
     "devloop-compare"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-03",
@@ -5119,7 +5136,8 @@
     "native-serving"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-05",
@@ -5152,7 +5170,8 @@
     "devloop-compare"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-06",
@@ -5187,7 +5206,8 @@
     "native-rpc"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-07",
@@ -5274,7 +5294,8 @@
    ],
    "checks": [],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-10",
