@@ -417,6 +417,9 @@ impl super::Channel {
         path: &'static str,
         response: Response<T>,
     ) -> Result<Response<T>, Status> {
+        if self.response_interceptors.is_empty() {
+            return Ok(response);
+        }
         crate::interceptor::intercept_response_all(
             response.with_path(Some(path.to_owned())),
             &self.response_interceptors,
