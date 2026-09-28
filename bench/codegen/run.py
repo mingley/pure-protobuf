@@ -54,6 +54,7 @@ PROST_PACKAGE_FILE = "bench.cg19.rs"
 PEER_ENTRYPOINT = {
     "prost": PROST_PACKAGE_FILE,
     "buffa": "mod.rs",
+    "v4": "generated.rs",
 }
 BUFFA_PACKAGE_FILE = "bench.cg19.mod.rs"
 
@@ -68,7 +69,42 @@ def peer_expected_files(generator: str, names: list[str]) -> frozenset[str]:
             files.add(f"{stem}.rs")
             files.add(f"{stem}.__view.rs")
         return frozenset(files)
+    if generator == "v4":
+        return frozenset(
+            {"generated.rs", *(name.removesuffix(".proto") + ".u.pb.rs" for name in names)}
+        )
     raise BenchmarkError(f"no snapshot table for generator: {generator}")
+
+
+def v4_generation_command(
+    protoc: str, proto_dir: Path, generated: Path, names: list[str],
+) -> list[str]:
+    return [
+        protoc, f"--proto_path={proto_dir}",
+        f"--rust_out={generated}", f"--rust_opt={REFERENCE_RUST_OPT}", *names,
+    ]
+
+
+def resolve_pinned_protoc() -> Path:
+    candidate = ROOT / "target" / "pinned-protoc-build" / "protoc"
+    if not candidate.is_file() or not os.access(candidate, os.X_OK):
+        raise BenchmarkError(
+            "v4 generator needs the pinned protoc "
+            f"(missing {candidate}); run scripts/build-pinned-protoc.sh"
+        )
+    try:
+        version = subprocess.check_output(
+            [str(candidate), "--version"], text=True, timeout=30,
+        ).strip()
+    except subprocess.SubprocessError as exc:
+        raise BenchmarkError(f"pinned protoc --version failed: {exc}") from exc
+    digest = sha256(candidate)
+    if version != "libprotoc 35.1" or digest != REFERENCE_PROTOC_SHA256:
+        raise BenchmarkError(
+            "pinned protoc is not v35.1 "
+            f"(version={version!r} sha256={digest}); run scripts/build-pinned-protoc.sh"
+        )
+    return candidate
 
 
 class BenchmarkError(Exception):
@@ -189,6 +225,8 @@ def render_consumer_prost(messages: int, marker: int) -> str:
 
 
 def peer_manifest(package: str, generator: str) -> str:
+    if generator == "v4":
+        return manifest(package, reference=True)
     if generator == "prost":
         dependency = f'prost = "={PROST_VERSION}"'
     elif generator == "buffa":
@@ -248,6 +286,8 @@ def render_consumer_for(messages: int, marker: int, generator: str) -> str:
         return render_consumer_prost(messages, marker)
     if generator == "buffa":
         return render_consumer_buffa(messages, marker)
+    if generator == "v4":
+        return render_consumer(messages, marker, reference=True)
     raise BenchmarkError(f"no consumer renderer for generator: {generator}")
 
 
@@ -914,7 +954,7 @@ def measure_consumer_build(
 
 def measure_peer_cell(
     report: dict, case: str, names: list[str], corpus: dict, generator: str,
-    case_dir: Path, driver: Path, cargo: str, protoc: str,
+    case_dir: Path, generator_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
 ) -> None:
     messages = CORPORA[case][0]
@@ -941,9 +981,14 @@ def measure_peer_cell(
         ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
     )
     cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+    if generator == "v4":
+        cell["runtime_lock"] = reference_lock(consumer / "Cargo.lock")
     write_report(report, run_dir)
     proto_dir = case_dir / "consumer" / "proto"
-    generation = [str(driver), str(proto_dir), str(generated), *names]
+    if generator == "v4":
+        generation = v4_generation_command(str(generator_binary), proto_dir, generated, names)
+    else:
+        generation = [str(generator_binary), str(proto_dir), str(generated), *names]
     phase(
         report, cell["phases"], "generation", generation, ROOT, base_env,
         run_dir, timeout, sample_ms, logs / "generation",
@@ -1178,6 +1223,13 @@ def run_cases(
         write_report(report, run_dir)
     for peer in generators:
         if peer == "pbrs":
+            continue
+        if peer == "v4":
+            pinned = resolve_pinned_protoc()
+            report["setup"]["v4_protoc"] = str(pinned)
+            report["setup"]["v4_protoc_sha256"] = sha256(pinned)
+            write_report(report, run_dir)
+            peer_drivers[peer] = pinned
             continue
         peer_drivers[peer] = build_peer_driver(
             report, run_dir, peer, cargo, boot_env, boot_target, timeout, sample_ms,

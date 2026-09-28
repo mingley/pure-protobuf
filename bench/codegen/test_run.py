@@ -849,7 +849,7 @@ class PeerGeneratorTests(unittest.TestCase):
             harness.render_consumer_for(6, 0, "prost"), harness.render_consumer_prost(6, 0),
         )
         with self.assertRaisesRegex(harness.BenchmarkError, "no consumer renderer"):
-            harness.render_consumer_for(6, 0, "v4")
+            harness.render_consumer_for(6, 0, "capnp")
         dependency = harness.peer_manifest("sb09-prost-consumer-small", "prost")
         self.assertIn(f'prost = "={harness.PROST_VERSION}"', dependency)
         self.assertNotIn("pbrs", dependency)
@@ -865,6 +865,43 @@ class PeerGeneratorTests(unittest.TestCase):
         with self.assertRaisesRegex(harness.BenchmarkError, "unknown peer generator"):
             harness.peer_driver_manifest("v4")
 
+    def test_v4_reuses_reference_consumer_and_manifest(self):
+        self.assertEqual(
+            harness.render_consumer_for(6, 0, "v4"), harness.render_consumer(6, 0, reference=True),
+        )
+        self.assertEqual(
+            harness.peer_manifest("sb09-v4-consumer-small", "v4"),
+            harness.manifest("sb09-v4-consumer-small", reference=True),
+        )
+        self.assertEqual(harness.PEER_ENTRYPOINT["v4"], "generated.rs")
+        self.assertEqual(
+            harness.peer_expected_files("v4", ["part_00.proto", "part_01.proto"]),
+            frozenset({"generated.rs", "part_00.u.pb.rs", "part_01.u.pb.rs"}),
+        )
+        with self.assertRaisesRegex(harness.BenchmarkError, "no snapshot table"):
+            harness.peer_expected_files("capnp", ["part_00.proto"])
+        command = harness.v4_generation_command(
+            "/pinned/protoc", Path("/proto"), Path("/gen"), ["a.proto", "b.proto"],
+        )
+        self.assertEqual(command[0], "/pinned/protoc")
+        self.assertIn("--proto_path=/proto", command)
+        self.assertIn("--rust_out=/gen", command)
+        self.assertIn(f"--rust_opt={harness.REFERENCE_RUST_OPT}", command)
+        self.assertEqual(command[-2:], ["a.proto", "b.proto"])
+
+    def test_pinned_protoc_resolution_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(harness, "ROOT", root):
+                with self.assertRaisesRegex(harness.BenchmarkError, "build-pinned-protoc"):
+                    harness.resolve_pinned_protoc()
+            fake = root / "target" / "pinned-protoc-build" / "protoc"
+            harness.write_text(fake, "#!/bin/sh\necho libprotoc 9.9\n")
+            fake.chmod(0o755)
+            with mock.patch.object(harness, "ROOT", root):
+                with self.assertRaisesRegex(harness.BenchmarkError, "not v35.1"):
+                    harness.resolve_pinned_protoc()
+
     def test_peer_snapshot_table_covers_matrix_peers(self):
         self.assertEqual(harness.PEER_ENTRYPOINT["prost"], harness.PROST_PACKAGE_FILE)
         self.assertEqual(
@@ -879,8 +916,6 @@ class PeerGeneratorTests(unittest.TestCase):
                 "part_00.rs", "part_00.__view.rs", "part_01.rs", "part_01.__view.rs",
             }),
         )
-        with self.assertRaisesRegex(harness.BenchmarkError, "no snapshot table"):
-            harness.peer_expected_files("v4", ["part_00.proto"])
 
     def test_buffa_consumer_matches_pbrs_work(self):
         text = harness.render_consumer_buffa(6, 0)
@@ -1082,6 +1117,112 @@ class PeerGeneratorTests(unittest.TestCase):
                 ["part_00.proto", "part_01.proto"],
             )
             self.assertFalse((run_dir / "cases" / "small" / "consumer" / "Cargo.toml").exists())
+
+    def test_v4_pipeline_uses_pinned_protoc_and_validated_lock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "repo"
+            run_dir = Path(temporary) / "run"
+            run_dir.mkdir()
+            pinned = run_dir / "pinned-protoc"
+            pinned.write_text("test protoc")
+            report = {
+                "schema_version": "cg19/1", "status": "pending", "setup": {},
+                "cells": [], "generators": ["v4"],
+            }
+            environment = {
+                "tools": {
+                    "cargo": {"executable": "fake-cargo"},
+                    "rustc": {"executable": "fake-rustc"},
+                    "protoc": {"executable": str(pinned)},
+                },
+                "repository": {"source_sha256": {}},
+                "cache": {},
+            }
+            pinned_lock = (
+                'version = 3\n[[package]]\nname = "protobuf"\n'
+                f'version = "{harness.REFERENCE_RUNTIME_VERSION}"\n'
+                'source = "registry+https://github.com/rust-lang/crates.io-index"\n'
+                f'checksum = "{harness.REFERENCE_RUNTIME_CHECKSUM}"\n'
+                '[[package]]\nname = "protobuf-macros"\n'
+                f'version = "{harness.REFERENCE_RUNTIME_VERSION}"\n'
+                'source = "registry+https://github.com/rust-lang/crates.io-index"\n'
+                f'checksum = "{harness.REFERENCE_MACROS_CHECKSUM}"\n'
+            )
+
+            def fake_command(command, cwd, env, stem, root, timeout, sample_ms):
+                name = stem.name
+                stdout, stderr, paths = harness.log_paths(stem, root)
+                stdout.parent.mkdir(parents=True, exist_ok=True)
+                stdout.write_text("")
+                stderr.write_text("")
+                _case_dir = run_dir / "cases" / "small"
+                if name == "consumer-lock":
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    manifest.with_name("Cargo.lock").write_text(pinned_lock)
+                elif name == "generation":
+                    self.assertEqual(command[0], str(pinned))
+                    self.assertTrue(any(part.startswith("--rust_out=") for part in command))
+                    self.assertIn(f"--rust_opt={harness.REFERENCE_RUST_OPT}", command)
+                    output = _case_dir / "gen" / "v4" / "consumer" / "generated"
+                    harness.write_text(output / "generated.rs", "pub mod x {}\n")
+                    for proto in command[4:]:
+                        harness.write_text(
+                            output / proto.replace(".proto", ".u.pb.rs"), "pub struct M;\n",
+                        )
+                elif name == "check-clean":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    target.mkdir(parents=True)
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    source = manifest.parent / "src" / "main.rs"
+                    stat = source.stat()
+                    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 2_000_000_000))
+                elif name == "build-release":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    package = command[command.index("--bin") + 1]
+                    harness.write_text(target / "release" / package, "compiled")
+                elif name == "release-smoke":
+                    stdout.write_text("1\n")
+                if name in ("check-clean", "check-incremental", "build-release"):
+                    package = command[command.index("--bin") + 1]
+                    verb = "Compiling" if name == "build-release" else "Checking"
+                    stderr.write_text(f"{verb} {package} v0.0.0 (test)\n")
+                return {
+                    "command": command, "exit_code": 0, "elapsed_ns": 1234,
+                    "peak_rss_bytes": 4096, **paths,
+                }
+
+            def fake_plain(command, cwd, env, stem, root, timeout):
+                result = fake_command(command, cwd, env, stem, root, timeout, 100)
+                result.pop("elapsed_ns")
+                result.pop("peak_rss_bytes")
+                return {**result, "cwd": str(cwd), "timeout_seconds": timeout}
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_INCREMENTAL": "1"}
+            ), mock.patch.object(harness, "provenance", return_value=environment), mock.patch.object(
+                harness, "timed_command", side_effect=fake_command
+            ), mock.patch.object(
+                harness, "plain_command", side_effect=fake_plain
+            ), mock.patch.object(harness, "source_hashes", return_value={}), mock.patch.object(
+                harness, "resolve_pinned_protoc", return_value=pinned
+            ), mock.patch.object(
+                harness.time, "sleep", return_value=None
+            ):
+                harness.run_cases(
+                    report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100,
+                    generators=("v4",),
+                )
+            saved = json.loads((run_dir / "summary.json").read_text())
+            self.assertEqual(saved["generators"], ["v4"])
+            cell = saved["cells"][0]
+            self.assertEqual(cell["generator"], "v4")
+            self.assertEqual(cell["output"]["rust_file_count"], 3)
+            self.assertEqual(
+                cell["runtime_lock"]["packages"]["protobuf"]["checksum"],
+                harness.REFERENCE_RUNTIME_CHECKSUM,
+            )
+            self.assertTrue(cell["phases"]["release_smoke"]["output_verified"])
+            self.assertFalse((run_dir / "driver-v4").exists())
 
 
 if __name__ == "__main__":
