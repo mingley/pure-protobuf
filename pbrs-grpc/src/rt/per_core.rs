@@ -45,6 +45,10 @@ pub(crate) fn reuseport_listener(addr: SocketAddr) -> io::Result<TcpListener> {
 
 #[cfg(target_os = "linux")]
 mod imp {
+    #[allow(
+        unsafe_code,
+        reason = "raw sched_setaffinity; no safe API behind the crates in the graph"
+    )]
     pub(super) fn pin_current_thread_to(core: usize) -> bool {
         if core >= 8 * std::mem::size_of::<libc::cpu_set_t>() {
             return false;
