@@ -124,7 +124,7 @@ pub(crate) fn emit_public_uses(
             if let Some(extern_rust) = match_extern_type(&pkg) {
                 let _ = writeln!(src, "pub use {extern_rust}::*;");
             } else {
-                let pkg_path = format!("crate::{}", pkg.replace('.', "::"));
+                let pkg_path = pkg_mod_path(&pkg);
                 let _ = writeln!(src, "pub use {pkg_path}::*;");
             }
         } else {
@@ -190,7 +190,7 @@ pub(crate) fn rust_type_path(s: &str) -> String {
             return ident_last(key);
         }
         if !pkg.is_empty() {
-            let pkg_path = format!("crate::{}", pkg.replace('.', "::"));
+            let pkg_path = pkg_mod_path(&pkg);
             let rel = key
                 .strip_prefix(&pkg)
                 .unwrap_or(key)
@@ -639,6 +639,31 @@ pub(crate) fn rust_enum_values(enum_name: &str, listed: &[(i32, String)]) -> Vec
         }
     }
     out
+}
+
+/// Rust module name for one proto package segment. Keywords escape with
+/// `r#`; segments that cannot be raw identifiers (`crate`, `self`, ...)
+/// take a trailing underscore. Every package-module emission and every
+/// `crate::pkg::...` path must use this so definition and use agree.
+pub(crate) fn mod_ident(segment: &str) -> String {
+    if matches!(
+        segment,
+        "crate" | "self" | "Self" | "super" | "true" | "false" | "_"
+    ) {
+        format!("{segment}_")
+    } else if segment != "unknown" && is_rust_keyword(segment) {
+        format!("r#{segment}")
+    } else {
+        segment.to_string()
+    }
+}
+
+/// `pkg.segments` rendered as a `crate::`-rooted module path.
+pub(crate) fn pkg_mod_path(pkg: &str) -> String {
+    format!(
+        "crate::{}",
+        pkg.split('.').map(mod_ident).collect::<Vec<_>>().join("::")
+    )
 }
 
 pub(crate) fn to_snake(s: &str) -> String {

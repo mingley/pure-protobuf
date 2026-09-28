@@ -177,4 +177,14 @@ mod tests {
         assert!(src.contains("encode_len_field(out, 2,"), "{src}");
         assert!(!src.contains("encode_len_field_shared"), "{src}");
     }
+
+    #[test]
+    fn package_keyword_segments_escape_in_modules_and_paths() {
+        assert_eq!(mod_ident("type"), "r#type");
+        assert_eq!(mod_ident("match"), "r#match");
+        assert_eq!(mod_ident("v3"), "v3");
+        assert_eq!(mod_ident("self"), "self_");
+        assert_eq!(pkg_mod_path("envoy.type.v3"), "crate::envoy::r#type::v3");
+        assert_eq!(pkg_mod_path("bench.cg19"), "crate::bench::cg19");
+    }
 }
