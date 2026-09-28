@@ -6645,7 +6645,16 @@
     "upb-kernel"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "src/runtime.rs",
+    "src/runtime/",
+    "tests/upb_kernel.rs",
+    "tests/upb_kernel/",
+    "docs/evidence/mx04-split.md"
+   ],
+   "note": "Mechanical 2523-line -> 9-module split, 69-line hub, all 51 public paths unchanged (temp probe passed before/after, then deleted). 3 unit tests moved with their code. upb_kernel target 16/16; shared-out 19 crates / 233 pass; person green; fmt + clippy clean, zero warnings."
   },
   {
    "id": "MX-05",
