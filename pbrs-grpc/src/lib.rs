@@ -1070,6 +1070,8 @@ extern crate self as pbrs_grpc;
 #[forbid(unsafe_code)]
 pub mod codec;
 #[forbid(unsafe_code)]
+pub mod compat;
+#[forbid(unsafe_code)]
 pub mod compression;
 #[forbid(unsafe_code)]
 pub mod copy_counts;

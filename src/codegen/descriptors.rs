@@ -534,7 +534,15 @@ use pbrs::UnknownFields;\n\n"
                     emit_kernel_service(&mut src, svc);
                 }
             }
-            Stubs::Tonic | Stubs::Kernel => {}
+            Stubs::TonicCompat
+                if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
+            {
+                src.push_str("\n// --- gRPC stubs (tonic-shaped pbrs-grpc compat) ---\n");
+                for svc in &services {
+                    emit_compat_service(&mut src, svc);
+                }
+            }
+            Stubs::Tonic | Stubs::Kernel | Stubs::TonicCompat => {}
         }
         src.push_str(&format!(
             "}}\n#[allow(unused_imports, reason = \"generated re-exports may not all be used\")]\npub use {gen_mod}::*;\n"

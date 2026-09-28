@@ -72,6 +72,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 This generates `#[tonic::async_trait]` service stubs. They use `pbrs` message
 types through `protobuf-tonic::ProtobufCodec` instead of `prost::Message`.
 
+### Tonic-shaped API over the native transport
+
+If you want Tonic-shaped handlers but not Tonic's transport stack, generate the
+compat mode instead:
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pbrs::codegen::Config::new()
+        .tonic_compat(true)
+        .compile_protos(&["proto/service.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+The generated client/server names stay familiar, but they run on
+`pbrs-grpc::Channel`, `Server`, and `Router`. The mode uses
+`pbrs_grpc::compat::{Request, Response, Status, Streaming}` and accepts
+`impl IntoRequest<T>` / `impl IntoStreamingRequest<T>` on client methods.
+
+Mechanical rewrite table:
+
+| Tonic code | Native compat rewrite |
+|---|---|
+| `use tonic::{Request, Response, Status};` | `use pbrs_grpc::compat::{Request, Response, Status};` |
+| `tonic::Streaming<T>` | `pbrs_grpc::compat::Streaming<T>` |
+| `tonic::transport::Server::builder().add_service(FooServer::new(svc)).serve(addr)` | `FooServer::new(svc).serve(addr)` or mount on `pbrs_grpc::Server` / `Router` |
+| `FooClient::connect("http://host:port").await?` | `FooClient::connect("host:port").await?` |
+| `client.unary(Request::new(msg)).await?` | unchanged, with compat `Request` |
+| `client.client_stream(tokio_stream::iter(items)).await?` | `client.client_stream(pbrs_grpc::compat::iter(items)).await?` or pass any `futures_core::Stream<Item = T> + Send + 'static` |
+| `Response::new(stream)` where `stream: Stream<Item = Result<T, Status>>` | unchanged; generated server stubs convert that stream to native `Streaming<T>` |
+
 ---
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)

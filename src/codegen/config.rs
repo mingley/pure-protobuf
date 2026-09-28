@@ -333,6 +333,10 @@ pub enum Stubs {
     /// `tonic` 0.14 stubs over `protobuf_tonic::ProtobufCodec`.
     /// Select with [`Config::emit_tonic_stubs`].
     Tonic,
+    /// Tonic-shaped API over the native `pbrs-grpc` transport.
+    ///
+    /// Select with [`Config::tonic_compat`].
+    TonicCompat,
     /// Native `pbrs-grpc` stubs. The default. Requires the generating crate
     /// to depend on `pbrs-grpc`. `FooClient` dials with `connect` /
     /// `connect_tls` / `connect_unix` / `from_io`; `FooServer` serves with
@@ -433,18 +437,19 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                     Some("kernel") => Stubs::Kernel,
                     Some("tonic") => Stubs::Tonic,
                     Some("none") => Stubs::None,
+                    Some("compat" | "tonic_compat" | "tonic-compat") => Stubs::TonicCompat,
                     Some(other) => {
                         return Err(CodegenError::InvalidParameter {
                             key: "stubs".to_string(),
                             detail: format!(
-                                "expected 'kernel', 'tonic', or 'none' for 'stubs', got '{other}'"
+                                "expected 'kernel', 'tonic', 'compat', or 'none' for 'stubs', got '{other}'"
                             ),
                         });
                     }
                     None => {
                         return Err(CodegenError::InvalidParameter {
                             key: "stubs".to_string(),
-                            detail: "expected value for 'stubs' parameter ('kernel', 'tonic', or 'none')"
+                            detail: "expected value for 'stubs' parameter ('kernel', 'tonic', 'compat', or 'none')"
                                 .to_string(),
                         });
                     }
@@ -700,6 +705,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
             Ok("kernel") => Stubs::Kernel,
             Ok("tonic") => Stubs::Tonic,
+            Ok("compat" | "tonic_compat" | "tonic-compat") => Stubs::TonicCompat,
             Ok("none") => Stubs::None,
             _ => Stubs::Kernel,
         }
@@ -1053,6 +1059,16 @@ impl Config {
         self
     }
 
+    /// Emit tonic-shaped service stubs over the native `pbrs-grpc` transport.
+    pub fn tonic_compat(&mut self, enable: bool) -> &mut Self {
+        self.stubs = Some(if enable {
+            Stubs::TonicCompat
+        } else {
+            Stubs::Kernel
+        });
+        self
+    }
+
     /// Emit native `pbrs-grpc` `FooClient`/`FooServer` stubs.
     ///
     /// This is the default for [`Config::new`] / [`compile_protos`]. Pass
@@ -1317,6 +1333,7 @@ impl Config {
             match stubs {
                 Stubs::Kernel => opts.push("stubs=kernel".to_string()),
                 Stubs::Tonic => opts.push("stubs=tonic".to_string()),
+                Stubs::TonicCompat => opts.push("stubs=compat".to_string()),
                 Stubs::None => opts.push("stubs=none".to_string()),
             }
         }
