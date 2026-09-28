@@ -24,6 +24,7 @@
 //! ```
 
 use crate::Status;
+use crate::rt::{Runtime, TokioRuntime};
 use std::time::Duration;
 
 /// Largest value the eight-digit field can hold.
@@ -123,7 +124,7 @@ pub fn parse_timeout(s: &str) -> Option<Duration> {
 /// Turn an optional duration timeout into an absolute deadline Instant from `now`.
 #[must_use]
 pub fn deadline_from(timeout: Option<Duration>) -> Option<tokio::time::Instant> {
-    timeout.map(|d| tokio::time::Instant::now() + d)
+    timeout.map(|d| TokioRuntime::now() + d)
 }
 
 /// Compute the remaining duration until an absolute `tokio::time::Instant` deadline.
@@ -138,7 +139,7 @@ pub fn remaining_timeout(
     match deadline {
         None => Ok(None),
         Some(at) => {
-            let remaining = at.saturating_duration_since(tokio::time::Instant::now());
+            let remaining = at.saturating_duration_since(TokioRuntime::now());
             if remaining.is_zero() {
                 Err(Status::deadline_exceeded())
             } else {

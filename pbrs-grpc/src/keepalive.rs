@@ -11,6 +11,7 @@
 //! [`crate::ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`); it does
 //! not turn `SO_KEEPALIVE` on by itself either.
 
+use crate::rt::{Interval as _, Runtime, TokioRuntime};
 use crate::transport::{PingPong, h2 as backend};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -23,17 +24,25 @@ pub(crate) fn spawn(
     interval: Option<Duration>,
     timeout: Duration,
 ) -> Option<watch::Receiver<bool>> {
+    spawn_in::<TokioRuntime>(ping_pong, interval, timeout)
+}
+
+/// [`spawn`] on runtime `R`; production callers use Tokio.
+pub(crate) fn spawn_in<R: Runtime>(
+    ping_pong: Option<backend::PingPong>,
+    interval: Option<Duration>,
+    timeout: Duration,
+) -> Option<watch::Receiver<bool>> {
     let interval = interval?;
     let mut ping_pong = ping_pong?;
     let (tx, rx) = watch::channel(false);
-    drop(tokio::spawn(async move {
-        let mut ticker = tokio::time::interval(interval);
-        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    drop(R::spawn(async move {
+        let mut ticker = R::interval(interval);
         // The first tick is immediate; skip it so we do not PING on connect.
         ticker.tick().await;
         loop {
             ticker.tick().await;
-            match tokio::time::timeout(timeout, ping_pong.ping(backend::Ping::opaque())).await {
+            match R::timeout(timeout, ping_pong.ping(backend::Ping::opaque())).await {
                 Ok(Ok(_)) => {}
                 Ok(Err(_)) | Err(_) => {
                     tx.send(true).ok();

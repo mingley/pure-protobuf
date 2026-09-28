@@ -4249,7 +4249,12 @@
     "devloop-compare"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/rx01-runtime.md"
+   ],
+   "note": "Runtime seam in rt/ (Runtime/Interval/Io traits, TokioRuntime direct, ManualRuntime test double); call.rs/connection.rs/keepalive.rs/timeout.rs rerouted via same-name wrappers. Gates: lib 395, rpc 11, gaps 6, hostile 37, tls 20, telemetry 25, binlog 32, health 180, resolver 30, doctests 171, self-interop PASS, devloop-compare exit 0, clippy -D warnings clean."
   },
   {
    "id": "RX-02",

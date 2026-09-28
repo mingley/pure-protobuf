@@ -2,6 +2,7 @@
 
 use super::pool::LiveConn;
 use crate::request::{Request, Response};
+use crate::rt::{Runtime, TokioRuntime};
 use crate::status::{Code, Status, TransportEvidence};
 use crate::timeout::remaining_timeout;
 use crate::transport::{
@@ -82,15 +83,26 @@ pub(crate) async fn prefer_peer_rejection_after_send<T>(
     Err(send_error)
 }
 
-pub(crate) async fn send_request_frame(
+pub(crate) fn send_request_frame(
+    send: &mut backend::SendStream,
+    frame: SegFrame,
+    send_buffer: usize,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+) -> impl std::future::Future<Output = Result<(), Status>> {
+    send_request_frame_in::<TokioRuntime>(send, frame, send_buffer, cancel_rx, deadline)
+}
+
+/// [`send_request_frame`] on runtime `R`; production callers use Tokio.
+pub(crate) async fn send_request_frame_in<R: Runtime>(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<(), Status> {
-    let result = prefer_deadline(
-        first_of(
+    let result = prefer_deadline_in::<R, _>(
+        first_of_in::<R, _>(
             send_frame(send, frame, true, send_buffer),
             cancel_rx,
             deadline,
@@ -111,7 +123,41 @@ pub(crate) async fn send_request_frame(
     clippy::too_many_arguments,
     reason = "one HTTP/2 stream open plus headers, timeout, encoding, and scheme"
 )]
-pub(crate) async fn open(
+pub(crate) fn open(
+    send_req: backend::SendRequest,
+    authority: &Authority,
+    path: &'static str,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    cancel_rx: watch::Receiver<bool>,
+    send_codec: Option<crate::compression::Codec>,
+    accept_gzip: bool,
+    user_agent: &HeaderValue,
+    https: bool,
+) -> impl std::future::Future<Output = Result<(backend::ResponseFuture, backend::SendStream), Status>>
+{
+    open_in::<TokioRuntime>(
+        send_req,
+        authority,
+        path,
+        md,
+        timeout,
+        deadline,
+        cancel_rx,
+        send_codec,
+        accept_gzip,
+        user_agent,
+        https,
+    )
+}
+
+/// [`open`] on runtime `R`; production callers use Tokio.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one HTTP/2 stream open plus headers, timeout, encoding, and scheme"
+)]
+pub(crate) async fn open_in<R: Runtime>(
     send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
@@ -127,8 +173,8 @@ pub(crate) async fn open(
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
-    let mut send_req = prefer_deadline(
-        first_of(
+    let mut send_req = prefer_deadline_in::<R, _>(
+        first_of_in::<R, _>(
             async { send_req.ready().await.map_err(Status::from_h2_pre_headers) },
             cancel_rx,
             deadline,
@@ -174,13 +220,20 @@ pub(crate) fn prefer_deadline<T>(
     result: Result<T, Status>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<T, Status> {
+    prefer_deadline_in::<TokioRuntime, T>(result, deadline)
+}
+
+/// [`prefer_deadline`] on runtime `R`; production callers use Tokio.
+pub(crate) fn prefer_deadline_in<R: Runtime, T>(
+    result: Result<T, Status>,
+    deadline: Option<tokio::time::Instant>,
+) -> Result<T, Status> {
     let Some(at) = deadline else {
         return result;
     };
     match &result {
         Err(status)
-            if matches!(status.code(), Code::Unavailable | Code::Cancelled)
-                && tokio::time::Instant::now() >= at =>
+            if matches!(status.code(), Code::Unavailable | Code::Cancelled) && R::now() >= at =>
         {
             Err(Status::deadline_exceeded())
         }
@@ -188,8 +241,16 @@ pub(crate) fn prefer_deadline<T>(
     }
 }
 
-/// Race a setup or RPC future against its deadline and cancel signal.
-pub(crate) async fn first_of<T>(
+pub(crate) fn first_of<T>(
+    fut: impl std::future::Future<Output = Result<T, Status>>,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+) -> impl std::future::Future<Output = Result<T, Status>> {
+    first_of_in::<TokioRuntime, T>(fut, cancel_rx, deadline)
+}
+
+/// [`first_of`] on runtime `R`; production callers use Tokio.
+pub(crate) async fn first_of_in<R: Runtime, T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     mut cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
@@ -198,7 +259,7 @@ pub(crate) async fn first_of<T>(
         tokio::select! {
             biased;
             _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
-            _ = tokio::time::sleep_until(at) => Err(Status::deadline_exceeded()),
+            _ = R::sleep_until(at) => Err(Status::deadline_exceeded()),
             r = fut => r,
         }
     } else {
@@ -210,13 +271,23 @@ pub(crate) async fn first_of<T>(
     }
 }
 
-pub(crate) async fn race<T>(
+pub(crate) fn race<T>(
+    fut: impl std::future::Future<Output = Result<T, Status>>,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+    send: Option<&mut backend::SendStream>,
+) -> impl std::future::Future<Output = Result<T, Status>> {
+    race_in::<TokioRuntime, T>(fut, cancel_rx, deadline, send)
+}
+
+/// [`race`] on runtime `R`; production callers use Tokio.
+pub(crate) async fn race_in<R: Runtime, T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
     send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status> {
-    let result = first_of(fut, cancel_rx, deadline).await;
+    let result = first_of_in::<R, _>(fut, cancel_rx, deadline).await;
     if let Some(send) = send {
         if matches!(
             &result,
@@ -225,7 +296,7 @@ pub(crate) async fn race<T>(
             send.send_reset(Reason::CANCEL);
         }
     }
-    prefer_deadline(result, deadline)
+    prefer_deadline_in::<R, _>(result, deadline)
 }
 
 /// HEADERS sent; request DATA has not started. Transparent retry stops here.
@@ -240,8 +311,10 @@ pub(crate) struct Opened {
 
 #[cfg(test)]
 mod tests {
-    use super::prefer_peer_rejection_after_send;
-    use crate::status::{Status, TransportEvidence};
+    use super::{first_of_in, prefer_deadline_in, prefer_peer_rejection_after_send};
+    use crate::rt::manual::{ManualGuard, ManualRuntime};
+    use crate::rt::{Runtime, TokioRuntime};
+    use crate::status::{Code, Status, TransportEvidence};
     use crate::transport::h2 as backend;
     use crate::transport::{
         ClientBuilder, Reason, SendRequest, SendResponse, ServerBuilder, ServerConnection,
@@ -300,6 +373,42 @@ mod tests {
             status.transport_evidence(),
             Some(TransportEvidence::RefusedStream)
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn manual_runtime_drives_deadlines_without_wall_waits() {
+        let now = TokioRuntime::now();
+        let _guard = ManualGuard::install(now);
+        // An already-expired deadline resolves on first poll, off the manual
+        // clock rather than a wall wait.
+        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let expired =
+            first_of_in::<ManualRuntime, ()>(std::future::pending(), cancel_rx, Some(now)).await;
+        assert_eq!(expired.unwrap_err().code(), Code::DeadlineExceeded);
+        // The rewrite reads the manual clock too.
+        let rewritten =
+            prefer_deadline_in::<ManualRuntime, ()>(Err(Status::unavailable("raced")), Some(now));
+        assert_eq!(rewritten.unwrap_err().code(), Code::DeadlineExceeded);
+        // A future deadline parks until the manual clock advances.
+        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let (done_tx, mut done_rx) = tokio::sync::oneshot::channel();
+        ManualRuntime::spawn(async move {
+            let outcome = first_of_in::<ManualRuntime, ()>(
+                std::future::pending(),
+                cancel_rx,
+                Some(now + Duration::from_secs(10)),
+            )
+            .await;
+            done_tx.send(outcome).ok();
+        });
+        tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
+        done_rx
+            .try_recv()
+            .expect_err("deadline race must not finish before the clock moves");
+        ManualRuntime::advance(Duration::from_secs(10));
+        let outcome = done_rx.await.expect("deadline race must finish");
+        assert_eq!(outcome.unwrap_err().code(), Code::DeadlineExceeded);
     }
 }
 impl super::Channel {
@@ -378,7 +487,18 @@ impl super::Channel {
     /// is dead. Raced against the RPC's deadline and cancel signal so a
     /// hanging reconnect cannot outlive the call. `wait_for_ready` retries
     /// a failed handshake until that race fires.
-    pub(crate) async fn grab(
+    pub(crate) fn grab(
+        &self,
+        cancel_rx: watch::Receiver<bool>,
+        deadline: Option<tokio::time::Instant>,
+        wait_for_ready: bool,
+        md: Option<&crate::metadata::Metadata>,
+    ) -> impl std::future::Future<Output = Result<LiveConn, Status>> {
+        self.grab_in::<TokioRuntime>(cancel_rx, deadline, wait_for_ready, md)
+    }
+
+    /// [`grab`](Self::grab) on runtime `R`; production callers use Tokio.
+    pub(crate) async fn grab_in<R: Runtime>(
         &self,
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
@@ -390,8 +510,8 @@ impl super::Channel {
         let obs = self.observer.clone();
         let health = self.health_directive();
         let hash = md.and_then(|md| self.ring_request_hash(md));
-        let grabbed = prefer_deadline(
-            first_of(
+        let grabbed = prefer_deadline_in::<R, _>(
+            first_of_in::<R, _>(
                 inner.acquire(wait_for_ready, obs.as_deref(), health, hash),
                 cancel_rx,
                 deadline,
@@ -411,7 +531,29 @@ impl super::Channel {
         clippy::too_many_arguments,
         reason = "path, headers, timeout, encoding, and the grab race"
     )]
-    pub(crate) async fn open_retrying(
+    pub(crate) fn open_retrying(
+        &self,
+        cancel_rx: watch::Receiver<bool>,
+        timeout: Option<Duration>,
+        deadline: Option<tokio::time::Instant>,
+        wait: bool,
+        path: &'static str,
+        md: &crate::metadata::Metadata,
+        compress: bool,
+        user_agent: &http::HeaderValue,
+    ) -> impl std::future::Future<Output = Result<Opened, Status>> {
+        self.open_retrying_in::<TokioRuntime>(
+            cancel_rx, timeout, deadline, wait, path, md, compress, user_agent,
+        )
+    }
+
+    /// [`open_retrying`](Self::open_retrying) on runtime `R`; production
+    /// callers use Tokio.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "path, headers, timeout, encoding, and the grab race"
+    )]
+    pub(crate) async fn open_retrying_in<R: Runtime>(
         &self,
         cancel_rx: watch::Receiver<bool>,
         timeout: Option<Duration>,
@@ -426,7 +568,7 @@ impl super::Channel {
         loop {
             let _ = remaining_timeout(deadline)?;
             let live = self
-                .grab(cancel_rx.clone(), deadline, wait, Some(md))
+                .grab_in::<R>(cancel_rx.clone(), deadline, wait, Some(md))
                 .await?;
             let (slot, r#gen, lease, driver, rr_addr, channelz_socket) = (
                 live.slot,
@@ -436,7 +578,7 @@ impl super::Channel {
                 live.rr_addr,
                 live.channelz_socket,
             );
-            match open(
+            match open_in::<R>(
                 live.send,
                 &self.authority,
                 path,

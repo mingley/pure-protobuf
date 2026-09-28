@@ -1098,6 +1098,8 @@ mod request;
 #[forbid(unsafe_code)]
 pub mod resolver;
 #[forbid(unsafe_code)]
+mod rt;
+#[forbid(unsafe_code)]
 mod server;
 #[forbid(unsafe_code)]
 pub mod service_config;

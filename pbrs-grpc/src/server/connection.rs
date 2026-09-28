@@ -11,6 +11,7 @@ use super::rpc::Rpc;
 use crate::config::ServerConfig;
 use crate::limits::ByteBudgetTracker;
 use crate::metadata::Metadata;
+use crate::rt::{Runtime, TokioRuntime};
 use crate::status::{Code, Status};
 use crate::telemetry::{CallLabels, CallRole, LifecycleObserver, RejectionEvent, RejectionReason};
 use crate::tls::PeerIdentity;
@@ -23,7 +24,21 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{Semaphore, watch};
 
-pub(crate) async fn serve_one<D, IO>(
+pub(crate) fn serve_one<D, IO>(
+    dispatch: Arc<D>,
+    io: IO,
+    peer: Option<SocketAddr>,
+    config: ServerConfig,
+) -> impl std::future::Future<Output = Result<(), Status>>
+where
+    D: Dispatch,
+    IO: crate::rt::Io,
+{
+    serve_one_in::<TokioRuntime, D, IO>(dispatch, io, peer, config)
+}
+
+/// [`serve_one`] on runtime `R`; production callers use Tokio.
+pub(crate) async fn serve_one_in<R: Runtime, D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: Option<SocketAddr>,
@@ -31,10 +46,10 @@ pub(crate) async fn serve_one<D, IO>(
 ) -> Result<(), Status>
 where
     D: Dispatch,
-    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    IO: crate::rt::Io,
 {
     let (goaway_tx, goaway_rx) = watch::channel(false);
-    let result = serve_io(
+    let result = serve_io_in::<R, _, _>(
         dispatch,
         io,
         ConnectionInfo::from_accept(peer),
@@ -257,7 +272,23 @@ fn note_rejected_call(
     }
 }
 
-pub(crate) async fn serve_io<D, IO>(
+pub(crate) fn serve_io<D, IO>(
+    dispatch: Arc<D>,
+    io: IO,
+    peer: ConnectionInfo,
+    config: ServerConfig,
+    goaway: watch::Receiver<bool>,
+    rpc_slots: Option<Arc<Semaphore>>,
+) -> impl std::future::Future<Output = Result<(), Status>>
+where
+    D: Dispatch,
+    IO: crate::rt::Io,
+{
+    serve_io_in::<TokioRuntime, D, IO>(dispatch, io, peer, config, goaway, rpc_slots)
+}
+
+/// [`serve_io`] on runtime `R`; production callers use Tokio.
+pub(crate) async fn serve_io_in<R: Runtime, D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: ConnectionInfo,
@@ -267,9 +298,9 @@ pub(crate) async fn serve_io<D, IO>(
 ) -> Result<(), Status>
 where
     D: Dispatch,
-    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    IO: crate::rt::Io,
 {
-    let handshake = tokio::time::timeout(
+    let handshake = R::timeout(
         config.io_handshake_timeout(),
         config.h2_builder().handshake(io),
     );
@@ -311,8 +342,8 @@ where
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
     let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer.remote)));
-    let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
-    let born = tokio::time::Instant::now();
+    let dead = crate::keepalive::spawn_in::<R>(conn.ping_pong(), interval, timeout);
+    let born = R::now();
     let busy = crate::keepalive::Busy::new();
     let mut last_idle = born;
     let mut occupied = false;
@@ -322,7 +353,7 @@ where
         let in_flight = busy.count();
         if in_flight == 0 {
             if occupied {
-                last_idle = tokio::time::Instant::now();
+                last_idle = R::now();
                 occupied = false;
             }
         } else {
@@ -398,7 +429,7 @@ where
                     .map(|_| std::time::Instant::now());
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
-                drop(tokio::spawn(async move {
+                drop(R::spawn(async move {
                     let _lease = lease;
                     let _permit = permit;
                     if let (Some(obs), Some(queued_at)) = (dispatch.observer(), queued_at) {
@@ -422,20 +453,20 @@ where
             _ = busy.notified() => {}
             _ = wait_for_drain(goaway.clone()), if !draining => {
                 draining = true;
-                force_close = Some(tokio::time::Instant::now() + grace);
+                force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt(age_at), if !draining => {
+            _ = sleep_until_opt::<R>(age_at), if !draining => {
                 draining = true;
-                force_close = Some(tokio::time::Instant::now() + grace);
+                force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt(idle_at), if !draining => {
+            _ = sleep_until_opt::<R>(idle_at), if !draining => {
                 draining = true;
-                force_close = Some(tokio::time::Instant::now() + grace);
+                force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt(force_close) => {
+            _ = sleep_until_opt::<R>(force_close) => {
                 break;
             }
             _ = crate::keepalive::wait_opt(dead.clone()) => {
@@ -446,9 +477,10 @@ where
     Ok(())
 }
 
-pub(crate) async fn sleep_until_opt(at: Option<tokio::time::Instant>) {
+/// Sleep until `at` on runtime `R`, or pend forever when there is none.
+pub(crate) async fn sleep_until_opt<R: Runtime>(at: Option<tokio::time::Instant>) {
     match at {
-        Some(at) => tokio::time::sleep_until(at).await,
+        Some(at) => R::sleep_until(at).await,
         None => std::future::pending().await,
     }
 }
