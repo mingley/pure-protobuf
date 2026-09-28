@@ -18,9 +18,9 @@ mod common;
 use common::{Echo, ServerGuard, reserve_loopback};
 use pbrs_grpc::hello::{FILE_DESCRIPTOR_SET, GreeterServer};
 use pbrs_grpc::reflection::{
-    ExtensionRequest, ListServiceResponse, ServerReflection, ServerReflectionClient,
+    ExtensionRequest, ListServiceResponse, Reflection, ServerReflection, ServerReflectionClient,
     ServerReflectionRequest, ServerReflectionResponse, ServerReflectionServer, ServiceResponse,
-    service,
+    V1AlphaServerReflectionServer, service, v1alpha_service,
 };
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
@@ -47,6 +47,7 @@ async fn serve() -> (SocketAddr, ServerGuard) {
     let handle = tokio::spawn(async move {
         Router::new()
             .add_service(reflection)
+            .add_service(v1alpha_service([FILE_DESCRIPTOR_SET]).expect("v1alpha reflection"))
             .add_service(GreeterServer::new(Echo))
             .serve_listener(listener)
             .await
@@ -635,15 +636,15 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
-            "A [`crate::Router`] also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo`\n//! as a path alias of v1, so older grpcurl that falls back to v1alpha still lists.\n//! That is not a second proto and not a second [`ServerReflectionServer`]."
+            "[`Builder::build_v1alpha`] and [`v1alpha_service`] mount\n//! `grpc.reflection.v1alpha.ServerReflection` as a distinct service, using the\n//! same wire-compatible message layout as v1."
         ),
-        "reflection crate rustdoc must Distinct v1alpha path alias from a second proto"
+        "reflection crate rustdoc must name first-class v1alpha service"
     );
     assert!(
         src.contains(
-            "[`crate::Server::new`] already answers that path because it does not look up\n//! [`crate::Service::NAME`]. An interceptor sees [`crate::Rpc::service`] as the\n//! path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names,\n//! not the v1alpha alias."
+            "Mount v1 first and then v1alpha\n//! so the explicit v1alpha service replaces the legacy generated v1 alias in\n//! [`crate::Router`]. `list_services` still reports registered descriptor\n//! services, not either reflection service."
         ),
-        "reflection crate rustdoc must Distinct Server::new v1alpha dispatch from list_services FILE_DESCRIPTOR_SET names"
+        "reflection crate rustdoc must explain v1alpha mount order and list_services"
     );
 }
 
@@ -665,10 +666,11 @@ async fn ask_path(
 }
 
 #[test]
-fn router_mounts_reflection_v1alpha_as_a_path_alias() {
+fn router_mounts_reflection_v1alpha_as_a_first_class_service() {
     let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
     let router = Router::new()
         .add_service(reflection)
+        .add_service(v1alpha_service([FILE_DESCRIPTOR_SET]).expect("v1alpha reflection"))
         .add_service(GreeterServer::new(Echo));
     let mut names: Vec<&str> = router.service_names().collect();
     names.sort_unstable();
@@ -683,11 +685,22 @@ fn router_mounts_reflection_v1alpha_as_a_path_alias() {
 }
 
 #[test]
-fn intercepted_reflection_keeps_the_v1alpha_alias() {
+fn v1alpha_reflection_service_is_not_itself_an_alias() {
+    assert_eq!(
+        <V1AlphaServerReflectionServer<Reflection> as pbrs_grpc::Service>::NAME,
+        "grpc.reflection.v1alpha.ServerReflection"
+    );
+    assert!(<V1AlphaServerReflectionServer<Reflection> as pbrs_grpc::Service>::ALIASES.is_empty());
+}
+
+#[test]
+fn intercepted_reflection_can_be_paired_with_first_class_v1alpha() {
     let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
     let wrapped =
         pbrs_grpc::Intercepted::new(reflection, |_: &mut pbrs_grpc::Rpc| Ok::<(), Status>(()));
-    let router = Router::new().add_service(wrapped);
+    let router = Router::new()
+        .add_service(wrapped)
+        .add_service(v1alpha_service([FILE_DESCRIPTOR_SET]).expect("v1alpha reflection"));
     let mut names: Vec<&str> = router.service_names().collect();
     names.sort_unstable();
     assert_eq!(
@@ -737,7 +750,7 @@ async fn v1alpha_path_lists_the_registered_greeter() {
     );
     assert!(
         !names.iter().any(|n| n.contains("ServerReflection")),
-        "v1alpha is a path alias, not a FILE_DESCRIPTOR_SET name: {names:?}"
+        "v1alpha is a reflection service, not a FILE_DESCRIPTOR_SET name: {names:?}"
     );
 }
 

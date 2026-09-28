@@ -2,13 +2,12 @@
 //!
 //! Register each service's generated `FILE_DESCRIPTOR_SET`, mount the result
 //! next to your handlers, and `grpcurl` can list and describe them.
-//! A [`crate::Router`] also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo`
-//! as a path alias of v1, so older grpcurl that falls back to v1alpha still lists.
-//! That is not a second proto and not a second [`ServerReflectionServer`].
-//! [`crate::Server::new`] already answers that path because it does not look up
-//! [`crate::Service::NAME`]. An interceptor sees [`crate::Rpc::service`] as the
-//! path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names,
-//! not the v1alpha alias.
+//! [`Builder::build_v1alpha`] and [`v1alpha_service`] mount
+//! `grpc.reflection.v1alpha.ServerReflection` as a distinct service, using the
+//! same wire-compatible message layout as v1. Mount v1 first and then v1alpha
+//! so the explicit v1alpha service replaces the legacy generated v1 alias in
+//! [`crate::Router`]. `list_services` still reports registered descriptor
+//! services, not either reflection service.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
@@ -177,6 +176,45 @@ impl Builder {
         Ok(ServerReflectionServer::new(Reflection::from_sets(
             &self.sets,
         )?))
+    }
+
+    /// Finish as the legacy `grpc.reflection.v1alpha.ServerReflection`
+    /// service.
+    ///
+    /// The v1alpha protocol uses the same field numbers as v1, so the handler
+    /// is shared and remains wire-compatible with v1alpha clients.
+    pub fn build_v1alpha(self) -> Result<V1AlphaServerReflectionServer<Reflection>, Status> {
+        Ok(V1AlphaServerReflectionServer::new(Reflection::from_sets(
+            &self.sets,
+        )?))
+    }
+}
+
+/// First-class `grpc.reflection.v1alpha.ServerReflection` service.
+///
+/// This wrapper deliberately has no [`crate::Service::ALIASES`]. It forwards to
+/// the same handler as v1 because the v1alpha and v1 reflection messages are
+/// wire-compatible.
+#[derive(Clone)]
+pub struct V1AlphaServerReflectionServer<T: ServerReflection> {
+    inner: ServerReflectionServer<T>,
+}
+
+impl<T: ServerReflection> V1AlphaServerReflectionServer<T> {
+    /// Wrap a reflection handler as `grpc.reflection.v1alpha.ServerReflection`.
+    #[must_use]
+    pub fn new(inner: T) -> Self {
+        Self {
+            inner: ServerReflectionServer::new(inner),
+        }
+    }
+}
+
+impl<T: ServerReflection> crate::Service for V1AlphaServerReflectionServer<T> {
+    const NAME: &'static str = "grpc.reflection.v1alpha.ServerReflection";
+
+    fn call(&self, rpc: crate::Rpc) -> impl std::future::Future<Output = ()> + Send {
+        self.inner.call(rpc)
     }
 }
 
@@ -440,6 +478,20 @@ pub fn service(
         builder = builder.register_encoded_file_descriptor_set(set);
     }
     builder.build()
+}
+
+/// The v1alpha reflection service from `sets`, ready to mount on a [`crate::Router`].
+///
+/// Mount it after [`service`] when both versions should be available:
+/// `Router::new().add_service(service(..)?).add_service(v1alpha_service(..)?)`.
+pub fn v1alpha_service(
+    sets: impl IntoIterator<Item = impl AsRef<[u8]>>,
+) -> Result<V1AlphaServerReflectionServer<Reflection>, Status> {
+    let mut builder = Builder::new();
+    for set in sets {
+        builder = builder.register_encoded_file_descriptor_set(set);
+    }
+    builder.build_v1alpha()
 }
 
 fn error(code: Code, message: impl Into<String>) -> ErrorResponse {
