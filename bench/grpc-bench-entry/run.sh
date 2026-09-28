@@ -154,10 +154,10 @@ run_cell() { # $1 entry, $2 cpus, $3 rep
   else
     grep "Requests/sec" "$RESULTS_DIR/${name}.report" | sed -E 's/^ +/    /' || echo "    (no Requests/sec line)"
   fi
+  docker container stop "$entry" >/dev/null 2>&1 || true
   kill -INT "$stats_pid" 2>/dev/null || true
   wait "$stats_pid" 2>/dev/null || true
   mv -f "$RESULTS_DIR/$entry.stats" "$RESULTS_DIR/${name}.stats" 2>/dev/null || true
-  docker container stop "$entry" >/dev/null 2>&1 || true
   return 0
 }
 
