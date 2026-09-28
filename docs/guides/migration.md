@@ -1,12 +1,16 @@
 # Migrating to pure-protobuf
 
-This guide explains how to migrate existing Rust Protocol Buffers and gRPC applications to `pure-protobuf`, comparing trait models, code generators, and runtime expectations.
+Use this guide when moving an existing Rust Protocol Buffers or gRPC codebase
+to `pure-protobuf`. You should know whether your current stack uses `prost`,
+Tonic, or Google's `protobuf` 4.x crate. Bottom line: the main migration work
+is switching message traits and choosing the right generated service stubs.
 
 ---
 
 ## 1. Migrating from Prost
 
-The most critical architectural difference when migrating from `prost` is the trait model:
+Start with the trait model. `pbrs` message types use the Google Protobuf v4
+application API traits, not `prost::Message`.
 
 > **Important**: `pbrs` message types implement the official Google Protobuf v4 application API traits (`Parse`, `Serialize`, `Clear`, `Message`), **not** `prost::Message`.
 
@@ -22,6 +26,10 @@ The most critical architectural difference when migrating from `prost` is the tr
 | **C/C++ Dependencies** | None (pure Rust) | None (pure Rust) |
 
 ### Code Migration Example
+
+Replace `prost::Message::decode` / `encode` calls with the `Parse` and
+`Serialize` traits from `pbrs::prelude`.
+
 ```rust
 // Prost pattern:
 // use prost::Message;
@@ -40,12 +48,13 @@ let out = msg.serialize()?;
 
 ## 2. Using pbrs with Existing Tonic Services
 
-If you already have a codebase built on `tonic` and want to keep Tonic's routing and middleware stack, use the `protobuf-tonic` adapter:
+Keep Tonic when you want its routing, transport, and middleware stack. Generate
+Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter.
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
+pbrs = "0.2"
+protobuf-tonic = "0.1.0-alpha.2"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 
@@ -60,21 +69,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-This generates `#[tonic::async_trait]` service stubs that use `pbrs` message types via `protobuf-tonic::ProtobufCodec` instead of `prost::Message`.
+This generates `#[tonic::async_trait]` service stubs. They use `pbrs` message
+types through `protobuf-tonic::ProtobufCodec` instead of `prost::Message`.
 
 ---
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)
 
-Google's official `protobuf` 4.x crate wraps the C-based `upb` kernel using FFI:
+Google's official `protobuf` 4.x crate wraps the C-based `upb` kernel through
+foreign function interface (FFI). `pbrs` keeps the runtime in Rust.
 
-- **Build Complexity**: `protobuf` 4.x requires a C/C++ compiler toolchain. `pbrs` is 100% pure Rust and compiles cleanly with standard `cargo build`.
-- **Memory Management**: `upb` allocates messages in arena arenas (`upb_Arena`). `pbrs` uses idiomatic Rust heap allocation with small-string optimizations and zero-allocation empty collections.
-- **Safety**: `pbrs` eliminates C FFI boundaries, memory leaks, and segmentation faults from unsafe arena lifetimes.
+- **Build complexity**: `protobuf` 4.x requires a C/C++ compiler toolchain.
+  `pbrs` is 100% pure Rust and builds with standard `cargo build`.
+- **Memory management**: `upb` allocates messages in arenas (`upb_Arena`).
+  `pbrs` uses Rust heap allocation with small-string optimizations and
+  zero-allocation empty collections.
+- **Safety**: `pbrs` removes the C FFI boundary, memory leaks, and
+  segmentation faults from unsafe arena lifetimes.
 
 ---
 
 ## 4. Summary of Code Generation Differences
+
+Choose the generator mode that matches the service stack you want to keep.
 
 | Aspect | `prost-build` | `pbrs::codegen` |
 |---|---|---|

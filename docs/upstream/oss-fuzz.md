@@ -1,15 +1,16 @@
 # OSS-Fuzz integration packet (QG-02)
 
-This page is the ready-to-submit packet for
-[OSS-Fuzz](https://google.github.io/oss-fuzz/). To enroll the project,
-copy the three files below into a new `projects/pure-protobuf/` directory
-in a fork of `google/oss-fuzz` and open a PR there. No in-tree changes
-are needed: the harnesses are the existing cargo-fuzz targets, which
-OSS-Fuzz builds with the same `cargo fuzz build` flow the weekly
-campaign lane (the `fuzz-campaign` job in `.github/workflows/compatibility.yml`) uses.
+This page is the ready-to-submit [OSS-Fuzz](https://google.github.io/oss-fuzz/)
+packet for `pure-protobuf`. Bottom line: enrollment needs only the three files
+below copied into `projects/pure-protobuf/` in a fork of `google/oss-fuzz`;
+the repo already contains the cargo-fuzz harnesses.
 
-Current targets (auto-discovered from `fuzz/Cargo.toml`, keep `build.sh`
-in sync when adding one): `descriptors`, `formats`, `grpc_wire`, `wire`.
+No in-tree changes are needed. OSS-Fuzz builds the existing cargo-fuzz targets
+with the same `cargo fuzz build` flow used by the weekly campaign lane
+(`fuzz-campaign` in `.github/workflows/compatibility.yml`).
+
+Current targets are auto-discovered from `fuzz/Cargo.toml`. Keep `build.sh` in
+sync when adding one: `descriptors`, `formats`, `grpc_wire`, `wire`.
 
 ## `projects/pure-protobuf/project.yaml`
 

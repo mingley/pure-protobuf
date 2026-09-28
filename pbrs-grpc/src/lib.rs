@@ -1,8 +1,10 @@
 //! A pure-Rust gRPC kernel over [`pbrs`].
 //!
-//! `pbrs-grpc` speaks gRPC over HTTP/2 without `unsafe` and without `tonic`.
-//! It is a *kernel*: the protocol, the framing, the dispatch, and the safety
-//! limits, with nothing layered on top that you did not ask for.
+//! `pbrs-grpc` speaks gRPC over HTTP/2 without `tonic`. It is a *kernel*: the
+//! protocol, the framing, the dispatch, and the safety limits, with nothing
+//! layered on top that you did not ask for. The gRPC framing, dispatch,
+//! transport, TLS, and codec modules forbid `unsafe`; two Linux-only OS helper
+//! paths use scoped, documented `unsafe` for syscalls.
 //!
 //! No C or C++ is compiled into the build. Nothing in the dependency graph
 //! pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`, `ring`, or a vendored
@@ -703,8 +705,12 @@
 //!
 //! # Safety
 //!
-//! The crate forbids `unsafe` in every hand-written module. What remains is
-//! resource safety against a peer that is trying to hurt you.
+//! The protocol-facing modules keep peer input away from `unsafe`: gRPC
+//! framing, dispatch, transport, TLS, compression, codec, resolver,
+//! load-balancing, authorization, binary logging, service-config, metadata,
+//! status, request, response, and stream code all carry
+//! `#[forbid(unsafe_code)]`. What remains is resource safety against a peer
+//! that is trying to hurt you.
 //!
 //! ## Threat model
 //!
@@ -795,7 +801,7 @@
 //!
 //! There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. This crate-map [`Channel::connect_with`] redials a dead slot on the next RPC with no channel-level reconnect backoff. There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from [`Channel::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff).
 //!
-//! There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map dials TCP `host:port` directly; there is no HTTP CONNECT proxy. There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy).
+//! There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map consults `HTTPS_PROXY` / `NO_PROXY` on TCP dials and tunnels with HTTP CONNECT when the target is not bypassed; there is no per-channel proxy disable. Resolver-managed `dns:` dials connect to resolved IP literals, so host-suffix `NO_PROXY` rules only match before resolution. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy).
 //!
 //! There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). This crate-map [`Channel::connect`] is h2c by default; TLS is [`Channel::connect_tls`]. There is no `WithTransportCredentials` DialOption (TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from a skip-verify constructor (there is none). Distinct from [`Channel::https_scheme`] (`from_io` label; it does not handshake).
 //!
@@ -819,9 +825,9 @@
 //!
 //! There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. This crate-map [`ClientTls::ca`] always requires ALPN `h2` after handshake. Distinct from [`Channel::connect`] (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from [`ServerTls`] (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none).
 //!
-//! There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore.
+//! There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; JSON service config attaches with [`Channel::service_config`] or arrives from resolver service config on [`Channel::connect_uri`]. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: omit [`Channel::service_config`] or avoid resolver service config instead.
 //!
-//! There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY). There is no resolver or load balancer to shut down.
+//! There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Resolver-managed channels keep their resolver/LB handles until the channel is dropped. Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY).
 //!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
@@ -862,13 +868,25 @@
 //!
 //! ## `unsafe`
 //!
-//! Every hand-written module in this crate carries `#[forbid(unsafe_code)]`,
-//! which cannot be overridden from inside the module. The exceptions are the
-//! modules that `include!` generated message code ([`hello`], [`testing`],
-//! [`health`], [`reflection`], [`pb`]); `pbrs` gencode uses `unsafe` for
-//! zeroed-message construction, and that is a `pbrs` property rather than a
-//! gRPC one. No gRPC framing, dispatch, or transport code in this crate
-//! contains `unsafe`.
+//! The hand-written gRPC framing, dispatch, transport, TLS, compression,
+//! codec, resolver, load-balancing, authorization, binary-logging,
+//! service-config, metadata, status, request, response, and stream modules
+//! carry `#[forbid(unsafe_code)]`, which cannot be overridden from inside the
+//! module.
+//!
+//! Two hand-written Linux-only OS helpers use scoped `unsafe`, each with a
+//! local `SAFETY` comment:
+//!
+//! - `proxy` sets `TCP_USER_TIMEOUT` with a raw `setsockopt` because `socket2`
+//!   exposes no stable safe wrapper for that option.
+//! - `rt::per_core` calls `sched_setaffinity` / `sched_getcpu` to pin
+//!   per-core runtime threads.
+//!
+//! Modules that `include!` generated message code ([`hello`], [`testing`],
+//! [`health`], [`reflection`], [`pb`], [`channelz`], [`orca`]) are also outside
+//! those per-module forbids; `pbrs` gencode uses `unsafe` for zeroed-message
+//! construction, and that is a `pbrs` property rather than a gRPC transport
+//! one.
 //!
 //! ## Panics
 //!

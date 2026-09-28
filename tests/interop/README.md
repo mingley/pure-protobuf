@@ -1,258 +1,304 @@
 # Official Interoperability and Conformance Case Registry
 
-This directory contains the authoritative, versioned case registry (`cases.json`) and associated test harnesses for `pure-protobuf` and `pbrs-grpc`.
+This directory is the map of every official Protobuf and gRPC test case tracked by `pure-protobuf` and `pbrs-grpc`. Run the main gRPC interoperability matrix with `./scripts/grpc-interop.sh`; run Protobuf conformance and HTTP/2 probes with the commands listed below. These tests do not yet prove the full profile: original HTTP/2 negatives, original server probes, full-duration soaks, backoff, scaling, cloud auth, Application Layer Transport Security (ALTS), Open Request Cost Aggregation (ORCA), xDS, and performance worker cases keep their recorded statuses below.
 
-The case registry records every official upstream test case across Protobuf conformance and gRPC interoperability suites, establishing an honest, transparent, and reproducible accounting of specification sources, peer directions, transports, product profiles, task ownership, and present coverage.
+The registry lives in `cases.json`. It records the upstream source, peer direction, transport, profile, owner task, current disposition, and available evidence for each case.
 
----
+## Start here
+
+| Need | Command or file | What it proves | Main caveat |
+|---|---|---|---|
+| Standard gRPC peer interop | `./scripts/grpc-interop.sh` | Native client/server self-test plus the required base-case matrix against pinned `grpc-go`. | Compression is not run against `grpc-go` because that peer ignores compression flags. |
+| Protobuf conformance | `./scripts/conformance.sh` | Official Protobuf `v35.1` required and recommended conformance behavior through Edition 2023. | It is separate from gRPC transport interop. |
+| Native HTTP/2 server probes | `./scripts/grpc-http2-server-interop.sh` | Local TLS and framing probes against `pbrs-grpc-interop-server`. | These are spec-derived local probes, not the original upstream Go probe result. |
+| C++ compression peer | `./scripts/grpc-interop-cpp.sh` | Both native/C++ directions for 14 baseline cases plus 4 compression cases. | The C++ peer must be the pinned `grpc/grpc` build and digest-recorded binary. |
+| Case and evidence registry | `cases.json` | The single source of truth for case status, profile, direction, and evidence. | A local adapter pass cannot relabel an unresolved original upstream procedure. |
 
 ## 1. Pinned Upstream Specifications and Tools
 
-All test definitions, procedures, schemas, and runners are pinned to immutable upstream commits:
+All test definitions, procedures, schemas, and runners are pinned to immutable upstream commits.
 
-| Upstream Project | Pin / Commit | Relevant Contracts and Documents |
+| Upstream project | Pin / commit | Relevant contracts and documents |
 |---|---|---|
-| **`protocolbuffers/protobuf`** | `v35.1`<br>[`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`](https://github.com/protocolbuffers/protobuf/tree/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03) | [Conformance Guide](https://github.com/protocolbuffers/protobuf/blob/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03/conformance/README.md), [Rust Shared Tests](https://github.com/protocolbuffers/protobuf/tree/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03/rust/test/shared), local `vendor/google/PIN` and `vendor/google/SHA`. |
-| **`grpc/grpc`** | [`d1487957db6658bc532b72871775148229836627`](https://github.com/grpc/grpc/tree/d1487957db6658bc532b72871775148229836627) | [Interop Test Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/interop-test-descriptions.md), [HTTP/2 Negative Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/http2-interop-test-descriptions.md), [Connection Backoff Description](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/connection-backoff-interop-test-description.md), [xDS Test Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/xds-test-descriptions.md), [Official Runner](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/run_tests/run_interop_tests.py), [Performance Framework](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/run_tests/performance/README.md), `WorkerService`, `BenchmarkService`. |
+| **`protocolbuffers/protobuf`** | `v35.1`<br>[`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`](https://github.com/protocolbuffers/protobuf/tree/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03) | [Conformance Guide](https://github.com/protocolbuffers/protobuf/blob/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03/conformance/README.md), [Rust Shared Tests](https://github.com/protocolbuffers/protobuf/tree/35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03/rust/test/shared), local `vendor/google/PIN`, and local `vendor/google/SHA`. |
+| **`grpc/grpc`** | [`d1487957db6658bc532b72871775148229836627`](https://github.com/grpc/grpc/tree/d1487957db6658bc532b72871775148229836627) | [Interop Test Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/interop-test-descriptions.md), [HTTP/2 Negative Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/http2-interop-test-descriptions.md), [Connection Backoff Description](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/connection-backoff-interop-test-description.md), [xDS Test Descriptions](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/doc/xds-test-descriptions.md), [Official Runner](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/run_tests/run_interop_tests.py), [Performance Framework](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/run_tests/performance/README.md), `WorkerService`, and `BenchmarkService`. |
 | **`grpc/grpc-go`** | [`dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`](https://github.com/grpc/grpc-go/tree/dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef) | [Interop Client](https://github.com/grpc/grpc-go/blob/dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef/interop/client/client.go) and [Interop Server](https://github.com/grpc/grpc-go/blob/dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef/interop/server/server.go) reference implementations. |
-| **`grpc/proposal`** | [`6342be729b96478a2897ceb208a8cddcd832a17b`](https://github.com/grpc/proposal/tree/6342be729b96478a2897ceb208a8cddcd832a17b) | [gRFC A6: Client Retries](https://github.com/grpc/proposal/blob/6342be729b96478a2897ceb208a8cddcd832a17b/A6-client-retries.md) (transparent retry, retry commitments, buffering). |
-
----
+| **`grpc/proposal`** | [`6342be729b96478a2897ceb208a8cddcd832a17b`](https://github.com/grpc/proposal/tree/6342be729b96478a2897ceb208a8cddcd832a17b) | [gRFC A6: Client Retries](https://github.com/grpc/proposal/blob/6342be729b96478a2897ceb208a8cddcd832a17b/A6-client-retries.md): transparent retry, retry commitments, and buffering. |
 
 ## 2. Registry Schema (`cases.json`)
 
-`cases.json` is a machine-readable JSON registry conforming to the following structure:
+`cases.json` is the machine-readable registry. Keep it aligned with the upstream pins above and with the execution evidence produced by the harnesses.
 
 ### Top-Level Metadata
-* `version`: Semantic version of the registry format (e.g. `1.0.0`).
-* `updated_at`: ISO 8601 date of the last registry reconciliation.
-* `title`: Descriptive registry name.
-* `description`: Overview of registry scope and purpose.
-* `upstream_pins`: Exact commit hashes and canonical documentation paths for all upstream dependencies.
-* `disposition_definitions`: Formal definitions of allowed disposition states.
-* `suites`: Dictionary mapping suite keys to descriptions.
-* `summary`: Aggregate counts by disposition and by suite.
-* `cases`: Array of individual case records.
+
+| Field | Meaning |
+|---|---|
+| `version` | Semantic version of the registry format, such as `1.0.0`. |
+| `updated_at` | ISO 8601 date of the last registry reconciliation. |
+| `title` | Descriptive registry name. |
+| `description` | Registry scope and purpose. |
+| `upstream_pins` | Exact commit hashes and canonical documentation paths for all upstream dependencies. |
+| `disposition_definitions` | Formal definitions of allowed disposition states. |
+| `suites` | Dictionary from suite keys to descriptions. |
+| `summary` | Aggregate counts by disposition and by suite. |
+| `cases` | Array of individual case records. |
 
 ### Case Record Schema
-Every entry in `cases` contains:
-* `case` *(string)*: Unique case identifier, matching CLI `-test_case` arguments or official suite identifiers (e.g. `empty_unary`, `rst_after_header`).
-* `name` *(string)*: Human-readable descriptive name.
-* `suite` *(string)*: Suite classification key (see [Test Suites Covered](#3-test-suites-covered)).
-* `procedure_source` *(string)*: Exact pinned document path or source runner reference describing the procedure.
-* `peer_direction` *(string)*: The direction of RPC execution:
-  * `both`: Both client and server implementations are tested against peers.
-  * `client_to_server`: Client executes procedure against server.
-  * `runner_to_binary`: External conformance test runner communicates via stdin/stdout pipe with binary.
-  * `driver_to_worker`: Performance driver orchestrates workers.
-  * `internal`: Internal semantic test suite.
-* `transport` *(string)*: Protocol and wire transport: `http2_cleartext`, `http2_tls`, `http2_mtls`, `alts`, `pipe`, or `none`.
-* `profile` *(string)*: Applicable shipping/qualification profile: `core`, `native`, `tonic`, `full`, `extended`.
-* `owner` *(string)*: Authoritative task ID in `docs/plan/tasks.json` responsible for this case.
-* `disposition` *(string)*: Original pinned procedure's current qualification disposition (see [Dispositions](#disposition-rules)). The in-repo [JSON schema](cases.schema.json) lists all six states; `scripts/interop-report.py` checks unique cases and exact summary totals without an extra dependency.
-* `justification` *(string or null)*: Required explanation for every non-`passed` disposition.
-* `present_coverage` *(object)*:
-  * `status`: Current local or original-runner status (`passed`, `failed`, `not_run`, `unsupported`, `blocked_external`, `not_applicable`).
-  * `evidence_scope`: `local_adapter` explicitly marks a local pass that cannot qualify an unresolved original procedure; omitted otherwise.
-  * `evidence_file`: Path to the script, harness, or test file providing current evidence.
-  * `passing_directions`: Array of verified peer directions currently passing.
-  * `notes`: Additional technical context, limitations, or pending work.
+
+Every `cases` entry has these fields.
+
+| Field | Meaning |
+|---|---|
+| `case` | Unique case identifier. It matches CLI `-test_case` arguments or official suite identifiers, such as `empty_unary` or `rst_after_header`. |
+| `name` | Human-readable case name. |
+| `suite` | Suite classification key. See [Test Suites Covered](#3-test-suites-covered). |
+| `procedure_source` | Exact pinned document path or source runner reference that describes the procedure. |
+| `peer_direction` | Direction of execution: `both`, `client_to_server`, `runner_to_binary`, `driver_to_worker`, or `internal`. |
+| `transport` | Protocol and wire transport: `http2_cleartext`, `http2_tls`, `http2_mtls`, `alts`, `pipe`, or `none`. |
+| `profile` | Shipping or qualification profile: `core`, `native`, `tonic`, `full`, or `extended`. |
+| `owner` | Authoritative task ID in `docs/plan/tasks.json`. |
+| `disposition` | Current qualification disposition for the original pinned procedure. See [Dispositions](#disposition-rules). The in-repo [JSON schema](cases.schema.json) lists all six states; `scripts/interop-report.py` checks unique cases and exact summary totals without an extra dependency. |
+| `justification` | Required explanation for every non-`passed` disposition. It may be `null` for `passed`. |
+| `present_coverage.status` | Current local or original-runner status: `passed`, `failed`, `not_run`, `unsupported`, `blocked_external`, or `not_applicable`. |
+| `present_coverage.evidence_scope` | `local_adapter` explicitly marks a local pass that cannot qualify an unresolved original procedure. The field is omitted otherwise. |
+| `present_coverage.evidence_file` | Path to the script, harness, or test file providing current evidence. |
+| `present_coverage.passing_directions` | Verified peer directions currently passing. |
+| `present_coverage.notes` | Extra technical context, limitations, or pending work. |
+
+`peer_direction` values mean:
+
+| Value | Meaning |
+|---|---|
+| `both` | Both client and server implementations are tested against peers. |
+| `client_to_server` | The client executes the procedure against the server. |
+| `runner_to_binary` | An external conformance runner talks to a binary over standard input and output. |
+| `driver_to_worker` | A performance driver orchestrates workers. |
+| `internal` | The case is an internal semantic test suite. |
 
 ### Disposition Rules
-Every active upstream case has an explicit disposition:
-1. `passed`: The pinned procedure has passing independent evidence for its required scope.
-2. `failed`: The original pinned procedure ran with failing subcases; diagnose runner drift versus product defects without relabeling a local adapter pass.
-3. `not_run`: An active upstream procedure supported or planned for support, but not yet executed in the official harness.
-4. `unsupported`: A protocol feature or procedure not yet implemented in the target profile.
-5. `blocked_external`: Blocked by external infrastructure, provider identity, or cloud secrets (e.g. GCP metadata server, Google IAM credentials). **Missing credentials must always be classified as `blocked_external`, never `not_applicable`.**
-6. `not_applicable`: Explicitly excluded upstream test or kernel internal with approved, documented technical justification (e.g. C/upb internal arena memory layouts).
 
-The eight HTTP/2 client negatives remain `not_run` for the original upstream
-Twisted/Python-2 runner while `present_coverage.status=passed` and
-`evidence_scope=local_adapter` record the
-separate 8/8 local peer exercise. Both server probes are `failed` under the
-original Go runner (framing 5/6, TLS 0/3) despite 2/2 separate local probes.
-Both full-duration soaks are `not_run` although their local adapters pass
-deterministic and qualification-scale tests. An original-procedure case cannot
-be reported passed while its registry disposition is unresolved.
-`--spec-adapter` is accepted only for the two named native HTTP/2 suites
-and their explicit local or external adapter peer identities; its JSON
-reports mark `evidence_scope=spec_derived_adapter` and
-`qualification.qualified=false` even when the adapter matrix passes.
+Every active upstream case has one explicit disposition.
 
----
+| Disposition | Meaning |
+|---|---|
+| `passed` | The pinned procedure has passing independent evidence for its required scope. |
+| `failed` | The original pinned procedure ran and failed subcases. Diagnose runner drift versus product defects without relabeling a local adapter pass. |
+| `not_run` | The active upstream procedure is supported or planned, but it has not yet run in the official harness. |
+| `unsupported` | The target profile does not yet implement the protocol feature or procedure. |
+| `blocked_external` | External infrastructure, provider identity, or cloud secrets block the case. Missing credentials must always be `blocked_external`, never `not_applicable`. |
+| `not_applicable` | The upstream test or kernel internal is explicitly excluded with approved technical justification, such as C/upb arena memory layouts. |
+
+Important status boundaries:
+
+* The eight HTTP/2 client negatives remain `not_run` for the original upstream Twisted/Python-2 runner.
+* Those same eight cases have `present_coverage.status=passed` and `evidence_scope=local_adapter` for the separate 8/8 local peer exercise.
+* Both server probes are `failed` under the original Go runner: framing 5/6 and TLS 0/3.
+* The same server probes also have 2/2 separate local probes.
+* Both full-duration soaks are `not_run`, even though their local adapters pass deterministic and qualification-scale tests.
+* An original-procedure case cannot be reported `passed` while its registry disposition is unresolved.
+* `--spec-adapter` is accepted only for the two named native HTTP/2 suites and their explicit local or external adapter peer identities.
+* JSON reports for `--spec-adapter` mark `evidence_scope=spec_derived_adapter` and `qualification.qualified=false`, even when the adapter matrix passes.
 
 ## 3. Test Suites Covered
 
-The 69 registered cases are organized into 12 test suites:
+The registry contains 69 cases in 12 suites.
+
+| Suite | Cases | Current summary |
+|---|---:|---|
+| `standard_interop` | 16 | Base unary, streaming, metadata, status, unimplemented, `pick_first_unary`, and `cacheable_unary` accounting. |
+| `compression_interop` | 4 | Passed in self-interop and both directions against the pinned C++ peer. Skipped against `grpc-go`. |
+| `http2_negative` | 8 | Local spec-derived adapter passes 8/8; original upstream runner remains `not_run`. |
+| `server_probe` | 2 | Local TLS/framing probes pass separately; original Go probes remain failed at framing 5/6 and TLS 0/3. |
+| `connection_backoff` | 1 | Scheduled in `FL-05`. |
+| `soak` | 2 | Local adapters pass deterministic and qualification-scale tests; original full-duration procedures remain `not_run`. |
+| `scaling` | 1 | Scheduled in `EX-21`. |
+| `auth` | 7 | Cloud auth is `blocked_external`; ALTS is `unsupported`. |
+| `orca` | 2 | Scheduled in `EX-01` and `EX-02`. |
+| `xds_lb` | 12 | Scheduled in `FL-04` and `EX-07` through `EX-16`. |
+| `protobuf_conformance` | 6 | Official Protobuf conformance and Rust shared application coverage, plus an explicit C/upb internal exclusion. |
+| `performance` | 8 | WorkerService control protocol and BenchmarkService data plane cases. |
 
 ### 1. Standard Interoperability (`standard_interop`, 16 cases)
-Baseline gRPC RPC patterns and protocol semantics defined in `doc/interop-test-descriptions.md`:
-* **Base unary and streaming**: `empty_unary`, `large_unary`, `client_streaming`, `server_streaming`, `ping_pong`, `empty_stream`.
-* **Flow control and lifecycle**: `cancel_after_begin`, `cancel_after_first_response`, `timeout_on_sleeping_server`.
-* **Metadata and errors**: `custom_metadata`, `status_code_and_message`, `special_status_message`.
-* **Unimplemented handling**: `unimplemented_method`, `unimplemented_service`.
-* **Extended runner case**: `pick_first_unary` (subchannel pick_first validation).
-* **Spec-only experimental case**: `cacheable_unary` describes HTTP/2 GET through a caching proxy, but is omitted from the active runner. Its standard gRPC over HTTP/2 disposition is [not applicable](../../docs/cacheable-rpc.md); the native kernel still requires POST.
+
+These are baseline gRPC remote procedure call (RPC) patterns and protocol semantics from `doc/interop-test-descriptions.md`.
+
+| Group | Cases | What they check |
+|---|---|---|
+| Base unary and streaming | `empty_unary`, `large_unary`, `client_streaming`, `server_streaming`, `ping_pong`, `empty_stream` | Basic request/response and stream behavior. |
+| Flow control and lifecycle | `cancel_after_begin`, `cancel_after_first_response`, `timeout_on_sleeping_server` | Cancellation, deadlines, and lifecycle status. |
+| Metadata and errors | `custom_metadata`, `status_code_and_message`, `special_status_message` | Header/trailer metadata and exact status propagation. |
+| Unimplemented handling | `unimplemented_method`, `unimplemented_service` | Required `UNIMPLEMENTED` behavior. |
+| Extended runner case | `pick_first_unary` | Subchannel `pick_first` validation. |
+| Spec-only experimental case | `cacheable_unary` | HTTP/2 GET through a caching proxy. It is omitted from the active runner; its standard gRPC over HTTP/2 disposition is [not applicable](../../docs/cacheable-rpc.md), and the native kernel still requires POST. |
 
 ### 2. Compression Interoperability (`compression_interop`, 4 cases)
-Message-level compression negotiation and framing:
-* `client_compressed_unary`, `server_compressed_unary`, `client_compressed_streaming`, `server_compressed_streaming`.
-* *Status*: Passes the 18-case self-interop pass in `scripts/grpc-interop.sh`, and both cross-peer directions (36 cells) against the pinned C++ reference peer (`grpc/grpc@d1487957`, v1.84.0) via `scripts/grpc-interop-cpp.sh` in task `IO-05`, with wire compression bits asserted by the reference peer. The native client adds a high-entropy compressed unary leg **after** the three official calls; it does not replace the zero-filled official vector. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags.
+
+These cases verify message-level compression negotiation and framing.
+
+| Case | Status and caveat |
+|---|---|
+| `client_compressed_unary` | Passes in the 18-case self-interop pass and both C++ peer directions. |
+| `server_compressed_unary` | Passes in the 18-case self-interop pass and both C++ peer directions. |
+| `client_compressed_streaming` | Passes in the 18-case self-interop pass and both C++ peer directions. |
+| `server_compressed_streaming` | Passes in the 18-case self-interop pass and both C++ peer directions. |
+
+Full status: `scripts/grpc-interop.sh` passes the 18-case self-interop pass. `scripts/grpc-interop-cpp.sh` passes both cross-peer directions, for 36 cells, against the pinned C++ reference peer (`grpc/grpc@d1487957`, v1.84.0) in task `IO-05`. The reference peer asserts wire compression bits.
+
+The native client adds a high-entropy compressed unary leg after the three official calls. It does not replace the zero-filled official vector. Cross-language execution against `grpc-go` is skipped because `grpc-go` ignores compression flags.
 
 ### 3. HTTP/2 Negative Tests (`http2_negative`, 8 cases)
-Adversarial framing, stream cancellation, and connection termination defined in `doc/http2-interop-test-descriptions.md`:
-* `rst_after_header`, `rst_after_data`, `rst_during_data`.
-* `goaway`, `ping`, `max_streams`.
-* `data_frame_padding`, `no_df_padding_sanity_test`.
-* *Status*: `scripts/grpc-http2-interop.sh` runs all eight registered
-  procedures against a purpose-built local HTTP/2 peer and retains a required
-  matrix report. This is a spec-derived adapter, **not** execution of the
-  upstream runner binary; the independent-peer qualification in `IO-08`
-  remains open and the original procedures are registered `not_run`.
-  A fake successful client with no peer frames is recorded as
-  failed by `test_http2_peer_proof.py`; reports link both client and local-peer
-  logs. In-tree hostile tests are complementary.
 
-The pinned upstream `grpc/grpc@d1487957` HTTP/2 server imports Twisted and
-still calls Python 2's `dict.has_key` in
-`test/http2_test/http2_test_server.py`. Current CI does not have a reviewed,
-pinned toolchain for that original runner. The local spec-derived peer is
-valuable regression coverage but cannot replace its full-profile result.
+These adversarial framing, stream cancellation, and connection termination cases come from `doc/http2-interop-test-descriptions.md`.
+
+| Case group | Cases | Current status |
+|---|---|---|
+| Reset behavior | `rst_after_header`, `rst_after_data`, `rst_during_data` | Local adapter passes; original upstream procedure remains `not_run`. |
+| Connection behavior | `goaway`, `ping`, `max_streams` | Local adapter passes; original upstream procedure remains `not_run`. |
+| Padding behavior | `data_frame_padding`, `no_df_padding_sanity_test` | Local adapter passes; original upstream procedure remains `not_run`. |
+
+`scripts/grpc-http2-interop.sh` runs all eight registered procedures against a purpose-built local HTTP/2 peer and keeps a required matrix report. This is a spec-derived adapter, not execution of the upstream runner binary. The independent-peer qualification in `IO-08` remains open, and the original procedures are registered `not_run`.
+
+A fake successful client with no peer frames is recorded as failed by `test_http2_peer_proof.py`. Reports link both client and local-peer logs. In-tree hostile tests are complementary.
+
+The pinned upstream `grpc/grpc@d1487957` HTTP/2 server imports Twisted and still calls Python 2's `dict.has_key` in `test/http2_test/http2_test_server.py`. Current CI does not have a reviewed, pinned toolchain for that original runner. The local spec-derived peer is valuable regression coverage, but it cannot replace the full-profile result.
 
 ### 4. Server Probes (`server_probe`, 2 cases)
-Official server transport verification probes from `tools/run_tests/run_interop_tests.py`:
-* `server_tls_probe`: Verifies ALPN negotiation (`h2`), rejection of invalid ALPN (`http/1.1`), TLS 1.2/1.3 protocol versions and AEAD ciphers, server certificate presentation, and live TLS gRPC RPC.
-* `server_framing_probe`: Probes HTTP/2 24-byte connection preface, SETTINGS frame exchange and ACK, rapid reset stream cancellation flood (CVE-2023-44487), small DATA frames flow control, fragmented HEADERS across CONTINUATION frames and CONTINUATION flood protection, bad headers / non-POST HTTP 405 / unsupported media type HTTP 415 rejection, and post-probe server health verification.
-* *Status*: `scripts/grpc-http2-server-interop.sh` runs spec-derived local TLS
-  and framing probes against `pbrs-grpc-interop-server`, with two required
-  result rows and retained logs. It decodes the response `:status` and
-  requires HTTP 405/415, rather than accepting any HEADERS frame. It does not
-  invoke the upstream probe binary;
-  `IO-09` remains open; the original Go probes are registered `failed`
-  rather than inheriting the local 2/2 result.
 
-The [original upstream Go probes](../../scripts/grpc-http2-upstream-server-interop.py)
-are a separate, fail-closed local diagnostic. With an existing clean
-`third_party/grpc` checkout at `d1487957db6658bc532b72871775148229836627`,
-Go 1.25.3 and cached Rust dependencies, run:
+These official server transport probes come from `tools/run_tests/run_interop_tests.py`.
+
+| Probe | What it checks | Current status |
+|---|---|---|
+| `server_tls_probe` | ALPN negotiation for `h2`, rejection of invalid ALPN `http/1.1`, TLS 1.2/1.3 protocol versions and AEAD ciphers, server certificate presentation, and live TLS gRPC RPC. | Local spec-derived probe passes; original Go probe remains failed at TLS 0/3. |
+| `server_framing_probe` | HTTP/2 24-byte connection preface, SETTINGS exchange and ACK, rapid reset stream cancellation flood (CVE-2023-44487), small DATA frames flow control, fragmented HEADERS across CONTINUATION frames and CONTINUATION flood protection, bad headers, non-POST HTTP 405, unsupported media type HTTP 415, and post-probe server health. | Local spec-derived probe passes; original Go probe remains failed at framing 5/6. |
+
+`scripts/grpc-http2-server-interop.sh` runs spec-derived local TLS and framing probes against `pbrs-grpc-interop-server`. It writes two required result rows and retained logs. It decodes the response `:status` and requires HTTP 405/415, rather than accepting any HEADERS frame.
+
+The script does not invoke the upstream probe binary. `IO-09` remains open. The original Go probes are registered `failed` rather than inheriting the local 2/2 result.
+
+The [original upstream Go probes](../../scripts/grpc-http2-upstream-server-interop.py) are a separate, fail-closed local diagnostic. With an existing clean `third_party/grpc` checkout at `d1487957db6658bc532b72871775148229836627`, Go 1.25.3, and cached Rust dependencies, run:
 
 ```bash
 python3 scripts/grpc-http2-upstream-server-interop.py
 ```
 
-The harness builds the pinned stdlib-only Go test binary and native debug
-server, rejects tracked, untracked, or ignored files in the pinned probe and
-test-credential directories, verifies the upstream test CA, server name and
-ALPN `h2`, then retains per-mode raw logs, binary hashes and JSON under
-`target/interop-logs/`. It requires all six framing and three TLS subcases
-to pass; upstream `TestMain` can return exit **0** even if advisory
-`TestSoon*` cases fail. A cached native binary selected with
-`--skip-rust-build` remains explicitly unqualified.
+That harness:
 
-The **2026-09-24 local macOS Go 1.25.3 run** remains framing **5/6** and TLS
-**0/3**. A separate stdlib socket diagnostic on the *cached, unqualified*
-native binary (SHA-256 `a4fa7a289441c8addc956e1e972e4ac8dde1821f0ea419a602260c444a79c251`)
-received initial SETTINGS, then GOAWAY with code 1 (`PROTOCOL_ERROR`), then
-EOF for `SETTINGS_MAX_FRAME_SIZE=16383`; a 16384 control received a SETTINGS
-ACK. The pinned Go `parseFrame` does not construct `GoAwayFrame`, and
-`TestSoonSmallMaxFrameSize` expects the string `Got goaway frame` despite its
-helper returning nil after a GOAWAY. Its EOF is therefore not evidence of a
-missing server GOAWAY; the original Go result is **not** relabeled as passed.
+* builds the pinned, standard-library-only Go test binary and native debug server;
+* rejects tracked, untracked, or ignored files in the pinned probe and test-credential directories;
+* verifies the upstream test certificate authority (CA), server name, and ALPN `h2`;
+* retains per-mode raw logs, binary hashes, and JSON under `target/interop-logs/`;
+* requires all six framing subcases and all three TLS subcases to pass.
 
-The TLS cases likewise do not demonstrate a server flaw: `h2c` ALPN receives
-`no_application_protocol` (not the old test's `EOF`/`broken pipe` text); the
-TLS 1.1 case has contradictory Go client MinVersion TLS 1.2 and MaxVersion
-TLS 1.1 and errors before connecting; and the bad-TLS-1.2-cipher test leaves
-TLS 1.3 enabled. A verified stdlib TLS handshake with one banned TLS 1.2
-cipher (`AES128-SHA`) was rejected when forced to TLS 1.2, but negotiated
-TLS 1.3 AEAD and `h2` when TLS 1.3 was allowed. This does not prove rejection
-of every weak cipher or acceptance of TLS 1.1. The original upstream profile
-and `IO-09` stay open: a reviewed, version-compatible original-probe
-qualification and a fresh clean native build are still needed.
+Upstream `TestMain` can return exit **0** even if advisory `TestSoon*` cases fail. A cached native binary selected with `--skip-rust-build` remains explicitly unqualified.
 
-A read-only upstream audit on 2026-09-24 compared all 15 files under
-`tools/http2_interop/` at the [pinned source](https://github.com/grpc/grpc/tree/d1487957db6658bc532b72871775148229836627/tools/http2_interop),
-released [`v1.84.0`](https://github.com/grpc/grpc/tree/3252a89f10d8e92997862167ca7d095ecda85973/tools/http2_interop),
-and [current-master snapshot](https://github.com/grpc/grpc/tree/88f984bbbd15b0223c95e56d9944357e665b3818/tools/http2_interop):
-their blob hashes match. There is **no corrected official runner** in those
-revisions. A valid GOAWAY check must both dispatch the existing
-[`GoAwayFrame` decoder](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/goaway.go#L23-L58)
-from [`parseFrame`](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/http2interop.go#L51-L80)
-and reconcile the [helper's nil-on-GOAWAY return](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5.go#L22-L46)
-with the [test's required error string](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5_test.go#L21-L29);
-assert the decoded frame and error code, not EOF. TLS 1.1 needs compatible
-client minimum **and** maximum versions under
-[Go 1.25's TLS checks](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L1156-L1194);
-the bad-cipher case must constrain
-[TLS 1.3 away](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L692-L701)
-to test TLS 1.2 suites. A local patch is an **unofficial adapter**,
-not an original-runner pass. Seek an upstream-reviewed correction before
-pinning a new runner; maintain framing 5/6, TLS 0/3 and the fail-closed
-full-profile result meanwhile.
+The **2026-09-24 local macOS Go 1.25.3 run** remains framing **5/6** and TLS **0/3**. A separate standard-library socket diagnostic on the cached, unqualified native binary (SHA-256 `a4fa7a289441c8addc956e1e972e4ac8dde1821f0ea419a602260c444a79c251`) received initial SETTINGS, then GOAWAY with code 1 (`PROTOCOL_ERROR`), then EOF for `SETTINGS_MAX_FRAME_SIZE=16383`; a 16384 control received a SETTINGS ACK.
+
+The pinned Go `parseFrame` does not construct `GoAwayFrame`. `TestSoonSmallMaxFrameSize` expects the string `Got goaway frame` even though its helper returns nil after a GOAWAY. Its EOF is therefore not evidence of a missing server GOAWAY, and the original Go result is **not** relabeled as passed.
+
+The TLS cases likewise do not demonstrate a server flaw:
+
+* `h2c` ALPN receives `no_application_protocol`, not the old test's `EOF` or `broken pipe` text.
+* The TLS 1.1 case has contradictory Go client MinVersion TLS 1.2 and MaxVersion TLS 1.1, so it errors before connecting.
+* The bad-TLS-1.2-cipher test leaves TLS 1.3 enabled.
+
+A verified standard-library TLS handshake with one banned TLS 1.2 cipher (`AES128-SHA`) was rejected when forced to TLS 1.2. The same check negotiated TLS 1.3 AEAD and `h2` when TLS 1.3 was allowed. This does not prove rejection of every weak cipher or acceptance of TLS 1.1.
+
+The original upstream profile and `IO-09` stay open. A reviewed, version-compatible original-probe qualification and a fresh clean native build are still needed.
+
+A read-only upstream audit on 2026-09-24 compared all 15 files under `tools/http2_interop/` at the [pinned source](https://github.com/grpc/grpc/tree/d1487957db6658bc532b72871775148229836627/tools/http2_interop), released [`v1.84.0`](https://github.com/grpc/grpc/tree/3252a89f10d8e92997862167ca7d095ecda85973/tools/http2_interop), and [current-master snapshot](https://github.com/grpc/grpc/tree/88f984bbbd15b0223c95e56d9944357e665b3818/tools/http2_interop). Their blob hashes match. There is **no corrected official runner** in those revisions.
+
+A valid GOAWAY check must do all of this:
+
+* dispatch the existing [`GoAwayFrame` decoder](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/goaway.go#L23-L58) from [`parseFrame`](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/http2interop.go#L51-L80);
+* reconcile the [helper's nil-on-GOAWAY return](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5.go#L22-L46) with the [test's required error string](https://github.com/grpc/grpc/blob/d1487957db6658bc532b72871775148229836627/tools/http2_interop/s6.5_test.go#L21-L29);
+* assert the decoded frame and error code, not EOF.
+
+TLS 1.1 needs compatible client minimum **and** maximum versions under [Go 1.25's TLS checks](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L1156-L1194). The bad-cipher case must constrain [TLS 1.3 away](https://github.com/golang/go/blob/28622c19591d95c9a83f706f2ed1b303d58da85f/src/crypto/tls/common.go#L692-L701) to test TLS 1.2 suites.
+
+A local patch is an **unofficial adapter**, not an original-runner pass. Seek an upstream-reviewed correction before pinning a new runner. Maintain framing 5/6, TLS 0/3, and the fail-closed full-profile result meanwhile.
 
 ### 5. Connection Backoff (`connection_backoff`, 1 case)
-Reconnect backoff, jitter, and retry caps defined in `doc/connection-backoff-interop-test-description.md`:
-* `connection_backoff`: Full ~540-second exercise against official C++ `ReconnectService`.
-* *Status*: Scheduled in task `FL-05`.
+
+`connection_backoff` is the full, approximately 540-second reconnect backoff, jitter, and retry-cap exercise against the official C++ `ReconnectService`. It is defined in `doc/connection-backoff-interop-test-description.md` and scheduled in task `FL-05`.
 
 ### 6. Soak Testing (`soak`, 2 cases)
-Long-running reliability and resource stability from `run_interop_tests.py`:
-* `rpc_soak`: Sustained high-iteration RPC loop measuring latency and error budget over a long window.
-* `channel_soak`: Repeated channel creation, connection churn, and teardown under load.
-* *Status*: Adapters are exercised by `pbrs-grpc/src/interop_cases.rs`, the `pbrs-grpc-interop-client` soak flags, and `tests/interop/test_soak.py` (12/12 deterministic tests plus local qualification-scale runs). Their original full-duration procedures remain registered `not_run` for the scheduled operator campaign; IO-10's adapter deliverable is distinct from that campaign.
+
+These long-running reliability and resource stability cases come from `run_interop_tests.py`.
+
+| Case | What it checks | Status |
+|---|---|---|
+| `rpc_soak` | Sustained high-iteration RPC loop, latency, and error budget over a long window. | Original full-duration procedure remains `not_run`. |
+| `channel_soak` | Repeated channel creation, connection churn, and teardown under load. | Original full-duration procedure remains `not_run`. |
+
+Adapters are exercised by `pbrs-grpc/src/interop_cases.rs`, the `pbrs-grpc-interop-client` soak flags, and `tests/interop/test_soak.py`. They include 12/12 deterministic tests plus local qualification-scale runs. Their original full-duration procedures remain registered `not_run` for the scheduled operator campaign; `IO-10`'s adapter deliverable is distinct from that campaign.
 
 ### 7. Stream Scaling (`scaling`, 1 case)
-Concurrent connection scaling under peer stream limits:
-* `max_concurrent_streams_connection_scaling`: Subchannel scaling when `SETTINGS_MAX_CONCURRENT_STREAMS` limit is reached.
-* *Status*: Scheduled in task `EX-21`.
+
+`max_concurrent_streams_connection_scaling` checks subchannel scaling when the peer reaches its `SETTINGS_MAX_CONCURRENT_STREAMS` limit. It is scheduled in task `EX-21`.
 
 ### 8. Authentication & Credentials (`auth`, 7 cases)
-Cloud identity and call credentials from `run_interop_tests.py`:
-* `compute_engine_creds`, `jwt_token_creds`, `oauth2_auth_token`, `per_rpc_creds`, `google_default_credentials`, `compute_engine_channel_credentials`.
-* `alts_credentials`: Application Layer Transport Security for Google Cloud handshaker.
-* *Status*: Cloud auth cases are `blocked_external` pending approved GCP environment (task `EX-17`). ALTS is `unsupported` pending provider review (tasks `EX-18` / `EX-19`).
+
+These cases come from `run_interop_tests.py`.
+
+| Case group | Cases | Status |
+|---|---|---|
+| Cloud identity and call credentials | `compute_engine_creds`, `jwt_token_creds`, `oauth2_auth_token`, `per_rpc_creds`, `google_default_credentials`, `compute_engine_channel_credentials` | `blocked_external` pending an approved GCP environment in task `EX-17`. |
+| Application Layer Transport Security (ALTS) | `alts_credentials` | `unsupported` pending provider review in tasks `EX-18` and `EX-19`. |
 
 ### 9. ORCA (`orca`, 2 cases)
-Open Request Cost Aggregation backend load reporting (gRFC A51):
-* `orca_per_rpc`: Per-call backend load metrics in trailing metadata.
-* `orca_oob`: Out-of-band load reporting stream over `OpenRcaService`.
-* *Status*: Scheduled in tasks `EX-01` and `EX-02`.
+
+Open Request Cost Aggregation (ORCA) backend load reporting comes from gRFC A51.
+
+| Case | What it checks | Status |
+|---|---|---|
+| `orca_per_rpc` | Per-call backend load metrics in trailing metadata. | Scheduled in task `EX-01`. |
+| `orca_oob` | Out-of-band load reporting stream over `OpenRcaService`. | Scheduled in task `EX-02`. |
 
 ### 10. xDS & Load Balancing (`xds_lb`, 12 cases)
-Client-side service mesh and dynamic traffic routing from `doc/xds-test-descriptions.md`:
-* `round_robin`, `backends_restart`, `circuit_breaking`, `outlier_detection`.
-* `xds_ping_pong`, `traffic_splitting`, `path_matching`, `header_matching`, `fault_injection`, `timeout`, `metadata_exchange`, `app_net_security`.
-* *Status*: Scheduled in tasks `FL-04` and `EX-07` through `EX-16`.
+
+These client-side service mesh and dynamic traffic routing cases come from `doc/xds-test-descriptions.md`.
+
+| Group | Cases | Status |
+|---|---|---|
+| Load balancing and backend behavior | `round_robin`, `backends_restart`, `circuit_breaking`, `outlier_detection` | Scheduled in `FL-04` and `EX-07` through `EX-16`. |
+| Routing and policy behavior | `xds_ping_pong`, `traffic_splitting`, `path_matching`, `header_matching`, `fault_injection`, `timeout`, `metadata_exchange`, `app_net_security` | Scheduled in `FL-04` and `EX-07` through `EX-16`. |
 
 ### 11. Protobuf Conformance (`protobuf_conformance`, 6 cases)
-Official Protobuf v35.1 conformance suite and Rust application semantics:
-* `protobuf_binary_conformance`: Required binary wire format conformance (5,631 tests).
-* `protobuf_json_conformance`: Proto3/edition 2023 JSON mapping conformance.
-* `protobuf_text_conformance`: Text format conformance (909 tests).
-* `protobuf_enforce_recommended`: Recommended conformance suite passed without `failure_list_rust_upb.txt` skips.
-* `rust_shared_application_tests`: In-tree port of `rust/test/shared/` accessors, merge, and serialize in `tests/google_shared.rs` (standalone external runner scheduled in `PB-02`).
-* `upb_kernel_internals`: Explicit `not_applicable` with documented justification (C upb arena layout internals do not apply to safe pure-Rust runtime).
+
+These cases cover official Protobuf v35.1 conformance and Rust application semantics.
+
+| Case | What it checks | Status note |
+|---|---|---|
+| `protobuf_binary_conformance` | Required binary wire format conformance. | 5,631 tests. |
+| `protobuf_json_conformance` | Proto3 and Edition 2023 JSON mapping conformance. | Tracked in the official conformance suite. |
+| `protobuf_text_conformance` | Text format conformance. | 909 tests. |
+| `protobuf_enforce_recommended` | Recommended conformance suite with `--enforce_recommended`. | Passed without `failure_list_rust_upb.txt` skips. |
+| `rust_shared_application_tests` | In-tree port of `rust/test/shared/` accessors, merge, and serialize in `tests/google_shared.rs`. | Standalone external runner scheduled in `PB-02`. |
+| `upb_kernel_internals` | C upb arena layout internals. | Explicit `not_applicable`; they do not apply to the safe pure-Rust runtime. |
 
 ### 12. Performance Framework (`performance`, 8 cases)
-Official gRPC benchmarking framework from `tools/run_tests/performance/README.md`:
-* **WorkerService** control protocol: `worker_service_run_server`, `worker_service_run_client`, `worker_service_core_count`, `worker_service_quit_worker` (tasks `BM-09`, `BM-10`).
-* **BenchmarkService** data plane: `benchmark_service_unary`, `benchmark_service_streaming`, `benchmark_service_streaming_from_client`, `benchmark_service_streaming_from_server` (task `BM-08`).
 
----
+These cases come from `tools/run_tests/performance/README.md`.
+
+| Area | Cases | Tasks |
+|---|---|---|
+| `WorkerService` control protocol | `worker_service_run_server`, `worker_service_run_client`, `worker_service_core_count`, `worker_service_quit_worker` | `BM-09`, `BM-10` |
+| `BenchmarkService` data plane | `benchmark_service_unary`, `benchmark_service_streaming`, `benchmark_service_streaming_from_client`, `benchmark_service_streaming_from_server` | `BM-08` |
 
 ## 4. How Cases Are Run
 
 ### gRPC Interoperability (`scripts/grpc-interop.sh`)
-The standard interop script executes three passes:
-1. **Kernel Client $\to$ Kernel Server** (`pbrs-grpc-interop-client` $\to$ `pbrs-grpc-interop-server`):
-   Runs all 18 cases (14 base cases + 4 compression cases).
-2. **Kernel Client $\to$ Go Server** (`pbrs-grpc-interop-client` $\to$ `google.golang.org/grpc/interop/server`):
-   Runs the 14 base cases against official `grpc-go`.
-3. **Go Client $\to$ Kernel Server** (`google.golang.org/grpc/interop/client` $\to$ `pbrs-grpc-interop-server`):
-   Runs the 14 base cases against official `grpc-go`.
+
+The standard interop script executes three passes.
+
+| Pass | Direction | Cases |
+|---|---|---|
+| Native self-interop | `pbrs-grpc-interop-client` to `pbrs-grpc-interop-server` | All 18 cases: 14 base cases plus 4 compression cases. |
+| Native client to Go server | `pbrs-grpc-interop-client` to `google.golang.org/grpc/interop/server` | The 14 base cases against official `grpc-go`. |
+| Go client to native server | `google.golang.org/grpc/interop/client` to `pbrs-grpc-interop-server` | The 14 base cases against official `grpc-go`. |
 
 Invocation:
+
 ```bash
 # Run all passes (requires Go toolchain):
 ./scripts/grpc-interop.sh
@@ -262,46 +308,50 @@ Invocation:
 ```
 
 ### Protobuf Conformance (`scripts/conformance.sh`)
-Builds Google's official `conformance_test_runner` from pinned `v35.1` (`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`) and runs:
+
+This script builds Google's official `conformance_test_runner` from pinned `v35.1` (`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`) and runs:
+
 1. Required run 1: `--maximum_edition 2023`
 2. Required run 2: `--maximum_edition 2023`
 3. Recommended run: `--enforce_recommended --maximum_edition 2023`
 
 Invocation:
+
 ```bash
 ./scripts/conformance.sh
 ```
 
 ### Server HTTP/2 Framing and TLS Probes (`scripts/grpc-http2-server-interop.sh`)
-The server probe harness verifies native server framing, transport security, and protocol resilience against simulated client probes mapping to official upstream server test probes in `tools/run_tests/run_interop_tests.py`:
+
+The server probe harness verifies native server framing, transport security, and protocol resilience against simulated client probes. Those probes map to official upstream server test probes in `tools/run_tests/run_interop_tests.py`.
 
 #### 1. Probe Contract and Architecture
-The script starts two native `pbrs-grpc-interop-server` processes:
-* **TLS Instance**: Bound to a dynamic TLS port with `--use_tls=true`, `--tls_cert_file=pbrs-grpc/tests/tls_data/server.crt`, and `--tls_key_file=pbrs-grpc/tests/tls_data/server.key`.
-* **Cleartext Instance**: Bound to a dynamic cleartext port for cleartext framing and boundary probes.
 
-Both servers are managed as background jobs with automatic process tracking, startup readiness checks, and clean shutdown traps on exit/interruption.
+The script starts two native `pbrs-grpc-interop-server` processes.
+
+| Server | Transport | Important flags |
+|---|---|---|
+| TLS instance | Dynamic TLS port | `--use_tls=true`, `--tls_cert_file=pbrs-grpc/tests/tls_data/server.crt`, `--tls_key_file=pbrs-grpc/tests/tls_data/server.key` |
+| Cleartext instance | Dynamic cleartext port | Cleartext framing and boundary probes. |
+
+Both servers run as background jobs with process tracking, startup readiness checks, and clean shutdown traps on exit or interruption.
 
 #### 2. Probe Test Matrix
-* **`server_tls_probe` (`http2_tls`)**:
-  * *ALPN `h2` Negotiation*: Client connects with `h2` ALPN, asserting `h2` is selected and modern TLS (TLS 1.2 or 1.3 with AEAD cipher) is negotiated.
-  * *ALPN Rejection*: Client initiates TLS handshake offering only non-`h2` ALPN (`http/1.1`), asserting that server rejects the connection with a TLS alert (`TLSV1_ALERT_NO_APPLICATION_PROTOCOL`).
-  * *Certificate Presentation*: Verifies server presents valid certificate matching identity.
-  * *Live TLS RPC*: Executes native `pbrs-grpc-interop-client` against the TLS server with `--use_tls=true --tls_ca_file=... --server_host_override=localhost --test_case=empty_unary`.
-* **`server_framing_probe` (`http2_cleartext`)**:
-  * *Connection Preface & SETTINGS*: Sends 24-byte client preface and empty SETTINGS frame, receives and validates server SETTINGS frame, and completes two-way SETTINGS ACK handshake.
-  * *Rapid Reset Stream Flood*: Dispatches rapid HEADERS followed immediately by RST_STREAM (CANCEL) across 32 streams (CVE-2023-44487 simulation) to verify server rate-limits/mitigates flood without crashing.
-  * *Small DATA Frames*: Sends request payload fragmented into tiny 1-byte DATA frames to verify framing boundary parsing and flow control budget enforcement.
-  * *CONTINUATION Frame Assembly & Flood*: Verifies multi-frame HEADERS assembly (HEADERS without `END_HEADERS` followed by CONTINUATION with `END_HEADERS`), and tests CONTINUATION flood protection.
-  * *Bad Headers & Non-POST Methods*: Asserts non-POST HTTP methods (GET) are rejected with HTTP 405 Method Not Allowed (`allow: POST`), and non-gRPC media types (`application/json`) are rejected with HTTP 415 Unsupported Media Type.
-  * *Post-Probe Server Health Verification*: Executes a clean `empty_unary` RPC via `pbrs-grpc-interop-client` to confirm the accept loop and stream dispatcher remained healthy throughout adversarial probes.
+
+| Probe | Checks |
+|---|---|
+| `server_tls_probe` (`http2_tls`) | ALPN `h2` negotiation; rejection of non-`h2` ALPN (`http/1.1`) with `TLSV1_ALERT_NO_APPLICATION_PROTOCOL`; certificate presentation; live TLS RPC using `pbrs-grpc-interop-client --use_tls=true --tls_ca_file=... --server_host_override=localhost --test_case=empty_unary`. |
+| `server_framing_probe` (`http2_cleartext`) | 24-byte client preface; empty SETTINGS frame; server SETTINGS validation; two-way SETTINGS ACK; rapid HEADERS followed by RST_STREAM (CANCEL) across 32 streams for CVE-2023-44487 simulation; 1-byte DATA fragmentation; flow-control budget enforcement; HEADERS plus CONTINUATION assembly; CONTINUATION flood protection; non-POST HTTP 405 with `allow: POST`; `application/json` HTTP 415; post-probe `empty_unary` health check. |
 
 #### 3. Prerequisites
-* Python 3 standard library (`socket`, `ssl`, `struct`, `subprocess`, `time`). Zero third-party pip dependencies.
-* Compiled `pbrs-grpc-interop-server` and `pbrs-grpc-interop-client` binaries (built automatically unless `--skip-build` is provided).
+
+* Python 3 standard library only: `socket`, `ssl`, `struct`, `subprocess`, and `time`.
+* Zero third-party pip dependencies.
+* Compiled `pbrs-grpc-interop-server` and `pbrs-grpc-interop-client` binaries. The script builds them unless `--skip-build` is provided.
 * Throwaway loopback test certificates in `pbrs-grpc/tests/tls_data/`.
 
 #### 4. Invocation
+
 ```bash
 # Run all server probes (TLS and framing):
 ./scripts/grpc-http2-server-interop.sh
@@ -313,31 +363,36 @@ Both servers are managed as background jobs with automatic process tracking, sta
 # Skip cargo build and specify custom log directory:
 ./scripts/grpc-http2-server-interop.sh --skip-build --log-dir=target/interop-logs/custom
 ```
-Execution traces and logs are stored under `target/interop-logs/`, recorded into `results.json`, validated against `cases.json`, and aggregated into `report.json`.
-Required-profile gating: validation and aggregation run with `--suite server_probe --profile native --require-matrix`, so a run that omits a probe (e.g. `--cases=server_tls_probe`) or hits an unexpected failure exits non-zero and cannot qualify. Local hostile tests in `pbrs-grpc/tests/hostile.rs` and TLS tests in `pbrs-grpc/tests/tls.rs` are complementary and never substitute for these probe records.
-Both HTTP/2 runners require fresh, distinct report paths and fail if any case
-cannot be recorded or aggregated; a prior report cannot fill a missing row in
-a later run.
 
----
+Execution traces and logs go under `target/interop-logs/`. The script records `results.json`, validates against `cases.json`, and aggregates into `report.json`.
+
+Required-profile gating runs validation and aggregation with `--suite server_probe --profile native --require-matrix`. A run that omits a probe, such as `--cases=server_tls_probe`, or hits an unexpected failure exits non-zero and cannot qualify.
+
+Local hostile tests in `pbrs-grpc/tests/hostile.rs` and TLS tests in `pbrs-grpc/tests/tls.rs` are complementary. They never substitute for these probe records.
+
+Both HTTP/2 runners require fresh, distinct report paths. They fail if any case cannot be recorded or aggregated; a prior report cannot fill a missing row in a later run.
 
 ## 5. Machine-Readable Proof, Reporting, and Aggregation (`scripts/interop-report.py`)
 
-The reporting tool `scripts/interop-report.py` is a standard-library-only Python 3 tool (zero third-party dependencies) that validates, aggregates, and writes machine-readable proof for all interoperability and conformance test runs.
+`scripts/interop-report.py` is a standard-library-only Python 3 tool. It validates, aggregates, and writes machine-readable proof for interoperability and conformance runs. It has zero third-party dependencies.
 
 ### 5.1 Verification States
-The tool models 6 distinct execution and disposition states:
-* `passed`: Verified passing in official test scripts, peer passes, or conformance harness.
-* `failed`: Test execution failed, exited non-zero, or violated protocol assertions.
-* `not_run`: Active upstream test case scheduled for execution, not yet run in the official harness.
-* `unsupported`: Protocol feature, RPC pattern, or service not yet implemented in target profile.
-* `blocked_external`: Blocked by external infrastructure or credentials (e.g. cloud IAM, GCP metadata service). Never marked `not_applicable`.
-* `not_applicable`: Explicitly excluded upstream test or kernel internal with approved, documented technical justification (e.g. C/upb arena memory layouts).
+
+| State | Meaning |
+|---|---|
+| `passed` | Verified passing in official test scripts, peer passes, or conformance harness. |
+| `failed` | Test execution failed, exited non-zero, or violated protocol assertions. |
+| `not_run` | Active upstream case is scheduled but has not yet run in the official harness. |
+| `unsupported` | Protocol feature, RPC pattern, or service is not yet implemented in the target profile. |
+| `blocked_external` | External infrastructure or credentials block the case, such as cloud IAM or GCP metadata service. Never mark this `not_applicable`. |
+| `not_applicable` | Explicitly excluded upstream test or kernel internal with approved technical justification, such as C/upb arena memory layouts. |
 
 ### 5.2 CLI Invocations and Usage
 
 #### 1. Aggregate and Report (Default Mode)
-Processes an execution results file, validates against `cases.json`, outputs summary tables (terminal or markdown), and writes `report.json`:
+
+This mode processes execution results, validates them against `cases.json`, prints a terminal or markdown summary, and writes `report.json`.
+
 ```bash
 # Validate, aggregate, print terminal table, and write report.json
 python3 scripts/interop-report.py --cases tests/interop/cases.json --results results.json --output report.json
@@ -350,13 +405,17 @@ cat results.json | python3 scripts/interop-report.py --results - --format json
 ```
 
 #### 2. Validate Only
-Validates results against matrix definitions, upstream commit pins, and disposition rules without generating reports:
+
+This mode validates matrix definitions, upstream commit pins, and disposition rules without generating reports.
+
 ```bash
 python3 scripts/interop-report.py validate --cases tests/interop/cases.json --results results.json --require-matrix --require-peers
 ```
 
 #### 3. Record Individual Case Execution
-Appends or updates a single test execution entry in a results file (used by shell harnesses):
+
+Shell harnesses use this mode to append or update one test execution entry in a results file.
+
 ```bash
 python3 scripts/interop-report.py record \
   --output results.json \
@@ -373,29 +432,36 @@ python3 scripts/interop-report.py record \
 ```
 
 ### 5.3 CLI Options
-* `--cases <path>`: Path to `cases.json` registry (default: `tests/interop/cases.json`).
-* `--results <path>`: Path to input execution results JSON (`-` reads from standard input).
-* `--output, -o <path>`: Destination path for machine-readable `report.json`.
-* `--format {terminal,markdown,json}`: Output display format (default: `terminal`).
-* `--suite <name>`: Filter and enforce requirements for a specific suite (e.g. `standard_interop`).
-* `--profile <name>` without `--suite`: Require the entire profile, including unresolved upstream failures and missing original procedures; currently `native` fails qualification.
-* `--suite <name> --profile <name>`: A scoped matrix (for example CI's standard-interop direction subset), not a full-profile pass.
-* `--require-all`: Fail if any selected case is missing or has an unqualified registry disposition (on `validate` or `aggregate`).
-* `--spec-adapter`: Check only the explicitly scoped native HTTP/2 spec-derived client or server probes, including an explicitly labeled external HTTP/2 peer; its passing result is **not** an original upstream or full-profile qualification.
-* `--require-matrix`: Fail if any expected direction from `cases.json` is missing.
-* `--require-peers`: Fail if independent peer execution is missing or substituted with self-test.
-* `--strict` / `--no-strict`: Enforce strict retry checking (default: `--strict` fails if retries hid initial failure).
-* `--no-color`: Disable ANSI color escape codes in terminal output.
+
+| Option | Meaning |
+|---|---|
+| `--cases <path>` | Path to `cases.json`. Default: `tests/interop/cases.json`. |
+| `--results <path>` | Path to input execution results JSON. `-` reads from standard input. |
+| `--output, -o <path>` | Destination path for machine-readable `report.json`. |
+| `--format {terminal,markdown,json}` | Output display format. Default: `terminal`. |
+| `--suite <name>` | Filter and enforce requirements for a suite, such as `standard_interop`. |
+| `--profile <name>` without `--suite` | Require the entire profile, including unresolved upstream failures and missing original procedures. The `native` profile currently fails qualification. |
+| `--suite <name> --profile <name>` | Require a scoped matrix, such as CI's standard-interop direction subset. This is not a full-profile pass. |
+| `--require-all` | Fail if any selected case is missing or has an unqualified registry disposition. Applies to `validate` or `aggregate`. |
+| `--spec-adapter` | Check only the explicitly scoped native HTTP/2 spec-derived client or server probes, including an explicitly labeled external HTTP/2 peer. A pass is **not** an original upstream or full-profile qualification. |
+| `--require-matrix` | Fail if any expected direction from `cases.json` is missing. |
+| `--require-peers` | Fail if independent peer execution is missing or substituted with self-test. |
+| `--strict` / `--no-strict` | Enforce strict retry checking. Default `--strict` fails if retries hid initial failure. |
+| `--no-color` | Disable ANSI color escape codes in terminal output. |
 
 ### 5.4 Exit Codes
-`scripts/interop-report.py` emits deterministic exit codes for automated CI and gating:
-* `0` (**Passed / Qualified**): All evaluated cases passed, all matrix requirements met, pins verified, and no failure occurred.
-* `1` (**Test Failure**): One or more test cases had `failed` status or non-zero exit codes.
-* `2` (**Validation / Matrix Error**): Structural validation failed: missing required cases, duplicate matrix rows, wrong peer pins, wrong procedure sources, empty output, retries hiding first failures, or unauthorized self-test substitution.
-* `3` (**Usage / IO Error**): Bad command-line arguments, missing input files, or unreadable JSON syntax.
+
+| Exit code | Meaning |
+|---:|---|
+| `0` | Passed / qualified: all evaluated cases passed, all matrix requirements were met, pins were verified, and no failure occurred. |
+| `1` | Test failure: one or more cases had `failed` status or non-zero exit codes. |
+| `2` | Validation / matrix error: missing required cases, duplicate matrix rows, wrong peer pins, wrong procedure sources, empty output, retries hiding first failures, or unauthorized self-test substitution. |
+| `3` | Usage / IO error: bad arguments, missing input files, or unreadable JSON syntax. |
 
 ### 5.5 Input Results Schema (`results.json`)
-The input results file is a JSON array or object with a `"results"` array containing:
+
+Input results may be a JSON array or an object with a `"results"` array.
+
 ```json
 {
   "peer_pins": {
@@ -438,7 +504,9 @@ The input results file is a JSON array or object with a `"results"` array contai
 ```
 
 ### 5.6 Output Report Schema (`report.json`)
-The generated `report.json` document links raw logs, exit codes, exact upstream pins, suite aggregates, and profile metrics:
+
+The generated report links raw logs, exit codes, exact upstream pins, suite aggregates, and profile metrics.
+
 ```json
 {
   "report_version": "1.0.0",
@@ -490,112 +558,94 @@ The generated `report.json` document links raw logs, exit codes, exact upstream 
 ```
 
 ### 5.7 Fail-Closed Validation Rules
-Aggregation strictly fails closed (status: `failed`, exit code 1 or 2) under any of the following conditions:
-1. **Empty Output**: If results contains 0 records or empty payload.
-2. **Missing Cases**: If any case required for qualification is omitted from results.
-3. **Skipped Cases**: If any required case is marked `not_run`.
-4. **Duplicate Matrix Rows**: If two records share identical `(case, peer, direction, transport)` coordinates.
-5. **Wrong Upstream Pins**: If `peer_pin` does not match pinned upstream commit (e.g. `grpc-go` at `dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`) or if `procedure_source` does not match `cases.json`.
-6. **Retries Hiding First Failures**: In strict qualification mode, any test case that passed on a retry after failing attempt 1 is rejected. A flaky first attempt is recorded and cannot satisfy a required qualification gate.
-7. **No Self-Test Substitution**: For cases with `peer_direction: "both"`, a self-test (`kernel_client_to_kernel_server`) can never substitute for independent peer passes (`kernel_client_to_go_server`, `go_client_to_kernel_server`).
+
+Aggregation fails closed with status `failed` and exit code 1 or 2 when any rule is violated.
+
+| Rule | Failure condition |
+|---|---|
+| Empty output | Results contain 0 records or an empty payload. |
+| Missing cases | Any case required for qualification is omitted. |
+| Skipped cases | Any required case is marked `not_run`. |
+| Duplicate matrix rows | Two records share identical `(case, peer, direction, transport)` coordinates. |
+| Wrong upstream pins | `peer_pin` does not match the pinned upstream commit, such as `grpc-go` at `dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`, or `procedure_source` does not match `cases.json`. |
+| Retries hiding first failures | In strict qualification mode, any case that passed on a retry after failing attempt 1 is rejected. A flaky first attempt is recorded and cannot satisfy a required qualification gate. |
+| Self-test substitution | For `peer_direction: "both"` cases, `kernel_client_to_kernel_server` can never substitute for independent peer passes: `kernel_client_to_go_server` and `go_client_to_kernel_server`. |
 
 ### 5.8 Integration with GT-04 (Diagnosable & Bounded Runs)
-Task **GT-04** upgrades `scripts/grpc-interop.sh` and provides `tests/interop/test_runner.py` to produce granular execution evidence consumed by `scripts/interop-report.py`:
-* **Per-Attempt Log Retention**: Rather than discarding stdout/stderr to `/dev/null`, the runner writes individual log files for every attempt (e.g. `logs/<case>_attempt1.stderr`, `logs/<case>_attempt2.stdout`).
-* **Attempt Tracking**: Each test case emits a result record specifying `attempt_count` and the detailed `attempts` list, linking exit codes and durations.
-* **Flake Transparency**: When transient races occur (e.g. in `cancel_after_begin` or `timeout_on_sleeping_server`), the initial failure is captured. When aggregated with `--strict`, the report explicitly surfaces the flake rather than masking it.
-* **Deterministic Gate Pass/Fail**: GT-04 concludes its test passes by calling `scripts/interop-report.py aggregate --results <scratch>/results.json --output <scratch>/report.json`, failing the runner whenever `interop-report.py` returns non-zero.
 
----
+Task **GT-04** upgrades `scripts/grpc-interop.sh` and provides `tests/interop/test_runner.py`. The runner produces granular execution evidence consumed by `scripts/interop-report.py`.
+
+| Capability | Behavior |
+|---|---|
+| Per-attempt log retention | The runner writes individual stdout/stderr logs for every attempt, such as `logs/<case>_attempt1.stderr` and `logs/<case>_attempt2.stdout`, instead of discarding output to `/dev/null`. |
+| Attempt tracking | Each case emits `attempt_count` plus a detailed `attempts` list with exit codes and durations. |
+| Flake transparency | Transient races, such as `cancel_after_begin` or `timeout_on_sleeping_server`, keep their initial failure. With `--strict`, the report surfaces the flake instead of masking it. |
+| Deterministic gate pass/fail | GT-04 test completion calls `scripts/interop-report.py aggregate --results <scratch>/results.json --output <scratch>/report.json` and fails the runner whenever `interop-report.py` returns non-zero. |
 
 ## 6. Consumption by Subsequent Tasks
 
-Subsequent tasks in the execution plan consume `cases.json` as the single source of truth:
+Later tasks use `cases.json` as the single source of truth.
 
-* **GT-02 (Machine-Readable Proof & Aggregation)**:
-  * Reads `tests/interop/cases.json` to parameterize `scripts/interop-report.py` and `tests/interop/test_report.py`.
-  * Verifies that every required matrix row is present, detects duplicate entries, enforces valid disposition transitions, and guarantees that aggregation fails closed if an independent peer pass is missing or substituted with a self-test.
-* **GT-03 (Pin the Go Peer and Require It)**:
-  * Uses `cases.json` to enforce that all 14 base interop cases are executed in both directions against the pinned `grpc-go` peer (`dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`).
-  * Enforces that compression cases cite `grpc-go`'s lack of support and that self-only runs are clearly labeled insufficient for qualification.
-* **GT-04 (Diagnosable and Bounded Interop Runs)**:
-  * Uses case metadata in `cases.json` to assign per-case timeouts, capture distinct attempt logs, track retries, and ensure transient races (e.g. in `cancel_after_begin`) remain visible rather than masked.
-* **GT-05 (Require Retained Official Evidence in CI)**:
-  * Uploads full interop attempt logs, server logs, and machine-readable `report.json` even on test failure (`if: always()`) in `.github/workflows/ci.yml`.
-  * Preserves separate required and recommended conformance outputs (`required_1/`, `required_2/`, `recommended/`) and records structured summary metadata (`summary.json`) with runner pin, runner SHA, git commit, timestamp, and test counts.
-  * Ensures caches and stamps incorporate immutable source inputs (`PIN` + `SHA`), and maintains reusable CI gating before release publication in `release.yml`.
-* **GT-06 (Detect Upstream and Dependency Drift Separately)**:
-  * Adds an opt-in/scheduled read-only compatibility lane that compares reviewed newer case inventories/toolchains against the pinned regression lane.
-* **IO-01 through IO-10 (Assertion Audits, TLS, Negative HTTP/2, C++ Peer, Soak)**:
-  * Updates `cases.json` dispositions from `not_run` to `passed` as each official adapter and harness is qualified.
-* **FL and EX Lanes (Backoff, ORCA, Cloud Auth, xDS)**:
-  * Tracks progress and records qualification evidence for advanced fleet and cloud features.
-* **QL-04 (Full Official-Gate Inventory Reconciliation)**:
-  * Performs final verification against `cases.json` to confirm that every active upstream case has achieved a verified `passed` disposition before any full-profile leadership claim is published.
-
----
+| Task or lane | How it consumes the registry |
+|---|---|
+| **GT-02 (Machine-Readable Proof & Aggregation)** | Parameterizes `scripts/interop-report.py` and `tests/interop/test_report.py`; verifies required matrix rows; detects duplicates; enforces valid disposition transitions; guarantees aggregation fails closed when independent peer evidence is missing or replaced with self-test. |
+| **GT-03 (Pin the Go Peer and Require It)** | Requires all 14 base interop cases in both directions against pinned `grpc-go` (`dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`); enforces that compression cases cite `grpc-go`'s lack of support and that self-only runs are labeled insufficient. |
+| **GT-04 (Diagnosable and Bounded Interop Runs)** | Uses case metadata to set timeouts, capture distinct attempt logs, track retries, and keep transient races visible. |
+| **GT-05 (Require Retained Official Evidence in CI)** | Uploads full interop attempt logs, server logs, and machine-readable `report.json` even on failure with `if: always()` in `.github/workflows/ci.yml`; preserves required and recommended conformance outputs; records `summary.json` with runner pin, runner SHA, git commit, timestamp, and test counts; keys caches and stamps by immutable source inputs (`PIN` plus `SHA`); keeps reusable CI gating before release publication in `release.yml`. |
+| **GT-06 (Detect Upstream and Dependency Drift Separately)** | Adds an opt-in or scheduled read-only compatibility lane that compares reviewed newer case inventories and toolchains against the pinned regression lane. |
+| **IO-01 through IO-10 (Assertion Audits, TLS, Negative HTTP/2, C++ Peer, Soak)** | Updates `cases.json` dispositions from `not_run` to `passed` as each official adapter and harness is qualified. |
+| **FL and EX lanes (Backoff, ORCA, Cloud Auth, xDS)** | Track progress and qualification evidence for advanced fleet and cloud features. |
+| **QL-04 (Full Official-Gate Inventory Reconciliation)** | Performs final verification against `cases.json` so every active upstream case has verified `passed` disposition before any full-profile leadership claim is published. |
 
 ## 7. CI Artifact Retention Contract and Required Profile Pass Criteria
 
-Official evidence of interoperability and conformance is retained in CI pipelines to guarantee that passing runs are verifiable and failures are immediately diagnosable without needing local repros.
+CI retains official interoperability and conformance evidence so passing runs are verifiable and failures are diagnosable without a local reproduction.
 
 ### 7.1 Artifact Retention Contract
 
-All test execution in `.github/workflows/ci.yml` must adhere to the following unconditional retention rules:
+All official test-suite jobs in `.github/workflows/ci.yml` must follow these rules.
 
-1. **Unconditional Upload on Failure (`if: always()`)**:
-   - Every CI job executing official test suites must upload its outputs, raw logs, and machine-readable reports using `actions/upload-artifact@v4` with `if: always()`.
-   - Test runs that fail, crash, time out, or are cancelled must never discard diagnostic traces to `/dev/null` or exit without persisting evidence.
+| Area | Required behavior |
+|---|---|
+| Unconditional upload on failure | Every official-suite job uploads outputs, raw logs, and machine-readable reports through `actions/upload-artifact@v4` with `if: always()`. Failed, crashed, timed out, or cancelled runs must not discard diagnostic traces to `/dev/null` or exit without evidence. |
+| gRPC interoperability artifacts | The `grpc-interop` job uploads `target/interop-logs/` as `grpc-interop-logs`. The directory contains per-attempt stdout/stderr logs for every executed case and direction (`<peer>-<direction>-<case>-attempt<N>.log`), background server lifecycle logs (`server-kernel.log`, `server-go.log`), and raw execution events (`results.json`). |
+| gRPC proof report | The `grpc-interop` job uploads `target/interop-report.json` as `grpc-interop-report`. It is emitted by `scripts/interop-report.py` and includes overall pass/fail status, upstream commit pins (`grpc-go` at `dd51b1c90aaf`), per-suite and per-profile aggregates, individual case durations, attempt counts, exit codes, and failure justifications. |
+| Protobuf conformance artifacts | The `conformance` job uploads `target/conformance-out/` as `conformance-out`, with separate outputs for `required_1/`, `required_2/`, `recommended/`, and `summary.json`. |
+| Immutable build inputs and cache stamps | CI and local conformance caches, including the local build stamp `target/conformance-build/.pbrs-protobuf-pin`, use both `vendor/google/PIN` and `vendor/google/SHA`, not just the version tag. Any upstream source change forces a clean runner rebuild. |
 
-2. **gRPC Interoperability Artifacts (`grpc-interop` job)**:
-   - **`target/interop-logs/`** (`grpc-interop-logs`): Full directory hierarchy containing per-attempt stdout/stderr logs for every executed case and direction (`<peer>-<direction>-<case>-attempt<N>.log`), background server lifecycle logs (`server-kernel.log`, `server-go.log`), and raw execution events (`results.json`).
-   - **`target/interop-report.json`** (`grpc-interop-report`): Aggregated, machine-readable proof report emitted by `scripts/interop-report.py`. Contains overall pass/fail status, upstream commit pins (`grpc-go` @ `dd51b1c90aaf`), per-suite and per-profile aggregates, individual case durations, attempt counts, exit codes, and failure justifications.
+`target/conformance-out/` contains:
 
-3. **Protobuf Conformance Artifacts (`conformance` job)**:
-   - **`target/conformance-out/`** (`conformance-out`): Complete conformance output directory containing separate artifacts for each evaluation pass:
-     - `required_1/`: Failure lists, text mismatch files, and full runner log (`runner.log`) for required run 1 (`--maximum_edition 2023`).
-     - `required_2/`: Output files and runner log (`runner.log`) for required run 2 (proving deterministic repeatability).
-     - `recommended/`: Output files and runner log (`runner.log`) for the recommended pass (`--enforce_recommended --maximum_edition 2023`).
-     - `summary.json`: Structured metadata document recording:
-       - `runner_pin`: Vendored upstream runner tag (e.g. `v35.1` from `vendor/google/PIN`).
-       - `runner_sha`: Pinned upstream commit SHA (e.g. `35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03` from `vendor/google/SHA`).
-       - `git_commit`: The exact `pure-protobuf` repository commit evaluated.
-       - `timestamp`: UTC ISO 8601 execution timestamp.
-       - `maximum_edition`: Maximum edition tested (`2023`).
-       - `test_counts`: Exact test counts for each run (`required_run_1`, `required_run_2`, `recommended`) and total failure counts.
-       - `runs`: Detailed status, successes, skipped, expected failures, and unexpected failures per pass.
-       - `overall_status`: Verdict (`passed` or `failed`).
-
-4. **Immutable Build Inputs and Cache Stamps**:
-   - Runner caches in CI and local build stamps (`target/conformance-build/.pbrs-protobuf-pin`) are keyed by both `vendor/google/PIN` and `vendor/google/SHA`, not just the version tag.
-   - Any change to upstream sources forces a clean runner rebuild, preventing stale runner binaries from masking regressions.
-
----
+| Path | Contents |
+|---|---|
+| `required_1/` | Failure lists, text mismatch files, and full runner log (`runner.log`) for required run 1 with `--maximum_edition 2023`. |
+| `required_2/` | Output files and runner log (`runner.log`) for required run 2, proving deterministic repeatability. |
+| `recommended/` | Output files and runner log (`runner.log`) for the recommended pass with `--enforce_recommended --maximum_edition 2023`. |
+| `summary.json` | `runner_pin` such as `v35.1` from `vendor/google/PIN`; `runner_sha` such as `35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03` from `vendor/google/SHA`; the exact evaluated `pure-protobuf` `git_commit`; UTC ISO 8601 `timestamp`; `maximum_edition` `2023`; exact `test_counts` for `required_run_1`, `required_run_2`, and `recommended`; total failure counts; per-pass `runs` status, successes, skipped, expected failures, and unexpected failures; and `overall_status` as `passed` or `failed`. |
 
 ### 7.2 Required Profile Pass Criteria
 
-For a build or release to qualify, all required profile test suites must meet the following non-negotiable pass criteria:
+For a build or release to qualify, all required profile suites must meet these criteria.
 
 #### 1. gRPC Interoperability Pass Criteria
-* **Zero Failures**: All evaluated cases in the target profile must achieve `status: passed` with exit code `0`.
-* **Complete Peer Matrix**:
-  * All 14 base interop cases must pass in both peer directions against the pinned `grpc-go` reference peer (`dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`):
-    1. Kernel Client $\to$ `grpc-go` Server
-    2. `grpc-go` Client $\to$ Kernel Server
-  * Self-tests (`kernel_client_to_kernel_server`) verify internal consistency but can **never substitute** for independent cross-language peer verification.
-* **No Masked Flakes (`--strict`)**:
-  * Any case that failed attempt 1 and passed on a retry is flagged as flaky and rejected. A required qualification gate must be 100% first-attempt clean.
-* **Strict Assertion Conformance**:
-  * Exact upstream protocol behavior must be observed (e.g. `cancel_after_first_response` must terminate with `CANCELLED`, not clean EOF; compression flags must be verified).
+
+| Requirement | Detail |
+|---|---|
+| Zero failures | Every evaluated case in the target profile must have `status: passed` and exit code `0`. |
+| Complete peer matrix | All 14 base interop cases must pass in both directions against pinned `grpc-go` (`dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef`): Kernel Client to `grpc-go` Server, and `grpc-go` Client to Kernel Server. |
+| No self-test substitution | Self-tests (`kernel_client_to_kernel_server`) verify internal consistency but can never replace independent cross-language peer verification. |
+| No masked flakes (`--strict`) | A case that failed attempt 1 and passed on retry is flaky and rejected. A required qualification gate must be 100% first-attempt clean. |
+| Strict assertion conformance | Exact upstream protocol behavior must be observed. For example, `cancel_after_first_response` must terminate with `CANCELLED`, not clean EOF, and compression flags must be verified. |
 
 #### 2. Protobuf Conformance Pass Criteria
-* **Full Required Coverage**:
-  * Required run 1 and required run 2 must each pass 100% of official test cases (5,631 successes, 0 skipped, 0 expected failures, 0 unexpected failures) up to Edition 2023.
-* **Deterministic Repeatability**:
-  * Required run 2 must produce identical results to required run 1. Any non-deterministic field ordering or state leakage between runs fails the gate.
-* **Enforce Recommended**:
-  * The recommended conformance run must pass cleanly with `--enforce_recommended` without relying on skip lists or known failure lists.
+
+| Requirement | Detail |
+|---|---|
+| Full required coverage | Required run 1 and required run 2 must each pass 100% of official tests: 5,631 successes, 0 skipped, 0 expected failures, and 0 unexpected failures, up to Edition 2023. |
+| Deterministic repeatability | Required run 2 must match required run 1. Non-deterministic field ordering or state leakage fails the gate. |
+| Enforce recommended | The recommended conformance run must pass cleanly with `--enforce_recommended` and without skip lists or known failure lists. |
 
 #### 3. Release Publication Gating
-* **Reusable CI Gate**: `.github/workflows/release.yml` requires `.github/workflows/ci.yml` via `workflow_call:` before the `publish` job can execute.
-* **Fail-Closed Publishing**: A failure in `grpc-interop`, `conformance`, or any other required CI lane permanently halts publication for that SHA. No dry-run or live publish to crates.io can proceed without verified, retained CI evidence.
+
+* `.github/workflows/release.yml` requires `.github/workflows/ci.yml` through `workflow_call:` before `publish` can run.
+* A failure in `grpc-interop`, `conformance`, or any other required CI lane permanently halts publication for that SHA.
+* No dry-run or live crates.io publish can proceed without verified, retained CI evidence.

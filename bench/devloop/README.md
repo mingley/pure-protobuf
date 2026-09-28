@@ -1,10 +1,19 @@
 # devloop: deterministic dev-loop measurement harness (SB-03)
 
-Excluded standalone crate. Measures codec operations and loopback RPC
-shapes with deterministic metrics: retired instructions (Linux
-`perf`, else valgrind/callgrind, else `not_run`), exact heap
-allocations/bytes (counting `GlobalAlloc`), syscalls per RPC
-(`strace -c`, else `not_run`), and wall time (secondary).
+`devloop` is an excluded standalone crate for quick, deterministic local
+performance checks. It measures codec operations and loopback remote procedure
+call (RPC) shapes; the usual command is
+`scripts/devloop.sh --out /tmp/now.json`. Read the JSON by cell: measured
+metrics compare against thresholds, while `not_run` metrics are skipped.
+
+Metrics:
+
+| Metric | Source | Role |
+|---|---|---|
+| Retired instructions | Linux `perf`, else valgrind/callgrind, else `not_run` | Primary when available |
+| Heap allocations and bytes | Counting `GlobalAlloc` | Exact allocation signal |
+| Syscalls per RPC | `strace -c`, else `not_run` | Linux diagnostic |
+| Wall time | Built-in timing | Secondary signal |
 
 ## Usage
 
@@ -19,11 +28,10 @@ scripts/devloop.sh --cells codec.pbrs.cached_encode,rpc.pbrs.unary --repeats 5
 scripts/devloop.sh --baseline /tmp/before.json --out /tmp/now.json
 ```
 
-Each cell runs in a child process (`devloop run-cell <id>`), which
-reports exact allocations plus wall time; the parent wraps repeats in
-the available tools and aggregates medians into versioned JSON
-(`schema: "devloop/1"`). `not_run` never passes or fails a
-comparison; it skips.
+Each cell runs in a child process (`devloop run-cell <id>`), which reports
+exact allocations plus wall time. The parent wraps repeats in the available
+tools and aggregates medians into versioned JSON (`schema: "devloop/1"`).
+`not_run` never passes or fails a comparison; it skips.
 
 Thresholds follow the scoreboard win rules: instructions or
 allocations fall ≥2% on targeted cells; no primary cell regresses

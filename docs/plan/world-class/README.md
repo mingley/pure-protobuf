@@ -1,5 +1,10 @@
 # World-class gRPC program
 
+This page is the expanded evidence and optimization program for native gRPC,
+codegen, codec performance and the upb-replacement path. It is for contributors
+choosing a lane or evaluating claims. Bottom line: this is a plan and
+scoreboard, not a claim that `pbrs` is already fastest or fully qualified.
+
 **Snapshot:** 2026-09-26. **Source baseline:**
 [`e9272edc`](https://github.com/mingley/pure-protobuf/tree/e9272edc801326f6aad371d4021e5998b57af6ce).
 **Coordinator and scope approver:** Michael Ingley.
@@ -14,8 +19,8 @@ This program has four goals:
    than upb.
 3. **Offer a better, faster alternative to tonic** that tonic users can adopt
    incrementally.
-4. **Over the long term, support every applicable gRFC,** including proxyless
-   xDS, backed by official interop evidence.
+4. **Over the long term, support every applicable gRFC (gRPC Request for
+   Comments),** including proxyless xDS, backed by official interop evidence.
 
 This plan extends the [leadership execution plan](../README.md) and its
 [legacy cards](../tasks.json). It does not replace them. Legacy cards that are
@@ -29,6 +34,14 @@ for dedicated hardware. Workers optimize against deterministic
 "Fastest in the world" is the aim, not something to claim. What gets published
 is category wins on a named, reproducible matrix, with the losses shown
 ([contract §10.2](../../benchmark-contract.md#102-claim-scope)).
+
+| Area | Plain-language meaning | What blocks a claim |
+|---|---|---|
+| Scoreboard | Categories for codec, codegen, client, server, end-to-end and gates. | SB-02 makes the categories authoritative; claim-grade runs wait for SB-15, SB-22 and SB-16. |
+| Dev loop | Fast, deterministic local/CI evidence for iteration. | Dev-loop wins are labeled as such and never count as leadership. |
+| Transport | Native gRPC performance on today's `h2` backend, then a possible `pbrs-h2` engine. | Comparator fairness, official scenarios, cross-stack matrix and transport gates. |
+| upb replacement | A pure-Rust kernel behind Google's official Rust protobuf API and gencode. | Upstream shared tests, rust_out conformance, fuzzing and API compatibility. |
+| Better tonic | An incremental path for tonic users through native transport and ecosystem adapters. | Product naming, tower integration, prost compatibility and migration proof. |
 
 ## Where we stand
 
@@ -46,7 +59,7 @@ work before any client-side card starts.
 | Evidence | Separate-process harnesses, open-loop load, endpoint CPU/RSS accounting, WorkerService building blocks, pinned Go and C++ peers, strict interop registry. | The recorded tonic transport wins are **not valid yet**. tonic's `serve_with_incoming` ignores its `tcp_nodelay` setting, flow-control windows were not matched, one runtime was shared, and sample counts were small; SB-01 fixes this. The bundled official QPS scenarios cannot run, because the worker rejects their thread controls; SB-10 fixes this. No CI tracks performance. There are no C++/Go codec comparators and no cross-stack server matrix. |
 | upb replacement | Official `--rust_out` gencode for Person and 19 upstream shared-test crates (233 tests) links against a pure-Rust stand-in in `src/runtime.rs`. | The stand-in is not a kernel. It finds fields by linear scan, keeps boxed per-message slot vectors and uses an `Rc<RefCell>` "arena". Several entry points are stubs: enum tables return null, there is no extension registry, `message_eq` always returns false, `debug_string` returns `"<msg>"`, and unknown fields are skipped. `protoc --rust_out` accepts only `kernel=cpp` or `kernel=upb`. Google now ships `google-protobuf` 0.36.x; the `protobuf` v4 crate is superseded. |
 | Better tonic | The `protobuf-tonic` adapter covers all four shapes, gzip, interceptors, health and reflection on tonic 0.14. | The native crate has no `tower` integration and cannot carry prost messages. Generated types are not `prost::Message`. There is no tonic-shaped API mode or migration proof. The adapter's name (`pbrs-tonic`?) is an open maintainer decision. |
-| gRFCs | See the [gRFC matrix](../../grfc.md). A8, A9, A15, A17 and A90 ship; A6 is partial (unary policy retry and hedging landed in `02390322`; streaming policy retry is GF-07). | No resolver or LB architecture, no ORCA, xDS, channelz, OTel, binary logging, authz, CRL or SPIFFE. `grpc/proposal` has 89 merged A-series files as of commit `6342be7`. |
+| gRFCs | See the [gRFC matrix](../../grfc.md). A8, A9, A15, A17, A90, resolver/LB policy work, ORCA, channelz, optional OTel basics, binary logging, and authz now ship in source. A6 retry/hedging is still scoped by call shape. | xDS, CRL, SPIFFE, full grpc.stats/OpenTelemetry coverage, and production qualification remain open. `grpc/proposal` has 89 merged A-series files as of commit `6342be7`. |
 
 External context, dated 2026-09-26:
 
@@ -463,6 +476,25 @@ card = next(t for t in plan["tasks"] if t["id"] == sys.argv[1])
 print(json.dumps({**plan["task_defaults"], **card}, indent=2))
 PY
 ```
+
+Lane prefixes in the card index mean:
+
+| Prefix | Lane meaning |
+|---|---|
+| MX | Maintainability splits that unlock parallel workers. |
+| SB | Scoreboard and evidence engine. |
+| PK | Protobuf kernel performance on the plugin/owned path. |
+| GN | Code generator and pure-Rust `.proto` frontend. |
+| UK | upb replacement kernel for official `rust_out` gencode. |
+| H2 | gRPC-specialized sans-IO HTTP/2 engine. |
+| RX | Runtime, IO, TLS and compression. |
+| CL | Client fast paths. |
+| SV | Server fast paths. |
+| TC | Better tonic: ecosystem and migration. |
+| CH | Channel architecture, resolvers and load balancing. |
+| XD | xDS. |
+| GF | Observability, security and remaining gRFCs. |
+| QG | Quality gates for new kernels and engines. |
 
 ## Card index
 

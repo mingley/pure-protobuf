@@ -1,18 +1,27 @@
-# `rpc-bench`: High-Throughput gRPC Benchmark Harness & QPS Worker
+# `rpc-bench`: gRPC benchmark harness and QPS worker
 
-`rpc-bench` provides the high-performance benchmark harness and official gRPC `WorkerService` implementation for `pure-protobuf` (`pbrs`) and `pbrs-grpc`.
+`rpc-bench` measures `pbrs-grpc` throughput, latency, CPU, and memory through
+the official gRPC benchmark worker protocol. For a quick smoke run from the repo
+root, use `./scripts/grpc-qps-interop.sh --scenario=protobuf_unary_ping_pong_empty --warmup=1 --duration=2`.
+Read `target/qps-logs/<timestamp>_<pid>/summary.json` first, then inspect the
+raw result and process logs when a cell fails or looks noisy.
 
-It strictly adheres to the binding principles in [`docs/benchmark-contract.md`](../docs/benchmark-contract.md):
-- **Coordinated Omission Prevention**: Open-loop Poisson and constant-paced arrival schedules track scheduling lag; saturated generator runs are explicitly flagged.
-- **Metric Separation**: Client and server CPU seconds, memory RSS, and queue delays are accounted and reported independently.
-- **Statistical Fidelity**: Complete HDR latency histograms matching upstream `grpc/support/histogram.c` with exponential bucket distributions.
-- **Zero Schema Adaptation**: Consumes and emits official `grpc.testing` protobuf structures over wire gRPC without artificial schema adapters hiding unsupported fields.
+It follows [`docs/benchmark-contract.md`](../docs/benchmark-contract.md):
 
----
+- **Prevents coordinated omission.** Open-loop Poisson and constant-paced
+  arrivals track scheduling lag; saturated generators are flagged.
+- **Separates metrics.** Client CPU, server CPU, resident set size (RSS), and
+  queue delay are reported independently.
+- **Keeps histogram fidelity.** HDR latency histograms match upstream
+  `grpc/support/histogram.c` exponential buckets.
+- **Uses the real schema.** The harness consumes and emits official
+  `grpc.testing` protobuf structures over gRPC. It does not hide unsupported
+  fields behind adapters.
 
 ## 1. Pinned Upstream Specifications and Peers
 
-All official scenarios, driver control protocols, and reference peers are pinned to reviewed upstream releases:
+All official scenarios, driver control protocols, and reference peers are pinned
+to reviewed upstream releases:
 
 | Component | Upstream Repository / Artifact | Pinned Commit / Version | Description |
 |---|---|---|---|
@@ -25,7 +34,10 @@ All official scenarios, driver control protocols, and reference peers are pinned
 
 ## 2. Official QPS Benchmark Scenarios (`scenarios/official.json`)
 
-The scenarios file [`rpc-bench/scenarios/official.json`](scenarios/official.json) defines official gRPC QPS scenarios conforming to `grpc.testing.Scenario` and `grpc.testing.Scenarios` from `grpc/testing/control.proto`:
+QPS means queries per second. The scenarios file
+[`rpc-bench/scenarios/official.json`](scenarios/official.json) defines official
+gRPC QPS scenarios conforming to `grpc.testing.Scenario` and
+`grpc.testing.Scenarios` from `grpc/testing/control.proto`:
 
 | Scenario Identifier | RPC Type | Payload | Concurrency | Load Model | Description |
 |---|---|---|---|---|---|
@@ -45,7 +57,9 @@ The scenarios file [`rpc-bench/scenarios/official.json`](scenarios/official.json
 
 ## 3. Local Reproducible Invocation
 
-The runner script [`scripts/grpc-qps-interop.sh`](../scripts/grpc-qps-interop.sh) orchestrates workers and driver runs with full process isolation and error recovery.
+The runner script [`scripts/grpc-qps-interop.sh`](../scripts/grpc-qps-interop.sh)
+starts workers, drives scenarios, and writes logs with process isolation and
+error recovery.
 It defaults to the shared repository `target/` cache with at most two Cargo
 build jobs. Every non-`--skip-build` invocation runs Cargo's incremental
 `--locked --release` build, even when a worker binary already exists, so a
@@ -57,19 +71,23 @@ existing binary: its summary records `native.source_sha: null` and
 to the checkout.
 
 ### Quick Start: Dry Run
-Inspect the planned execution matrix, scenario configurations, and pinned dependencies without spawning processes:
+
+Inspect the planned execution matrix, scenario configurations, and pinned
+dependencies without spawning processes:
 ```bash
 ./scripts/grpc-qps-interop.sh --dry-run
 ```
 
 ### Fast Smoke Test
-Run an official scenario with short warmup and benchmark durations:
+
+Run one official scenario with short warmup and benchmark durations:
 ```bash
 ./scripts/grpc-qps-interop.sh --scenario=protobuf_unary_ping_pong_empty --warmup=1 --duration=2
 ```
 
 ### Mixed-Peer Direction Execution
-Execute across specific peer directions to evaluate client vs. server efficiency:
+
+Run specific peer directions to evaluate client and server efficiency:
 
 ```bash
 # 1. Native pair (Native Client -> Native Server):
@@ -83,6 +101,7 @@ Execute across specific peer directions to evaluate client vs. server efficiency
 ```
 
 ### Full Matrix Execution
+
 Run the entire suite of official scenarios across all three primary directions:
 ```bash
 ./scripts/grpc-qps-interop.sh

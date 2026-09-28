@@ -1,5 +1,10 @@
 # Channel architecture (CH-01)
 
+This decision describes the resolver, load-balancer, picker, and subchannel
+architecture for future resolver-managed `pbrs-grpc` channels. Decision:
+keep today's direct channel as the zero-overhead default, and add the new
+pipeline only behind an explicit opt-in API.
+
 **Status:** Proposed for maintainer review; no resolver or balancer ships
 with this document. **Baseline:** `10b0ba1a` on 2026-09-26.
 **Supersedes:** the FL-01 scope of [the resolver
@@ -12,7 +17,7 @@ unblocks CH-03+. A design note is not production evidence.
 
 ## Shape
 
-One `Channel` owns a pipeline, left to right:
+One `Channel` owns this pipeline, left to right:
 
 ```
 target URI → Resolver → Resolution snapshot ─┐
@@ -21,32 +26,37 @@ service config ─────────────────────�
                                                       Subchannels (one per address)
 ```
 
-- **Resolver** watches a target (`dns:///`, `passthrough:///`,
-  later `xds:///`) and publishes `Resolution` snapshots: an ordered,
-  deduplicated address list plus an optional service config.
-- **Service config** selects the LB policy and its config (`A24`),
-  validated eagerly with `InvalidArgument` on errors (`A21`).
-- **LB policy tree** owns one child policy per cluster/endpoint group
-  and produces a **Picker**. Policies are plugins behind a registry.
-- **Subchannel** owns one address: connection lifecycle, connectivity
-  state, per-address backoff, and (CH-05) health-check state.
-- **Picker** maps one RPC to a ready subchannel. Picks are O(1),
-  lock-free, and allocation-free (see Performance rules).
+- **Resolver:** watches a target (`dns:///`, `passthrough:///`, later
+  `xds:///`) and publishes `Resolution` snapshots: an ordered, deduplicated
+  address list plus an optional service config.
+- **Service config:** selects the load-balancing (LB) policy and its config
+  (`A24`), validated eagerly with `InvalidArgument` on errors (`A21`).
+- **LB policy tree:** owns one child policy per cluster or endpoint group and
+  produces a **Picker**. Policies are plugins behind a registry.
+- **Subchannel:** owns one address: connection lifecycle, connectivity state,
+  per-address backoff, and (CH-05) health-check state.
+- **Picker:** maps one RPC to a ready subchannel. Picks are O(1), lock-free,
+  and allocation-free; see the performance rules.
 
 ## Connectivity states
 
 Subchannels move `Idle → Connecting → Ready`, with `TransientFailure`,
-`Draining`, and `Shutdown` as explicit transitions (per the resolver
-contract). The channel aggregates: `Ready` when the picker can serve,
-`TransientFailure` when every child reports failure, `Connecting`
-while any child connects, else `Idle`. `Shutdown` is terminal and
-cancels the resolver, all backoffs, and all subchannel tasks; after
-shutdown no task, connection, or byte remains (t7).
+`Draining`, and `Shutdown` as explicit transitions, per the resolver contract.
+
+The channel aggregates child states:
+
+- `Ready` when the picker can serve;
+- `TransientFailure` when every child reports failure;
+- `Connecting` while any child connects;
+- otherwise `Idle`.
+
+`Shutdown` is terminal. It cancels the resolver, all backoffs, and all
+subchannel tasks. After shutdown, no task, connection, or byte remains (t7).
 
 ## Plugin registries
 
-Two init-time registries, both following the `authz` factory pattern
-(name → factory, last registration wins, parse-time reads only):
+Two init-time registries follow the `authz` factory pattern: name to factory,
+last registration wins, and parse-time reads only.
 
 - `ResolverRegistry`: scheme → `ResolverFactory`
   (`dns`, `passthrough` ship in CH-02; `xds` arrives with XD-02).
@@ -55,10 +65,9 @@ Two init-time registries, both following the `authz` factory pattern
   `weighted_round_robin`, `random_subsetting_experimental`,
   `priority`, `outlier_detection`, xDS policies).
 
-Policy configs come from `loadBalancingConfig`; unknown policy names
-fall through to the next entry, and an empty/unusable list fails the
-channel to `TransientFailure` with `InvalidArgument` naming the entry
-(A21/A24).
+Policy configs come from `loadBalancingConfig`. Unknown policy names fall
+through to the next entry. An empty or unusable list fails the channel to
+`TransientFailure` with `InvalidArgument` naming the entry (A21/A24).
 
 ## Performance rules (hard)
 
@@ -79,12 +88,13 @@ channel to `TransientFailure` with `InvalidArgument` naming the entry
 
 ## Passthrough default
 
-`Channel::connect`, `connect_tls`, `connect_lazy`, Unix, and `from_io`
-keep their exact behavior: one authority, DNS-at-dial, no refresh, no
-balancer. `Target` keeps rejecting URI-shaped strings. Resolver-managed
-channels require an explicit opt-in (`Channel::connect_uri` in CH-02,
-plus `ChannelConfig` knobs for bounds); the direct path never pays for
-the balancer (no extra tasks, no snapshot machinery).
+`Channel::connect`, `connect_tls`, `connect_lazy`, Unix, and `from_io` keep
+their exact behavior: one authority, DNS-at-dial, no refresh, and no balancer.
+`Target` keeps rejecting URI-shaped strings.
+
+Resolver-managed channels require an explicit opt-in: `Channel::connect_uri`
+in CH-02, plus `ChannelConfig` knobs for bounds. The direct path never pays for
+the balancer: no extra tasks and no snapshot machinery.
 
 ## gRFC map
 
@@ -108,22 +118,26 @@ the balancer (no extra tasks, no snapshot machinery).
 | A113 | pick_first weighted shuffling | `lb/pick_first.rs` weighted shuffle (CH-04, done) | weighted distribution test (heavy-first share) |
 | A114 | WRR metric-name utilization | `orca::utilization` max-over-hits + fallback (CH-06, done) | config parse + selection unit tests |
 
-Follow-ups land in the same tree: proxy + user timeout (CH-09),
+Follow-ups land in the same tree: proxy + user timeout (CH-09), then
 picker-cost qualification (CH-11).
 
 ## xDS plugin points (later, no divergence)
 
-xDS reuses the same three seams: an `xds` resolver (A27 bootstrap +
-ADS), EDS-driven address updates (A56 priority), and LB policies
-(ring hash A42, least-request A48, outlier detection A50, weighted
-round robin A58). No xDS-only channel path: the control plane only
-publishes snapshots and configs through the registries above.
+xDS reuses the same three seams:
+
+- an `xds` resolver (A27 bootstrap + Aggregated Discovery Service (ADS));
+- Endpoint Discovery Service (EDS)-driven address updates (A56 priority);
+- LB policies: ring hash A42, least-request A48, outlier detection A50, and
+  weighted round robin A58.
+
+There is no xDS-only channel path. The control plane only publishes snapshots
+and configs through the registries above.
 
 ## Module map (post-MX-02 client tree)
 
-Existing files keep their jobs (`channel.rs` facade, `call.rs`,
-`unary.rs`, `streaming.rs`, `retry.rs`, `pool.rs`, `config_glue.rs`).
-New components land in:
+Existing files keep their jobs: `channel.rs` facade, `call.rs`, `unary.rs`,
+`streaming.rs`, `retry.rs`, `pool.rs`, and `config_glue.rs`. New components
+land in:
 
 - `resolver/` — target URI parsing, `ResolverRegistry`,
   `Resolution` snapshots, `dns` + static providers (CH-02; top-level
@@ -140,8 +154,8 @@ New components land in:
   `client/balancer/`).
 
 Tests: `tests/resolver.rs` carries resolver timelines plus per-policy
-distribution, churn, and soak coverage (no separate
-`tests/balancer.rs`), extended by each policy card. Docs: this file
+distribution, churn, and soak coverage. There is no separate
+`tests/balancer.rs`. Each policy card extends that coverage. Docs are this file
 plus the resolver contract.
 
 ## Open decisions for the maintainer

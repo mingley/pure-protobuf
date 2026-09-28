@@ -1,28 +1,26 @@
 # Codec corpora (SB-05)
 
-Pinned, license-checked schemas plus deterministic seeded payload
-generators for the codec scoreboard (categories A1–A15). Each corpus
-vendorizes its `.proto` import closure at a pinned upstream commit;
-`generate.py` builds descriptors with the pinned protoc and emits
-length-tiered binary payloads that reproduce byte-identically from
-their recorded seeds.
+This directory contains the pinned schemas and deterministic payload generators
+used by the codec scoreboard (categories A1–A15). It is for benchmark authors
+who need reproducible protobuf inputs. Bottom line: checked-in `tiny` and
+`typical` payloads are stable; `large` and `huge` payloads are regenerated on
+demand and verified by hashes in each manifest.
+
+Each corpus vendorizes its `.proto` import closure at a pinned upstream commit.
+`generate.py` builds descriptors with the pinned `protoc` and emits
+length-tiered binary payloads that reproduce byte-identically from their
+recorded seeds.
 
 ## Layout
 
-- `<corpus>/protos/` — vendored import closure, paths import-relative
-  (pass `-I <corpus>/protos` to protoc).
-- `payloads/<corpus>/<message>/<tier>.bin` — generated payloads.
-  Only `tiny`/`typical` are checked in; `large`/`huge` are gitignored
-  and regenerated on demand (hashes in the manifest prove equality).
-- `manifest.json` — per corpus: classification, upstream repos with
-  commits and SPDX licenses, every file's SHA-256, every payload's
-  message/seed/size/SHA-256.
-- `fetch.py` — re-download the pinned closures (`--verify` compares
-  hashes without writing).
-- `reconstruct_go.py` — rebuild the google-messages schemas from the
-  pinned protobuf-go generated code and prove descriptor-equivalence.
-- `generate.py` — build payloads (`--verify` regenerates and compares
-  hashes without writing).
+| Path | Purpose |
+|---|---|
+| `<corpus>/protos/` | Vendored import closure; paths are import-relative, so pass `-I <corpus>/protos` to `protoc`. |
+| `payloads/<corpus>/<message>/<tier>.bin` | Generated payloads. Only `tiny` and `typical` are checked in; `large` and `huge` are gitignored and regenerated on demand. |
+| `manifest.json` | Per-corpus classification, upstream repos with commits and SPDX licenses, every file's SHA-256, and every payload's message, seed, size, and SHA-256. |
+| `fetch.py` | Re-download pinned closures. `--verify` compares hashes without writing. |
+| `reconstruct_go.py` | Rebuild google-messages schemas from pinned protobuf-go generated code and prove descriptor equivalence. |
+| `generate.py` | Build payloads. `--verify` regenerates and compares hashes without writing. |
 
 ## Corpora
 
@@ -64,9 +62,11 @@ python3 bench/corpora/generate.py              # all payloads
 python3 bench/corpora/generate.py --verify     # determinism proof
 ```
 
-Requirements: CPython 3.9+ with the `protobuf` runtime package, and
-protoc (`$PROTOC`, else the repo's pinned 35.1 build, else `PATH`).
-Recorded `protoc --version` is stored in `manifest.json` under
-`config.protoc`; payload bytes do not depend on the protoc version
-(the descriptors only feed the Python runtime, which serializes
-deterministically).
+Requirements:
+
+- CPython 3.9+ with the `protobuf` runtime package.
+- `protoc`: `$PROTOC`, else the repo's pinned 35.1 build, else `PATH`.
+
+The recorded `protoc --version` is stored in `manifest.json` under
+`config.protoc`. Payload bytes do not depend on the `protoc` version because
+the descriptors only feed the Python runtime, which serializes deterministically.

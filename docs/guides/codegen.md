@@ -1,24 +1,30 @@
 # Code Generation and Custom Stubs
 
-This guide details how to generate Rust messages and gRPC service stubs using `pbrs::codegen` and the `protoc-gen-pbrs` plugin.
+Use this guide to generate Rust messages and service stubs with
+`pbrs::codegen` or the `protoc-gen-pbrs` plugin. You need `.proto` files or a
+checked descriptor set. Bottom line: use `build.rs` for normal crates, choose
+native or Tonic stubs explicitly, and use descriptor sets when an earlier stage
+already ran `protoc`.
 
 ---
 
 ## 1. Using `build.rs` (Recommended)
 
-Add `pbrs` as a build dependency in `Cargo.toml`:
+For most crates, generate code from `build.rs`. Add `pbrs` as a build
+dependency and add the runtime crates your generated code will use:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1.0-alpha.1"
+pbrs = "0.2"
+pbrs-grpc = "0.1.0-alpha.2"
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = "0.2"
 ```
 
 ### Basic Compilation
-In `build.rs`:
+
+Compile your `.proto` files during the build:
 
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Then include the generated code in your crate (`src/lib.rs` or `src/main.rs`):
+Then include the generated Rust file from your crate:
 
 ```rust
 pub mod pb {
@@ -37,15 +43,15 @@ pub mod pb {
 
 ### Generating from a checked descriptor set
 
-When `.proto` compilation runs in an earlier build stage, include imports in
-the checked descriptor set:
+Use a descriptor set when another build step already compiled the `.proto`
+graph. Include imports when creating the descriptor:
 
 ```bash
 protoc -I proto --include_imports --descriptor_set_out=proto/service.fds proto/service.proto
 ```
 
-The application `build.rs` can generate the same layout without `protoc` on
-its PATH:
+The application `build.rs` can then generate the same layout without `protoc`
+on its `PATH`:
 
 ```rust
 use pbrs::codegen::{Config, Stubs};
@@ -60,24 +66,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Use `.emit_kernel_stubs(true)` or `.emit_tonic_stubs(true)` instead of
-`.stubs(Stubs::None)` for native or tonic service code; descriptor targets are
-include-relative file names. Missing/malformed descriptors fail explicitly,
-and the descriptor plus available imported `.proto` sources trigger rebuilds.
-The generator path is `protoc`-free. In this checkout, a **cold** build of
-`pbrs-grpc` or `protobuf-tonic` is too: both adapters use checked descriptor
-sets for their own build scripts. Their currently published `0.1.0-alpha.1`
-archives still require `protoc` until new versions are released. Creating or updating
-an application's descriptor set still requires a compiler in an earlier stage.
-Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
-`protoc`. No full-profile Rust-only `.proto` frontend is approved; see the
-[candidate review](../rust-frontend.md) and the
-[support matrix](../../README.md#support-matrix).
+`.stubs(Stubs::None)` when you need native or Tonic service code. Descriptor
+targets are include-relative file names.
+
+Important boundaries:
+
+- Missing or malformed descriptors fail explicitly.
+- The descriptor and available imported `.proto` sources trigger rebuilds.
+- This generator path is `protoc`-free.
+- In this checkout, a **cold** build of `pbrs-grpc` or `protobuf-tonic` is also
+  `protoc`-free because both adapters use checked descriptor sets for their own
+  build scripts.
+- Published adapters from `0.1.0-alpha.2` on are `protoc`-free too. The older
+  `0.1.0-alpha.1` archives still require `protoc`.
+- Creating or updating an application's descriptor set still requires a
+  compiler in an earlier stage.
+- Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
+  `protoc`.
+- No full-profile Rust-only `.proto` frontend is approved. See the
+  [candidate review](../rust-frontend.md) and the
+  [support matrix](../../README.md#support-matrix).
 
 ---
 
 ## 2. Configuring Stub Flavours
 
-By default, `pbrs::codegen::compile_protos` emits native `pbrs-grpc` stubs (`Stubs::Kernel`). You can customize stub generation using `pbrs::codegen::Config`:
+By default, `pbrs::codegen::compile_protos` emits native `pbrs-grpc` stubs
+(`Stubs::Kernel`). Use `pbrs::codegen::Config` when you want a different
+stub shape:
 
 ```rust
 use pbrs::codegen::{Config, Stubs};
@@ -96,6 +112,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ### Stub Generation Summary
+
+Pick one stub mode per generated service surface:
+
 | Flavour | Builder Setting | Generated Code | Target Stack |
 |---|---|---|---|
 | **Native Kernel** | `.emit_kernel_stubs(true)` (Default) | `Foo`, `FooServer`, `FooClient` | `pbrs-grpc` |
@@ -108,8 +127,8 @@ with `tonic` and `protobuf-tonic`:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
+pbrs = "0.2"
+protobuf-tonic = "0.1.0-alpha.2"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 http = "1"
 tokio-stream = "0.1"
@@ -119,7 +138,9 @@ tokio-stream = "0.1"
 
 ## 3. Multi-File Protos and Dependency Handling
 
-When a `.proto` file imports other `.proto` files:
+If a `.proto` file imports other local `.proto` files, point codegen at every
+include root and decide whether imported non-Well-Known-Type definitions should
+be emitted:
 
 ```rust
 Config::new()
@@ -134,21 +155,26 @@ Config::new()
     )?;
 ```
 
-Alternatively, pass `PURE_PROTOBUF_EMIT_DEPS=1` via environment variables.
+Alternatively, set `PURE_PROTOBUF_EMIT_DEPS=1` in the environment.
 
 ---
 
 ## 4. Standalone CLI Plugin (`protoc-gen-pbrs`)
 
-You can invoke `protoc` directly using the `protoc-gen-pbrs` binary.
+Use the standalone plugin when your build already calls `protoc` directly.
 
 ### Installation
+
+Install the plugin binary from this repository:
+
 ```bash
 cargo install --path . --bin protoc-gen-pbrs
 ```
 
 ### Invocation
-Ensure `protoc-gen-pbrs` is in your `$PATH`, then invoke `protoc`:
+
+Put `protoc-gen-pbrs` on your `$PATH`, then pass `--pbrs_out` and
+`--pbrs_opt` to `protoc`:
 
 ```bash
 protoc \
@@ -159,6 +185,7 @@ protoc \
 ```
 
 Supported `--pbrs_opt` options:
+
 - `stubs=kernel`: Emit native `pbrs-grpc` stubs.
 - `stubs=tonic`: Emit `tonic` stubs.
 - `stubs=none`: Emit messages only.
@@ -170,7 +197,9 @@ Supported `--pbrs_opt` options:
 <a id="manual-service"></a>
 ## 5. Writing a Service Without Codegen
 
-For dynamic proxies, gateways, or custom routing, you can implement the `Service` trait directly without generated stubs:
+For dynamic proxies, gateways, or custom routing, implement `Service` directly
+instead of using generated stubs. This gives you raw byte frames, interceptor
+context, and path-based dispatch.
 
 ```rust
 use pbrs_grpc::{Incoming, Request, Response, Rpc, Service, Status};
@@ -201,5 +230,3 @@ impl Service for RawEchoService {
     }
 }
 ```
-
-This pattern provides direct access to raw byte frames, interceptor context, and path-based dispatch.

@@ -1,29 +1,41 @@
 # gRPC Resource Budget Model & Memory Bounds Specification
 
-**Task:** RT-05 ("Define a complete resource-budget model")  
-**Pinned Standards:** RFC 9113 (HTTP/2), RFC 7541 (HPACK), gRPC over HTTP/2 Wire Specification, gRFC A6 (Client Retries)  
-**Work Package:** RT Lane (Reliability & Resource Safety), Wave 1  
-**Downstream Implementation:** RT-06 ("Enforce the approved transport byte budget"), RT-07 ("Verify overload fairness and slow-peer isolation")  
-**Related Documents:** [docs/retry-contract.md](retry-contract.md), [docs/architecture.md](architecture.md), [docs/grpc.md](grpc.md)  
-**Primary Source References:** `pbrs-grpc/src/config.rs`, `pbrs-grpc/src/limits.rs`, `pbrs-grpc/src/stream.rs`, `pbrs-grpc/src/wire.rs`, `pbrs-grpc/src/gzip.rs`, `pbrs-grpc/src/client.rs`, `pbrs-grpc/src/server.rs`
+This page explains how `pbrs-grpc` bounds memory, tasks, and overload behavior.
+It is for service owners choosing limits and for contributors changing resource
+handling. Bottom line: the defaults are intentionally high-throughput but
+unbounded for connection and RPC counts, so production deployments must set
+explicit ceilings.
 
----
+- **Task:** RT-05 ("Define a complete resource-budget model")
+- **Pinned Standards:** RFC 9113 (HTTP/2), RFC 7541 (HPACK header compression), gRPC over HTTP/2 Wire Specification, gRFC A6 (Client Retries)
+- **Work Package:** RT Lane (Reliability & Resource Safety), Wave 1
+- **Downstream Implementation:** RT-06 ("Enforce the approved transport byte budget"), RT-07 ("Verify overload fairness and slow-peer isolation")
+- **Related Documents:** [docs/retry-contract.md](retry-contract.md), [docs/architecture.md](architecture.md), [docs/grpc.md](grpc.md)
+- **Primary Source References:** `pbrs-grpc/src/config.rs`, `pbrs-grpc/src/limits.rs`, `pbrs-grpc/src/stream.rs`, `pbrs-grpc/src/wire.rs`, `pbrs-grpc/src/gzip.rs`, `pbrs-grpc/src/client.rs`, `pbrs-grpc/src/server.rs`
 
 ## 1. Executive Summary & Problem Statement
 
-In distributed RPC environments, network servers and client connection pools face unpredictable traffic surges, slow clients, hostile connection spam, and oversized or malicious payloads. Without deterministic resource bounds, a gRPC service can exhaust memory (leading to OS OOM-killer termination) or exhaust task scheduling resources long before CPU saturation occurs.
+Networked remote procedure call (RPC) services face traffic bursts, slow peers,
+connection spam, and oversized payloads. Without deterministic limits, a gRPC
+service can run out of resident set size (RSS) memory or task capacity before
+CPU becomes the bottleneck.
 
-In `pbrs-grpc`:
-1. `ServerConfig` and `ChannelConfig` defaults provide safe defaults for individual message sizes (4 MiB) and per-connection stream concurrency (256 streams), but leave global connection counts (`max_concurrent_connections`) and global active RPC counts (`max_concurrent_rpcs`) **unbounded** (`None`).
-2. High-throughput defaults—such as 16 MiB connection and stream flow-control windows (`DEFAULT_WINDOW_SIZE`), 1 MiB frame sizes (`DEFAULT_MAX_FRAME_SIZE`), and 1 MiB send buffers (`DEFAULT_MAX_SEND_BUFFER_SIZE`)—allow high single-stream performance, but can multiply into gigabytes of unconstrained memory consumption under overload if active connections and calls are not explicitly bounded.
-3. Memory is divided into **transport-owned buffers** (which the gRPC kernel can strictly govern, account for, and reject before commitment) and **application-owned data** (which resides in user handlers, deserialized structs, and retained buffers).
+In `pbrs-grpc`, three facts drive the model:
 
-This specification establishes:
-- Rigorous mathematical upper-bound formulas for client and server memory consumption.
-- A taxonomy strictly separating transport-owned buffers from application memory, detailing the hazards of backing-buffer retention.
-- An overload analysis proving why unbounded defaults risk catastrophic process failure and how explicit bounds provide deterministic guarantees.
-- The precise admission control and error semantics required for implementation in **RT-06**.
-- Four standard, production-ready tuning profiles matching distinct operational environments.
+| Fact | Why it matters |
+|---|---|
+| Message size and per-connection stream defaults are bounded. | `ServerConfig` and `ChannelConfig` cap individual messages at 4 MiB and streams at 256 per connection. |
+| Global connection and active-RPC counts are unbounded by default. | `max_concurrent_connections` and `max_concurrent_rpcs` default to `None`, so operators must choose production ceilings. |
+| High-throughput buffers multiply under overload. | 16 MiB connection and stream windows, 1 MiB frames, and 1 MiB send buffers can become gigabytes without explicit connection and call limits. |
+
+This specification provides:
+
+- formulas for client and server memory ceilings;
+- a split between transport-owned buffers and application-owned data;
+- the backing-buffer retention hazard for zero-copy handlers;
+- overload analysis showing why explicit limits are required;
+- RT-06 admission-control and error semantics;
+- four production tuning profiles.
 
 ---
 

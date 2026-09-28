@@ -1,19 +1,21 @@
 # Scoreboard
 
-The machine-readable category list is
-[bench/scoreboard/categories.json](../bench/scoreboard/categories.json):
-52 categories, one owner lane each, metric definitions and direction,
-comparator pins, and corpora. The
-[strategy](plan/world-class/README.md#scoreboard) defines the groups;
-the [benchmark contract](benchmark-contract.md) defines the evidence
-tiers. This page records the initial claim-grade standing and maps
-every performance statement in [benchmarks.md](benchmarks.md) to a
-verdict.
+This page is the human-readable performance scoreboard for `pbrs`. It is for
+readers who want to know which benchmark statements are claim-grade, diagnostic,
+or invalid. Bottom line: no performance category is a claim-grade win yet.
 
-Standings use `win` / `tie` / `loss` / `unmeasured` / `invalid`. For
-the F gates, `win` means the gate is enforced and green. No
-performance category is a claim-grade win: nothing yet meets
-contract §6–§10.
+The machine-readable source is
+[bench/scoreboard/categories.json](../bench/scoreboard/categories.json). It
+defines 52 categories, one owner lane per category, metric direction,
+comparator pins, and corpora. The
+[strategy](plan/world-class/README.md#scoreboard) defines the groups, and the
+[benchmark contract](benchmark-contract.md) defines evidence tiers. This page
+records the initial claim-grade standing and maps every performance statement in
+[benchmarks.md](benchmarks.md) to a verdict.
+
+Standings use `win`, `tie`, `loss`, `unmeasured`, and `invalid`. For the F
+gates, `win` means the gate is enforced and green. For performance categories,
+`win` requires contract §6–§10 evidence.
 
 ## Current standing
 
@@ -44,7 +46,7 @@ contract §6–§10.
 | B8 binary size | unmeasured | Same pair favors pbrs (527808 vs 658160) but unqualified |
 | B9 no protoc/no C | unmeasured | Capability absent: protoc still required (CG-16 blocked) |
 | C1 unary latency | invalid | tonic cells share one runtime; p99 artifact is tower buffering (SB-01) |
-| C2 QPS/core | invalid | Same harness; contended absolute numbers (SB-01) |
+| C2 QPS (queries per second)/core | invalid | Same harness; contended absolute numbers (SB-01) |
 | C3 streaming msgs/s | invalid | Same harness; 90% band gate only (SB-01) |
 | C4 large messages | invalid | Same harness (SB-01) |
 | C5 instructions/RPC | unmeasured | Needs SB-03 dev-loop harness |
@@ -52,7 +54,7 @@ contract §6–§10.
 | C7 time to first RPC | unmeasured | No measurements |
 | C8 CPU/RPC matched load | unmeasured | No open-loop runs yet |
 | D1 latency at load | unmeasured | grpc-go tables are separate-process but one host, best-of, no intervals |
-| D2 QPS/core in SLO | unmeasured | No measurements |
+| D2 QPS (queries per second)/core in SLO | unmeasured | No measurements |
 | D3 streaming/core | unmeasured | grpc-go ping_pong/upload tables unqualified (contended, best-of) |
 | D4 CPU/allocs per RPC | unmeasured | Needs SB-03 dev-loop harness |
 | D5 memory per conn | unmeasured | No measurements |

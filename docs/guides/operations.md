@@ -1,13 +1,17 @@
 # Operations, Health Checking, and Diagnostics
 
-This guide covers operational practices for operating, monitoring, and debugging `pbrs-grpc` microservices.
+Use this guide to operate, monitor, and debug a `pbrs-grpc` service. You need a
+generated service and a server or router you can configure. Bottom line: expose
+health deliberately, bound metric labels, keep diagnostics redacted by default,
+and replace TLS material by constructing new server/client objects.
 
 ---
 
 <a id="health-checks"></a>
 ## 1. Health Checking (`grpc.health.v1`)
 
-`pbrs-grpc` includes built-in support for the official gRPC Health Checking protocol (`grpc.health.v1`).
+Mount the built-in official gRPC Health Checking protocol
+(`grpc.health.v1`) when clients or load balancers need readiness state.
 
 ### Mounting the Health Service
 ```rust
@@ -28,7 +32,9 @@ router.serve("0.0.0.0:50051").await?;
 ```
 
 ### Dynamic Status Updates
-Update status during startup, shutdown, or health check probes:
+
+Update status during startup, shutdown, or health probes:
+
 ```rust
 // Mark a specific service unhealthy
 health_reporter.set_serving_status("hello.Greeter", ServingStatus::NotServing);
@@ -37,14 +43,17 @@ health_reporter.set_serving_status("hello.Greeter", ServingStatus::NotServing);
 health_reporter.shutdown();
 ```
 
-Clients can execute unary `Check` calls or subscribe to long-lived streaming `Watch` calls. `Health::list` returns a snapshot of all registered service names.
+Clients can run unary `Check` calls or subscribe to long-lived streaming
+`Watch` calls. `Health::list` returns a snapshot of all registered service
+names.
 
 ---
 
 <a id="reflection"></a>
 ## 2. Server Reflection (`grpc.reflection.v1`)
 
-Enable server reflection so developer tools like `grpcurl` or Postman can dynamically inspect and call your services without manual `.proto` files:
+Enable server reflection when developer tools such as `grpcurl` or Postman may
+inspect and call services without local `.proto` files:
 
 ```rust
 use pbrs_grpc::reflection::ServerReflectionServer;
@@ -59,6 +68,9 @@ router.serve("0.0.0.0:50051").await?;
 ```
 
 ### Inspecting with `grpcurl`
+
+Use plaintext only for local or otherwise authorized endpoints:
+
 ```bash
 # List available services
 grpcurl -plaintext 127.0.0.1:50051 list
@@ -70,7 +82,8 @@ grpcurl -plaintext 127.0.0.1:50051 describe hello.Greeter
 grpcurl -plaintext -d '{"name": "Ada"}' 127.0.0.1:50051 hello.Greeter/SayHello
 ```
 
-Both `v1` and `v1alpha` paths are automatically served as aliases for compatibility with older tools.
+Both `v1` and `v1alpha` paths are automatically served as aliases for
+compatibility with older tools.
 
 ---
 
@@ -78,10 +91,15 @@ Both `v1` and `v1alpha` paths are automatically served as aliases for compatibil
 <a id="tuning"></a>
 ## 3. Keepalive and Socket Tuning
 
-Network middleboxes (such as firewalls or NAT gateways) can terminate idle TCP connections. `pbrs-grpc` provides two separate keepalive mechanisms:
+Network middleboxes, such as firewalls or Network Address Translation (NAT)
+gateways, can terminate idle TCP connections. `pbrs-grpc` provides HTTP/2
+keepalive and operating-system TCP keepalive knobs.
 
 ### HTTP/2 Protocol PINGs
-Configured via `keep_alive_interval` and `keep_alive_timeout`:
+
+Configure protocol PINGs with `keep_alive_interval` and
+`keep_alive_timeout`:
+
 - Sends HTTP/2 `PING` frames on idle connections.
 - If the peer does not acknowledge within `keep_alive_timeout`, the connection is torn down and redialed.
 
@@ -97,10 +115,14 @@ let client = GreeterClient::connect_with("127.0.0.1:50051", config).await?;
 ```
 
 ### OS-Level TCP Keepalive
-Configured on `ChannelConfig` or `ServerConfig`:
-- `tcp_keepalive_interval`: Sets the `TCP_KEEPINTVL` interval between keepalive probes.
-- `tcp_keepalive_retries`: Sets `TCP_KEEPCNT` (how many unacknowledged probes before the OS drops the socket).
-- `TCP_NODELAY` is enabled by default to minimize RPC latency.
+
+Configure these on `ChannelConfig` or `ServerConfig`:
+
+| Setting | Effect |
+|---|---|
+| `tcp_keepalive_interval` | Sets the `TCP_KEEPINTVL` interval between keepalive probes |
+| `tcp_keepalive_retries` | Sets `TCP_KEEPCNT`, the number of unacknowledged probes before the operating system drops the socket |
+| `TCP_NODELAY` | Enabled by default to minimize RPC latency |
 
 ---
 
@@ -108,7 +130,9 @@ Configured on `ChannelConfig` or `ServerConfig`:
 ## 4. Status Codes and Rich Error Details
 
 ### Standard Status Codes
-`pbrs_grpc::Status` provides constructors for all standard gRPC status codes:
+
+Use `pbrs_grpc::Status` constructors for standard gRPC status codes:
+
 ```rust
 Status::ok();
 Status::invalid_argument("missing user id");
@@ -120,7 +144,9 @@ Status::unavailable("service temporarily overloaded");
 ```
 
 ### Rich Errors with `ErrorDetails`
-`pbrs-grpc` supports unpacking structured `google.rpc.Status` payloads from the `grpc-status-details-bin` trailer:
+
+Use `ErrorDetails` when a server needs to return structured
+`google.rpc.Status` payloads in the `grpc-status-details-bin` trailer:
 
 ```rust
 use pbrs_grpc::status::{BadRequest, ErrorDetails, ErrorInfo, FieldViolation, RetryInfo};
@@ -136,7 +162,8 @@ let status = Status::resource_exhausted("quota exceeded")
     .with_error_details(details);
 ```
 
-On the client side:
+On the client, inspect the unpacked details from the returned `Status`:
+
 ```rust
 match client.say_hello(req).await {
     Ok(resp) => { /* ... */ }
@@ -159,11 +186,15 @@ match client.say_hello(req).await {
 
 `Server::observer`, `Router::observer`, and `Channel::observer` expose
 `LifecycleObserver` events for calls, attempts, queue delay, bytes, reconnects,
-rejections, and cancellations. Callbacks receive **raw** RPC paths and
-authorities: an inbound peer can supply arbitrarily many distinct values.
-Never use `CallLabels::path()`, `CallLabels::authority()`,
-`ReconnectEvent::target`, or the numeric attempt index directly as metric
-dimensions.
+rejections, and cancellations.
+
+Treat observer identity as untrusted input:
+
+- Callbacks receive **raw** RPC paths and authorities.
+- An inbound peer can supply arbitrarily many distinct values.
+- Never use `CallLabels::path()`, `CallLabels::authority()`,
+  `ReconnectEvent::target`, or the numeric attempt index directly as metric
+  dimensions.
 
 Classify raw call identity with a reviewed static allowlist:
 
@@ -184,89 +215,114 @@ For an exporter, implement `MetricSink::record(MetricEvent)` and register
 `BoundedMetricObserver::new(policy, sink)` with `Server::observer`,
 `Router::observer`, or `Channel::observer`. The
 [compiled API example](../../pbrs-grpc/src/telemetry.rs) shows this adapter.
-It forwards only allowlisted or `_other` RPC/target labels, a bounded
-initial/retry/invalid attempt class, status/rejection/cancellation enums,
-durations and byte counts. It never forwards raw status messages,
-authorities, metadata, payloads, or diagnostic telemetry contexts. Direct
-`LifecycleObserver` implementations still receive raw identity and require
-explicit classification before exporting. Configuration rejects more than
-256 RPC paths or 16 reconnect targets, malformed paths, duplicate entries,
-and labels over 256 bytes. The policy itself has no exporter dependency or
-per-call label allocation; enabled observers may still copy identity across
-async lifecycles.
+
+The bounded observer forwards only:
+
+- allowlisted or `_other` RPC/target labels;
+- a bounded initial/retry/invalid attempt class;
+- status, rejection, and cancellation enums;
+- durations and byte counts.
+
+It never forwards raw status messages, authorities, metadata, payloads, or
+diagnostic telemetry contexts. Direct `LifecycleObserver` implementations still
+receive raw identity and require explicit classification before exporting.
+
+Configuration rejects:
+
+- more than 256 RPC paths;
+- more than 16 reconnect targets;
+- malformed paths;
+- duplicate entries;
+- labels over 256 bytes.
+
+The policy itself has no exporter dependency or per-call label allocation.
+Enabled observers may still copy identity across async lifecycles.
+
 Server queue wait measures post-admission scheduling until the dispatch task
-starts, **not** full listener or transport queue delay; pre-admission
-rejections have their own event. OpenTelemetry export is not built in.
+starts. It does **not** measure full listener or transport queue delay.
+Pre-admission rejections have their own event. OpenTelemetry export is not
+built in.
 
 ### Safe Diagnostic Formatting
 
-Default `Debug` formatting for `Request`, `Response`, their split `Parts` and
-`ResponseParts`, server `Rpc`, and `TelemetryContext` masks unverified
-path/authority fields. `Response` and `ResponseParts` also mask the received
-`grpc-encoding` text.
-`Request`, `Parts`, and `Rpc` also mask remote/local socket addresses, peer
-certificate identity, Unix peer credentials, and untrusted scheme and
-`grpc-encoding` text. `Request` and `Parts` mask their user-agent override.
-The presence of a peer field remains visible as `Some("[REDACTED]")`.
-`Outgoing` retains its application-defined static RPC path but masks the
-destination authority and user-agent. `Channel` masks its authority, endpoint,
-and user-agent; `ConnectionInfo` masks peer addresses, certificate identity,
-Unix credentials, and scheme. A telemetry context keeps the status **code**
-and metadata key names visible while masking all peer-supplied values,
-including `x-request-id` and `traceparent`, and the free-form status message.
-Direct `Status::Debug` also retains the code, transport evidence, and
-value-redacted metadata, but masks the message and source error and
-reports only the length of binary rich details. Default metadata formatting
-shows at most 64 entries and 256 bytes per key name, never a value.
+Default `Debug` output is redacted. Use it first during incident triage.
 
-For a controlled diagnostic, use `DiagnosticConfig::with_consent(true)` with
-`with_raw_identity(true)` on a `Request`, `Parts`, `Response`, or
-`ResponseParts`, or call
-`Rpc::set_diagnostic_config` on an inbound RPC (the setting carries to its
-handler `Request` and split `Parts`). For status text in a telemetry context,
-enable `with_status_message(true)` separately. To inspect a `Status` message
-without changing its default `Debug`, format
-`status.diagnostic_debug(&config)`, where `config` has both
-`with_consent(true)` and `with_status_message(true)`. That view still hides
-binary details and the source error and keeps all metadata values masked,
-even if unclassified metadata disclosure is separately permitted. Inspect
-`Metadata::safe_debug` explicitly for a controlled metadata diagnostic.
-Revealed identity and status text is truncated on UTF-8 boundaries to
-`with_max_value_length` bytes (256 by default) plus a truncation marker.
-Certificate `Debug` reveals only a bounded certificate count, never DER
-bytes. These switches are independent of `with_sensitive_headers(true)` and
-`with_payload(true)`: consent to inspect peer details must not also reveal
-metadata credentials or payloads.
+| Type | Default redaction behavior |
+|---|---|
+| `Request`, `Response`, split `Parts` / `ResponseParts`, server `Rpc`, `TelemetryContext` | Mask unverified path and authority fields |
+| `Response` and `ResponseParts` | Also mask received `grpc-encoding` text |
+| `Request`, `Parts`, and `Rpc` | Also mask remote/local socket addresses, peer certificate identity, Unix peer credentials, untrusted scheme, and `grpc-encoding` text |
+| `Request` and `Parts` | Also mask user-agent override |
+| Peer fields | Keep presence visible as `Some("[REDACTED]")` |
+| `Outgoing` | Keep the application-defined static RPC path; mask destination authority and user-agent |
+| `Channel` | Mask authority, endpoint, and user-agent |
+| `ConnectionInfo` | Mask peer addresses, certificate identity, Unix credentials, and scheme |
+| `TelemetryContext` | Keep status **code** and metadata key names; mask all peer-supplied values, including `x-request-id`, `traceparent`, and the free-form status message |
+| `Status::Debug` | Keep code, transport evidence, and value-redacted metadata; mask message and source error; report only the length of binary rich details |
+| Metadata default formatting | Show at most 64 entries and 256 bytes per key name; never show a value |
+
+Use explicit consent for controlled diagnostics:
+
+- To reveal raw identity on a `Request`, `Parts`, `Response`, or
+  `ResponseParts`, use `DiagnosticConfig::with_consent(true)` with
+  `with_raw_identity(true)`.
+- To apply that setting to an inbound RPC and its handler `Request` / split
+  `Parts`, call `Rpc::set_diagnostic_config`.
+- To include status text in a telemetry context, enable
+  `with_status_message(true)` separately.
+- To inspect a `Status` message without changing default `Debug`, format
+  `status.diagnostic_debug(&config)` with both `with_consent(true)` and
+  `with_status_message(true)`.
+- To inspect metadata values, call `Metadata::safe_debug` explicitly.
+
+Even in the controlled `Status` diagnostic view, binary details and the source
+error stay hidden, and all metadata values stay masked, even if unclassified
+metadata disclosure is separately permitted. Revealed identity and status text
+are truncated on UTF-8 boundaries to `with_max_value_length` bytes, 256 by
+default, plus a truncation marker. Certificate `Debug` reveals only a bounded
+certificate count, never DER bytes.
+
+Consent switches are independent:
+
+- `with_sensitive_headers(true)` and `with_payload(true)` do not follow from
+  consent to inspect peer identity.
+- `Metadata::safe_debug` reveals byte-bounded unclassified ASCII values only
+  with both `with_consent(true)` and `with_metadata_values(true)`.
+- A peer can place secrets under *any* custom header name, so use metadata
+  value disclosure only for controlled diagnostics.
+- Inbound `user-agent`, credentials, and binary metadata remain redacted.
+- Showing sensitive ASCII values also requires `with_sensitive_headers(true)`.
+- Showing binary values requires both `with_sensitive_headers(true)` and
+  `with_binary_metadata(true)`.
+- Unclassified-value, sensitive-value, identity, and payload permissions are
+  independent.
+
+Invalid non-ASCII header values never print raw bytes. The opt-in view defaults
+to 64 entries and 256 bytes per value. Raising those limits also accepts the
+extra log-volume and disclosure risk.
 
 Direct `Status::Display` and raw getters (`message()`, `details()`, and
 `Error::source()`) remain application-controlled and may expose untrusted
 content. `Channel`, `ConnectionInfo`, and `Outgoing` do not provide a consent
-switch for their masked Debug fields; use explicit getters under your own
-logging policy. `Metadata::safe_debug` reveals byte-bounded unclassified
-ASCII values only with both `with_consent(true)` and
-`with_metadata_values(true)`; a peer can place secrets under *any* custom
-header name, so use that switch only for controlled diagnostics. Inbound
-`user-agent`, credentials and binary metadata remain redacted: showing
-sensitive ASCII values additionally requires `with_sensitive_headers(true)`,
-and binary values require both that switch and `with_binary_metadata(true)`.
-Unclassified-value, sensitive-value, identity and payload permissions are
-independent. Invalid non-ASCII header values never print raw bytes. The opt-in
-view defaults to 64 entries and 256 bytes per value; callers who raise those
-limits also accept the resulting log-volume and disclosure risk.
-Do not put credentials in status messages or log raw peer fields without one;
-OB-03 closed this policy: Display and raw getters stay application-controlled,
-and the kernel puts no peer credential values into messages.
+switch for their masked `Debug` fields; use explicit getters under your own
+logging policy. Do not put credentials in status messages, and do not log raw
+peer fields without explicit consent. The policy boundary is that Display and
+raw getters stay application-controlled, while the kernel puts no peer
+credential values into messages.
 
 ---
 
 <a id="credential-refresh"></a>
 ## 6. Certificate and Trust Replacement
 
-There is no live certificate or CA reload on `ServerTls`, `ClientTls`, or an
-existing `Channel`. The rustls configuration is built from the supplied
-identity/trust material; editing a PEM file later does not change that
-configuration, and an already negotiated TLS connection is not reverified.
-Use a bounded replacement procedure instead:
+Do not edit PEM files and expect live TLS state to change. There is no live
+certificate or certificate authority (CA) reload on `ServerTls`, `ClientTls`,
+or an existing `Channel`.
+
+The `rustls` configuration is built from the supplied identity and trust
+material. Editing a PEM file later does not change that configuration. An
+already negotiated TLS connection is not reverified. Use a bounded replacement
+procedure instead:
 
 1. Set health to `NOT_SERVING`, let upstream routing observe it, then drain and
    stop the old TLS listener with `serve_tls_with_shutdown`. A readiness update
@@ -304,7 +360,8 @@ descriptors is separately authorized.
 <a id="testing"></a>
 ## 7. Testing with In-Memory Channels (`from_io`)
 
-To test services deterministically without opening TCP sockets or managing ports:
+Use `Channel::from_io` for deterministic service tests that should not open TCP
+sockets or manage ports:
 
 ```rust
 #[tokio::test]

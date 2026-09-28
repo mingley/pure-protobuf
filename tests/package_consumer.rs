@@ -143,10 +143,30 @@ fn cargo_package_list(pkg: &str, target_dir: &Path) -> Vec<String> {
         .collect()
 }
 
-fn cargo_package(pkg: &str, target_dir: &Path) {
+/// Pack all crates in one invocation. Cargo then resolves each adapter's
+/// `pbrs` requirement against the core it just packed (a local registry
+/// overlay), so adapters pack before a new core version is on crates.io
+/// and the workspace `Cargo.lock` is not rewritten. A core change that
+/// adapters depend on still needs a new core version: an already-published
+/// version wins over the local copy.
+fn cargo_package_all(pkgs: &[&str], target_dir: &Path) {
     cargo_online_then_offline(
-        |offline| cargo_package_cmd(pkg, target_dir, false, offline),
-        &format!("cargo package -p {pkg}"),
+        |offline| {
+            let mut cmd = Command::new("cargo");
+            cmd.arg("package");
+            for pkg in pkgs {
+                cmd.args(["-p", pkg]);
+            }
+            cmd.args(["--no-verify", "--allow-dirty", "--registry", "crates-io"]);
+            if offline {
+                cmd.arg("--offline");
+            }
+            cmd.current_dir(repo_root())
+                .env("CARGO_TARGET_DIR", target_dir)
+                .env("CARGO_TERM_COLOR", "never");
+            cmd
+        },
+        &format!("cargo package -p {}", pkgs.join(" -p ")),
     );
 }
 
@@ -272,8 +292,8 @@ fn unpacked_crates_build_isolated_consumers() {
             println!("{line}");
         }
         assert_licenses(pkg, &list);
-        cargo_package(pkg, &pack_target);
     }
+    cargo_package_all(&[&pbrs_name, &tonic_name, &grpc_name], &pack_target);
 
     let crate_dir = pack_target.join("package");
     let pbrs_crate = crate_dir.join(format!("{pbrs_name}-{pbrs_ver}.crate"));

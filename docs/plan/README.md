@@ -1,5 +1,10 @@
 # Leadership execution plan
 
+This page turns the roadmap into dependency-ordered task cards for
+contributors. Bottom line: it records the 2026-09-18 gap assessment and the
+small-executor rules; [`tasks.json`](tasks.json) is authoritative for individual
+card status, dependencies and checks.
+
 **Snapshot:** 2026-09-18. **Source baseline:**
 [`139af0c2559ebc36ecae86c647482a758dff4d64`](https://github.com/mingley/pure-protobuf/tree/139af0c2559ebc36ecae86c647482a758dff4d64).
 **Coordinator and scope approver:** Michael Ingley.
@@ -21,15 +26,23 @@ There are 127 initial cards across 14 lanes. This is a staged program, not 127
 simultaneous jobs or a claim that speculative architecture is already settled.
 
 The [large-payload zero-copy proposal](pbrs-zero-copy-large-payloads-plan.md)
-sets out a separate, measurement-gated experiment. Its proposed ZC cards are
-not yet part of `tasks.json`; Phase 0 must establish the baseline before any
-runtime optimization is eligible to ship.
+was executed through world-class cards SB-13, PK-09, PK-10 and PK-11. The
+outcome, including what was rejected by measurement, is in
+[zero-copy.md](../zero-copy.md).
 
 This is a source audit and execution plan, not a new benchmark result or a
 certification. The baseline's [completed CI run](https://github.com/mingley/pure-protobuf/actions/runs/33948308400)
-passed eight jobs, including conformance, MSRV, macOS, package consumers and
+passed eight jobs, including conformance, minimum supported Rust version (MSRV),
+macOS, package consumers and
 generated-output checks. That result dates to 2026-09-05. This planning pass did
 not rerun performance, fuzz, soak, or official upstream campaigns.
+
+| Reader question | Answer |
+|---|---|
+| What is the source of truth for card scope? | [`tasks.json`](tasks.json), with defaults applied by the small-executor contract. |
+| What is already delivered? | Fresh-directory onboarding, source-bind repair, separate minimum supported Rust version (MSRV) jobs, package consumers and one CI-gated publisher. |
+| What is still missing? | Honest cross-peer evidence, official assertions, retry proof, codegen hardening, Rust-only generation, benchmark quality, documentation cleanup and production/fleet evidence. |
+| What is not proved by this page? | Production certification, performance leadership, fuzz/soak completion or complete official upstream coverage. |
 
 ## What is actually missing
 
@@ -172,6 +185,25 @@ Mapping back to the stable packages:
 | GR-09 / GR-10 | BM and CG cost baselines, then OP/CP/SP optimizations. |
 | GR-11 | QL, separately for core/native/tonic and each support profile. |
 | GR-12 | Edition 2024, Rust-only frontend, borrowed-view decisions and EX. The broad target is tracked without making every extension a bounded-profile release prerequisite. |
+
+Lane prefixes in [`tasks.json`](tasks.json) mean:
+
+| Prefix | Lane meaning |
+|---|---|
+| GT | Official gate inventory and pins. |
+| IO | Interoperability assertions and CLI behavior. |
+| RT | Retry safety and commitment boundaries. |
+| CG | Codegen diagnostics, configuration and compatibility. |
+| PB | Protobuf parser/runtime hardening. |
+| BM | Fair benchmark scenarios and measurement budgets. |
+| DX | Task-oriented documentation. |
+| OP | Codec and generated-layout optimization. |
+| CP | Native client performance. |
+| SP | Native server performance. |
+| FL | Resolver, subchannel and load-balancing features. |
+| EX | Extended gRPC features such as ORCA, xDS and credentials. |
+| OB | Observability and operational readiness. |
+| QL | Qualification, adoption and promotion decisions. |
 
 The first safe parallel assignments are **GT-01** (case registry), **CG-01**
 (diagnostics), **RT-01** (retry contract/reproducer), **BM-01** (benchmark

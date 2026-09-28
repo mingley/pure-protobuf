@@ -1,19 +1,29 @@
 # Execution queue
 
+This page is the milestone queue for contributors deciding what to work on
+next. Bottom line: GR-01 and GR-02 foundation slices are delivered; GR-03,
+GR-04, GR-05, GR-08, GR-09 and GR-11 are the next bounded-production work.
+
 The [protobuf and gRPC roadmap](docs/ROADMAP.md) defines program-level scope.
 The [granular execution plan](docs/plan/README.md) records the 2026-09-18 gap
 assessment, official-suite pins, measurable goals and small-executor contract.
 Its [127 task cards](docs/plan/tasks.json) are authoritative for leaf-task
-dependencies/status; this checklist tracks milestones, not a second backlog.
-The [world-class gRPC program](docs/plan/world-class/README.md) adds 169
-dependency-checked cards; its first assignments start with MX-00, SB-01,
-SB-10, MX-01/03/04/05, QG-04 and UK-01.
-Nothing here claims current production certification or universal performance
-leadership.
+dependencies and status. This checklist tracks milestones, not a second
+backlog. The [world-class gRPC program](docs/plan/world-class/README.md) adds
+169 dependency-checked cards; its first assignments start with MX-00, SB-01,
+SB-10, MX-01/03/04/05, QG-04 and UK-01. Nothing here claims current production
+certification or universal performance leadership.
 
 **Coordinator:** Michael Ingley. Later packages stay with the coordinator
 until claimed. Existing code and historical test results are starting
 points, not completion of the larger qualification packages.
+
+| Area | State | Next step |
+|---|---|---|
+| Foundation | GR-01 and GR-02 delivered the onboarding, source-bind, minimum supported Rust version (MSRV), package-consumer and publisher gates listed below. | Preserve those gates; do not reimplement them as new work. |
+| Bounded production profile | GR-03, GR-04, GR-05, GR-08, GR-09 and GR-11 remain open. | Follow their task-card dependencies and evidence requirements. |
+| Competition and expansion | GR-06, GR-07, GR-10 and GR-12 remain demand- or evidence-led. | Start only after the listed prerequisites close. |
+| Program exit | QL-03, QL-04 and QL-05 are not closed. | Use linked evidence, reviewer signoff and visible exclusions before marking any gate done. |
 
 ## Delivered foundation slices
 

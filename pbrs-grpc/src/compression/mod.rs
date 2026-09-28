@@ -37,7 +37,7 @@ pub enum Codec {
 impl Codec {
     /// Parse a `grpc-encoding` token. Case-insensitive; surrounding
     /// whitespace and a trailing `;parameter` are ignored, mirroring
-    /// [`crate::wire::encoding_token`]. `identity` is not a `Codec`.
+    /// the wire-layer encoding-token parser. `identity` is not a `Codec`.
     #[must_use]
     pub fn parse(token: &str) -> Option<Self> {
         let coding = match token.split_once(';') {

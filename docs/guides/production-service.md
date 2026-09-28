@@ -1,53 +1,69 @@
 # Production Service Configuration and Lifecycle
 
-This is a **bounded, loopback-only teaching recipe**, not a deployment preset.
+Use this guide to run the tested TLS and mutual TLS (mTLS) production-style
+greeter recipe. You need the repository checkout, existing Rust dependencies,
+`protoc`, and the public TLS fixtures already in this repo. Bottom line: this
+is a **bounded, loopback-only teaching recipe**, not a deployment preset.
+
 The executable [greeter TLS service and client](../../examples/greeter/src/production.rs)
-use generated stubs, `rustls` TLS, health and a finite drain. Its
+uses generated stubs, `rustls` TLS, health, and a finite drain. Its
 [binary entry point](../../examples/greeter/src/main.rs) runs the service and
 client in one process; the original no-argument `cargo run` still prints
 `hello world`. The [onboarding consumer](../../tests/onboarding.rs) compiles
-the same recipe from a fresh crate and asserts the outcomes below. The guide
-links to this tested source instead of maintaining separate Rust snippets.
+the same recipe from a fresh crate and asserts the outcomes below. This guide
+links to tested source instead of duplicating Rust snippets.
 
 <a id="tls"></a>
 ## 1. Run the TLS and mTLS recipes
 
-From the repository root, with the existing Rust dependencies and `protoc`
-available, run the two **local-fixture-only** exercises:
+From the repository root, run the two **local-fixture-only** exercises:
 
 ```bash
 cargo run --offline -p pbrs-grpc-example-greeter -- --tls-demo pbrs-grpc/tests/tls_data
 cargo run --offline -p pbrs-grpc-example-greeter -- --mtls-demo pbrs-grpc/tests/tls_data
 ```
 
-The respective output is `[Tls] overload, readiness and bounded drain
-verified` or `[Mtls] overload, readiness and bounded drain verified`; failures
-exit nonzero. The fixture directory contains **public test credentials**,
-including `server.key` and `client.key`. They are read from their original
-paths only when running the demo, never included in the binary, copied into
-the consumer, or printed. Do not reuse the keys, CA, or `localhost` identity
-for a deployment.
+Expected output:
 
-The [actual constructors](../../examples/greeter/src/production.rs) use
-`Identity::from_pem`, `ServerTls::new(identity)` for TLS or
-`ServerTls::mtls(identity, client_ca_pem)` for mTLS, and
-`ClientTls::ca("localhost", ca_pem)` or `ClientTls::ca_mtls` on the client.
+| Mode | Success output |
+|---|---|
+| TLS | `[Tls] overload, readiness and bounded drain verified` |
+| mTLS | `[Mtls] overload, readiness and bounded drain verified` |
+
+Failures exit nonzero. The fixture directory contains **public test
+credentials**, including `server.key` and `client.key`. The demo reads them
+from their original paths only while running. It never includes them in the
+binary, copies them into the consumer, or prints them. Do not reuse the keys,
+certificate authority (CA), or `localhost` identity for a deployment.
+
+The [actual constructors](../../examples/greeter/src/production.rs) use:
+
+- `Identity::from_pem`;
+- `ServerTls::new(identity)` for TLS;
+- `ServerTls::mtls(identity, client_ca_pem)` for mTLS;
+- `ClientTls::ca("localhost", ca_pem)` or `ClientTls::ca_mtls` on the client.
+
 The client verifies the certificate's `localhost` name independently of its
-loopback TCP address; TLS requires ALPN `h2`, and certificate verification
-cannot be disabled. The exercise confirms a wrong CA fails in TLS mode and
-missing client identity fails in mTLS mode with `UNAUTHENTICATED`.
+loopback TCP address. TLS requires Application-Layer Protocol Negotiation
+(ALPN) `h2`, and certificate verification cannot be disabled. The exercise
+confirms that a wrong CA fails in TLS mode and missing client identity fails
+in mTLS mode with `UNAUTHENTICATED`.
 
-**Production trust** is a separate operational decision: supply a
-maintained CA and server identity for the real DNS name, restrict access to
-private keys, and define issuance, renewal and connection-restart procedures.
-This sample has no live certificate-rotation or secret-provisioning API.
-**Authentication** in mTLS verifies possession of a CA-issued client
-certificate; in ordinary TLS no client certificate is required.
-**Authorization** still requires an application policy mapping verified
-`Request::peer_identity` / `Rpc::peer_identity` (DER certificate chain) to
-per-method permissions. Neither trusting a CA nor exposing a certificate
-automatically authorizes its holder. Keep the service on loopback unless that
-policy and network exposure have been reviewed.
+Production trust is separate from this sample:
+
+- Supply a maintained CA and server identity for the real Domain Name System
+  (DNS) name.
+- Restrict access to private keys.
+- Define issuance, renewal, and connection-restart procedures.
+- Do not expect a live certificate-rotation or secret-provisioning API here.
+
+mTLS authentication proves possession of a CA-issued client certificate.
+Ordinary TLS requires no client certificate. Authorization still needs an
+application policy that maps verified `Request::peer_identity` /
+`Rpc::peer_identity` DER certificate chains to per-method permissions.
+Trusting a CA or exposing a certificate does not automatically authorize its
+holder. Keep the service on loopback unless that policy and network exposure
+have been reviewed.
 
 <a id="deadlines"></a>
 <a id="timeouts"></a>
@@ -91,16 +107,22 @@ over TLS. `ProductionLive::mark_not_ready()` calls
 Wait for the environment's load balancer to observe the change before
 triggering shutdown in a real deployment.
 
-The demo keeps one upload active, proves the next unary call is rejected by
-the **server** with `RESOURCE_EXHAUSTED: too many concurrent RPCs`, completes
-the upload and proves a subsequent call succeeds. It then marks readiness
-false, leaves an upload in flight and calls `ProductionLive::shutdown()`.
-`Router::serve_tls_with_shutdown` stops accepting, sends HTTP/2 GOAWAY and
+The demo proves this lifecycle:
+
+1. Keep one upload active.
+2. Verify the next unary call is rejected by the **server** with
+   `RESOURCE_EXHAUSTED: too many concurrent RPCs`.
+3. Complete the upload and verify a later call succeeds.
+4. Mark readiness false.
+5. Leave an upload in flight and call `ProductionLive::shutdown()`.
+
+`Router::serve_tls_with_shutdown` stops accepting, sends HTTP/2 GOAWAY, and
 allows existing requests to finish for at most `max_connection_age_grace`
 (250 ms here) before force-closing. The demo asserts termination inside 2 s,
-rejected new connections, zero live application stream tasks and zero tracked
-server transport bytes. Always await `shutdown()` and handle its `Result`;
-dropping the handle instead aborts its server task, not a graceful drain.
+rejected new connections, zero live application stream tasks, and zero tracked
+server transport bytes. Always await `shutdown()` and handle its `Result`.
+Dropping the handle aborts the server task; it does not perform a graceful
+drain.
 
 `ServerConfig::max_connection_idle` is 10 s here; the example does not set
 `max_connection_age`. If you opt into an age limit, connection aging and

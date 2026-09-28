@@ -1,19 +1,22 @@
 # Plan for a best-in-class protobuf and gRPC stack
 
-The goal is a Rust stack that users choose for correct behavior, predictable
-resource use, low tail latency, and a straightforward development experience.
-"Best" is a workload-specific result to demonstrate, not a description of the
-current release. A faster codec does not by itself make a better RPC system.
+This roadmap explains how `pbrs` moves from current alpha crates to a qualified
+Rust Protocol Buffers and gRPC stack. It is for contributors and evaluators who
+need to know what is done, what blocks promotion, and what evidence is required.
+Bottom line: onboarding and release gates are delivered; production and
+performance claims still need GR-03 and later evidence.
+
+| Area | State | Next step |
+|---|---|---|
+| Product goal | A Rust stack chosen for correct behavior, predictable resources, low tail latency and a straightforward developer experience. | Demonstrate that goal per workload; do not describe the current release as "best." |
+| Current status | GR-01 and GR-02 foundation slices are done. | Preserve them while gathering new evidence for larger claims. |
+| Work queue | [TODO.md](../TODO.md) tracks milestones; [task cards](plan/tasks.json) are authoritative for leaf-task dependencies and status. | Use the card dependencies, not prose order, when assigning work. |
+| Larger program | The [world-class gRPC program](plan/world-class/README.md) adds the category scoreboard and the performance, upb-replacement, tonic and gRFC (gRPC Request for Comments) lanes. | Treat it as an extension, not as proof that those claims are already true. |
 
 This is an implementation plan, not a production certification or a promise of
-release dates. [TODO.md](../TODO.md) is the milestone queue. The
-[granular execution plan](plan/README.md) contains the current gap assessment,
-official-suite source map and small-executor contract;
-[task cards](plan/tasks.json) are authoritative for dependencies and leaf-task
-status. Completed foundation slices stay done; larger qualification claims
-still require their own evidence.
-The [world-class gRPC program](plan/world-class/README.md) adds the
-category scoreboard and the performance, upb-replacement, tonic and gRFC lanes.
+release dates. The [granular execution plan](plan/README.md) contains the
+current gap assessment, official-suite source map and small-executor contract.
+A faster codec does not by itself make a better RPC system.
 
 ## Starting point and evidence
 
@@ -26,13 +29,13 @@ planning pass, and source coverage is not evidence of a successful deployment.
 
 | Area | What exists | What still needs proof or work |
 |---|---|---|
-| Crate boundaries | [Core manifest](../Cargo.toml), [native transport](../pbrs-grpc/Cargo.toml), [tonic adapter](../protobuf-tonic/Cargo.toml): `pbrs` 0.1.0 and two 0.1.0-alpha.1 adapters; separate dependency graphs. | Publication and a non-alpha version do not certify production readiness. Assess each crate separately. |
+| Crate boundaries | [Core manifest](../Cargo.toml), [native transport](../pbrs-grpc/Cargo.toml), [tonic adapter](../protobuf-tonic/Cargo.toml): `pbrs` 0.2.0 and two 0.1.0-alpha.2 adapters; separate dependency graphs. | Publication and a non-alpha version do not certify production readiness. Assess each crate separately. |
 | Protobuf compatibility | [Recorded conformance](status.md): v35.1, maximum Edition 2023, 5,631 binary/JSON and 909 text cases with no unexpected results; [CI](../.github/workflows/ci.yml) runs conformance. | This is not every protobuf feature or upstream Rust test. [Known boundaries](upb.md) include Edition 2024, official generated internals, and non-owning views. |
 | Native gRPC | [Client](../pbrs-grpc/src/client.rs), [server](../pbrs-grpc/src/server.rs), [wire](../pbrs-grpc/src/wire.rs): four call shapes, TLS/mTLS, UDS, health/reflection, deadlines, cancellation, bounds, pooling and limited transparent retry. | Establish a cross-peer, failure, platform and sustained-load matrix; do not reimplement these existing features merely to check a roadmap box. |
 | Discovery | [TCP dialing](../pbrs-grpc/src/tcp.rs) resolves hostnames. `Target` takes `host:port`; connection pools serve one authority. | Resolver URI support, endpoint refresh and multi-endpoint balancing are different capabilities and are not implemented. |
 | Cross-language tests | [Interop script](../scripts/grpc-interop.sh) runs self and grpc-go passes; compression cases run against self. | Go is fetched without a version pin, and unavailable Go/fetch/build paths exit successfully after a skip. Required CI must distinguish missing evidence from a pass. |
 | Parser safety tests | [fuzz_parse.rs](../tests/fuzz_parse.rs) feeds four fixed inputs to two parsers. | This is a corpus smoke test, not a coverage-guided fuzz campaign or memory-safety proof. |
-| Build and onboarding | [Fresh consumers](../tests/onboarding.rs), declared-MSRV jobs, unpacked-package tests and explicit stub modes are implemented. Core [build.rs](../build.rs) has a bundled descriptor fallback. | Codegen diagnostics, canonical multi-file identity, transitive rebuild inputs, comments, compatibility/cost matrices and Rust-only generation remain in the CG lane. Both adapter builds still need `protoc`. |
+| Build and onboarding | [Fresh consumers](../tests/onboarding.rs), declared minimum supported Rust version (MSRV) jobs, unpacked-package tests and explicit stub modes are implemented. Core [build.rs](../build.rs) has a bundled descriptor fallback. | Codegen diagnostics, canonical multi-file identity, transitive rebuild inputs, comments, compatibility/cost matrices and Rust-only generation remain in the CG lane. Both adapter builds still need `protoc`. |
 | Performance | [Benchmarks](benchmarks.md) include codec and transport harnesses, scoped wins, losses, and host-specific results. | Loopback/shared-runtime tests and best-of-short-window rates do not establish network, multicore or production tail-latency leadership. |
 | Releases | [release.yml](../.github/workflows/release.yml) is the sole publisher after reusable CI on the exact SHA; release-plz and first-publish are disabled. The [guide](RELEASE.md) is reconciled. | Preserve these delivered gates while GT strengthens fail-closed official evidence. A publishing workflow is not production or performance qualification. |
 | Documentation | Quickstarts and support boundaries exist, but long guides/status pages repeat extensive comparisons and some publication wording is stale. | DX turns these into task-oriented, compiled, linked and user-tested documentation without weakening behavioral tests. |
@@ -375,7 +378,7 @@ still qualify earlier. Other candidates below remain demand-led.
 | Edition 2024 and broader descriptor options | Pin the upstream feature contract and add differential/codegen fixtures before advertising it; not a blind generator maximum-edition bump. |
 | Specialized WKT/Serde APIs | Preserve official protobuf JSON semantics, unknown/presence behavior and roundtrips. Measure against the current dynamic fallback; ordinary Serde derives are not automatically equivalent. |
 | First-class borrowed views or `no_std`/WASM | Measure retained-buffer memory and lifecycle ergonomics; identify supported targets and dependencies. Keep the owned API and native transport boundaries intact. |
-| xDS, ORCA, channelz and cloud auth | First justify native ownership versus external load balancing or tonic; require interoperable control-plane and operational tests for the chosen subset. |
+| xDS, cloud auth and observability qualification | First justify native ownership versus external load balancing or tonic; xDS, CRL/SPIFFE and cloud auth need interoperable control-plane tests. Shipped ORCA/channelz surfaces still need operational qualification before broader claims. |
 | HTTP CONNECT, gRPC-Web, newer transports | Separate deployment requirements from core gRPC compliance; design auth/proxy and framing behavior with an independent peer before implementation. |
 | Hedging | Only after GR-07, with explicit idempotency, concurrency/amplification limits and an outage-load experiment proving it does not worsen overload. |
 
