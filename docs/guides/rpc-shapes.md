@@ -1,6 +1,12 @@
 # Implementing the Four gRPC Call Shapes
 
-This guide provides concrete, task-oriented walkthroughs for all four gRPC communication patterns supported by `pbrs-grpc`:
+Use this guide to implement and test all four gRPC call shapes in
+`pbrs-grpc`. You need a generated service from `pbrs::codegen` and the
+`examples/greeter` crate available. Bottom line: each recipe asserts response
+content, final status, and clean shutdown instead of treating a started server
+as success.
+
+The four supported shapes are:
 
 1. **Unary RPC**: Single request, single response.
 2. **Server-Streaming RPC**: Single request, stream of responses.
@@ -27,7 +33,8 @@ exits nonzero instead.
 
 ## 1. Proto Definition
 
-Consider the standard service definition covering all four shapes (`proto/hello.proto`):
+Start with one service definition that declares every shape
+(`proto/hello.proto`):
 
 ```protobuf
 syntax = "proto3";
@@ -78,7 +85,8 @@ use proto::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 
 ## 2. Unary RPC
 
-Unary calls follow a simple request-reply pattern.
+Use unary RPC for one request and one response. Validate input in the handler
+and return a typed `Status` for rejected requests.
 
 ### Server Implementation
 ```rust
@@ -104,6 +112,10 @@ impl Greeter for MyGreeter {
 ```
 
 ### Client Call
+
+Awaiting the generated client method returns only after the final status.
+Check both the response content and the error code path.
+
 ```rust
 let client = GreeterClient::connect(addr).await?;
 let mut req = HelloRequest::new();
@@ -137,7 +149,9 @@ and clean `shutdown()` drain.
 <a id="reading-a-stream"></a>
 ## 3. Server-Streaming RPC
 
-In server-streaming, the client sends a single request and reads a sequence of messages until the server closes the stream.
+Use server-streaming when one request produces several responses. The handler
+returns a `Streaming<HelloReply>` and drops or closes its sender to signal
+end-of-file (EOF).
 
 ### Server Implementation
 ```rust
@@ -175,6 +189,10 @@ impl Greeter for MyGreeter {
 ```
 
 ### Client Call
+
+Read until `message().await?` returns `None`. A non-OK trailer surfaces as
+`Err(status)`, not as EOF.
+
 ```rust
 let mut req = HelloRequest::new();
 req.set_name("edsger");
@@ -211,7 +229,9 @@ and clean `shutdown()` drain.
 <a id="client-streaming"></a>
 ## 4. Client-Streaming RPC
 
-In client-streaming, the client sends multiple requests into an outbound bounded stream, half-closes the stream, and receives a single consolidated reply from the server.
+Use client-streaming when the client uploads several messages and expects one
+reply. The client must half-close the outbound stream so the server knows it
+can compute the final response.
 
 ### Server Implementation
 ```rust
@@ -246,6 +266,10 @@ impl Greeter for MyGreeter {
 ```
 
 ### Client Call
+
+Send each message through the bounded sender, then call `tx.close()` to send
+the client half-close.
+
 ```rust
 let (tx, call) = client.client_hello(Request::new(()));
 
@@ -282,7 +306,8 @@ upload, and clean `shutdown()` drain.
 
 ## 5. Bidirectional Streaming RPC
 
-In bidirectional streaming, client and server independently send and receive messages over a single full-duplex HTTP/2 stream.
+Use bidirectional streaming when both sides need independent send and receive
+loops over one full-duplex HTTP/2 stream.
 
 ### Server Implementation
 ```rust
@@ -313,6 +338,10 @@ impl Greeter for MyGreeter {
 ```
 
 ### Client Call
+
+Start the call, consume inbound replies, and run the outbound sender
+concurrently. The write half can close while the read half continues.
+
 ```rust
 let (tx, call) = client.stream_hello(Request::new(()));
 let mut inbound = call.await?.into_inner();
@@ -351,17 +380,35 @@ full-duplex content, drains to EOF (a non-OK trailer would surface as
 ## 6. Stream Lifecycle, Error Handling, and Clean Shutdown
 
 ### Streaming Boundaries
-- **Client-Streaming Half-Close**: Calling `tx.close()` (or dropping `StreamSender`) sends an HTTP/2 `END_STREAM` flag on the client half. The server stream reading loop yields `None`, signaling end-of-input, allowing the server to generate and return its final `Response`.
-- **Server-Streaming EOF**: The client consumes messages with `while let Some(msg) = stream.message().await?`. When the server drops its `StreamSender` or calls `tx.close()`, `stream.message().await?` returns `Ok(None)` (EOF).
-- **Bidirectional Coordination**: Full-duplex streams coordinate independently on the same HTTP/2 stream. The client can half-close its write half (`tx.close()`) while continuing to read responses until the server completes and half-closes its write half.
+
+- **Client-streaming half-close**: Calling `tx.close()` or dropping
+  `StreamSender` sends HTTP/2 `END_STREAM` on the client half. The server read
+  loop yields `None`, so the server can return its final `Response`.
+- **Server-streaming EOF**: The client reads with
+  `while let Some(msg) = stream.message().await?`. When the server drops its
+  `StreamSender` or calls `tx.close()`, `stream.message().await?` returns
+  `Ok(None)`.
+- **Bidirectional coordination**: Both halves share one HTTP/2 stream but
+  coordinate independently. The client can half-close its write half
+  (`tx.close()`) and continue reading until the server completes and
+  half-closes its write half.
 
 ### Explicit Error Handling & Cancellation
-- **Explicit Status Errors**: Handlers return typed `Result<Response<T>, Status>`. Client calls propagate errors using `?` or inspect error codes with `status.code()`.
-- **Aborting a Stream**: A sender can call `tx.fail(status)` to terminate the stream with an explicit error instead of a clean half-close.
-- **Client Cancellation**: Dropping a `Streaming` receiver on client or server immediately transmits an HTTP/2 `RST_STREAM` frame (cancel), waking any task awaiting `Request::cancelled()` or `StreamSender::closed()`.
+
+- **Explicit status errors**: Handlers return
+  `Result<Response<T>, Status>`. Client calls can propagate errors with `?` or
+  inspect `status.code()`.
+- **Aborting a stream**: A sender can call `tx.fail(status)` to terminate the
+  stream with an explicit error instead of a clean half-close.
+- **Client cancellation**: Dropping a `Streaming` receiver on the client or
+  server immediately sends an HTTP/2 `RST_STREAM` frame. That wakes tasks
+  waiting on `Request::cancelled()` or `StreamSender::closed()`.
 
 ### Clean Server Shutdown
-- Servers gracefully drain active connections using `serve_with_shutdown(listener, signal)`. In-flight RPCs finish, active streams drain, and new connections are refused:
+
+Use `serve_with_shutdown(listener, signal)` to drain a server. In-flight RPCs
+finish, active streams drain, and new connections are refused.
+
 ```rust
 use tokio::net::TcpListener;
 use pbrs_grpc::Router;
@@ -425,4 +472,3 @@ nonzero on any failure:
 ```bash
 cargo test -p pbrs --test onboarding
 ```
-

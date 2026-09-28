@@ -1,10 +1,17 @@
 # Framework Comparisons: pbrs-grpc, Tonic, and gRPC-Go
 
-This document consolidates architectural invariants, design choices, and functional differences comparing `pbrs-grpc` against other mainstream gRPC implementations: `tonic` (Rust) and `grpc-go` (Go).
+Use this guide to choose where `pbrs-grpc` differs from `tonic` and `grpc-go`.
+You should already know the shape of the service you want to build.
+Bottom line: `pbrs-grpc` favors a small, pure-Rust kernel with explicit limits
+and deliberately leaves dynamic infrastructure features outside the runtime.
 
 ---
 
 ## 1. Architecture, Runtime & Concurrency Model
+
+Start here if you are choosing a runtime model or sizing concurrency. The main
+difference is that `pbrs-grpc` fails fast at configured limits instead of
+queuing unbounded work.
 
 | Capability / Concept | `pbrs-grpc` | `tonic` (Rust) | `grpc-go` (Go) |
 |---|---|---|---|
@@ -18,6 +25,10 @@ This document consolidates architectural invariants, design choices, and functio
 ---
 
 ## 2. Transport & Sockets
+
+Use this section to pick a connection path. `pbrs-grpc` supports cleartext
+HTTP/2, TLS, mutual TLS (mTLS), Unix sockets, and in-process I/O, but it does
+not include an HTTP CONNECT proxy path.
 
 | Feature | `pbrs-grpc` | `tonic` | `grpc-go` |
 |---|---|---|---|
@@ -33,6 +44,9 @@ This document consolidates architectural invariants, design choices, and functio
 
 ## 3. Addressing, Dialing & Connection Management
 
+`pbrs-grpc` dials an explicit authority. It does not include DNS/xDS resolver
+registries or service-config machinery in the kernel.
+
 | Feature | `pbrs-grpc` | `tonic` | `grpc-go` |
 |---|---|---|---|
 | **Dial Target Format** | `host:port` string or `Target` | `http://` or `https://` URI | `dns:///`, `passthrough:///`, or `xds:///` |
@@ -47,6 +61,10 @@ This document consolidates architectural invariants, design choices, and functio
 
 ## 4. Middleware, Interceptors & Overlays
 
+Use interceptors for request validation, outbound metadata, and trailer-time
+inspection. Use per-RPC overlays when one call needs a different timeout,
+compression setting, user-agent, or wait-for-ready behavior.
+
 | Feature | `pbrs-grpc` | `tonic` | `grpc-go` |
 |---|---|---|---|
 | **Client Interceptor Point** | `ClientInterceptor` (`Outgoing` mutation) | Tower `Layer` or `Interceptor` | `UnaryClientInterceptor` / `StreamClientInterceptor` |
@@ -60,7 +78,10 @@ This document consolidates architectural invariants, design choices, and functio
 <a id="omissions"></a>
 ## 5. Resilience, Retries & Explicit Omissions
 
-`pbrs-grpc` maintains a disciplined scope focused on high-throughput, low-latency, and predictable resource utilization. It deliberately omits dynamic infrastructure layers that introduce non-deterministic state or require heavy external dependencies.
+`pbrs-grpc` keeps resilience behavior explicit. It provides only the bounded
+retry behavior shown below and leaves broader traffic policy to application
+code, gateways, or service-mesh components. The runtime scope remains focused
+on high-throughput, low-latency, and predictable resource utilization.
 
 | Feature Area | `pbrs-grpc` Implementation | Rationale for Omission in Kernel |
 |---|---|---|
@@ -73,12 +94,15 @@ This document consolidates architectural invariants, design choices, and functio
 
 ## 6. Benchmark fairness (SB-01)
 
-Transport comparisons in `rpc-bench` run both peers against one spec:
-TCP_NODELAY on, 16 MiB HTTP/2 windows, 1 MiB frames, 256 streams, no
-adaptive window, 16 KiB header list — the native defaults, which the
-tonic peer is configured to match. tonic ignores `tcp_nodelay` under
-`serve_with_incoming`, so the harness sets it per accepted socket and
-verifies it with getsockopt; `FAIRNESS {...}` records carry the
-per-endpoint observed settings, and the harness refuses to print
-side-by-side numbers when any endpoint diverges. Pre-SB-01 tables in
-`docs/benchmarks.md` ran an unmatched tonic peer and are superseded.
+Use only matched benchmark rows for transport comparisons. `rpc-bench` runs
+both peers against one spec: TCP_NODELAY on, 16 MiB HTTP/2 windows, 1 MiB
+frames, 256 streams, no adaptive window, and a 16 KiB header list. Those are
+the native defaults, and the tonic peer is configured to match them.
+
+Tonic ignores `tcp_nodelay` under `serve_with_incoming`, so the harness sets
+it per accepted socket and verifies it with getsockopt. `FAIRNESS {...}`
+records store the observed per-endpoint settings, and the harness refuses to
+print side-by-side numbers when any endpoint diverges.
+
+Pre-SB-01 tables in `docs/benchmarks.md` ran an unmatched tonic peer and are
+superseded.
