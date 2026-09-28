@@ -1,81 +1,89 @@
 # Design
 
-pbrs matches the application traits of Google protobuf v4. It passes
-official conformance (binary + JSON + text). There is no C.
+This page summarizes the core protobuf runtime design. It is for readers who want to understand how `pbrs` stores, parses, and encodes messages without first reading generated code. The bottom line: `pbrs` matches Google protobuf v4 application traits, passes official conformance, and avoids C.
 
 ## Storage
 
-Empty collections are null pointers, not empty `Vec`s. A TestAllTypes
-(TAT, the conformance kitchen-sink message) with no packed or map fields
-does not allocate those slots.
+Empty collections are null pointers, not empty `Vec`s. A TestAllTypes (TAT, the
+conformance kitchen-sink message) with no packed or map fields does not
+allocate those slots.
 
-Messages with six or more cold fields (packed/unpacked scalars, repeated
-messages, WKT) box them in `Option<Box<MsgCold>>`. Maps and repeated
-string/bytes stay on the hot struct (map_64 / strings). `packed_fixed32`,
-`packed_fixed64`, `packed_float`, and `repeated_nested_message` stay hot
-so those benches do not pay a Cold malloc.
+Messages with six or more cold fields box those fields in
+`Option<Box<MsgCold>>`. Cold fields include packed and unpacked scalars,
+repeated messages, and well-known types (WKT).
 
-`Default` is `mem::zeroed` of that layout. `Option<bool>` zeroed is
-`Some(false)`, so explicit bools use `OptBool` (0 = unset). Optional
-string/bytes are `Option<Box<LazyStr>>` / `LazyBytes`.
+Some fields stay on the hot struct:
 
-TAT `size_of` is 648 bytes. `TestAllTypesProto3::new` is ~19 ns.
+- maps and repeated string/bytes (`map_64` / `strings`)
+- `packed_fixed32`
+- `packed_fixed64`
+- `packed_float`
+- `repeated_nested_message`
+
+Those benchmark rows do not pay a Cold allocation.
+
+`Default` is `mem::zeroed` for that layout. Because zeroed `Option<bool>` is
+`Some(false)`, explicit bools use `OptBool` where `0` means unset. Optional
+string and bytes fields use `Option<Box<LazyStr>>` / `LazyBytes`.
+
+TAT `size_of` is 648 bytes. `TestAllTypesProto3::new` is about 19 ns.
 
 ## Parse
 
-Parse is one pass. Truncated packed, bad varints, UTF-8 (per edition), and
-depth are rejected here, not on getter.
+Parse is one pass. Truncated packed fields, bad varints, UTF-8 errors
+(according to edition), and recursion depth are rejected during parse, not on a
+later getter.
 
-Scalar-only parses do not `Arc` the input. The first lazy bytes,
-nested, packed-varint, or **long** string field builds a `Wire`
-(`Arc<[u8]>` + range). Short strings (`len <= 23`) copy into
-`ProtoString` and do not `Wire::ensure` the parent frame.
+Scalar-only parses do not `Arc` the input. The first lazy bytes, nested,
+packed-varint, or long string field builds a `Wire` (`Arc<[u8]>` + range).
+Short strings (`len <= 23`) copy into `ProtoString` and do not call
+`Wire::ensure` for the parent frame.
 
 After validation:
 
-- strings <= 23 bytes: SSO copy; no parent-frame `Arc`
-- longer strings / bytes: `Wire` window
-- packed varints: validated payload kept; `Vec` on first get. Encode recodes
-  canonical (overlong memcpy fails recommended `ValidDataRepeated`)
-- packed fixed-width: payload-only `Wire` (not the parent message). Encode
-  memcpy that payload. `Vec` on first get
-- nested messages: `LazyMsg` holds the subslice; nested struct on first
-  getter (`OnceLock`)
+| Field shape | Stored representation |
+|---|---|
+| Strings <= 23 bytes | Small-string optimization (SSO) copy; no parent-frame `Arc`. |
+| Longer strings / bytes | `Wire` window. |
+| Packed varints | Validated payload kept; first getter builds a `Vec`. Encode recodes canonical form, so overlong memcpy fails recommended `ValidDataRepeated`. |
+| Packed fixed-width | Payload-only `Wire`, not the parent message. Encode copies that payload; first getter builds a `Vec`. |
+| Nested messages | `LazyMsg` holds the subslice; first getter builds the nested struct with `OnceLock`. |
 
-Unpacked scalar runs of the same tag reserve then push without re-matching
-the whole tag table each time.
+Unpacked scalar runs of the same tag reserve and push without re-matching the
+whole tag table each time.
 
 `FooView` is `&Owned` after this parse. It is not a wire overlay.
 
 ## Encode
 
-`CachedSize` is an `AtomicU64` ignored by `PartialEq`. Every setter, `_mut`,
-and merge calls `dirty()`. The first `serialized_len` / `serialize` fills
-it.
+`CachedSize` is an `AtomicU64` and is ignored by `PartialEq`. Every setter,
+`_mut`, and merge calls `dirty()`. The first `serialized_len` or `serialize`
+fills it.
 
-Map encode walks the raw pair slice (`pairs()`). Last key wins on parse
-(`push_entry`, no scan). Lookup on `get` scans.
+Map encode walks the raw pair slice (`pairs()`). On parse, the last key wins
+through `push_entry` with no scan. Lookup on `get` scans.
 
-testdata `Person` inlines up to 4 tags/scores (`MaybeUninit`) so the person
-bench does not heap-allocate those repeats.
+testdata `Person` inlines up to 4 tags/scores with `MaybeUninit`, so the person
+benchmark does not heap-allocate those repeats.
 
 ## API shape
 
-Generated accessors follow Google rust:
+Generated accessors follow Google Rust:
 
-- nested getter returns `&T` (default instance if unset)
+- nested getter returns `&T`, using a default instance if unset
 - presence is `has_` / `*_opt`
-- open enums: `From<i32>` newtype; closed: `TryFrom`
-- `proto!` with `__{}` inference and `..spread`
+- open enums use a `From<i32>` newtype
+- closed enums use `TryFrom`
+- `proto!` supports `__{}` inference and `..spread`
 
-`__internal` is a module (`SealedInternal`, `Private`). Google rust_upb
-tests treat `__internal` as `()`. Application code should not use it.
+`__internal` is a module (`SealedInternal`, `Private`). Google rust_upb tests
+treat `__internal` as `()`. Application code should not use it.
 
 ## Not copied from upb
 
-Plugin-generated types (`protoc-gen-pbrs`) are ordinary Rust structs.
-Drop is Rust drop. There is no C.
+Plugin-generated types (`protoc-gen-pbrs`) are ordinary Rust structs. Rust drop
+frees them. There is no C.
 
-Official `protoc --rust_out kernel=upb` links `src/runtime.rs`, a
-pure-Rust MiniTable/Arena stand-in (`OwnedMessageInner`, `MessagePtr`).
-That ABI is not upb C and is not used by the plugin gencode.
+Official `protoc --rust_out kernel=upb` links `src/runtime.rs`, a pure-Rust
+MiniTable/Arena stand-in (`OwnedMessageInner`, `MessagePtr`). That application
+binary interface is not upb C and is not used by the plugin-generated code.

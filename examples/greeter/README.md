@@ -1,22 +1,32 @@
 # greeter
 
-A crate that depends on `pbrs-grpc` the way a user would: own proto, `build.rs`
-with `compile_protos` (kernel stubs are the default), generated `Greeter`
-trait / server / client, plus `grpc.health.v1` and `grpc.reflection.v1`.
+This example shows `pbrs-grpc` the way an application uses it: local `.proto`,
+`build.rs`, generated service trait, server, client, health, and reflection.
+Start here when you want a small working service before reading the larger
+guides.
 
-The proto has all four gRPC shapes (`SayHello`, `ClientHello`, `ServerHello`,
-`StreamHello`). `cargo run` still prints the unary path:
+## Run it
 
 ```bash
 cargo run -p pbrs-grpc-example-greeter
 # prints: hello world
 ```
 
-`src/lib.rs` is the whole service. Tests cover every shape, health `Check`
-and `Watch` (dropping the stream ends the subscription), and reflection
-`list_services`.
+## What it covers
+
+- Own proto plus `compile_protos`; native kernel stubs are the default.
+- Generated `Greeter` trait, server, and client.
+- All four gRPC shapes: `SayHello`, `ClientHello`, `ServerHello`, and `StreamHello`.
+- Built-in `grpc.health.v1` and `grpc.reflection.v1` services.
+- `src/lib.rs` as the whole service implementation.
+
+Tests cover every call shape, health `Check`, health `Watch` (dropping the
+stream ends the subscription), and reflection `list_services`.
 
 ## Error Details & Interceptor Invariants
+
+These sentences are intentionally exact. The example tests use them as a
+contract for where `Status::from_error_details` and interceptor failures land.
 
 `Status::from_error_details` is the typed bag after this example README greeter interceptor Err; those trailers reach the client without reading the body.
 Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter interceptor Err is trailers without reading the body.

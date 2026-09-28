@@ -1,14 +1,15 @@
 # Building Services with pbrs-grpc
 
-`pbrs-grpc` is a standalone, pure-Rust gRPC client and server kernel built over [`pbrs`](../README.md). It provides an independent, memory-safe alternative to `tonic` with no C compiler requirements, no `unsafe` code in the kernel (`#![forbid(unsafe_code)]`), and direct execution on prior-knowledge HTTP/2.
+This guide is the main entry point for building native gRPC services with `pbrs-grpc`. It is for Rust developers who want generated clients and servers over `pbrs` messages without Tonic. The bottom line: define protobuf services, generate native stubs, then use the focused guides for production TLS, streaming, interceptors, and operations.
 
----
+`pbrs-grpc` is a standalone, pure-Rust gRPC client and server kernel built over [`pbrs`](../README.md). It has no C compiler requirement, no `unsafe` code in the kernel (`#![forbid(unsafe_code)]`), and direct execution on prior-knowledge HTTP/2.
 
 <a id="quickstart"></a>
 ## Quickstart
 
 ### Installation
-Add `pbrs` and `pbrs-grpc` from crates.io to your `Cargo.toml`:
+
+Add `pbrs` and `pbrs-grpc` from crates.io to `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -20,7 +21,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 pbrs = "0.1"
 ```
 
-### Protocol Definition (`proto/hello.proto`)
+### Protocol definition (`proto/hello.proto`)
+
 ```protobuf
 syntax = "proto3";
 package hello;
@@ -38,7 +40,8 @@ message HelloReply {
 }
 ```
 
-### Code Generation (`build.rs`)
+### Code generation (`build.rs`)
+
 By default, `compile_protos` emits native `pbrs-grpc` client and server stubs:
 
 ```rust
@@ -48,7 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Server Implementation
+### Server implementation
+
 Include the generated code, implement the `Greeter` trait, and start serving:
 
 ```rust
@@ -78,7 +82,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Client Execution
+### Client execution
+
 ```rust
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -92,36 +97,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
----
-
 <a id="the-four-call-shapes"></a>
 <a id="reading-a-stream"></a>
 <a id="writing-a-stream"></a>
 <a id="client-streaming"></a>
 ## The Four Call Shapes
 
-`pbrs-grpc` natively supports all four standard gRPC communication patterns:
+`pbrs-grpc` supports all four standard gRPC communication patterns.
 
-1. **Unary Calls**: Single request, single response.
-2. **Server Streaming**: Client reads a continuous stream via `Streaming<T>`.
-3. **Client Streaming**: Client streams messages to server via `StreamSender<T>`.
-4. **Bidirectional Streaming**: Concurrent full-duplex streaming over one HTTP/2 stream.
+| Shape | How to think about it |
+|---|---|
+| Unary | One request, one response. |
+| Server streaming | The client reads a stream through `Streaming<T>`. |
+| Client streaming | The client sends a stream through `StreamSender<T>`. |
+| Bidirectional streaming | Both sides exchange messages concurrently on one HTTP/2 stream. |
 
-For detailed walkthroughs, channel setup, and cancellation patterns, see the dedicated [Implementing RPC Call Shapes Guide](guides/rpc-shapes.md).
-
----
+For complete examples, channel setup, and cancellation behavior, see the
+[RPC shapes guide](guides/rpc-shapes.md).
 
 ## Production Capabilities & How-to Guides
+
+The sections below summarize what ships and point to the detailed guides.
 
 <a id="tls"></a>
 <a id="unix-domain-sockets"></a>
 <a id="in-process-connections"></a>
-### 1. Transport Security and Topologies
-- **TLS and Mutual TLS (mTLS)**: Powered by `rustls` + `Graviola`. Enforces ALPN `h2`; Certificate verification is not optional. Inspect peer certificates via `Rpc::peer_identity`.
-- **Unix Domain Sockets (UDS)**: Low-latency local IPC with `serve_unix_unlink` and peer credentials via `Rpc::peer_cred`.
-- **In-Process Channels (`from_io`)**: High-performance in-memory channels using `tokio::io::duplex`. Note that in-process `from_io` connections have no transparent retry.
+### 1. Transport security and topologies
 
-&rarr; See [Production Service Configuration Guide](guides/production-service.md).
+- **TLS and mutual TLS (mTLS)**: powered by `rustls` + Graviola. It enforces ALPN `h2`. Certificate verification is not optional. Inspect peer certificates through `Rpc::peer_identity`.
+- **Unix Domain Sockets (UDS)**: low-latency local inter-process communication (IPC) with `serve_unix_unlink` and peer credentials through `Rpc::peer_cred`.
+- **In-process channels (`from_io`)**: in-memory channels using `tokio::io::duplex`. In-process `from_io` connections have no transparent retry.
+
+See the [production service configuration guide](guides/production-service.md).
 
 <a id="deadlines-and-cancellation"></a>
 <a id="connect-timeout"></a>
@@ -130,23 +137,25 @@ For detailed walkthroughs, channel setup, and cancellation patterns, see the ded
 <a id="connection-age-and-idle"></a>
 <a id="serving-several-services"></a>
 <a id="compression"></a>
-### 2. Lifecycle, Deadlines & Routing
-- **Timeouts & Deadlines**: Propagate `grpc-timeout` headers and inspect remaining budget at runtime.
-- **Graceful Shutdown**: Drain active connections safely with `Server::serve_with_shutdown` and HTTP/2 `GOAWAY`.
-- **Connection Age & Idle**: Enforce connection recycling with `max_connection_age` (±10% jitter) and `max_connection_idle`.
-- **Multi-Service Routing**: Multiplex multiple services onto one TCP/TLS listener using `Router`.
-- **Compression**: Negotiate message-level gzip compression transparently.
+### 2. Lifecycle, deadlines, and routing
 
-&rarr; See [Production Service Configuration Guide](guides/production-service.md).
+- **Timeouts and deadlines**: propagate `grpc-timeout` headers and inspect the remaining budget at runtime.
+- **Graceful shutdown**: drain active connections with `Server::serve_with_shutdown` and HTTP/2 `GOAWAY`.
+- **Connection age and idle**: recycle connections with `max_connection_age` (plus or minus 10% jitter) and `max_connection_idle`.
+- **Multi-service routing**: serve multiple services on one TCP/TLS listener with `Router`.
+- **Compression**: negotiate message-level gzip compression.
+
+See the [production service configuration guide](guides/production-service.md).
 
 <a id="metadata"></a>
 <a id="interceptors-and-middleware"></a>
-### 3. Interceptors and Metadata
-- **Interceptors**: Attach middleware at client (`ClientInterceptor`), server inbound (`Interceptor`), or server outbound (`ResponseInterceptor`).
-- **Metadata**: Seamlessly handle ASCII headers and binary `-bin` trailers.
-- **Request Overlays & Extensions**: Customize timeouts, user-agent, or compression per-request, and pass typed Rust values via `Extensions`.
+### 3. Interceptors and metadata
 
-&rarr; See [Interceptors and Context Guide](guides/interceptors.md).
+- **Interceptors**: attach middleware on the client (`ClientInterceptor`), server inbound path (`Interceptor`), or server outbound path (`ResponseInterceptor`).
+- **Metadata**: handle ASCII headers and binary `-bin` trailers.
+- **Request overlays and extensions**: set per-request timeouts, user agents, compression, and typed Rust values through `Extensions`.
+
+See the [interceptors and context guide](guides/interceptors.md).
 
 <a id="health-checks"></a>
 <a id="reflection"></a>
@@ -154,53 +163,57 @@ For detailed walkthroughs, channel setup, and cancellation patterns, see the ded
 <a id="tuning"></a>
 <a id="errors-and-status-codes"></a>
 <a id="testing"></a>
-### 4. Operations, Diagnostics & Errors
-- **Health Checking (`grpc.health.v1`)**: Built-in support for `HealthReporter`, `Check`, `Watch`, and `Health::list`.
-- **Server Reflection (`grpc.reflection.v1`)**: Dynamic service discovery for tools like `grpcurl`.
-- **Keepalive & Sockets**: HTTP/2 PINGs and TCP OS-level `SO_KEEPALIVE` with `TCP_NODELAY`.
-- **Rich Error Model**: Standard `Code` variants and packed `google.rpc.Status` with `ErrorDetails` on `grpc-status-details-bin`.
+### 4. Operations, diagnostics, and errors
 
-&rarr; See [Operations and Diagnostics Guide](guides/operations.md).
+- **Health checking (`grpc.health.v1`)**: built-in `HealthReporter`, `Check`, `Watch`, and `Health::list`.
+- **Server reflection (`grpc.reflection.v1`)**: dynamic service discovery for tools such as `grpcurl`.
+- **Keepalive and sockets**: HTTP/2 PINGs and TCP `SO_KEEPALIVE` with `TCP_NODELAY`.
+- **Rich errors**: standard `Code` variants and packed `google.rpc.Status` with `ErrorDetails` on `grpc-status-details-bin`.
+
+See the [operations and diagnostics guide](guides/operations.md).
 
 <a id="writing-a-service-without-codegen"></a>
-### 5. Code Generation & Migration
-- **Custom Stubs**: Configure native kernel stubs (`emit_kernel_stubs`), Tonic stubs (`emit_tonic_stubs`), or messages only.
-- **Prost & Tonic Migration**: Trait model comparison (`Parse`/`Serialize` vs `prost::Message`).
-- **Manual Services**: Implement raw byte streaming via `Service::call` without codegen.
+### 5. Code generation and migration
 
-&rarr; See [Code Generation Guide](guides/codegen.md) and [Migration Guide](guides/migration.md).
+- **Custom stubs**: configure native kernel stubs (`emit_kernel_stubs`), Tonic stubs (`emit_tonic_stubs`), or messages only.
+- **Prost and Tonic migration**: compare `Parse` / `Serialize` with `prost::Message`.
+- **Manual services**: implement raw byte streaming through `Service::call` without codegen.
 
----
+See the [code generation guide](guides/codegen.md) and [migration guide](guides/migration.md).
 
 <a id="limits-and-the-threat-model"></a>
 ## Limits and the Threat Model
 
-`pbrs-grpc` is engineered with rigorous defensive defaults against denial-of-service vectors:
+`pbrs-grpc` uses bounded defaults against common denial-of-service vectors.
 
-- **Rapid Reset Defense (CVE-2023-44487)**: Mitigates stream cancellation abuse with rapid reset protection via `ServerConfig::max_pending_accept_reset_streams`.
-- **CONTINUATION Flood Defense**: Enforces strict header list caps against CONTINUATION frame floods via `max_header_list_size` (16 KiB default), terminating frame floods before unbounded buffers allocate.
-- **Message Framing Limits**: Inbound messages default to a 4 MiB limit (`max_decoding_message_size`); exceeding messages fail early as `Code::ResourceExhausted`.
-- **Concurrency & Streams**: `ServerConfig::max_concurrent_rpcs` caps in-flight server tasks; connection slots reject overflow rather than allocating unbounded memory queues.
-
----
+| Limit | What it prevents |
+|---|---|
+| Rapid reset defense | Mitigates HTTP/2 rapid reset abuse (CVE-2023-44487) with `ServerConfig::max_pending_accept_reset_streams`. |
+| CONTINUATION flood defense | Caps header lists with `max_header_list_size` (16 KiB default) before unbounded buffers allocate. |
+| Message framing limits | Caps inbound messages at 4 MiB by default (`max_decoding_message_size`); oversize messages fail early as `Code::ResourceExhausted`. |
+| Concurrency and streams | `ServerConfig::max_concurrent_rpcs` caps in-flight server tasks; overflow is rejected instead of queued without bound. |
 
 ## Retries and Resilience
 
-`pbrs-grpc` implements a strict, predictable retry policy:
-- **Transparent Retries**: Transparent retry is at most once, and occurs automatically only if a connection drops before request headers or body transmission commits.
-- **Service-Config Retries**: Attach an A6 document with `Channel::service_config` for unary `retryPolicy` (backoff, throttling, per-attempt timeouts, server pushback) and `hedgingPolicy`. Without a policy, application-level retries remain at the call site evaluated against `Code::is_retryable`.
-- **In-Process Bypasses**: In-process connections (`from_io`) have no transparent retry.
+`pbrs-grpc` keeps retry behavior explicit and bounded.
 
-For complete state transitions and commitment boundaries, consult the [Retry Contract](retry-contract.md).
+- **Transparent retry**: Transparent retry is at most once. It happens only when a connection drops before request headers or body transmission commits.
+- **Service-config retries**: attach an A6 document with `Channel::service_config` for unary `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. It also accepts `hedgingPolicy`.
+- **No policy fallback**: without a policy, application retries stay at the call site and should be evaluated with `Code::is_retryable`.
+- **In-process bypass**: in-process connections (`from_io`) have no transparent retry.
 
----
+For full state transitions and commitment boundaries, read the
+[retry contract](retry-contract.md).
 
 <a id="what-is-not-here"></a>
 ## What is not here
 
-To maintain zero C dependencies, minimal overhead, and deterministic execution, `pbrs-grpc` deliberately omits non-essential features:
-- **No xDS or Client-Side Load Balancing**: Services dial direct authorities (`host:port`); use an L4/L7 proxy (e.g. Envoy) for dynamic routing.
-- **No Channelz or Binary Logging**: Metrics and observability are exposed via standard Rust tracing and middleware extensions.
-- **No Unbounded Speculation**: Hedging ships only as opt-in, `maxAttempts`-bounded unary `hedgingPolicy` (see [Retries and Resilience](#retries-and-resilience)); there is no speculative RPC outside that policy.
+`pbrs-grpc` deliberately leaves out features that would add control-plane
+complexity, unbounded speculation, or runtime retention.
 
-For a comprehensive comparison against Tonic and gRPC-Go, refer to the [Framework Comparison Guide](guides/comparison.md).
+- **No xDS or client-side load balancing**: services dial direct authorities (`host:port`). Use an L4/L7 proxy such as Envoy for dynamic routing.
+- **No channelz or binary logging**: metrics and observability are exposed through standard Rust tracing and middleware extensions.
+- **No unbounded speculation**: Hedging ships only as opt-in, `maxAttempts`-bounded unary `hedgingPolicy` (see [Retries and Resilience](#retries-and-resilience)); there is no speculative RPC outside that policy.
+
+For a wider comparison with Tonic and gRPC-Go, see the
+[framework comparison guide](guides/comparison.md).
