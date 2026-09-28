@@ -1,30 +1,41 @@
 # gRPC and Protobuf Benchmark Contract
 
-**Version:** 1.1.0  
-**Status:** Active Contract (Task BM-01)  
-**Revision note:** 1.1.0 closes the BM-01 acceptance gaps: network/RTT and core-scaling dimensions (§3.6), overload rule (§3.7), identical handler work (§5.4), and staged execution, claim scope and anti-gaming rules (§10).
-**Applies to:** `pure-protobuf` (`pbrs`), `pbrs-grpc`, `rpc-bench`, and comparison suites
+This page is the rulebook for anyone running or reading `pbrs` and
+`pbrs-grpc` performance results. Bottom line: only named, statistically
+qualified benchmark matrices can support performance claims; loopback and
+single-run diagnostics are smoke evidence only.
 
----
+- **Version:** 1.1.0
+- **Status:** Active Contract (Task BM-01)
+- **Revision note:** 1.1.0 closes the BM-01 acceptance gaps: network round-trip time (RTT) and core-scaling dimensions (§3.6), overload rule (§3.7), identical handler work (§5.4), and staged execution, claim scope and anti-gaming rules (§10).
+- **Applies to:** `pure-protobuf` (`pbrs`), `pbrs-grpc`, `rpc-bench`, and comparison suites
 
 ## 1. Principles and Scope
 
-This document establishes the binding methodology, workload taxonomy, measurement standards, statistical rigor, and acceptance thresholds for all performance claims across `pure-protobuf` and `pbrs-grpc`.
+Use this contract before publishing any speed, latency, throughput, or resource
+claim. It defines the workload tiers, measurement rules, statistical standards,
+and acceptance thresholds for `pure-protobuf` and `pbrs-grpc`.
 
-Performance claims in high-throughput RPC systems are frequently distorted by methodological traps:
-1. **Coordinated omission**: Closed-loop generators pausing during server stalls, thereby masking true tail latency.
-2. **Conflated CPU accounting**: Blurring client and server CPU consumption into an uninterpretable single metric or measuring loopback processes sharing an event loop.
-3. **Selective omission**: Dropping failed calls, timeouts, or connection errors from latency distributions to fabricate flattering tails.
-4. **Semantic mismatch**: Comparing zero-copy borrowed decoders against fully-allocated owned trees, or comparing cached re-encodes against cold structural generation.
-5. **Statistical noise**: Declaring victory based on single-shot or cherry-picked "best of N" runs without uncertainty intervals or adequate sample counts.
+The contract exists to block five common traps:
 
-This contract forbids these practices. Every optimization and performance gate (BM-01 through BM-13, OP, CP, and SP lanes) must satisfy this contract.
+| Trap | What goes wrong |
+|---|---|
+| **Coordinated omission** | A closed-loop generator pauses during server stalls, hiding true tail latency. |
+| **Conflated CPU accounting** | Client and server CPU are merged, or loopback processes share one event loop. |
+| **Selective omission** | Failed calls, timeouts, or connection errors are dropped from latency distributions. |
+| **Semantic mismatch** | Borrowed zero-copy decoders are compared with owned trees, or cached re-encodes with cold generation. |
+| **Statistical noise** | A single run or "best of N" run is treated as proof without intervals or enough samples. |
+
+Every optimization and performance gate (BM-01 through BM-13, OP, CP, and SP
+lanes) must avoid these traps and satisfy this contract.
 
 ---
 
 ## 2. Workload Taxonomy
 
-To prevent confounding serialization costs with transport networking or client scheduling, workloads are categorized into three distinct abstraction tiers.
+Separate the work being measured before comparing results. Codec costs,
+transport costs, and cross-language application behavior answer different
+questions.
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -37,20 +48,26 @@ To prevent confounding serialization costs with transport networking or client s
 ```
 
 ### 2.1 Tier 1: Codec-Only Workloads
-Evaluates in-memory serialization and deserialization without network or HTTP/2 transport overhead.
+
+Tier 1 measures in-memory serialization and deserialization. It excludes
+network, HTTP/2, and client scheduling overhead.
 
 #### A. Buffer Ownership Dimension
-* **Owned Decoding**: Decodes wire bytes into owned data structures (`String`, `Vec<T>`, boxed sub-messages). All fields are heap-allocated and retain independent lifetime from the input buffer.
-* **Borrowed / Zero-Copy View Decoding**: Decodes wire bytes into lightweight views borrowing directly from the input slice (`&'a str`, `&'a [u8]`, view structs). No heap allocations occur for bytes/string payloads.
-* *Equivalence Rule*: Owned decoders (`pbrs`, `prost`, `protobuf` v4 upb, `buffa` owned) may only be compared against owned decoders. Borrowed decoders (`buffa decode_view`, `pbrs` zero-copy views) must be benchmarked and reported in a separate dedicated view column.
+
+| Mode | Meaning | Comparison rule |
+|---|---|---|
+| **Owned decoding** | Wire bytes become owned Rust data (`String`, `Vec<T>`, boxed sub-messages). Fields live independently from the input buffer. | Compare only with other owned decoders: `pbrs`, `prost`, `protobuf` v4 upb, and `buffa` owned. |
+| **Borrowed / zero-copy view decoding** | Wire bytes become lightweight views into the input slice (`&'a str`, `&'a [u8]`, view structs). Bytes/string payloads avoid heap allocation. | Report in a dedicated view column only: `buffa decode_view` and `pbrs` zero-copy views. |
 
 #### B. Lifecycle and Mutation Dimension
-* **Fresh / Cold Encode**: The message struct is instantiated from scratch and populated with data, then serialized to wire bytes. Evaluates standard constructor and field assignment cost.
-* **Mutated Encode**: An existing parsed or constructed message has a subset of fields modified (e.g., updating a timestamp or sequence number), followed by serialization. Evaluates dirty-tracking, re-computation of lengths, and cache invalidation overhead.
-* **Cached Encode**: An unmodified message is serialized repeatedly, measuring the performance benefit of cached wire-length calculations or pre-encoded packed representations.
-* **Parse-Only vs. Parse-and-Touch**:
-  * *Parse-Only*: Deserializes the wire buffer into memory.
-  * *Parse-and-Touch*: Deserializes wire bytes and recursively accesses every field via accessors/getters to ensure lazy fields or deferred parser tokens are materialized.
+
+| Operation | What it measures |
+|---|---|
+| **Fresh / cold encode** | Construct a message from scratch, populate it, then serialize it. |
+| **Mutated encode** | Modify fields on an existing parsed or constructed message, then serialize it. This exercises dirty tracking, length recomputation, and cache invalidation. |
+| **Cached encode** | Serialize an unchanged message repeatedly. This measures cached wire lengths or pre-encoded packed data. |
+| **Parse-only** | Deserialize wire bytes into memory. |
+| **Parse-and-touch** | Deserialize wire bytes, then recursively access every field to force lazy fields or deferred parser tokens to materialize. |
 
 #### C. Schemas and Suites
 * Canonical Conformance Schema: `google.protobuf.TestAllTypesProto3` (TAT, covering all scalar types, repeated, packed, maps, nested messages, oneofs).
@@ -67,7 +84,9 @@ Evaluates in-memory serialization and deserialization without network or HTTP/2 
 ---
 
 ### 2.2 Tier 2: Transport-Only Workloads
-Isolates gRPC and HTTP/2 framing, window management, socket multiplexing, and task scheduling by holding the codec constant.
+
+Tier 2 holds the codec constant and measures the transport. It isolates gRPC,
+HTTP/2 framing, flow-control windows, socket multiplexing, and async scheduling.
 
 * **Methodology**: Both client and server execute standard `grpc.testing.TestService` procedures. Serialization on both sides is pinned to the exact same `pbrs` codec (via `pbrs-grpc` natively and `protobuf-tonic` via tonic).
 * **Isolated Factors**: HTTP/2 frame construction, HPACK compression, flow control window updates, connection multiplexing, asynchronous runtime task transitions, output batching (`OutBatch`), and zero-copy write aggregation.
@@ -78,7 +97,9 @@ Isolates gRPC and HTTP/2 framing, window management, socket multiplexing, and ta
 ---
 
 ### 2.3 Tier 3: End-to-End Application RPC Workloads
-Evaluates real-world client and server stacks across idiomatic language and framework implementations.
+
+Tier 3 measures complete application RPC stacks. It compares idiomatic client
+and server implementations across languages and frameworks.
 
 #### A. Reference Implementations
 * `pbrs-grpc`: Pure Rust native client and server
@@ -100,7 +121,9 @@ To ensure leadership is not an artifact of proprietary client-server optimizatio
 
 ## 3. Scenario Dimensions and Matrix
 
-Workloads must span realistic service operating points across payload sizes, streaming patterns, security layers, and compression.
+A claim-grade matrix must cover realistic service operating points: payload
+size, RPC shape, transport security, compression, holdout traffic, network
+round-trip time (RTT), and core scaling.
 
 ### 3.1 Payload Dimensions
 1. **Empty (0 Bytes)**: Minimal wire payload. Isolates HTTP/2 framing, HPACK header processing, connection concurrency, and event-loop wakeups.
@@ -155,7 +178,7 @@ To prevent overfitting optimizations to a narrow set of synthetic micro-benchmar
 
 ### 3.7 Overload and Saturation
 
-1. Offered load is stepped past the saturation knee until errors or timeouts appear; the overload cell reports goodput, error/timeout rates, p99 including retained failures, and time to recover after load drops.
+1. Offered load is stepped past the saturation knee until errors or timeouts appear; the overload cell reports goodput, error/timeout rates, p99 (99th percentile latency) including retained failures, and time to recover after load drops.
 2. Overload is a validation axis, not a leadership gate: no throughput-gain threshold applies, but dropped or misclassified failures invalidate the run.
 
 ---

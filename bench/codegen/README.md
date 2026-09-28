@@ -1,13 +1,19 @@
 # CG-19 codegen cost diagnostic
 
-From the repository root, run `./scripts/codegen-bench.sh --case small` for a
-smoke cell, or omit `--case` for the seeded 6-, 100-, and 1,000-message
-multi-file matrix. This is an **unqualified** local diagnostic, not a
-compile-time leadership claim. Results, corpus inputs, an explicit
-`summary.json` and raw per-phase logs go in a new `target/codegen-bench/` run
-directory. No existing evidence is deleted. See
+This harness measures generator time, generated output size, downstream
+`cargo check`, release build, binary size, and resident set size (RSS) for
+generated Rust consumers. From the repository root, run
+`./scripts/codegen-bench.sh --case small` for a smoke cell, or omit `--case`
+for the seeded 6-, 100-, and 1,000-message multi-file matrix. Bottom line:
+these runs are **unqualified** local diagnostics, not compile-time leadership
+claims.
+
+Each run writes corpus inputs, `summary.json`, and raw per-phase logs to a new
+`target/codegen-bench/` directory. No existing evidence is deleted. See
 [`docs/benchmarks.md`](../../docs/benchmarks.md#codegen-and-downstream-compilation-cg-19-diagnostic)
-for measured phases, RSS limitations and reference qualification boundaries.
+for measured phases, RSS limits, and reference qualification boundaries.
+
+## Reference opt-in
 
 An **explicit opt-in** pairs one default-seed corpus with the genuine pinned
 upstream Rust generator. Specify exactly one of `--case small`, `--case 100`,
@@ -19,17 +25,21 @@ CARGO_BUILD_JOBS=2 ./scripts/codegen-bench.sh --case small \
   --reference-protoc "$PWD/target/pinned-protoc-build/protoc" --jobs 2
 ```
 
-The harness requires `libprotoc 35.1` with SHA-256
-`e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940`,
-the checked and clean upstream source at `vendor/google/SHA`
-(`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`), and an offline Cargo
-lockfile pinning the **independent** `protobuf` and `protobuf-macros`
-`4.35.1-release` registry crates by checksum. There is no `pbrs` dependency
-or ABI shim in the reference consumer. Its `kernel=upb` runtime builds C
-code, so the report records the selected C compiler as well as Cargo, Rust,
-protoc, flags, lockfile hashes and source state. Missing/mismatched pins fail
-closed. Opt-in needs Python 3.11+ for standard-library lockfile verification
-and requires one explicit case with `--seed 190019 --jobs 2`. Running
+The reference path is deliberately strict:
+
+- `libprotoc 35.1` must have SHA-256
+  `e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940`.
+- The upstream source must match `vendor/google/SHA`
+  (`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`) and be checked and clean.
+- The offline Cargo lockfile must pin the independent `protobuf` and
+  `protobuf-macros` `4.35.1-release` registry crates by checksum.
+- The reference consumer has no `pbrs` dependency and no ABI shim.
+
+The reference `kernel=upb` runtime builds C code, so the report records the
+selected C compiler as well as Cargo, Rust, protoc, flags, lockfile hashes and
+source state. Missing or mismatched pins fail closed. Opt-in needs Python 3.11+
+for standard-library lockfile verification and requires one explicit case with
+`--seed 190019 --jobs 2`. Running
 `--case 100` or `--case 1000` triggers a separate cold pbrs and C/upb consumer
 build, which is substantially heavier than generation alone. No timed
 100/1,000-message reference consumer run has been performed or qualified.
@@ -38,6 +48,8 @@ compiler, use
 `CG19_PINNED_PROTOC="$PWD/target/pinned-protoc-build/protoc" python3 -B -m unittest discover -s bench/codegen -p 'test_*.py'`.
 This verifies all 5/20 generated Rust modules and their pinned byte hashes,
 but does not compile them or measure runtime performance.
+
+## What is and is not timed
 
 Bootstrap is **excluded** from generation and consumer check timings. Its
 driver builds offline against the compatible shared
@@ -58,6 +70,8 @@ the hashes of the wrapper, driver, Rust source and lockfiles. A missing
 reference peer in the **default** pbrs-only mode remains
 `reference.status: missing`, `qualification.qualified: false` and
 `comparison.losing_cells: null`.
+
+## What reference mode compares
 
 In opt-in mode, pbrs generation uses the **same pinned protoc** to compile
 descriptors; upstream uses its built-in `--rust_out` with

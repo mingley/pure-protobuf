@@ -1,6 +1,9 @@
 # RPC-Bench Peer Configuration and Launcher Registry
 
-This directory contains peer configuration and launcher metadata for cross-peer and mixed-peer gRPC benchmarking according to `docs/benchmark-contract.md` (task BM-07).
+This directory defines the peers that `rpc-bench` can launch or compare. It is
+for contributors adding a runtime, codec, or cross-language benchmark peer.
+Bottom line: every peer role must be explicit, pinned, and recorded so a partial
+or mismatched matrix cannot look like a win.
 
 ## Registered Peers
 
@@ -13,22 +16,28 @@ This directory contains peer configuration and launcher metadata for cross-peer 
 
 ## Matching Configuration (Apples-to-Apples)
 
-All peers must execute under identical, matched network and payload parameters:
-- **TCP_NODELAY**: Enabled on both client and server TCP sockets.
-- **TLS Cipher**: `TLS_AES_128_GCM_SHA256` (TLS 1.3) when encryption is active.
-- **Connections & Concurrency**: 1 connection and 1 concurrency for standard unary/stream scenarios; 4 connections / 16 streams for concurrency scenarios.
-- **Payload Dimensions**:
-  - `empty_unary`: 0 request bytes, 0 response bytes.
-  - `large_unary`: 271,828 request bytes, 314,159 response bytes.
-  - `stream`: 1,024 byte payload messages.
-  - `ping_pong`: 0 byte payload messages in lockstep (256 pairs).
-  - `upload`: 1,024 byte payload messages.
+All peers must use the same network and payload parameters:
+
+| Setting | Required value |
+|---|---|
+| TCP behavior | `TCP_NODELAY` enabled on client and server sockets |
+| TLS cipher | `TLS_AES_128_GCM_SHA256` (TLS 1.3) when encryption is active |
+| Standard unary/stream concurrency | 1 connection and 1 concurrent RPC |
+| Concurrency scenarios | 4 connections and 16 streams |
+| `empty_unary` payload | 0 request bytes, 0 response bytes |
+| `large_unary` payload | 271,828 request bytes, 314,159 response bytes |
+| `stream` payload | 1,024 byte payload messages |
+| `ping_pong` payload | 0 byte payload messages in lockstep (256 pairs) |
+| `upload` payload | 1,024 byte payload messages |
 
 ## Execution Matrix Roles
 
 To isolate client vs. server performance:
-1. **Server Efficiency (Fixed Load Generator)**: Hold client peer fixed (e.g. `--client-peer=native`), vary `--server-peer=native,tonic-pbrs,tonic-prost,go,cpp`.
-2. **Client Efficiency (Fixed Server)**: Hold server peer fixed (e.g. `--server-peer=native`), vary `--client-peer=native,tonic-pbrs,go,cpp`.
+
+| Question | How to run the matrix |
+|---|---|
+| Server efficiency | Hold the client fixed, for example `--client-peer=native`, and vary `--server-peer=native,tonic-pbrs,tonic-prost,go,cpp`. |
+| Client efficiency | Hold the server fixed, for example `--server-peer=native`, and vary `--client-peer=native,tonic-pbrs,go,cpp`. |
 
 ## Tonic Codec Roles
 
