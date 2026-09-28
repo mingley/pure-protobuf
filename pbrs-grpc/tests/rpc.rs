@@ -19,8 +19,8 @@
 mod common;
 
 use common::{name_of, req, spawn_greeter};
-use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Code, InItem, Inbound, Request, Response, Status};
+use pbrs_grpc::hello::{Greeter, GreeterClient, HelloReply, HelloRequest};
+use pbrs_grpc::{Code, Request, Response, Status, Streaming};
 
 struct Echo;
 
@@ -42,7 +42,7 @@ impl Greeter for Echo {
 
     async fn client_hello(
         &self,
-        request: Request<Inbound<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         let mut inbound = request.into_inner();
         let mut names = Vec::new();
@@ -57,26 +57,19 @@ impl Greeter for Echo {
     async fn server_hello(
         &self,
         request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         let name = request
             .into_inner()
             .name()
             .to_str()
             .unwrap_or("")
             .to_string();
-        let (tx, rx) = Inbound::channel(4);
+        let (tx, rx) = Streaming::channel(4);
         drop(tokio::spawn(async move {
             for part in name.split(',') {
                 let mut reply = HelloReply::new();
                 reply.set_message(part.to_string());
-                if tx
-                    .send(Ok(InItem {
-                        message: reply,
-                        compressed: false,
-                    }))
-                    .await
-                    .is_err()
-                {
+                if tx.send(reply).await.is_err() {
                     break;
                 }
             }
@@ -86,23 +79,25 @@ impl Greeter for Echo {
 
     async fn stream_hello(
         &self,
-        request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         let mut inbound = request.into_inner();
-        let (tx, rx) = Inbound::channel(4);
+        let (tx, rx) = Streaming::channel(4);
         drop(tokio::spawn(async move {
-            while let Ok(Some(msg)) = inbound.message().await {
-                let mut reply = HelloReply::new();
-                reply.set_message(msg.name().to_str().unwrap_or("").to_string());
-                if tx
-                    .send(Ok(InItem {
-                        message: reply,
-                        compressed: false,
-                    }))
-                    .await
-                    .is_err()
-                {
-                    break;
+            loop {
+                match inbound.message().await {
+                    Ok(Some(msg)) => {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                        if tx.send(reply).await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
                 }
             }
         }));
@@ -122,29 +117,115 @@ impl Greeter for Fail {
 
     async fn client_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(Status::not_found("missing"))
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::not_found("missing"))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::not_found("missing"))
+    }
+}
+
+struct RichFail;
+
+fn rich_fail() -> Status {
+    let mut status = Status::failed_precondition("quota");
+    status.set_details(vec![0x08, 0x09]);
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+impl Greeter for RichFail {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(rich_fail())
+    }
+}
+
+struct TypedFail;
+
+fn typed_status() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("API_DISABLED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "api disabled",
+        [pbrs_grpc::Any::pack(&info).expect("pack")],
+    )
+    .expect("encode")
+}
+
+impl Greeter for TypedFail {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(typed_status())
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(typed_status())
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(typed_status())
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(typed_status())
     }
 }
 
 #[tokio::test]
 async fn unary_echoes_name() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let resp = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -154,7 +235,7 @@ async fn unary_echoes_name() {
 
 #[tokio::test]
 async fn client_stream_aggregates_names() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let (tx, call) = client.client_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.send(req("bob")).await.expect("send");
@@ -165,7 +246,7 @@ async fn client_stream_aggregates_names() {
 
 #[tokio::test]
 async fn server_stream_splits_name() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let resp = client
         .server_hello(Request::new(req("ada,bob")))
         .await
@@ -183,8 +264,27 @@ async fn server_stream_splits_name() {
 }
 
 #[tokio::test]
+async fn server_stream_is_a_futures_stream() {
+    use pbrs_grpc::Stream;
+    use std::future::poll_fn;
+    use std::pin::Pin;
+
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
+    let resp = client
+        .server_hello(Request::new(req("ada,bob")))
+        .await
+        .expect("server-stream");
+    let mut inbound = resp.into_inner();
+    let mut got = Vec::new();
+    while let Some(item) = poll_fn(|cx| Pin::new(&mut inbound).poll_next(cx)).await {
+        got.push(name_of(&item.expect("ok")));
+    }
+    assert_eq!(got, ["ada", "bob"]);
+}
+
+#[tokio::test]
 async fn bidi_round_trip() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.close();
@@ -200,21 +300,177 @@ async fn bidi_round_trip() {
 
 #[tokio::test]
 async fn failing_rpc_nonzero_grpc_status() {
-    let (_addr, client) = spawn_greeter(Fail).await.expect("spawn");
-    match client.say_hello(Request::new(req("ada"))).await {
-        Err(err) => {
-            assert_ne!(err.code(), Code::Ok);
-            assert_eq!(err.code(), Code::NotFound);
-        }
-        Ok(_) => panic!("expected nonzero grpc-status"),
+    let (_addr, client, _guard) = spawn_greeter(Fail).await.expect("spawn");
+    each_shape_err(&client, |err| {
+        assert_ne!(err.code(), Code::Ok);
+        assert_eq!(err.code(), Code::NotFound);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn failing_rpc_carries_status_details() {
+    let (_addr, client, _guard) = spawn_greeter(RichFail).await.expect("spawn");
+    each_shape_err(&client, |err| {
+        assert_eq!(err.code(), Code::FailedPrecondition);
+        assert_eq!(err.message(), "quota");
+        assert_eq!(err.details(), &[0x08, 0x09]);
+        assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+        assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+    })
+    .await;
+}
+
+fn assert_typed_fail(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let details = err.error_details().expect("ErrorDetails");
+    let unpacked = details.error_info.expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+#[tokio::test]
+async fn failing_rpc_carries_typed_google_rpc_status() {
+    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
+    each_shape_err(&client, assert_typed_fail).await;
+}
+
+async fn each_shape_err(client: &GreeterClient, check: impl Fn(&Status)) {
+    check(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    check(&call.await.expect_err("client-stream"));
+    check(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    check(&call.await.expect_err("bidi"));
+}
+
+fn typed_stream_status() -> Status {
+    let mut status = typed_status();
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_typed_stream_fail(err: &Status) {
+    assert_typed_fail(err);
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+}
+
+fn fail_after_one() -> Streaming<HelloReply> {
+    let (tx, stream) = Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = HelloReply::new();
+        reply.set_message("ada");
+        tx.send(reply).await.ok();
+        tx.fail(typed_stream_status()).await;
+    }));
+    stream
+}
+
+struct TypedAfterHeaders;
+
+impl Greeter for TypedAfterHeaders {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
     }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+}
+
+#[tokio::test]
+async fn typed_google_rpc_status_on_every_call_shape() {
+    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
+    each_shape_err(&client, assert_typed_fail).await;
+}
+
+#[tokio::test]
+async fn typed_google_rpc_status_after_a_streamed_message() {
+    let (_addr, client, _guard) = spawn_greeter(TypedAfterHeaders).await.expect("spawn");
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.message().await.expect_err("status"));
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.trailers().await.expect_err("trailers"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.trailers().await.expect_err("trailers"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_unary_on_connection_pool() {
-    let (addr, _) = spawn_greeter(Echo).await.expect("spawn");
-    let client =
-        pbrs_grpc::hello::GreeterClient::new(Channel::connect_pool(addr, 4).await.expect("pool"));
+    let (addr, _client, _guard) = spawn_greeter(Echo).await.expect("spawn");
+    let client = GreeterClient::connect_pool(addr, 4).await.expect("pool");
     let mut hs = Vec::new();
     for i in 0..16u32 {
         let c = client.clone();

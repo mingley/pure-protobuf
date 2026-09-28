@@ -1,0 +1,44 @@
+// Protocol Buffers - Google's data interchange format
+// Pinned Edition 2024 Fixture: Default Semantics
+//
+// Demonstrates all default feature behaviors under edition = "2024":
+// - field_presence: EXPLICIT (singular scalar fields track presence without `optional` keyword)
+// - enum_type: OPEN (unrecognized enum numbers preserved, not unknown fields)
+// - repeated_field_encoding: PACKED (packable scalar repeated fields packed by default)
+// - utf8_validation: VERIFY (strings must be valid UTF-8)
+// - message_encoding: LENGTH_PREFIXED (submessages use wire type 2 length-delimited)
+// - json_format: ALLOW (standard JSON formatting allowed)
+// - enforce_naming_style: STYLE2024 (PascalCase types, snake_case fields)
+// - default_symbol_visibility: EXPORT_TOP_LEVEL (top-level exported, nested local)
+
+edition = "2024";
+
+package edition2024.defaults;
+
+message DefaultMessage {
+  int32 int32_field = 1;
+  int64 int64_field = 2;
+  uint32 uint32_field = 3;
+  uint64 uint64_field = 4;
+  bool bool_field = 5;
+  string string_field = 6;
+  bytes bytes_field = 7;
+  DefaultEnum enum_field = 8;
+  DefaultSubmessage submessage_field = 9;
+
+  repeated int32 repeated_int32 = 10;
+  repeated string repeated_string = 11;
+  repeated DefaultSubmessage repeated_submessage = 12;
+
+  map<string, int32> map_field = 13;
+}
+
+message DefaultSubmessage {
+  string body = 1;
+}
+
+enum DefaultEnum {
+  DEFAULT_ZERO = 0;
+  DEFAULT_ONE = 1;
+  DEFAULT_TWO = 2;
+}

@@ -7,6 +7,7 @@
 use crate::error::ParseError;
 use crate::map::MapKey;
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
+use bytes::Bytes;
 use std::sync::Arc;
 
 /// Proto3 string UTF-8 check via `simdutf8`.
@@ -22,23 +23,31 @@ pub fn require_utf8(b: &[u8]) -> Result<(), ParseError> {
     }
 }
 
-/// Shared immutable wire bytes. Windows are cheap (`Arc` clone + range).
+/// Shared immutable wire bytes. Windows are cheap (refcount clone + range).
+///
+/// Two backings (PK-09 variant B): [`Self::from_slice`] keeps the historical
+/// private `Arc` copy whose windows never allocate, while [`Self::from_bytes`]
+/// shares the caller's [`Bytes`] with zero copies. Empty values normalize to
+/// the static empty so they never pin a large backing buffer.
 #[derive(Clone, Debug)]
 pub struct Wire {
-    buf: Arc<[u8]>,
-    start: u32,
-    end: u32,
+    inner: WireInner,
+}
+
+#[derive(Clone, Debug)]
+enum WireInner {
+    Private {
+        buf: Arc<[u8]>,
+        start: u32,
+        end: u32,
+    },
+    Shared(Bytes),
 }
 
 impl Wire {
     pub fn empty() -> Self {
-        static EMPTY: std::sync::OnceLock<Arc<[u8]>> = std::sync::OnceLock::new();
         Self {
-            buf: EMPTY
-                .get_or_init(|| Arc::<[u8]>::from(&[] as &[u8]))
-                .clone(),
-            start: 0,
-            end: 0,
+            inner: WireInner::Shared(Bytes::new()),
         }
     }
 
@@ -46,12 +55,27 @@ impl Wire {
         if data.is_empty() {
             return Self::empty();
         }
+        crate::copy_counts::note_wire(data.len());
         let buf: Arc<[u8]> = Arc::from(data);
         let end = buf.len() as u32;
-        Self { buf, start: 0, end }
+        Self {
+            inner: WireInner::Private { buf, start: 0, end },
+        }
     }
 
-    /// One-pass copy of `s` into an Arc, with a high-bit scan.
+    /// Share `data` without copying. No copy counter fires: this is the
+    /// zero-copy entry point [`Parse::parse_bytes`](crate::Parse::parse_bytes)
+    /// builds on.
+    pub fn from_bytes(data: Bytes) -> Self {
+        if data.is_empty() {
+            return Self::empty();
+        }
+        Self {
+            inner: WireInner::Shared(data),
+        }
+    }
+
+    /// One-pass copy of `s` into a private buffer, with a high-bit scan.
     ///
     /// ASCII is valid UTF-8. Non-ASCII falls back to `str::from_utf8`.
     /// Used for long parsed strings so we do not pay `from_utf8` and then a
@@ -59,15 +83,36 @@ impl Wire {
     /// `blob_4kib` decode gap).
     #[inline]
     pub fn from_utf8_payload(s: &[u8]) -> Result<Self, ParseError> {
-        // memcpy into Arc first so the UTF-8/ASCII scan hits the copy (L1),
-        // instead of `str::from_utf8` on the source plus a second parent copy.
+        // memcpy into a private buffer first so the UTF-8/ASCII scan hits
+        // the copy (L1), instead of `str::from_utf8` on the source plus a
+        // second parent copy.
         let w = Self::from_slice(s);
         require_utf8(w.as_slice())?;
         Ok(w)
     }
 
     pub fn as_slice(&self) -> &[u8] {
-        &self.buf[self.start as usize..self.end as usize]
+        match &self.inner {
+            WireInner::Private { buf, start, end } => &buf[*start as usize..*end as usize],
+            WireInner::Shared(b) => b,
+        }
+    }
+
+    /// This window as a shareable [`Bytes`]: a refcount clone for shared
+    /// backing; a copy for private backing (only `parse_bytes` shares).
+    pub fn as_bytes(&self) -> Bytes {
+        match &self.inner {
+            WireInner::Private { buf, start, end } => {
+                Bytes::copy_from_slice(&buf[*start as usize..*end as usize])
+            }
+            WireInner::Shared(b) => b.clone(),
+        }
+    }
+
+    /// Whether this window shares a caller-owned buffer (`from_bytes`).
+    /// Private windows (`from_slice`) only pin memory the message owns.
+    pub fn is_shared(&self) -> bool {
+        matches!(self.inner, WireInner::Shared(_))
     }
 
     /// Build a `Wire` the first time a lazy string/bytes/nested/packed-varint
@@ -77,15 +122,31 @@ impl Wire {
         slot.get_or_insert_with(|| Wire::from_slice(data))
     }
 
-    /// `rel_start..rel_end` are indices into [`as_slice`].
+    /// `rel_start..rel_end` are indices into [`Self::as_slice`].
     pub fn window(&self, rel_start: usize, rel_end: usize) -> Self {
-        let start = self.start + rel_start as u32;
-        let end = self.start + rel_end as u32;
-        debug_assert!(end <= self.end);
-        Self {
-            buf: Arc::clone(&self.buf),
-            start,
-            end,
+        if rel_start == rel_end {
+            return Self::empty();
+        }
+        match &self.inner {
+            WireInner::Private { buf, start, end } => {
+                let base = *start as usize;
+                debug_assert!(base + rel_end <= *end as usize);
+                debug_assert!(rel_start <= rel_end);
+                Self {
+                    inner: WireInner::Private {
+                        buf: Arc::clone(buf),
+                        start: base as u32 + rel_start as u32,
+                        end: base as u32 + rel_end as u32,
+                    },
+                }
+            }
+            WireInner::Shared(b) => {
+                debug_assert!(rel_end <= b.len());
+                debug_assert!(rel_start <= rel_end);
+                Self {
+                    inner: WireInner::Shared(b.slice(rel_start..rel_end)),
+                }
+            }
         }
     }
 }
@@ -139,7 +200,7 @@ impl LazyStr {
     /// each.
     ///
     /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
-    /// [`from_parse_span_unchecked`].
+    /// [`Self::from_parse_span_unchecked`].
     #[inline]
     pub fn from_parse_span(
         slot: &mut Option<Wire>,
@@ -164,7 +225,7 @@ impl LazyStr {
         ))
     }
 
-    /// Same copy strategy as [`from_parse_span`], no UTF-8 check.
+    /// Same copy strategy as [`Self::from_parse_span`], no UTF-8 check.
     ///
     /// proto2 `utf8_validation = NONE` (and editions NONE) must Parse
     /// `\x80`. Does not [`Wire::ensure`] the parent frame.
@@ -373,12 +434,50 @@ pub enum LazyBytes {
 }
 
 impl LazyBytes {
+    /// Sharing threshold (PK-09): a parsed `bytes` field shorter than this
+    /// is copied into owned storage when the parent frame is shared
+    /// (`parse_bytes`); at or above it, the field windows the parent. Small
+    /// fields therefore never pin a large shared frame, while the copying
+    /// (`parse`) path keeps winding its private parent exactly as before.
+    pub const SHARE_THRESHOLD: usize = 4096;
+
     pub fn owned(s: ProtoBytes) -> Self {
         if s.is_empty() {
             Self::Empty
         } else {
             Self::Owned(s)
         }
+    }
+
+    /// Parse a bytes span from the parent message bytes.
+    ///
+    /// Below [`Self::SHARE_THRESHOLD`] the span is copied when the parent
+    /// frame is shared, so a small field never pins a large frame; at or
+    /// above it, the span windows the parent. A private parent (the copying
+    /// `parse` path) is always windowed: it pins nothing foreign.
+    /// Generated `merge_inner` calls this with the message's wire slot.
+    #[inline]
+    pub fn from_parse_span(
+        slot: &mut Option<Wire>,
+        data: &[u8],
+        rel_start: usize,
+        rel_end: usize,
+    ) -> Self {
+        let shared = matches!(slot, Some(w) if w.is_shared());
+        if !shared || rel_end.saturating_sub(rel_start) >= Self::SHARE_THRESHOLD {
+            return Self::from_wire(Wire::ensure(slot, data).window(rel_start, rel_end));
+        }
+        Self::from_bytes(&data[rel_start..rel_end])
+    }
+
+    /// Same threshold policy as [`Self::from_parse_span`] for callers that
+    /// already hold the parent [`Wire`] (map entry decode).
+    #[inline]
+    pub fn from_wire_span(wire: &Wire, rel_start: usize, rel_end: usize) -> Self {
+        if !wire.is_shared() || rel_end.saturating_sub(rel_start) >= Self::SHARE_THRESHOLD {
+            return Self::from_wire(wire.window(rel_start, rel_end));
+        }
+        Self::from_bytes(&wire.as_slice()[rel_start..rel_end])
     }
 
     pub fn from_wire(w: Wire) -> Self {
@@ -403,6 +502,30 @@ impl LazyBytes {
             Self::Empty => b"",
             Self::Wire(w) => w.as_slice(),
             Self::Owned(s) => s.as_bytes(),
+        }
+    }
+
+    /// This field as a shareable buffer: a refcount clone for shared or
+    /// owned backing, a copy for a privately-parsed wire window (PK-09; the
+    /// one runtime method Phase 2 sends share).
+    pub fn as_shared(&self) -> Bytes {
+        match self {
+            Self::Empty => Bytes::new(),
+            Self::Wire(w) => w.as_bytes(),
+            Self::Owned(s) => s.as_shared(),
+        }
+    }
+
+    /// This field as a shareable buffer, when no copy is needed to obtain
+    /// it (PK-11). `Some` for shared or owned backing (refcount clone);
+    /// `None` for a privately-parsed wire window, where sharing would copy
+    /// anyway and the caller should encode inline instead.
+    pub fn shared_bytes(&self) -> Option<Bytes> {
+        match self {
+            Self::Empty => Some(Bytes::new()),
+            Self::Wire(w) if w.is_shared() => Some(w.as_bytes()),
+            Self::Wire(_) => None,
+            Self::Owned(s) => Some(s.as_shared()),
         }
     }
 
@@ -451,6 +574,11 @@ impl crate::proxied::IntoProxied<LazyBytes> for Vec<u8> {
 impl crate::proxied::IntoProxied<LazyBytes> for &[u8] {
     fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
         LazyBytes::from(self)
+    }
+}
+impl crate::proxied::IntoProxied<LazyBytes> for Bytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
+        LazyBytes::owned(ProtoBytes::from(self))
     }
 }
 

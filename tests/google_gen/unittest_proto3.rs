@@ -1952,9 +1952,7 @@ mod __gen {
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.optional_bytes = pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                            self.optional_bytes = pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e);
                         }
                         _ => self
                             .unknown
@@ -2617,9 +2615,7 @@ mod __gen {
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.repeated_bytes.push(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            ));
+                            self.repeated_bytes.push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                         _ => self
                             .unknown
@@ -3007,9 +3003,7 @@ mod __gen {
                             self.oneof_nested_message = Default::default();
                             self.oneof_string = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            )));
+                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e)));
                         }
                         _ => self
                             .unknown

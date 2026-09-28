@@ -1,0 +1,13 @@
+// Descriptor-set fixture for reflection extension lookup. proto2, because
+// proto3 messages have no extension ranges unless declared.
+syntax = "proto2";
+package demo.ext;
+
+message Host {
+  optional string name = 1;
+  extensions 100 to 199;
+}
+
+extend Host {
+  optional string note = 100;
+}

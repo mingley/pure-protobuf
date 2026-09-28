@@ -1,7 +1,8 @@
 [workspace]
-members = [".", "protobuf-tonic", "pbrs-grpc"]
+members = [".", "protobuf-tonic", "pbrs-grpc", "examples/greeter"]
 exclude = [
     "bench",
+    "bench/devloop",
     "tonic-bench",
     "rpc-bench",
     "v4_person",
@@ -14,30 +15,32 @@ exclude = [
     "grpc_remap",
     "parse-leftover",
     "target",
+    "fuzz",
 ]
 resolver = "2"
 
 [package]
 name = "pbrs"
 version = "0.1.0"
-edition = "2021"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
+edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
-description = "Pure-Rust Protocol Buffers kernel with the Google protobuf v4 application API (not crates.io protobuf 4.x upb/C, not prost)"
+description = "Pure-Rust Protocol Buffers kernel with the Google protobuf v4 application API"
 repository = "https://github.com/mingley/pure-protobuf"
 readme = "README.md"
 keywords = ["protobuf", "serialization", "proto"]
 categories = ["encoding"]
 include = [
-    "src/**",
-    "build.rs",
-    "Cargo.toml",
-    "README.md",
-    "LICENSE-APACHE",
-    "LICENSE-MIT",
-    "clippy.toml",
-    "rustfmt.toml",
-    "vendor/google/conformance_fds.bin",
+    "/src/**",
+    "/build.rs",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/clippy.toml",
+    "/rustfmt.toml",
+    "/vendor/google/conformance_fds.bin",
 ]
 
 [lib]
@@ -51,6 +54,11 @@ path = "src/bin/protoc-gen-pbrs.rs"
 [[bin]]
 name = "conformance"
 path = "src/bin/conformance.rs"
+
+[features]
+# Bench-only user-space copy counters (SB-13). Off by default; every
+# note call compiles to nothing without it. Bench binaries only.
+copy-counts = []
 
 [dependencies]
 bytes = "1"

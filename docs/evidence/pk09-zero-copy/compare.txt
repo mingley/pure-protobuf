@@ -1,0 +1,9 @@
+codec.pbrs.owned_decode alloc_bytes: REGRESSED 1024.0 -> 1072.0 (+4.69%, limit 1%)
+codec.pbrs.parse_touch alloc_bytes: REGRESSED 1168.0 -> 1216.0 (+4.11%, limit 1%)
+codec.pbrs.blob_parse_shared_64kib: new cell, no baseline
+codec.pbrs.blob_parse_shared_1mib: new cell, no baseline
+codec.pbrs.blob_parse_shared_4mib: new cell, no baseline
+codec.pbrs.blob_parse_shared_8mib: new cell, no baseline
+codec.pbrs.blob_parse_shared_mixed: new cell, no baseline
+rpc.pbrs.unary_compressed allocs: REGRESSED 85.3 -> 87.3 (+2.34%, limit 2%)
+rpc.pbrs.server_stream_compressed allocs: REGRESSED 880.3 -> 937.3 (+6.47%, limit 2%)

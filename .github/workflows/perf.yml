@@ -1,0 +1,133 @@
+# SB-04: non-blocking dev-loop performance lane.
+#
+# On PRs touching Rust sources or the harness, builds base and head in
+# one job, runs the deterministic dev-loop suite for both, uploads the
+# JSON reports, and writes a per-cell delta summary. Never fails the PR:
+# SB-20 decides gating thresholds from the retained runs.
+name: dev-loop perf
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "pbrs-grpc/src/**"
+      - "protobuf-tonic/src/**"
+      - "bench/devloop/**"
+      - "scripts/devloop.sh"
+
+jobs:
+  devloop-compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Fetch dependencies and protobuf sources
+        run: |
+          cargo fetch
+          scripts/fetch-protobuf.sh
+
+      # devloop prefers `perf stat` when present but asserts on wrapper
+      # failure, so a present-but-unusable perf would crash the suite.
+      # Try to enable counters; otherwise hide a broken perf binary.
+      - name: Enable or hide perf counters
+        run: |
+          set -euo pipefail
+          sudo sysctl -w kernel.perf_event_paranoid=-1 || true
+          if command -v perf >/dev/null 2>&1; then
+            if perf stat -e instructions -- true >/dev/null 2>&1; then
+              echo "perf: usable"
+            else
+              echo "perf: present but unusable; hiding"
+              sudo mv "$(command -v perf)" "$(command -v perf).hidden-by-perf-yml"
+            fi
+          else
+            echo "perf: absent (instructions will be not_run)"
+          fi
+          command -v strace >/dev/null 2>&1 && echo "strace: present" || echo "strace: absent (syscalls will be not_run)"
+          command -v valgrind >/dev/null 2>&1 && echo "valgrind: present" || echo "valgrind: absent"
+
+      - name: Run dev-loop suite on head
+        run: scripts/devloop.sh --out head.json
+
+      - name: Run dev-loop suite on base
+        run: |
+          set -euo pipefail
+          mv head.json /tmp/devloop-head.json
+          git checkout '${{ github.event.pull_request.base.sha }}'
+          scripts/devloop.sh --out /tmp/devloop-base.json
+          mv /tmp/devloop-base.json base.json
+          mv /tmp/devloop-head.json head.json
+
+      - name: Compare and summarize
+        run: |
+          set -euo pipefail
+          BIN="bench/devloop/target/release/devloop"
+          set +e
+          "$BIN" compare --baseline base.json --current head.json --budget bench/devloop/baselines/picker.json > compare.txt 2>&1
+          COMPARE_EXIT=$?
+          set -e
+          echo "compare exit: $COMPARE_EXIT (non-blocking)"
+          cat compare.txt
+          python3 - base.json head.json compare.txt "$COMPARE_EXIT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+
+          base_path, head_path, compare_path, compare_exit = sys.argv[1:5]
+          base = json.load(open(base_path))
+          head = json.load(open(head_path))
+          verdict = open(compare_path).read().strip()
+
+          def value(cell, metric):
+              m = cell.get(metric, {})
+              if m.get("status") != "measured":
+                  return None
+              return m.get("data", {}).get("value")
+
+          def fmt(v):
+              if v is None:
+                  return "not_run"
+              return f"{v:.1f}" if v >= 100 else f"{v:.3f}"
+
+          def delta(o, n):
+              if o is None or n is None or o == 0:
+                  return "—"
+              return f"{(n - o) / o * 100:+.2f}%"
+
+          old = {c["id"]: c for c in base["cells"]}
+          print("## dev-loop perf: base vs head (non-blocking)")
+          print()
+          print(f"base `{base.get('devloop_commit', '?')}` vs head `{head.get('devloop_commit', '?')}`.")
+          print()
+          print("| cell | instructions base → head | Δ | allocs/RPC base → head | Δ |")
+          print("|---|---|---|---|---|")
+          for cell in head["cells"]:
+              o = old.get(cell["id"])
+              if o is None:
+                  print(f"| {cell['id']} | new cell | | new cell | |")
+                  continue
+              oi, ni = value(o, "instructions"), value(cell, "instructions")
+              oa, na = value(o, "allocs"), value(cell, "allocs")
+              print(f"| {cell['id']} | {fmt(oi)} → {fmt(ni)} | {delta(oi, ni)} | {fmt(oa)} → {fmt(na)} | {delta(oa, na)} |")
+          print()
+          if verdict:
+              print("```")
+              print(verdict)
+              print("```")
+          else:
+              print("compare: no regressions or ≥2% improvements.")
+          print()
+          print(f"compare exit: {compare_exit} (advisory only; SB-20 sets gates).")
+          PY
+
+      - name: Retain reports for noise analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: devloop-${{ github.run_id }}
+          retention-days: 180
+          path: |
+            base.json
+            head.json

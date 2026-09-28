@@ -1,0 +1,5 @@
+    7495   99.9%  _platform_memmove
+       6    0.1%  mach_absolute_time
+       5    0.1%  _xzm_free
+
+# 3 distinct symbols, 7506 samples/frames

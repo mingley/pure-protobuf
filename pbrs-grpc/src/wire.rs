@@ -1,542 +1,552 @@
-//! HTTP/2 gRPC protocol helpers (headers, framing, trailers).
+//! gRPC-over-HTTP/2 protocol: request/response headers, data frames, status
+//! trailers, and the stream pumps that connect them to [`Streaming`].
 
-use crate::codec::{self, SizeLimits};
-use crate::gzip;
-use crate::metadata::Metadata;
-use crate::status::{Code, Status};
-use crate::stream::{InItem, Inbound, OutItem};
-use bytes::{BufMut, Bytes, BytesMut};
-use h2::{Reason, RecvStream, SendStream};
-use http::uri::{Authority, PathAndQuery, Scheme};
-use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
-use pbrs::{Parse, Serialize};
-use std::time::Duration;
-use tokio::sync::mpsc;
+pub(crate) mod encode;
+pub(crate) mod frame_reader;
+pub(crate) mod headers;
+pub(crate) mod out_batch;
+pub(crate) mod send;
 
-pub(crate) fn grpc_request(
-    authority: &Authority,
-    path: &'static str,
-    md: &Metadata,
-    timeout: Option<Duration>,
-    send_gzip: bool,
-) -> Result<Request<()>, Status> {
-    let mut parts = http::uri::Parts::default();
-    parts.scheme = Some(Scheme::HTTP);
-    parts.authority = Some(authority.clone());
-    parts.path_and_query = Some(PathAndQuery::from_static(path));
-    let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
-    let mut builder = Request::builder()
-        .method(http::Method::POST)
-        .uri(uri)
-        .header(http::header::CONTENT_TYPE, "application/grpc")
-        .header(http::header::TE, "trailers")
-        .header(
-            HeaderName::from_static("grpc-accept-encoding"),
-            "identity,gzip",
+pub(crate) use encode::{SegFrame, encode_msg};
+pub(crate) use frame_reader::{
+    WireStream, finish_stream, finish_unary, read_one_message, status_from,
+};
+pub(crate) use headers::{
+    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, accepts_codec, accepts_gzip, check_request,
+    effective_timeout, grpc_encoding, grpc_request, inbound_codec, preferred_codec,
+    select_outbound_codec, select_stream_codec, soonest, timeout_from_headers, user_agent_value,
+};
+pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
+pub(crate) use send::{
+    PumpEnd, grpc_trailers, pump_outbound, reject, reject_request, reset_on_cancel, send_frame,
+    send_ok_headers, send_trailers_only, wrap_timeout,
+};
+// Re-exported for the unit tests below, which drive internals directly.
+#[cfg(test)]
+pub(crate) use frame_reader::{FrameReader, percent_decode};
+#[cfg(test)]
+pub(crate) use headers::{grpc_content_type, grpc_encoding_admitted, grpc_encoding_supported};
+#[cfg(test)]
+pub(crate) use send::percent_encode;
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DEFAULT_UA, FrameReader, PBRS_GRPC_UA, accepts_gzip, effective_timeout, grpc_content_type,
+        grpc_encoding, grpc_encoding_supported, grpc_request, percent_decode, percent_encode,
+        preferred_codec, select_outbound_codec, select_stream_codec, soonest,
+    };
+    use crate::codec;
+    use crate::compression::Codec;
+    use crate::gzip;
+    use crate::limits::MessageLimits;
+    use crate::metadata::Metadata;
+    use crate::status::Code;
+    use bytes::{Bytes, BytesMut};
+    use http::uri::Authority;
+
+    #[test]
+    fn outbound_requests_identify_the_kernel() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let req = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            None,
+            true,
+            &PBRS_GRPC_UA,
+            false,
+        )
+        .expect("request");
+        assert_eq!(req.uri().scheme_str(), Some("http"));
+        assert_eq!(
+            req.headers()
+                .get("user-agent")
+                .and_then(|v| v.to_str().ok()),
+            Some(DEFAULT_UA)
         );
-    if send_gzip {
-        builder = builder.header(HeaderName::from_static("grpc-encoding"), "gzip");
     }
-    let mut req = builder
-        .body(())
-        .map_err(|e| Status::internal(e.to_string()))?;
-    if let Some(d) = timeout {
-        let val = HeaderValue::from_str(&crate::timeout::encode_timeout(d))
-            .map_err(|e| Status::internal(e.to_string()))?;
-        req.headers_mut()
-            .insert(HeaderName::from_static("grpc-timeout"), val);
+
+    #[test]
+    fn outbound_tls_requests_use_the_https_scheme() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let req = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            None,
+            true,
+            &PBRS_GRPC_UA,
+            true,
+        )
+        .expect("request");
+        assert_eq!(req.uri().scheme_str(), Some("https"));
     }
-    md.write_to(req.headers_mut())?;
-    Ok(req)
-}
 
-pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), Status> {
-    if request.method() != http::Method::POST {
-        return Err(Status::unimplemented("POST required"));
-    }
-    let Some(ct) = request.headers().get(http::header::CONTENT_TYPE) else {
-        return Err(Status::invalid_argument("missing content-type"));
-    };
-    let Ok(s) = ct.to_str() else {
-        return Err(Status::invalid_argument("invalid content-type"));
-    };
-    if s.starts_with("application/grpc") {
-        Ok(())
-    } else {
-        Err(Status::invalid_argument(
-            "content-type must begin with application/grpc",
-        ))
-    }
-}
-
-pub(crate) fn timeout_from_headers(headers: &HeaderMap) -> Option<Duration> {
-    headers
-        .get(HeaderName::from_static("grpc-timeout"))
-        .and_then(|v| v.to_str().ok())
-        .and_then(crate::timeout::parse_timeout)
-}
-
-pub(crate) fn serialize_payload<T: Serialize>(msg: &T) -> Result<Vec<u8>, Status> {
-    T::serialize(msg).map_err(|e| Status::internal(e.to_string()))
-}
-
-fn frame_from_msg<T: Serialize>(msg: &T) -> Result<Bytes, Status> {
-    let n = T::serialized_len(msg);
-    let len = u32::try_from(n).map_err(|_| Status::internal("message too large"))?;
-    let mut buf = BytesMut::with_capacity(5 + n);
-    buf.put_u8(0);
-    buf.put_u32(len);
-    T::encode(msg, &mut buf).map_err(|e| Status::internal(e.to_string()))?;
-    Ok(buf.freeze())
-}
-
-async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Status> {
-    if send.capacity() >= n {
-        return Ok(());
-    }
-    send.reserve_capacity(n);
-    while send.capacity() < n {
-        match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
-            Some(Ok(_)) => {}
-            Some(Err(e)) => return Err(Status::internal(e.to_string())),
-            None => return Err(Status::internal("stream closed")),
+    #[test]
+    fn grpc_content_type_accepts_the_spec_prefix() {
+        for ok in [
+            "application/grpc",
+            "application/grpc+proto",
+            "application/grpc;charset=utf-8",
+            "application/grpc+proto; charset=utf-8",
+            "Application/Grpc",
+            "APPLICATION/GRPC+PROTO",
+            " application/grpc ",
+        ] {
+            assert!(grpc_content_type(ok), "{ok}");
+        }
+        for no in [
+            "application/json",
+            "application/grpc+json",
+            "application/grpc+json;charset=utf-8",
+            "APPLICATION/GRPC+JSON",
+            "application/grpc+thrift",
+            "application/grpc-web",
+            "application/grpc-web+proto",
+            "application/grpcweb",
+            "text/plain",
+            "",
+        ] {
+            assert!(!grpc_content_type(no), "{no}");
         }
     }
-    Ok(())
-}
 
-pub(crate) fn encode_msg<T: Serialize>(
-    msg: &T,
-    compress: bool,
-    limits: SizeLimits,
-) -> Result<Bytes, Status> {
-    limits.check_encode(T::serialized_len(msg))?;
-    if compress {
-        let body = serialize_payload(msg)?;
-        let gz = gzip::encode(&body)?;
-        codec::encode(&gz, true)
-    } else {
-        frame_from_msg(msg)
+    #[test]
+    fn grpc_encoding_accepts_identity_and_gzip_case_insensitively() {
+        for ok in [
+            "gzip",
+            "GZIP",
+            "Gzip",
+            " gzip ",
+            "gzip;q=1.0",
+            "deflate",
+            "DEFLATE",
+            " deflate;q=1.0 ",
+            "identity",
+            "IDENTITY",
+            " identity ",
+        ] {
+            assert!(grpc_encoding_supported(ok), "{ok}");
+        }
+        for no in ["snappy", "gzip,identity", "", "br"] {
+            assert!(!grpc_encoding_supported(no), "{no}");
+        }
+        assert!(super::grpc_encoding_admitted("identity", false));
+        assert!(!super::grpc_encoding_admitted("gzip", false));
+        assert!(!super::grpc_encoding_admitted("GZIP", false));
+        assert!(!super::grpc_encoding_admitted("deflate", false));
     }
-}
 
-pub(crate) async fn send_bytes(
-    send: &mut SendStream<Bytes>,
-    frame: Bytes,
-    end: bool,
-) -> Result<(), Status> {
-    // Empty/small frames fit the send buffer. Polling capacity on every
-    // 5-byte unary serializes the connection task.
-    if frame.len() > 16 * 1024 {
-        wait_capacity(send, frame.len()).await?;
+    #[test]
+    fn outbound_requests_can_omit_gzip_from_accept_encoding() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let gzip = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            None,
+            true,
+            &PBRS_GRPC_UA,
+            false,
+        )
+        .expect("gzip accept");
+        assert_eq!(
+            gzip.headers()
+                .get("grpc-accept-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("identity,gzip,deflate")
+        );
+        let identity = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            None,
+            false,
+            &PBRS_GRPC_UA,
+            false,
+        )
+        .expect("identity accept");
+        assert_eq!(
+            identity
+                .headers()
+                .get("grpc-accept-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("identity")
+        );
     }
-    send.send_data(frame, end)
-        .map_err(|e| Status::internal(e.to_string()))
-}
 
-pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
-    if status.code() == Code::Ok && status.message().is_empty() && status.metadata().is_empty() {
-        let mut map = HeaderMap::with_capacity(1);
+    #[test]
+    fn accepts_gzip_parses_the_usual_header_shapes() {
+        use http::{HeaderMap, HeaderValue};
+
+        let mut headers = HeaderMap::new();
+        assert!(!accepts_gzip(&headers));
+        headers.insert("grpc-accept-encoding", HeaderValue::from_static("identity"));
+        assert!(!accepts_gzip(&headers));
+        headers.insert(
+            "grpc-accept-encoding",
+            HeaderValue::from_static("identity,gzip"),
+        );
+        assert!(accepts_gzip(&headers));
+        headers.insert(
+            "grpc-accept-encoding",
+            HeaderValue::from_static("gzip;q=1.0, identity"),
+        );
+        assert!(accepts_gzip(&headers));
+        headers.insert("grpc-accept-encoding", HeaderValue::from_static("GZIP"));
+        assert!(accepts_gzip(&headers));
+        assert_eq!(grpc_encoding(&headers), None);
+        headers.insert("grpc-encoding", HeaderValue::from_static("gzip"));
+        assert_eq!(grpc_encoding(&headers), Some("gzip"));
+        headers.insert("grpc-encoding", HeaderValue::from_static("GZIP"));
+        assert_eq!(grpc_encoding(&headers), Some("GZIP"));
+        headers.insert("grpc-encoding", HeaderValue::from_static(" gzip;q=1.0 "));
+        assert_eq!(grpc_encoding(&headers), Some("gzip"));
+        for identity in ["identity", "IDENTITY", " identity ", "identity;q=0"] {
+            headers.insert("grpc-encoding", HeaderValue::from_static(identity));
+            assert_eq!(grpc_encoding(&headers), None, "{identity}");
+        }
+        let gzip = Some(Codec::Gzip);
+        assert_eq!(select_outbound_codec(Some(true), true, None), None);
+        assert_eq!(select_outbound_codec(None, true, gzip), gzip);
+        assert_eq!(select_outbound_codec(Some(true), false, gzip), gzip);
+        assert_eq!(select_outbound_codec(None, false, gzip), None);
+        assert_eq!(select_outbound_codec(Some(false), true, gzip), None);
+        // Mixed stream: set_compress(true) advertises gzip and must not rewrite
+        // identity send() frames. Overlay still fills those when the envelope
+        // is unset; set_compress(false) opts that fill out.
+        assert_eq!(select_stream_codec(true, Some(true), false, gzip), gzip);
+        assert_eq!(select_stream_codec(false, Some(true), false, gzip), None);
+        assert_eq!(select_stream_codec(false, None, true, gzip), gzip);
+        assert_eq!(select_stream_codec(false, Some(false), true, gzip), None);
+        assert_eq!(select_stream_codec(true, Some(false), true, gzip), gzip);
+        assert_eq!(select_stream_codec(true, Some(true), true, None), None);
+        // Negotiation prefers the configured coding and falls back.
+        assert_eq!(preferred_codec(Codec::Gzip, true, true), Some(Codec::Gzip));
+        assert_eq!(
+            preferred_codec(Codec::Deflate, true, true),
+            Some(Codec::Deflate)
+        );
+        assert_eq!(
+            preferred_codec(Codec::Deflate, true, false),
+            Some(Codec::Gzip)
+        );
+        assert_eq!(preferred_codec(Codec::Gzip, false, false), None);
+    }
+
+    #[test]
+    fn user_agent_prefixes_the_kernel_identity() {
+        assert_eq!(super::user_agent_value("").expect("empty"), PBRS_GRPC_UA);
+        assert_eq!(
+            super::user_agent_value("  ").expect("whitespace"),
+            PBRS_GRPC_UA
+        );
+        let ua = super::user_agent_value("inventory/2.1").expect("prefix");
+        assert_eq!(
+            ua.to_str().expect("ascii"),
+            format!("inventory/2.1 {DEFAULT_UA}")
+        );
+        assert!(super::user_agent_value("bad\nagent").is_err());
+    }
+
+    #[test]
+    fn effective_timeout_picks_the_sooner_deadline() {
+        use http::{HeaderMap, HeaderValue};
+        use std::time::Duration;
+
+        let mut headers = HeaderMap::new();
+        headers.insert("grpc-timeout", HeaderValue::from_static("10S"));
+        assert_eq!(
+            effective_timeout(&headers, Some(Duration::from_secs(3))),
+            Some(Duration::from_secs(3))
+        );
+        assert_eq!(
+            effective_timeout(&headers, Some(Duration::from_secs(30))),
+            Some(Duration::from_secs(10))
+        );
+        assert_eq!(
+            effective_timeout(&HeaderMap::new(), Some(Duration::from_secs(5))),
+            Some(Duration::from_secs(5))
+        );
+        assert_eq!(effective_timeout(&HeaderMap::new(), None), None);
+        assert_eq!(
+            soonest(
+                Some(Duration::from_millis(20)),
+                Some(Duration::from_secs(5))
+            ),
+            Some(Duration::from_millis(20))
+        );
+        assert_eq!(
+            soonest(None, Some(Duration::from_secs(1))),
+            Some(Duration::from_secs(1))
+        );
+        assert_eq!(soonest(None, None), None);
+    }
+
+    #[test]
+    fn status_details_round_trip_on_the_wire() {
+        use super::{grpc_trailers, status_from};
+        use crate::status::Status;
+        use http::HeaderMap;
+
+        let mut status = Status::not_found("gone");
+        status.set_details(vec![0x08, 0x05]);
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        let trailers = grpc_trailers(&status).expect("trailers");
+        assert!(trailers.get("grpc-status-details-bin").is_some());
+        let restored = status_from(&HeaderMap::new(), Some(&trailers));
+        assert_eq!(restored.code(), Code::NotFound);
+        assert_eq!(restored.message(), "gone");
+        assert_eq!(restored.details(), &[0x08, 0x05]);
+        assert_eq!(restored.metadata().get("x-retry-after"), Some("30"));
+        assert!(
+            restored
+                .metadata()
+                .get_bin("grpc-status-details-bin")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn padded_details_bin_is_accepted() {
+        use super::status_from;
+        use http::{HeaderMap, HeaderName, HeaderValue};
+
+        let mut map = HeaderMap::new();
         map.insert(
             HeaderName::from_static("grpc-status"),
-            HeaderValue::from_static("0"),
+            HeaderValue::from_static("5"),
         );
-        return Ok(map);
+        map.insert(
+            HeaderName::from_static("grpc-status-details-bin"),
+            HeaderValue::from_static("CAU="),
+        );
+        let restored = status_from(&map, None);
+        assert_eq!(restored.code(), Code::NotFound);
+        assert_eq!(restored.details(), &[0x08, 0x05]);
     }
-    let mut map = HeaderMap::new();
-    let code = HeaderValue::from_str(&status.code().to_i32().to_string())
-        .map_err(|e| Status::internal(e.to_string()))?;
-    map.insert(HeaderName::from_static("grpc-status"), code);
-    if !status.message().is_empty() {
-        let encoded = percent_encode(status.message());
-        let val = HeaderValue::from_str(&encoded).map_err(|e| Status::internal(e.to_string()))?;
-        map.insert(HeaderName::from_static("grpc-message"), val);
-    }
-    status.metadata().write_to(&mut map)?;
-    Ok(map)
-}
 
-pub(crate) fn send_trailers_only(
-    respond: &mut h2::server::SendResponse<Bytes>,
-    status: Status,
-    extra_headers: &Metadata,
-) {
-    let mut res = match Response::builder()
-        .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, "application/grpc")
-        .body(())
-    {
-        Ok(r) => r,
-        Err(_) => return,
-    };
-    extra_headers.write_to(res.headers_mut()).ok();
-    if let Ok(trailers) = grpc_trailers(&status) {
-        for (k, v) in &trailers {
-            res.headers_mut().append(k, v.clone());
+    #[test]
+    fn message_encoding_matches_the_spec_set() {
+        assert_eq!(percent_encode("plain text"), "plain text");
+        assert_eq!(percent_encode("50%"), "50%25");
+        assert_eq!(percent_encode("tab\there"), "tab%09here");
+        assert_eq!(percent_encode("\u{00e9}"), "%C3%A9");
+    }
+
+    #[test]
+    fn message_decoding_round_trips() {
+        for original in ["plain text", "50%", "tab\there", "\u{00e9}\u{1f600}", ""] {
+            assert_eq!(percent_decode(&percent_encode(original)), original);
         }
     }
-    respond.send_response(res, true).ok();
-}
 
-pub(crate) fn send_ok_headers(
-    respond: &mut h2::server::SendResponse<Bytes>,
-    md: &Metadata,
-    send_gzip: bool,
-) -> Result<SendStream<Bytes>, Status> {
-    let mut builder = Response::builder()
-        .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, "application/grpc");
-    if send_gzip {
-        builder = builder.header(HeaderName::from_static("grpc-encoding"), "gzip");
+    #[test]
+    fn stray_percent_decodes_literally() {
+        assert_eq!(percent_decode("100% sure"), "100% sure");
+        assert_eq!(percent_decode("%"), "%");
+        assert_eq!(percent_decode("%zz"), "%zz");
     }
-    let mut res = builder
-        .body(())
-        .map_err(|e| Status::internal(e.to_string()))?;
-    md.write_to(res.headers_mut())?;
-    respond
-        .send_response(res, false)
-        .map_err(|e| Status::internal(e.to_string()))
-}
 
-pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> Status {
-    let pick = |map: &HeaderMap| {
-        map.get(HeaderName::from_static("grpc-status"))
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<i32>().ok())
-            .map(|n| {
-                let msg = map
-                    .get(HeaderName::from_static("grpc-message"))
-                    .and_then(|v| v.to_str().ok())
-                    .map(percent_decode)
-                    .unwrap_or_default();
-                (Code::from_i32(n), msg, Metadata::from_headers(map))
-            })
-    };
-    match trailers.and_then(pick).or_else(|| pick(headers)) {
-        Some((code, msg, md)) => {
-            let mut st = Status::new(code, msg);
-            *st.metadata_mut() = md;
-            st
-        }
-        None => Status::unknown("missing grpc-status"),
+    fn frame(payload: &[u8]) -> Bytes {
+        codec::encode(payload, false).expect("encode")
     }
-}
 
-pub(crate) async fn next_data(recv: &mut RecvStream) -> Result<Option<Bytes>, Status> {
-    match recv.data().await {
-        None => Ok(None),
-        Some(Ok(bytes)) => {
-            let n = bytes.len();
-            if n > 0 {
-                recv.flow_control()
-                    .release_capacity(n)
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-            Ok(Some(bytes))
+    #[test]
+    fn whole_frames_in_one_chunk_are_not_copied() {
+        let mut joined = BytesMut::new();
+        joined.extend_from_slice(&frame(b"one"));
+        joined.extend_from_slice(&frame(b"two"));
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(joined.freeze());
+        assert!(reader.carry.is_empty());
+        let a = reader.next_frame().expect("pop").expect("frame");
+        assert_eq!(&a.payload[..], b"one");
+        let b = reader.next_frame().expect("pop").expect("frame");
+        assert_eq!(&b.payload[..], b"two");
+        assert!(reader.next_frame().expect("pop").is_none());
+        reader.finish().expect("clean end");
+        assert!(reader.carry.is_empty());
+    }
+
+    #[test]
+    fn frames_split_across_chunks_are_rejoined() {
+        let wire = frame(b"straddling");
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(wire.slice(..4));
+        assert!(reader.next_frame().expect("pop").is_none());
+        reader.push(wire.slice(4..9));
+        assert!(reader.next_frame().expect("pop").is_none());
+        reader.push(wire.slice(9..));
+        let got = reader.next_frame().expect("pop").expect("frame");
+        assert_eq!(&got.payload[..], b"straddling");
+        reader.finish().expect("clean end");
+    }
+
+    #[test]
+    fn leftover_bytes_after_a_frame_carry_into_the_next_chunk() {
+        let first = frame(b"a");
+        let second = frame(b"bb");
+        let mut joined = BytesMut::from(first.as_ref());
+        joined.extend_from_slice(&second[..3]);
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(joined.freeze());
+        let got = reader.next_frame().expect("pop").expect("frame");
+        assert_eq!(&got.payload[..], b"a");
+        assert!(reader.next_frame().expect("pop").is_none());
+        reader.push(second.slice(3..));
+        let got = reader.next_frame().expect("pop").expect("frame");
+        assert_eq!(&got.payload[..], b"bb");
+        reader.finish().expect("clean end");
+    }
+
+    #[test]
+    fn truncation_is_an_error() {
+        let wire = frame(b"cut short");
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(wire.slice(..7));
+        assert!(reader.next_frame().expect("pop").is_none());
+        reader.finish().expect_err("truncated");
+    }
+
+    /// Deterministic xorshift, so a failure reproduces from the seed alone
+    /// rather than needing a fuzzing dependency.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next_u64(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
         }
-        Some(Err(e)) => {
-            if e.is_reset() {
-                Err(Status::cancelled())
+
+        fn below(&mut self, n: usize) -> usize {
+            if n == 0 {
+                0
             } else {
-                Err(Status::internal(e.to_string()))
+                usize::try_from(self.next_u64() % u64::try_from(n).unwrap_or(1)).unwrap_or(0)
             }
         }
-    }
-}
 
-struct FrameReader {
-    buf: BytesMut,
-    max_decoding: Option<usize>,
-}
-
-impl FrameReader {
-    fn new(max_decoding: Option<usize>) -> Self {
-        Self {
-            buf: BytesMut::new(),
-            max_decoding,
+        fn bytes(&mut self, n: usize) -> Vec<u8> {
+            (0..n)
+                .map(|_| u8::try_from(self.next_u64() & 0xff).unwrap_or(0))
+                .collect()
         }
     }
 
-    fn push(&mut self, bytes: Bytes) {
-        self.buf.extend_from_slice(&bytes);
+    /// Split `data` at random boundaries, so the reader sees every alignment of
+    /// frames against chunks that HTTP/2 could produce.
+    fn random_chunks(rng: &mut Rng, data: &Bytes) -> Vec<Bytes> {
+        let mut chunks = Vec::new();
+        let mut offset = 0;
+        while offset < data.len() {
+            let remaining = data.len() - offset;
+            let take = 1 + rng.below(remaining.min(64));
+            chunks.push(data.slice(offset..offset + take));
+            offset += take;
+        }
+        chunks
     }
 
-    fn pop_parsed<T: Parse + Default>(&mut self) -> Result<Option<InItem<T>>, Status> {
-        match codec::pop_limited(&mut self.buf, self.max_decoding)? {
-            None => Ok(None),
-            Some(frame) => {
-                let message = if frame.compressed {
-                    let raw = gzip::decode(&frame.payload)?;
-                    SizeLimits {
-                        max_decoding: self.max_decoding,
-                        max_encoding: None,
-                    }
-                    .check_decode(raw.len())?;
-                    T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
-                } else {
-                    T::parse(frame.payload.as_ref()).map_err(|e| Status::internal(e.to_string()))?
-                };
-                Ok(Some(InItem {
-                    message,
-                    compressed: frame.compressed,
-                }))
+    /// Property: however the bytes are split, the frames come back intact and
+    /// in order. This is the invariant the zero-copy fast path could break.
+    #[test]
+    fn arbitrary_chunk_boundaries_preserve_every_frame() {
+        let mut rng = Rng(0x5eed_1234_abcd_0001);
+        for _ in 0..2_000 {
+            let count = 1 + rng.below(6);
+            let payloads: Vec<Vec<u8>> = (0..count)
+                .map(|_| {
+                    let len = rng.below(200);
+                    rng.bytes(len)
+                })
+                .collect();
+            let mut wire = BytesMut::new();
+            for payload in &payloads {
+                wire.extend_from_slice(&codec::encode(payload, false).expect("encode"));
             }
+            let wire = wire.freeze();
+
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            let mut got: Vec<Vec<u8>> = Vec::new();
+            for chunk in random_chunks(&mut rng, &wire) {
+                reader.push(chunk);
+                while let Some(frame) = reader.next_frame().expect("well-formed") {
+                    got.push(frame.payload.to_vec());
+                }
+            }
+            reader.finish().expect("clean end");
+            assert_eq!(got, payloads, "chunking must not change the frames");
         }
     }
 
-    fn finish(&self) -> Result<(), Status> {
-        if self.buf.is_empty() {
-            Ok(())
-        } else {
-            Err(Status::internal("truncated grpc frame"))
-        }
-    }
-}
-
-pub(crate) async fn read_all_messages<T: Parse + Default>(
-    recv: &mut RecvStream,
-    max_decoding: Option<usize>,
-) -> Result<(Vec<InItem<T>>, Option<HeaderMap>), Status> {
-    let mut reader = FrameReader::new(max_decoding);
-    let mut out = Vec::new();
-    while let Some(bytes) = next_data(recv).await? {
-        reader.push(bytes);
-        while let Some(msg) = reader.pop_parsed()? {
-            out.push(msg);
-        }
-    }
-    reader.finish()?;
-    let trailers = recv
-        .trailers()
-        .await
-        .map_err(|e| Status::internal(e.to_string()))?;
-    Ok((out, trailers))
-}
-
-pub(crate) fn one_or_default<T: Default>(mut msgs: Vec<InItem<T>>) -> Result<InItem<T>, Status> {
-    match msgs.len() {
-        0 => Ok(InItem {
-            message: T::default(),
-            compressed: false,
-        }),
-        1 => msgs
-            .pop()
-            .ok_or_else(|| Status::internal("missing message")),
-        _ => Err(Status::internal("too many messages for this RPC shape")),
-    }
-}
-
-pub(crate) async fn pump_inbound<T: Parse + Default>(
-    mut recv: RecvStream,
-    tx: mpsc::Sender<Result<InItem<T>, Status>>,
-    max_decoding: Option<usize>,
-) -> Metadata {
-    let mut reader = FrameReader::new(max_decoding);
-    loop {
-        match next_data(&mut recv).await {
-            Ok(Some(bytes)) => {
-                reader.push(bytes);
+    /// Property: arbitrary bytes in arbitrary chunks produce frames or a
+    /// `Status`, never a panic and never a frame longer than the cap.
+    #[test]
+    fn arbitrary_bytes_never_panic_and_never_exceed_the_cap() {
+        const CAP: usize = 512;
+        let limits = MessageLimits::unlimited().with_max_decoding(CAP);
+        let mut rng = Rng(0xf00d_0bad_1dea_0002);
+        for _ in 0..4_000 {
+            let len = rng.below(600);
+            let garbage = Bytes::from(rng.bytes(len));
+            let mut reader = FrameReader::new(limits);
+            for chunk in random_chunks(&mut rng, &garbage) {
+                reader.push(chunk);
                 loop {
-                    match reader.pop_parsed() {
-                        Ok(Some(msg)) => {
-                            if tx.send(Ok(msg)).await.is_err() {
-                                return Metadata::new();
-                            }
-                        }
+                    match reader.next_frame() {
+                        Ok(Some(frame)) => assert!(frame.payload.len() <= CAP),
                         Ok(None) => break,
-                        Err(e) => {
-                            tx.send(Err(e)).await.ok();
-                            return Metadata::new();
-                        }
+                        // A `Status` is the correct answer for garbage.
+                        Err(_) => break,
                     }
                 }
             }
-            Ok(None) => break,
-            Err(e) => {
-                tx.send(Err(e)).await.ok();
-                return Metadata::new();
+            // Truncation is a legitimate verdict on garbage; either arm is
+            // fine, and neither may panic.
+            match reader.finish() {
+                Ok(()) | Err(_) => {}
             }
         }
     }
-    if reader.finish().is_err() {
-        tx.send(Err(Status::internal("truncated grpc frame")))
-            .await
-            .ok();
-        return Metadata::new();
-    }
-    match recv.trailers().await {
-        Ok(Some(t)) => {
-            let st = status_from(&t, Some(&t));
-            let md = Metadata::from_headers(&t);
-            if st.code() != Code::Ok {
-                tx.send(Err(st)).await.ok();
-            }
-            md
-        }
-        Ok(None) => Metadata::new(),
-        Err(e) => {
-            if e.is_reset() {
-                tx.send(Err(Status::cancelled())).await.ok();
+
+    /// Property: a compressed frame never inflates past the cap, whatever it
+    /// claims. Random data barely compresses, so this also exercises the case
+    /// where the inflated size is close to the input size.
+    #[test]
+    fn compressed_frames_respect_the_cap() {
+        const CAP: usize = 256;
+        let limits = MessageLimits::unlimited().with_max_decoding(CAP);
+        let mut rng = Rng(0xdead_beef_cafe_0003);
+        for _ in 0..300 {
+            let len = rng.below(2_000);
+            // Runs of zeros compress well; random bytes do not. Mix both.
+            let payload: Vec<u8> = if rng.below(2) == 0 {
+                vec![0u8; len]
             } else {
-                tx.send(Err(Status::internal(e.to_string()))).await.ok();
-            }
-            Metadata::new()
-        }
-    }
-}
-
-pub(crate) async fn pump_outbound<T: Serialize>(
-    mut send: SendStream<Bytes>,
-    mut rx: mpsc::Receiver<Result<OutItem<T>, Status>>,
-    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
-    limits: SizeLimits,
-) {
-    let mut watch_cancel = true;
-    loop {
-        tokio::select! {
-            cancelled = async {
-                cancel_rx.wait_for(|v| *v).await.is_ok()
-            }, if watch_cancel => {
-                if cancelled {
-                    send.send_reset(Reason::CANCEL);
-                    return;
+                rng.bytes(len)
+            };
+            let compressed = gzip::encode(&payload).expect("encode");
+            match gzip::decode_limited(&compressed, limits) {
+                Ok(inflated) => {
+                    assert!(inflated.len() <= CAP);
+                    assert_eq!(inflated, payload);
                 }
-                watch_cancel = false;
-            }
-            item = rx.recv() => {
-                match item {
-                    None => {
-                        send.send_data(Bytes::new(), true).ok();
-                        return;
-                    }
-                    Some(Ok(item)) => {
-                        let Ok(frame) = encode_msg(&item.message, item.compress, limits) else {
-                            send.send_reset(Reason::INTERNAL_ERROR);
-                            return;
-                        };
-                        if send_bytes(&mut send, frame, false).await.is_err() {
-                            send.send_reset(Reason::INTERNAL_ERROR);
-                            return;
-                        }
-                    }
-                    Some(Err(_)) => {
-                        send.send_reset(Reason::INTERNAL_ERROR);
-                        return;
-                    }
+                Err(status) => {
+                    assert!(payload.len() > CAP, "only oversize payloads may fail");
+                    assert_eq!(status.code(), Code::ResourceExhausted);
                 }
             }
         }
     }
-}
-
-pub(crate) async fn wrap_timeout<T>(
-    timeout: Option<Duration>,
-    fut: impl std::future::Future<Output = Result<T, Status>>,
-) -> Result<T, Status> {
-    match timeout {
-        Some(d) => match tokio::time::timeout(d, fut).await {
-            Ok(r) => r,
-            Err(_) => Err(Status::deadline_exceeded()),
-        },
-        None => fut.await,
-    }
-}
-
-pub(crate) async fn finish_unary<Resp: Parse + Default>(
-    response: http::Response<RecvStream>,
-    max_decoding: Option<usize>,
-) -> Result<crate::request::Response<Resp>, Status> {
-    if response.status() != StatusCode::OK {
-        return Err(Status::unknown(format!("http {}", response.status())));
-    }
-    let (parts, mut body) = response.into_parts();
-    if body.is_end_stream() {
-        let st = status_from(&parts.headers, None);
-        if st.code() != Code::Ok {
-            return Err(st);
-        }
-    }
-    let headers_md = Metadata::from_headers(&parts.headers);
-    let (msgs, trailers) = read_all_messages::<Resp>(&mut body, max_decoding).await?;
-    let st = status_from(&parts.headers, trailers.as_ref());
-    if st.code() != Code::Ok {
-        return Err(st);
-    }
-    let item = one_or_default(msgs)?;
-    let trailers_md = trailers
-        .as_ref()
-        .map(Metadata::from_headers)
-        .unwrap_or_default();
-    Ok(crate::request::Response::from_parts_compress(
-        item.message,
-        headers_md,
-        trailers_md,
-        item.compressed,
-    ))
-}
-
-pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
-    response: http::Response<RecvStream>,
-    max_decoding: Option<usize>,
-) -> Result<crate::request::Response<Inbound<Resp>>, Status> {
-    if response.status() != StatusCode::OK {
-        return Err(Status::unknown(format!("http {}", response.status())));
-    }
-    let (parts, body) = response.into_parts();
-    if body.is_end_stream() {
-        let st = status_from(&parts.headers, None);
-        if st.code() != Code::Ok {
-            return Err(st);
-        }
-    }
-    let headers_md = Metadata::from_headers(&parts.headers);
-    let (tx, mut inbound) = Inbound::channel(16);
-    let (tr_tx, tr_rx) = tokio::sync::oneshot::channel();
-    inbound.set_trailers(tr_rx);
-    drop(tokio::spawn(async move {
-        let trailers = pump_inbound::<Resp>(body, tx, max_decoding).await;
-        tr_tx.send(trailers).ok();
-    }));
-    Ok(crate::request::Response::from_parts(
-        inbound,
-        headers_md,
-        Metadata::new(),
-    ))
-}
-
-fn percent_encode(s: &str) -> String {
-    let mut out = String::new();
-    for b in s.bytes() {
-        if b.is_ascii_graphic() && b != b'%' {
-            out.push(char::from(b));
-        } else {
-            out.push_str(&format!("%{b:02X}"));
-        }
-    }
-    out
-}
-
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::new();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes.get(i).copied() == Some(b'%') {
-            let h1 = bytes.get(i + 1).copied();
-            let h2 = bytes.get(i + 2).copied();
-            if let (Some(a), Some(b)) = (h1, h2) {
-                if let Ok(v) = u8::from_str_radix(core::str::from_utf8(&[a, b]).unwrap_or("00"), 16)
-                {
-                    out.push(v);
-                    i += 3;
-                    continue;
-                }
-            }
-        }
-        if let Some(&b) = bytes.get(i) {
-            out.push(b);
-        }
-        i += 1;
-    }
-    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }

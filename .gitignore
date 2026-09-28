@@ -1,9 +1,14 @@
 /target
 /bench/target
+/bench/devloop/target
 /bench/capture-*.json
 /bench/capture-*.err
+/bench/corpora/payloads/*/*/large.bin
+/bench/corpora/payloads/*/*/huge.bin
 /tonic-bench/target
 /rpc-bench/target
+/fuzz/target
+/fuzz/artifacts
 /v4_person/target
 /v4_tat/target
 /buffa_tat/target
@@ -16,5 +21,8 @@
 /parse-leftover/parse-hello-delta/target
 /parse-leftover/parse-4kib-delta/target
 /third_party/protobuf
+/third_party/grpc
 .interop-bin
 .DS_Store
+__pycache__/
+*.pyc

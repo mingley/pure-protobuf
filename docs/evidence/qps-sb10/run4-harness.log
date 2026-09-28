@@ -1,0 +1,193 @@
+== building native rpc-bench worker against /Users/mingley/dev/pure-protobuf/target (2 jobs) ==
+warning: pbrs@0.1.0: wrote conformance descriptor set
+warning: pbrs@0.1.0: wrote conformance descriptor set
+    Finished `release` profile [optimized] target(s) in 0.14s
+== building Go benchmark worker (v1.85.0-dev (dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef)) ==
+================================================================================
+Official gRPC QPS Benchmark Scenario Driver & Interop Runner
+================================================================================
+Scenarios File:     /Users/mingley/dev/pure-protobuf/rpc-bench/scenarios/official.json
+Reference Peer:     go (v1.85.0-dev (dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef))
+Driver Binary:      target/interop-cpp/qps_json_driver
+Driver SHA-256:     232aa0b777796686fb0a8128ad54d4a797096f63d11de6af83a50c4b33a06410
+Driver Source Pin:  d1487957db6658bc532b72871775148229836627
+Native Worker SHA: 4f509d00442c5986b42915e6bbcb4a0517b904cabbf80dee34d8a79b2790ad80
+Native Source:     3223855d32464debe152411c74a0bd056eb189a1 (dirty=1)
+Cargo Target:      /Users/mingley/dev/pure-protobuf/target (2 jobs)
+Reference Worker:  /Users/mingley/dev/pure-protobuf/target/interop-go/go-worker sha256:b8cda0d217fccf0eeb0fef9ab7a4a1977b12c52bd62412e859aeebfac9029ebb source:dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Log Directory:      target/qps-logs/sb10-go-n2c
+Scenarios Count:    11
+Directions:         native_client_to_ref_server
+
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_unary_ping_pong_empty
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50404, Client worker=50405
+  PASS: protobuf_unary_ping_pong_empty (native_client_to_ref_server)
+    I0927 13:42:16.225912 14912490 report.cc:82] QPS: 12811.1
+    I0927 13:42:16.225923 14912490 report.cc:92] QPS: 12811.1 (915.077/server core)
+    I0927 13:42:16.225960 14912490 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_unary_ping_pong_1kb
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50431, Client worker=50432
+  PASS: protobuf_unary_ping_pong_1kb (native_client_to_ref_server)
+    I0927 13:42:51.629889 14912884 report.cc:82] QPS: 12607
+    I0927 13:42:51.629900 14912884 report.cc:92] QPS: 12607 (900.497/server core)
+    I0927 13:42:51.629967 14912884 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_unary_ping_pong_64kb
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50457, Client worker=50458
+  PASS: protobuf_unary_ping_pong_64kb (native_client_to_ref_server)
+    I0927 13:43:27.019722 14913239 report.cc:82] QPS: 4561.3
+    I0927 13:43:27.019734 14913239 report.cc:92] QPS: 4561.3 (325.807/server core)
+    I0927 13:43:27.019796 14913239 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_streaming_ping_pong_empty
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50482, Client worker=50484
+  PASS: protobuf_streaming_ping_pong_empty (native_client_to_ref_server)
+    I0927 13:44:04.383324 14914426 report.cc:82] QPS: 11738.9
+    I0927 13:44:04.383333 14914426 report.cc:92] QPS: 11738.9 (838.496/server core)
+    I0927 13:44:04.383369 14914426 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_streaming_ping_pong_1kb
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50507, Client worker=50508
+  PASS: protobuf_streaming_ping_pong_1kb (native_client_to_ref_server)
+    I0927 13:44:39.796092 14915159 report.cc:82] QPS: 11775.4
+    I0927 13:44:39.796102 14915159 report.cc:92] QPS: 11775.4 (841.103/server core)
+    I0927 13:44:39.796139 14915159 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_unary_qps_unconstrained_100rpcs
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50529, Client worker=50530
+  PASS: protobuf_unary_qps_unconstrained_100rpcs (native_client_to_ref_server)
+    I0927 13:45:15.231240 14915791 report.cc:82] QPS: 7674.71
+    I0927 13:45:15.231287 14915791 report.cc:92] QPS: 7674.71 (548.193/server core)
+    I0927 13:45:15.231539 14915791 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  protobuf_unary_poisson_5000qps
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50551, Client worker=50552
+  PASS: protobuf_unary_poisson_5000qps (native_client_to_ref_server)
+    I0927 13:45:51.234036 14916334 report.cc:82] QPS: 5013.22
+    I0927 13:45:51.234085 14916334 report.cc:92] QPS: 5013.22 (358.087/server core)
+    I0927 13:45:51.234266 14916334 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  cpp_protobuf_async_unary_ping_pong_insecure
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50576, Client worker=50577
+  PASS: cpp_protobuf_async_unary_ping_pong_insecure (native_client_to_ref_server)
+    I0927 13:46:27.322435 14917043 report.cc:82] QPS: 2268.86
+    I0927 13:46:27.322498 14917043 report.cc:92] QPS: 2268.86 (162.062/server core)
+    I0927 13:46:27.322673 14917043 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  cpp_protobuf_async_streaming_ping_pong_insecure
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50597, Client worker=50598
+  PASS: cpp_protobuf_async_streaming_ping_pong_insecure (native_client_to_ref_server)
+    I0927 13:47:03.280047 14917596 report.cc:82] QPS: 4525.29
+    I0927 13:47:03.280057 14917596 report.cc:92] QPS: 4525.29 (323.235/server core)
+    I0927 13:47:03.280091 14917596 report.cc:113] Server CPU usage: 0
+--------------------------------------------------------------------------------
+SCENARIO:  go_protobuf_sync_unary_ping_pong_insecure
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50619, Client worker=50620
+./scripts/grpc-qps-interop.sh: line 998: 24977 Abort trap: 6              QPS_WORKERS="127.0.0.1:$s_port,127.0.0.1:$c_port" "$DRIVER_BIN" "${driver_args[@]}" > "$d_log" 2>&1
+  FAIL: go_protobuf_sync_unary_ping_pong_insecure (native_client_to_ref_server)
+I0927 13:47:03.684193 14918069 test_config.cc:156] test slowdown factor: sanitizer=1, fixture=1, poller=1, total=1
+RUNNING SCENARIO: go_protobuf_sync_unary_ping_pong_insecure
+I0927 13:47:03.694799 14918069 driver.cc:433] Starting server on 127.0.0.1:50619 (worker #0)
+I0927 13:47:03.694826 14918069 config.cc:256] gRPC experiments enabled: call_tracer_in_transport, call_tracer_send_initial_metadata_is_an_annotation, callv3_batch_validation, chaotic_good_framing_layer, chaotic_good_send_supported_features, custom_frame_check, event_engine_callback_cq, event_engine_client, event_engine_for_all_other_endpoints, event_engine_fork, event_engine_listener, header_data_frame, inproc_cancel_stream, message_size_refactoring, monitoring_experiment, optimization_01, optimization_02, optimization_03, optimization_04, ph2_perf_01, promise_batch_cleanup_on_cancel, promise_filter_send_cancel_metadata, return_preexisting_errors, v2_non_owning_waker_implementation, xds_server_filter_chain_per_route
+I0927 13:47:03.694995 14918069 lb_policy_registry.cc:45] registering LB policy factory for "priority_experimental"
+I0927 13:47:03.695004 14918069 lb_policy_registry.cc:45] registering LB policy factory for "outlier_detection_experimental"
+I0927 13:47:03.695009 14918069 lb_policy_registry.cc:45] registering LB policy factory for "weighted_target_experimental"
+I0927 13:47:03.695014 14918069 lb_policy_registry.cc:45] registering LB policy factory for "pick_first"
+I0927 13:47:03.695019 14918069 lb_policy_registry.cc:45] registering LB policy factory for "round_robin"
+I0927 13:47:03.695022 14918069 lb_policy_registry.cc:45] registering LB policy factory for "ring_hash_experimental"
+I0927 13:47:03.695026 14918069 lb_policy_registry.cc:45] registering LB policy factory for "weighted_round_robin"
+I0927 13:47:03.695046 14918069 lb_policy_registry.cc:45] registering LB policy factory for "grpclb"
+I0927 13:47:03.695055 14918069 dns_resolver.cc:572] Using EventEngine dns resolver
+I0927 13:47:03.695061 14918069 lb_policy_registry.cc:45] registering LB policy factory for "rls_experimental"
+I0927 13:47:03.695089 14918069 lb_policy_registry.cc:45] registering LB policy factory for "xds_cluster_manager_experimental"
+I0927 13:47:03.695093 14918069 lb_policy_registry.cc:45] registering LB policy factory for "xds_cluster_impl_experimental"
+I0927 13:47:03.695096 14918069 lb_policy_registry.cc:45] registering LB policy factory for "cds_experimental"
+I0927 13:47:03.695100 14918069 lb_policy_registry.cc:45] registering LB policy factory for "xds_override_host_experimental"
+I0927 13:47:03.695103 14918069 lb_policy_registry.cc:45] registering LB policy factory for "xds_wrr_locality_experimental"
+I0927 13:47:03.695106 14918069 certificate_provider_registry.cc:34] registering certificate provider factory for "file_watcher"
+I0927 13:47:03.697155 14918069 driver.cc:492] Starting client on 127.0.0.1:50620 (worker #1)
+I0927 13:47:03.697194 14918069 driver.cc:519] Client 0 gets 1 channels
+E0927 13:47:03.698151 14918069 driver.cc:534] Client 0 did not yield initial status
+*** SIGABRT received at time=1790534823 on cpu 10 ***
+PC: @        0x18e5bc5e8  (unknown)  __pthread_kill
+    @        0x18e601744  (unknown)  _sigtramp
+    @        0x18e5f78d8  (unknown)  pthread_kill
+    @        0x18e4fd978  (unknown)  abort
+    @        0x101a35e58  (unknown)  grpc_core::Crash()
+    @        0x1010d56e8  (unknown)  grpc::testing::RunScenario()
+    @        0x1010db354  (unknown)  grpc::testing::RunAndReport()
+    @        0x1010da668  (unknown)  main
+    @        0x18e22c4e4  (unknown)  start
+--------------------------------------------------------------------------------
+SCENARIO:  go_protobuf_sync_streaming_ping_pong_insecure
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=50633, Client worker=50634
+./scripts/grpc-qps-interop.sh: line 998: 24993 Abort trap: 6              QPS_WORKERS="127.0.0.1:$s_port,127.0.0.1:$c_port" "$DRIVER_BIN" "${driver_args[@]}" > "$d_log" 2>&1
+  FAIL: go_protobuf_sync_streaming_ping_pong_insecure (native_client_to_ref_server)
+I0927 13:47:04.010386 14918154 test_config.cc:156] test slowdown factor: sanitizer=1, fixture=1, poller=1, total=1
+RUNNING SCENARIO: go_protobuf_sync_streaming_ping_pong_insecure
+I0927 13:47:04.013097 14918154 driver.cc:433] Starting server on 127.0.0.1:50633 (worker #0)
+I0927 13:47:04.013129 14918154 config.cc:256] gRPC experiments enabled: call_tracer_in_transport, call_tracer_send_initial_metadata_is_an_annotation, callv3_batch_validation, chaotic_good_framing_layer, chaotic_good_send_supported_features, custom_frame_check, event_engine_callback_cq, event_engine_client, event_engine_for_all_other_endpoints, event_engine_fork, event_engine_listener, header_data_frame, inproc_cancel_stream, message_size_refactoring, monitoring_experiment, optimization_01, optimization_02, optimization_03, optimization_04, ph2_perf_01, promise_batch_cleanup_on_cancel, promise_filter_send_cancel_metadata, return_preexisting_errors, v2_non_owning_waker_implementation, xds_server_filter_chain_per_route
+I0927 13:47:04.013255 14918154 lb_policy_registry.cc:45] registering LB policy factory for "priority_experimental"
+I0927 13:47:04.013266 14918154 lb_policy_registry.cc:45] registering LB policy factory for "outlier_detection_experimental"
+I0927 13:47:04.013271 14918154 lb_policy_registry.cc:45] registering LB policy factory for "weighted_target_experimental"
+I0927 13:47:04.013275 14918154 lb_policy_registry.cc:45] registering LB policy factory for "pick_first"
+I0927 13:47:04.013280 14918154 lb_policy_registry.cc:45] registering LB policy factory for "round_robin"
+I0927 13:47:04.013283 14918154 lb_policy_registry.cc:45] registering LB policy factory for "ring_hash_experimental"
+I0927 13:47:04.013287 14918154 lb_policy_registry.cc:45] registering LB policy factory for "weighted_round_robin"
+I0927 13:47:04.013304 14918154 lb_policy_registry.cc:45] registering LB policy factory for "grpclb"
+I0927 13:47:04.013312 14918154 dns_resolver.cc:572] Using EventEngine dns resolver
+I0927 13:47:04.013318 14918154 lb_policy_registry.cc:45] registering LB policy factory for "rls_experimental"
+I0927 13:47:04.013346 14918154 lb_policy_registry.cc:45] registering LB policy factory for "xds_cluster_manager_experimental"
+I0927 13:47:04.013349 14918154 lb_policy_registry.cc:45] registering LB policy factory for "xds_cluster_impl_experimental"
+I0927 13:47:04.013353 14918154 lb_policy_registry.cc:45] registering LB policy factory for "cds_experimental"
+I0927 13:47:04.013356 14918154 lb_policy_registry.cc:45] registering LB policy factory for "xds_override_host_experimental"
+I0927 13:47:04.013359 14918154 lb_policy_registry.cc:45] registering LB policy factory for "xds_wrr_locality_experimental"
+I0927 13:47:04.013362 14918154 certificate_provider_registry.cc:34] registering certificate provider factory for "file_watcher"
+I0927 13:47:04.015025 14918154 driver.cc:492] Starting client on 127.0.0.1:50634 (worker #1)
+I0927 13:47:04.015062 14918154 driver.cc:519] Client 0 gets 1 channels
+E0927 13:47:04.015913 14918154 driver.cc:534] Client 0 did not yield initial status
+*** SIGABRT received at time=1790534824 on cpu 13 ***
+PC: @        0x18e5bc5e8  (unknown)  __pthread_kill
+    @        0x18e601744  (unknown)  _sigtramp
+    @        0x18e5f78d8  (unknown)  pthread_kill
+    @        0x18e4fd978  (unknown)  abort
+    @        0x101455e58  (unknown)  grpc_core::Crash()
+    @        0x100af56e8  (unknown)  grpc::testing::RunScenario()
+    @        0x100afb354  (unknown)  grpc::testing::RunAndReport()
+    @        0x100afa668  (unknown)  main
+    @        0x18e22c4e4  (unknown)  start
+
+================================================================================
+SUMMARY RESULTS MATRIX
+================================================================================
+Scenario                               Direction                    Status QPS        p50        p99        Server CPU Client CPU
+----------------------------------------------------------------------------------------------------------------------------------------
+protobuf_unary_ping_pong_empty         native_client_to_ref_server  PASS   12811.1    N/A        N/A        N/A        N/A       
+protobuf_unary_ping_pong_1kb           native_client_to_ref_server  PASS   12607.0    N/A        N/A        N/A        N/A       
+protobuf_unary_ping_pong_64kb          native_client_to_ref_server  PASS   4561.3     N/A        N/A        N/A        N/A       
+protobuf_streaming_ping_pong_empty     native_client_to_ref_server  PASS   11738.9    N/A        N/A        N/A        N/A       
+protobuf_streaming_ping_pong_1kb       native_client_to_ref_server  PASS   11775.4    N/A        N/A        N/A        N/A       
+protobuf_unary_qps_unconstrained_100rpcs native_client_to_ref_server  PASS   7674.7     N/A        N/A        N/A        N/A       
+protobuf_unary_poisson_5000qps         native_client_to_ref_server  PASS   5013.2     N/A        N/A        N/A        N/A       
+cpp_protobuf_async_unary_ping_pong_insecure native_client_to_ref_server  PASS   2268.9     N/A        N/A        N/A        N/A       
+cpp_protobuf_async_streaming_ping_pong_insecure native_client_to_ref_server  PASS   4525.3     N/A        N/A        N/A        N/A       
+go_protobuf_sync_unary_ping_pong_insecure native_client_to_ref_server  FAIL   N/A        N/A        N/A        N/A        N/A       
+go_protobuf_sync_streaming_ping_pong_insecure native_client_to_ref_server  FAIL   N/A        N/A        N/A        N/A        N/A       
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Summary JSON written to: target/qps-logs/sb10-go-n2c/summary.json
+Raw integrated-driver ScenarioResult JSON (or upstream C++ QPS-only metrics) saved in: target/qps-logs/sb10-go-n2c/
+FAIL: one or more benchmark scenarios failed

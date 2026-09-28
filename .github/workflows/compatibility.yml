@@ -1,0 +1,273 @@
+name: compatibility
+
+on:
+  schedule:
+    # Run weekly on Sunday at 04:00 UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      upstream_inventory:
+        description: 'Optional path or URL to newer target case inventory (JSON or text)'
+        required: false
+        type: string
+        default: ''
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'rust_out_shared/**'
+      - 'scripts/test-rust-out-shared.sh'
+      - 'scripts/fetch-protobuf.sh'
+      - 'scripts/check-upstream-cases.py'
+      - 'tests/interop/**'
+      - 'vendor/google/**'
+      - '.github/workflows/compatibility.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  # Run original Google rust/test/shared integration suites (19 crates, 0 failures)
+  # against protoc --rust_out kernel=upb and pure-protobuf (pbrs) runtime.
+  shared-consumers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install C++ compiler and cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Unit tests for shared consumer reporting
+        run: python3 -m unittest tests.test_shared_consumer_report -q
+      - name: Cache pinned protoc with built-in Rust output
+        uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Build pinned protoc
+        run: ./scripts/build-pinned-protoc.sh
+      - name: Run original shared consumer tests (19 crates)
+        env:
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
+        run: ./scripts/test-rust-out-shared.sh
+
+  # Verify upstream pin integrity, proto schema/test drift, and generated stub drift.
+  upstream-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Fetch pinned protobuf source
+        run: ./scripts/fetch-protobuf.sh
+      - name: Verify pinned commit matches SHA
+        run: |
+          set -euo pipefail
+          PIN="$(cat vendor/google/PIN)"
+          SHA="$(cat vendor/google/SHA)"
+          GOT="$(git -C third_party/protobuf rev-parse HEAD)"
+          if [[ "$GOT" != "$SHA" ]]; then
+            echo "Upstream PIN/SHA mismatch: expected $SHA for $PIN, got $GOT" >&2
+            exit 1
+          fi
+          echo "Pinned protobuf verified: $PIN ($SHA)"
+      - name: Check shared test files drift against upstream pin
+        run: |
+          set -euo pipefail
+          # Check all 19 test files exist in upstream pin
+          for f in rust_out_shared/tests/*.rs; do
+            fname="$(basename "$f")"
+            if [[ "$fname" == "utf8_test.rs" ]]; then
+              src="third_party/protobuf/rust/test/shared/utf8/utf8_test.rs"
+            else
+              src="third_party/protobuf/rust/test/shared/$fname"
+            fi
+            if [[ ! -f "$src" ]]; then
+              echo "Missing upstream source for $fname at $src" >&2
+              exit 1
+            fi
+          done
+          echo "All 19 test crate sources verified against upstream pin."
+      - name: Committed copies and stub flavours drift
+        run: |
+          set -euo pipefail
+          cargo test --test onboarding committed_hello_and_wkt_copies_match -- --nocapture --exact
+          cargo test --test onboarding codegen_stub_flavours_are_explicit -- --nocapture --exact
+      - name: Advisory check for upstream protobuf release drift
+        run: |
+          set -euo pipefail
+          PIN="$(cat vendor/google/PIN)"
+          git -C third_party/protobuf fetch --tags --depth=1 origin 2>/dev/null || true
+          LATEST_TAG="$(git -C third_party/protobuf tag --list 'v*' --sort=-v:refname | head -n 1 || echo "$PIN")"
+          echo "Current pinned version: $PIN"
+          echo "Latest upstream tag:     $LATEST_TAG"
+          if [[ "$PIN" != "$LATEST_TAG" ]]; then
+            echo "::notice title=Upstream Protobuf Release Drift::Current pin is $PIN, but newer tag $LATEST_TAG exists upstream."
+          fi
+
+  # Verify official interop and conformance case registry against upstream inventory.
+  # Detects newly added upstream cases as uncovered and flags missing or renamed cases.
+  upstream-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit tests for upstream case check
+        run: python3 -m unittest tests/interop/test_upstream_cases.py
+      - name: Verify case registry schema and check against upstream inventory
+        env:
+          UPSTREAM_INVENTORY: ${{ inputs.upstream_inventory || '' }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$UPSTREAM_INVENTORY" ]]; then
+            echo "Checking registry against specified upstream inventory: $UPSTREAM_INVENTORY"
+            python3 scripts/check-upstream-cases.py --upstream "$UPSTREAM_INVENTORY" --verbose
+            if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+              python3 scripts/check-upstream-cases.py --upstream "$UPSTREAM_INVENTORY" --format markdown >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "Checking registry against pinned upstream inventory"
+            python3 scripts/check-upstream-cases.py --verbose
+            if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+              python3 scripts/check-upstream-cases.py --format markdown >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+  # Memory safety verification using Miri and AddressSanitizer/LeakSanitizer.
+  # Exercises pure-protobuf core parsing and runtime under memory sanitizers.
+  miri-sanitizers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Install C++ compiler and cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Cache pinned protoc with built-in Rust output
+        uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Build pinned protoc
+        run: ./scripts/build-pinned-protoc.sh
+      - name: Run Miri on pbrs core parsing and runtime
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
+        run: |
+          set -euo pipefail
+          mkdir -p target/sanitizer-logs
+          {
+            rustc --version &&
+            cargo miri --version &&
+            cargo miri test -p pbrs --lib &&
+            cargo miri test -p pbrs --test runtime &&
+            cargo miri test --manifest-path rust_out_shared/Cargo.toml --locked \
+              --test accessors_map_test --test accessors_repeated_test \
+              --test message_copy_merge_test &&
+            if [ -f pbrs-h2/Cargo.toml ]; then cargo miri test -p pbrs-h2 --lib; fi
+          } 2>&1 | tee target/sanitizer-logs/miri.log
+      - name: Run AddressSanitizer and LeakSanitizer
+        env:
+          RUSTFLAGS: "-Zsanitizer=address"
+          RUSTDOCFLAGS: "-Zsanitizer=address"
+          ASAN_OPTIONS: "detect_leaks=1:detect_stack_use_after_return=1"
+          PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
+        run: |
+          set -euo pipefail
+          mkdir -p target/sanitizer-logs
+          {
+            rustc --version &&
+            cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std &&
+            cargo test -p pbrs --test runtime --target x86_64-unknown-linux-gnu -Zbuild-std &&
+            if [ -f pbrs-h2/Cargo.toml ]; then cargo test -p pbrs-h2 --lib --target x86_64-unknown-linux-gnu -Zbuild-std; fi
+          } 2>&1 | tee target/sanitizer-logs/asan.log
+      - name: Retain sanitizer proof and failure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-sanitizer-logs
+          path: target/sanitizer-logs/
+          if-no-files-found: warn
+
+  # QG-02: weekly scheduled fuzz campaign over every cargo-fuzz target.
+  # The runner discovers targets from fuzz/Cargo.toml, so new targets join
+  # automatically. Goes red on any new crasher; logs, manifest, and
+  # minimized crashers upload as artifacts for triage.
+  fuzz-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Run campaign
+        run: ./scripts/fuzz-campaign.sh
+      - name: Upload campaign logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-campaign-logs
+          path: target/fuzz-logs/
+          retention-days: 30
+      - name: Upload new crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: fuzz/corpus/**/crash-*.bin
+          retention-days: 90
+
+  # Diff docs/grfc.md against grpc/proposal. Informational only: drift and
+  # API hiccups surface as a report artifact, never as a red job. Only the
+  # offline self-test can fail this job (a script regression). Opens nothing
+  # externally.
+  grfc-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test the drift script
+        run: python3 scripts/grfc-drift.py --self-test
+      - name: Check gRFC drift vs grpc/proposal
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          python3 scripts/grfc-drift.py --format markdown --output grfc-drift.md || true
+          cat grfc-drift.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grfc-drift-report
+          path: grfc-drift.md
+          if-no-files-found: warn

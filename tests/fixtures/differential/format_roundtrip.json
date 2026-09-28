@@ -1,0 +1,34 @@
+{
+  "optionalInt32": 101,
+  "optionalInt64": "102",
+  "optionalUint32": 103,
+  "optionalUint64": "104",
+  "optionalSint32": -105,
+  "optionalSint64": "-106",
+  "optionalFixed32": 107,
+  "optionalFixed64": "108",
+  "optionalSfixed32": -109,
+  "optionalSfixed64": "-110",
+  "optionalFloat": 1.5,
+  "optionalDouble": -2.5,
+  "optionalBool": true,
+  "optionalString": "roundtrip-string",
+  "optionalBytes": "cm91bmR0cmlwLWJ5dGVz",
+  "optionalNestedEnum": "BAR",
+  "repeatedString": [
+    "alpha",
+    "beta"
+  ],
+  "mapStringString": {
+    "k1": "v1",
+    "k2": "v2"
+  },
+  "mapInt32Int32": {
+    "1": 10,
+    "2": 20
+  },
+  "mapBoolBool": {
+    "false": false,
+    "true": true
+  }
+}

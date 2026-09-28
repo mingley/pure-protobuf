@@ -1,0 +1,11 @@
+[STACK-MATRIX] server-native-unary-empty-plain-1cpu: pass sustained=7935.4qps
+[STACK-MATRIX] server-tonic-pbrs-unary-empty-plain-1cpu: pass sustained=7939.6qps
+[STACK-MATRIX] server-tonic-prost-unary-empty-plain-1cpu: pass sustained=7943.2qps
+[STACK-MATRIX] server-go-unary-empty-plain-1cpu: pass sustained=7939.1qps
+[STACK-MATRIX] server-cpp-unary-empty-plain-1cpu: pass sustained=7943.8qps
+[STACK-MATRIX] client-native-unary-empty-plain-1cpu: pass sustained=987.5qps
+[STACK-MATRIX] client-tonic-pbrs-unary-empty-plain-1cpu: pass sustained=987.8qps
+[STACK-MATRIX] client-go-unary-empty-plain-1cpu: pass
+[STACK-MATRIX] client-cpp-unary-empty-plain-1cpu: pass
+[STACK-MATRIX] server-native-unary-empty-tls-1cpu: pass sustained=7939.4qps
+STACK-MATRIX smoke: matrix_complete=True

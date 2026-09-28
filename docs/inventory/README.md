@@ -1,5 +1,11 @@
 # Closed inventory (do not merge the diffs)
 
+Classification vs committed source: this directory is the **discarded**
+bucket, not unfinished work on main. `#34` already landed. The rest
+(#27 superseded by #42, #32/#36/#41 measurements, #39 flatten, #57
+heap-copy) are not shipped and must not be merged. Unfinished work lives
+in `TODO.md` / `docs/ROADMAP.md`.
+
 Cursor drafts [#27](https://github.com/mingley/pure-protobuf/pull/27),
 [#32](https://github.com/mingley/pure-protobuf/pull/32),
 [#36](https://github.com/mingley/pure-protobuf/pull/36),

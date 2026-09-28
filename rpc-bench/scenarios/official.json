@@ -1,0 +1,358 @@
+{
+  "scenarios": [
+    {
+      "name": "protobuf_unary_ping_pong_empty",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_unary_ping_pong_1kb",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_unary_ping_pong_64kb",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 65536,
+            "resp_size": 65536
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_streaming_ping_pong_empty",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "STREAMING",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_streaming_ping_pong_1kb",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "STREAMING",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_unary_qps_unconstrained_100rpcs",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 100,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "protobuf_unary_poisson_5000qps",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 64,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "poisson": {
+            "offered_load": 5000.0
+          }
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "cpp_protobuf_async_unary_ping_pong_insecure",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "cpp_protobuf_async_streaming_ping_pong_insecure",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "STREAMING",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "go_protobuf_sync_unary_ping_pong_insecure",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "SYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "SYNC_SERVER",
+        "async_server_threads": 1
+      }
+    },
+    {
+      "name": "go_protobuf_sync_streaming_ping_pong_insecure",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 5,
+      "benchmark_seconds": 30,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "SYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 1,
+        "async_client_threads": 1,
+        "rpc_type": "STREAMING",
+        "load_params": {
+          "closed_loop": {}
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 0,
+            "resp_size": 0
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "SYNC_SERVER",
+        "async_server_threads": 1
+      }
+    }
+  ]
+}

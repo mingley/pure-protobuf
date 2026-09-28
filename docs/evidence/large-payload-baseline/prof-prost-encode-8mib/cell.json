@@ -1,0 +1,21 @@
+{
+  "cell": "codec.prost.blob_encode_8mib",
+  "iters": 55401,
+  "allocs": 166203,
+  "alloc_bytes": 929476410727,
+  "wall_ns": 9863052666,
+  "copy_counts": {
+    "wire_calls": 0,
+    "wire_bytes": 0,
+    "emit_calls": 0,
+    "emit_bytes": 0,
+    "carry_calls": 0,
+    "carry_bytes": 0,
+    "chunk_slices": 0,
+    "chunk_slice_bytes": 0,
+    "encode_calls": 0,
+    "encode_bytes": 0,
+    "serialize_calls": 0,
+    "serialize_bytes": 0
+  }
+}

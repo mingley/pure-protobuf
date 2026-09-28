@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package pkg.b;
+
+import "pkg_a/common.proto";
+import "pkg_b/common.proto";
+
+message ServiceRequest {
+  // References CommonMsg from pkg.a
+  pkg.a.CommonMsg a_msg = 1;
+  // References CommonMsg from pkg.b (same package)
+  pkg.b.CommonMsg b_msg = 2;
+  // References CommonEnum from pkg.a
+  pkg.a.CommonEnum a_status = 3;
+  // References CommonEnum from pkg.b
+  pkg.b.CommonEnum b_status = 4;
+  // References nested types
+  pkg.a.CommonMsg.NestedA nested_a = 5;
+  pkg.b.CommonMsg.NestedB nested_b = 6;
+}
+
+message ServiceResponse {
+  string confirmation = 1;
+  bool success = 2;
+}
+
+service EchoService {
+  rpc Echo (ServiceRequest) returns (ServiceResponse);
+}

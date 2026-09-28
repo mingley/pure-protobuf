@@ -1,0 +1,4041 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "macos",
+    "arch": "aarch64",
+    "cpu": "Apple M4 Pro",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": false,
+    "strace": false,
+    "valgrind": false
+  },
+  "devloop_commit": "8f98202db705",
+  "cells": [
+    {
+      "id": "codec.pbrs.fresh_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 6.7,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 193.4,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 591.0205,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.13415265244659477,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 13.0,
+        "emit_bytes": 55.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.cached_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 110.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.031097808079537898,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 12.0,
+        "emit_bytes": 53.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 7.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1072.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 411.7705,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.08669714653674498,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 87.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 12.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1216.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 521.792,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02041871404976944,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 87.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.fresh_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 248.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 297.979,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04433333233368319,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.cached_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 248.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 264.083,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03855341919551353,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.owned_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 261.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 479.3335,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014233338510257076,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.parse_touch",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 261.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 497.3335,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.026236953663424243,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.fresh_encode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 244.979,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009538763064995083,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.cached_encode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 240.6665,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.026072808230771186,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.owned_decode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 370.5205,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0258530491407666,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.parse_touch",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 501.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0059528215389491245,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65584.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 685.792,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014330677335567896,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 65562.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 51.917,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02766302488062766,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65584.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 14022.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004545633297367445,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 65562.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131096.9305,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1189.646,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.027844536236100243,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 4.9355,
+        "emit_bytes": 65555.868,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65562.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 889.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010756680031019976,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 65557.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131080.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2246.354,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.002653016550489823,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131080.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 15260.9585,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.005218993608670278,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131103.9305,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1292.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.025667617551786197,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048624.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 11396.3203125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004156493970137945,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 1048602.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 52.734375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01670212951262277,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048624.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 221388.671875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004437595225002116,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 1048602.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097176.45703125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 21417.640625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015721463838867914,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 4.49609375,
+        "emit_bytes": 1048594.96875,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048602.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 11841.9609375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.008807068429792089,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 1048597.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 24326.0078125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0178205179498026,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 237634.6015625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.013584556631657996,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097183.45703125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 21371.7421875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0052985803027348,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194352.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 48840.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03390356840975476,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 4194331.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 56.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02375021400089072,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194352.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 894920.578125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0026843623974483867,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 4194331.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388632.828125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 81318.359375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02276541180197484,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 3.984375,
+        "emit_bytes": 4194322.875,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194331.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 48768.234375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006585561541620872,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 4194326.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388616.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100641.265625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004845241990889363,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388616.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 944674.46875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004529217458641243,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388639.828125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 80601.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.020372357027165604,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388656.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 101212.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0051470756617328995,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 8388635.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 58.59375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03214121732666125,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388656.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1784040.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0017972398202955626,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 8388635.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777240.65625,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 164498.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.013754799058993017,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 3.96875,
+        "emit_bytes": 8388626.75,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388635.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100881.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.008163664979360842,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 8388630.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777224.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 204622.40625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006278727376308576,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777224.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1891428.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00624201999088947,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777247.65625,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 163949.21875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.023258327718975447,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 33160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 537.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02678115045049312,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 32796.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 344.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 126.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014433727957497285,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 33160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7121.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009798656185274068,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 32796.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 19.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 98674.935,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1349.4585,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02295483861929012,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 16.936,
+        "emit_bytes": 32785.872,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 32796.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 571.3955,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.024877888655205998,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 17.0,
+        "emit_bytes": 32787.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 18.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65824.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1108.7915,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014829666063078152,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 18.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65824.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7672.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004820108713878489,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65754.935,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 891.8335,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.033377062415403586,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.unary",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 57.33,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 59763.16,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 80726.665,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.20980182265324773,
+      "copy_counts": {
+        "wire_calls": 2.0,
+        "wire_bytes": 2048.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 2.0,
+        "chunk_slice_bytes": 2054.0,
+        "encode_calls": 2.0,
+        "encode_bytes": 2054.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.server_stream",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 74.33,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 70667.16,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 98337.915,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0037668216551683927,
+      "copy_counts": {
+        "wire_calls": 5.0,
+        "wire_bytes": 2051.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2066.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 1030.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.unary_compressed",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 87.34,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1488260.4,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 535244.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010238834947217577,
+      "copy_counts": {
+        "wire_calls": 2.0,
+        "wire_bytes": 89646.0,
+        "emit_calls": 4.0,
+        "emit_bytes": 89652.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 2.0,
+        "chunk_slice_bytes": 30552.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 2.0,
+        "serialize_bytes": 89654.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.server_stream_compressed",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 937.335,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 25088379.68,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 812757.29,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.005784566326103832,
+      "copy_counts": {
+        "wire_calls": 53.0,
+        "wire_bytes": 89435.0,
+        "emit_calls": 106.0,
+        "emit_bytes": 89610.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 57.0,
+        "chunk_slice_bytes": 24875.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 57.0,
+        "serialize_bytes": 89675.0
+      }
+    },
+    {
+      "id": "rpc.tonic.unary",
+      "kind": "rpc",
+      "codec": "tonic",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 71.32,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 49165.355,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 117601.665,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006659321507593442,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.tonic.server_stream",
+      "kind": "rpc",
+      "codec": "tonic",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 83.325,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 58304.715,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 122414.79,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010922464134268775,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.pick_first.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 120.2915,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04699024918966358,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.round_robin.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 148.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015155275139732484,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.weighted_round_robin.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 148.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02072886922478907,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.ring_hash.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 148.6455,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.011869829617610595,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.least_request.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 186.9795,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.05151479595723103,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.priority.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 463.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.005472474037945579,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.outlier_detection.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 285.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0018502611937813596,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.random_subsetting_experimental.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "no perf or valgrind on PATH"
+        }
+      },
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 147.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06920161202203289,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}

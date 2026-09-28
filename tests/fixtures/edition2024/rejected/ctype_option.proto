@@ -1,0 +1,8 @@
+edition = "2024";
+
+package edition2024.rejected;
+
+message CtypeConsumer {
+  // Fails: ctype is removed in edition 2024 and beyond
+  string text = 1 [ctype = STRING_PIECE];
+}

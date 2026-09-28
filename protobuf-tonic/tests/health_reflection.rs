@@ -17,18 +17,18 @@
 )]
 use futures_util::StreamExt;
 use protobuf_tonic::hello::{
-    Greeter, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET,
+    FILE_DESCRIPTOR_SET, Greeter, GreeterServer, HelloReply, HelloRequest,
 };
 use tonic::transport::{Channel, Server};
 use tonic::{Request, Response, Status};
+use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
 use tonic_health::pb::health_client::HealthClient;
-use tonic_health::pb::HealthCheckRequest;
 use tonic_health::server::health_reporter;
+use tonic_reflection::pb::v1::ServerReflectionRequest;
 use tonic_reflection::pb::v1::server_reflection_client::ServerReflectionClient;
 use tonic_reflection::pb::v1::server_reflection_request::MessageRequest;
 use tonic_reflection::pb::v1::server_reflection_response::MessageResponse;
-use tonic_reflection::pb::v1::ServerReflectionRequest;
 use tonic_reflection::server::Builder as ReflectionBuilder;
 
 struct Echo;

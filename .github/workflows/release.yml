@@ -1,0 +1,90 @@
+# The only crates.io publisher. Incremental main pushes do not publish
+# (release-plz.yml and first-publish.yml are disabled).
+#
+# Credentials: repository secret CRATES_IO_TOKEN, mapped to CARGO_REGISTRY_TOKEN.
+# There is no Trusted Publishing here: this workflow does not set
+# `id-token: write` and does not use OIDC.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (cargo publish --dry-run only; never upload)'
+        type: boolean
+        default: true
+      confirm:
+        description: 'Type publish to upload when dry_run is false'
+        type: string
+        default: ''
+
+# Serialize all publishers so a retry cannot race a live upload.
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  required:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish to crates.io
+    needs: required
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Decide dry-run vs upload
+        id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          DRY_RUN_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || '' }}
+          CONFIRM: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm || '' }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$DRY_RUN_INPUT" == "true" ]]; then
+              echo "mode=dry-run" >> "$GITHUB_OUTPUT"
+            elif [[ "$CONFIRM" == "publish" ]]; then
+              echo "mode=publish" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::dispatch upload requires dry_run=false and confirm=publish"
+              exit 1
+            fi
+          elif [[ "$EVENT_NAME" == "push" && "$REF" == refs/tags/v* ]]; then
+            echo "mode=publish" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::unsupported event $EVENT_NAME $REF"
+            exit 1
+          fi
+
+      - name: Fetch dependencies for offline package rehearsal
+        if: steps.mode.outputs.mode == 'dry-run'
+        run: cargo fetch --locked
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.mode.outputs.mode == 'publish' && secrets.CRATES_IO_TOKEN || '' }}
+          DRY_RUN: ${{ steps.mode.outputs.mode == 'dry-run' && '1' || '0' }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: ./scripts/publish-crates.sh
+
+      - name: Create GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && steps.mode.outputs.mode == 'publish' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

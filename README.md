@@ -1,66 +1,280 @@
 # pbrs
 
-pbrs is a pure-Rust protobuf kernel. The application API matches Google
-protobuf v4: `Parse`, `Serialize`, `Clear`, `proto!`, `ProtoStr`,
-`RepeatedView`, `DynamicMessage`.
+[![Crates.io](https://img.shields.io/crates/v/pbrs.svg)](https://crates.io/crates/pbrs)
+[![Documentation](https://docs.rs/pbrs/badge.svg)](https://docs.rs/pbrs)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
-It is not crates.io `protobuf` 4.x (upb/C), not prost, and not
-[pb-rs](https://crates.io/crates/pb-rs). Generate with `protoc-gen-pbrs`,
-or from a `build.rs` with `pbrs::codegen::compile_protos` (prost-build
-shape). Official `protoc --rust_out kernel=upb` also links against this
-crate as `protobuf` via the MiniTable stand-in in `src/runtime.rs`
-(`rust_out_person` roundtrips).
+A high-performance, pure-Rust Protocol Buffers kernel with the Google protobuf v4 application API.
+
+`pbrs` implements proto2, proto3, and Edition 2023 behavior with a Rust runtime
+and code generator. See the [compatibility boundaries](docs/upb.md) and
+[recorded conformance results](docs/status.md) for the tested scope.
+Published versions are available for evaluation; production qualification and
+performance leadership are tracked in the [implementation plan](docs/ROADMAP.md).
+
+---
+
+## Why pbrs?
+
+- **Pure Rust**: No C or C++ compiler required. Unlike crates.io `protobuf` 4.x (which wraps Google's `upb` C library via FFI), `pbrs` compiles entirely with `rustc`.
+- **Google Protobuf v4 API**: Matches the official Google Rust application API traits and shapes (`Parse`, `Serialize`, `Clear`, `proto!`, `ProtoStr`, `RepeatedView`, `DynamicMessage`).
+- **Recorded Conformance**: Google's `conformance_test_runner` v35.1, through Edition 2023: 5,631 binary + JSON cases and 909 text cases, with no unexpected results.
+- **Protobuf API Alternative**: Application-level v4-shaped traits, presence semantics, WKT support, dynamic reflection, and JSON/text formatting. Official generated internals and `prost::Message` are not drop-in compatible.
+- **Performance-oriented Storage**: Small-string optimization, zero-allocation empty collections, lazy materialization after wire validation, and specialized packed-scalar handling. [Benchmarks](docs/benchmarks.md) report workload-specific results and losses.
+
+---
+
+## Workspace Crates
+
+| Crate | Description | crates.io Status |
+|---|---|---|
+| [`pbrs`](.) | The core Protocol Buffers kernel: parser, serializer, codegen (`protoc-gen-pbrs`), dynamic messages, WKT, and JSON/text format. | `0.1.0` (Published; qualification in progress) |
+| [`pbrs-grpc`](pbrs-grpc) | A standalone, pure-Rust HTTP/2 gRPC client and server kernel (no C, no tonic). Built on `rustls` + `Graviola`. | `0.1.0-alpha.1` (Pre-release / Preview) |
+| [`protobuf-tonic`](protobuf-tonic) | A tonic 0.14+ `Codec` adapter allowing tonic servers and clients to use `pbrs` message types. | `0.1.0-alpha.1` (Pre-release / Preview) |
+| [`examples/greeter`](examples/greeter) | A complete working example showing generated stubs, health checks, and server reflection. | Example only (`publish = false`) |
+
+---
+
+## Installation
+
+Add `pbrs` to your `Cargo.toml`:
 
 ```toml
+[dependencies]
 pbrs = "0.1"
-# until this version is on crates.io:
-# pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```
 
-`protobuf-tonic` still depends on `pbrs` by path (and git in published docs)
-until a registry version exists. Do not `cargo publish -p protobuf-tonic`
-against that path dep.
+---
 
-`pbrs-grpc` is a separate HTTP/2 gRPC kernel over pbrs. It does not depend
-on tonic. The tonic adapter does not depend on `pbrs-grpc`. Use one, the
-other, or neither.
+## Code Generation
+
+Generating code directly from `.proto` files requires `protoc` on your
+`PATH`; generation from a previously compiled descriptor set does not.
+Building the core crate alone uses a bundled descriptor set and does not
+require `protoc`. In **this checkout**, both gRPC crates also build from
+checked descriptor sets, so cold builds of all three crates work without it.
+The crates.io adapter versions `0.1.0-alpha.1` predate this change and still
+require `protoc` until new versions are published.
+Generating or updating those descriptor sets, and compiling an application's
+`.proto` directly, still require it. There is no enforced universal `protoc`
+version; see the [support matrix](#support-matrix).
+
+### Option A: Using `build.rs` (Recommended)
+
+Add `pbrs` as a build dependency in your `Cargo.toml`:
+
+```toml
+[build-dependencies]
+pbrs = "0.1"
+```
+
+In your `build.rs`:
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pbrs::codegen::compile_protos(&["proto/person.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+Then include the generated code in your `src/lib.rs` or `src/main.rs`:
+
+```rust
+include!(concat!(env!("OUT_DIR"), "/person.rs"));
+```
+
+This generates the message used in the quickstart below. For protos defining
+services, the default is native `pbrs-grpc` stubs; tonic users must explicitly
+select `Config::emit_tonic_stubs(true)`.
+
+### Option B: From a Checked Descriptor Set
+
+`Config::compile_descriptor_set` uses the same output layout and stub settings
+without running `protoc` during the application build. Create and check in a
+descriptor set with imports included, for example:
+
+```bash
+protoc -I proto --include_imports --descriptor_set_out=proto/person.fds proto/person.proto
+```
+
+Replace the `compile_protos` call in `build.rs` with:
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pbrs::codegen::Config::new()
+        .out_dir(std::env::var("OUT_DIR")?)
+        .compile_descriptor_set("proto/person.fds", &["person.proto"], &["proto"])?;
+    Ok(())
+}
+```
+
+Descriptor targets use their include-relative names (`person.proto` here).
+The descriptor and available source imports are tracked for rebuilds; see the
+[codegen guide](docs/guides/codegen.md) for native, tonic and messages-only
+configuration. Against this checkout, a consumer using a checked descriptor
+set can cold-build messages, native stubs, and tonic stubs with no `protoc` on
+its build PATH. The current crates.io adapter alphas still require it.
+
+### Option C: Using `protoc-gen-pbrs` Plugin
+
+Install or build the plugin binary:
+
+```bash
+cargo install --path . --bin protoc-gen-pbrs
+```
+
+Run `protoc` with the `--pbrs_out` flag:
+
+```bash
+protoc --pbrs_out=./gen --proto_path=./proto ./proto/hello.proto
+```
+
+Or using the helper script:
 
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto
 ```
 
-```rust
-// build.rs
-fn main() {
-    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"]).unwrap();
+---
+
+## Quickstart Example
+
+Given a proto file (`proto/person.proto`):
+
+```protobuf
+syntax = "proto3";
+package tutorial;
+
+message Person {
+  string name = 1;
+  int32 id = 2;
+  string email = 3;
+  repeated string phones = 4;
 }
 ```
 
-`protoc` must be on PATH. The plugin is `protoc-gen-pbrs` / `--pbrs_out`.
+Using the `build.rs` above, put this in `src/main.rs`:
 
-Docs:
+```rust
+use pbrs::prelude::*;
+include!(concat!(env!("OUT_DIR"), "/person.rs"));
 
-- [Architecture](docs/architecture.md)
-- [Design](docs/design.md)
-- [Relative to upb](docs/upb.md)
-- [Benchmarks](docs/benchmarks.md)
-- [Status](docs/status.md)
-- [tonic 0.14](protobuf-tonic/README.md)
-- [HTTP/2 gRPC kernel](pbrs-grpc/README.md)
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Create and populate a message
+    let mut person = Person::new();
+    person.set_name("Ada Lovelace");
+    person.set_id(42);
+    person.set_email("ada@example.com");
+    person.phones_mut().push("555-0100");
 
-Conformance (official `conformance_test_runner` v35.1,
-`--maximum_edition 2023`, `protoc` hidden / vendored FDS):
-required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
-`--enforce_recommended`: same. No skip list. Empty-FDS hole was closed
-in #6: `build.rs` used to write `[]` when `protoc` was missing; #6 ships
-`vendor/google/conformance_fds.bin` and falls back to it (that was the
-2090 JsonOutput / `missing desc` cluster). CI runs the official runner
-(required ×2 and recommended, v35.1, cmake protoc not system, no skip
-list) and printed the same totals.
+    // 2. Serialize to wire format
+    let bytes: Vec<u8> = person.serialize()?;
+
+    // 3. Parse back from bytes
+    let decoded = Person::parse(&bytes)?;
+    assert_eq!(decoded.name(), "Ada Lovelace");
+    assert_eq!(decoded.id(), 42);
+
+    // 4. Inspect or clear
+    println!("Parsed: {} (ID: {})", decoded.name(), decoded.id());
+    
+    Ok(())
+}
+```
+
+---
+
+## gRPC Integration
+
+You can use `pbrs` messages with either gRPC stack:
+
+1. **`pbrs-grpc` (Native Kernel)**: A Rust gRPC stack independent of `tonic`. See the [gRPC Guide](docs/grpc.md) and [`pbrs-grpc/README.md`](pbrs-grpc/README.md).
+2. **`protobuf-tonic` (Tonic Adapter)**: For `tonic` 0.14 services using regenerated `pbrs` stubs rather than `prost` messages. Middleware must accept those message traits. See [`protobuf-tonic/README.md`](protobuf-tonic/README.md).
+
+For a complete end-to-end example with service stubs, gRPC health checking (`grpc.health.v1`), and server reflection (`grpc.reflection.v1`), check out [`examples/greeter`](examples/greeter).
+
+---
+
+## Support matrix
+
+Recorded against this repository on stable `rustc` 1.98. Declared
+`rust-version` is the CI MSRV job, not this host's toolchain. There is no
+claimed universal minimum `protoc`. Releases: [release guide](docs/RELEASE.md)
+(tag/dispatch only; `main` pushes do not publish).
+The maintained crates and tools use **Rust language Edition 2024** (available
+from rustc 1.85); frozen reference/comparator and discarded-experiment
+manifests retain their original edition for reproducibility. This is
+independent of **Protocol Buffers Edition 2024**.
+
+| Crate | Declared MSRV | Tested | `protoc` | Stub default |
+|---|---|---|---|---|
+| [`pbrs`](.) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to **build** the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | **Current source:** no compiler needed to build from checked FileDescriptorSets; required to regenerate descriptors or compile application `.proto`. **Published alpha.1:** still requires `protoc`. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | **Current source:** no compiler needed to build from the checked FileDescriptorSet. **Published alpha.1:** still requires `protoc`. Direct `.proto` compilation needs it in either version. | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`examples/greeter`](examples/greeter) | 1.85 | rustc 1.98 (this host); CI stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
+
+**Untested / unsupported** (not a support commitment):
+
+- tonic 0.12 and 0.13 are **unsupported**.
+- Protocol Buffers Edition 2024 descriptor fixtures are tested, but generated
+  consumers and conformance beyond Edition 2023 are **not qualified**.
+- Windows CI is **untested**.
+
+## Choosing a Stack
+
+Use the [upb comparison](docs/upb.md) for API and representation differences,
+and the [benchmark report](docs/benchmarks.md) for versioned, workload-specific
+comparisons with prost, the Google Rust/upb wrapper, buffa, tonic and grpc-go.
+Those results do not establish universal feature parity or superiority.
+The [roadmap scorecard](docs/ROADMAP.md#scorecard) defines the evidence needed
+to make stronger claims.
+
+---
+
+## Conformance & Testing
+
+`pbrs` is tested against Google's official protobuf test suite:
+
+- **Official `conformance_test_runner` v35.1**:
+  - **Required tests (×2)**: 5,631 binary + JSON, 0 unexpected failures.
+  - **Text format tests**: 909 text tests, 0 unexpected failures.
+  - **Recommended tests (`--enforce_recommended`)**: Passed with 0 unexpected failures.
+  - **Scope**: These recorded results concern this pinned conformance runner, not every upstream suite. The separate [`rust/test/shared` coverage](docs/status.md#skipped-rusttestshared-files) has documented exclusions.
+
+Run the conformance suite locally:
 
 ```bash
 ./scripts/fetch-protobuf.sh
 ./scripts/conformance.sh
 ```
 
-MIT OR Apache-2.0.
+---
+
+## Documentation
+
+- [Architecture Overview](docs/architecture.md) — Module organization and crate boundaries.
+- [Design & Internals](docs/design.md) — Memory layout, parsing strategy, and optimization techniques.
+- [Relative to upb](docs/upb.md) — Detailed comparison with Google's C-based upb kernel.
+- [Benchmarks & Performance](docs/benchmarks.md) — Unary, streaming, and throughput measurements.
+- [Implementation Status](docs/status.md) — Supported features, conformance breakdown, and roadmap.
+- [Native gRPC Kernel Guide](docs/grpc.md) — In-depth guide to building microservices with `pbrs-grpc`.
+- [Task Guides & Recipes](docs/guides/rpc-shapes.md) — Specialized how-to guides for RPC call shapes, production services, code generation, interceptors, and operations.
+- [Tonic Adapter Guide](protobuf-tonic/README.md) — Using `pbrs` with tonic 0.14+ (`emit_tonic_stubs(true)`).
+- [Support matrix](#support-matrix) — Declared MSRV vs tested toolchain, `protoc` requirements, stub defaults, untested/unsupported cases.
+- [Release Policy & Publishing](docs/RELEASE.md) — Tag/dispatch crates.io publisher, required CI, `CRATES_IO_TOKEN` (not Trusted Publishing).
+- [Implementation Plan & Scorecard](docs/ROADMAP.md) — Ordered work packages for compatibility, reliability, operational readiness and measurable performance leadership.
+- [Granular Execution Plan](docs/plan/README.md) — Current gaps, official-suite pins, Rust-only boundaries, separate client/server performance goals, and bounded task assignments.
+- [Task Cards](docs/plan/tasks.json) — Dependency-linked implementation, design and qualification work with file scopes, acceptance criteria and check references.
+- [World-class gRPC Program](docs/plan/world-class/README.md) — Category scoreboard, upb-replacement kernel, pbrs-h2 transport, better-tonic and gRFC/xDS lanes, with [169 worker cards](docs/plan/world-class/tasks.json).
+- [Execution Queue](TODO.md) — Delivered foundations, next assignments and milestone exit gates.
+
+---
+
+## License
+
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT License ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.

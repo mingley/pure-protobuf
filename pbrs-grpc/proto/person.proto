@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package example;
+
+message Address {
+  string city = 1;
+}
+
+message Person {
+  int32 id = 1;
+  string name = 2;
+  optional string email = 3;
+  repeated string tags = 4;
+  map<string, int32> scores = 5;
+  Address address = 6;
+  map<string, int32> extras = 16;
+}

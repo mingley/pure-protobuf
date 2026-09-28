@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package reexport.grandparent;
+
+enum GrandparentLevel {
+  GRANDPARENT_LEVEL_UNSPECIFIED = 0;
+  GRANDPARENT_LEVEL_ROOT = 1;
+}
+
+message GrandparentData {
+  string origin = 1;
+  GrandparentLevel level = 2;
+}

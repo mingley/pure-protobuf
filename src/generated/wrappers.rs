@@ -345,9 +345,7 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.value = pbrs::rt::LazyBytes::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                            self.value = pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e);
                         }
                         _ => self
                             .unknown

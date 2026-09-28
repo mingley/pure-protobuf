@@ -389,7 +389,7 @@ pub fn map_string_i32(
 /// the TestAllTypes wrappers the conformance program drives.
 #[macro_export]
 macro_rules! impl_generated_message {
-    ($Owned:ident, $View:ident, $Mut:ident, $full:expr, $pool:expr) => {
+    ($Owned:ident, $View:ident, $Mut:ident, $full:expr_2021, $pool:expr_2021) => {
         #[derive(Clone, Debug, PartialEq)]
         pub struct $Owned {
             inner: $crate::DynamicMessage,
@@ -486,6 +486,9 @@ macro_rules! impl_generated_message {
 
         impl $crate::__internal::SealedInternal for $Owned {}
         impl $crate::MessageType for $Owned {}
+        impl $crate::MessageName for $Owned {
+            const FULL_NAME: &'static str = $Owned::FULL_NAME;
+        }
         impl $crate::Proxied for $Owned {
             type View<'msg> = $View<'msg>;
         }
@@ -613,6 +616,12 @@ macro_rules! impl_generated_message {
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
                 $crate::ClearAndParse::merge_from_bytes(&mut self.inner, data)
             }
+            fn merge_from_bytes_shared(
+                &mut self,
+                data: $crate::rt::Bytes,
+            ) -> Result<(), $crate::ParseError> {
+                $crate::ClearAndParse::merge_from_bytes_shared(&mut self.inner, data)
+            }
             fn merge_from_bytes_dont_enforce_required(
                 &mut self,
                 data: &[u8],
@@ -632,6 +641,12 @@ macro_rules! impl_generated_message {
             }
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
                 $crate::ClearAndParse::merge_from_bytes(self.0, data)
+            }
+            fn merge_from_bytes_shared(
+                &mut self,
+                data: $crate::rt::Bytes,
+            ) -> Result<(), $crate::ParseError> {
+                $crate::ClearAndParse::merge_from_bytes_shared(self.0, data)
             }
         }
         impl $crate::CopyFrom for $Owned {
@@ -721,6 +736,9 @@ macro_rules! impl_typed_message {
         }
         impl $crate::__internal::SealedInternal for $Owned {}
         impl $crate::MessageType for $Owned {}
+        impl $crate::MessageName for $Owned {
+            const FULL_NAME: &'static str = $Owned::FULL_NAME;
+        }
         impl $crate::Proxied for $Owned {
             type View<'msg> = $View<'msg>;
         }
@@ -883,6 +901,22 @@ macro_rules! impl_typed_message {
                     return self.check_required();
                 }
                 self.merge_bytes(data, 0)
+            }
+            fn merge_from_bytes_shared(
+                &mut self,
+                data: $crate::rt::Bytes,
+            ) -> Result<(), $crate::ParseError> {
+                if data.is_empty() {
+                    if $Owned::EMPTY_PARSE_OK {
+                        return Ok(());
+                    }
+                    return self.check_required();
+                }
+                // Pre-fill the Wire slot with shared backing: large fields
+                // window it with zero copies, small fields copy out (PK-09).
+                let wire = $crate::rt::Wire::from_bytes(data);
+                let mut pos = 0;
+                $crate::rt::MergeBytes::merge_inner(self, &wire, &mut pos, 0, true, None)
             }
             fn merge_from_bytes_dont_enforce_required(
                 &mut self,

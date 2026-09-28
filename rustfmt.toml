@@ -1,1 +1,2 @@
-# generated files are rustfmt'd after plugin emit (stable rustfmt has no ignore)
+# Generated output is formatted at emit time; frozen fixtures are loaded with
+# #[rustfmt::skip] so a consumer edition change cannot rewrite their bytes.

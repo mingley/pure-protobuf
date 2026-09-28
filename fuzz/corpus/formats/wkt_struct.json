@@ -1,0 +1,14 @@
+{
+  "bool": true,
+  "list": [
+    "item",
+    10.0,
+    false
+  ],
+  "nested": {
+    "key": "value"
+  },
+  "null": null,
+  "num": 42.5,
+  "str": "hello"
+}

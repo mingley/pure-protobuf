@@ -19,8 +19,8 @@
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
 use futures_util::StreamExt;
-use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use protobuf_tonic::ProtobufCodec;
+use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;

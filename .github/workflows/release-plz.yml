@@ -1,0 +1,20 @@
+# WHY: a main-push job with CRATES_IO_TOKEN ran release-plz/action@v0.5
+# without `command: release-pr`, which publishes crates. Incremental main
+# pushes must not publish. The only publisher is release.yml (v* tags or
+# confirmed workflow_dispatch). This workflow is kept as a disabled stub so
+# the old name cannot be re-enabled with a token by accident.
+name: Release-plz
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-plz:
+    name: Disabled — does not publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to publish
+        run: |
+          echo "::error::release-plz is disabled. It published on every main push when CRATES_IO_TOKEN was set."
+          echo "Use .github/workflows/release.yml after required CI (v* tag or confirmed dispatch)."
+          exit 1

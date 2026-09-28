@@ -1,295 +1,71 @@
-//! HTTP/2 accept loop and per-RPC dispatch helpers.
+//! Serving: the [`Service`] trait, per-RPC dispatch through [`Rpc`], and the
+//! [`Server`] / [`Router`] accept loops.
+//!
+//! Generated code implements [`Service`]; you implement the generated service
+//! trait. Writing either by hand is supported and documented, because a
+//! kernel you cannot drive by hand is a kernel you cannot debug.
 
-use crate::codec::SizeLimits;
-use crate::metadata::Metadata;
-use crate::request::{Request, Response};
-use crate::status::{Code, Status};
-use crate::stream::Inbound;
-use crate::wire::{
-    check_request, encode_msg, grpc_trailers, one_or_default, pump_inbound, read_all_messages,
-    send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
-};
-use bytes::Bytes;
-use h2::RecvStream;
-use pbrs::{Parse, Serialize};
-use std::future::Future;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
+pub(crate) mod accept;
+pub(crate) mod connection;
+pub(crate) mod dispatch;
+pub(crate) mod drain;
+pub(crate) mod router;
+pub(crate) mod rpc;
 
-/// HTTP/2 prior-knowledge acceptor. `H` is usually [`crate::hello::GreeterServer`].
-pub struct Server<H> {
-    handler: Arc<H>,
-}
+pub use accept::{Incoming, IncomingAccept, PeerCred, Server};
+pub use connection::ConnectionInfo;
+pub use dispatch::Service;
+pub use router::Router;
+pub(crate) use router::split_path;
+pub use rpc::Rpc;
 
-impl<H: Http2Handler> Server<H> {
-    /// Wrap a handler.
-    pub fn new(handler: H) -> Self {
-        Self {
-            handler: Arc::new(handler),
+#[cfg(test)]
+mod tests {
+    use super::{ConnectionInfo, PeerCred, split_path};
+    use crate::tls::PeerIdentity;
+
+    #[test]
+    fn connection_info_debug_masks_peer_details_without_hiding_getters() {
+        let remote = "192.0.2.100:51401".parse().expect("remote");
+        let local = "127.0.0.1:51402".parse().expect("local");
+        let cred = PeerCred::new(914_217, 914_218, Some(914_219));
+        let peer = ConnectionInfo::new()
+            .with_remote_addr(remote)
+            .with_local_addr(local)
+            .with_peer_identity(
+                PeerIdentity::from_der_certs([b"private-cert-leaf"]).expect("identity"),
+            )
+            .with_peer_cred(cred)
+            .with_scheme("https");
+        let shown = format!("{peer:?}");
+        for field in ["remote", "local", "identity", "cred", "scheme"] {
+            assert!(
+                shown.contains(&format!("{field}: Some(\"[REDACTED]\")")),
+                "{shown}"
+            );
         }
-    }
-
-    /// Bind and serve until the listener fails.
-    pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
-        let listener = TcpListener::bind(addr)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-        self.serve_listener(listener).await
-    }
-
-    /// Accept connections on an existing listener.
-    pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
-        loop {
-            let (tcp, _) = listener
-                .accept()
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
-            let handler = Arc::clone(&self.handler);
-            drop(tokio::spawn(async move {
-                serve_conn(handler, tcp).await;
-            }));
+        for secret in ["192.0.2.100", "127.0.0.1:51402", "914217", "PeerIdentity"] {
+            assert!(!shown.contains(secret), "{shown}");
         }
+        assert_eq!(peer.remote_addr(), Some(remote));
+        assert_eq!(peer.local_addr(), Some(local));
+        assert_eq!(peer.peer_cred(), Some(cred));
+        assert_eq!(peer.scheme(), Some("https"));
     }
-}
 
-/// Per-stream handler (path dispatch lives on the Greeter server).
-pub trait Http2Handler: Send + Sync + 'static {
-    /// Drive one HTTP/2 request to completion.
-    fn handle(
-        &self,
-        request: http::Request<RecvStream>,
-        respond: h2::server::SendResponse<Bytes>,
-    ) -> impl Future<Output = ()> + Send;
-}
+    #[test]
+    fn splits_service_and_method() {
+        assert_eq!(
+            split_path("/helloworld.Greeter/SayHello"),
+            ("helloworld.Greeter", "SayHello")
+        );
+        assert_eq!(split_path("/a.B/C"), ("a.B", "C"));
+    }
 
-async fn serve_conn<H: Http2Handler>(handler: Arc<H>, tcp: TcpStream) {
-    tcp.set_nodelay(true).ok();
-    let Ok(mut conn) = h2::server::Builder::new()
-        .initial_window_size(16 * 1024 * 1024)
-        .initial_connection_window_size(16 * 1024 * 1024)
-        .max_frame_size(1024 * 1024)
-        .max_concurrent_streams(256)
-        .max_send_buffer_size(1024 * 1024)
-        .handshake(tcp)
-        .await
-    else {
-        return;
-    };
-    while let Some(item) = conn.accept().await {
-        let Ok((request, respond)) = item else {
-            break;
-        };
-        let handler = Arc::clone(&handler);
-        drop(tokio::spawn(async move {
-            handler.handle(request, respond).await;
-        }));
+    #[test]
+    fn unparseable_paths_route_nowhere() {
+        assert_eq!(split_path("/"), ("", ""));
+        assert_eq!(split_path(""), ("", ""));
+        assert_eq!(split_path("/nomethod"), ("", ""));
     }
-}
-
-pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default,
-    Resp: Serialize,
-    F: FnOnce(Request<Req>) -> Fut,
-    Fut: Future<Output = Result<Response<Resp>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, mut recv) = request.into_parts();
-    let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
-        let item = one_or_default(msgs)?;
-        let mut req = Request::new(item.message);
-        req.set_metadata(header_md);
-        req.set_compressed(item.compressed);
-        if let Some(d) = timeout {
-            req.set_timeout(d);
-        }
-        f(req).await
-    })
-    .await;
-    finish_handler(prepared, respond, limits).await;
-}
-
-pub(crate) async fn dispatch_client_stream<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default + Send + 'static,
-    Resp: Serialize,
-    F: FnOnce(Request<Inbound<Req>>) -> Fut,
-    Fut: Future<Output = Result<Response<Resp>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, recv) = request.into_parts();
-    let (tx, inbound) = Inbound::channel(16);
-    drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
-    }));
-    let mut req = Request::new(inbound);
-    req.set_metadata(header_md);
-    if let Some(d) = timeout {
-        req.set_timeout(d);
-    }
-    let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_handler(prepared, respond, limits).await;
-}
-
-pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default,
-    Resp: Serialize + Send,
-    F: FnOnce(Request<Req>) -> Fut,
-    Fut: Future<Output = Result<Response<Inbound<Resp>>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, mut recv) = request.into_parts();
-    let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
-        let item = one_or_default(msgs)?;
-        let mut req = Request::new(item.message);
-        req.set_metadata(header_md);
-        req.set_compressed(item.compressed);
-        if let Some(d) = timeout {
-            req.set_timeout(d);
-        }
-        f(req).await
-    })
-    .await;
-    finish_stream_handler(prepared, respond, limits).await;
-}
-
-pub(crate) async fn dispatch_bidi<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default + Send + 'static,
-    Resp: Serialize + Send,
-    F: FnOnce(Request<Inbound<Req>>) -> Fut,
-    Fut: Future<Output = Result<Response<Inbound<Resp>>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, recv) = request.into_parts();
-    let (tx, inbound) = Inbound::channel(16);
-    drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
-    }));
-    let mut req = Request::new(inbound);
-    req.set_metadata(header_md);
-    if let Some(d) = timeout {
-        req.set_timeout(d);
-    }
-    let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_stream_handler(prepared, respond, limits).await;
-}
-
-async fn finish_handler<Resp: Serialize>(
-    prepared: Result<Response<Resp>, Status>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-) {
-    match prepared {
-        Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
-        Ok(resp) => {
-            let (msg, md, trailers, compress) = resp.split();
-            let frame = match encode_msg(&msg, compress, limits) {
-                Ok(frame) => frame,
-                Err(st) => {
-                    send_trailers_only(&mut respond, st, &Metadata::new());
-                    return;
-                }
-            };
-            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress) else {
-                return;
-            };
-            send_bytes(&mut send, frame, false).await.ok();
-            let mut st = Status::new(Code::Ok, "");
-            *st.metadata_mut() = trailers;
-            if let Ok(t) = grpc_trailers(&st) {
-                send.send_trailers(t).ok();
-            }
-        }
-    }
-}
-
-async fn finish_stream_handler<Resp: Serialize + Send>(
-    prepared: Result<Response<Inbound<Resp>>, Status>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-) {
-    match prepared {
-        Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
-        Ok(resp) => {
-            let (mut inbound, md, trailers, compress_hdr) = resp.split();
-            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress_hdr) else {
-                return;
-            };
-            let mut stream_status = Status::new(Code::Ok, "");
-            *stream_status.metadata_mut() = trailers;
-            loop {
-                match inbound.next_item().await {
-                    Ok(Some(item)) => {
-                        let frame = match encode_msg(&item.message, item.compressed, limits) {
-                            Ok(frame) => frame,
-                            Err(st) => {
-                                stream_status = st;
-                                break;
-                            }
-                        };
-                        if send_bytes(&mut send, frame, false).await.is_err() {
-                            return;
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(st) => {
-                        stream_status = st;
-                        break;
-                    }
-                }
-            }
-            if let Ok(t) = grpc_trailers(&stream_status) {
-                send.send_trailers(t).ok();
-            }
-        }
-    }
-}
-
-pub(crate) fn reject_unknown(mut respond: h2::server::SendResponse<Bytes>, path: &str) {
-    send_trailers_only(
-        &mut respond,
-        Status::unimplemented(path.to_string()),
-        &Metadata::new(),
-    );
 }

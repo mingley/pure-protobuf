@@ -18,12 +18,12 @@ fn main() {
     if !status.success() {
         panic!("protoc --rust_out person.proto failed: {status}");
     }
-    let gen = out.join("generated.rs");
+    let r#gen = out.join("generated.rs");
     let pb = out.join("person.u.pb.rs");
-    let src = std::fs::read_to_string(&gen).expect("read generated.rs");
+    let src = std::fs::read_to_string(&r#gen).expect("read generated.rs");
     let src = src.replace(
         "#[path=\"person.u.pb.rs\"]",
         &format!("#[path=\"{}\"]", pb.display()),
     );
-    std::fs::write(&gen, src).expect("rewrite generated.rs path");
+    std::fs::write(&r#gen, src).expect("rewrite generated.rs path");
 }

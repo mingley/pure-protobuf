@@ -1,0 +1,368 @@
+[
+ {
+  "attempted_rpcs": 51693,
+  "successful_rpcs": 51693,
+  "failed_rpcs": 0,
+  "status_errors": {},
+  "timeouts": 0,
+  "client_cpu_seconds": null,
+  "server_cpu_seconds": null,
+  "duration_nanos": 8000332583,
+  "throughput_qps": 6461.356382838765,
+  "scheduling_lag_nanos": {
+   "p50": 0,
+   "p99": 0,
+   "max": 0
+  },
+  "offered_rpcs": 51693,
+  "dispatched_rpcs": 51693,
+  "queue_overflows": 0,
+  "e2e_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 610375,
+   "p90_nanos": 715458,
+   "p95_nanos": 754542,
+   "p99_nanos": 837291,
+   "p999_nanos": 1248125,
+   "min_nanos": 330708,
+   "max_nanos": 3603459,
+   "mean_nanos": 618944.6288278877,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 51693,
+    "buckets": [
+     {
+      "lower_bound_nanos": 200000,
+      "upper_bound_nanos": 500000,
+      "count": 2110
+     },
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 49472
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 100
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 11
+     }
+    ]
+   }
+  },
+  "service_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 610375,
+   "p90_nanos": 715458,
+   "p95_nanos": 754542,
+   "p99_nanos": 837291,
+   "p999_nanos": 1248125,
+   "min_nanos": 330708,
+   "max_nanos": 3603459,
+   "mean_nanos": 618944.6288278877,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 51693,
+    "buckets": [
+     {
+      "lower_bound_nanos": 200000,
+      "upper_bound_nanos": 500000,
+      "count": 2110
+     },
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 49472
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 100
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 11
+     }
+    ]
+   }
+  },
+  "_req": 65536,
+  "_resp": 65536
+ },
+ {
+  "attempted_rpcs": 4009,
+  "successful_rpcs": 4009,
+  "failed_rpcs": 0,
+  "status_errors": {},
+  "timeouts": 0,
+  "client_cpu_seconds": null,
+  "server_cpu_seconds": null,
+  "duration_nanos": 8005406208,
+  "throughput_qps": 500.7865804478113,
+  "scheduling_lag_nanos": {
+   "p50": 0,
+   "p99": 0,
+   "max": 0
+  },
+  "offered_rpcs": 4009,
+  "dispatched_rpcs": 4009,
+  "queue_overflows": 0,
+  "e2e_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 8125584,
+   "p90_nanos": 9738625,
+   "p95_nanos": 10127125,
+   "p99_nanos": 10924667,
+   "p999_nanos": 11904750,
+   "min_nanos": 4104875,
+   "max_nanos": 12752625,
+   "mean_nanos": 7986457.718383637,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 4009,
+    "buckets": [
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 76
+     },
+     {
+      "lower_bound_nanos": 5000000,
+      "upper_bound_nanos": 10000000,
+      "count": 3685
+     },
+     {
+      "lower_bound_nanos": 10000000,
+      "upper_bound_nanos": 20000000,
+      "count": 248
+     }
+    ]
+   }
+  },
+  "service_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 8125584,
+   "p90_nanos": 9738625,
+   "p95_nanos": 10127125,
+   "p99_nanos": 10924667,
+   "p999_nanos": 11904750,
+   "min_nanos": 4104875,
+   "max_nanos": 12752625,
+   "mean_nanos": 7986457.718383637,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 4009,
+    "buckets": [
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 76
+     },
+     {
+      "lower_bound_nanos": 5000000,
+      "upper_bound_nanos": 10000000,
+      "count": 3685
+     },
+     {
+      "lower_bound_nanos": 10000000,
+      "upper_bound_nanos": 20000000,
+      "count": 248
+     }
+    ]
+   }
+  },
+  "_req": 1048576,
+  "_resp": 1048576
+ },
+ {
+  "attempted_rpcs": 29061,
+  "successful_rpcs": 0,
+  "failed_rpcs": 29061,
+  "status_errors": {
+   "INTERNAL: user error: inactive stream": 12,
+   "RESOURCE_EXHAUSTED: grpc: received message larger than max (4194319 vs. 4194304)": 29049
+  },
+  "timeouts": 0,
+  "client_cpu_seconds": null,
+  "server_cpu_seconds": null,
+  "duration_nanos": 8000552334,
+  "throughput_qps": 0.0,
+  "scheduling_lag_nanos": {
+   "p50": 0,
+   "p99": 0,
+   "max": 0
+  },
+  "offered_rpcs": 29061,
+  "dispatched_rpcs": 29061,
+  "queue_overflows": 0,
+  "e2e_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 1075916,
+   "p90_nanos": 1418791,
+   "p95_nanos": 1545292,
+   "p99_nanos": 1677791,
+   "p999_nanos": 1937583,
+   "min_nanos": 461792,
+   "max_nanos": 2260459,
+   "mean_nanos": 1100822.9842056364,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 29061,
+    "buckets": [
+     {
+      "lower_bound_nanos": 200000,
+      "upper_bound_nanos": 500000,
+      "count": 3
+     },
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 10163
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 18878
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 17
+     }
+    ]
+   }
+  },
+  "service_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 1075916,
+   "p90_nanos": 1418791,
+   "p95_nanos": 1545292,
+   "p99_nanos": 1677791,
+   "p999_nanos": 1937583,
+   "min_nanos": 461792,
+   "max_nanos": 2260459,
+   "mean_nanos": 1100822.9842056364,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 29061,
+    "buckets": [
+     {
+      "lower_bound_nanos": 200000,
+      "upper_bound_nanos": 500000,
+      "count": 3
+     },
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 10163
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 18878
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 17
+     }
+    ]
+   }
+  },
+  "_req": 4194304,
+  "_resp": 4194304
+ },
+ {
+  "attempted_rpcs": 13528,
+  "successful_rpcs": 0,
+  "failed_rpcs": 13528,
+  "status_errors": {
+   "INTERNAL: user error: inactive stream": 19,
+   "RESOURCE_EXHAUSTED: grpc: received message larger than max (8388623 vs. 4194304)": 13509
+  },
+  "timeouts": 0,
+  "client_cpu_seconds": null,
+  "server_cpu_seconds": null,
+  "duration_nanos": 8001973083,
+  "throughput_qps": 0.0,
+  "scheduling_lag_nanos": {
+   "p50": 0,
+   "p99": 0,
+   "max": 0
+  },
+  "offered_rpcs": 13528,
+  "dispatched_rpcs": 13528,
+  "queue_overflows": 0,
+  "e2e_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 2305542,
+   "p90_nanos": 3054416,
+   "p95_nanos": 3180375,
+   "p99_nanos": 3329917,
+   "p999_nanos": 3460041,
+   "min_nanos": 766291,
+   "max_nanos": 3595750,
+   "mean_nanos": 2365513.912995269,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 13528,
+    "buckets": [
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 1
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 3608
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 9919
+     }
+    ]
+   }
+  },
+  "service_latency_nanos": {
+   "unit": "nanoseconds",
+   "p50_nanos": 2305542,
+   "p90_nanos": 3054416,
+   "p95_nanos": 3180375,
+   "p99_nanos": 3329917,
+   "p999_nanos": 3460041,
+   "min_nanos": 766291,
+   "max_nanos": 3595750,
+   "mean_nanos": 2365513.912995269,
+   "histogram": {
+    "unit": "nanoseconds",
+    "total_count": 13528,
+    "buckets": [
+     {
+      "lower_bound_nanos": 500000,
+      "upper_bound_nanos": 1000000,
+      "count": 1
+     },
+     {
+      "lower_bound_nanos": 1000000,
+      "upper_bound_nanos": 2000000,
+      "count": 3608
+     },
+     {
+      "lower_bound_nanos": 2000000,
+      "upper_bound_nanos": 5000000,
+      "count": 9919
+     }
+    ]
+   }
+  },
+  "_req": 8388608,
+  "_resp": 8388608
+ }
+]

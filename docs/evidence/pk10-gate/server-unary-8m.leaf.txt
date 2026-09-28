@@ -1,0 +1,49 @@
+threads: 15 total samples: 65985
+leaf samples: 60031 (expect ~= total)
+ 55881 84.69% IDLE/IO __psynch_cvwait
+  1190  1.80%         <tokio::runtime::io::driver::Driver>::turn
+  1000  1.52%         <tokio::net::tcp::stream::TcpStream>::poll_write_vectored_priv
+   770  1.17% IDLE/IO __recvfrom
+   592  0.90% COPY?   _platform_memmove
+   492  0.75% COPY?   __bzero
+    23  0.03%         <std::sys::pal::unix::time::Timespec>::now
+     9  0.01% COPY?   _malloc_zone_realloc
+     5  0.01%         tokio::runtime::scheduler::multi_thread::worker::run
+     3  0.00%         <tokio::runtime::scheduler::multi_thread::handle::Handle>::schedule_task
+     3  0.00%         <tokio::runtime::io::registration::Registration>::poll_ready
+     3  0.00%         pbrs_grpc::wire::send::send_bytes::{closure#0}
+     3  0.00% IDLE/IO __psynch_cvsignal
+     3  0.00% IDLE/IO <tokio::runtime::scheduler::multi_thread::park::Unparker>::unpark
+     3  0.00% IDLE/IO <tokio::runtime::scheduler::multi_thread::worker::Context>::park_internal
+     3  0.00%         __findenv_locked
+     2  0.00%         <h2::frame::headers::HeaderBlock>::load::{closure#0}
+     2  0.00%         <h2::proto::streams::streams::Streams<bytes::bytes::Bytes, h2::client::Peer>>::clear_expired_reset_streams
+     2  0.00%         _xzm_free
+     2  0.00%         <h2::share::RecvStream>::poll_data
+     2  0.00%         <h2::server::Connection<tokio::net::tcp::stream::TcpStream, bytes::bytes::Bytes>>::poll_accept
+     2  0.00%         <tokio::sync::notify::NotifiedProject>::poll_notified
+     2  0.00%         pbrs_grpc::server::drain::send_unary_response::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::SimpleResponse>::{closure#0}
+     1  0.00%         <h2::proto::streams::store::Queue<h2::proto::streams::stream::NextAccept>>::pop::<h2::proto::streams::store::Store>
+     1  0.00%         core::ptr::drop_glue::<rpc_bench::tonic_gen::__gen_grpc_testing_test_proto::Payload>
+     1  0.00%         <tokio::runtime::scheduler::multi_thread::worker::Core>::maintenance
+     1  0.00%         <tokio::net::tcp::stream::TcpStream>::poll_read_priv
+     1  0.00%         <h2::codec::Codec<tokio::net::tcp::stream::TcpStream, h2::proto::streams::prioritize::Prioritized<bytes::bytes::Bytes>> as futures_core::str
+     1  0.00%         <h2::proto::ping_pong::PingPong>::send_pending_pong::<tokio::net::tcp::stream::TcpStream, h2::proto::streams::prioritize::Prioritized<bytes:
+     1  0.00%         <h2::proto::streams::store::Queue<h2::proto::streams::stream::NextSend>>::pop::<h2::proto::streams::store::Store>
+     1  0.00%         <h2::proto::streams::streams::Streams<bytes::bytes::Bytes, h2::server::Peer>>::next_incoming
+     1  0.00%         pbrs_grpc::server::connection::wait_for_drain::{closure#0}
+     1  0.00%         <pbrs_grpc::server::router::Router as pbrs_grpc::server::dispatch::Dispatch>::dispatch::{closure#0}
+     1  0.00%         tokio::runtime::task::waker::wake_by_val
+     1  0.00%         <tokio::runtime::io::scheduled_io::ScheduledIo>::wake
+     1  0.00%         <tokio_util::codec::length_delimited::LengthDelimitedCodec as tokio_util::codec::decoder::Decoder>::decode
+     1  0.00%         <h2::proto::ping_pong::PingPong>::send_pending_ping::<tokio::net::tcp::stream::TcpStream, h2::proto::streams::prioritize::Prioritized<bytes:
+     1  0.00%         <pbrs_grpc::testing::__gen_grpc_testing_test_proto::Payload>::validate_until
+     1  0.00%         <tokio::sync::watch::big_notify::BigNotify>::notify_waiters
+     1  0.00%         <pbrs_grpc::channelz::model::Registry>::server
+     1  0.00%         <std::sys::pal::unix::time::Timespec>::sub_timespec
+     1  0.00%         <h2::proto::streams::recv::Recv>::recv_headers
+     1  0.00%         core::ptr::drop_glue::<pbrs_grpc::keepalive::wait_opt::{closure#0}>
+     1  0.00%         <pbrs_grpc::server::rpc::Rpc>::run_unary_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::SimpleRequest, pbrs_grpc::request::Res
+     1  0.00%         <http::header::map::HeaderMap>::contains_key::<http::header::name::HeaderName>
+
+idle=56660 (85.9%) copy-candidates=1093 (1.7%) total=65985

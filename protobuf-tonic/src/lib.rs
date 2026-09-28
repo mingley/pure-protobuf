@@ -8,8 +8,8 @@ extern crate self as protobuf_tonic;
 use bytes::Buf;
 use pbrs::{ClearAndParse, Parse, Serialize};
 use std::marker::PhantomData;
-use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::Status;
+use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 
 /// tonic [`Codec`] using pbrs [`Serialize`] / [`Parse`] (not `prost::Message`).
 #[derive(Clone, Copy, Debug, Default)]
@@ -59,18 +59,11 @@ impl<T: Parse + Default + ClearAndParse> Decoder for ProtobufDecoder<T> {
     type Error = Status;
 
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
+        // One copy into an owned buffer (tonic's), then shared parse with no
+        // pbrs-side copy (PK-09): 2 copies before, 1 after, either branch.
         let n = src.remaining();
-        let chunk = src.chunk();
-        if chunk.len() >= n {
-            let bytes = chunk
-                .get(..n)
-                .ok_or_else(|| Status::internal("short chunk"))?;
-            let item = Parse::parse(bytes).map_err(|e| Status::internal(e.to_string()))?;
-            src.advance(n);
-            return Ok(Some(item));
-        }
         let bytes = src.copy_to_bytes(n);
-        Parse::parse(&bytes)
+        Parse::parse_bytes(bytes)
             .map(Some)
             .map_err(|e| Status::internal(e.to_string()))
     }

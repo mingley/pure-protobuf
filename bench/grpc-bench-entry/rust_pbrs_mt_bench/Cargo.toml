@@ -1,0 +1,23 @@
+[package]
+name = "rust_pbrs_mt"
+version = "0.1.0"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
+edition = "2021"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+
+[dependencies]
+tikv-jemallocator = "0.6"
+pbrs = { path = "pbrs-src" }
+pbrs-grpc = { path = "pbrs-src/pbrs-grpc" }
+tokio = { version = "1.52", features = ["parking_lot", "rt-multi-thread"] }
+
+[build-dependencies]
+pbrs = { path = "pbrs-src" }
+
+[[bin]]
+name = "helloworld-server"
+path = "src/main.rs"

@@ -5,15 +5,20 @@ use std::io::{Read, Write};
 
 fn main() {
     let mut stdin = Vec::new();
-    std::io::stdin().read_to_end(&mut stdin).expect("stdin");
+    if let Err(e) = std::io::stdin().read_to_end(&mut stdin) {
+        let out =
+            pbrs::codegen::encode_code_generator_response_error(&format!("stdin read error: {e}"));
+        std::io::stdout().write_all(&out).expect("stdout");
+        return;
+    }
     match pbrs::codegen::generate_from_code_generator_request(&stdin) {
         Ok(files) => {
             let out = pbrs::codegen::encode_code_generator_response(&files);
             std::io::stdout().write_all(&out).expect("stdout");
         }
         Err(e) => {
-            eprintln!("protoc-gen-pbrs: {e}");
-            std::process::exit(1);
+            let out = pbrs::codegen::encode_code_generator_response_error(&e.to_string());
+            std::io::stdout().write_all(&out).expect("stdout");
         }
     }
 }

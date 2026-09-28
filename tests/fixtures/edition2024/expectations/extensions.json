@@ -1,0 +1,86 @@
+{
+  "file": "extensions.proto",
+  "edition": 1001,
+  "syntax": "editions",
+  "package": "edition2024.extensions",
+  "messages": [
+    {
+      "name": "ExtendableMessage",
+      "full_name": "edition2024.extensions.ExtendableMessage",
+      "extension_ranges": [
+        [
+          100,
+          1000
+        ]
+      ],
+      "nested_extensions": [
+        {
+          "name": "nested_scoped_extension",
+          "number": 150,
+          "type": "TYPE_INT32",
+          "extendee": "edition2024.extensions.ExtendableMessage"
+        }
+      ]
+    },
+    {
+      "name": "ExtensionSubmessage",
+      "full_name": "edition2024.extensions.ExtensionSubmessage"
+    }
+  ],
+  "enums": [
+    {
+      "name": "ExtensionClosedEnum",
+      "full_name": "edition2024.extensions.ExtensionClosedEnum",
+      "closed": true
+    }
+  ],
+  "file_extensions": [
+    {
+      "name": "ext_int32",
+      "number": 101,
+      "type": "TYPE_INT32",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "OPTIONAL"
+    },
+    {
+      "name": "ext_string",
+      "number": 102,
+      "type": "TYPE_STRING",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "OPTIONAL",
+      "utf8_validate": true
+    },
+    {
+      "name": "ext_repeated_int32",
+      "number": 103,
+      "type": "TYPE_INT32",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "REPEATED",
+      "packed": true
+    },
+    {
+      "name": "ext_submessage",
+      "number": 104,
+      "type": "TYPE_MESSAGE",
+      "type_name": "edition2024.extensions.ExtensionSubmessage",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "OPTIONAL"
+    },
+    {
+      "name": "ext_closed_enum",
+      "number": 105,
+      "type": "TYPE_ENUM",
+      "type_name": "edition2024.extensions.ExtensionClosedEnum",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "OPTIONAL"
+    },
+    {
+      "name": "ext_int32_with_default",
+      "number": 106,
+      "type": "TYPE_INT32",
+      "extendee": "edition2024.extensions.ExtendableMessage",
+      "cardinality": "OPTIONAL",
+      "default_value": "42"
+    }
+  ]
+}

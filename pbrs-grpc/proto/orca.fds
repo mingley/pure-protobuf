@@ -1,0 +1,36 @@
+
+Ô
+'xds/data/orca/v3/orca_load_report.protoxds.data.orca.v3"¯
+OrcaLoadReport'
+cpu_utilization (RcpuUtilization'
+mem_utilization (RmemUtilization
+rps (BRrpsT
+request_cost (21.xds.data.orca.v3.OrcaLoadReport.RequestCostEntryRrequestCostS
+utilization (21.xds.data.orca.v3.OrcaLoadReport.UtilizationEntryRutilization%
+rps_fractional (RrpsFractional
+eps (RepsW
+named_metrics (22.xds.data.orca.v3.OrcaLoadReport.NamedMetricsEntryRnamedMetrics7
+application_utilization	 (RapplicationUtilization>
+RequestCostEntry
+key (	Rkey
+value (Rvalue:8>
+UtilizationEntry
+key (	Rkey
+value (Rvalue:8?
+NamedMetricsEntry
+key (	Rkey
+value (Rvalue:8B]
+com.github.xds.data.orca.v3BOrcaLoadReportProtoPZ'github.com/cncf/xds/go/xds/data/orca/v3bproto3
+u
+google/protobuf/duration.protogoogle.protobuf":
+Duration
+seconds (Rseconds
+nanos (Rnanosbproto3
+Ý
+xds/service/orca/v3/orca.protoxds.service.orca.v3'xds/data/orca/v3/orca_load_report.protogoogle/protobuf/duration.proto"‰
+OrcaLoadReportRequestB
+report_interval (2.google.protobuf.DurationRreportInterval,
+request_cost_names (	RrequestCostNames2u
+OpenRcaServicec
+StreamCoreMetrics*.xds.service.orca.v3.OrcaLoadReportRequest .xds.data.orca.v3.OrcaLoadReport0BR
+com.github.xds.service.orca.v3B	OrcaProtoPZ#github.com/cncf/xds/service/orca/v3bproto3

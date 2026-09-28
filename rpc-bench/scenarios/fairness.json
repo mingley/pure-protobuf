@@ -1,0 +1,451 @@
+{
+  "version": "1.0.0",
+  "contract": "docs/benchmark-contract.md",
+  "resource_budgets": "docs/resource-budgets.md",
+  "description": "RT-07 fairness scenarios; native bulk_vs_small_streams has a separate-process diagnostic runner, while other cells and qualification remain unimplemented",
+  "defaults": {
+    "duration_seconds": 60,
+    "warmup_seconds": 15,
+    "min_paired_runs": 5,
+    "confidence_interval_pct": 95.0,
+    "open_loop_distribution": "poisson",
+    "seed": 20260923,
+    "matching_configuration": {
+      "tcp_nodelay": true,
+      "tls_cipher": "none",
+      "connections": 4,
+      "concurrency": 16
+    },
+    "resource_limits": {
+      "profile": "Profile 2: Internal Microservice Profile",
+      "max_concurrent_connections": 200,
+      "max_concurrent_rpcs": 2000,
+      "initial_connection_window_size": 4194304,
+      "initial_stream_window_size": 1048576,
+      "max_send_buffer_size": 1048576,
+      "max_decoding_message_size": 4194304,
+      "max_encoding_message_size": 4194304,
+      "header_table_size": 4096,
+      "max_header_list_size": 16384,
+      "max_pending_accept_reset_streams": 64,
+      "max_concurrent_reset_streams": 128
+    },
+    "fairness_contract": {
+      "explicit_rejection_status": "RESOURCE_EXHAUSTED",
+      "no_silent_buffering": true,
+      "latency_basis": "completion minus scheduled dispatch; retain rejections, timeouts and unfinished calls separately",
+      "measurement_unit": "per workload class and per endpoint, never aggregate throughput alone",
+      "tracked_metrics": [
+        "offered_calls",
+        "dispatched_calls",
+        "successful_calls",
+        "queue_delay_nanos",
+        "scheduling_lag_p99_nanos",
+        "p99_latency_nanos",
+        "rejected_calls_by_reason",
+        "timed_out_calls",
+        "unfinished_calls",
+        "client_cpu_seconds",
+        "server_cpu_seconds",
+        "client_start_rss_bytes",
+        "server_start_rss_bytes",
+        "client_peak_rss_bytes",
+        "server_peak_rss_bytes",
+        "client_active_permits_peak",
+        "server_active_permits_peak",
+        "client_active_permits_post_drain",
+        "server_active_permits_post_drain",
+        "client_byte_budget_active_byte_permit_tokens_lifetime_peak",
+        "server_byte_budget_active_byte_permit_tokens_lifetime_peak",
+        "client_byte_budget_active_byte_permit_tokens_post_drain",
+        "server_byte_budget_active_byte_permit_tokens_post_drain",
+        "client_byte_budget_allocated_bytes_peak",
+        "server_byte_budget_allocated_bytes_peak",
+        "client_byte_budget_allocated_bytes_post_drain",
+        "server_byte_budget_allocated_bytes_post_drain"
+      ]
+    },
+    "peer_combinations": [
+      {
+        "client": "native",
+        "server": "native",
+        "role": "native_pair",
+        "purpose": "full_stack_native"
+      },
+      {
+        "client": "native",
+        "server": "tonic-pbrs",
+        "role": "client_vs_reference",
+        "purpose": "same_codec_transport_server"
+      },
+      {
+        "client": "tonic-pbrs",
+        "server": "native",
+        "role": "reference_vs_native",
+        "purpose": "same_codec_transport_client"
+      }
+    ]
+  },
+  "result_schema": {
+    "per_workload_class": {
+      "offered_calls": "u64",
+      "dispatched_calls": "u64",
+      "successful_calls": "u64",
+      "failed_calls": "u64 (dispatched failures, including timeouts)",
+      "rejected_calls_by_reason": {
+        "RESOURCE_EXHAUSTED": "u64",
+        "QUEUE_OVERFLOW": "u64"
+      },
+      "timed_out_calls": "u64",
+      "unfinished_calls": "u64",
+      "queue_delay_nanos": "{p99: u64, max: u64} | null (full outbound/server queue not observable)",
+      "observed_client_pool_wait_nanos": "{samples: u64, p99: u64, max: u64} | null",
+      "scheduling_lag_p99_nanos": "u64 | null (bulk is closed-loop)",
+      "p99_latency_nanos": "u64 | null (unstarted overflow or non-timeout failure lacks deadline-valued latency)",
+      "latency_samples_nanos": "u64[] (dispatched calls only)",
+      "scheduling_lag_samples_nanos": "u64[] | null (all offered small calls, including unstarted)"
+    },
+    "per_endpoint": {
+      "client_pid": "u32 (distinct process from server)",
+      "server_pid": "u32 (distinct process from client)",
+      "client_cpu_seconds": "f64",
+      "server_cpu_seconds": "f64",
+      "client_start_rss_bytes": "u64",
+      "server_start_rss_bytes": "u64",
+      "client_peak_rss_bytes": "u64",
+      "server_peak_rss_bytes": "u64",
+      "client_active_permits_peak": "u64 | null (not exposed)",
+      "server_active_permits_peak": "u64 | null (not exposed)",
+      "client_active_permits_post_drain": "u64 | null (not exposed)",
+      "server_active_permits_post_drain": "u64 | null (not exposed)",
+      "client_byte_budget_active_byte_permit_tokens_lifetime_peak": "u64 (exact tracker-lifetime high-water of byte-permit tokens, including zero-byte permits and warmup; not RPC slots)",
+      "server_byte_budget_active_byte_permit_tokens_lifetime_peak": "u64 (exact tracker-lifetime high-water of byte-permit tokens, including zero-byte permits and warmup; not RPC slots)",
+      "client_byte_budget_active_byte_permit_tokens_post_drain": "u64 (live byte-permit tokens after bounded drain; not RPC slots)",
+      "server_byte_budget_active_byte_permit_tokens_post_drain": "u64 (live byte-permit tokens after graceful shutdown; not RPC slots)",
+      "client_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
+      "server_byte_budget_allocated_bytes_peak": "u64 (exact tracker-lifetime high-water; includes warmup)",
+      "client_sampled_byte_budget_peak_bytes": "u64 (lower bound, real allocated() snapshots)",
+      "server_sampled_byte_budget_peak_bytes": "u64 (lower bound, real allocated() snapshots)",
+      "client_byte_budget_allocated_bytes_post_drain": "u64",
+      "server_byte_budget_allocated_bytes_post_drain": "u64",
+      "post_drain_probe_success": "bool (admission probe, not a permit count)",
+      "client_observed_rejections_by_reason": "map<string, u64> (LifecycleObserver)",
+      "server_observed_rejections_by_reason": "map<string, u64> (LifecycleObserver)"
+    }
+  },
+  "metric_sources": {
+    "offered_calls": "LoadRecord.offered_calls / RpcMetrics.offered_rpcs",
+    "dispatched_calls": "LoadRecord.dispatched_calls / RpcMetrics.dispatched_rpcs",
+    "successful_calls": "LoadRecord.successful_calls / RpcMetrics.successful_rpcs",
+    "rejected_calls_by_reason": "fairness runner maps Status.code().name() to canonical RESOURCE_EXHAUSTED and LoadRecord.rejected_calls to QUEUE_OVERFLOW; independent client/server LifecycleObserver.on_rejection counts are diagnostic, not deduplicated",
+    "timed_out_calls": "LoadRecord.timed_out_calls / RpcMetrics.timeouts",
+    "unfinished_calls": "LoadRecord.unfinished_calls",
+    "queue_delay_nanos": "null: client on_queue_wait measures only pool acquisition and server on_server_queue_wait measures post-admission scheduling, not full outbound-to-TCP/listener/transport queue delay",
+    "observed_client_pool_wait_nanos": "LifecycleObserver.on_queue_wait (per class, count + p99/max), distinct from LoadRecord scheduling lag and full outbound queue wait",
+    "scheduling_lag_p99_nanos": "LoadRecord.scheduling_lags_nanos from actual spawned task start minus scheduled Poisson arrival for dispatched small calls, or generator decision minus arrival for unstarted overflows; null for closed-loop bulk",
+    "p99_latency_nanos": "Raw scheduled-relative small samples retain every dispatched outcome and deadline-valued timeouts; required p99 is null on unstarted QUEUE_OVERFLOW or early non-timeout statuses (not deadline-valued), and the run fails when calls remain unfinished; bulk p99 is likewise null on non-timeout failures",
+    "client_cpu_seconds": "client process ResourceSnapshot user+system CPU delta after warmup through post-drain probe",
+    "server_cpu_seconds": "server process ResourceSnapshot user+system CPU delta after warmup through shutdown",
+    "client_start_rss_bytes": "client process ResourceSnapshot.current_rss_bytes after warmup; missing capture fails run",
+    "server_start_rss_bytes": "server process ResourceSnapshot.current_rss_bytes after warmup; missing capture fails run",
+    "client_peak_rss_bytes": "client process ResourceSnapshot resident high-water mark through load and post-drain; includes warmup because process-lifetime gauge",
+    "server_peak_rss_bytes": "server process ResourceSnapshot resident high-water mark through shutdown; includes warmup because process-lifetime gauge",
+    "client_active_permits_peak": "null: client transport semaphore occupancy has no public gauge",
+    "server_active_permits_peak": "null: server transport semaphore occupancy has no public gauge; admitted-call observer counts are not the same measurement",
+    "client_active_permits_post_drain": "null: successful probe is not an exact client permit count",
+    "server_active_permits_post_drain": "null: successful probe is not an exact server permit count",
+    "client_byte_budget_active_byte_permit_tokens_lifetime_peak": "client ByteBudgetTracker.peak_active_byte_permit_tokens() exact tracker-lifetime high-water, including warmup and zero-byte permits; not RPC semaphore occupancy",
+    "server_byte_budget_active_byte_permit_tokens_lifetime_peak": "server ByteBudgetTracker.peak_active_byte_permit_tokens() exact tracker-lifetime high-water, including warmup and zero-byte permits; not RPC semaphore occupancy",
+    "client_byte_budget_active_byte_permit_tokens_post_drain": "client ByteBudgetTracker.active_byte_permit_tokens() after bounded drain",
+    "server_byte_budget_active_byte_permit_tokens_post_drain": "server ByteBudgetTracker.active_byte_permit_tokens() after graceful shutdown",
+    "client_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact client tracker-lifetime high-water, including warmup; sampled lower bound is separate",
+    "server_byte_budget_allocated_bytes_peak": "ByteBudgetTracker.peak_allocated() exact server tracker-lifetime high-water, including warmup; sampled lower bound is separate",
+    "client_byte_budget_allocated_bytes_post_drain": "shared client ByteBudgetTracker.allocated() after bounded drain",
+    "server_byte_budget_allocated_bytes_post_drain": "server ByteBudgetTracker.allocated() after graceful shutdown"
+  },
+  "ci_smoke_contract": {
+    "source": "docs/resource-budgets.md section 7.3 (F-1 through F-6, O-1 through O-3)",
+    "test": "cargo test -p pbrs-grpc --test resource_bounds",
+    "small_rpc_success_pct": 100.0,
+    "bulk_small_p99_latency_ms": 500.0,
+    "bulk_max_scheduling_lag_ms": 100.0,
+    "slow_peer_fast_p99_latency_ms": 200.0,
+    "idle_peer_active_p99_latency_ms": 200.0,
+    "reset_storm_legitimate_p99_latency_ms": 300.0,
+    "overload_explicit_outcome_pct": 100.0,
+    "overload_admitted_p99_latency_ms": 500.0,
+    "post_drain_allocated_bytes": 0,
+    "post_drain_active_stream_permits": 0,
+    "rss": "recorded, not threshold-gated in PR runs; shared-process RSS cannot attribute an endpoint",
+    "percentiles": "32-call deterministic loopback regression, not statistically qualified p99"
+  },
+  "execution_status": {
+    "scenario_file": "rpc-bench fairness --scenario rpc-bench/scenarios/fairness.json executes only native/native bulk_vs_small_streams in separate processes; five other cells remain declarative",
+    "missing_metric_policy": "null with an explicit unsupported_metrics reason and qualification.qualified=false; --require-qualified exits nonzero after writing the report; never substitute zero, sampled lower bounds or aggregate QPS",
+    "available_now": [
+      "scheduled Poisson 128-byte unary RPCs overlap repeating finite 64 x 64KiB server streams at bounded concurrency, after discarded mixed warmup",
+      "per-class offered/dispatched/success/failure counts, typed RESOURCE_EXHAUSTED and QUEUE_OVERFLOW, deadline-valued timeout samples, raw latency/scheduling lag and sampled client pool wait",
+      "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, exact tracker-lifetime byte and byte-permit-token high-water (includes warmup), sampled byte lower bounds and post-drain accounting",
+      "bounded CI smoke tests for competition, observed client queue wait and post-drain admission probes"
+    ],
+    "required_before_qualification": [
+      "runnable slow reader/writer, idle peer, reset storm and overload cells; open-loop offered load for every required workload class",
+      "client outbound-to-TCP and server queue delays, full offered-call failure latencies including unstarted QUEUE_OVERFLOW",
+      "public client/server RPC-slot semaphore occupancy gauges and measurement-window attribution for exact lifetime byte and byte-permit-token high-water",
+      "paired randomized dedicated-host native/tonic-pbrs runs, confidence intervals and RSS growth review; target_thresholds are proposals, not gates"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "bulk_vs_small_streams",
+      "name": "Bulk Streaming vs Small Unary RPCs",
+      "description": "Mix multi-megabyte bulk server streams with scheduled 128-byte unary probes; evaluate per-class p99, scheduler/client queue wait, explicit rejections and post-drain budget recovery, not total QPS.",
+      "category": "fairness",
+      "ci_contract_ids": ["F-1", "F-2", "F-3", "O-3"],
+      "workload_mix": {
+        "bulk_streams": {
+          "rpc_type": "server_streaming",
+          "request_size": 64,
+          "response_message_size": 65536,
+          "messages_per_stream": 64,
+          "concurrency": 4,
+          "connections": 2
+        },
+        "competing_small_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 128,
+          "response_size": 128,
+          "offered_qps": 2000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_connections": 200,
+        "max_concurrent_rpcs": 2000,
+        "max_send_buffer_size": 1048576,
+        "initial_connection_window_size": 4194304,
+        "initial_stream_window_size": 1048576,
+        "byte_budget_bytes": 16777216
+      },
+      "target_thresholds": {
+        "max_small_rpc_p99_latency_us": 5000.0,
+        "max_small_rpc_queue_delay_us": 1000.0,
+        "min_competing_success_pct": 99.9,
+        "max_rss_growth_mib": 64.0,
+        "zero_starvation_guarantee": true
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 12
+      }
+    },
+    {
+      "id": "slow_reader_isolation",
+      "name": "Slow Reader Flow-Control Isolation",
+      "description": "Pause application response consumption on separate streaming connections to withhold flow-control capacity; verify exact eventual delivery and fast-call p99 on an independent connection.",
+      "category": "isolation",
+      "ci_contract_ids": ["F-4", "O-3"],
+      "workload_mix": {
+        "slow_readers": {
+          "rpc_type": "server_streaming",
+          "request_size": 64,
+          "response_message_size": 32768,
+          "read_delay_ms": 200,
+          "concurrency": 2,
+          "connections": 2
+        },
+        "competing_fast_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 256,
+          "response_size": 256,
+          "offered_qps": 1500,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_send_buffer_size": 524288,
+        "initial_connection_window_size": 1048576,
+        "initial_stream_window_size": 262144,
+        "byte_budget_bytes": 8388608
+      },
+      "target_thresholds": {
+        "max_fast_rpc_p99_latency_us": 2500.0,
+        "max_fast_rpc_queue_delay_us": 500.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 32.0,
+        "slow_peer_impact_ratio": 1.05
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 10
+      }
+    },
+    {
+      "id": "slow_writer_isolation",
+      "name": "Slow Writer Inbound Drip Isolation",
+      "description": "Drip whole client-stream messages at fixed intervals while keeping the upload open; verify accepted order, fast-call p99 and permit release after close.",
+      "category": "isolation",
+      "ci_contract_ids": ["F-4", "C-2"],
+      "workload_mix": {
+        "slow_writers": {
+          "rpc_type": "client_streaming",
+          "message_size": 1024,
+          "inter_message_delay_ms": 150,
+          "concurrency": 4,
+          "connections": 2
+        },
+        "competing_fast_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 512,
+          "response_size": 512,
+          "offered_qps": 2000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_rpcs": 2000,
+        "max_decoding_message_size": 4194304,
+        "byte_budget_bytes": 8388608
+      },
+      "target_thresholds": {
+        "max_fast_rpc_p99_latency_us": 2000.0,
+        "max_fast_rpc_queue_delay_us": 500.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 32.0,
+        "permit_leak_count": 0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 12
+      }
+    },
+    {
+      "id": "idle_peers_contention",
+      "name": "Idle Connection Fleet Contention",
+      "description": "Keep 100 established HTTP/2 peers idle while scheduled active calls use separate connections; record per-class p99, queue wait and idle-connection RSS overhead.",
+      "category": "isolation",
+      "ci_contract_ids": ["F-6"],
+      "workload_mix": {
+        "idle_connections": {
+          "connection_count": 100,
+          "idle_duration_seconds": 30,
+          "active_streams": 0
+        },
+        "active_rpcs": {
+          "rpc_type": "unary",
+          "request_size": 256,
+          "response_size": 256,
+          "offered_qps": 3000,
+          "concurrency": 16,
+          "connections": 4
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_connections": 200,
+        "max_concurrent_rpcs": 2000,
+        "max_connection_idle": "60s"
+      },
+      "target_thresholds": {
+        "max_active_rpc_p99_latency_us": 1500.0,
+        "max_queue_delay_us": 300.0,
+        "max_idle_connection_overhead_kib": 350.0,
+        "min_competing_success_pct": 100.0,
+        "max_rss_growth_mib": 40.0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 104,
+        "concurrency": 16
+      }
+    },
+    {
+      "id": "reset_storm_recovery",
+      "name": "HTTP/2 Rapid Reset Storm Isolation",
+      "description": "Generate measured RST_STREAM(CANCEL) traffic during scheduled valid unary calls; retain reset counts, explicit outcomes, legitimate p99 and post-storm budget/permit recovery.",
+      "category": "fairness",
+      "ci_contract_ids": ["F-5", "C-1"],
+      "workload_mix": {
+        "reset_attackers": {
+          "connections": 2,
+          "rst_storm_rate_per_sec": 10000,
+          "reset_reason": "CANCEL"
+        },
+        "legitimate_calls": {
+          "rpc_type": "unary",
+          "request_size": 128,
+          "response_size": 128,
+          "offered_qps": 1000,
+          "concurrency": 8,
+          "connections": 2
+        }
+      },
+      "resource_limits": {
+        "max_pending_accept_reset_streams": 64,
+        "max_concurrent_reset_streams": 128,
+        "max_local_error_reset_streams": 64,
+        "max_concurrent_rpcs": 500,
+        "byte_budget_bytes": 4194304
+      },
+      "target_thresholds": {
+        "max_legitimate_p99_latency_us": 3000.0,
+        "max_legitimate_queue_delay_us": 800.0,
+        "min_competing_success_pct": 99.5,
+        "max_rss_growth_mib": 20.0,
+        "connection_drop_on_flood": true
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 10
+      }
+    },
+    {
+      "id": "overload_budget_exhaustion",
+      "name": "Overload Budget Rejection Without Silent Buffering",
+      "description": "Hold RPC slots or transport byte permits while offering an open-loop burst. Record every outcome, immediate RESOURCE_EXHAUSTED status citing the violated limit, admitted-call p99 and post-release recovery; rejected calls must not reach the application handler.",
+      "category": "overload",
+      "ci_contract_ids": ["O-1", "O-2", "O-3"],
+      "workload_mix": {
+        "offered_overload_burst": {
+          "rpc_type": "unary",
+          "request_size": 1024,
+          "response_size": 1024,
+          "concurrency": 64,
+          "connections": 4,
+          "burst_factor": 4.0
+        }
+      },
+      "resource_limits": {
+        "max_concurrent_rpcs": 16,
+        "byte_budget_bytes": 65536,
+        "max_send_buffer_size": 65536
+      },
+      "target_thresholds": {
+        "expected_rejection_code": "RESOURCE_EXHAUSTED",
+        "silent_buffering_permitted": false,
+        "max_admitted_p99_latency_us": 5000.0,
+        "max_queue_delay_us": 2000.0,
+        "max_rss_growth_mib": 10.0,
+        "post_drain_quiescence": true,
+        "post_drain_allocated_bytes": 0
+      },
+      "matching_configuration": {
+        "tcp_nodelay": true,
+        "tls_cipher": "none",
+        "connections": 4,
+        "concurrency": 64
+      }
+    }
+  ]
+}

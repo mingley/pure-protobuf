@@ -7,6 +7,13 @@ use std::fmt::Debug;
 pub trait Parse: SealedInternal + Sized {
     fn parse(serialized: &[u8]) -> Result<Self, ParseError>;
     fn parse_dont_enforce_required(serialized: &[u8]) -> Result<Self, ParseError>;
+    /// Parse, retaining `serialized` as shared backing for large fields
+    /// instead of copying (PK-09). Falls back to [`Self::parse`] unless the
+    /// message overrides
+    /// [`ClearAndParse::merge_from_bytes_shared`].
+    fn parse_bytes(serialized: bytes::Bytes) -> Result<Self, ParseError> {
+        Self::parse(&serialized)
+    }
 }
 
 impl<T> Parse for T
@@ -20,6 +27,15 @@ where
         }
         let mut msg = Self::default();
         ClearAndParse::merge_from_bytes(&mut msg, serialized).map(|()| msg)
+    }
+
+    #[inline(always)]
+    fn parse_bytes(serialized: bytes::Bytes) -> Result<Self, ParseError> {
+        if serialized.is_empty() && T::EMPTY_PARSE_OK {
+            return Ok(Self::default());
+        }
+        let mut msg = Self::default();
+        ClearAndParse::merge_from_bytes_shared(&mut msg, serialized).map(|()| msg)
     }
 
     #[inline]
@@ -61,6 +77,12 @@ pub trait ClearAndParse: SealedInternal {
     fn merge_from_bytes_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError> {
         self.merge_from_bytes(data)
     }
+    /// Merge, retaining `data` as shared backing for large fields (PK-09).
+    /// The default copies via [`Self::merge_from_bytes`]; generated messages
+    /// override this to window the shared buffer.
+    fn merge_from_bytes_shared(&mut self, data: bytes::Bytes) -> Result<(), ParseError> {
+        self.merge_from_bytes(&data)
+    }
 }
 
 pub trait CopyFrom: AsView + SealedInternal {
@@ -73,6 +95,17 @@ pub trait TakeFrom: AsView + SealedInternal {
 
 pub trait MergeFrom: AsView + SealedInternal {
     fn merge_from(&mut self, src: impl AsView<Proxied = Self::Proxied>);
+}
+
+/// The protobuf full name of a generated message (`package.Message`).
+///
+/// Used to pack [`google.protobuf.Any`](https://protobuf.dev/programming-guides/proto3/#any)
+/// without the caller repeating the type URL. Every generated message
+/// implements this; `FULL_NAME` is the same associated constant the
+/// generated `impl` block already exposes.
+pub trait MessageName {
+    /// `package.Message` as written in the `.proto`, with no leading dot.
+    const FULL_NAME: &'static str;
 }
 
 /// Marker implemented only by message types.

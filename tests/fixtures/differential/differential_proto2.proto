@@ -1,0 +1,32 @@
+syntax = "proto2";
+
+package differential;
+
+enum ClosedEnum {
+  CLOSED_ZERO = 0;
+  CLOSED_ONE = 1;
+  CLOSED_TWO = 2;
+}
+
+message Proto2Presence {
+  optional int32 optional_int32 = 1;
+  optional string optional_string = 2;
+}
+
+message Proto2ExtensionsHost {
+  optional int32 id = 1;
+  extensions 100 to 200;
+}
+
+extend Proto2ExtensionsHost {
+  optional int32 ext_int32 = 101;
+  optional string ext_string = 102;
+}
+
+message ClosedEnumMessage {
+  optional ClosedEnum status = 1;
+}
+
+message UnpackedRepeated {
+  repeated int32 values = 1 [packed = false];
+}

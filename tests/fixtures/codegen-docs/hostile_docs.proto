@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package test.docs;
+
+// Message with hostile doc comments:
+// Unclosed backticks: `single_backtick and `unclosed_var
+// Broken intra-doc links: [NonExistentType] and [BrokenReference][ref]
+// Bare URLs: https://example.com/api?v=1&x=2 and http://foo.bar.baz.
+// Valid markdown link: [Example Site](https://example.com)
+// Hostile HTML tags: <custom-element> and <T> and Map<string, int32>
+// Comparison: 1 < 2 and 5 > 3
+// Unclosed HTML: <unclosed_tag and <<>
+// Untagged code fence:
+// ```
+// fn invalid_rust_syntax() { !@#$%^&* }
+// ```
+// Hostile rust doctest code fence (must not execute):
+// ```rust
+// panic!("untrusted doctest executed!");
+// ```
+// Indented code block:
+//     indented code that would fail doctest
+// Unclosed code fence at end of comment:
+// ```
+// unclosed block
+message HostileMessage {
+  // Field with unclosed backtick `field_backtick
+  // and broken link [MissingLink] and HTML <tag>.
+  string name = 1;
+
+  // Explicit optional field with default semantics.
+  // Inequality a < b and bare url https://example.org/path
+  optional int32 count = 2;
+
+  // Repeated field with hostile docs:
+  // ```
+  // invalid syntax
+  // ```
+  repeated string tags = 3;
+
+  // Map field with Map<string, int32> in comments.
+  map<string, int32> scores = 4;
+
+  // Deprecated field with hostile doc:
+  // Unclosed link [unclosed
+  // Single backtick `
+  int64 old_id = 5 [deprecated = true];
+
+  // Nested message with hostile doc comments:
+  // `nested_backtick and [NestedLink]
+  message NestedHostile {
+    // Nested field with `backtick and <tag>
+    string nested_field = 1;
+  }
+
+  // Nested message field.
+  NestedHostile nested = 6;
+
+  // Oneof member field 1.
+  // [SomeLink] and <SomeType>
+  oneof payload {
+    string text_val = 7;
+    int32 num_val = 8;
+  }
+}
+
+// Deprecated hostile message:
+// `unclosed and [broken] and <html_tag>
+message DeprecatedHostileMessage {
+  option deprecated = true;
+
+  int32 val = 1;
+}
+
+// Hostile enum comment:
+// See [BrokenEnumLink] and <EnumTag> and https://enums.example.com
+enum HostileEnum {
+  // ZERO enum value with `unclosed and [NoLink]
+  HOSTILE_ZERO = 0;
+
+  // ONE enum value deprecated with <bad_tag>
+  HOSTILE_ONE = 1 [deprecated = true];
+}
+
+// Hostile service comments:
+// See [ServiceLink] and <ServiceTag> and ```\npanic!()\n```
+service HostileService {
+  // Unary RPC with hostile comments:
+  // `unclosed and [UnaryLink] and <UnaryTag>
+  rpc UnaryMethod (HostileMessage) returns (HostileMessage);
+
+  // Client streaming RPC with hostile comments:
+  // `unclosed and [ClientStreamLink]
+  rpc ClientStreamMethod (stream HostileMessage) returns (HostileMessage);
+
+  // Server streaming RPC with hostile comments:
+  // `unclosed and [ServerStreamLink]
+  rpc ServerStreamMethod (HostileMessage) returns (stream HostileMessage);
+
+  // Bidi streaming RPC with hostile comments:
+  // `unclosed and [BidiStreamLink]
+  rpc BidiStreamMethod (stream HostileMessage) returns (stream HostileMessage);
+
+  // Deprecated RPC method:
+  // `unclosed and [DeprecatedRpcLink]
+  rpc DeprecatedMethod (HostileMessage) returns (HostileMessage) {
+    option deprecated = true;
+  }
+}

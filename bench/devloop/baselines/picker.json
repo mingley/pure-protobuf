@@ -1,0 +1,38 @@
+{
+  "cells": {
+    "lb.least_request.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.outlier_detection.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.pick_first.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.priority.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.random_subsetting_experimental.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.ring_hash.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.round_robin.pick": {
+      "allocs": 0,
+      "locks": 0
+    },
+    "lb.weighted_round_robin.pick": {
+      "allocs": 0,
+      "locks": 0
+    }
+  },
+  "note": "Absolute per-pick ceilings for deterministic metrics (CH-10, qualified across all policies in CH-11). A steady-state pick must allocate nothing and never block on a lock; uncontended acquisitions are pure atomics covered by the relative instructions budget (base-vs-head compare). Only deterministic counts belong here: instructions and wall stay relative per baselines/README.md.",
+  "schema": "devloop-budget/1"
+}

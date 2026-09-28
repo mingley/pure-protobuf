@@ -1,0 +1,21 @@
+{
+  "cell": "codec.pbrs.blob_touch_8mib",
+  "iters": 10000,
+  "allocs": 10000,
+  "alloc_bytes": 83886560000,
+  "wall_ns": 18565012458,
+  "copy_counts": {
+    "wire_calls": 10000,
+    "wire_bytes": 83886350000,
+    "emit_calls": 0,
+    "emit_bytes": 0,
+    "carry_calls": 0,
+    "carry_bytes": 0,
+    "chunk_slices": 0,
+    "chunk_slice_bytes": 0,
+    "encode_calls": 0,
+    "encode_bytes": 0,
+    "serialize_calls": 0,
+    "serialize_bytes": 0
+  }
+}

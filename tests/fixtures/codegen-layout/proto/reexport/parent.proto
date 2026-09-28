@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package reexport.parent;
+
+import public "reexport/grandparent.proto";
+
+message ParentData {
+  string lineage = 1;
+  reexport.grandparent.GrandparentData direct_ref = 2;
+}

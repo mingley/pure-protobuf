@@ -643,4 +643,30 @@ mod tests {
         assert!(r.is_empty());
         assert_eq!(r, Repeated::new());
     }
+
+    #[test]
+    fn arena_backed_repeated_strings_are_reclaimed() {
+        let arena = crate::runtime::Arena::new();
+        let raw = arena.alloc_array();
+        let mut values: RepeatedMut<'_, crate::string::ProtoString> =
+            RepeatedMut::from_raw_inner(raw);
+        values.push("alpha");
+        values.push("beta");
+        values.set(0, "gamma");
+        assert_eq!(
+            values.get(0).map(|value| value.as_bytes()),
+            Some(b"gamma".as_slice())
+        );
+        values.clear();
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    #[should_panic]
+    fn arena_backed_set_rejects_an_invalid_index() {
+        let arena = crate::runtime::Arena::new();
+        let raw = arena.alloc_array();
+        let mut values: RepeatedMut<'_, i32> = RepeatedMut::from_raw_inner(raw);
+        values.set(0, 7);
+    }
 }

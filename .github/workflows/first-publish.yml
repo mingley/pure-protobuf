@@ -1,0 +1,31 @@
+# Obsolete: pbrs 0.1.0 and the adapter alphas already exist on crates.io.
+# WHY: a second dispatch publisher is a second path. Publishing is only
+# `.github/workflows/release.yml` (v* tags or confirmed dispatch after
+# required CI). This file must not grow a push trigger or a token step.
+name: First publish (crates.io)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Obsolete — this workflow will not publish. Use release.yml.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: first-publish-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: obsolete — will not publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to publish
+        run: |
+          echo "::error::first-publish.yml is obsolete; crates already exist on crates.io."
+          echo "Use .github/workflows/release.yml (v* tag or confirmed dispatch) after required CI."
+          exit 1

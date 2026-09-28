@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+// Official proto3 Timestamp. JSON is an RFC3339 string, not an object.
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}

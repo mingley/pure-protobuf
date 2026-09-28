@@ -1,0 +1,57 @@
+// A service that exists only to prove the code generator: it is compiled by
+// `build.rs` with `Stubs::Kernel` and driven from `tests/codegen.rs`, which is
+// a separate crate and therefore links `pbrs-grpc` the way a user's crate does.
+//
+// It deliberately covers all four RPC shapes, a nested message, a repeated
+// field, an enum, and a map, so the generated stubs are exercised against more
+// than one-string messages.
+syntax = "proto3";
+
+package kv;
+
+service Store {
+  // Unary.
+  rpc Get (GetRequest) returns (GetResponse);
+  // Client-streaming.
+  rpc PutAll (stream Entry) returns (PutSummary);
+  // Server-streaming.
+  rpc Watch (WatchRequest) returns (stream Event);
+  // Bidirectional-streaming.
+  rpc Sync (stream Entry) returns (stream Event);
+}
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_PUT = 1;
+  KIND_DELETE = 2;
+}
+
+message Entry {
+  string key = 1;
+  bytes value = 2;
+  map<string, string> tags = 3;
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bool found = 1;
+  Entry entry = 2;
+}
+
+message PutSummary {
+  int64 entries = 1;
+  int64 bytes = 2;
+  repeated string keys = 3;
+}
+
+message WatchRequest {
+  repeated string prefixes = 1;
+}
+
+message Event {
+  Kind kind = 1;
+  Entry entry = 2;
+}

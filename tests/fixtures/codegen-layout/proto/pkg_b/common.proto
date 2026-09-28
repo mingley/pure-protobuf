@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package pkg.b;
+
+enum CommonEnum {
+  COMMON_ENUM_UNSPECIFIED = 0;
+  COMMON_ENUM_B_INITIALIZED = 1;
+  COMMON_ENUM_B_TERMINATED = 2;
+}
+
+message CommonMsg {
+  int64 b_id = 1;
+  bytes b_payload = 2;
+
+  message NestedB {
+    int64 count_b = 1;
+  }
+
+  NestedB nested_b = 3;
+  CommonEnum status_b = 4;
+}

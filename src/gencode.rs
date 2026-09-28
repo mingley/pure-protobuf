@@ -12,8 +12,8 @@ pub fn conformance_pool() -> Arc<DescriptorPool> {
     .clone()
 }
 
-pub use crate::generated::test_messages_edition2023::TestAllTypesEdition2023;
 pub use crate::generated::test_messages_edition_unstable::TestAllTypesEditionUnstable;
+pub use crate::generated::test_messages_edition2023::TestAllTypesEdition2023;
 pub use crate::generated::test_messages_proto2::{TestAllRequiredTypesProto2, TestAllTypesProto2};
 pub use crate::generated::test_messages_proto2_editions::{
     TestAllRequiredTypesProto2 as EditionsTestAllRequiredTypesProto2,

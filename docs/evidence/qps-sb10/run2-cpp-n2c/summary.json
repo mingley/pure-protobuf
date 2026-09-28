@@ -1,0 +1,131 @@
+{
+  "driver": {
+    "binary": "target/interop-cpp/qps_json_driver",
+    "kind": "cpp",
+    "sha256": "232aa0b777796686fb0a8128ad54d4a797096f63d11de6af83a50c4b33a06410",
+    "source_pin": "d1487957db6658bc532b72871775148229836627"
+  },
+  "native": {
+    "source_sha": "3223855d32464debe152411c74a0bd056eb189a1",
+    "binary_sha256": "4f509d00442c5986b42915e6bbcb4a0517b904cabbf80dee34d8a79b2790ad80",
+    "dirty_source": true,
+    "source_verified": false
+  },
+  "reference_worker": {
+    "binary": "/Users/mingley/dev/pure-protobuf/target/interop-cpp/qps_worker",
+    "sha256": "e5c8bfd9c5981b663acac4e578c05be038f95177b0253f2329fe5ea73ca0793e",
+    "source_pin": "d1487957db6658bc532b72871775148229836627"
+  },
+  "runs": [
+    {
+      "scenario": "protobuf_unary_ping_pong_empty",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "9909.7",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_unary_ping_pong_1kb",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "10154.8",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_unary_ping_pong_64kb",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "5347.9",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_streaming_ping_pong_empty",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "9786.0",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_streaming_ping_pong_1kb",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "9568.0",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_unary_qps_unconstrained_100rpcs",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "30013.2",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "protobuf_unary_poisson_5000qps",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "5013.1",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "cpp_protobuf_async_unary_ping_pong_insecure",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "11963.1",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "cpp_protobuf_async_streaming_ping_pong_insecure",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "10196.2",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "go_protobuf_sync_unary_ping_pong_insecure",
+      "direction": "native_client_to_ref_server",
+      "status": "FAIL",
+      "qps": "N/A",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    },
+    {
+      "scenario": "go_protobuf_sync_streaming_ping_pong_insecure",
+      "direction": "native_client_to_ref_server",
+      "status": "FAIL",
+      "qps": "N/A",
+      "latency_p50": "N/A",
+      "latency_p99": "N/A",
+      "server_cpu": "N/A",
+      "client_cpu": "N/A"
+    }
+  ]
+}
