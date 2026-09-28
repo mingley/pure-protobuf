@@ -1,0 +1,49 @@
+threads: 15 total samples: 89220
+leaf samples: 79025 (expect ~= total)
+ 76366 85.59% IDLE/IO __psynch_cvwait
+  1879  2.11% IDLE/IO __recvfrom
+   178  0.20% COPY?   _platform_memmove
+   102  0.11% IDLE/IO __psynch_cvsignal
+    72  0.08%         <std::sys::pal::unix::time::Timespec>::now
+    55  0.06%         <tokio::runtime::io::driver::Driver>::turn
+    33  0.04%         tokio::runtime::scheduler::multi_thread::worker::run
+    32  0.04% IDLE/IO __psynch_mutexwait
+    31  0.03% IDLE/IO <tokio::runtime::scheduler::multi_thread::park::Unparker>::unpark
+    25  0.03%         <tokio::net::tcp::stream::TcpStream>::poll_write_vectored_priv
+    22  0.02%         <h2::proto::streams::buffer::Deque>::pop_front::<h2::proto::streams::recv::Event>
+    11  0.01% COPY?   _xzm_xzone_free_freelist
+    10  0.01%         <h2::share::RecvStream>::poll_data
+     9  0.01% IDLE/IO __psynch_mutexdrop
+     8  0.01%         <tokio::runtime::io::registration::Registration>::poll_ready
+     7  0.01%         <tokio::runtime::scheduler::multi_thread::handle::Handle>::schedule_task
+     7  0.01%         <tokio::sync::notify::NotifiedProject>::poll_notified
+     7  0.01%         <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::server::dis
+     6  0.01%         <tokio::net::tcp::stream::TcpStream>::poll_read_priv
+     6  0.01%         <slab::Slab<h2::proto::streams::buffer::Slot<h2::proto::streams::recv::Event>>>::insert_at
+     5  0.01% IDLE/IO <tokio::runtime::scheduler::multi_thread::worker::Context>::park_internal
+     5  0.01%         _xzm_free
+     5  0.01% COPY?   <bytes::bytes_mut::BytesMut>::reserve_inner
+     5  0.01% COPY?   _xzm_xzone_malloc_small_freelist
+     4  0.00%         <tokio::process::imp::GlobalOrphanQueue>::reap_orphans
+     4  0.00% COPY?   _realloc
+     4  0.00%         <tokio_util::codec::length_delimited::LengthDelimitedCodec as tokio_util::codec::decoder::Decoder>::decode
+     4  0.00%         <h2::proto::streams::streams::Actions>::reset_on_recv_stream_err::<bytes::bytes::Bytes>
+     4  0.00%         _xzm_free_outlined
+     4  0.00%         pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+     4  0.00%         <tokio::runtime::scheduler::multi_thread::worker::Context>::run_task
+     4  0.00%         <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallRequest, pbrs_gr
+     4  0.00%         <tokio::runtime::io::scheduled_io::ScheduledIo>::wake
+     4  0.00%         <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::server::dis
+     3  0.00% IDLE/IO _pthread_cond_wait
+     3  0.00% COPY?   _xzm_xzone_malloc
+     3  0.00%         <h2::proto::streams::store::Ptr as core::ops::deref::DerefMut>::deref_mut
+     3  0.00%         <h2::proto::connection::DynConnection>::recv_frame
+     3  0.00%         pbrs_grpc::server::connection::wait_for_drain::{closure#0}
+     3  0.00% COPY?   _xzm_xzone_malloc_tiny
+     3  0.00%         pbrs_grpc::codec::pop_limited
+     2  0.00%         tokio::runtime::task::raw::schedule::<alloc::sync::Arc<tokio::runtime::scheduler::multi_thread::handle::Handle>>
+     2  0.00%         <std::hash::random::DefaultHasher as core::hash::Hasher>::write
+     2  0.00%         <h2::proto::streams::prioritize::Prioritize>::pop_frame::<bytes::bytes::Bytes>
+     2  0.00%         <h2::proto::streams::streams::Streams<bytes::bytes::Bytes, h2::server::Peer>>::next_incoming
+
+idle=78427 (87.9%) copy-candidates=209 (0.2%) total=89220

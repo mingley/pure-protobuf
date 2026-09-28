@@ -1,0 +1,64 @@
+memmove leaf total: 178
+    154 carry:FrameReader::push
+     23 h2
+      1 parse
+
+--- 23 [carry:FrameReader::push]
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+--- 18 [carry:FrameReader::push]
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+--- 13 [carry:FrameReader::push]
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+--- 12 [h2]
+    _malloc_zone_realloc
+    _realloc
+    <alloc::raw_vec::RawVecInner>::finish_grow
+    <alloc::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc::alloc::Global>
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <tokio_util::codec::length_delimited::LengthDelimitedCodec as tokio_util::codec::decoder::Decoder>::decode
+--- 11 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+--- 11 [carry:FrameReader::push]
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+--- 10 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+--- 10 [carry:FrameReader::push]
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+--- 8 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+--- 7 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+--- 6 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+--- 6 [carry:FrameReader::push]
+    <bytes::bytes_mut::BytesMut>::reserve_inner
+    <pbrs_grpc::wire::frame_reader::FrameReader>::push
+    pbrs_grpc::testing::streaming_input_call_impl::{closure#0}
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s
+    <pbrs_grpc::server::rpc::Rpc>::run_streaming_request::<pbrs_grpc::testing::__gen_grpc_testing_test_proto::StreamingInputCallReques
+    <pbrs_grpc::testing::__gen_grpc_testing_test_proto::TestServiceServer<pbrs_grpc::testing::SizedInteropTestService> as pbrs_grpc::s

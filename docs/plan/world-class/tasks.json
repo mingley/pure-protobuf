@@ -2371,7 +2371,13 @@
     "C4",
     "D3"
    ],
-   "relates": []
+   "relates": [],
+   "status": "superseded",
+   "evidence": [
+    "docs/evidence/pk10-gate.md",
+    "docs/evidence/pk10-gate/"
+   ],
+   "note": "Killed by own Phase 3 precondition gate: carry is 1.9% of busy server CPU on LP upload with 16KiB peer frames (need >=5%); 3-alt shows frame count is not the lever. Worker-protocol rule 2 report-stop; no code change."
   },
   {
    "id": "PK-11",
