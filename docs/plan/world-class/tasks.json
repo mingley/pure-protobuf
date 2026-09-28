@@ -2421,7 +2421,12 @@
     "C4",
     "D3"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/pk11-send.md",
+    "docs/evidence/pk11-send/"
+   ]
   },
   {
    "id": "PK-12",

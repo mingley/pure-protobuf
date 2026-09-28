@@ -9,7 +9,6 @@ use crate::status::Status;
 use crate::telemetry::{
     AttemptGuard, AttemptLabels, CallGuard, CancellationReason, LifecycleObserver, OwnedCallLabels,
 };
-use bytes::Bytes;
 use http::HeaderValue;
 use pbrs::Parse;
 use std::sync::Arc;
@@ -246,7 +245,7 @@ pub(crate) struct HedgeUnary {
     pub(crate) deadline: Option<tokio::time::Instant>,
     pub(crate) wait: bool,
     pub(crate) compress: bool,
-    pub(crate) frame: Bytes,
+    pub(crate) frame: crate::wire::SegFrame,
     pub(crate) cancel_rx: watch::Receiver<bool>,
     pub(crate) wire: Wire,
     pub(crate) ua: HeaderValue,
@@ -320,12 +319,12 @@ where
             // on hedged-task abort.
             let _lr =
                 super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref()).await;
-            let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+            let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
                 Ok(permit) => permit,
                 Err(status) => break Err(status),
             };
             if let (Some(obs), Some(call)) = (&observer, &owned_labels) {
-                obs.on_bytes_sent(&call.as_borrowed(), frame.len());
+                obs.on_bytes_sent(&call.as_borrowed(), frame.total_len());
             }
             // Channelz: the hedged attempt's stream starts here
             // (past setup rejects, so every start pairs with an end).

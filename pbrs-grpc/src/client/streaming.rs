@@ -17,7 +17,9 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
-use crate::wire::{OutBatch, PumpEnd, encode_msg, finish_stream, finish_unary, reset_on_cancel};
+use crate::wire::{
+    OutBatch, PumpEnd, SegFrame, encode_msg, finish_stream, finish_unary, reset_on_cancel,
+};
 use bytes::Bytes;
 use h2::Reason;
 use http::HeaderValue;
@@ -38,7 +40,7 @@ pub(crate) async fn run_server_stream<Resp>(
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
     compress: bool,
-    frame: Bytes,
+    frame: SegFrame,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
@@ -75,7 +77,7 @@ async fn run_server_stream_inner<Resp>(
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
     compress: bool,
-    frame: Bytes,
+    frame: SegFrame,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
@@ -136,7 +138,9 @@ where
     }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Server-streaming sends one request with end-of-stream set.
-        tap.log_written(log_frame);
+        for seg in log_frame.segments() {
+            tap.log_written(seg);
+        }
         tap.log_half_close();
     }
     let response = race(
@@ -704,7 +708,7 @@ impl super::Channel {
                         live.rr_addr,
                         live.channelz_socket,
                     );
-                    let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+                    let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
                             attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
@@ -718,7 +722,7 @@ impl super::Channel {
                         }
                     };
                     if let Some(obs) = &observer {
-                        obs.on_bytes_sent(&call_labels, frame.len());
+                        obs.on_bytes_sent(&call_labels, frame.total_len());
                     }
                     let attempt_deadline = retry_policy
                         .as_ref()

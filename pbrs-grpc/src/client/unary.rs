@@ -14,7 +14,7 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
-use crate::wire::{encode_msg, finish_unary};
+use crate::wire::{SegFrame, encode_msg, finish_unary};
 use bytes::Bytes;
 use http::HeaderValue;
 use http::uri::Authority;
@@ -34,7 +34,7 @@ pub(crate) async fn run_unary<Resp>(
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
     compress: bool,
-    frame: Bytes,
+    frame: SegFrame,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
@@ -70,7 +70,7 @@ async fn run_unary_inner<Resp>(
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
     compress: bool,
-    frame: Bytes,
+    frame: SegFrame,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
@@ -125,7 +125,9 @@ where
     }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Unary sends with end-of-stream set: message and half-close together.
-        tap.log_written(log_frame);
+        for seg in log_frame.segments() {
+            tap.log_written(seg);
+        }
         tap.log_half_close();
     }
     race(
@@ -330,7 +332,7 @@ impl super::Channel {
                     let _lr =
                         super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref())
                             .await;
-                    let byte_permit = match channel.byte_budget.acquire(frame.len()) {
+                    let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
                             attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
@@ -344,7 +346,7 @@ impl super::Channel {
                         }
                     };
                     if let Some(obs) = &observer {
-                        obs.on_bytes_sent(&call_labels, frame.len());
+                        obs.on_bytes_sent(&call_labels, frame.total_len());
                     }
                     let attempt_deadline = retry_policy
                         .as_ref()

@@ -239,6 +239,10 @@ struct CopyCountsJson {
     encode_bytes: u64,
     serialize_calls: u64,
     serialize_bytes: u64,
+    #[serde(default)]
+    shared_segments: u64,
+    #[serde(default)]
+    shared_bytes: u64,
 }
 
 fn read_copy_counts() -> CopyCountsJson {
@@ -257,6 +261,8 @@ fn read_copy_counts() -> CopyCountsJson {
         encode_bytes: grpc.encode_bytes,
         serialize_calls: grpc.serialize_calls,
         serialize_bytes: grpc.serialize_bytes,
+        shared_segments: grpc.shared_segments,
+        shared_bytes: grpc.shared_bytes,
     }
 }
 

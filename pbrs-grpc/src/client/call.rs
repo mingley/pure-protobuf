@@ -4,7 +4,7 @@ use super::pool::LiveConn;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status, TransportEvidence};
 use crate::timeout::remaining_timeout;
-use crate::wire::{grpc_request, send_bytes, status_from};
+use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
 use bytes::Bytes;
 use h2::Reason;
 use http::HeaderValue;
@@ -83,14 +83,14 @@ pub(crate) async fn prefer_peer_rejection_after_send<T>(
 
 pub(crate) async fn send_request_frame(
     send: &mut h2::SendStream<Bytes>,
-    frame: Bytes,
+    frame: SegFrame,
     send_buffer: usize,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<(), Status> {
     let result = prefer_deadline(
         first_of(
-            send_bytes(send, frame, true, send_buffer),
+            send_frame(send, frame, true, send_buffer),
             cancel_rx,
             deadline,
         )

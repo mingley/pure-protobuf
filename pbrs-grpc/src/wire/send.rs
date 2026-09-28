@@ -1,5 +1,6 @@
 //! Outbound writes: headers, trailers, rejects, request pump.
 
+use super::encode::SegFrame;
 use super::headers::{
     APPLICATION_GRPC, GRPC_ACCEPT_ENCODING, GRPC_ENCODING, GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS,
     GRPC_STATUS, GRPC_STATUS_DETAILS_BIN, HEADER_CAPACITY, RequestReject, STATUS_OK,
@@ -72,6 +73,25 @@ pub(crate) async fn send_bytes(
         send.send_data(frame.slice(..n), end && last)
             .map_err(Status::from_h2_send)?;
         frame = frame.slice(n..);
+    }
+    Ok(())
+}
+
+/// Send one framed message segment by segment (PK-11).
+///
+/// The concatenated bytes are exactly one gRPC frame; `end` applies to
+/// the last segment only, so trailers (or stream end) still follow the
+/// whole message.
+pub(crate) async fn send_frame(
+    send: &mut SendStream<Bytes>,
+    frame: SegFrame,
+    end: bool,
+    send_buffer: usize,
+) -> Result<(), Status> {
+    let total = frame.seg_count();
+    for (i, seg) in frame.into_segments().enumerate() {
+        let last = i + 1 == total;
+        send_bytes(send, seg, end && last, send_buffer).await?;
     }
     Ok(())
 }

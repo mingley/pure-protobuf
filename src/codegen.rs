@@ -149,4 +149,32 @@ mod tests {
         assert!(starts_with_ignore_ascii("FOOBar", "foo"));
         assert!(!starts_with_ignore_ascii("short", "much longer prefix"));
     }
+
+    #[test]
+    fn bytes_fields_encode_via_shared_helper() {
+        // PK-11: bytes fields offer their buffer to segmented sinks; string
+        // fields keep the copying helper.
+        use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, Presence};
+
+        fn field(field_type: FieldType) -> FieldDescriptor {
+            FieldDescriptor::new(
+                "data",
+                2,
+                field_type,
+                Cardinality::Optional,
+                Presence::Implicit,
+            )
+        }
+
+        let mut src = String::new();
+        emit_write(&mut src, &field(FieldType::Bytes), "self");
+        assert!(
+            src.contains("encode_len_field_shared(out, 2, &self.data"),
+            "{src}"
+        );
+        let mut src = String::new();
+        emit_write(&mut src, &field(FieldType::String), "self");
+        assert!(src.contains("encode_len_field(out, 2,"), "{src}");
+        assert!(!src.contains("encode_len_field_shared"), "{src}");
+    }
 }

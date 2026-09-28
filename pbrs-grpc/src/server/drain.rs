@@ -10,7 +10,7 @@ use crate::stream::Streaming;
 use crate::telemetry::{CallLabels, LifecycleObserver};
 use crate::wire::{
     OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
-    select_outbound_codec, select_stream_codec, send_bytes, send_ok_headers, send_trailers_only,
+    select_outbound_codec, select_stream_codec, send_frame, send_ok_headers, send_trailers_only,
 };
 use bytes::Bytes;
 use pbrs::Serialize;
@@ -170,7 +170,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
             return;
         }
     };
-    let permit = match budget.acquire(frame.len()) {
+    let permit = match budget.acquire(frame.total_len()) {
         Ok(p) => p,
         Err(status) => {
             if let Some(tap) = tap {
@@ -185,15 +185,17 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     };
     if let Some(tap) = tap {
         tap.log_server_header(&headers);
-        tap.log_written(&frame);
+        for seg in frame.segments() {
+            tap.log_written(seg);
+        }
     }
     if let Some(obs) = observer {
-        obs.on_bytes_sent(call_labels, frame.len());
+        obs.on_bytes_sent(call_labels, frame.total_len());
     }
     if let Some(socket) = channelz_socket {
         crate::channelz::Registry::global().note_messages(socket, true, 1);
     }
-    send_bytes(&mut send, frame, false, wire.send_buffer)
+    send_frame(&mut send, frame, false, wire.send_buffer)
         .await
         .ok();
     drop(permit);

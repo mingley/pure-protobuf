@@ -7,7 +7,7 @@ pub(crate) mod headers;
 pub(crate) mod out_batch;
 pub(crate) mod send;
 
-pub(crate) use encode::encode_msg;
+pub(crate) use encode::{SegFrame, encode_msg};
 pub(crate) use frame_reader::{
     WireStream, finish_stream, finish_unary, read_one_message, status_from,
 };
@@ -18,7 +18,7 @@ pub(crate) use headers::{
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{
-    PumpEnd, grpc_trailers, pump_outbound, reject, reject_request, reset_on_cancel, send_bytes,
+    PumpEnd, grpc_trailers, pump_outbound, reject, reject_request, reset_on_cancel, send_frame,
     send_ok_headers, send_trailers_only, wrap_timeout,
 };
 // Re-exported for the unit tests below, which drive internals directly.

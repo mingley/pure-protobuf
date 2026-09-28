@@ -516,6 +516,19 @@ impl LazyBytes {
         }
     }
 
+    /// This field as a shareable buffer, when no copy is needed to obtain
+    /// it (PK-11). `Some` for shared or owned backing (refcount clone);
+    /// `None` for a privately-parsed wire window, where sharing would copy
+    /// anyway and the caller should encode inline instead.
+    pub fn shared_bytes(&self) -> Option<Bytes> {
+        match self {
+            Self::Empty => Some(Bytes::new()),
+            Self::Wire(w) if w.is_shared() => Some(w.as_bytes()),
+            Self::Wire(_) => None,
+            Self::Owned(s) => Some(s.as_shared()),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.as_bytes().is_empty()
     }

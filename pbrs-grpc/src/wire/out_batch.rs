@@ -1,18 +1,18 @@
 //! Batched stream output: OutBatch.
 
-use super::encode::{STREAM_BATCH_BYTES, append_frame};
-use super::send::send_bytes;
+use super::encode::{STREAM_BATCH_BYTES, SegSink, append_frame};
+use super::send::send_frame;
 use crate::binlog::CallLogger;
 use crate::config::Wire;
 use crate::status::Status;
 use crate::stream::Framed;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use h2::SendStream;
 use pbrs::Serialize;
 
 /// Accumulates encoded stream output and hands it to HTTP/2 in batches.
 pub(crate) struct OutBatch {
-    buf: BytesMut,
+    sink: SegSink,
     wire: Wire,
     tap: Option<CallLogger>,
 }
@@ -26,7 +26,7 @@ impl OutBatch {
 
     pub(crate) fn new(wire: Wire) -> Self {
         Self {
-            buf: BytesMut::new(),
+            sink: SegSink::new(),
             wire,
             tap: None,
         }
@@ -42,36 +42,42 @@ impl OutBatch {
     /// Encode-cap and serialize failures stay [`Status`] so a server drain
     /// can ship them as trailers instead of treating them as a dead socket.
     pub(crate) fn encode<T: Serialize>(&mut self, item: Framed<T>) -> Result<(), Status> {
-        let prior_len = self.buf.len();
+        let checkpoint = self.sink.checkpoint();
         if let Err(status) = append_frame(
-            &mut self.buf,
+            &mut self.sink,
             &item.message,
             item.compressed.then_some(self.wire.send_codec),
             self.wire.limits,
             self.wire.gzip_level,
         ) {
             // Keep earlier complete frames flushable before the error trailer.
-            self.buf.truncate(prior_len);
+            self.sink.rollback(&checkpoint);
             return Err(status);
         }
         if let Some(tap) = &self.tap {
-            tap.log_written(self.buf.get(prior_len..).unwrap_or_default());
+            let (segs, tail) = self.sink.segments_since(&checkpoint);
+            for seg in segs {
+                tap.log_written(seg);
+            }
+            if !tail.is_empty() {
+                tap.log_written(tail);
+            }
         }
         Ok(())
     }
 
     /// Whether the batch has reached the size worth writing on its own.
     pub(crate) fn is_full(&self) -> bool {
-        self.buf.len() >= STREAM_BATCH_BYTES
+        self.sink.len() >= STREAM_BATCH_BYTES
     }
 
     /// Hand whatever has accumulated to HTTP/2.
     pub(crate) async fn flush(&mut self, send: &mut SendStream<Bytes>) -> Result<(), Status> {
-        if self.buf.is_empty() {
+        if self.sink.is_empty() {
             return Ok(());
         }
-        let frame = std::mem::take(&mut self.buf).freeze();
-        send_bytes(send, frame, false, self.wire.send_buffer).await
+        let sink = std::mem::replace(&mut self.sink, SegSink::new());
+        send_frame(send, sink.finish(), false, self.wire.send_buffer).await
     }
 }
 

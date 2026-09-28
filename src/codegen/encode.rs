@@ -279,7 +279,12 @@ pub(crate) fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
         return;
     }
     if f.cardinality == Cardinality::Repeated {
-        if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
+        if f.field_type == FieldType::Bytes {
+            let _ = writeln!(
+                src,
+                "        for t in {fld}.iter() {{ pbrs::rt::encode_len_field_shared(out, {num}, t); }}"
+            );
+        } else if f.field_type == FieldType::String {
             let _ = writeln!(
                 src,
                 "        for t in {fld}.iter() {{ pbrs::rt::encode_len_field(out, {num}, t.as_bytes()); }}"
@@ -332,7 +337,22 @@ pub(crate) fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
         }
         return;
     }
-    if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
+    if f.field_type == FieldType::Bytes {
+        // PK-11: large bytes fields share their buffer with segmented sinks.
+        if is_option(f) {
+            let _ = writeln!(
+                src,
+                "        if let Some(s) = &{fld} {{ pbrs::rt::encode_len_field_shared(out, {num}, s); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "        if !{fld}.is_empty() {{ pbrs::rt::encode_len_field_shared(out, {num}, &{fld}); }}"
+            );
+        }
+        return;
+    }
+    if f.field_type == FieldType::String {
         if is_option(f) {
             let _ = writeln!(
                 src,

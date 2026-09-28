@@ -12,9 +12,12 @@
 //! - `chunk_slice_*`: `codec::pop_from_chunk` slicing a whole frame out
 //!   of one DATA chunk. A zero-copy witness, not a copy.
 //! - `encode_*`: uncompressed `wire::encode_msg` serializing the message
-//!   straight into the framed buffer.
+//!   straight into the framed buffer. Counts only bytes actually copied;
+//!   shared segments are witnessed under `shared_*` instead.
 //! - `serialize_*`: compressed `encode_msg` materializing `T::serialize`
 //!   before compression.
+//! - `shared_*`: large bytes fields handed to the segmented send sink via
+//!   `WireOut::put_shared` (PK-11). A zero-copy witness, not a copy.
 
 /// Snapshot of the process-wide copy counters.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -35,6 +38,10 @@ pub struct CopyCounts {
     pub serialize_calls: u64,
     /// Bytes materialized by compressed-path `T::serialize`.
     pub serialize_bytes: u64,
+    /// Large bytes fields sent as shared segments (zero-copy path taken).
+    pub shared_segments: u64,
+    /// Payload bytes sent as shared segments (never copied).
+    pub shared_bytes: u64,
 }
 
 #[cfg(feature = "copy-counts")]
@@ -50,6 +57,8 @@ mod state {
     static ENCODE_BYTES: AtomicU64 = AtomicU64::new(0);
     static SERIALIZE_CALLS: AtomicU64 = AtomicU64::new(0);
     static SERIALIZE_BYTES: AtomicU64 = AtomicU64::new(0);
+    static SHARED_SEGMENTS: AtomicU64 = AtomicU64::new(0);
+    static SHARED_BYTES: AtomicU64 = AtomicU64::new(0);
 
     pub(super) fn snapshot() -> CopyCounts {
         CopyCounts {
@@ -61,6 +70,8 @@ mod state {
             encode_bytes: ENCODE_BYTES.load(Ordering::Relaxed),
             serialize_calls: SERIALIZE_CALLS.load(Ordering::Relaxed),
             serialize_bytes: SERIALIZE_BYTES.load(Ordering::Relaxed),
+            shared_segments: SHARED_SEGMENTS.load(Ordering::Relaxed),
+            shared_bytes: SHARED_BYTES.load(Ordering::Relaxed),
         }
     }
 
@@ -73,6 +84,8 @@ mod state {
         ENCODE_BYTES.store(0, Ordering::Relaxed);
         SERIALIZE_CALLS.store(0, Ordering::Relaxed);
         SERIALIZE_BYTES.store(0, Ordering::Relaxed);
+        SHARED_SEGMENTS.store(0, Ordering::Relaxed);
+        SHARED_BYTES.store(0, Ordering::Relaxed);
     }
 
     pub(super) fn add_carry(bytes: u64) {
@@ -93,6 +106,11 @@ mod state {
     pub(super) fn add_serialize(bytes: u64) {
         SERIALIZE_CALLS.fetch_add(1, Ordering::Relaxed);
         SERIALIZE_BYTES.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    pub(super) fn add_shared(bytes: u64) {
+        SHARED_SEGMENTS.fetch_add(1, Ordering::Relaxed);
+        SHARED_BYTES.fetch_add(bytes, Ordering::Relaxed);
     }
 }
 
@@ -143,6 +161,15 @@ pub(crate) fn note_encode(bytes: usize) {
 pub(crate) fn note_serialize(bytes: usize) {
     #[cfg(feature = "copy-counts")]
     state::add_serialize(bytes as u64);
+    #[cfg(not(feature = "copy-counts"))]
+    let _ = bytes;
+}
+
+/// Record one zero-copy send of `bytes` payload bytes as a shared segment.
+/// Compiles to nothing without the `copy-counts` feature.
+pub(crate) fn note_shared(bytes: usize) {
+    #[cfg(feature = "copy-counts")]
+    state::add_shared(bytes as u64);
     #[cfg(not(feature = "copy-counts"))]
     let _ = bytes;
 }
