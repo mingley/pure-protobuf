@@ -4,9 +4,10 @@ use super::pool::LiveConn;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status, TransportEvidence};
 use crate::timeout::remaining_timeout;
+use crate::transport::{
+    Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
+};
 use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
-use bytes::Bytes;
-use h2::Reason;
 use http::HeaderValue;
 use http::uri::Authority;
 use std::sync::Arc;
@@ -41,7 +42,7 @@ impl AttemptCommitment {
         }
     }
 
-    pub(crate) fn classify_h2(self, err: h2::Error) -> Status {
+    pub(crate) fn classify_h2(self, err: TransportError) -> Status {
         match self {
             Self::Uncommitted => Status::from_h2_pre_headers(err),
             Self::BodyStarted | Self::ResponseCommitted => Status::from_h2_post_dispatch(err),
@@ -50,7 +51,7 @@ impl AttemptCommitment {
 }
 
 pub(crate) async fn prefer_peer_rejection_after_send<T>(
-    response: h2::client::ResponseFuture,
+    response: backend::ResponseFuture,
     send_error: Status,
 ) -> Result<T, Status> {
     if send_error.is_transport() {
@@ -82,7 +83,7 @@ pub(crate) async fn prefer_peer_rejection_after_send<T>(
 }
 
 pub(crate) async fn send_request_frame(
-    send: &mut h2::SendStream<Bytes>,
+    send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
     cancel_rx: watch::Receiver<bool>,
@@ -111,7 +112,7 @@ pub(crate) async fn send_request_frame(
     reason = "one HTTP/2 stream open plus headers, timeout, encoding, and scheme"
 )]
 pub(crate) async fn open(
-    send_req: h2::client::SendRequest<Bytes>,
+    send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,
@@ -122,7 +123,7 @@ pub(crate) async fn open(
     accept_gzip: bool,
     user_agent: &HeaderValue,
     https: bool,
-) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
+) -> Result<(backend::ResponseFuture, backend::SendStream), Status> {
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
@@ -213,7 +214,7 @@ pub(crate) async fn race<T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
-    send: Option<&mut h2::SendStream<Bytes>>,
+    send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status> {
     let result = first_of(fut, cancel_rx, deadline).await;
     if let Some(send) = send {
@@ -231,8 +232,8 @@ pub(crate) async fn race<T>(
 pub(crate) struct Opened {
     pub(crate) lease: Option<crate::keepalive::Lease>,
     pub(crate) driver: Option<watch::Sender<bool>>,
-    pub(crate) resp_fut: h2::client::ResponseFuture,
-    pub(crate) send: h2::SendStream<Bytes>,
+    pub(crate) resp_fut: backend::ResponseFuture,
+    pub(crate) send: backend::SendStream,
     /// Channelz socket serving the stream, for stream/message counters.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
@@ -241,6 +242,10 @@ pub(crate) struct Opened {
 mod tests {
     use super::prefer_peer_rejection_after_send;
     use crate::status::{Status, TransportEvidence};
+    use crate::transport::h2 as backend;
+    use crate::transport::{
+        ClientBuilder, Reason, SendRequest, SendResponse, ServerBuilder, ServerConnection,
+    };
     use std::time::Duration;
 
     #[tokio::test]
@@ -252,20 +257,26 @@ mod tests {
             let addr = listener.local_addr().expect("addr");
             let peer = tokio::spawn(async move {
                 let (socket, _) = listener.accept().await.expect("accept");
-                let mut connection = h2::server::handshake(socket).await.expect("handshake");
+                let mut connection = backend::ServerBuilder::new()
+                    .handshake(socket)
+                    .await
+                    .expect("handshake");
                 let (_, mut respond) = connection
                     .accept()
                     .await
                     .expect("request")
                     .expect("headers");
-                respond.send_reset(h2::Reason::REFUSED_STREAM);
+                respond.send_reset(Reason::REFUSED_STREAM);
                 while let Some(result) = connection.accept().await {
                     result.expect("drive reset");
                 }
             });
 
             let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
-            let (sender, connection) = h2::client::handshake(socket).await.expect("handshake");
+            let (sender, connection) = backend::ClientBuilder::new()
+                .handshake(socket)
+                .await
+                .expect("handshake");
             let driver = tokio::spawn(async move { drop(connection.await) });
             let mut sender = sender.ready().await.expect("ready");
             let (response, _send) = sender

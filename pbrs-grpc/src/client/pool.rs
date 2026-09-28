@@ -26,7 +26,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{LifecycleObserver, ReconnectEvent};
 use crate::tls::ClientTls;
-use bytes::Bytes;
+use crate::transport::{ClientBuilder, ClientConnection, SendRequest, h2 as backend};
 use http::uri::Authority;
 use std::collections::HashMap;
 use std::future::Future;
@@ -49,7 +49,7 @@ use tokio::task::JoinSet;
 /// slot idle-closes.
 pub(crate) struct ConnSlot {
     pub(crate) r#gen: u64,
-    pub(crate) send: Option<h2::client::SendRequest<Bytes>>,
+    pub(crate) send: Option<backend::SendRequest>,
     /// Stops the connection driver (idle close, age close, lost-race handshake, drop).
     pub(crate) stop: Option<watch::Sender<bool>>,
     /// Outstanding RPCs; `None` when neither idle-close nor age is configured.
@@ -67,7 +67,7 @@ pub(crate) struct ConnSlot {
 
 /// A finished handshake: the sender plus the handles that stop its driver.
 pub(crate) struct Dialed {
-    pub(crate) send: h2::client::SendRequest<Bytes>,
+    pub(crate) send: backend::SendRequest,
     pub(crate) stop: watch::Sender<bool>,
     pub(crate) busy: Option<Arc<crate::keepalive::Busy>>,
     /// Local socket address, when the transport reports one (TCP;
@@ -81,7 +81,7 @@ pub(crate) struct Dialed {
 /// can discard this slot instead of writing into a reconnect that already
 /// landed.
 pub(crate) struct LiveConn {
-    pub(crate) send: h2::client::SendRequest<Bytes>,
+    pub(crate) send: backend::SendRequest,
     pub(crate) lease: Option<crate::keepalive::Lease>,
     /// Clone of the slot's driver-stop sender. Held on a received
     /// [`Streaming`] so dropping the last [`Channel`] does not stop the
@@ -2373,7 +2373,7 @@ fn addr_text(addr: &ResolvedAddress) -> String {
     }
 }
 
-fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<Bytes> {
+fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> backend::SendRequest {
     if let Some(stop) = slot.stop.take() {
         stop.send(true).ok();
     }
@@ -2831,7 +2831,7 @@ fn spawn_dial_attempt(
 /// any received message. The loop ends silently when the
 /// subconnection's stop channel fires (drain, discard, shutdown).
 struct HealthWatch {
-    send: h2::client::SendRequest<Bytes>,
+    send: backend::SendRequest,
     authority: Authority,
     https: bool,
     wire: crate::config::Wire,
@@ -2960,7 +2960,7 @@ impl HealthWatch {
 /// address unhealthy. The loop ends silently when the
 /// subconnection's stop channel fires (drain, discard, shutdown).
 struct OobWatch {
-    send: h2::client::SendRequest<Bytes>,
+    send: backend::SendRequest,
     authority: Authority,
     https: bool,
     wire: crate::config::Wire,
@@ -3073,7 +3073,7 @@ async fn spawn_oob_watch(
     inner: &ChannelInner,
     lb: &LbPolicy,
     addr: &ResolvedAddress,
-    send: &h2::client::SendRequest<Bytes>,
+    send: &backend::SendRequest,
     driver: &Option<watch::Sender<bool>>,
 ) {
     let Some(period) = lb.wants_oob().await else {
@@ -3122,7 +3122,7 @@ async fn ensure_health_watch(
     inner: &ChannelInner,
     policy: &LbPolicy,
     addr: &ResolvedAddress,
-    send: h2::client::SendRequest<Bytes>,
+    send: backend::SendRequest,
     stop: watch::Receiver<bool>,
     directive: Option<&HealthDirective>,
 ) -> Option<HealthSignal> {
@@ -3165,7 +3165,7 @@ async fn reuse_health_ok(
     inner: &ChannelInner,
     policy: &LbPolicy,
     addr: &ResolvedAddress,
-    send: &h2::client::SendRequest<Bytes>,
+    send: &backend::SendRequest,
     driver: &Option<watch::Sender<bool>>,
     directive: Option<&HealthDirective>,
 ) -> bool {

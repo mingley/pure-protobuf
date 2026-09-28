@@ -3,6 +3,7 @@
 
 use crate::metadata::Metadata;
 use crate::telemetry::{DiagnosticConfig, diagnostic_value};
+use crate::transport::{Error as TransportError, Reason};
 use bytes::Bytes;
 use std::borrow::Cow;
 use std::fmt;
@@ -1490,10 +1491,10 @@ impl Status {
     ///
     /// Failures before headers (or on connection handshake) are safe to retry
     /// transparently under gRFC A6.
-    pub(crate) fn from_h2_pre_headers(err: impl Into<h2::Error>) -> Self {
+    pub(crate) fn from_h2_pre_headers(err: impl Into<TransportError>) -> Self {
         let err = err.into();
         let mut status = Self::unavailable(err.to_string());
-        if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+        if err.reason() == Some(Reason::REFUSED_STREAM) {
             status.mark_transport(TransportEvidence::RefusedStream);
         } else if err.is_go_away() {
             status.mark_transport(TransportEvidence::GoawayUnprocessed);
@@ -1509,10 +1510,10 @@ impl Status {
     /// `last_stream_id < stream_id`, transparent retry is proven safe. Ambiguous connection
     /// drops (I/O error, broken pipe) are marked [`TransportEvidence::AmbiguousLoss`] and
     /// must not be transparently retried.
-    pub(crate) fn from_h2_post_dispatch(err: impl Into<h2::Error>) -> Self {
+    pub(crate) fn from_h2_post_dispatch(err: impl Into<TransportError>) -> Self {
         let err = err.into();
         let mut status = Self::unavailable(err.to_string());
-        if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+        if err.reason() == Some(Reason::REFUSED_STREAM) {
             status.mark_transport(TransportEvidence::RefusedStream);
         } else if err.is_go_away() {
             status.mark_transport(TransportEvidence::GoawayUnprocessed);
@@ -1526,18 +1527,18 @@ impl Status {
     ///
     /// Explicit `REFUSED_STREAM` and `GOAWAY` are recognized as unexecuted; general
     /// connection drops default safely to [`TransportEvidence::AmbiguousLoss`].
-    pub(crate) fn from_h2(err: impl Into<h2::Error>) -> Self {
+    pub(crate) fn from_h2(err: impl Into<TransportError>) -> Self {
         Self::from_h2_post_dispatch(err)
     }
 
     /// Like [`Self::from_h2_post_dispatch`], but non-connection failures stay
     /// [`Code::Internal`] so a flow-control `send_data` error is not
     /// reported as a dead peer.
-    pub(crate) fn from_h2_send(err: impl Into<h2::Error>) -> Self {
+    pub(crate) fn from_h2_send(err: impl Into<TransportError>) -> Self {
         let err = err.into();
         if h2_lost_connection(&err) {
             let mut status = Self::unavailable(err.to_string());
-            if err.reason() == Some(h2::Reason::REFUSED_STREAM) {
+            if err.reason() == Some(Reason::REFUSED_STREAM) {
                 status.mark_transport(TransportEvidence::RefusedStream);
             } else if err.is_go_away() {
                 status.mark_transport(TransportEvidence::GoawayUnprocessed);
@@ -1609,8 +1610,8 @@ impl TransportEvidence {
     }
 }
 
-fn h2_lost_connection(err: &h2::Error) -> bool {
-    err.is_io() || err.is_go_away() || err.reason() == Some(h2::Reason::REFUSED_STREAM)
+fn h2_lost_connection(err: &TransportError) -> bool {
+    err.is_io() || err.is_go_away() || err.reason() == Some(Reason::REFUSED_STREAM)
 }
 
 fn status_in_chain(err: &(dyn std::error::Error + 'static)) -> Option<Status> {
@@ -1721,6 +1722,7 @@ impl From<std::io::Error> for Status {
 #[cfg(test)]
 mod tests {
     use super::{Code, Status};
+    use crate::transport::Reason;
 
     #[test]
     fn status_is_two_words() {
@@ -2088,7 +2090,7 @@ mod tests {
 
     #[test]
     fn refused_stream_is_transport_lost_and_retryable() {
-        let status = Status::from_h2(h2::Reason::REFUSED_STREAM);
+        let status = Status::from_h2(Reason::REFUSED_STREAM);
         assert_eq!(status.code(), Code::Unavailable);
         assert!(status.is_transport());
         assert!(status.is_transparent_retryable());

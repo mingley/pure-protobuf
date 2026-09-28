@@ -11,8 +11,8 @@ use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
+use crate::transport::{Error as TransportError, FlowControl, RecvStream, h2 as backend};
 use bytes::{Bytes, BytesMut};
-use h2::RecvStream;
 use http::{HeaderMap, StatusCode};
 use pbrs::Parse;
 use std::future::{Future, poll_fn};
@@ -65,7 +65,7 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
 /// releases it once the chunk has been handed on, which is what turns a slow
 /// reader into peer backpressure.
 pub(crate) fn poll_data(
-    recv: &mut RecvStream,
+    recv: &mut backend::RecvStream,
     cx: &mut Context<'_>,
 ) -> Poll<Result<Option<Bytes>, Status>> {
     match recv.poll_data(cx) {
@@ -76,11 +76,11 @@ pub(crate) fn poll_data(
     }
 }
 
-pub(crate) async fn next_data(recv: &mut RecvStream) -> Result<Option<Bytes>, Status> {
+pub(crate) async fn next_data(recv: &mut backend::RecvStream) -> Result<Option<Bytes>, Status> {
     poll_fn(|cx| poll_data(recv, cx)).await
 }
 
-pub(crate) fn release(recv: &mut RecvStream, n: usize) -> Result<(), Status> {
+pub(crate) fn release(recv: &mut backend::RecvStream, n: usize) -> Result<(), Status> {
     if n == 0 {
         return Ok(());
     }
@@ -89,7 +89,7 @@ pub(crate) fn release(recv: &mut RecvStream, n: usize) -> Result<(), Status> {
         .map_err(|e| Status::internal(e.to_string()))
 }
 
-pub(crate) fn h2_error(e: h2::Error) -> Status {
+pub(crate) fn h2_error(e: TransportError) -> Status {
     if e.is_reset() {
         Status::cancelled()
     } else {
@@ -185,7 +185,7 @@ pub(crate) fn decode_frame<T: Parse + Default>(
 /// An empty body decodes to `T::default()`, matching gRPC's treatment of a
 /// zero-field message. More than one message is a protocol violation.
 pub(crate) async fn read_one_message<T: Parse + Default>(
-    recv: &mut RecvStream,
+    recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
     codec: Codec,
@@ -217,7 +217,9 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
 }
 
 /// Drain trailers so the HTTP/2 stream closes cleanly.
-pub(crate) async fn read_trailers(recv: &mut RecvStream) -> Result<Option<HeaderMap>, Status> {
+pub(crate) async fn read_trailers(
+    recv: &mut backend::RecvStream,
+) -> Result<Option<HeaderMap>, Status> {
     recv.trailers().await.map_err(h2_error)
 }
 
@@ -228,7 +230,7 @@ pub(crate) async fn read_trailers(recv: &mut RecvStream) -> Result<Option<Header
 /// exact, because a reader that stops reading stops releasing HTTP/2 capacity
 /// and the peer stalls at the window.
 pub(crate) struct WireStream<T> {
-    recv: RecvStream,
+    recv: backend::RecvStream,
     reader: FrameReader,
     limits: MessageLimits,
     /// Bound at construction, where `T: Parse` is known, so the public
@@ -249,7 +251,7 @@ pub(crate) struct WireStream<T> {
 
 impl<T: Parse + Default> WireStream<T> {
     pub(crate) fn new(
-        recv: RecvStream,
+        recv: backend::RecvStream,
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
         accept_gzip: bool,
@@ -441,7 +443,7 @@ pub(crate) fn refuse_encoding_reply(headers: &HeaderMap, accept_gzip: bool) -> R
 }
 
 pub(crate) async fn finish_unary<Resp: Parse + Default>(
-    response: http::Response<RecvStream>,
+    response: http::Response<backend::RecvStream>,
     limits: MessageLimits,
     accept_gzip: bool,
     tap: Option<&CallLogger>,
@@ -519,7 +521,7 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
 }
 
 pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
-    response: http::Response<RecvStream>,
+    response: http::Response<backend::RecvStream>,
     limits: MessageLimits,
     deadline: Option<tokio::time::Instant>,
     accept_gzip: bool,

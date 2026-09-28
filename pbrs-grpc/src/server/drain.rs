@@ -8,11 +8,11 @@ use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{CallLabels, LifecycleObserver};
+use crate::transport::{SendResponse, SendStream, h2 as backend};
 use crate::wire::{
     OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
     select_outbound_codec, select_stream_codec, send_frame, send_ok_headers, send_trailers_only,
 };
-use bytes::Bytes;
 use pbrs::Serialize;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
@@ -34,7 +34,7 @@ pub(crate) fn notify_deadline<T>(outcome: &Result<T, Status>, cancel: &watch::Se
 /// that are not currently reading) would otherwise run to completion after
 /// the caller has gone. `SendResponse::poll_reset` sees the reset without
 /// needing the request body.
-pub(crate) async fn wait_client_reset(respond: &mut h2::server::SendResponse<Bytes>) -> Status {
+pub(crate) async fn wait_client_reset(respond: &mut backend::SendResponse) -> Status {
     drop(std::future::poll_fn(|cx| respond.poll_reset(cx)).await);
     Status::cancelled()
 }
@@ -45,7 +45,7 @@ pub(crate) async fn wait_client_reset(respond: &mut h2::server::SendResponse<Byt
 /// [`Request::cancelled`] can finish. A handler that ignores cancel stays
 /// `Pending` and is dropped, the same as before.
 pub(crate) async fn run_handler<T>(
-    respond: &mut h2::server::SendResponse<Bytes>,
+    respond: &mut backend::SendResponse,
     on_reset: watch::Sender<bool>,
     handler: impl Future<Output = Result<T, Status>>,
     tap: Option<&crate::binlog::CallLogger>,
@@ -114,7 +114,7 @@ impl<F: Future<Output = ()>> Future for HoldCancel<F> {
 
 /// A handler result plus the response channel it still has to be written to.
 pub(crate) struct Prepared<T> {
-    pub(crate) respond: h2::server::SendResponse<Bytes>,
+    pub(crate) respond: backend::SendResponse,
     pub(crate) wire: Wire,
     /// The RPC's deadline, shared by the handler, the inbound stream, and the
     /// response writer, so no stage can outlive it.
@@ -146,7 +146,7 @@ pub(crate) struct Prepared<T> {
 )]
 pub(crate) async fn send_unary_response<Resp: Serialize>(
     response: Response<Resp>,
-    mut respond: h2::server::SendResponse<Bytes>,
+    mut respond: backend::SendResponse,
     wire: Wire,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
@@ -215,7 +215,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
 )]
 pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     response: Response<Streaming<Resp>>,
-    mut respond: h2::server::SendResponse<Bytes>,
+    mut respond: backend::SendResponse,
     wire: Wire,
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
@@ -317,7 +317,7 @@ pub(crate) enum DrainError {
 
 pub(crate) async fn flush_queued_before_error(
     batch: &mut OutBatch,
-    send: &mut h2::SendStream<Bytes>,
+    send: &mut backend::SendStream,
     permits: &mut Vec<crate::limits::BytePermit>,
     status: Status,
 ) -> Result<(), DrainError> {
@@ -334,7 +334,7 @@ pub(crate) async fn flush_queued_before_error(
 )]
 pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     stream: &mut Streaming<Resp>,
-    send: &mut h2::SendStream<Bytes>,
+    send: &mut backend::SendStream,
     mut wire: Wire,
     envelope: Option<bool>,
     prefer_gzip: bool,

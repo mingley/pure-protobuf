@@ -999,8 +999,9 @@ impl ServerConfig {
         }
     }
 
-    pub(crate) fn h2_builder(self) -> h2::server::Builder {
-        let mut builder = h2::server::Builder::new();
+    pub(crate) fn h2_builder(self) -> crate::transport::h2::ServerBuilder {
+        use crate::transport::ServerBuilder;
+        let mut builder = crate::transport::h2::ServerBuilder::new();
         builder
             .initial_window_size(self.initial_stream_window_size)
             .initial_connection_window_size(self.initial_connection_window_size)
@@ -2017,8 +2018,9 @@ impl ChannelConfig {
         }
     }
 
-    pub(crate) fn h2_builder(self) -> h2::client::Builder {
-        let mut builder = h2::client::Builder::new();
+    pub(crate) fn h2_builder(self) -> crate::transport::h2::ClientBuilder {
+        use crate::transport::ClientBuilder;
+        let mut builder = crate::transport::h2::ClientBuilder::new();
         builder
             .initial_window_size(self.initial_stream_window_size)
             .initial_connection_window_size(self.initial_connection_window_size)

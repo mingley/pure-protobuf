@@ -14,9 +14,9 @@ use crate::metadata::Metadata;
 use crate::status::{Code, Status};
 use crate::telemetry::{CallLabels, CallRole, LifecycleObserver, RejectionEvent, RejectionReason};
 use crate::tls::PeerIdentity;
+use crate::transport::h2::{RecvStream, SendResponse};
+use crate::transport::{ServerBuilder, ServerConnection};
 use crate::wire::{check_request, reject, reject_request};
-use bytes::Bytes;
-use h2::RecvStream;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -210,7 +210,7 @@ impl ConnectionInfo {
 
 pub(crate) fn incoming_rpc(
     request: http::Request<RecvStream>,
-    respond: h2::server::SendResponse<Bytes>,
+    respond: SendResponse,
     config: ServerConfig,
     peer: ConnectionInfo,
     channelz_server: Option<crate::channelz::ServerId>,
@@ -336,7 +336,7 @@ where
         };
         tokio::select! {
             biased;
-            accepted = std::future::poll_fn(|cx| conn.poll_accept(cx)) => {
+            accepted = conn.accept() => {
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };

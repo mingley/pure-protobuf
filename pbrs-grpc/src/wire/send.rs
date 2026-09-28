@@ -12,15 +12,15 @@ use crate::config::Wire;
 use crate::metadata::Metadata;
 use crate::status::{Code, Pushback, Status};
 use crate::stream::Streaming;
+use crate::transport::{Reason, SendResponse, SendStream, h2 as backend};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::Bytes;
-use h2::{Reason, SendStream};
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use pbrs::Serialize;
 use std::time::Duration;
 
-pub(crate) async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Status> {
+pub(crate) async fn wait_capacity(send: &mut backend::SendStream, n: usize) -> Result<(), Status> {
     if send.capacity() >= n {
         return Ok(());
     }
@@ -42,7 +42,7 @@ pub(crate) async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Res
 /// smaller than the frame, so each chunk waits for only one byte of credit and
 /// uses whatever is available. `Bytes` slices share the original allocation.
 pub(crate) async fn send_bytes(
-    send: &mut SendStream<Bytes>,
+    send: &mut backend::SendStream,
     mut frame: Bytes,
     end: bool,
     send_buffer: usize,
@@ -83,7 +83,7 @@ pub(crate) async fn send_bytes(
 /// the last segment only, so trailers (or stream end) still follow the
 /// whole message.
 pub(crate) async fn send_frame(
-    send: &mut SendStream<Bytes>,
+    send: &mut backend::SendStream,
     frame: SegFrame,
     end: bool,
     send_buffer: usize,
@@ -143,7 +143,7 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
 /// This is the "Trailers-Only" response of the gRPC spec, used for errors
 /// raised before any message could be produced.
 pub(crate) fn send_trailers_only(
-    respond: &mut h2::server::SendResponse<Bytes>,
+    respond: &mut backend::SendResponse,
     status: Status,
     extra_headers: &Metadata,
 ) {
@@ -170,11 +170,7 @@ pub(crate) fn send_trailers_only(
 /// The gRPC spec requires `grpc-accept-encoding` on a rejection caused by an
 /// unsupported `grpc-encoding`, so the client knows what to retry with. Sending
 /// it on every rejection costs one header and keeps the logic in one place.
-pub(crate) fn reject(
-    respond: &mut h2::server::SendResponse<Bytes>,
-    status: Status,
-    accept_gzip: bool,
-) {
+pub(crate) fn reject(respond: &mut backend::SendResponse, status: Status, accept_gzip: bool) {
     let mut res = match Response::builder()
         .status(StatusCode::OK)
         .header(http::header::CONTENT_TYPE, APPLICATION_GRPC)
@@ -194,7 +190,7 @@ pub(crate) fn reject(
 
 /// Answer [`RequestReject`]: gRPC trailers-only, or a bare HTTP status.
 pub(crate) fn reject_request(
-    respond: &mut h2::server::SendResponse<Bytes>,
+    respond: &mut backend::SendResponse,
     err: RequestReject,
     accept_gzip: bool,
 ) {
@@ -206,7 +202,7 @@ pub(crate) fn reject_request(
 
 /// HTTP 405/415 for a request that is not gRPC. No `grpc-status`, so an HTTP/2
 /// client cannot take this as a successful RPC.
-pub(crate) fn send_http(respond: &mut h2::server::SendResponse<Bytes>, status: StatusCode) {
+pub(crate) fn send_http(respond: &mut backend::SendResponse, status: StatusCode) {
     let mut builder = Response::builder().status(status);
     if status == StatusCode::METHOD_NOT_ALLOWED {
         builder = builder.header(http::header::ALLOW, "POST");
@@ -218,11 +214,11 @@ pub(crate) fn send_http(respond: &mut h2::server::SendResponse<Bytes>, status: S
 }
 
 pub(crate) fn send_ok_headers(
-    respond: &mut h2::server::SendResponse<Bytes>,
+    respond: &mut backend::SendResponse,
     md: &Metadata,
     send_codec: Option<Codec>,
     accept_gzip: bool,
-) -> Result<SendStream<Bytes>, Status> {
+) -> Result<backend::SendStream, Status> {
     let mut res = Response::new(());
     *res.status_mut() = StatusCode::OK;
     *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
@@ -261,7 +257,7 @@ pub(crate) enum PumpEnd {
 /// [`PumpEnd::Failed`] is [`crate::StreamSender::fail`]. The caller RSTs
 /// CANCEL; bidi holds that RST until the Call takes the status.
 pub(crate) async fn pump_outbound<T: Serialize>(
-    send: &mut SendStream<Bytes>,
+    send: &mut backend::SendStream,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
@@ -334,7 +330,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
 /// is already Ready, so it will not set `cancel_rx`. Client-streaming keeps
 /// the send half on the Call task instead.
 pub(crate) fn reset_on_cancel(
-    mut send: SendStream<Bytes>,
+    mut send: backend::SendStream,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) {

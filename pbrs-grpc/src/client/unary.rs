@@ -14,8 +14,8 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
+use crate::transport::h2 as backend;
 use crate::wire::{SegFrame, encode_msg, finish_unary};
-use bytes::Bytes;
 use http::HeaderValue;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
@@ -27,7 +27,7 @@ use tokio::sync::watch;
     reason = "one transport handle plus request, cancel, limits, and scheme"
 )]
 pub(crate) async fn run_unary<Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
+    send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,
@@ -63,7 +63,7 @@ where
     reason = "one transport handle plus request, cancel, limits, scheme, and tap"
 )]
 async fn run_unary_inner<Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
+    send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,

@@ -3780,7 +3780,12 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "notes": "Valuable even if H2-01 says no-go: it isolates h2 for upstream work and enables test doubles."
+   "notes": "Valuable even if H2-01 says no-go: it isolates h2 for upstream work and enables test doubles.",
+   "status": "done",
+   "evidence": [
+    "docs/evidence/h202-transport.md"
+   ],
+   "note": "11 transport traits + h2 backend; 14 files rerouted; no h2 paths outside transport/h2.rs. Gates: lib 390, rpc 11, gaps 6, hostile 37, tls 20, self-interop PASS, devloop-compare exit 0 (+0.5% unary alloc_bytes), clippy -D warnings clean."
   },
   {
    "id": "H2-03",

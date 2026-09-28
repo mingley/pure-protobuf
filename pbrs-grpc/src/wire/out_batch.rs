@@ -6,8 +6,7 @@ use crate::binlog::CallLogger;
 use crate::config::Wire;
 use crate::status::Status;
 use crate::stream::Framed;
-use bytes::Bytes;
-use h2::SendStream;
+use crate::transport::h2::SendStream;
 use pbrs::Serialize;
 
 /// Accumulates encoded stream output and hands it to HTTP/2 in batches.
@@ -72,7 +71,7 @@ impl OutBatch {
     }
 
     /// Hand whatever has accumulated to HTTP/2.
-    pub(crate) async fn flush(&mut self, send: &mut SendStream<Bytes>) -> Result<(), Status> {
+    pub(crate) async fn flush(&mut self, send: &mut SendStream) -> Result<(), Status> {
         if self.sink.is_empty() {
             return Ok(());
         }

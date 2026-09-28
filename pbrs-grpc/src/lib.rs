@@ -1110,6 +1110,8 @@ mod tcp;
 #[forbid(unsafe_code)]
 mod tls;
 #[forbid(unsafe_code)]
+mod transport;
+#[forbid(unsafe_code)]
 mod wire;
 
 /// Re-exports that `protoc-gen-pbrs` stubs name explicitly.

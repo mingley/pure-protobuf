@@ -17,11 +17,11 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
+use crate::transport::{Reason, SendStream, h2 as backend};
 use crate::wire::{
     OutBatch, PumpEnd, SegFrame, encode_msg, finish_stream, finish_unary, reset_on_cancel,
 };
 use bytes::Bytes;
-use h2::Reason;
 use http::HeaderValue;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
@@ -33,7 +33,7 @@ use tokio::sync::watch;
     reason = "thin cancel-logging wrapper over run_server_stream_inner"
 )]
 pub(crate) async fn run_server_stream<Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
+    send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,
@@ -70,7 +70,7 @@ where
     reason = "one transport handle plus request, cancel, limits, buffer, and tap"
 )]
 async fn run_server_stream_inner<Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
+    send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,
@@ -192,8 +192,8 @@ where
     reason = "response and send halves plus cancel, limits, deadline, and tap"
 )]
 async fn run_client_stream<Req, Resp>(
-    resp_fut: h2::client::ResponseFuture,
-    send_stream: h2::SendStream<Bytes>,
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
@@ -291,7 +291,7 @@ where
 }
 
 async fn pump_outbound_budget<T: Serialize>(
-    send: &mut h2::SendStream<Bytes>,
+    send: &mut backend::SendStream,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
@@ -377,7 +377,7 @@ async fn pump_outbound_budget<T: Serialize>(
 /// `RST_STREAM` a client-streaming send half if the Call is dropped while
 /// still waiting for the unary response (including after a clean half-close).
 struct ResetSend {
-    stream: h2::SendStream<Bytes>,
+    stream: backend::SendStream,
     live: bool,
 }
 
@@ -394,8 +394,8 @@ impl Drop for ResetSend {
     reason = "response and send halves plus cancel, limits, deadline, and tap"
 )]
 async fn run_bidi<Req, Resp>(
-    resp_fut: h2::client::ResponseFuture,
-    send_stream: h2::SendStream<Bytes>,
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,

@@ -3,7 +3,7 @@
 use crate::compression::Codec;
 use crate::metadata::Metadata;
 use crate::status::Status;
-use h2::RecvStream;
+use crate::transport::h2::RecvStream;
 use http::uri::{Authority, PathAndQuery, Scheme};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode};
 use std::time::Duration;

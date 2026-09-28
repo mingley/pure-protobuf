@@ -11,6 +11,7 @@
 //! [`crate::ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`); it does
 //! not turn `SO_KEEPALIVE` on by itself either.
 
+use crate::transport::{PingPong, h2 as backend};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -18,7 +19,7 @@ use tokio::sync::{Notify, watch};
 
 /// Drive PINGs until one fails or times out. `None` means keepalive is off.
 pub(crate) fn spawn(
-    ping_pong: Option<h2::PingPong>,
+    ping_pong: Option<backend::PingPong>,
     interval: Option<Duration>,
     timeout: Duration,
 ) -> Option<watch::Receiver<bool>> {
@@ -32,7 +33,7 @@ pub(crate) fn spawn(
         ticker.tick().await;
         loop {
             ticker.tick().await;
-            match tokio::time::timeout(timeout, ping_pong.ping(h2::Ping::opaque())).await {
+            match tokio::time::timeout(timeout, ping_pong.ping(backend::Ping::opaque())).await {
                 Ok(Ok(_)) => {}
                 Ok(Err(_)) | Err(_) => {
                     tx.send(true).ok();

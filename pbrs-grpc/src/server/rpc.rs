@@ -26,11 +26,10 @@ use crate::telemetry::{
     diagnostic_identity,
 };
 use crate::tls::PeerIdentity;
+use crate::transport::h2::{RecvStream, SendResponse};
 use crate::wire::{
     WireStream, accepts_codec, inbound_codec, read_one_message, send_trailers_only, wrap_timeout,
 };
-use bytes::Bytes;
-use h2::RecvStream;
 use pbrs::{Parse, Serialize};
 use std::future::Future;
 use std::net::SocketAddr;
@@ -51,7 +50,7 @@ use tokio::sync::watch;
 /// [`Self::extensions_mut`], or turn the RPC away with [`Self::reject`].
 pub struct Rpc {
     pub(crate) request: http::Request<RecvStream>,
-    pub(crate) respond: h2::server::SendResponse<Bytes>,
+    pub(crate) respond: SendResponse,
     pub(crate) config: ServerConfig,
     pub(crate) remote_addr: Option<SocketAddr>,
     pub(crate) local_addr: Option<SocketAddr>,
