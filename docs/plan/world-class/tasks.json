@@ -5337,7 +5337,11 @@
    "scoreboard": [
     "E1"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/grpc-bench.md"
+   ]
   },
   {
    "id": "CH-01",
