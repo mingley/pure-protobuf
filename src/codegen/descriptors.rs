@@ -877,7 +877,7 @@ pub(crate) fn emit_root_mod_rs(
             let parts: Vec<&str> = pkg.split('.').collect();
             let mut cur = &mut root;
             for part in parts {
-                cur = cur.submodules.entry(part.to_string()).or_default();
+                cur = cur.submodules.entry(mod_ident(part)).or_default();
             }
             if !cur.includes.contains(&rel_rs) {
                 cur.includes.push(rel_rs);

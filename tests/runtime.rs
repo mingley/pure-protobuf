@@ -644,7 +644,9 @@ fn small_bytes_field_does_not_pin_shared_frame() {
     // into owned storage; at/above it windows the shared frame. Pointer
     // ranges make this exact: a copied field cannot overlap the live frame
     // allocation, while a shared field must lie inside it.
-    assert!(100 < pbrs::rt::LazyBytes::SHARE_THRESHOLD);
+    const {
+        assert!(100 < pbrs::rt::LazyBytes::SHARE_THRESHOLD);
+    }
     let mut m = TestAllTypesProto3::new();
     m.set_optional_bytes(vec![0x11u8; 100]);
     m.repeated_bytes_mut().push(vec![0x22u8; 1 << 20]);

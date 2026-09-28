@@ -1,7 +1,7 @@
 //! MiniTable schema decoding and linking (`src/runtime/mini_table.rs`).
 
 use pbrs::runtime::{
-    FieldType, MiniTablePtr, build_enum_mini_table, build_mini_table, link_mini_table,
+    FieldType, build_enum_mini_table, build_mini_table, link_mini_table,
 };
 
 #[test]
