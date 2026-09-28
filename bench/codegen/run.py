@@ -17,6 +17,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -47,9 +48,319 @@ MESSAGE_GENERATORS = ("pbrs", "prost", "buffa", "v4")
 STUB_GENERATORS = ("pbrs-native", "pbrs-tonic", "tonic-build")
 # case -> (message count, file count); one service per file (unary + streaming).
 STUB_CORPORA = {"svc-small": (6, 2), "svc-100": (100, 5)}
+# SB-09 realistic corpora: pinned third-party protos, fetched once into
+# target/codegen-bench/vendor and hash-verified on every run. Every
+# generator compiles the FULL file closure as inputs (subset + support):
+# pbrs/buffa/v4 need support messages for cross-file paths, and prost
+# compiles the closure on its own; the generated-code volume each tool
+# needs is part of what the matrix measures. Consumers roundtrip the
+# SUBSET top-level messages only (nested types excluded, documented).
+OTEL_REF = "8654ab7a5a43ca25fe8046e59dcd6935c3f76de0"  # opentelemetry-proto v1.7.0
+GAPI_REF = "9415ba048aa587b1b2df2b96fc00aa009c831597"  # googleapis (no tags; pinned commit)
+ENVOY_REF = "b579d07d3ad7ee11d32b105e91a5a39ad24718d7"  # envoyproxy/envoy v1.39.1
+UDPA_REF = "e8cd3a4bb307e2c810cffff99f93e96e6d7fee85"  # cncf/udpa (archived; pinned commit)
+XDS_REF = "7f1daf1720fc185f3b63f70d25aefaeef83d88d7"  # cncf/xds (pinned commit)
+PGV_REF = "92b9a7df69ca9f71bfc492f7a90adf4d36eab569"  # bufbuild/protoc-gen-validate v1.3.3
+VENDOR_BASE = "https://raw.githubusercontent.com"
+# Destination relpath -> (repo, ref, repo_path, sha256).
+VENDOR_FILES = {
+    # OTLP v1.7.0 (in-repo closure, no WKT).
+    "opentelemetry/proto/trace/v1/trace.proto": (
+        "open-telemetry/opentelemetry-proto", OTEL_REF,
+        "opentelemetry/proto/trace/v1/trace.proto",
+        "94b0201460115874b71a0316ea7f9329f222a1afec9f811251f3a98c25bb5b45",
+    ),
+    "opentelemetry/proto/metrics/v1/metrics.proto": (
+        "open-telemetry/opentelemetry-proto", OTEL_REF,
+        "opentelemetry/proto/metrics/v1/metrics.proto",
+        "f54b7bdc4effc6c8cc9b01dff316e3aca19341479bec42cb72adc53e23e3663a",
+    ),
+    "opentelemetry/proto/logs/v1/logs.proto": (
+        "open-telemetry/opentelemetry-proto", OTEL_REF,
+        "opentelemetry/proto/logs/v1/logs.proto",
+        "91e42ca14a09f7de338a7870583319445fcf5b9d9e7090effa4a52958f603ca8",
+    ),
+    "opentelemetry/proto/common/v1/common.proto": (
+        "open-telemetry/opentelemetry-proto", OTEL_REF,
+        "opentelemetry/proto/common/v1/common.proto",
+        "f9eba928880a84964aedf178c34d0ac6245eb4a520d7cab383f932b4bcbca4ad",
+    ),
+    "opentelemetry/proto/resource/v1/resource.proto": (
+        "open-telemetry/opentelemetry-proto", OTEL_REF,
+        "opentelemetry/proto/resource/v1/resource.proto",
+        "be315021ab29992f38555a42fd4e0b15a761b13359c5f8d54c918eec55586715",
+    ),
+    # googleapis (annotations carry only options/extensions, no messages).
+    "google/api/annotations.proto": (
+        "googleapis/googleapis", GAPI_REF, "google/api/annotations.proto",
+        "e79ea741cb605a65e78ca322174764a4af9fde1962c1631e12b84c4934ba9a6c",
+    ),
+    "google/api/http.proto": (
+        "googleapis/googleapis", GAPI_REF, "google/api/http.proto",
+        "4a4d9be6a5c7f1989c93c25c71b48ff1b401645790b8b978ad34d579e29c4a2a",
+    ),
+    "google/api/httpbody.proto": (
+        "googleapis/googleapis", GAPI_REF, "google/api/httpbody.proto",
+        "3bc84638659531d3bd6154e4a867ee763b41c6ad15d1d707e0aacf41df8f1901",
+    ),
+    "google/rpc/status.proto": (
+        "googleapis/googleapis", GAPI_REF, "google/rpc/status.proto",
+        "3b5c712455570ac4342dd3c521c4c11011652ae9a0fbca75ba22fcc45c6e1991",
+    ),
+    "google/rpc/code.proto": (
+        "googleapis/googleapis", GAPI_REF, "google/rpc/code.proto",
+        "9993be65e050c30ced246951659dbe0a13663b77cf57bcaa4c0ed4248480fb80",
+    ),
+    # Envoy v1.39.1 (served under api/, dest strips that prefix).
+    "envoy/annotations/deprecation.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/annotations/deprecation.proto",
+        "bc72a2deefc60cacdb0f49380e1c92028078e219b02993d6772e2854a8929b36",
+    ),
+    "envoy/config/core/v3/address.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/address.proto",
+        "33ec035d4e2a4b0fb20ab4a1b7790661404f7330ff322a74868fc0d7848fe79b",
+    ),
+    "envoy/config/core/v3/backoff.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/backoff.proto",
+        "f347a6a36616ea6735ff031b546d10cc79aaae17da3a60e8174479c7f75ac53e",
+    ),
+    "envoy/config/core/v3/base.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/base.proto",
+        "5a6a07551e0db451d6984d905aa45269f3134e00b2160ca19dc8875245edab7c",
+    ),
+    "envoy/config/core/v3/extension.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/extension.proto",
+        "860106c686cab11106159f462243ce4009cbc405f197df7df8ab423af71a82a7",
+    ),
+    "envoy/config/core/v3/http_uri.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/http_uri.proto",
+        "ef5c59234f0be07a23327d695afc65435ef5052941a63184795b0d300fccf1e6",
+    ),
+    "envoy/config/core/v3/socket_option.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/config/core/v3/socket_option.proto",
+        "78937443cba81f3a60a18b71debc9962b27b484ec55ea79892cfb1deabda9058",
+    ),
+    "envoy/service/discovery/v3/ads.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/service/discovery/v3/ads.proto",
+        "05afb7539d786271333895f54c25d12773a61515c19257047ce3bc060715eced",
+    ),
+    "envoy/service/discovery/v3/discovery.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/service/discovery/v3/discovery.proto",
+        "c875f8e55176477fa1d1072499e300b383b397a2deabcdfa678f006e09e5dfa7",
+    ),
+    "envoy/type/v3/percent.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/type/v3/percent.proto",
+        "b5b5ea7f6264f465ce4b398601e855b62395e3c83e4bb7e0d9d4ebae788210ca",
+    ),
+    "envoy/type/v3/semantic_version.proto": (
+        "envoyproxy/envoy", ENVOY_REF, "api/envoy/type/v3/semantic_version.proto",
+        "71cc18d6cbbccd0e3a027d3499bbdbe0a7e74cdf125565f36843736027cc8cc5",
+    ),
+    "udpa/annotations/status.proto": (
+        "cncf/udpa", UDPA_REF, "udpa/annotations/status.proto",
+        "564149dd66c6c92c8e56237e02960cc0629cbd7a0cfd0df846d3d6dc4e114aef",
+    ),
+    "udpa/annotations/versioning.proto": (
+        "cncf/udpa", UDPA_REF, "udpa/annotations/versioning.proto",
+        "657c807e024a3fcd6b47c56e86a5d27b5b64f9e56c540164eee6b1ae9c8d2d02",
+    ),
+    "udpa/annotations/migrate.proto": (
+        "cncf/udpa", UDPA_REF, "udpa/annotations/migrate.proto",
+        "e2091c88268446db1bc5e9ff45a1e9ab35a526983d8810d2e03081b95bde67aa",
+    ),
+    "xds/core/v3/context_params.proto": (
+        "cncf/xds", XDS_REF, "xds/core/v3/context_params.proto",
+        "912801a580c04553d75a0099d16206a668dd609277c860b6d05d86f8cbddc11c",
+    ),
+    "xds/annotations/v3/status.proto": (
+        "cncf/xds", XDS_REF, "xds/annotations/v3/status.proto",
+        "0145b2d9437ace6c1201453cd57d44c96e2e89894e502c2d869e8ee2b59b8c19",
+    ),
+    "validate/validate.proto": (
+        "bufbuild/protoc-gen-validate", PGV_REF, "validate/validate.proto",
+        "68c9625ebe0668605a37670db1759ceb03864bc07c52eee919b049347cbc018c",
+    ),
+}
+# WKT support files, copied from the repo's pinned third_party/protobuf
+# checkout (no fetch); every one must declare package google.protobuf.
+REALISTIC_WKT = ("any", "descriptor", "duration", "struct", "wrappers", "timestamp")
+REALISTIC_CORPORA = {
+    "otlp": {
+        "inputs": [
+            "opentelemetry/proto/trace/v1/trace.proto",
+            "opentelemetry/proto/metrics/v1/metrics.proto",
+            "opentelemetry/proto/logs/v1/logs.proto",
+            "opentelemetry/proto/common/v1/common.proto",
+            "opentelemetry/proto/resource/v1/resource.proto",
+        ],
+        "support": [],
+        "wkt": (),
+        "packages": {
+            "opentelemetry/proto/trace/v1/trace.proto": "opentelemetry.proto.trace.v1",
+            "opentelemetry/proto/metrics/v1/metrics.proto": "opentelemetry.proto.metrics.v1",
+            "opentelemetry/proto/logs/v1/logs.proto": "opentelemetry.proto.logs.v1",
+            "opentelemetry/proto/common/v1/common.proto": "opentelemetry.proto.common.v1",
+            "opentelemetry/proto/resource/v1/resource.proto": "opentelemetry.proto.resource.v1",
+        },
+        "messages": {
+            "opentelemetry/proto/trace/v1/trace.proto": [
+                "TracesData", "ResourceSpans", "ScopeSpans", "Span", "Status",
+            ],
+            "opentelemetry/proto/metrics/v1/metrics.proto": [
+                "MetricsData", "ResourceMetrics", "ScopeMetrics", "Metric", "Gauge", "Sum",
+                "Histogram", "ExponentialHistogram", "Summary", "NumberDataPoint",
+                "HistogramDataPoint", "ExponentialHistogramDataPoint", "SummaryDataPoint",
+                "Exemplar",
+            ],
+            "opentelemetry/proto/logs/v1/logs.proto": [
+                "LogsData", "ResourceLogs", "ScopeLogs", "LogRecord",
+            ],
+            "opentelemetry/proto/common/v1/common.proto": [
+                "AnyValue", "ArrayValue", "KeyValueList", "KeyValue",
+                "InstrumentationScope", "EntityRef",
+            ],
+            "opentelemetry/proto/resource/v1/resource.proto": ["Resource"],
+        },
+        "prost_omitted_packages": [],
+        "exclude": {},
+    },
+    "googleapis": {
+        "inputs": [
+            "google/api/annotations.proto",
+            "google/api/http.proto",
+            "google/api/httpbody.proto",
+        ],
+        "support": [],
+        "wkt": ("any", "descriptor"),
+        "packages": {
+            "google/api/annotations.proto": "google.api",
+            "google/api/http.proto": "google.api",
+            "google/api/httpbody.proto": "google.api",
+        },
+        "messages": {
+            "google/api/annotations.proto": [],
+            "google/api/http.proto": ["Http", "HttpRule", "CustomHttpPattern"],
+            "google/api/httpbody.proto": ["HttpBody"],
+        },
+        "prost_omitted_packages": [],
+        "exclude": {},
+    },
+    "envoy-core": {
+        "inputs": [
+            "envoy/config/core/v3/socket_option.proto",
+            "envoy/config/core/v3/address.proto",
+            "envoy/config/core/v3/backoff.proto",
+            "envoy/config/core/v3/extension.proto",
+            "envoy/config/core/v3/http_uri.proto",
+            "envoy/type/v3/percent.proto",
+            "envoy/type/v3/semantic_version.proto",
+        ],
+        "support": [
+            "envoy/annotations/deprecation.proto",
+            "udpa/annotations/status.proto",
+            "udpa/annotations/versioning.proto",
+            "udpa/annotations/migrate.proto",
+            "validate/validate.proto",
+        ],
+        "wkt": ("any", "descriptor", "duration", "wrappers", "timestamp"),
+        "packages": {
+            "envoy/config/core/v3/socket_option.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/address.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/backoff.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/extension.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/http_uri.proto": "envoy.config.core.v3",
+            "envoy/type/v3/percent.proto": "envoy.type.v3",
+            "envoy/type/v3/semantic_version.proto": "envoy.type.v3",
+            "envoy/annotations/deprecation.proto": "envoy.annotations",
+            "udpa/annotations/status.proto": "udpa.annotations",
+            "udpa/annotations/versioning.proto": "udpa.annotations",
+            "udpa/annotations/migrate.proto": "udpa.annotations",
+            "validate/validate.proto": "validate",
+        },
+        "messages": {
+            "envoy/config/core/v3/socket_option.proto": ["SocketOption", "SocketOptionsOverride"],
+            "envoy/config/core/v3/address.proto": [
+                "Pipe", "EnvoyInternalAddress", "SocketAddress", "TcpKeepalive",
+                "ExtraSourceAddress", "BindConfig", "Address", "CidrRange",
+            ],
+            "envoy/config/core/v3/backoff.proto": ["BackoffStrategy"],
+            "envoy/config/core/v3/extension.proto": ["TypedExtensionConfig"],
+            "envoy/config/core/v3/http_uri.proto": ["HttpUri"],
+            "envoy/type/v3/percent.proto": ["Percent", "FractionalPercent"],
+            "envoy/type/v3/semantic_version.proto": ["SemanticVersion"],
+        },
+        # deprecation.proto carries only options, so prost emits no file for it.
+        "prost_omitted_packages": ["envoy.annotations"],
+        "exclude": {},
+    },
+    "envoy-discovery": {
+        "inputs": [
+            "envoy/service/discovery/v3/discovery.proto",
+            "envoy/service/discovery/v3/ads.proto",
+        ],
+        "support": [
+            "envoy/annotations/deprecation.proto",
+            "envoy/config/core/v3/address.proto",
+            "envoy/config/core/v3/backoff.proto",
+            "envoy/config/core/v3/base.proto",
+            "envoy/config/core/v3/extension.proto",
+            "envoy/config/core/v3/http_uri.proto",
+            "envoy/config/core/v3/socket_option.proto",
+            "envoy/type/v3/percent.proto",
+            "envoy/type/v3/semantic_version.proto",
+            "udpa/annotations/status.proto",
+            "udpa/annotations/versioning.proto",
+            "udpa/annotations/migrate.proto",
+            "xds/core/v3/context_params.proto",
+            "xds/annotations/v3/status.proto",
+            "validate/validate.proto",
+            "google/rpc/status.proto",
+            "google/rpc/code.proto",
+        ],
+        "wkt": ("any", "descriptor", "duration", "struct", "wrappers", "timestamp"),
+        "packages": {
+            "envoy/service/discovery/v3/discovery.proto": "envoy.service.discovery.v3",
+            "envoy/service/discovery/v3/ads.proto": "envoy.service.discovery.v3",
+            "envoy/annotations/deprecation.proto": "envoy.annotations",
+            "envoy/config/core/v3/address.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/backoff.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/base.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/extension.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/http_uri.proto": "envoy.config.core.v3",
+            "envoy/config/core/v3/socket_option.proto": "envoy.config.core.v3",
+            "envoy/type/v3/percent.proto": "envoy.type.v3",
+            "envoy/type/v3/semantic_version.proto": "envoy.type.v3",
+            "udpa/annotations/status.proto": "udpa.annotations",
+            "udpa/annotations/versioning.proto": "udpa.annotations",
+            "udpa/annotations/migrate.proto": "udpa.annotations",
+            "xds/core/v3/context_params.proto": "xds.core.v3",
+            "xds/annotations/v3/status.proto": "xds.annotations.v3",
+            "validate/validate.proto": "validate",
+            "google/rpc/status.proto": "google.rpc",
+            "google/rpc/code.proto": "google.rpc",
+        },
+        "messages": {
+            "envoy/service/discovery/v3/discovery.proto": [
+                "ResourceLocator", "ResourceName", "ResourceError", "DiscoveryRequest",
+                "DiscoveryResponse", "DeltaDiscoveryRequest", "DeltaDiscoveryResponse",
+                "DynamicParameterConstraints", "Resource",
+            ],
+            "envoy/service/discovery/v3/ads.proto": ["AdsDummy"],
+        },
+        "prost_omitted_packages": ["envoy.annotations"],
+        # v4 --rust_out re-exports every input file into one flat namespace;
+        # PackageVersionStatus is an enum in both udpa/annotations and
+        # xds/annotations/v3, so the v4 consumer cannot compile (E0659).
+        "exclude": {
+            "v4": "flat namespace collision: PackageVersionStatus in udpa/annotations "
+                  "and xds/annotations/v3 (E0659)",
+        },
+    },
+}
 # Peer generator pins. The harness resolves these --offline from the local
 # registry and records lockfile hashes per cell; a missing crate fails closed.
 PROST_VERSION = "0.14.4"
+PROST_TYPES_VERSION = "0.14.4"
 BUFFA_VERSION = "0.9.1"
 PROST013_VERSION = "0.13.5"
 TONIC_BUILD_VERSION = "0.13.1"
@@ -79,7 +390,100 @@ PEER_ENTRYPOINT = {
 BUFFA_PACKAGE_FILE = "bench.cg19.mod.rs"
 
 
-def peer_expected_files(generator: str, names: list[str]) -> frozenset[str]:
+def realistic_pbrs_expected(names: list[str]) -> frozenset[str]:
+    """pbrs emits mod.rs, a path-mirrored file per input, and a flat
+    basename file only when that stem is unique across inputs
+    (descriptors.rs: stem_counts == 1); colliding basenames such as the
+    three status.proto files on envoy-discovery get mirrored files only."""
+    stems = [name.removesuffix(".proto") for name in names]
+    basenames = [Path(stem).name for stem in stems]
+    counts: dict[str, int] = {}
+    for base in basenames:
+        counts[base] = counts.get(base, 0) + 1
+    files = {"mod.rs"}
+    for stem, base in zip(stems, basenames):
+        files.add(f"{stem}.rs")
+        if counts[base] == 1:
+            files.add(f"{base}.rs")
+    return frozenset(files)
+
+
+def realistic_buffa_core(
+    names: list[str], case: str, content: dict[str, dict[str, bool]],
+) -> frozenset[str]:
+    """buffa emits mod.rs, per-input files named by the dotted input path,
+    and one per-package sidecar. Per-input outputs depend on content:
+    .rs for files defining messages or enums, .__view.rs for files
+    defining messages, .__ext.rs for extension-only files. Oneof
+    auxiliary files are validated separately (see BUFFA_AUX_SUFFIXES)."""
+    files = {"mod.rs"}
+    for name in names:
+        dotted = name.removesuffix(".proto").replace("/", ".")
+        kinds = content[name]
+        if kinds["messages"] or kinds["enums"]:
+            files.add(f"{dotted}.rs")
+        if kinds["messages"]:
+            files.add(f"{dotted}.__view.rs")
+        if kinds["extends"] and not (kinds["messages"] or kinds["enums"]):
+            files.add(f"{dotted}.__ext.rs")
+    for package in realistic_closure_packages(case):
+        files.add(f"{package}.mod.rs")
+    return frozenset(files)
+
+
+# buffa auxiliary outputs beyond the core set; every extra file must be
+# one of these suffixes on a core per-input stem, never anything else.
+BUFFA_AUX_SUFFIXES = (".__oneof.rs", ".__view_oneof.rs", ".__ext.rs")
+
+
+def assert_buffa_realistic_outputs(
+    case: str, generator: str, before: dict, expected: frozenset[str],
+) -> None:
+    missing = sorted(expected - before.keys())
+    if missing:
+        raise BenchmarkError(f"{case}/{generator}: missing core outputs: {missing}")
+    core_stems = {name.removesuffix(".rs") for name in expected if name != "mod.rs"}
+    for extra in sorted(before.keys() - expected):
+        stem = next(
+            (
+                extra.removesuffix(suffix)
+                for suffix in BUFFA_AUX_SUFFIXES
+                if extra.endswith(suffix)
+            ),
+            None,
+        )
+        if stem is None or stem not in core_stems:
+            raise BenchmarkError(
+                f"{case}/{generator}: unexpected auxiliary output {extra}"
+            )
+
+
+def realistic_expected_files(generator: str, names: list[str], case: str) -> frozenset[str]:
+    if generator == "prost":
+        return frozenset(prost_package_files(case))
+    if generator == "v4":
+        return frozenset(
+            {
+                v4_entrypoint_rel(case),
+                *(name.removesuffix(".proto") + ".u.pb.rs" for name in names),
+            }
+        )
+    if generator == "buffa":
+        raise BenchmarkError(
+            "buffa realistic outputs need per-file content classes; "
+            "use realistic_buffa_core instead"
+        )
+    if generator == "pbrs":
+        return realistic_pbrs_expected(names)
+    raise BenchmarkError(f"generator {generator} does not run on realistic case {case}")
+
+
+def peer_expected_files(
+    generator: str, names: list[str], case: str | None = None,
+) -> frozenset[str]:
+    if case in REALISTIC_CORPORA:
+        assert case is not None
+        return realistic_expected_files(generator, names, case)
     if generator == "prost":
         return frozenset({PROST_PACKAGE_FILE})
     if generator == "buffa":
@@ -270,13 +674,16 @@ def render_consumer_prost(messages: int, marker: int) -> str:
     return "\n".join(lines)
 
 
-def peer_manifest(package: str, generator: str) -> str:
+def peer_manifest(package: str, generator: str, case: str | None = None) -> str:
     if generator == "v4":
         return manifest(package, reference=True)
     if generator in STUB_GENERATORS:
         return stub_manifest(package, generator)
     if generator == "prost":
         dependencies = [f'prost = "={PROST_VERSION}"']
+        if case in REALISTIC_CORPORA and REALISTIC_CORPORA[case]["wkt"]:
+            # prost extern-maps WKT to ::prost_types instead of emitting them.
+            dependencies.append(f'prost-types = "={PROST_TYPES_VERSION}"')
     elif generator == "buffa":
         dependencies = [f'buffa = "={BUFFA_VERSION}"']
     else:
@@ -345,9 +752,123 @@ def peer_driver_manifest(generator: str) -> str:
     )
 
 
+def vendor_dir() -> Path:
+    return ROOT / "target" / "codegen-bench" / "vendor"
+
+
+def ensure_vendor(names: list[str]) -> Path:
+    """Fetch-once, hash-verified vendor cache for realistic corpora.
+    Cached files are re-verified on every call; any mismatch or fetch
+    failure aborts the run instead of measuring unknown inputs."""
+    base = vendor_dir()
+    for name in names:
+        repo, ref, repo_path, expected = VENDOR_FILES[name]
+        dest = base / name
+        if dest.is_file() and sha256(dest) == expected:
+            continue
+        url = f"{VENDOR_BASE}/{repo}/{ref}/{repo_path}"
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response:
+                data = response.read(8_000_001)
+        except (OSError, ValueError) as exc:
+            raise BenchmarkError(f"vendor fetch failed for {name} ({url}): {exc}") from exc
+        if len(data) > 8_000_000:
+            raise BenchmarkError(f"vendor file unexpectedly large: {name}")
+        actual = hashlib.sha256(data).hexdigest()
+        if actual != expected:
+            raise BenchmarkError(
+                f"vendor hash mismatch for {name}: got {actual}, want {expected}"
+            )
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp = dest.with_suffix(".proto.download")
+        tmp.write_bytes(data)
+        tmp.replace(dest)
+    return base
+
+
+def prepare_realistic_corpus(
+    case_dir: Path, case: str, generators: tuple[str, ...],
+) -> tuple[list[str], dict]:
+    spec = REALISTIC_CORPORA[case]
+    vendor = ensure_vendor([*spec["inputs"], *spec["support"]])
+    consumer = case_dir / "consumer"
+    names = realistic_generation_names(case)
+    wkt_names = {f"google/protobuf/{stem}.proto" for stem in spec["wkt"]}
+    input_names = set(spec["inputs"])
+    file_entries: dict[str, list] = {"inputs": [], "support": []}
+    content: dict[str, dict[str, bool]] = {}
+    digest = hashlib.sha256()
+    for name in names:
+        if name in wkt_names:
+            src = ROOT / "third_party" / "protobuf" / "src" / name
+            if not src.is_file():
+                raise BenchmarkError(f"pinned WKT missing from checkout: {src}")
+        else:
+            src = vendor / name
+        path = consumer / "proto" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = src.read_bytes()
+        path.write_bytes(data)
+        digest.update(f"{name}\n".encode("ascii"))
+        digest.update(data)
+        entry = {
+            "path": relative(path, case_dir),
+            "sha256": sha256(path),
+            "bytes": len(data),
+        }
+        file_entries["inputs" if name in input_names else "support"].append(entry)
+        text = data.decode("utf-8")
+        package = re.search(r"^package ([\w.]+);", text, re.M)
+        if package is None:
+            raise BenchmarkError(f"{case}: {name} declares no package")
+        if name in wkt_names:
+            if package.group(1) != "google.protobuf":
+                raise BenchmarkError(f"{case}: {name} is not in package google.protobuf")
+        else:
+            if package.group(1) != spec["packages"][name]:
+                raise BenchmarkError(
+                    f"{case}: {name} package {package.group(1)} != spec {spec['packages'][name]}"
+                )
+        if name in input_names:
+            actual = re.findall(r"^message (\w+)", text, re.M)
+            if actual != spec["messages"][name]:
+                raise BenchmarkError(
+                    f"{case}: {name} messages {actual} != spec {spec['messages'][name]}"
+                )
+        content[name] = {
+            "messages": re.search(r"^message \w+", text, re.M) is not None,
+            "enums": re.search(r"^enum \w+", text, re.M) is not None,
+            "extends": re.search(r"^extend [\w.]+", text, re.M) is not None,
+        }
+    entries = realistic_entries(case)
+    metadata: dict = {
+        "messages": len(entries),
+        "proto_file_count": len(spec["inputs"]),
+        "support_file_count": len(spec["support"]) + len(spec["wkt"]),
+        "sha256": digest.hexdigest(),
+        "inputs": file_entries["inputs"],
+        "support": file_entries["support"],
+        "content": content,
+        "packages": {name: spec["packages"][name] for name in spec["inputs"] + spec["support"]},
+        "entries": [[package, message] for package, message in entries],
+        "vendor": sorted(
+            {f"{VENDOR_FILES[name][0]}@{VENDOR_FILES[name][1]}"
+             for name in spec["inputs"] + spec["support"]}
+        ),
+    }
+    if "pbrs" in generators:
+        write_text(consumer / "Cargo.toml", manifest(f"cg19-consumer-{case}"))
+        write_text(
+            consumer / "src" / "main.rs", render_consumer_entries(case, 0, "pbrs"),
+        )
+    return names, metadata
+
+
 def prepare_corpus(
     case_dir: Path, case: str, seed: int, generators: tuple[str, ...] = ("pbrs",),
 ) -> tuple[list[str], dict]:
+    if case in REALISTIC_CORPORA:
+        return prepare_realistic_corpus(case_dir, case, generators)
     if case in STUB_CORPORA:
         messages, files = STUB_CORPORA[case]
         render = render_proto_with_services
@@ -382,7 +903,11 @@ def prepare_corpus(
 def render_consumer_for(
     messages: int, marker: int, generator: str,
     services: list[tuple[str, int, int]] | None = None,
+    case: str | None = None,
 ) -> str:
+    if case in REALISTIC_CORPORA:
+        assert case is not None
+        return render_consumer_entries(case, marker, generator)
     if generator == "prost":
         return render_consumer_prost(messages, marker)
     if generator == "buffa":
@@ -617,11 +1142,248 @@ def prepare_peer_consumer(
 ) -> tuple[Path, str]:
     consumer = case_dir / "gen" / generator / "consumer"
     package = f"sb09-{generator}-consumer-{case}"
-    write_text(consumer / "Cargo.toml", peer_manifest(package, generator))
+    write_text(consumer / "Cargo.toml", peer_manifest(package, generator, case))
     write_text(
-        consumer / "src" / "main.rs", render_consumer_for(messages, 0, generator, services),
+        consumer / "src" / "main.rs",
+        render_consumer_for(messages, 0, generator, services, case),
     )
     return consumer, package
+
+
+# Rust 2021 strict keywords plus the 2018 additions; mirrors the escaping
+# pbrs (mod_ident), prost, and buffa all apply to package segments.
+RUST_KEYWORDS = frozenset({
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern",
+    "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod",
+    "move", "mut", "pub", "ref", "return", "self", "Self", "static",
+    "struct", "super", "trait", "true", "type", "unsafe", "use", "where",
+    "while", "async", "await", "dyn", "abstract", "become", "box", "do",
+    "final", "macro", "override", "priv", "typeof", "unsized", "virtual",
+    "yield", "try", "union", "gen",
+})
+RUST_UNESCAPABLE = frozenset({"crate", "self", "Self", "super", "true", "false", "_"})
+
+
+def rust_mod_ident(segment: str) -> str:
+    if segment in RUST_UNESCAPABLE:
+        return f"{segment}_"
+    if segment in RUST_KEYWORDS:
+        return f"r#{segment}"
+    return segment
+
+
+def realistic_entries(case: str) -> list[tuple[str, str]]:
+    """(package, message) consumer entries in spec order for a realistic case."""
+    spec = REALISTIC_CORPORA[case]
+    return [
+        (spec["packages"][name], message)
+        for name in spec["inputs"]
+        for message in spec["messages"][name]
+    ]
+
+
+def realistic_entry_paths(case: str) -> list[str]:
+    return [
+        "::".join([*(rust_mod_ident(part) for part in package.split(".")), message])
+        for package, message in realistic_entries(case)
+    ]
+
+
+def realistic_generation_names(case: str) -> list[str]:
+    spec = REALISTIC_CORPORA[case]
+    return [
+        *spec["inputs"], *spec["support"],
+        *(f"google/protobuf/{stem}.proto" for stem in spec["wkt"]),
+    ]
+
+
+def realistic_closure_packages(case: str) -> set[str]:
+    spec = REALISTIC_CORPORA[case]
+    packages = {spec["packages"][name] for name in spec["inputs"] + spec["support"]}
+    if spec["wkt"]:
+        packages.add("google.protobuf")
+    return packages
+
+
+def prost_package_file(package: str) -> str:
+    return ".".join(rust_mod_ident(part) for part in package.split(".")) + ".rs"
+
+
+def prost_package_files(case: str) -> list[str]:
+    """Exact prost outputs: one file per closure package except WKT
+    (extern-mapped to ::prost_types) and spec-declared omitted packages."""
+    spec = REALISTIC_CORPORA[case]
+    packages = realistic_closure_packages(case) - {"google.protobuf"}
+    packages -= set(spec["prost_omitted_packages"])
+    return sorted(prost_package_file(package) for package in packages)
+
+
+def prost_package_tree(packages: list[str]) -> str:
+    """Crate-root module tree including one prost package file per leaf.
+    prost cross-references packages through super:: chains, so every
+    package segment must be exactly one module level."""
+    root: dict = {}
+    for package in packages:
+        node = root
+        for part in package.split("."):
+            node = node.setdefault(part, {})
+        node[None] = prost_package_file(package)
+    lines: list[str] = []
+
+    def emit(node: dict, indent: int) -> None:
+        pad = "    " * indent
+        if None in node:
+            lines.append(
+                f'{pad}include!(concat!(env!("CARGO_MANIFEST_DIR"), '
+                f'"/generated/{node[None]}"));'
+            )
+        for part in sorted(key for key in node if key is not None):
+            lines.append(f"{pad}pub mod {rust_mod_ident(part)} {{")
+            emit(node[part], indent + 1)
+            lines.append(f"{pad}}}")
+
+    for part in sorted(root):
+        lines.append(f"pub mod {rust_mod_ident(part)} {{")
+        emit(root[part], 1)
+        lines.append("}")
+    return "\n".join(lines)
+
+
+def v4_entrypoint_rel(case: str) -> str:
+    """v4 --rust_out writes its single generated.rs into the FIRST input's
+    directory; the harness verifies the prediction against a post-generation
+    search and fails closed on any mismatch."""
+    first = REALISTIC_CORPORA[case]["inputs"][0]
+    parent = str(Path(first).parent)
+    return f"{parent}/generated.rs" if parent != "." else "generated.rs"
+
+
+def render_consumer_entries_pbrs(case: str, marker: int) -> str:
+    lines = [
+        'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));',
+        "",
+        "fn roundtrip<T: pbrs::Parse + pbrs::Serialize>(msg: T) -> usize {",
+        '    let wire = msg.serialize().expect("serialize generated message");',
+        '    let parsed = T::parse(std::hint::black_box(&wire)).expect("parse generated message");',
+        '    std::hint::black_box(parsed.serialize().expect("serialize parsed message")).len()',
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip({path}::new());" for path in realistic_entry_paths(case)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def render_consumer_entries_buffa(case: str, marker: int) -> str:
+    lines = [
+        'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));',
+        "",
+        "fn roundtrip<M: buffa::Message + Default>(msg: M) -> usize {",
+        "    let mut wire = Vec::new();",
+        "    msg.encode(&mut wire);",
+        '    let parsed = M::decode(&mut &wire[..]).expect("parse generated message");',
+        "    let mut wire2 = Vec::new();",
+        "    std::hint::black_box(parsed).encode(&mut wire2);",
+        "    wire2.len()",
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip({path}::default());"
+        for path in realistic_entry_paths(case)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def render_consumer_entries_prost(case: str, marker: int) -> str:
+    spec = REALISTIC_CORPORA[case]
+    packages = sorted(
+        realistic_closure_packages(case)
+        - {"google.protobuf"}
+        - set(spec["prost_omitted_packages"])
+    )
+    lines = [
+        prost_package_tree(packages),
+        "",
+        "fn roundtrip<M: prost::Message + Default>(msg: M) -> usize {",
+        "    let wire = msg.encode_to_vec();",
+        '    let parsed = M::decode(std::hint::black_box(&wire[..])).expect("parse generated message");',
+        '    std::hint::black_box(parsed.encode_to_vec()).len()',
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip({path}::default());"
+        for path in realistic_entry_paths(case)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def render_consumer_entries_v4(case: str, marker: int) -> str:
+    lines = [
+        f'#[path = "../generated/{v4_entrypoint_rel(case)}"] mod generated;',
+        "",
+        "fn roundtrip<T: protobuf::Parse + protobuf::Serialize>(msg: T) -> usize {",
+        '    let wire = msg.serialize().expect("serialize generated message");',
+        '    let parsed = T::parse(std::hint::black_box(&wire)).expect("parse generated message");',
+        '    std::hint::black_box(parsed.serialize().expect("serialize parsed message")).len()',
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip(generated::{message}::new());"
+        for _, message in realistic_entries(case)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def render_consumer_entries(case: str, marker: int, generator: str) -> str:
+    if generator == "pbrs":
+        return render_consumer_entries_pbrs(case, marker)
+    if generator == "prost":
+        return render_consumer_entries_prost(case, marker)
+    if generator == "buffa":
+        return render_consumer_entries_buffa(case, marker)
+    if generator == "v4":
+        return render_consumer_entries_v4(case, marker)
+    raise BenchmarkError(f"no realistic consumer renderer for generator: {generator}")
 
 
 def snapshot_generated(
@@ -1211,11 +1973,14 @@ def measure_consumer_build(
     main_rs = consumer / "src" / "main.rs"
     old_mtime = main_rs.stat().st_mtime_ns
     time.sleep(max(0, (old_mtime + 1_100_000_000 - time.time_ns()) / 1_000_000_000))
-    rewrite_messages = CORPORA[case][0] if messages is None else messages
-    if generator == "pbrs":
-        rewrite = render_consumer(rewrite_messages, 1, reference)
+    if case in REALISTIC_CORPORA:
+        rewrite = render_consumer_entries(case, 1, generator)
     else:
-        rewrite = render_consumer_for(rewrite_messages, 1, generator, services)
+        rewrite_messages = CORPORA[case][0] if messages is None else messages
+        if generator == "pbrs":
+            rewrite = render_consumer(rewrite_messages, 1, reference)
+        else:
+            rewrite = render_consumer_for(rewrite_messages, 1, generator, services)
     write_text(main_rs, rewrite)
     if main_rs.stat().st_mtime_ns <= old_mtime:
         raise BenchmarkError(f"incremental source mtime did not advance: {main_rs}")
@@ -1281,10 +2046,19 @@ def measure_pbrs_cell(
         run_dir, timeout, sample_ms, logs / "generation",
     )
     before = snapshot_generated(generated)
-    expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
-    missing = expected_files - before.keys()
-    if missing:
-        raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
+    if case in REALISTIC_CORPORA:
+        expected_files = realistic_pbrs_expected(names)
+        if before.keys() != expected_files:
+            raise BenchmarkError(
+                f"{case}: unexpected pbrs Rust outputs: "
+                f"missing={sorted(expected_files - before.keys())}, "
+                f"extra={sorted(before.keys() - expected_files)}"
+            )
+    else:
+        expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
+        missing = expected_files - before.keys()
+        if missing:
+            raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
     phase(
         report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
         run_dir, timeout, sample_ms, logs / "generation-unchanged",
@@ -1303,11 +2077,16 @@ def measure_pbrs_cell(
         run_dir, timeout, sample_ms, logs,
     )
     if reference_protoc is not None:
-        measure_reference(
-            report, cell, case, names, rep, case_dir, cargo, protoc, base_env,
-            run_dir, timeout, sample_ms,
-        )
-        compare_cell(report, cell, run_dir)
+        if case in REALISTIC_CORPORA:
+            # The legacy CG-19 reference flow is single-directory only; the
+            # v4 matrix cell is the comparison on realistic corpora.
+            cell["reference"] = {"skipped": "single-dir reference flow; see v4 matrix cell"}
+        else:
+            measure_reference(
+                report, cell, case, names, rep, case_dir, cargo, protoc, base_env,
+                run_dir, timeout, sample_ms,
+            )
+            compare_cell(report, cell, run_dir)
 
 
 def measure_peer_cell(
@@ -1315,9 +2094,12 @@ def measure_peer_cell(
     case_dir: Path, generator_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
 ) -> None:
-    if case in STUB_CORPORA:
+    if case in REALISTIC_CORPORA:
+        messages = len(realistic_entries(case))
+        services: list[tuple[str, int, int]] | None = None
+    elif case in STUB_CORPORA:
         messages = STUB_CORPORA[case][0]
-        services: list[tuple[str, int, int]] | None = stub_services(case)
+        services = stub_services(case)
     else:
         messages = CORPORA[case][0]
         services = None
@@ -1363,13 +2145,32 @@ def measure_peer_cell(
         run_dir, timeout, sample_ms, logs / "generation",
     )
     entrypoint = PEER_ENTRYPOINT[generator]
-    expected = peer_expected_files(generator, names)
-    before = snapshot_generated(generated, entrypoint, min_files=1)
-    if before.keys() != expected:
-        raise BenchmarkError(
-            f"{case}/{generator}: unexpected Rust outputs: "
-            f"missing={sorted(expected - before.keys())}, extra={sorted(before.keys() - expected)}"
+    if case in REALISTIC_CORPORA:
+        if generator == "v4":
+            entrypoint = v4_entrypoint_rel(case)
+        elif generator == "prost":
+            entrypoint = prost_package_files(case)[0]
+    if generator == "buffa" and case in REALISTIC_CORPORA:
+        expected = realistic_buffa_core(names, case, corpus["content"])
+        before = snapshot_generated(generated, entrypoint, min_files=1)
+        assert_buffa_realistic_outputs(case, generator, before, expected)
+    else:
+        expected = peer_expected_files(generator, names, case)
+        before = snapshot_generated(generated, entrypoint, min_files=1)
+        if before.keys() != expected:
+            raise BenchmarkError(
+                f"{case}/{generator}: unexpected Rust outputs: "
+                f"missing={sorted(expected - before.keys())}, extra={sorted(before.keys() - expected)}"
+            )
+    if generator == "v4" and case in REALISTIC_CORPORA:
+        found = sorted(
+            path.relative_to(generated).as_posix()
+            for path in generated.rglob("generated.rs")
         )
+        if found != [entrypoint]:
+            raise BenchmarkError(
+                f"{case}/v4: generated.rs search {found} != predicted [{entrypoint}]"
+            )
     phase(
         report, cell["phases"], "generation_unchanged", generation, ROOT, gen_env,
         run_dir, timeout, sample_ms, logs / "generation-unchanged",
@@ -1535,7 +2336,26 @@ def generators_for_case(
 ) -> tuple[str, ...]:
     if case in STUB_CORPORA:
         return stub_generators
+    if case in REALISTIC_CORPORA:
+        excluded = REALISTIC_CORPORA[case]["exclude"]
+        return tuple(g for g in generators if g not in excluded)
     return generators
+
+
+def excluded_cells(
+    cases: list[str], generators: tuple[str, ...],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "case": case,
+            "generator": generator,
+            "reason": REALISTIC_CORPORA[case]["exclude"][generator],
+        }
+        for case in cases
+        if case in REALISTIC_CORPORA
+        for generator in generators
+        if generator in REALISTIC_CORPORA[case]["exclude"]
+    ]
 
 
 def plan_execution(
@@ -1819,7 +2639,8 @@ def seed_arg(value: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--case", choices=["all", *CORPORA, *STUB_CORPORA], default="all",
+        "--case", choices=["all", *CORPORA, *STUB_CORPORA, *REALISTIC_CORPORA],
+        default="all",
     )
     parser.add_argument("--seed", type=seed_arg, default=DEFAULT_SEED)
     parser.add_argument("--out", type=Path, help="new directory under target/codegen-bench")
@@ -1884,7 +2705,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"output already exists: {run_dir} (refusing to overwrite evidence)")
     run_dir.mkdir(parents=True)
     cases = (
-        list(CORPORA) + list(STUB_CORPORA) if args.case == "all" else [args.case]
+        list(CORPORA) + list(STUB_CORPORA) + list(REALISTIC_CORPORA)
+        if args.case == "all" else [args.case]
     )
     measured = {
         generator
@@ -1901,6 +2723,7 @@ def main(argv: list[str] | None = None) -> int:
         "environment": None,
         "setup": {},
         "cells": [],
+        "excluded": excluded_cells(cases, generators),
         "reference": {
             "status": "missing",
             "generator": None,
@@ -1924,7 +2747,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "errors": [],
     }
-    if len(cases) != len(CORPORA) + len(STUB_CORPORA):
+    if len(cases) != len(CORPORA) + len(STUB_CORPORA) + len(REALISTIC_CORPORA):
         report["qualification"]["reasons"].append("partial_corpus_matrix")
     write_report(report, run_dir)
     if args.require_qualified:

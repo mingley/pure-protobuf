@@ -1,6 +1,7 @@
 """Python-only CG-19 harness checks; no Cargo, rustc, or protoc is invoked."""
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -1680,6 +1681,307 @@ class PeerGeneratorTests(unittest.TestCase):
             )
             self.assertTrue(cell["phases"]["release_smoke"]["output_verified"])
             self.assertFalse((run_dir / "driver-v4").exists())
+
+
+class RealisticCorpusTests(unittest.TestCase):
+    def test_realistic_specs_are_self_consistent(self):
+        self.assertEqual(
+            set(harness.REALISTIC_CORPORA),
+            {"otlp", "googleapis", "envoy-core", "envoy-discovery"},
+        )
+        for case, spec in harness.REALISTIC_CORPORA.items():
+            with self.subTest(case=case):
+                inputs, support = spec["inputs"], spec["support"]
+                self.assertEqual(len(set(inputs)), len(inputs))
+                self.assertFalse(set(inputs) & set(support))
+                for name in inputs + support:
+                    self.assertIn(name, harness.VENDOR_FILES, name)
+                    self.assertIn(name, spec["packages"], name)
+                for name in inputs:
+                    self.assertIn(name, spec["messages"], name)
+                entries = harness.realistic_entries(case)
+                self.assertGreater(len(entries), 0)
+                messages = [message for _, message in entries]
+                self.assertEqual(len(set(messages)), len(messages))
+                for name, package in spec["packages"].items():
+                    self.assertRegex(package, r"^[a-z][\w.]*$")
+                for package in spec["prost_omitted_packages"]:
+                    self.assertIn(package, harness.realistic_closure_packages(case))
+                for generator, reason in spec["exclude"].items():
+                    self.assertIn(generator, harness.MESSAGE_GENERATORS)
+                    self.assertTrue(reason)
+                names = harness.realistic_generation_names(case)
+                self.assertEqual(names[: len(inputs)], inputs)
+                self.assertEqual(len(set(names)), len(names))
+
+    def test_keyword_escaping_matches_generators(self):
+        self.assertEqual(harness.rust_mod_ident("type"), "r#type")
+        self.assertEqual(harness.rust_mod_ident("match"), "r#match")
+        self.assertEqual(harness.rust_mod_ident("v3"), "v3")
+        self.assertEqual(harness.rust_mod_ident("self"), "self_")
+        paths = harness.realistic_entry_paths("envoy-core")
+        self.assertIn("envoy::r#type::v3::Percent", paths)
+        self.assertIn("envoy::config::core::v3::SocketAddress", paths)
+        self.assertEqual(len(paths), 16)
+
+    def test_entries_consumers_cover_every_message(self):
+        for case in harness.REALISTIC_CORPORA:
+            entries = harness.realistic_entries(case)
+            for generator in harness.MESSAGE_GENERATORS:
+                if generator in harness.REALISTIC_CORPORA[case]["exclude"]:
+                    continue
+                with self.subTest(case=case, generator=generator):
+                    rendered = harness.render_consumer_entries(case, 0, generator)
+                    self.assertEqual(rendered.count("roundtrip("), len(entries))
+                    self.assertNotEqual(
+                        rendered, harness.render_consumer_entries(case, 1, generator),
+                    )
+        prost = harness.render_consumer_entries("envoy-core", 0, "prost")
+        self.assertIn("pub mod r#type {", prost)
+        self.assertIn("/generated/envoy.r#type.v3.rs", prost)
+        self.assertIn("envoy::r#type::v3::Percent::default()", prost)
+        native = harness.render_consumer_entries("otlp", 0, "pbrs")
+        self.assertIn("opentelemetry::proto::trace::v1::Span::new()", native)
+        flat = harness.render_consumer_entries("googleapis", 0, "v4")
+        self.assertIn(
+            '#[path = "../generated/google/api/generated.rs"] mod generated;', flat,
+        )
+        self.assertIn("generated::HttpRule::new()", flat)
+
+    def test_prost_package_tree_nests_every_segment(self):
+        tree = harness.prost_package_tree(["envoy.type.v3", "validate"])
+        self.assertIn("pub mod envoy {", tree)
+        self.assertIn("pub mod r#type {", tree)
+        self.assertIn("pub mod v3 {", tree)
+        self.assertIn("/generated/envoy.r#type.v3.rs", tree)
+        self.assertIn("pub mod validate {", tree)
+        self.assertIn("/generated/validate.rs", tree)
+        # One module level per package segment for prost's super:: chains.
+        self.assertEqual(tree.count("pub mod "), 4)
+
+    def test_realistic_expected_files_match_spike_layouts(self):
+        self.assertEqual(
+            harness.prost_package_files("envoy-core"),
+            ["envoy.config.core.v3.rs", "envoy.r#type.v3.rs",
+             "udpa.annotations.rs", "validate.rs"],
+        )
+        self.assertEqual(
+            set(harness.prost_package_files("envoy-discovery")),
+            {"envoy.config.core.v3.rs", "envoy.r#type.v3.rs",
+             "envoy.service.discovery.v3.rs", "google.rpc.rs", "udpa.annotations.rs",
+             "validate.rs", "xds.annotations.v3.rs", "xds.core.v3.rs"},
+        )
+        otlp_names = harness.realistic_generation_names("otlp")
+        self.assertEqual(
+            harness.realistic_expected_files("v4", otlp_names, "otlp"),
+            frozenset({
+                "opentelemetry/proto/trace/v1/generated.rs",
+                "opentelemetry/proto/trace/v1/trace.u.pb.rs",
+                "opentelemetry/proto/metrics/v1/metrics.u.pb.rs",
+                "opentelemetry/proto/logs/v1/logs.u.pb.rs",
+                "opentelemetry/proto/common/v1/common.u.pb.rs",
+                "opentelemetry/proto/resource/v1/resource.u.pb.rs",
+            }),
+        )
+        disc_names = harness.realistic_generation_names("envoy-discovery")
+        disc_pbrs = harness.realistic_expected_files("pbrs", disc_names, "envoy-discovery")
+        # Three status.proto files share one basename: mirrored only, no flat file.
+        self.assertNotIn("status.rs", disc_pbrs)
+        self.assertIn("google/rpc/status.rs", disc_pbrs)
+        self.assertIn("udpa/annotations/status.rs", disc_pbrs)
+        self.assertIn("xds/annotations/v3/status.rs", disc_pbrs)
+        self.assertIn("discovery.rs", disc_pbrs)
+        gapi_names = harness.realistic_generation_names("googleapis")
+        self.assertEqual(
+            harness.realistic_expected_files("pbrs", gapi_names, "googleapis"),
+            frozenset({
+                "mod.rs",
+                "annotations.rs", "http.rs", "httpbody.rs", "any.rs", "descriptor.rs",
+                "google/api/annotations.rs", "google/api/http.rs",
+                "google/api/httpbody.rs", "google/protobuf/any.rs",
+                "google/protobuf/descriptor.rs",
+            }),
+        )
+        otlp_content = {
+            name: {"messages": True, "enums": False, "extends": False}
+            for name in otlp_names
+        }
+        core = harness.realistic_buffa_core(otlp_names, "otlp", otlp_content)
+        self.assertIn("mod.rs", core)
+        self.assertIn("opentelemetry.proto.trace.v1.trace.rs", core)
+        self.assertIn("opentelemetry.proto.trace.v1.trace.__view.rs", core)
+        self.assertIn("opentelemetry.proto.trace.v1.mod.rs", core)
+        self.assertEqual(len(core), 1 + 2 * len(otlp_names) + 5)
+        gapi_content = {
+            name: {
+                "messages": name != "google/api/annotations.proto",
+                "enums": False,
+                "extends": name == "google/api/annotations.proto",
+            }
+            for name in gapi_names
+        }
+        gapi_core = harness.realistic_buffa_core(gapi_names, "googleapis", gapi_content)
+        self.assertIn("google.api.annotations.__ext.rs", gapi_core)
+        self.assertNotIn("google.api.annotations.rs", gapi_core)
+        self.assertIn("google.api.http.rs", gapi_core)
+        enum_content = dict(gapi_content)
+        enum_content["google/api/http.proto"] = {
+            "messages": False, "enums": True, "extends": False,
+        }
+        enum_core = harness.realistic_buffa_core(gapi_names, "googleapis", enum_content)
+        self.assertIn("google.api.http.rs", enum_core)
+        self.assertNotIn("google.api.http.__view.rs", enum_core)
+        with self.assertRaisesRegex(harness.BenchmarkError, "does not run"):
+            harness.realistic_expected_files("tonic-build", otlp_names, "otlp")
+        with self.assertRaisesRegex(harness.BenchmarkError, "content classes"):
+            harness.realistic_expected_files("buffa", otlp_names, "otlp")
+
+    def test_buffa_aux_outputs_are_constrained_to_known_suffixes(self):
+        core = frozenset({"mod.rs", "a.b.rs", "a.b.__view.rs", "a.mod.rs"})
+        observed = {name: None for name in core | {"a.b.__oneof.rs", "a.b.__ext.rs"}}
+        harness.assert_buffa_realistic_outputs("otlp", "buffa", observed, core)
+        with self.assertRaisesRegex(harness.BenchmarkError, "missing core"):
+            harness.assert_buffa_realistic_outputs(
+                "otlp", "buffa", {k: v for k, v in observed.items() if k != "a.b.rs"}, core,
+            )
+        with self.assertRaisesRegex(harness.BenchmarkError, "unexpected auxiliary"):
+            harness.assert_buffa_realistic_outputs(
+                "otlp", "buffa", {**observed, "a.b.__mystery.rs": None}, core,
+            )
+        with self.assertRaisesRegex(harness.BenchmarkError, "unexpected auxiliary"):
+            harness.assert_buffa_realistic_outputs(
+                "otlp", "buffa", {**observed, "zzz.__oneof.rs": None}, core,
+            )
+
+    def test_generators_for_case_applies_realistic_exclusions(self):
+        message = ("pbrs", "prost", "buffa", "v4")
+        stubs = ("pbrs-native",)
+        self.assertEqual(
+            harness.generators_for_case("envoy-discovery", message, stubs),
+            ("pbrs", "prost", "buffa"),
+        )
+        self.assertEqual(
+            harness.generators_for_case("envoy-core", message, stubs), message,
+        )
+        self.assertEqual(
+            harness.excluded_cells(["envoy-discovery", "otlp"], message),
+            [{
+                "case": "envoy-discovery",
+                "generator": "v4",
+                "reason": harness.REALISTIC_CORPORA["envoy-discovery"]["exclude"]["v4"],
+            }],
+        )
+        plan = harness.plan_execution(["envoy-discovery"], message, stubs, 1, 11)
+        self.assertEqual(len(plan), 3)
+        self.assertNotIn("v4", {generator for _, generator, _ in plan})
+
+    def test_peer_manifest_adds_prost_types_only_with_wkt(self):
+        with_types = harness.peer_manifest("x", "prost", "googleapis")
+        self.assertIn(f'prost-types = "={harness.PROST_TYPES_VERSION}"', with_types)
+        without_types = harness.peer_manifest("x", "prost", "otlp")
+        self.assertNotIn("prost-types", without_types)
+        seeded = harness.peer_manifest("x", "prost")
+        self.assertNotIn("prost-types", seeded)
+
+    def test_v4_entrypoint_prediction_points_at_first_input_dir(self):
+        self.assertEqual(
+            harness.v4_entrypoint_rel("otlp"),
+            "opentelemetry/proto/trace/v1/generated.rs",
+        )
+        self.assertEqual(
+            harness.v4_entrypoint_rel("envoy-discovery"),
+            "envoy/service/discovery/v3/generated.rs",
+        )
+        self.assertEqual(
+            harness.v4_entrypoint_rel("googleapis"), "google/api/generated.rs",
+        )
+
+    def test_prepare_realistic_corpus_verifies_and_lays_out(self):
+        spec = harness.REALISTIC_CORPORA["otlp"]
+
+        def fake_vendor(package_override=None, messages_override=None):
+            def supply(wanted):
+                base = Path(temporary) / "vendor"
+                for name in wanted:
+                    package = (package_override or {}).get(name, spec["packages"][name])
+                    messages = (messages_override or {}).get(name, spec["messages"][name])
+                    content = (
+                        'syntax = "proto3";\n'
+                        f"package {package};\n"
+                        + "".join(f"message {m} {{\n}}\n" for m in messages)
+                    )
+                    dest = base / name
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(content)
+                return base
+            return supply
+
+        with tempfile.TemporaryDirectory() as temporary:
+            case_dir = Path(temporary) / "case"
+            with mock.patch.object(harness, "ensure_vendor", side_effect=fake_vendor()):
+                names, metadata = harness.prepare_corpus(
+                    case_dir, "otlp", harness.DEFAULT_SEED, ("pbrs",),
+                )
+            self.assertEqual(names, spec["inputs"])
+            self.assertEqual(metadata["messages"], 30)
+            self.assertEqual(metadata["proto_file_count"], 5)
+            self.assertEqual(metadata["support_file_count"], 0)
+            self.assertEqual(len(metadata["inputs"]), 5)
+            self.assertEqual(len(metadata["entries"]), 30)
+            first_content = metadata["content"][spec["inputs"][0]]
+            self.assertEqual(
+                first_content, {"messages": True, "enums": False, "extends": False},
+            )
+            self.assertTrue(
+                (case_dir / "consumer" / "proto"
+                 / "opentelemetry" / "proto" / "trace" / "v1" / "trace.proto").is_file()
+            )
+            main_rs = (case_dir / "consumer" / "src" / "main.rs").read_text()
+            self.assertIn("opentelemetry::proto::trace::v1::Span::new()", main_rs)
+            first = spec["inputs"][0]
+            with mock.patch.object(
+                harness, "ensure_vendor",
+                side_effect=fake_vendor(messages_override={first: ["Wrong"]}),
+            ):
+                with self.assertRaisesRegex(harness.BenchmarkError, "messages"):
+                    harness.prepare_corpus(
+                        Path(temporary) / "bad-msgs", "otlp", harness.DEFAULT_SEED, ("pbrs",),
+                    )
+            with mock.patch.object(
+                harness, "ensure_vendor",
+                side_effect=fake_vendor(package_override={first: "wrong.pkg"}),
+            ):
+                with self.assertRaisesRegex(harness.BenchmarkError, "package"):
+                    harness.prepare_corpus(
+                        Path(temporary) / "bad-pkg", "otlp", harness.DEFAULT_SEED, ("pbrs",),
+                    )
+
+    def test_ensure_vendor_fetches_once_and_verifies_hash(self):
+        content = b'syntax = "proto3";\npackage test;\n'
+        digest = hashlib.sha256(content).hexdigest()
+        fake_files = {"x/y.proto": ("repo", "ref", "x/y.proto", digest)}
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary) / "vendor"
+            with mock.patch.object(harness, "VENDOR_FILES", fake_files), mock.patch.object(
+                harness, "vendor_dir", return_value=base
+            ), mock.patch("urllib.request.urlopen") as http:
+                response = mock.MagicMock()
+                response.read.return_value = content
+                http.return_value.__enter__.return_value = response
+                self.assertEqual(harness.ensure_vendor(["x/y.proto"]), base)
+                self.assertEqual((base / "x" / "y.proto").read_bytes(), content)
+                http.assert_called_once()
+                http.reset_mock()
+                harness.ensure_vendor(["x/y.proto"])
+                http.assert_not_called()
+                (base / "x" / "y.proto").unlink()
+                response.read.return_value = b"tampered"
+                with self.assertRaisesRegex(harness.BenchmarkError, "hash mismatch"):
+                    harness.ensure_vendor(["x/y.proto"])
+                http.reset_mock()
+                http.side_effect = OSError("network down")
+                with self.assertRaisesRegex(harness.BenchmarkError, "fetch failed"):
+                    harness.ensure_vendor(["x/y.proto"])
 
 
 if __name__ == "__main__":
