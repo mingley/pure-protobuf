@@ -1,20 +1,17 @@
 # Codegen Layout & Path Mapping Contract
 
-This specification defines the canonical module layout, output file structure,
-transitive public import chaining, and external crate path mapping for `pure-protobuf`
-(`pbrs`).
+This page defines how `pbrs` maps `.proto` files, packages, imports, and external crates into generated Rust files. It is for developers writing `build.rs`, using `protoc-gen-pbrs`, or debugging generated module paths. Bottom line: single-file builds keep working, while multi-file builds use canonical proto paths and a root `mod.rs` to avoid collisions.
 
-It serves as the design authority for:
-- **CG-04**: Canonical input identity and collision-safe output layout.
-- **CG-05**: External type and runtime crate mappings (`extern_path`, crate renaming).
+This document is the design authority for:
+
+- **CG-04:** canonical input identity and collision-safe output layout.
+- **CG-05:** external type and runtime crate mappings (`extern_path`, crate renaming).
 
 ---
 
 ## 1. Overview and Problem Statement
 
-Historically, `pure-protobuf` generated code by taking the input file's basename
-stem (e.g. `person.proto` -> `person.rs`) and placing it directly at the root of
-`OUT_DIR`. In `src/codegen.rs`:
+The old generator wrote every input file to a root file named after the basename:
 
 ```rust
 let stem = std::path::Path::new(target)
@@ -24,41 +21,35 @@ let stem = std::path::Path::new(target)
 out_files.push((format!("{stem}.rs"), src));
 ```
 
-While convenient for single-file builds (`include!(concat!(env!("OUT_DIR"), "/person.rs"))`),
-this approach broke down in real-world multi-file scenarios:
-1. **Silent File Overwrite**: When multiple files share the same basename across
-   different directories or packages (e.g. `pkg_a/common.proto` and `pkg_b/common.proto`),
-   one silently overwrote the other as `common.rs`.
-2. **Ambiguous Filtering**: Input filtering via `file_matches(&wanted, &desc.file_name)`
-   matched on `w_stem == file_stem`, accidentally dumping types from unrelated
-   packages into the same output file.
-3. **Public Import Gaps**: `DescriptorPool::public_import_files` only checked direct
-   dependencies, failing to transitively re-export multi-hop public imports
-   (e.g. grandparent -> parent -> child) and duplicating struct definitions.
-4. **Hardcoded Dependencies**: Runtime paths (`pbrs::`, `::pbrs_grpc::`, `protobuf_tonic::`)
-   and Well-Known Types (`google.protobuf.*`) could not be remapped to workspace
-   crates or aliased imports.
+That worked for one file:
 
-This contract specifies the architecture to resolve all four issues while preserving
-100% backwards compatibility for existing single-file consumers.
+```rust
+include!(concat!(env!("OUT_DIR"), "/person.rs"));
+```
+
+It failed in real multi-file builds:
+
+| Problem | Example | Required fix |
+|---|---|---|
+| Silent file overwrite | `pkg_a/common.proto` and `pkg_b/common.proto` both wrote `common.rs`. | Include the relative proto path in generated output. |
+| Ambiguous filtering | `file_matches(&wanted, &desc.file_name)` matched `w_stem == file_stem` and mixed unrelated packages. | Match canonical paths or include-root anchored suffixes, never unanchored stems. |
+| Public import gaps | `DescriptorPool::public_import_files` checked only direct dependencies. Multi-hop public imports duplicated structs. | Walk `import public` transitively and re-export instead of redefining. |
+| Hardcoded dependencies | Generated paths assumed `pbrs::`, `::pbrs_grpc::`, `protobuf_tonic::`, and local Well-Known Types. | Let users remap runtime crates, stub crates, and external protobuf packages. |
+
+This contract resolves all four issues while preserving **100% backwards compatibility** for existing single-file consumers.
 
 ---
 
 ## 2. Canonical Proto Input Identity
 
-A proto file's identity is its normalized, slash-delimited relative path from
-the include root (`-I`), matching `FileDescriptorProto.name` and
-`CodeGeneratorRequest.file_to_generate`:
+A proto file's identity is its normalized, slash-delimited relative path from the include root (`-I`). This matches both `FileDescriptorProto.name` and `CodeGeneratorRequest.file_to_generate`.
 
-- **Canonical Example**: `"pkg_a/common.proto"` and `"pkg_b/common.proto"`.
-- **Normalization Rules**:
-  - Path separators are normalized to `/` across all platforms (including Windows).
-  - Leading `./` and duplicate slashes are stripped.
-  - File extensions (`.proto`) are preserved in descriptor queries.
-- **Matching Rule**:
-  `file_matches(wanted, desc_file)` MUST match against the exact canonical path
-  or anchored suffix matching the include root boundary. It MUST NOT match on
-  unanchored stems (`file_stem == target_stem`).
+- **Canonical examples:** `pkg_a/common.proto` and `pkg_b/common.proto`.
+- **Normalization rules:**
+  - Normalize path separators to `/` on every platform, including Windows.
+  - Strip leading `./` and duplicate slashes.
+  - Preserve the `.proto` extension in descriptor queries.
+- **Matching rule:** `file_matches(wanted, desc_file)` **MUST** match the exact canonical path or an anchored suffix at an include-root boundary. It **MUST NOT** match by unanchored stem, such as `file_stem == target_stem`.
 
 ---
 
@@ -67,7 +58,12 @@ the include root (`-I`), matching `FileDescriptorProto.name` and
 ### 3.1 Hierarchical File-Mirroring Layout (Default)
 
 Each proto file `<relative_dir>/<file_stem>.proto` generates:
-`$OUT_DIR/<relative_dir>/<file_stem>.rs`
+
+```text
+$OUT_DIR/<relative_dir>/<file_stem>.rs
+```
+
+Example:
 
 ```text
 $OUT_DIR/
@@ -79,31 +75,33 @@ $OUT_DIR/
 └── mod.rs                 <-- Root module entrypoint
 ```
 
-Subdirectories are created automatically by `Config::compile_protos` and by `protoc`
-when running as a plugin.
+`Config::compile_protos` creates subdirectories automatically. `protoc` does the same when running the generator as a plugin.
 
 ### 3.2 Root Entrypoint (`mod.rs`)
 
-To allow consumers to include all compiled protos with a single directive,
-`Config::compile_protos` generates an aggregated `$OUT_DIR/mod.rs` declaring
-the module hierarchy. `mod.rs` MUST be included at the crate root:
+`Config::compile_protos` also generates an aggregated `$OUT_DIR/mod.rs`, so consumers can include all compiled protos once:
 
 ```rust
 // In lib.rs or main.rs, at the crate root (not nested in another module).
 include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 ```
 
-**Crate-root inclusion rule (normative).** Generated cross-file references use
-`crate::`-anchored package paths (for example
-`pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>` and
-`pub use crate::reexport::grandparent::*;`). These resolve only when `mod.rs`
-is included at the crate root. Nesting the include inside another module
-(e.g. `pub mod protos { include!(...mod.rs); }`) breaks compilation with
-`cannot find ... in crate`. Single-file `stem.rs` outputs that reference no
-other compilation target remain includable at any module level.
+**Crate-root inclusion rule (normative).** Generated cross-file references use `crate::`-anchored package paths. Examples include:
 
-The generated `mod.rs` organizes packages into nested Rust modules matching the
-proto package hierarchy:
+- `pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>`
+- `pub use crate::reexport::grandparent::*;`
+
+These paths resolve only when `mod.rs` is included at the crate root. Nesting the include inside another module breaks compilation:
+
+```rust
+pub mod protos {
+    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+}
+```
+
+That nested form fails with errors like `cannot find ... in crate`. Single-file `stem.rs` outputs that reference no other compilation target remain includable at any module level.
+
+The generated `mod.rs` mirrors protobuf packages as nested Rust modules:
 
 ```rust
 // @generated by protoc-gen-pbrs
@@ -118,59 +116,54 @@ pub mod pkg {
 }
 ```
 
-When multiple files belong to the same package (e.g. `pkg_b/common.proto` and
-`pkg_b/service.proto` both in `package pkg.b;`), their contents are included
-inside the same enclosing Rust module `pkg::b`.
+When several files share one protobuf package, their contents are included inside the same Rust module. For example, `pkg_b/common.proto` and `pkg_b/service.proto` in `package pkg.b;` both appear inside `pkg::b`.
 
 ### 3.3 Package-Centric Layout (Non-Normative Future Alternative)
 
-For workflows preferring one `.rs` file per protobuf package (similar to prost):
-- `pkg.a.rs` (combining all files in package `pkg.a`)
-- `pkg.b.rs` (combining all files in package `pkg.b`)
+Some workflows prefer one Rust file per protobuf package, similar to prost:
 
-This layout is explicitly OUT OF SCOPE for CG-04/CG-05: there is no
-`Config::package_layout` API, and CG-04 implements the file-mirroring layout
-(§3.1) only. A future card may propose package-centric output, but it MUST NOT
-change the §3.1 default paths or the §4 single-file invariant without a new
-compatibility review.
+- `pkg.a.rs`, combining all files in package `pkg.a`
+- `pkg.b.rs`, combining all files in package `pkg.b`
+
+This layout is **out of scope** for CG-04/CG-05. There is no `Config::package_layout` API, and CG-04 implements only the file-mirroring layout in §3.1.
+
+A future card may propose package-centric output, but it **MUST NOT** change the §3.1 default paths or the §4 single-file invariant without a new compatibility review.
 
 ---
 
 ## 4. Backwards Compatibility: Single-File Invariant
 
-A primary constraint is that existing code using:
+Existing code using this pattern **MUST** continue to work without modification:
 
 ```rust
 include!(concat!(env!("OUT_DIR"), "/person.rs"));
 ```
 
-MUST continue to work without modification.
-
 ### 4.1 Unique Stem Alias Rule
 
 For every input file `dir/foo.proto`:
-- If the stem `foo` is **unique** across the entire compilation set:
-  - In addition to any hierarchical path, `OUT_DIR/foo.rs` is emitted at the root.
-  - For single-file inputs (`compile_protos(&["proto/person.proto"], &["proto"])`),
-    the canonical name is `person.proto`, so `OUT_DIR/person.rs` is emitted directly.
-  - For nested single-file inputs (`compile_protos(&["proto/user/person.proto"], &["."])`),
-    `user/person.rs` is emitted AND a root shim or copy `person.rs` is emitted.
+
+- If the stem `foo` is unique across the compilation set, emit `OUT_DIR/foo.rs` at the root in addition to any hierarchical path.
+- For a single-file input such as `compile_protos(&["proto/person.proto"], &["proto"])`, the canonical name is `person.proto`, so `OUT_DIR/person.rs` is emitted directly.
+- For a nested single-file input such as `compile_protos(&["proto/user/person.proto"], &["."])`, emit `user/person.rs` and a root shim or copy named `person.rs`.
 
 ### 4.2 Ambiguous Collision Guard
 
-If two or more input files share the same stem:
-- Example: `pkg_a/common.proto` and `pkg_b/common.proto`.
-- The compiler **MUST NOT** emit an arbitrary root `common.rs`.
-- Emitting an ambiguous `OUT_DIR/common.rs` is prohibited because it would silently
-  break one package.
-- If a consumer explicitly requests an ambiguous stem without package qualification,
-  the build script fails with an actionable diagnostic:
-  ```text
-  Error: ambiguous proto stem 'common' across multiple files:
-    - pkg_a/common.proto (package pkg.a)
-    - pkg_b/common.proto (package pkg.b)
-  Use the hierarchical path or include the root mod.rs instead.
-  ```
+If two or more input files share a stem, the compiler **MUST NOT** emit an arbitrary root file.
+
+Example:
+
+- `pkg_a/common.proto`
+- `pkg_b/common.proto`
+
+Emitting `OUT_DIR/common.rs` would silently break one package, so it is prohibited. If a consumer requests an ambiguous stem without package qualification, the build script fails with an actionable diagnostic:
+
+```text
+Error: ambiguous proto stem 'common' across multiple files:
+  - pkg_a/common.proto (package pkg.a)
+  - pkg_b/common.proto (package pkg.b)
+Use the hierarchical path or include the root mod.rs instead.
+```
 
 ---
 
@@ -179,39 +172,45 @@ If two or more input files share the same stem:
 ### 5.1 Namespacing by Proto Package
 
 Protobuf packages define Rust module namespaces:
+
 - `package pkg.a;` -> `pub mod pkg { pub mod a { ... } }`
 - `package pkg.b;` -> `pub mod pkg { pub mod b { ... } }`
 
-Both packages can define a message named `CommonMsg` and an enum named `CommonEnum`.
-In Rust:
+Both packages can define `CommonMsg` and `CommonEnum`. In Rust, they stay distinct:
+
 - `crate::pkg::a::CommonMsg`
 - `crate::pkg::b::CommonMsg`
 
-**No Type Mangling**:
-Unlike older implementations that mangled colliding types to `ACommonMsg` or
-`BCommonMsg`, types maintain their exact proto identifier `CommonMsg`. Scoping
-is achieved through Rust's module hierarchy.
+**No type mangling.** Types keep their exact proto identifier, such as `CommonMsg`. `pbrs` does not rename them to older-style collision names like `ACommonMsg` or `BCommonMsg`. Rust module scope provides the disambiguation.
 
 ### 5.2 Cross-Package Type References
 
-When `pkg_b/service.proto` references `pkg.a.CommonMsg`:
-- Inside module `pkg::b`, references to external package types use
-  crate-qualified paths:
-  `pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>`
-- References to same-package types defined in another target file of the same
-  compilation also use crate-qualified paths:
-  `pbrs::rt::LazyMsg<crate::pkg::b::CommonMsg>`
-- Only types emitted into the same generated file use bare local idents.
+When `pkg_b/service.proto` references `pkg.a.CommonMsg`, generated code inside `pkg::b` uses crate-qualified paths:
+
+```rust
+pbrs::rt::LazyMsg<crate::pkg::a::CommonMsg>
+```
+
+References to same-package types defined in another target file of the same compilation also use crate-qualified paths:
+
+```rust
+pbrs::rt::LazyMsg<crate::pkg::b::CommonMsg>
+```
+
+Only types emitted into the same generated file use bare local identifiers.
 
 ### 5.3 Nested Types
 
 A message `Parent` containing nested message `Child` produces:
-- Top-level struct: `pub struct Parent { ... }`
-- Nested submodule: `pub mod parent { pub struct Child { ... } }`
-- Identifier access: `Parent::Child` or `parent::Child`
-- In nested modules within `pkg::a`:
-  `crate::pkg::a::common_msg::NestedA`
-  `crate::pkg::b::common_msg::NestedB`
+
+- top-level struct: `pub struct Parent { ... }`
+- nested submodule: `pub mod parent { pub struct Child { ... } }`
+- identifier access: `Parent::Child` or `parent::Child`
+
+Inside nested modules within `pkg::a`, references use fully qualified paths such as:
+
+- `crate::pkg::a::common_msg::NestedA`
+- `crate::pkg::b::common_msg::NestedB`
 
 ---
 
@@ -219,49 +218,56 @@ A message `Parent` containing nested message `Child` produces:
 
 ### 6.1 Protobuf Specification Semantics
 
-In Protocol Buffers:
-- `import "file.proto";` makes types from `file.proto` available locally in the
-  current proto file only.
-- `import public "file.proto";` transitively re-exports all types from `file.proto`
-  to any downstream proto file that imports the current file.
+Protocol Buffers defines two import styles:
+
+- `import "file.proto";` makes types from `file.proto` available only inside the current proto file.
+- `import public "file.proto";` re-exports all types from `file.proto` to downstream proto files that import the current file.
 
 ### 6.2 Multi-Hop Transitive Chaining
 
-Given the chain:
-`reexport/grandparent.proto` (`GrandparentData`)
+Given this chain:
+
+```text
+reexport/grandparent.proto (`GrandparentData`)
   ^
   | import public
-`reexport/parent.proto` (`ParentData`)
+reexport/parent.proto (`ParentData`)
   ^
   | import public
-`reexport/child.proto` (`ChildData`)
+reexport/child.proto (`ChildData`)
+```
+
+The transitive exports are:
 
 1. `reexport/parent.proto` re-exports `reexport.grandparent.*`.
-2. `reexport/child.proto` re-exports `reexport.parent.*` (which transitively
-   includes `reexport.grandparent.*`).
+2. `reexport/child.proto` re-exports `reexport.parent.*`, which transitively includes `reexport.grandparent.*`.
 
 ### 6.3 Single Definition Invariant (No Type Duplication)
 
-- `GrandparentData` MUST be defined as a Rust struct exactly **once**: in `grandparent.rs`.
-- `parent.rs` MUST NOT emit a second `struct GrandparentData`. It emits:
+- `GrandparentData` **MUST** be defined exactly once as a Rust struct: in `grandparent.rs`.
+- `parent.rs` **MUST NOT** emit a second `struct GrandparentData`. It emits:
+
   ```rust
   pub use crate::reexport::grandparent::*;
   ```
-- `child.rs` MUST NOT emit duplicate definitions. It emits:
+
+- `child.rs` **MUST NOT** emit duplicate definitions. It emits:
+
   ```rust
   pub use crate::reexport::parent::*;
   ```
-- Downstream Rust code can access `GrandparentData` through any level of the chain:
-  - `crate::reexport::grandparent::GrandparentData`
-  - `crate::reexport::parent::GrandparentData`
-  - `crate::reexport::child::GrandparentData`
+
+Downstream Rust code can access `GrandparentData` through any level of the chain:
+
+- `crate::reexport::grandparent::GrandparentData`
+- `crate::reexport::parent::GrandparentData`
+- `crate::reexport::child::GrandparentData`
 
 ### 6.4 Transitive Closure Computation
 
-In `DescriptorPool`, `public_import_files` is extended from a 1-hop lookup to
-a recursive graph walk that returns the transitive closure of all publicly
-imported files for each target. All types from files in the transitive public
-closure are excluded from local struct emission in the importing file.
+`DescriptorPool` extends `public_import_files` from a one-hop lookup to a recursive graph walk. The result is the transitive closure of all publicly imported files for each target.
+
+All types from files in the transitive public closure are excluded from local struct emission in the importing file.
 
 ---
 
@@ -269,11 +275,12 @@ closure are excluded from local struct emission in the importing file.
 
 ### 7.1 Motivation
 
-Users frequently need to:
-1. Share generated types from an external or workspace crate (e.g. `shared-proto-crate`)
-   without recompiling or duplicating structs.
+Users need to:
+
+1. Share generated types from an external or workspace crate, such as `shared-proto-crate`, without recompiling or duplicating structs.
 2. Map Well-Known Types (`google.protobuf.*`) to a dedicated library like `pbrs::wkt`.
 3. Support renamed dependencies in `Cargo.toml`:
+
    ```toml
    [dependencies]
    custom_pbrs = { package = "pbrs", version = "0.1" }
@@ -327,41 +334,30 @@ protoc \
 
 ### 7.4 Path Resolution Rules
 
-1. **Longest Prefix Matching**:
-   When resolving field types, the fully-qualified proto type name (e.g. `.google.protobuf.Timestamp`)
-   is matched against configured `extern_path` prefixes using longest-prefix match.
-   Matching replaces the prefix with the configured Rust path:
-   `.google.protobuf.Timestamp` -> `::pbrs::wkt::Timestamp`.
-2. **Deduplication of External Types**:
-   Any proto message or enum whose package matches an `extern_path` entry is
-   **never** emitted into local generated files.
-3. **Crate Name Overrides**:
-   All references to `pbrs::` in generated code respect `runtime_crate`.
-   All references in generated stubs respect `grpc_crate` or `tonic_crate`.
-4. **Nested Extern Types**:
-   Dots below the matched prefix become snake_case module segments, matching
-   the §5.3 nested-module convention:
-   `.pkg.a.CommonMsg.NestedA` with `.extern_path(".pkg.a", "::shared_types::pkg::a")`
-   resolves to `::shared_types::pkg::a::common_msg::NestedA`.
+1. **Longest prefix matching.** When resolving field types, the fully-qualified proto type name, such as `.google.protobuf.Timestamp`, is matched against configured `extern_path` prefixes using longest-prefix match. The matching prefix is replaced with the Rust path:
+
+   ```text
+   .google.protobuf.Timestamp -> ::pbrs::wkt::Timestamp
+   ```
+
+2. **Deduplication of external types.** Any proto message or enum whose package matches an `extern_path` entry is **never** emitted into local generated files.
+3. **Crate name overrides.** All references to `pbrs::` respect `runtime_crate`. All generated stubs respect `grpc_crate` or `tonic_crate`.
+4. **Nested extern types.** Dots below the matched prefix become snake_case module segments, matching the §5.3 nested-module convention:
+
+   ```text
+   .pkg.a.CommonMsg.NestedA
+   + .extern_path(".pkg.a", "::shared_types::pkg::a")
+   = ::shared_types::pkg::a::common_msg::NestedA
+   ```
 
 ### 7.5 Well-Known Type Ownership (Normative)
 
 `google.protobuf.*` types follow these ownership rules:
 
-1. **Default: private per-file copies.** Each generated file owns private copies
-   of the WKT types it references, emitted inside its own `__gen_*` module and
-   referenced by bare local ident (e.g. `pbrs::rt::LazyMsg<Timestamp>`). Copies
-   in different files never collide and are never shared across files.
-2. **Non-WKT imports are not owned.** A referenced non-WKT type whose file is
-   not in the compilation target set is NOT emitted into the referencing file;
-   it is referenced via its `crate::` package path, which requires including
-   the root `mod.rs` at the crate root (§3.2).
-3. **`no_wkt` suppresses local emission.** With `Config::no_wkt(true)` (or the
-   `PURE_PROTOBUF_NO_WKT` plugin equivalent), no WKT struct is emitted; the
-   consumer MUST supply the referenced types or the output will not compile.
-4. **`extern_path` remaps and suppresses.** A WKT package covered by
-   `extern_path` (e.g. `.extern_path(".google.protobuf", "::pbrs::wkt")`) is
-   referenced through the external path and never emitted locally.
+1. **Default: private per-file copies.** Each generated file owns private copies of the Well-Known Types (WKTs) it references. They are emitted inside that file's own `__gen_*` module and referenced by bare local identifier, such as `pbrs::rt::LazyMsg<Timestamp>`. Copies in different files never collide and are never shared across files.
+2. **Non-WKT imports are not owned.** A referenced non-WKT type whose file is not in the compilation target set is **not** emitted into the referencing file. It is referenced through its `crate::` package path, which requires including the root `mod.rs` at the crate root (§3.2).
+3. **`no_wkt` suppresses local emission.** With `Config::no_wkt(true)`, or the `PURE_PROTOBUF_NO_WKT` plugin equivalent, no WKT struct is emitted. The consumer **MUST** supply the referenced types or the output will not compile.
+4. **`extern_path` remaps and suppresses.** A WKT package covered by `extern_path`, such as `.extern_path(".google.protobuf", "::pbrs::wkt")`, is referenced through the external path and never emitted locally.
 
 ---
 
@@ -370,51 +366,34 @@ protoc \
 | Use Case | Legacy Behavior | Contract Behavior | Migration Action |
 |---|---|---|---|
 | Single file `proto/person.proto` | Emitted `OUT_DIR/person.rs` | Emits `OUT_DIR/person.rs` | None. Existing `include!(.../person.rs)` works as-is. |
-| Multi-file distinct stems (`a.proto`, `b.proto`) | Emitted `a.rs`, `b.rs` | Emits `a.rs`, `b.rs` + `mod.rs` | None required. Can optionally switch to `include!(.../mod.rs)`. |
-| Multi-file colliding stems (`pkg_a/common.proto`, `pkg_b/common.proto`) | Silently overwrote `common.rs` with last file | Emits `pkg_a/common.rs`, `pkg_b/common.rs`, errors on bare `common.rs` | Include `mod.rs` or specific subpaths. |
-| External crate types / WKTs | Env vars (`PURE_PROTOBUF_NO_WKT`) | Typed `.extern_path(...)` | Use `Config::extern_path` in `build.rs`. |
+| Multi-file distinct stems (`a.proto`, `b.proto`) | Emitted `a.rs`, `b.rs` | Emits `a.rs`, `b.rs` + `mod.rs` | None required. You may optionally switch to `include!(.../mod.rs)`. |
+| Multi-file colliding stems (`pkg_a/common.proto`, `pkg_b/common.proto`) | Silently overwrote `common.rs` with the last file | Emits `pkg_a/common.rs` and `pkg_b/common.rs`; errors on bare `common.rs` | Include `mod.rs` or specific subpaths. |
+| External crate types / WKTs | Environment variables (`PURE_PROTOBUF_NO_WKT`) | Typed `.extern_path(...)` | Use `Config::extern_path` in `build.rs`. |
 | Renamed `pbrs` crate | Broken imports | `.runtime_crate("::renamed")` | Configure `runtime_crate` in `Config`. |
 
 ---
 
 ## 9. Mechanical Conformance Checklist
 
-CG-04/CG-05 verify each behavior below against the fixtures in
-`tests/fixtures/codegen-layout/` (inputs in `proto/`, prose oracle in
-`README.md`, machine-readable oracle in `expected.json`). Any deviation from
-the cited section is a defect to repair in implementation, not a new design
-decision. Function names below identify the current behavior owners; keep the
-behavior contract even if the helpers move.
+CG-04/CG-05 verify each behavior below against fixtures in `tests/fixtures/codegen-layout/`:
+
+- inputs: `proto/`
+- prose oracle: `README.md`
+- machine-readable oracle: `expected.json`
+
+Any deviation from the cited section is an implementation defect, not a new design decision. Function names identify the current behavior owners; keep the behavior contract even if helpers move.
 
 ### 9.1 Checklist for CG-04 (Canonical Identity & Layout)
 
-1. **Canonical identity (§2).** `compile_protos` retains include-root-relative
-   paths; `file_matches` matches exact canonical paths (or include-root
-   anchored suffixes), never unanchored stems. Unknown or ambiguous requested
-   files fail explicitly (`AmbiguousStem` diagnostic, §4.2).
-2. **Hierarchical emission (§3.1).** Each target emits `$OUT_DIR/<rel_dir>/<stem>.rs`;
-   `emit_root_mod_rs` generates `$OUT_DIR/mod.rs` with package modules and
-   relative `include!` lines.
-3. **Unique stem alias (§4.1).** A root `$OUT_DIR/<stem>.rs` copy is emitted
-   if and only if the stem is unique across targets; colliding stems emit no
-   root file.
-4. **Transitive public imports (§6).** Multi-hop `import public` chains resolve
-   to the transitive closure (1-hop `DescriptorPool::public_import_files`
-   walked transitively); publicly imported types are re-exported via
-   `pub use crate::<pkg>::*;`, never redefined.
-5. **Single-file compatibility (§4, §8).** A self-contained single input still
-   emits an includable root `stem.rs`; existing `include!(OUT_DIR/stem.rs)`
-   consumers compile unchanged.
+1. **Canonical identity (§2).** `compile_protos` retains include-root-relative paths. `file_matches` matches exact canonical paths or include-root anchored suffixes, never unanchored stems. Unknown or ambiguous requested files fail explicitly with the `AmbiguousStem` diagnostic from §4.2.
+2. **Hierarchical emission (§3.1).** Each target emits `$OUT_DIR/<rel_dir>/<stem>.rs`. `emit_root_mod_rs` generates `$OUT_DIR/mod.rs` with package modules and relative `include!` lines.
+3. **Unique stem alias (§4.1).** A root `$OUT_DIR/<stem>.rs` copy is emitted if and only if the stem is unique across targets. Colliding stems emit no root file.
+4. **Transitive public imports (§6).** Multi-hop `import public` chains resolve to the transitive closure. `DescriptorPool::public_import_files` is walked transitively. Publicly imported types are re-exported through `pub use crate::<pkg>::*;`, never redefined.
+5. **Single-file compatibility (§4, §8).** A self-contained single input still emits an includable root `stem.rs`. Existing `include!(OUT_DIR/stem.rs)` consumers compile unchanged.
 
 ### 9.2 Checklist for CG-05 (External Paths & Crate Renaming)
 
-1. **Config surface (§7.2).** `Config::extern_path`, `runtime_crate`,
-   `grpc_crate`, `tonic_crate`; plugin `--pbrs_opt` key-value parsing with
-   conflict diagnostics for duplicate mappings.
-2. **Longest-prefix resolution (§7.4).** Extern matching runs before local
-   ident fallback, including nested-type suffix segments.
-3. **Deduplication (§7.4-7.5).** Messages/enums/services whose package matches
-   an `extern_path` entry (including WKTs) are never emitted locally.
-4. **Crate overrides (§7.4).** Generated `pbrs::`, `::pbrs_grpc::`, and
-   `protobuf_tonic` references honor the configured aliases consistently in
-   message code and in both stub flavors.
+1. **Config surface (§7.2).** `Config::extern_path`, `runtime_crate`, `grpc_crate`, and `tonic_crate`; plugin `--pbrs_opt` key-value parsing with conflict diagnostics for duplicate mappings.
+2. **Longest-prefix resolution (§7.4).** Extern matching runs before local identifier fallback, including nested-type suffix segments.
+3. **Deduplication (§7.4-7.5).** Messages, enums, and services whose package matches an `extern_path` entry, including WKTs, are never emitted locally.
+4. **Crate overrides (§7.4).** Generated `pbrs::`, `::pbrs_grpc::`, and `protobuf_tonic` references honor configured aliases consistently in message code and in both stub flavors.
