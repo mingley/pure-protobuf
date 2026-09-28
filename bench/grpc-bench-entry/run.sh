@@ -32,6 +32,7 @@ CPUS_LIST=${GRPC_CPUS:-"1 2 4"}
 ENTRIES=${GRPC_ENTRIES:-"rust_pbrs_mt_bench rust_pbrs_st_bench rust_tonic_mt_bench rust_tonic_st_bench rust_thruster_mt_bench rust_thruster_st_bench go_grpc_bench java_hotspot_grpc_g1gc_bench java_vertx_grpc_bench dotnet_grpc_bench cpp_grpc_mt_bench cpp_grpc_st_bench"}
 REPEATS=${GRPC_REPEATS:-1}
 SEED=${GRPC_SEED:-170017}
+export GRPC_REPEATS="$REPEATS" GRPC_SEED="$SEED"
 
 export GRPC_BENCHMARK_DURATION=${GRPC_BENCHMARK_DURATION:-"20s"}
 export GRPC_BENCHMARK_WARMUP=${GRPC_BENCHMARK_WARMUP:-"5s"}

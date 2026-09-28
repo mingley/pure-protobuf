@@ -5,6 +5,7 @@ COPY rust_pbrs_st_bench /app
 COPY proto /app/proto
 COPY pbrs-src /app/pbrs-src
 
+RUN apt-get update && apt-get install -y protobuf-compiler
 RUN cargo build --release --locked
 
 ENTRYPOINT ["/app/target/release/helloworld-server"]
