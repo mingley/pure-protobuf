@@ -10,7 +10,7 @@ committed source classifies those notes this way:
 | Classification | Meaning |
 |---|---|
 | **Shipped** | The Verified list and the Distinct notes below. This is not a production certification. |
-| **Unfinished** | [TODO.md](../TODO.md) and the [leadership plan](ROADMAP.md). GR-01 and GR-02 are checked off there. No arena views, Edition 2024, xDS, streaming policy retries, channelz, binary logging, or grpc.stats / OpenTelemetry. `name_80` leftover remains. Field-wise WKT JSON/text is not closed. Unary service-config retries and hedging ship. |
+| **Unfinished** | [TODO.md](../TODO.md) and the [leadership plan](ROADMAP.md). GR-01 and GR-02 are checked off there. No arena views, Edition 2024, xDS client/control plane, CRL/SPIFFE, remaining WKT field-wise JSON/text, GR-03+ production qualification, or full grpc.stats / OpenTelemetry coverage. `name_80` leftover remains. Service-config retry/hedging, channelz, binary logging, ORCA, authz, and optional OTel basics ship in source; that is not production certification. |
 | **Discarded** | [Closed inventory](inventory/README.md). Do not merge those diffs. `#34` already landed; `#39` flatten and `#57` heap-copy did not. |
 | **Missing evidence** | Recorded CI, conformance, and interop numbers are historical results, not GR-03+ qualification. macOS source-bind is in the required `macos` job; that does not qualify GR-03+. |
 
@@ -155,6 +155,18 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Peer information**: mTLS peer identities are exposed through `Rpc::peer_identity`; Unix caller credentials (`SO_PEERCRED`) are exposed through `Rpc::peer_cred`.
 - **In-process channels**: `Channel::from_io` provides memory-backed streaming without socket overhead, but does not perform transparent retry or connection pooling.
 
+### Name Resolution, Load Balancing, Retry, and Proxy
+
+- **Direct dialing remains default**: `Channel::connect` and generated `FooClient::connect` dial one `host:port`.
+- **Resolver URI channels are opt-in**: `Channel::connect_uri` accepts `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. DNS hostnames need explicit `DnsConfig` refresh and retry bounds.
+- **Service config adoption**: DNS TXT service configs can be adopted by resolver-managed channels; invalid updates keep the last good document.
+- **Load balancing**: resolver-managed channels default to `pick_first`. `loadBalancingConfig` can select `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, or `outlier_detection`. These are source- and test-covered, not production-qualified traffic management.
+- **Transparent retry**: at most once before stream commitment.
+- **Service-config retry**: `Channel::service_config` and resolver service config support `retryPolicy` with backoff, throttling, per-attempt receive timeout, pushback, and retry stats. Unary and server-streaming calls retry before response commitment; client-streaming and bidirectional calls keep only transparent setup redial.
+- **Hedging**: unary `hedgingPolicy` ships, bounded by `maxAttempts` and gated by throttling after the first send. Streaming hedging is not applicable.
+- **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT, including TLS end-to-end through the tunnel. There is no per-channel proxy option.
+- **xDS**: xDS target URIs and the xDS control plane are not implemented.
+
 ### Messaging and Protocol Limits
 
 - **Message caps**: inbound messages are capped at 4 MiB by default through `max_decoding_message_size`; oversize frames fail with `Code::ResourceExhausted`.
@@ -162,13 +174,20 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Rich status**: packed `google.rpc.Status` is supported on `grpc-status-details-bin`. When ASCII `grpc-status` headers and binary status details disagree, wire ASCII trailers take precedence.
 - **Defensive caps**: rapid reset (CVE-2023-44487) defense uses `ServerConfig::max_pending_accept_reset_streams`; CONTINUATION flood prevention uses `max_header_list_size` (16 KiB); connection recycling uses `max_connection_age` (plus or minus 10% jitter).
 
+### Observability, ORCA, and Authorization
+
+- **channelz**: the registry tracks live channels, subchannels, servers, sockets, and bounded channel traces; `ChannelzService` serves `grpc.channelz.v1`.
+- **binary logging**: `binlog::BinaryLogger` attaches to channels, servers, and routers with explicit filters and header/message caps.
+- **OpenTelemetry**: the optional `otel` feature provides metrics and tracing observers. Implemented metrics are the A66/A94 basics documented in `otel::Metrics`; retry, message-size, full connection, WRR gauge, xDS, and dynamic-label instruments are still incomplete.
+- **ORCA**: per-call trailers and out-of-band ORCA service support `weighted_round_robin`.
+- **Authorization**: A43 JSON authorization policies can be enforced on `Server` and `Router`; A59 audit logging hooks ship.
+
 ### Explicit Omissions and Boundaries
 
-- **xDS protocol**: omitted. Name resolution and dynamic traffic steering are expected to terminate at service-mesh ingress or L4/L7 sidecars.
-- **channelz and binary logging**: omitted from the kernel to avoid unbounded runtime memory retention.
-- **Hedging**: unary `hedgingPolicy` ships, bounded by `maxAttempts` and gated by the throttling bucket past the first send. Streaming hedging is not applicable.
+- **xDS protocol**: omitted. xDS target URIs are rejected; xDS-managed routing should terminate at service-mesh ingress or L4/L7 sidecars.
+- **Production qualification**: shipped in source and covered by tests is not the same as fleet- or claim-grade qualification.
 - **Edition 2024**: Edition 2024 is currently untested and unsupported; conformance covers up to Edition 2023.
-- **Service-config retries**: unary `retryPolicy` ships through `Channel::service_config` and covers backoff, throttling, per-attempt timeouts, and server pushback. Streaming policy retry is follow-up work; client-streaming and bidirectional streaming stay call-site retries with no replay buffer.
+- **Service-config scope**: client-streaming and bidirectional streaming do not replay request bodies under policy retry; they stay call-site retries with no replay buffer.
 
 For a consolidated cross-framework comparison matrix, see
 [docs/guides/comparison.md](guides/comparison.md).
@@ -179,11 +198,12 @@ Tracked in [TODO.md](../TODO.md) and [ROADMAP.md](ROADMAP.md). The notes above
 document shipped behavior and explicit omissions; they are not an open work
 queue.
 
-Still not done: arena views, Edition 2024, `name_80` leftover, xDS, streaming
-policy retries, channelz, binary logging, grpc.stats / OpenTelemetry, remaining
-WKT field-wise JSON/text, and GR-03+. Unary service-config retries and hedging
-ship (`Channel::service_config`, `tests/policy_retry.rs`). Do not treat a
-clean checkout as production certification.
+Still not done: arena views, Edition 2024, `name_80` leftover, xDS
+client/control plane, CRL/SPIFFE, full grpc.stats / OpenTelemetry coverage,
+remaining WKT field-wise JSON/text, and GR-03+. Service-config retries,
+hedging, channelz, binary logging, ORCA, authz, and optional OTel basics ship
+in source and tests. Do not treat a clean checkout as production
+certification.
 
 ## Skipped rust/test/shared files
 

@@ -115,14 +115,15 @@ The kernel enforces caps before committing the memory they guard:
 
 ### Client
 
-`Channel` pools HTTP/2 connections to one authority (`Target`). Client
-interceptors inspect and modify `Outgoing` request context: authority, scheme,
-user-agent, timeouts, wait-for-ready overlays, compression settings, and
-metadata.
+`Channel::connect` pools HTTP/2 connections to one authority (`Target`).
+`Channel::connect_uri` opts into resolver snapshots and service-config load
+balancing. Client interceptors inspect and modify `Outgoing` request context:
+authority, scheme, user-agent, timeouts, wait-for-ready overlays, compression
+settings, and metadata.
 
 | Characteristic | Behavior |
 |---|---|
-| Addressing | Dials direct authorities (`host:port`). `origin` can override authority without changing the TCP dial. |
+| Addressing | Default direct authorities (`host:port`); opt-in resolver URIs (`dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, `unix-abstract:`) through `Channel::connect_uri`. `origin` can override authority without changing the TCP dial. |
 | Connection recovery | Dead slots redial on the next RPC. Unary and server-streaming calls retry once transparently if disconnected before commitment. |
 | Timeout management | Channel or request timeouts serialize as `grpc-timeout` headers and enforce end-to-end deadlines across hops. |
 | Backpressure and limits | Channel overlays cap message encoding/decoding sizes, buffer depths, and concurrent in-flight streams. |
@@ -132,7 +133,7 @@ metadata.
 | Architecture domain | `pbrs-grpc` | Tonic | gRPC-Go |
 |---|---|---|---|
 | Core transport | Direct `h2` HTTP/2 driver | Hyper HTTP/2 + Tower | Internal Go HTTP/2 stack |
-| Addressing model | `host:port` string / `Target` | `http://` or `https://` URIs | Resolver URIs (`dns:///`, `passthrough:///`) |
+| Addressing model | `host:port` string / `Target`, plus opt-in resolver URIs | `http://` or `https://` URIs | Resolver URIs (`dns:///`, `passthrough:///`, `xds:///`) |
 | Concurrency limiting | Strict process-wide RPC cap | Tower `ConcurrencyLimitLayer` | Worker pool / goroutine dispatch |
 | Memory allocation | Bounded buffers with early caps | Configurable Tower buffers | Shared transport write buffers |
 | TLS and security | rustls + Graviola with ALPN `h2` | rustls or native-tls | Go crypto/tls |

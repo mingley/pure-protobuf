@@ -70,8 +70,8 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A3 | Channel tracing | planned | Bounded in-memory channel trace API. |
-| A14 | Channelz | planned | Channelz data model + `grpc.channelz.v1` service. |
+| A3 | Channel tracing | shipped | Bounded per-entity channel traces in the channelz registry; descriptions are capped and owner drop unregisters entities (`channelz::Trace`, `DEFAULT_MAX_TRACE_EVENTS`, `tests/channelz.rs`). |
+| A14 | Channelz | shipped | Process-global registry for channels, subchannels, servers and sockets plus `grpc.channelz.v1.Channelz` service (`ChannelzService::shared_global`, `tests/channelz.rs`). |
 | A16 | Binary logging | shipped | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`; `{h;m}` caps; attempts share one call id; client peer + `grpc-trace-bin` omitted at taps. |
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |

@@ -4,19 +4,19 @@
 [![Documentation](https://docs.rs/pbrs-grpc/badge.svg)](https://docs.rs/pbrs-grpc)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE-MIT)
 
-`pbrs-grpc` is the native gRPC client and server crate for [`pbrs`](../README.md). Use it when you want pure-Rust protobuf messages and a direct HTTP/2 gRPC stack without Tonic, Tower, Hyper, or a C/C++ build toolchain. The crate is still preview software at `0.1.0-alpha.1`.
+`pbrs-grpc` is the native gRPC client and server crate for [`pbrs`](../README.md). Use it when you want pure-Rust protobuf messages and a direct HTTP/2 gRPC stack without Tonic, Tower, Hyper, or a C/C++ build toolchain. The crate is still preview software at `0.1.0-alpha.2`.
 
-> ⚠️ **Pre-Release Notice**: `pbrs-grpc` is currently in **preview / pre-release (`0.1.0-alpha.1`)** and is undergoing active production qualification.
+> ⚠️ **Pre-Release Notice**: `pbrs-grpc` is currently in **preview / pre-release (`0.1.0-alpha.2`)** and is undergoing active production qualification.
 >
 > ### Scope & Boundaries
-> - **Client-Side Name Resolution & Load Balancing**: Dials single authorities directly (`host:port`); no dynamic DNS or xDS control plane.
-> - **Application-Level Retries & Hedging**: Connection loss transparently redials at most once before stream transmission; call-site retries use `Code::is_retryable`.
-> - **HTTP CONNECT Proxy**: Dials TCP directly; HTTP proxy traversal is not supported.
+> - **Name resolution and load balancing**: plain `Channel::connect` still dials one `host:port`; resolver URIs opt in with `Channel::connect_uri`. Built-in schemes are `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. xDS targets are not supported.
+> - **Retries and hedging**: transparent retry stays at most once before a call commits. JSON service config is opt-in through `Channel::service_config` or resolver-delivered DNS TXT and supplies bounded `retryPolicy`, `hedgingPolicy`, throttling, and pushback.
+> - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY`/`NO_PROXY` on every dial and tunnel with HTTP CONNECT. There is no per-channel proxy configuration surface yet.
 
 ## What it provides
 
 - **Pure Rust**: no C or C++ compiler is required in the build tree.
-- **No unsafe in the gRPC kernel**: the crate uses `#![forbid(unsafe_code)]`.
+- **Mostly safe Rust kernel**: gRPC framing, dispatch, transport, TLS, codec, resolver, load-balancer, authz, binlog, and service-config modules forbid unsafe. Two Linux-only OS helpers use scoped `SAFETY`-documented unsafe for `TCP_USER_TIMEOUT` and per-core CPU pinning.
 - **Independent transport**: runs directly on prior-knowledge HTTP/2 (`h2`), `rustls`, and Graviola.
 - **Native pbrs messages**: generated stubs use the `pbrs` `Parse` and `Serialize` traits.
 
@@ -26,17 +26,17 @@ Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1.0-alpha.1"
+pbrs = "0.2"
+pbrs-grpc = "0.1.0-alpha.2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = "0.2"
 ```
 
-This checkout builds `pbrs-grpc` from checked descriptor sets without `protoc`.
-The published `0.1.0-alpha.1` archive still needs `protoc` for its own build
-until a new version ships.
+From `0.1.0-alpha.2` on, `pbrs-grpc` builds from checked descriptor sets
+without `protoc`. The older `0.1.0-alpha.1` archive still needs `protoc` for
+its own build.
 
 The quickstart `compile_protos` step below still requires `protoc` for your own
 `.proto` files. To build application stubs without `protoc`, check in a
@@ -125,9 +125,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Routing | `Router` composes multiple services on one TCP/TLS port. |
 | Local IPC | Unix Domain Sockets (`serve_unix`, `connect_unix`) and in-memory duplex channels (`Channel::from_io`). |
 | HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, and oversize frames. |
+| Name resolution | Default direct `host:port`; opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:` targets. DNS refresh needs explicit `DnsConfig` bounds. |
+| Load balancing | Default `pick_first`; opt-in `loadBalancingConfig` supports `pick_first`, `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, and `outlier_detection`. |
+| Retries and hedging | Transparent retry is automatic and at most once before commitment. Service-config `retryPolicy` and unary `hedgingPolicy` are opt-in through `Channel::service_config` or resolver service config. |
+| HTTP CONNECT proxy | `HTTPS_PROXY` / `NO_PROXY` env support with CONNECT tunneling, optional Basic auth, and TLS end-to-end through the tunnel. |
 | Interceptors | Client and server interceptor pipelines with request context extensions. See the [interceptors guide](../docs/guides/interceptors.md). |
-| Operations | Built-in gRPC health checking (`grpc.health.v1`) and server reflection (`grpc.reflection.v1`). See the [operations guide](../docs/guides/operations.md). |
+| Operations | Built-in gRPC health checking (`grpc.health.v1`), server reflection (`grpc.reflection.v1`), channelz (`grpc.channelz.v1`), binary logging, ORCA load reports, and optional OpenTelemetry observers. See the [operations guide](../docs/guides/operations.md). |
+| Authorization | gRFC A43 JSON authorization policies for `Server` and `Router`, plus A59 audit logging hooks. |
 | Errors | Packed `google.rpc.Status` error details on `grpc-status-details-bin`. |
+| Large payloads | `bytes` fields of 4 KiB or more are parsed without copying; fields of 32 KiB or more set from `bytes::Bytes` are sent without copying. See [large payloads / zero-copy](../docs/zero-copy.md). |
 
 ## Design invariants and comparisons
 
@@ -135,10 +141,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Domain | `pbrs-grpc` invariant | Difference from common alternatives |
 |---|---|---|
-| Addressing | `host:port` string or `Target` | Tonic uses `http://` or `https://` URIs. gRPC-Go uses resolver schemes. |
+| Addressing | `host:port` string or opt-in resolver URI | Tonic uses `http://` or `https://` URIs. gRPC-Go also supports xDS resolver schemes; `pbrs-grpc` does not. |
 | Concurrency | `ServerConfig::max_concurrent_rpcs` enforces a cap | Overflow fails fast with `RESOURCE_EXHAUSTED` instead of unbounded queuing. |
 | Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs are enabled once an interval is set. |
-| Retries | Transparent retry is at most once on fresh connections | There is no complex service-config engine for all cases; application retries use `Code::is_retryable`. |
+| Retries | Transparent retry is at most once; service-config retry/hedging is opt-in and bounded | Application retries still use `Code::is_retryable` when no service-config policy applies. |
 
 ## More documentation
 
@@ -149,4 +155,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - [Operations and diagnostics](../docs/guides/operations.md) — health checking, reflection, and tuning.
 - [Code generation](../docs/guides/codegen.md) — `protoc` integration, stub options, and build scripts.
 - [Framework comparison](../docs/guides/comparison.md) — detailed comparison with Tonic and gRPC-Go.
+- [Large payloads / zero-copy](../docs/zero-copy.md) — where large `bytes` payloads are and are not copied.
 - [Architecture and design](../docs/architecture.md) — kernel internals and HTTP/2 framing architecture.

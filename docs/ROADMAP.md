@@ -29,7 +29,7 @@ planning pass, and source coverage is not evidence of a successful deployment.
 
 | Area | What exists | What still needs proof or work |
 |---|---|---|
-| Crate boundaries | [Core manifest](../Cargo.toml), [native transport](../pbrs-grpc/Cargo.toml), [tonic adapter](../protobuf-tonic/Cargo.toml): `pbrs` 0.1.0 and two 0.1.0-alpha.1 adapters; separate dependency graphs. | Publication and a non-alpha version do not certify production readiness. Assess each crate separately. |
+| Crate boundaries | [Core manifest](../Cargo.toml), [native transport](../pbrs-grpc/Cargo.toml), [tonic adapter](../protobuf-tonic/Cargo.toml): `pbrs` 0.2.0 and two 0.1.0-alpha.2 adapters; separate dependency graphs. | Publication and a non-alpha version do not certify production readiness. Assess each crate separately. |
 | Protobuf compatibility | [Recorded conformance](status.md): v35.1, maximum Edition 2023, 5,631 binary/JSON and 909 text cases with no unexpected results; [CI](../.github/workflows/ci.yml) runs conformance. | This is not every protobuf feature or upstream Rust test. [Known boundaries](upb.md) include Edition 2024, official generated internals, and non-owning views. |
 | Native gRPC | [Client](../pbrs-grpc/src/client.rs), [server](../pbrs-grpc/src/server.rs), [wire](../pbrs-grpc/src/wire.rs): four call shapes, TLS/mTLS, UDS, health/reflection, deadlines, cancellation, bounds, pooling and limited transparent retry. | Establish a cross-peer, failure, platform and sustained-load matrix; do not reimplement these existing features merely to check a roadmap box. |
 | Discovery | [TCP dialing](../pbrs-grpc/src/tcp.rs) resolves hostnames. `Target` takes `host:port`; connection pools serve one authority. | Resolver URI support, endpoint refresh and multi-endpoint balancing are different capabilities and are not implemented. |
@@ -378,7 +378,7 @@ still qualify earlier. Other candidates below remain demand-led.
 | Edition 2024 and broader descriptor options | Pin the upstream feature contract and add differential/codegen fixtures before advertising it; not a blind generator maximum-edition bump. |
 | Specialized WKT/Serde APIs | Preserve official protobuf JSON semantics, unknown/presence behavior and roundtrips. Measure against the current dynamic fallback; ordinary Serde derives are not automatically equivalent. |
 | First-class borrowed views or `no_std`/WASM | Measure retained-buffer memory and lifecycle ergonomics; identify supported targets and dependencies. Keep the owned API and native transport boundaries intact. |
-| xDS, ORCA, channelz and cloud auth | First justify native ownership versus external load balancing or tonic; require interoperable control-plane and operational tests for the chosen subset. |
+| xDS, cloud auth and observability qualification | First justify native ownership versus external load balancing or tonic; xDS, CRL/SPIFFE and cloud auth need interoperable control-plane tests. Shipped ORCA/channelz surfaces still need operational qualification before broader claims. |
 | HTTP CONNECT, gRPC-Web, newer transports | Separate deployment requirements from core gRPC compliance; design auth/proxy and framing behavior with an independent peer before implementation. |
 | Hedging | Only after GR-07, with explicit idempotency, concurrency/amplification limits and an outage-load experiment proving it does not worsen overload. |
 
