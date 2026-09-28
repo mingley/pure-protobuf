@@ -1,6 +1,6 @@
 [package]
 name = "pbrs-grpc"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2024"
 rust-version = "1.85"
@@ -13,7 +13,7 @@ keywords = ["grpc", "http2", "protobuf", "pbrs", "pure-rust"]
 categories = ["network-programming", "asynchronous"]
 
 [build-dependencies]
-pbrs = { version = "0.1.0", path = ".." }
+pbrs = { version = "0.2.0", path = ".." }
 
 [dependencies]
 base64 = "0.22"
@@ -28,7 +28,7 @@ http = "1"
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
 # Default off: zero cost when disabled (module compiles out).
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
-pbrs = { version = "0.1.0", path = ".." }
+pbrs = { version = "0.2.0", path = ".." }
 # rustls default features pull in aws-lc-rs, which compiles C. We disable
 # them and supply Graviola, which builds with rustc only.
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }

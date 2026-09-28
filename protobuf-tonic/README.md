@@ -1,8 +1,8 @@
 # protobuf-tonic
 
-`protobuf-tonic` lets Tonic services use `pbrs` message types instead of Prost messages. It is for Rust developers who want the Tonic 0.14 ecosystem with Google protobuf v4 application traits. The crate is preview software at `0.1.0-alpha.1` and older Tonic versions are unsupported.
+`protobuf-tonic` lets Tonic services use `pbrs` message types instead of Prost messages. It is for Rust developers who want the Tonic 0.14 ecosystem with Google protobuf v4 application traits. The crate is preview software at `0.1.0-alpha.2` and older Tonic versions are unsupported.
 
-> ⚠️ **Pre-Release Notice**: `protobuf-tonic` is currently in **preview / pre-release (`0.1.0-alpha.1`)** and is **not yet production ready**.
+> ⚠️ **Pre-Release Notice**: `protobuf-tonic` is currently in **preview / pre-release (`0.1.0-alpha.2`)** and is **not yet production ready**.
 >
 > ### Known Gaps & Roadmap (TBD)
 > - **OK-Path Custom Trailers**: Tonic 0.14 does not expose custom trailers on successful responses (`Response` lacks a `trailers()` accessor); custom trailing metadata is only delivered on error statuses.
@@ -37,19 +37,19 @@ MSRV is 1.88.
 ```toml
 [dependencies]
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
+pbrs = "0.2"
+protobuf-tonic = "0.1.0-alpha.2"
 http = "1"
 tokio-stream = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = "0.2"
 ```
 
-`protobuf-tonic` is published as a preview crate. This checkout builds from a
-checked descriptor set without `protoc`; the published `0.1.0-alpha.1` archive
-still needs it until a new version ships.
+`protobuf-tonic` is published as a preview crate. From `0.1.0-alpha.2` on it
+builds from a checked descriptor set without `protoc`; the older
+`0.1.0-alpha.1` archive still needs it.
 
 The `compile_protos` example below still needs `protoc` for your application's
 `.proto` files. For a cold build without `protoc`, use

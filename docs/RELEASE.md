@@ -32,10 +32,10 @@ the corresponding MSRV CI jobs. Protobuf Edition 2024 generation is a separate,
 unqualified feature and must not be inferred from the Cargo manifests.
 
 Current manifests (check the files, not this table, before tagging): `pbrs`
-`0.1.0`; adapters `0.1.0-alpha.1`. A `v1.0.0` tag does not promote the
-adapters. The current source builds both adapters from checked descriptor sets
-without `protoc`, but the already-published adapter alphas still need it;
-that improvement reaches crates.io only when new versions are published.
+`0.2.0`; adapters `0.1.0-alpha.2`. A `v1.0.0` tag does not promote the
+adapters. From `0.1.0-alpha.2` on, both adapters build from checked
+descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still
+need it.
 
 ## Next coordinated all-crate release
 
@@ -117,11 +117,11 @@ development push; the publisher still requires every job on its exact SHA.
 2. Land that change on `main` (CI must be green; that still does **not**
    publish).
 3. Tag the SHA with `v` plus a version that **matches at least one** crate
-   manifest (for example `v0.1.0` for `pbrs` `0.1.0`, or
-   `v0.1.0-alpha.1` for an adapter). Push the tag:
+   manifest (for example `v0.2.0` for `pbrs` `0.2.0`, or
+   `v0.1.0-alpha.2` for an adapter). Push the tag:
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 4. The tag run re-executes required CI, then `./scripts/publish-crates.sh`
    in order `pbrs`, `protobuf-tonic`, `pbrs-grpc`. Already-published
@@ -187,5 +187,9 @@ cargo publish -p pbrs-grpc --dry-run
 
 Adapter dry-runs may warn or skip verify when the in-tree `pbrs` version is
 not on crates.io yet. Isolated consumers of the unpacked `.crate` are
-`tests/package_consumer.rs`. Expected tarball names follow
-`<name>-<version>.crate` from the manifests (for example `pbrs-0.1.0.crate`).
+`tests/package_consumer.rs`; it packs all three crates in one `cargo package`
+call so adapters resolve the unpublished core without rewriting `Cargo.lock`.
+A core change that adapters rely on (for example a new feature) therefore
+needs a new core version: an already-published version wins over the local
+copy. Expected tarball names follow
+`<name>-<version>.crate` from the manifests (for example `pbrs-0.2.0.crate`).

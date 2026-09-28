@@ -46,10 +46,10 @@ descriptors instead.
 
    ```toml
    [dependencies]
-   pbrs = "0.1"
+   pbrs = "0.2"
 
    [build-dependencies]
-   pbrs = "0.1"
+   pbrs = "0.2"
    ```
 
 2. Add a proto file at `proto/person.proto`:
@@ -117,9 +117,9 @@ stubs by default. tonic users must opt in with
 
 | Crate | What it contains | crates.io Status |
 |---|---|---|
-| [`pbrs`](.) | Core Protocol Buffers runtime: parser, serializer, code generator (`protoc-gen-pbrs`), dynamic messages, well-known types, JSON format, and text format. | `0.1.0` (Published; qualification in progress) |
-| [`pbrs-grpc`](pbrs-grpc) | Standalone pure-Rust HTTP/2 gRPC client and server kernel. It does not depend on C or tonic. | `0.1.0-alpha.1` (Pre-release / Preview) |
-| [`protobuf-tonic`](protobuf-tonic) | tonic 0.14+ `Codec` adapter for clients and servers that use regenerated `pbrs` message types. | `0.1.0-alpha.1` (Pre-release / Preview) |
+| [`pbrs`](.) | Core Protocol Buffers runtime: parser, serializer, code generator (`protoc-gen-pbrs`), dynamic messages, well-known types, JSON format, and text format. | `0.2.0` (Published; qualification in progress) |
+| [`pbrs-grpc`](pbrs-grpc) | Standalone pure-Rust HTTP/2 gRPC client and server kernel. It does not depend on C or tonic. | `0.1.0-alpha.2` (Pre-release / Preview) |
+| [`protobuf-tonic`](protobuf-tonic) | tonic 0.14+ `Codec` adapter for clients and servers that use regenerated `pbrs` message types. | `0.1.0-alpha.2` (Pre-release / Preview) |
 | [`examples/greeter`](examples/greeter) | Complete example with generated stubs, gRPC health checking (`grpc.health.v1`), and server reflection (`grpc.reflection.v1`). | Example only (`publish = false`) |
 
 ## Code generation options
@@ -131,8 +131,8 @@ build.
 | Task | Needs `protoc`? | Notes |
 |---|---|---|
 | Build the core `pbrs` crate | No | The crate uses a bundled `FileDescriptorSet`. |
-| Build this checkout's `pbrs-grpc` and `protobuf-tonic` crates | No | They build from checked descriptor sets. |
-| Build published `pbrs-grpc` / `protobuf-tonic` `0.1.0-alpha.1` crates | Yes | Those crates.io alphas predate the checked-descriptor change. |
+| Build `pbrs-grpc` and `protobuf-tonic` (`0.1.0-alpha.2` and later, or this checkout) | No | They build from checked descriptor sets. |
+| Build the older `pbrs-grpc` / `protobuf-tonic` `0.1.0-alpha.1` crates | Yes | Those alphas predate the checked-descriptor change. |
 | Run `compile_protos` or `protoc-gen-pbrs` on application `.proto` files | Yes | `protoc` must be on `PATH`. |
 | Run `Config::compile_descriptor_set` from a checked descriptor set | No during the app build | Creating or updating the descriptor set still needs `protoc`. |
 
@@ -183,7 +183,7 @@ messages-only generation.
 
 Against this checkout, a consumer using a checked descriptor set can cold-build
 messages, native stubs, and tonic stubs without `protoc` on its build `PATH`.
-The current crates.io adapter alphas still require it.
+The older `0.1.0-alpha.1` adapter archives still require it.
 
 ### `protoc-gen-pbrs` plugin
 
@@ -231,8 +231,8 @@ of **Protocol Buffers Edition 2024**.
 | Crate | Declared MSRV | Tested | `protoc` | Stub default |
 |---|---|---|---|---|
 | [`pbrs`](.) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to **build** the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | **Current source:** no compiler needed to build from checked FileDescriptorSets; required to regenerate descriptors or compile application `.proto`. **Published alpha.1:** still requires `protoc`. | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | **Current source:** no compiler needed to build from the checked FileDescriptorSet. **Published alpha.1:** still requires `protoc`. Direct `.proto` compilation needs it in either version. | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | **Current source:** no compiler needed to build from checked FileDescriptorSets; required to regenerate descriptors or compile application `.proto`. **Older `0.1.0-alpha.1`:** still requires `protoc`. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | **Current source:** no compiler needed to build from the checked FileDescriptorSet. **Older `0.1.0-alpha.1`:** still requires `protoc`. Direct `.proto` compilation needs it in either version. | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
 | [`examples/greeter`](examples/greeter) | 1.85 | rustc 1.98 (this host); CI stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):

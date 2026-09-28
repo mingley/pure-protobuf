@@ -53,8 +53,8 @@ Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter.
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
+pbrs = "0.2"
+protobuf-tonic = "0.1.0-alpha.2"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 

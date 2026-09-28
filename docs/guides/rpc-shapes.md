@@ -440,12 +440,12 @@ codegen shells out to it:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1.0-alpha.1"
+pbrs = "0.2"
+pbrs-grpc = "0.1.0-alpha.2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = "0.2"
 ```
 
 ```rust

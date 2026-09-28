@@ -15,11 +15,11 @@ dependency and add the runtime crates your generated code will use:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1.0-alpha.1"
+pbrs = "0.2"
+pbrs-grpc = "0.1.0-alpha.2"
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = "0.2"
 ```
 
 ### Basic Compilation
@@ -77,8 +77,8 @@ Important boundaries:
 - In this checkout, a **cold** build of `pbrs-grpc` or `protobuf-tonic` is also
   `protoc`-free because both adapters use checked descriptor sets for their own
   build scripts.
-- The currently published `0.1.0-alpha.1` archives still require `protoc` until
-  new versions are released.
+- Published adapters from `0.1.0-alpha.2` on are `protoc`-free too. The older
+  `0.1.0-alpha.1` archives still require `protoc`.
 - Creating or updating an application's descriptor set still requires a
   compiler in an earlier stage.
 - Direct `.proto` compilation and the `protoc-gen-pbrs` plugin still require
@@ -127,8 +127,8 @@ with `tonic` and `protobuf-tonic`:
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-protobuf-tonic = "0.1.0-alpha.1"
+pbrs = "0.2"
+protobuf-tonic = "0.1.0-alpha.2"
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 http = "1"
 tokio-stream = "0.1"

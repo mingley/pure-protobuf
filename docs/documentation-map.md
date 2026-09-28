@@ -142,11 +142,10 @@ their shape when editing the listed files:
 
 The stale git-dependency claim in the earlier audit is fixed.
 [protobuf-tonic/README.md](../protobuf-tonic/README.md) now shows the
-published `0.1.0-alpha.1` preview alongside `pbrs = "0.1"`.
-The checkout builds the adapters from checked descriptor sets without
-`protoc`; the published adapter archives predate that change and still
-require `protoc`. Keep source-only instructions distinct from published
-crate behavior until new versions pass the release qualification.
+`0.1.0-alpha.2` preview alongside `pbrs = "0.2"`.
+From `0.1.0-alpha.2` on, the adapters build from checked descriptor sets
+without `protoc`; the older `0.1.0-alpha.1` archives still require it. Keep
+source-only instructions distinct from published crate behavior.
 
 ## 7. Duplicated prose
 
