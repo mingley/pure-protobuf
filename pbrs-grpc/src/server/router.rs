@@ -1044,7 +1044,6 @@ impl Router {
 impl Dispatch for Router {
     async fn dispatch(&self, mut rpc: Rpc) {
         rpc.response_interceptor = self.response_interceptor.clone();
-        rpc.byte_budget = self.byte_budget.clone();
         rpc.observer = self.observer.clone();
         if let Some(tap) = self
             .binlog
@@ -1075,6 +1074,10 @@ impl Dispatch for Router {
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         self.observer.as_ref()
+    }
+
+    fn byte_budget(&self) -> ByteBudgetTracker {
+        self.byte_budget.clone()
     }
 
     fn channelz_server(&self) -> Option<crate::channelz::ServerId> {

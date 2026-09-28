@@ -208,8 +208,10 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
         .await
         .ok();
     drop(permit);
-    let mut status = Status::new(Code::Ok, "");
-    *status.metadata_mut() = trailers;
+    let mut status = Status::ok();
+    if !trailers.is_empty() {
+        *status.metadata_mut() = trailers;
+    }
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
@@ -254,8 +256,8 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
     if let Some(tap) = tap {
         tap.log_server_header(&headers);
     }
-    let mut status = Status::from_code(Code::Ok);
-    *status.metadata_mut() = trailers;
+    let ok_trailers = trailers;
+    let mut status = Status::ok();
     // The deadline has to cover the whole response, not just the handler
     // future: a producer that stops early because *its* deadline expired must
     // not be reported as a clean end of stream.
@@ -317,6 +319,9 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
         if status.is_ok() && tokio::time::Instant::now() >= at {
             status = Status::deadline_exceeded();
         }
+    }
+    if status.is_ok() && !ok_trailers.is_empty() {
+        *status.metadata_mut() = ok_trailers;
     }
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);

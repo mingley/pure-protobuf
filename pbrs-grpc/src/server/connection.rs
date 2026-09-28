@@ -228,6 +228,7 @@ pub(crate) fn incoming_rpc(
     respond: SendResponse,
     config: ServerConfig,
     peer: ConnectionInfo,
+    byte_budget: ByteBudgetTracker,
     channelz_server: Option<crate::channelz::ServerId>,
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Rpc {
@@ -246,7 +247,7 @@ pub(crate) fn incoming_rpc(
         diagnostic_config: None,
         timeout: None,
         response_interceptor: None,
-        byte_budget: ByteBudgetTracker::default(),
+        byte_budget,
         observer: None,
         binlog: None,
         channelz_server,
@@ -429,6 +430,7 @@ where
                     .map(|_| std::time::Instant::now());
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
+                let byte_budget = dispatch.byte_budget();
                 drop(R::spawn(async move {
                     let _lease = lease;
                     let _permit = permit;
@@ -444,6 +446,7 @@ where
                             respond,
                             config,
                             rpc_peer,
+                            byte_budget,
                             channelz_server,
                             channelz_socket_id,
                         ))

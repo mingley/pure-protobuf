@@ -88,6 +88,9 @@ impl<S: Service> DynService for S {
 /// for [`Router`].
 pub(crate) trait Dispatch: Send + Sync + 'static {
     fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
+    fn byte_budget(&self) -> ByteBudgetTracker {
+        ByteBudgetTracker::default()
+    }
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         None
     }
@@ -114,7 +117,6 @@ pub(crate) struct Single<S> {
 impl<S: Service> Dispatch for Single<S> {
     async fn dispatch(&self, mut rpc: Rpc) {
         rpc.response_interceptor = self.response_interceptor.clone();
-        rpc.byte_budget = self.byte_budget.clone();
         rpc.observer = self.observer.clone();
         if let Some(tap) = self
             .binlog
@@ -142,6 +144,10 @@ impl<S: Service> Dispatch for Single<S> {
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
         self.observer.as_ref()
+    }
+
+    fn byte_budget(&self) -> ByteBudgetTracker {
+        self.byte_budget.clone()
     }
 
     fn channelz_server(&self) -> Option<crate::channelz::ServerId> {
