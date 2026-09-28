@@ -1,14 +1,18 @@
 # gRFC Coverage
 
-This page tracks `pbrs-grpc` support for the cross-language (`A`) and
-protocol-level (`G`) gRFCs in [grpc/proposal](https://github.com/grpc/proposal).
-Language-specific (`L`) proposals for other languages and process (`P`)
-proposals are out of scope by definition; the table below records that once
-instead of repeating it per row.
+This page is the support matrix for `pbrs-grpc` against gRPC Request for
+Comments (gRFCs). Bottom line: each `A` or `G` proposal is marked with the
+current implementation status, while language-specific (`L`) and process (`P`)
+proposals are out of scope.
 
-Status values: **shipped** (implemented, tested), **partial** (subset shipped),
-**in progress** (committed work underway), **planned** (accepted, not started),
-**boundary** (deliberately not in the kernel, with the reason).
+The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
+[grpc/proposal](https://github.com/grpc/proposal). Status values:
+
+- **shipped:** implemented and tested;
+- **partial:** a subset ships;
+- **in progress:** committed work is underway;
+- **planned:** accepted, not started;
+- **boundary:** deliberately not in the kernel, with the reason recorded.
 
 ## Core RPC behavior
 
@@ -156,6 +160,6 @@ Status values: **shipped** (implemented, tested), **partial** (subset shipped),
 
 ## Evidence
 
-Each row moves to **shipped** only with committed behavior tests and, where a
-peer exists, cross-implementation evidence. The [task cards](plan/tasks.json)
+Rows move to **shipped** only with committed behavior tests and, where a peer
+exists, cross-implementation evidence. The [task cards](plan/tasks.json)
 (FL/EX/OB lanes) carry the per-feature acceptance criteria.
