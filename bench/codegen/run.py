@@ -8,9 +8,11 @@ import hashlib
 import json
 import os
 import platform
+import random
 import re
 import shutil
 import signal
+import statistics
 import subprocess
 import sys
 import threading
@@ -952,20 +954,85 @@ def measure_consumer_build(
     )
 
 
+def measure_pbrs_cell(
+    report: dict, case: str, names: list[str], corpus: dict, rep: int,
+    case_dir: Path, pbrs_binary: Path, cargo: str, protoc: str,
+    base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
+    reference_protoc: Path | None,
+) -> None:
+    consumer = case_dir / "consumer"
+    generated = consumer / "generated"
+    target_dir = case_dir / f"target-r{rep}"
+    package = f"cg19-consumer-{case}"
+    cell = {
+        "case": case,
+        "generator": "pbrs",
+        "repeat": rep,
+        "corpus": corpus,
+        "target_dir": relative(target_dir, run_dir),
+        "phases": {},
+    }
+    report["cells"].append(cell)
+    write_report(report, run_dir)
+    check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
+    logs = run_dir / "logs" / case / f"r{rep}"
+    phase(
+        report, cell["phases"], "consumer_lock",
+        [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
+        ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
+    )
+    cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+    generation = [
+        str(pbrs_binary), str(consumer / "proto"), str(generated), protoc, *names
+    ]
+    phase(
+        report, cell["phases"], "generation", generation, ROOT, base_env,
+        run_dir, timeout, sample_ms, logs / "generation",
+    )
+    before = snapshot_generated(generated)
+    expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
+    missing = expected_files - before.keys()
+    if missing:
+        raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
+    phase(
+        report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
+        run_dir, timeout, sample_ms, logs / "generation-unchanged",
+    )
+    assert_unchanged(before, snapshot_generated(generated))
+    cell["output"] = {
+        "rust_file_count": len(before),
+        "rust_bytes": sum(item[2] for item in before.values()),
+        "rust_tree_sha256": tree_digest(before),
+        "unchanged_generation_mtimes_preserved": True,
+        "unchanged_generation_verified_files": len(before),
+    }
+    write_report(report, run_dir)
+    measure_consumer_build(
+        report, cell, case, consumer, target_dir, package, False, cargo, check_env,
+        run_dir, timeout, sample_ms, logs,
+    )
+    if reference_protoc is not None:
+        measure_reference(
+            report, cell, case, names, rep, case_dir, cargo, protoc, base_env,
+            run_dir, timeout, sample_ms,
+        )
+        compare_cell(report, cell, run_dir)
+
+
 def measure_peer_cell(
-    report: dict, case: str, names: list[str], corpus: dict, generator: str,
+    report: dict, case: str, names: list[str], corpus: dict, generator: str, rep: int,
     case_dir: Path, generator_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
 ) -> None:
     messages = CORPORA[case][0]
     consumer, package = prepare_peer_consumer(case_dir, case, messages, generator)
     generated = consumer / "generated"
-    generated.mkdir(parents=True)
-    target_dir = case_dir / "gen" / generator / "target"
+    generated.mkdir(parents=True, exist_ok=True)
+    target_dir = case_dir / "gen" / generator / f"target-r{rep}"
     cell = {
         "case": case,
         "generator": generator,
-        "repeat": 0,
+        "repeat": rep,
         "corpus": corpus,
         "protoc": protoc,
         "target_dir": relative(target_dir, run_dir),
@@ -974,7 +1041,7 @@ def measure_peer_cell(
     report["cells"].append(cell)
     write_report(report, run_dir)
     check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
-    logs = run_dir / "logs" / case / "gen" / generator
+    logs = run_dir / "logs" / case / "gen" / generator / f"r{rep}"
     phase(
         report, cell["phases"], "consumer_lock",
         [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
@@ -1022,16 +1089,16 @@ def measure_peer_cell(
 
 
 def measure_reference(
-    report: dict, cell: dict, case: str, names: list[str], case_dir: Path, cargo: str,
+    report: dict, cell: dict, case: str, names: list[str], rep: int, case_dir: Path, cargo: str,
     protoc: str, base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
 ) -> dict:
-    consumer = case_dir / "reference" / "consumer"
+    consumer = case_dir / f"reference-r{rep}" / "consumer"
     generated = consumer / "generated"
-    generated.mkdir(parents=True)
+    generated.mkdir(parents=True, exist_ok=True)
     package = f"cg19-reference-{case}"
     write_text(consumer / "Cargo.toml", manifest(package, reference=True))
     write_text(consumer / "src" / "main.rs", render_consumer(CORPORA[case][0], 0, reference=True))
-    target_dir = case_dir / "reference" / "target"
+    target_dir = case_dir / f"reference-r{rep}" / "target"
     reference = {
         "corpus_sha256": cell["corpus"]["sha256"],
         "proto_inputs": [item["path"] for item in cell["corpus"]["inputs"]],
@@ -1041,7 +1108,7 @@ def measure_reference(
     cell["reference"] = reference
     write_report(report, run_dir)
     check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
-    logs = run_dir / "logs" / case / "reference"
+    logs = run_dir / "logs" / case / f"reference-r{rep}"
     phase(
         report, reference["phases"], "consumer_lock",
         [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
@@ -1109,7 +1176,8 @@ def compare_cell(report: dict, cell: dict, run_dir: Path) -> None:
                 or not isinstance(pinned, int) or isinstance(pinned, bool) or pinned < 0):
             raise BenchmarkError(f"invalid paired measurement for {cell['case']}: {metric}")
         rows.append({
-            "case": cell["case"], "metric": metric, "pbrs": pbrs, "reference": pinned,
+            "case": cell["case"], "repeat": cell.get("repeat", 0),
+            "metric": metric, "pbrs": pbrs, "reference": pinned,
             "pbrs_loses": pbrs > pinned,
             "rss_peak_is_lower_bound": metric.endswith("peak_rss_bytes"),
         })
@@ -1121,17 +1189,104 @@ def compare_cell(report: dict, cell: dict, run_dir: Path) -> None:
     write_report(report, run_dir)
 
 
+MATRIX_PHASES = (
+    "generation", "generation_unchanged", "check_clean", "check_incremental", "build_release",
+)
+MATRIX_PHASE_METRICS = ("elapsed_ns", "peak_rss_bytes")
+
+
+def matrix_metrics(cell: dict) -> dict[str, int]:
+    metrics = {
+        "output.rust_bytes": cell["output"]["rust_bytes"],
+        "release_binary.size_bytes": cell["release_binary"]["size_bytes"],
+    }
+    for phase_name in MATRIX_PHASES:
+        for metric in MATRIX_PHASE_METRICS:
+            metrics[f"{phase_name}.{metric}"] = cell["phases"][phase_name][metric]
+    return metrics
+
+
+def summarize(values: list[int]) -> dict:
+    return {
+        "n": len(values),
+        "min": min(values),
+        "median": statistics.median(values),
+        "mean": statistics.mean(values),
+        "stdev": statistics.stdev(values) if len(values) > 1 else None,
+    }
+
+
+def plan_execution(
+    cases: list[str], generators: tuple[str, ...], repeats: int, seed: int,
+) -> list[tuple[str, str, int]]:
+    work = [
+        (case, generator, rep)
+        for case in cases
+        for generator in generators
+        for rep in range(repeats)
+    ]
+    return random.Random(seed).sample(work, len(work))
+
+
+def compute_matrix(report: dict) -> None:
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for cell in report["cells"]:
+        groups.setdefault((cell["case"], cell["generator"]), []).append(cell)
+    tabulated = {}
+    for (case, generator), cells in sorted(groups.items()):
+        per_metric: dict[str, list[int]] = {}
+        for cell in cells:
+            for metric, value in matrix_metrics(cell).items():
+                per_metric.setdefault(metric, []).append(value)
+        tabulated[f"{case}/{generator}"] = {
+            "case": case,
+            "generator": generator,
+            "repeats": sorted(cell["repeat"] for cell in cells),
+            "metrics": {
+                metric: summarize(values) for metric, values in sorted(per_metric.items())
+            },
+        }
+    losses = []
+    for case in sorted({case for case, _ in groups}):
+        baseline = tabulated.get(f"{case}/pbrs")
+        if baseline is None:
+            continue
+        for (cell_case, generator) in sorted(groups):
+            if cell_case != case or generator == "pbrs":
+                continue
+            peer = tabulated[f"{case}/{generator}"]
+            for metric, summary in peer["metrics"].items():
+                pbrs_median = baseline["metrics"][metric]["median"]
+                gen_median = summary["median"]
+                losses.append({
+                    "case": case,
+                    "generator": generator,
+                    "metric": metric,
+                    "pbrs_median": pbrs_median,
+                    "generator_median": gen_median,
+                    "generator_loses": gen_median > pbrs_median,
+                })
+    report["matrix"] = {
+        "repeats": report.get("repeats"),
+        "cells": tabulated,
+        "losses": losses,
+    }
+
+
 def run_cases(
     report: dict, run_dir: Path, cases: list[str], seed: int, jobs: int, timeout: int,
     sample_ms: int, reference_protoc: Path | None = None,
-    generators: tuple[str, ...] = ("pbrs",),
+    generators: tuple[str, ...] = ("pbrs",), repeats: int = 5,
 ) -> None:
     unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
     if unknown:
         raise BenchmarkError(f"unknown generators: {unknown}")
+    if repeats < 1:
+        raise BenchmarkError(f"repeats must be at least 1, got {repeats}")
     details = provenance(run_dir, jobs, sample_ms, reference_protoc)
     report["environment"] = details
     report["generators"] = list(generators)
+    report["repeats"] = repeats
     if reference_protoc is not None:
         report["reference"].update({
             "status": "ready",
@@ -1216,9 +1371,9 @@ def run_cases(
             ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / "driver-build",
         )
         shared_generator = boot_target / "debug" / "cg19-generator"
-        generator, digest = copy_generator(shared_generator, run_dir)
+        pbrs_binary, digest = copy_generator(shared_generator, run_dir)
         report["setup"]["shared_generator_binary_path"] = str(shared_generator)
-        report["setup"]["generator_binary_path"] = relative(generator, run_dir)
+        report["setup"]["generator_binary_path"] = relative(pbrs_binary, run_dir)
         report["setup"]["generator_binary_sha256"] = digest
         write_report(report, run_dir)
     for peer in generators:
@@ -1235,73 +1390,23 @@ def run_cases(
             report, run_dir, peer, cargo, boot_env, boot_target, timeout, sample_ms,
         )
 
-    for case in cases:
+    order = plan_execution(cases, generators, repeats, seed)
+    report["execution_order"] = [f"{case}/{generator}/r{rep}" for case, generator, rep in order]
+    write_report(report, run_dir)
+    for case, generator, rep in order:
         case_dir = run_dir / "cases" / case
-        names, corpus = prepare_corpus(case_dir, case, seed, generators)
-        if "pbrs" in generators:
-            consumer = case_dir / "consumer"
-            generated = consumer / "generated"
-            target_dir = case_dir / "target"
-            package = f"cg19-consumer-{case}"
-            cell = {
-                "case": case,
-                "generator": "pbrs",
-                "repeat": 0,
-                "corpus": corpus,
-                "target_dir": relative(target_dir, run_dir),
-                "phases": {},
-            }
-            report["cells"].append(cell)
-            write_report(report, run_dir)
-            check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
-            logs = run_dir / "logs" / case
-            phase(
-                report, cell["phases"], "consumer_lock",
-                [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
-                ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
-            )
-            cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
-            generation = [
-                str(generator), str(consumer / "proto"), str(generated), protoc, *names
-            ]
-            phase(
-                report, cell["phases"], "generation", generation, ROOT, base_env,
-                run_dir, timeout, sample_ms, logs / "generation",
-            )
-            before = snapshot_generated(generated)
-            expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
-            missing = expected_files - before.keys()
-            if missing:
-                raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
-            phase(
-                report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
-                run_dir, timeout, sample_ms, logs / "generation-unchanged",
-            )
-            assert_unchanged(before, snapshot_generated(generated))
-            cell["output"] = {
-                "rust_file_count": len(before),
-                "rust_bytes": sum(item[2] for item in before.values()),
-                "rust_tree_sha256": tree_digest(before),
-                "unchanged_generation_mtimes_preserved": True,
-                "unchanged_generation_verified_files": len(before),
-            }
-            write_report(report, run_dir)
-            measure_consumer_build(
-                report, cell, case, consumer, target_dir, package, False, cargo, check_env,
-                run_dir, timeout, sample_ms, logs,
-            )
-            if reference_protoc is not None:
-                measure_reference(
-                    report, cell, case, names, case_dir, cargo, protoc, base_env,
-                    run_dir, timeout, sample_ms,
-                )
-                compare_cell(report, cell, run_dir)
-        for peer in generators:
-            if peer == "pbrs":
-                continue
-            measure_peer_cell(
-                report, case, names, corpus, peer, case_dir, peer_drivers[peer],
+        names, corpus = prepare_corpus(case_dir, case, seed, (generator,))
+        if generator == "pbrs":
+            measure_pbrs_cell(
+                report, case, names, corpus, rep, case_dir, pbrs_binary,
                 cargo, protoc, base_env, run_dir, timeout, sample_ms,
+                reference_protoc,
+            )
+        else:
+            measure_peer_cell(
+                report, case, names, corpus, generator, rep, case_dir,
+                peer_drivers[generator], cargo, protoc, base_env,
+                run_dir, timeout, sample_ms,
             )
 
     before = details["repository"]["source_sha256"]
@@ -1314,7 +1419,8 @@ def run_cases(
             raise BenchmarkError("pinned reference protoc changed during measurement")
         report["reference"]["status"] = "measured"
         report["comparison"]["status"] = "diagnostic"
-        write_report(report, run_dir)
+    compute_matrix(report)
+    write_report(report, run_dir)
 
 
 def positive_int(value: str) -> int:
@@ -1322,6 +1428,22 @@ def positive_int(value: str) -> int:
     if not 1 <= number <= 3600:
         raise argparse.ArgumentTypeError("must be between 1 and 3600")
     return number
+
+
+def qualification_reasons(
+    reference_mode: bool, generators: tuple[str, ...], repeats: int,
+) -> list[str]:
+    if reference_mode:
+        reasons = ["no_independent_pinned_host_qualification"]
+        if repeats < 5:
+            reasons.extend(["single_run_diagnostic", "no_paired_replicates_or_uncertainty"])
+        return reasons
+    reasons = []
+    if not any(name != "pbrs" for name in generators):
+        reasons.append("no_equivalent_reference_peer")
+    if repeats < 5:
+        reasons.append("single_run_diagnostic")
+    return reasons
 
 
 def build_jobs(value: str) -> int:
@@ -1366,6 +1488,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--generators", default="pbrs",
         help=f"comma-separated message generators to measure: {','.join(MESSAGE_GENERATORS)}",
+    )
+    parser.add_argument(
+        "--repeats", type=positive_int, default=5,
+        help="repeats per cell in seeded-random execution order (default: 5)",
     )
     args = parser.parse_args(argv)
     generators = tuple(part for part in args.generators.split(",") if part)
@@ -1418,11 +1544,8 @@ def main(argv: list[str] | None = None) -> int:
         {"status": "not_run", "metrics": [], "losing_cells": None},
         "qualification": {
             "qualified": False,
-            "reasons": (
-                ["no_equivalent_reference_peer", "single_run_diagnostic"]
-                if args.reference_protoc is None else
-                ["single_run_diagnostic", "no_independent_pinned_host_qualification",
-                 "no_paired_replicates_or_uncertainty"]
+            "reasons": qualification_reasons(
+                args.reference_protoc is not None, generators, args.repeats,
             ),
         },
         "errors": [],
@@ -1440,7 +1563,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         run_cases(
             report, run_dir, cases, args.seed, args.jobs, args.timeout_seconds, args.rss_sample_ms,
-            args.reference_protoc, generators=generators,
+            args.reference_protoc, generators=generators, repeats=args.repeats,
         )
     except (BenchmarkError, OSError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, ValueError) as exc:

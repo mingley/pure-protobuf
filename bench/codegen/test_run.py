@@ -189,13 +189,14 @@ class CorpusTests(unittest.TestCase):
                     out = root / "target" / "codegen-bench" / case
 
                     def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms, reference_protoc,
-                                   generators=("pbrs",)):
+                                   generators=("pbrs",), repeats=5):
                         self.assertEqual(run_dir, out.resolve())
                         self.assertEqual(cases, [case])
                         self.assertEqual(seed, harness.DEFAULT_SEED)
                         self.assertEqual(jobs, 2)
                         self.assertEqual(reference_protoc.resolve(), (root / "pinned-protoc").resolve())
                         self.assertEqual(tuple(generators), ("pbrs",))
+                        self.assertEqual(repeats, 5)
                         raise harness.BenchmarkError("stub pipeline reached")
 
                     with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
@@ -582,16 +583,16 @@ class CorpusTests(unittest.TestCase):
                         harness.write_text(output / proto.replace(".proto", ".rs"), "pub struct Message;\n")
                 elif name == "check-clean":
                     self.assertEqual(env["CARGO_BUILD_JOBS"], "4")
-                    target = run_dir / "cases" / "small" / "target"
+                    target = run_dir / "cases" / "small" / "target-r0"
                     target.mkdir(parents=True)
                     source = run_dir / "cases" / "small" / "consumer" / "src" / "main.rs"
                     stat = source.stat()
                     os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 2_000_000_000))
                 elif name == "build-release":
-                    binary = run_dir / "cases" / "small" / "target" / "release" / "cg19-consumer-small"
+                    binary = run_dir / "cases" / "small" / "target-r0" / "release" / "cg19-consumer-small"
                     harness.write_text(binary, "compiled")
                 elif name == "release-smoke":
-                    binary = run_dir / "cases" / "small" / "target" / "release" / "cg19-consumer-small"
+                    binary = run_dir / "cases" / "small" / "target-r0" / "release" / "cg19-consumer-small"
                     self.assertEqual(command, [str(binary)])
                     self.assertEqual(cwd, run_dir / "cases" / "small" / "consumer")
                     self.assertEqual(timeout, 15)
@@ -619,7 +620,7 @@ class CorpusTests(unittest.TestCase):
             ), mock.patch.object(harness, "source_hashes", return_value={}), mock.patch.object(
                 harness.time, "sleep", return_value=None
             ):
-                harness.run_cases(report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100)
+                harness.run_cases(report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100, repeats=1)
             saved = json.loads((run_dir / "summary.json").read_text())
             cell = saved["cells"][0]
             self.assertEqual(saved["environment"]["cache"]["bootstrap_target_dir"], str(shared_target))
@@ -685,7 +686,7 @@ class CorpusTests(unittest.TestCase):
 
             def fake_command(command, cwd, env, stem, destination, timeout, sample_ms):
                 name = stem.name
-                is_reference = stem.parent.name == "reference"
+                is_reference = stem.parent.name.startswith("reference")
                 stdout, stderr, paths = harness.log_paths(stem, destination)
                 stdout.parent.mkdir(parents=True, exist_ok=True)
                 stdout.write_text("")
@@ -693,7 +694,7 @@ class CorpusTests(unittest.TestCase):
                 commands.append((name, is_reference, command))
                 consumer = run_dir / "cases" / "small"
                 if is_reference:
-                    consumer = consumer / "reference" / "consumer"
+                    consumer = consumer / "reference-r0" / "consumer"
                 else:
                     consumer = consumer / "consumer"
                 package = "cg19-reference-small" if is_reference else "cg19-consumer-small"
@@ -786,6 +787,7 @@ class CorpusTests(unittest.TestCase):
             ):
                 harness.run_cases(
                     report, run_dir, ["small"], harness.DEFAULT_SEED, 2, 15, 100, protoc,
+                    repeats=1,
                 )
             saved = json.loads((run_dir / "summary.json").read_text())
             self.assertEqual(saved["reference"]["status"], "measured")
@@ -806,7 +808,7 @@ class CorpusTests(unittest.TestCase):
             )
             self.assertFalse((run_dir / "bootstrap-target").exists())
             reference_manifest = (
-                run_dir / "cases" / "small" / "reference" / "consumer" / "Cargo.toml"
+                run_dir / "cases" / "small" / "reference-r0" / "consumer" / "Cargo.toml"
             ).read_text()
             self.assertIn('protobuf = "=4.35.1-release"', reference_manifest)
             self.assertNotIn("pbrs", reference_manifest)
@@ -986,9 +988,10 @@ class PeerGeneratorTests(unittest.TestCase):
             out = root / "target" / "codegen-bench" / "matrix"
 
             def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms,
-                         reference_protoc, generators=("pbrs",)):
+                         reference_protoc, generators=("pbrs",), repeats=5):
                 self.assertIsNone(reference_protoc)
                 self.assertEqual(tuple(generators), ("pbrs", "prost"))
+                self.assertEqual(repeats, 5)
                 raise harness.BenchmarkError("stub pipeline reached")
 
             with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
@@ -1089,7 +1092,7 @@ class PeerGeneratorTests(unittest.TestCase):
             ):
                 harness.run_cases(
                     report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100,
-                    generators=("prost",),
+                    generators=("prost",), repeats=1,
                 )
             saved = json.loads((run_dir / "summary.json").read_text())
             self.assertEqual(saved["generators"], ["prost"])
@@ -1117,6 +1120,229 @@ class PeerGeneratorTests(unittest.TestCase):
                 ["part_00.proto", "part_01.proto"],
             )
             self.assertFalse((run_dir / "cases" / "small" / "consumer" / "Cargo.toml").exists())
+
+    def test_plan_execution_is_seeded_covering_shuffle(self):
+        first = harness.plan_execution(["small", "100"], ("pbrs", "prost"), 2, 7)
+        again = harness.plan_execution(["small", "100"], ("pbrs", "prost"), 2, 7)
+        self.assertEqual(first, again)
+        self.assertEqual(len(first), 8)
+        self.assertEqual(len(set(first)), 8)
+        cases = {case for case, _, _ in first}
+        self.assertEqual(cases, {"small", "100"})
+        shuffled = any(
+            harness.plan_execution(["a", "b"], ("pbrs", "prost"), 1, seed)
+            != [("a", "pbrs", 0), ("a", "prost", 0), ("b", "pbrs", 0), ("b", "prost", 0)]
+            for seed in range(100)
+        )
+        self.assertTrue(shuffled)
+
+    def test_summarize_reports_uncertainty(self):
+        summary = harness.summarize([3, 1, 2])
+        self.assertEqual(
+            summary, {"n": 3, "min": 1, "median": 2, "mean": 2.0, "stdev": 1.0},
+        )
+        single = harness.summarize([42])
+        self.assertEqual(single["n"], 1)
+        self.assertIsNone(single["stdev"])
+        self.assertEqual(single["median"], 42)
+
+    def _matrix_cell(self, case, generator, rep, rust_bytes, binary_bytes, elapsed):
+        phases = {}
+        for name in harness.MATRIX_PHASES:
+            phases[name] = {"elapsed_ns": elapsed, "peak_rss_bytes": elapsed // 2}
+        return {
+            "case": case, "generator": generator, "repeat": rep,
+            "output": {"rust_bytes": rust_bytes},
+            "release_binary": {"size_bytes": binary_bytes},
+            "phases": phases,
+        }
+
+    def test_compute_matrix_lists_median_losses(self):
+        report = {
+            "repeats": 2,
+            "cells": [
+                self._matrix_cell("small", "pbrs", 0, 100, 500, 10),
+                self._matrix_cell("small", "pbrs", 1, 100, 500, 30),
+                self._matrix_cell("small", "prost", 0, 60, 900, 20),
+                self._matrix_cell("small", "prost", 1, 60, 900, 40),
+            ],
+        }
+        harness.compute_matrix(report)
+        matrix = report["matrix"]
+        self.assertEqual(matrix["repeats"], 2)
+        self.assertEqual(
+            matrix["cells"]["small/pbrs"]["metrics"]["output.rust_bytes"]["median"], 100,
+        )
+        self.assertEqual(
+            matrix["cells"]["small/prost"]["metrics"]["build_release.elapsed_ns"]["n"], 2,
+        )
+        losses = {
+            (row["generator"], row["metric"]): row["generator_loses"]
+            for row in matrix["losses"]
+        }
+        # prost generates fewer bytes (wins) but a bigger binary (loses).
+        self.assertFalse(losses[("prost", "output.rust_bytes")])
+        self.assertTrue(losses[("prost", "release_binary.size_bytes")])
+        self.assertTrue(losses[("prost", "build_release.elapsed_ns")])
+
+    def test_compute_matrix_without_pbrs_has_no_losses(self):
+        report = {
+            "repeats": 1,
+            "cells": [self._matrix_cell("small", "prost", 0, 60, 900, 20)],
+        }
+        harness.compute_matrix(report)
+        self.assertEqual(report["matrix"]["losses"], [])
+        self.assertEqual(
+            report["matrix"]["cells"]["small/prost"]["metrics"]["output.rust_bytes"]["n"], 1,
+        )
+
+    def test_qualification_reasons_track_repeats_and_peers(self):
+        self.assertEqual(
+            harness.qualification_reasons(False, ("pbrs",), 1),
+            ["no_equivalent_reference_peer", "single_run_diagnostic"],
+        )
+        self.assertEqual(
+            harness.qualification_reasons(False, ("pbrs",), 5),
+            ["no_equivalent_reference_peer"],
+        )
+        self.assertEqual(
+            harness.qualification_reasons(False, ("pbrs", "prost"), 5), [],
+        )
+        self.assertEqual(
+            harness.qualification_reasons(False, ("prost",), 5), [],
+        )
+        self.assertEqual(
+            harness.qualification_reasons(True, ("pbrs",), 1),
+            ["no_independent_pinned_host_qualification", "single_run_diagnostic",
+             "no_paired_replicates_or_uncertainty"],
+        )
+        self.assertEqual(
+            harness.qualification_reasons(True, ("pbrs",), 5),
+            ["no_independent_pinned_host_qualification"],
+        )
+
+    def test_repeats_flag_reaches_pipeline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            out = root / "target" / "codegen-bench" / "repeats"
+
+            def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms,
+                         reference_protoc, generators=("pbrs",), repeats=5):
+                self.assertEqual(repeats, 2)
+                raise harness.BenchmarkError("stub pipeline reached")
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_BUILD_JOBS": "2"}
+            ), mock.patch.object(
+                harness, "run_cases", side_effect=fake_run
+            ), contextlib.redirect_stderr(io.StringIO()):
+                result = harness.main([
+                    "--case", "small", "--repeats", "2", "--out", str(out),
+                ])
+            self.assertEqual(result, 1)
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_BUILD_JOBS": "2"}
+            ), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    harness.main(["--case", "small", "--repeats", "0"])
+                self.assertEqual(raised.exception.code, 2)
+
+    def test_repeats_use_isolated_targets_and_record_matrix(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "repo"
+            run_dir = Path(temporary) / "run"
+            run_dir.mkdir()
+            shared_target = root / "target" / "integration-consumers"
+            shared_target.mkdir(parents=True)
+            shared_generator = shared_target / "debug" / "cg19-generator"
+            report = {
+                "schema_version": "cg19/1", "status": "pending", "setup": {},
+                "cells": [], "generators": ["pbrs"], "repeats": 2,
+            }
+            protoc = run_dir / "fake-protoc"
+            protoc.write_text("test compiler")
+            environment = {
+                "tools": {
+                    "cargo": {"executable": "fake-cargo"},
+                    "rustc": {"executable": "fake-rustc"},
+                    "protoc": {"executable": str(protoc)},
+                },
+                "repository": {"source_sha256": {}},
+                "cache": {},
+            }
+
+            def fake_command(command, cwd, env, stem, root, timeout, sample_ms):
+                name = stem.name
+                stdout, stderr, paths = harness.log_paths(stem, root)
+                stdout.parent.mkdir(parents=True, exist_ok=True)
+                stdout.write_text("")
+                stderr.write_text("")
+                if name == "driver-lock":
+                    (run_dir / "driver" / "Cargo.lock").write_text("driver lock")
+                elif name == "driver-build":
+                    harness.write_text(shared_generator, "test generator")
+                    shared_generator.chmod(0o755)
+                elif name == "consumer-lock":
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    manifest.with_name("Cargo.lock").write_text("consumer lock")
+                elif name == "generation":
+                    output = run_dir / "cases" / "small" / "consumer" / "generated"
+                    harness.write_text(output / "mod.rs", 'include!("part_00.rs");\n')
+                    for proto in command[4:]:
+                        harness.write_text(
+                            output / proto.replace(".proto", ".rs"), "pub struct M;\n",
+                        )
+                elif name == "check-clean":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    target.mkdir(parents=True)
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    source = manifest.parent / "src" / "main.rs"
+                    stat = source.stat()
+                    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 2_000_000_000))
+                elif name == "build-release":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    package = command[command.index("--bin") + 1]
+                    harness.write_text(target / "release" / package, "compiled")
+                elif name == "release-smoke":
+                    stdout.write_text("1\n")
+                if name in ("check-clean", "check-incremental", "build-release"):
+                    package = command[command.index("--bin") + 1]
+                    verb = "Compiling" if name == "build-release" else "Checking"
+                    stderr.write_text(f"{verb} {package} v0.0.0 (test)\n")
+                return {
+                    "command": command, "exit_code": 0, "elapsed_ns": 1234,
+                    "peak_rss_bytes": 4096, **paths,
+                }
+
+            def fake_plain(command, cwd, env, stem, root, timeout):
+                result = fake_command(command, cwd, env, stem, root, timeout, 100)
+                result.pop("elapsed_ns")
+                result.pop("peak_rss_bytes")
+                return {**result, "cwd": str(cwd), "timeout_seconds": timeout}
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_INCREMENTAL": "1"}
+            ), mock.patch.object(harness, "provenance", return_value=environment), mock.patch.object(
+                harness, "timed_command", side_effect=fake_command
+            ), mock.patch.object(
+                harness, "plain_command", side_effect=fake_plain
+            ), mock.patch.object(harness, "source_hashes", return_value={}), mock.patch.object(
+                harness.time, "sleep", return_value=None
+            ):
+                harness.run_cases(
+                    report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100, repeats=2,
+                )
+            saved = json.loads((run_dir / "summary.json").read_text())
+            self.assertEqual(len(saved["cells"]), 2)
+            self.assertEqual({cell["repeat"] for cell in saved["cells"]}, {0, 1})
+            targets = [cell["target_dir"] for cell in saved["cells"]]
+            self.assertEqual(len(set(targets)), 2)
+            self.assertTrue(all("target-r" in target for target in targets))
+            self.assertEqual(len(saved["execution_order"]), 2)
+            self.assertEqual(
+                saved["matrix"]["cells"]["small/pbrs"]["metrics"]["output.rust_bytes"]["n"], 2,
+            )
+            self.assertEqual(saved["matrix"]["losses"], [])
 
     def test_v4_pipeline_uses_pinned_protoc_and_validated_lock(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -1210,7 +1436,7 @@ class PeerGeneratorTests(unittest.TestCase):
             ):
                 harness.run_cases(
                     report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100,
-                    generators=("v4",),
+                    generators=("v4",), repeats=1,
                 )
             saved = json.loads((run_dir / "summary.json").read_text())
             self.assertEqual(saved["generators"], ["v4"])
