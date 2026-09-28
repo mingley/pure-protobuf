@@ -43,10 +43,25 @@ FIELD_TYPES = (
 # SB-09 message-generator matrix. "pbrs" keeps the exact CG-19 flow;
 # peers run the same phases on the same corpora under cases/<case>/gen/<name>/.
 MESSAGE_GENERATORS = ("pbrs", "prost", "buffa", "v4")
+# SB-09 stub matrix, compared separately on service-carrying corpora.
+STUB_GENERATORS = ("pbrs-native", "pbrs-tonic", "tonic-build")
+# case -> (message count, file count); one service per file (unary + streaming).
+STUB_CORPORA = {"svc-small": (6, 2), "svc-100": (100, 5)}
 # Peer generator pins. The harness resolves these --offline from the local
 # registry and records lockfile hashes per cell; a missing crate fails closed.
 PROST_VERSION = "0.14.4"
 BUFFA_VERSION = "0.9.1"
+PROST013_VERSION = "0.13.5"
+TONIC_BUILD_VERSION = "0.13.1"
+TONIC013_VERSION = "0.13.1"
+TONIC014_VERSION = "0.14.6"
+TOKIO_VERSION = "1.48.0"
+TOKIO_STREAM_VERSION = "0.1.17"
+HTTP_VERSION = "1.3.1"
+# Matrix peers whose generation is byte-and-mtime deterministic like pbrs;
+# every other peer verifies bytes and counts mtime rewrites instead.
+STRICT_PEERS = frozenset({"pbrs-native", "pbrs-tonic"})
+PBRS_STUB_ENV = {"pbrs-native": "native", "pbrs-tonic": "tonic"}
 # Seeded corpora share one package, so prost emits one file for every case.
 PROST_PACKAGE_FILE = "bench.cg19.rs"
 # generator -> snapshot entrypoint. pbrs and the v4 reference keep their
@@ -57,6 +72,9 @@ PEER_ENTRYPOINT = {
     "prost": PROST_PACKAGE_FILE,
     "buffa": "mod.rs",
     "v4": "generated.rs",
+    "pbrs-native": "mod.rs",
+    "pbrs-tonic": "mod.rs",
+    "tonic-build": PROST_PACKAGE_FILE,
 }
 BUFFA_PACKAGE_FILE = "bench.cg19.mod.rs"
 
@@ -75,6 +93,12 @@ def peer_expected_files(generator: str, names: list[str]) -> frozenset[str]:
         return frozenset(
             {"generated.rs", *(name.removesuffix(".proto") + ".u.pb.rs" for name in names)}
         )
+    if generator in ("pbrs-native", "pbrs-tonic"):
+        return frozenset(
+            {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
+        )
+    if generator == "tonic-build":
+        return frozenset({PROST_PACKAGE_FILE})
     raise BenchmarkError(f"no snapshot table for generator: {generator}")
 
 
@@ -148,6 +172,26 @@ def render_proto(seed: int, messages: int, files: int, index: int) -> str:
             lines.append(f"  Message{number - per_file:04d} previous = 5;")
         lines.extend(("}", ""))
     return "\n".join(lines)
+
+
+def render_proto_with_services(seed: int, messages: int, files: int, index: int) -> str:
+    base = render_proto(seed, messages, files, index)
+    first = index * (messages // files)
+    return base + (
+        f"\nservice Service{index:02d} {{\n"
+        f"  rpc Get (Message{first:04d}) returns (Message{first + 1:04d});\n"
+        f"  rpc Watch (Message{first:04d}) returns (stream Message{first + 1:04d});\n"
+        "}\n"
+    )
+
+
+def stub_services(case: str) -> list[tuple[str, int, int]]:
+    messages, files = STUB_CORPORA[case]
+    per_file = messages // files
+    return [
+        (f"Service{index:02d}", index * per_file, index * per_file + 1)
+        for index in range(files)
+    ]
 
 
 def render_consumer(messages: int, marker: int, reference: bool = False) -> str:
@@ -229,16 +273,58 @@ def render_consumer_prost(messages: int, marker: int) -> str:
 def peer_manifest(package: str, generator: str) -> str:
     if generator == "v4":
         return manifest(package, reference=True)
+    if generator in STUB_GENERATORS:
+        return stub_manifest(package, generator)
     if generator == "prost":
-        dependency = f'prost = "={PROST_VERSION}"'
+        dependencies = [f'prost = "={PROST_VERSION}"']
     elif generator == "buffa":
-        dependency = f'buffa = "={BUFFA_VERSION}"'
+        dependencies = [f'buffa = "={BUFFA_VERSION}"']
     else:
         raise BenchmarkError(f"unknown peer generator: {generator}")
     return (
         f'[package]\nname = "{package}"\nversion = "0.0.0"\nedition = "2024"\n'
         'publish = false\n\n[workspace]\n\n[dependencies]\n'
-        f"{dependency}\n\n"
+        + "\n".join(dependencies) + "\n\n"
+        '[profile.release]\nopt-level = 3\nlto = "thin"\ncodegen-units = 1\n'
+    )
+
+
+def stub_manifest(package: str, generator: str) -> str:
+    tonic013 = (
+        f'prost = "={PROST013_VERSION}"\n'
+        f'tonic = {{ version = "={TONIC013_VERSION}", default-features = false,'
+        ' features = ["transport", "codegen", "prost"] }'
+    )
+    tonic014 = (
+        f'tonic = {{ version = "={TONIC014_VERSION}", default-features = false,'
+        ' features = ["transport", "codegen"] }'
+    )
+    runtime = (
+        f'tokio = {{ version = "={TOKIO_VERSION}", features = ["sync", "rt"] }}\n'
+        f'tokio-stream = "={TOKIO_STREAM_VERSION}"'
+    )
+    if generator == "pbrs-native":
+        dependencies = [
+            f'pbrs = {{ path = "{ROOT}" }}',
+            f'pbrs-grpc = {{ path = "{ROOT / "pbrs-grpc"}" }}',
+        ]
+    elif generator == "pbrs-tonic":
+        dependencies = [
+            f'pbrs = {{ path = "{ROOT}" }}',
+            f'protobuf-tonic = {{ path = "{ROOT / "protobuf-tonic"}" }}',
+            tonic014,
+            runtime,
+            # pbrs-tonic stubs name http:: directly (paths, responses, headers).
+            f'http = "={HTTP_VERSION}"',
+        ]
+    elif generator == "tonic-build":
+        dependencies = [tonic013, runtime]
+    else:
+        raise BenchmarkError(f"unknown stub generator: {generator}")
+    return (
+        f'[package]\nname = "{package}"\nversion = "0.0.0"\nedition = "2024"\n'
+        'publish = false\n\n[workspace]\n\n[dependencies]\n'
+        + "\n".join(dependencies) + "\n\n"
         '[profile.release]\nopt-level = 3\nlto = "thin"\ncodegen-units = 1\n'
     )
 
@@ -248,6 +334,8 @@ def peer_driver_manifest(generator: str) -> str:
         dependency = f'prost-build = "={PROST_VERSION}"'
     elif generator == "buffa":
         dependency = f'buffa-build = "={BUFFA_VERSION}"'
+    elif generator == "tonic-build":
+        dependency = f'tonic-build = "={TONIC_BUILD_VERSION}"'
     else:
         raise BenchmarkError(f"unknown peer generator: {generator}")
     return (
@@ -260,7 +348,12 @@ def peer_driver_manifest(generator: str) -> str:
 def prepare_corpus(
     case_dir: Path, case: str, seed: int, generators: tuple[str, ...] = ("pbrs",),
 ) -> tuple[list[str], dict]:
-    messages, files = CORPORA[case]
+    if case in STUB_CORPORA:
+        messages, files = STUB_CORPORA[case]
+        render = render_proto_with_services
+    else:
+        messages, files = CORPORA[case]
+        render = render_proto
     consumer = case_dir / "consumer"
     names = []
     inputs = []
@@ -268,7 +361,7 @@ def prepare_corpus(
     for index in range(files):
         name = f"part_{index:02d}.proto"
         path = consumer / "proto" / name
-        write_text(path, render_proto(seed, messages, files, index))
+        write_text(path, render(seed, messages, files, index))
         digest.update(f"{name}\n".encode("ascii"))
         digest.update(path.read_bytes())
         names.append(name)
@@ -278,19 +371,214 @@ def prepare_corpus(
     if "pbrs" in generators:
         write_text(consumer / "Cargo.toml", manifest(f"cg19-consumer-{case}"))
         write_text(consumer / "src" / "main.rs", render_consumer(messages, 0))
-    return names, {
+    metadata: dict = {
         "messages": messages, "proto_file_count": files, "sha256": digest.hexdigest(), "inputs": inputs
     }
+    if case in STUB_CORPORA:
+        metadata["services"] = [name for name, _, _ in stub_services(case)]
+    return names, metadata
 
 
-def render_consumer_for(messages: int, marker: int, generator: str) -> str:
+def render_consumer_for(
+    messages: int, marker: int, generator: str,
+    services: list[tuple[str, int, int]] | None = None,
+) -> str:
     if generator == "prost":
         return render_consumer_prost(messages, marker)
     if generator == "buffa":
         return render_consumer_buffa(messages, marker)
     if generator == "v4":
         return render_consumer(messages, marker, reference=True)
+    if generator in STUB_GENERATORS:
+        if not services:
+            raise BenchmarkError(f"stub generator {generator} needs services")
+        if generator == "pbrs-native":
+            return render_consumer_pbrs_native(messages, marker, services)
+        if generator == "pbrs-tonic":
+            return render_consumer_pbrs_tonic(messages, marker, services)
+        return render_consumer_tonic_build(messages, marker, services)
     raise BenchmarkError(f"no consumer renderer for generator: {generator}")
+
+
+def render_consumer_pbrs_native(
+    messages: int, marker: int, services: list[tuple[str, int, int]],
+) -> str:
+    lines = [
+        'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));',
+        "",
+        "fn roundtrip<T: pbrs::Parse + pbrs::Serialize>(msg: T) -> usize {",
+        '    let wire = msg.serialize().expect("serialize generated message");',
+        '    let parsed = T::parse(std::hint::black_box(&wire)).expect("parse generated message");',
+        '    std::hint::black_box(parsed.serialize().expect("serialize parsed message")).len()',
+        "}",
+        "",
+    ]
+    for name, _, _ in services:
+        # Native traits carry default unimplemented bodies; an empty impl
+        # still compiles the full server dispatch for the service.
+        lines.append(f"struct {name}Svc;")
+        lines.append(f"impl bench::cg19::{name} for {name}Svc {{}}")
+        lines.append("")
+    lines.extend(("fn main() {", "    let mut total = 0usize;"))
+    lines.extend(
+        f"    total += roundtrip(bench::cg19::Message{number:04d}::new());"
+        for number in range(messages)
+    )
+    for index, (name, _, _) in enumerate(services):
+        lines.append(f"    let server{index:02d} = bench::cg19::{name}Server::new({name}Svc);")
+        lines.append(
+            '    let channel = pbrs_grpc::Channel::connect_lazy("127.0.0.1:1")'
+            '.expect("lazy channel");'
+        )
+        lines.append(f"    let client{index:02d} = bench::cg19::{name}Client::new(channel);")
+        lines.append(f"    std::hint::black_box((&server{index:02d}, &client{index:02d}));")
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def render_consumer_pbrs_tonic(
+    messages: int, marker: int, services: list[tuple[str, int, int]],
+) -> str:
+    lines = [
+        'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));',
+        "",
+        "fn roundtrip<T: pbrs::Parse + pbrs::Serialize>(msg: T) -> usize {",
+        '    let wire = msg.serialize().expect("serialize generated message");',
+        '    let parsed = T::parse(std::hint::black_box(&wire)).expect("parse generated message");',
+        '    std::hint::black_box(parsed.serialize().expect("serialize parsed message")).len()',
+        "}",
+        "",
+    ]
+    for name, req, resp in services:
+        lines.append(f"struct {name}Svc;")
+        lines.append(f"impl bench::cg19::{name} for {name}Svc {{")
+        lines.append(
+            f"    async fn get(&self, _request: tonic::Request<bench::cg19::Message{req:04d}>)"
+        )
+        lines.append(
+            "        -> std::result::Result<"
+            f"tonic::Response<bench::cg19::Message{resp:04d}>, tonic::Status>"
+        )
+        lines.append('        { unimplemented!("stub smoke") }')
+        lines.append(
+            "    type WatchStream = tokio_stream::wrappers::ReceiverStream<"
+            f"std::result::Result<bench::cg19::Message{resp:04d}, tonic::Status>>;"
+        )
+        lines.append(
+            f"    async fn watch(&self, _request: tonic::Request<bench::cg19::Message{req:04d}>)"
+        )
+        lines.append(
+            "        -> std::result::Result<tonic::Response<Self::WatchStream>, tonic::Status>"
+        )
+        lines.append('        { unimplemented!("stub smoke") }')
+        lines.append("}")
+        lines.append("")
+    lines.extend(('#[tokio::main(flavor = "current_thread")]',
+                      "async fn main() {", "    let mut total = 0usize;"))
+    lines.extend(
+        f"    total += roundtrip(bench::cg19::Message{number:04d}::new());"
+        for number in range(messages)
+    )
+    for index, (name, _, _) in enumerate(services):
+        lines.append(f"    let server{index:02d} = bench::cg19::{name}Server::new({name}Svc);")
+        lines.append(
+            '    let channel = tonic::transport::Channel::from_static("http://127.0.0.1:1")'
+            ".connect_lazy();"
+        )
+        lines.append(f"    let client{index:02d} = bench::cg19::{name}Client::new(channel);")
+        lines.append(f"    std::hint::black_box((&server{index:02d}, &client{index:02d}));")
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def tonics_snake(name: str) -> str:
+    # Mirrors tonic-build's naive CamelCase splitting for our ServiceNN names.
+    out = []
+    for position, char in enumerate(name):
+        if char.isupper() and position:
+            out.append("_")
+        out.append(char.lower())
+    return "".join(out)
+
+
+def render_consumer_tonic_build(
+    messages: int, marker: int, services: list[tuple[str, int, int]],
+) -> str:
+    lines = [
+        f'#[path = "../generated/{PROST_PACKAGE_FILE}"] mod bench_cg19;',
+        "",
+        "fn roundtrip<M: prost::Message + Default>(msg: M) -> usize {",
+        "    let wire = msg.encode_to_vec();",
+        '    let parsed = M::decode(std::hint::black_box(&wire[..])).expect("parse generated message");',
+        '    std::hint::black_box(parsed.encode_to_vec()).len()',
+        "}",
+        "",
+    ]
+    for name, req, resp in services:
+        snake = tonics_snake(name)
+        lines.append(f"struct {name}Svc;")
+        lines.append("#[tonic::async_trait]")
+        lines.append(f"impl bench_cg19::{snake}_server::{name} for {name}Svc {{")
+        lines.append(
+            f"    async fn get(&self, _request: tonic::Request<bench_cg19::Message{req:04d}>)"
+        )
+        lines.append(
+            "        -> std::result::Result<"
+            f"tonic::Response<bench_cg19::Message{resp:04d}>, tonic::Status>"
+        )
+        lines.append('        { unimplemented!("stub smoke") }')
+        lines.append(
+            "    type WatchStream = tokio_stream::wrappers::ReceiverStream<"
+            f"std::result::Result<bench_cg19::Message{resp:04d}, tonic::Status>>;"
+        )
+        lines.append(
+            f"    async fn watch(&self, _request: tonic::Request<bench_cg19::Message{req:04d}>)"
+        )
+        lines.append(
+            "        -> std::result::Result<tonic::Response<Self::WatchStream>, tonic::Status>"
+        )
+        lines.append('        { unimplemented!("stub smoke") }')
+        lines.append("}")
+        lines.append("")
+    lines.extend(('#[tokio::main(flavor = "current_thread")]',
+                      "async fn main() {", "    let mut total = 0usize;"))
+    lines.extend(
+        f"    total += roundtrip(bench_cg19::Message{number:04d}::default());"
+        for number in range(messages)
+    )
+    for index, (name, _, _) in enumerate(services):
+        snake = tonics_snake(name)
+        lines.append(
+            f"    let server{index:02d} = bench_cg19::{snake}_server::{name}Server::new({name}Svc);"
+        )
+        lines.append(
+            '    let channel = tonic::transport::Channel::from_static("http://127.0.0.1:1")'
+            ".connect_lazy();"
+        )
+        lines.append(
+            f"    let client{index:02d} = bench_cg19::{snake}_client::{name}Client::new(channel);"
+        )
+        lines.append(f"    std::hint::black_box((&server{index:02d}, &client{index:02d}));")
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
 
 
 def render_consumer_buffa(messages: int, marker: int) -> str:
@@ -325,11 +613,14 @@ def render_consumer_buffa(messages: int, marker: int) -> str:
 
 def prepare_peer_consumer(
     case_dir: Path, case: str, messages: int, generator: str,
+    services: list[tuple[str, int, int]] | None = None,
 ) -> tuple[Path, str]:
     consumer = case_dir / "gen" / generator / "consumer"
     package = f"sb09-{generator}-consumer-{case}"
     write_text(consumer / "Cargo.toml", peer_manifest(package, generator))
-    write_text(consumer / "src" / "main.rs", render_consumer_for(messages, 0, generator))
+    write_text(
+        consumer / "src" / "main.rs", render_consumer_for(messages, 0, generator, services),
+    )
     return consumer, package
 
 
@@ -904,7 +1195,7 @@ def measure_consumer_build(
     report: dict, cell: dict, case: str, consumer: Path, target_dir: Path, package: str,
     reference: bool, cargo: str, check_env: dict[str, str], run_dir: Path,
     timeout: int, sample_ms: int, logs: Path, generator: str = "pbrs",
-    messages: int | None = None,
+    messages: int | None = None, services: list[tuple[str, int, int]] | None = None,
 ) -> None:
     if target_dir.exists():
         raise BenchmarkError(f"clean check target already exists: {target_dir}")
@@ -924,7 +1215,7 @@ def measure_consumer_build(
     if generator == "pbrs":
         rewrite = render_consumer(rewrite_messages, 1, reference)
     else:
-        rewrite = render_consumer_for(rewrite_messages, 1, generator)
+        rewrite = render_consumer_for(rewrite_messages, 1, generator, services)
     write_text(main_rs, rewrite)
     if main_rs.stat().st_mtime_ns <= old_mtime:
         raise BenchmarkError(f"incremental source mtime did not advance: {main_rs}")
@@ -1024,8 +1315,13 @@ def measure_peer_cell(
     case_dir: Path, generator_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
 ) -> None:
-    messages = CORPORA[case][0]
-    consumer, package = prepare_peer_consumer(case_dir, case, messages, generator)
+    if case in STUB_CORPORA:
+        messages = STUB_CORPORA[case][0]
+        services: list[tuple[str, int, int]] | None = stub_services(case)
+    else:
+        messages = CORPORA[case][0]
+        services = None
+    consumer, package = prepare_peer_consumer(case_dir, case, messages, generator, services)
     generated = consumer / "generated"
     generated.mkdir(parents=True, exist_ok=True)
     target_dir = case_dir / "gen" / generator / f"target-r{rep}"
@@ -1052,12 +1348,18 @@ def measure_peer_cell(
         cell["runtime_lock"] = reference_lock(consumer / "Cargo.lock")
     write_report(report, run_dir)
     proto_dir = case_dir / "consumer" / "proto"
-    if generator == "v4":
+    gen_env = base_env
+    if generator in PBRS_STUB_ENV:
+        generation = [
+            str(generator_binary), str(proto_dir), str(generated), protoc, *names,
+        ]
+        gen_env = {**base_env, "SB09_PBRS_STUBS": PBRS_STUB_ENV[generator]}
+    elif generator == "v4":
         generation = v4_generation_command(str(generator_binary), proto_dir, generated, names)
     else:
         generation = [str(generator_binary), str(proto_dir), str(generated), *names]
     phase(
-        report, cell["phases"], "generation", generation, ROOT, base_env,
+        report, cell["phases"], "generation", generation, ROOT, gen_env,
         run_dir, timeout, sample_ms, logs / "generation",
     )
     entrypoint = PEER_ENTRYPOINT[generator]
@@ -1069,22 +1371,34 @@ def measure_peer_cell(
             f"missing={sorted(expected - before.keys())}, extra={sorted(before.keys() - expected)}"
         )
     phase(
-        report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
+        report, cell["phases"], "generation_unchanged", generation, ROOT, gen_env,
         run_dir, timeout, sample_ms, logs / "generation-unchanged",
     )
-    rewritten = assert_same_bytes(before, snapshot_generated(generated, entrypoint, min_files=1))
-    cell["output"] = {
-        "rust_file_count": len(before),
-        "rust_bytes": sum(item[2] for item in before.values()),
-        "rust_tree_sha256": tree_digest(before),
-        "unchanged_generation_bytes_verified": True,
-        "unchanged_generation_mtimes_preserved": rewritten == 0,
-        "unchanged_generation_rewritten_files": rewritten,
-    }
+    if generator in STRICT_PEERS:
+        assert_unchanged(before, snapshot_generated(generated, entrypoint, min_files=1))
+        cell["output"] = {
+            "rust_file_count": len(before),
+            "rust_bytes": sum(item[2] for item in before.values()),
+            "rust_tree_sha256": tree_digest(before),
+            "unchanged_generation_verified_files": len(before),
+        }
+    else:
+        rewritten = assert_same_bytes(
+            before, snapshot_generated(generated, entrypoint, min_files=1),
+        )
+        cell["output"] = {
+            "rust_file_count": len(before),
+            "rust_bytes": sum(item[2] for item in before.values()),
+            "rust_tree_sha256": tree_digest(before),
+            "unchanged_generation_bytes_verified": True,
+            "unchanged_generation_mtimes_preserved": rewritten == 0,
+            "unchanged_generation_rewritten_files": rewritten,
+        }
     write_report(report, run_dir)
     measure_consumer_build(
         report, cell, case, consumer, target_dir, package, False, cargo, check_env,
         run_dir, timeout, sample_ms, logs, generator=generator, messages=messages,
+        services=services,
     )
 
 
@@ -1216,15 +1530,29 @@ def summarize(values: list[int]) -> dict:
     }
 
 
+def generators_for_case(
+    case: str, generators: tuple[str, ...], stub_generators: tuple[str, ...],
+) -> tuple[str, ...]:
+    if case in STUB_CORPORA:
+        return stub_generators
+    return generators
+
+
 def plan_execution(
-    cases: list[str], generators: tuple[str, ...], repeats: int, seed: int,
+    cases: list[str], generators: tuple[str, ...], stub_generators: tuple[str, ...],
+    repeats: int, seed: int,
 ) -> list[tuple[str, str, int]]:
     work = [
         (case, generator, rep)
         for case in cases
-        for generator in generators
+        for generator in generators_for_case(case, generators, stub_generators)
         for rep in range(repeats)
     ]
+    if not work:
+        raise BenchmarkError(
+            "no applicable generators for the selected cases: message cases need "
+            "--generators, stub cases need --stub-generators"
+        )
     return random.Random(seed).sample(work, len(work))
 
 
@@ -1277,15 +1605,20 @@ def run_cases(
     report: dict, run_dir: Path, cases: list[str], seed: int, jobs: int, timeout: int,
     sample_ms: int, reference_protoc: Path | None = None,
     generators: tuple[str, ...] = ("pbrs",), repeats: int = 5,
+    stub_generators: tuple[str, ...] = ("pbrs-native",),
 ) -> None:
     unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
     if unknown:
         raise BenchmarkError(f"unknown generators: {unknown}")
+    unknown_stubs = [name for name in stub_generators if name not in STUB_GENERATORS]
+    if unknown_stubs:
+        raise BenchmarkError(f"unknown stub generators: {unknown_stubs}")
     if repeats < 1:
         raise BenchmarkError(f"repeats must be at least 1, got {repeats}")
     details = provenance(run_dir, jobs, sample_ms, reference_protoc)
     report["environment"] = details
     report["generators"] = list(generators)
+    report["stub_generators"] = list(stub_generators)
     report["repeats"] = repeats
     if reference_protoc is not None:
         report["reference"].update({
@@ -1337,6 +1670,17 @@ def run_cases(
     write_report(report, run_dir)
 
     peer_drivers: dict[str, Path] = {}
+    applicable = {
+        generator
+        for case in cases
+        for generator in generators_for_case(case, generators, stub_generators)
+    }
+    if not applicable:
+        raise BenchmarkError(
+            "no applicable generators for the selected cases: message cases need "
+            "--generators, stub cases need --stub-generators"
+        )
+    need_pbrs_driver = "pbrs" in applicable or bool(applicable & PBRS_STUB_ENV.keys())
     boot_target = ROOT / "target" / "integration-consumers"
     boot_jobs = min(jobs, 2)
     details["cache"].update({
@@ -1350,7 +1694,7 @@ def run_cases(
     write_report(report, run_dir)
     boot_env = {**base_env, "CARGO_TARGET_DIR": str(boot_target), "CARGO_BUILD_JOBS": str(boot_jobs)}
     boot_log = run_dir / "logs" / "setup"
-    if "pbrs" in generators:
+    if need_pbrs_driver:
         driver = run_dir / "driver"
         (driver / "src").mkdir(parents=True)
         shutil.copyfile(Path(__file__).with_name("generator.rs"), driver / "src" / "main.rs")
@@ -1377,7 +1721,7 @@ def run_cases(
         report["setup"]["generator_binary_sha256"] = digest
         write_report(report, run_dir)
     for peer in generators:
-        if peer == "pbrs":
+        if peer == "pbrs" or peer not in applicable:
             continue
         if peer == "v4":
             pinned = resolve_pinned_protoc()
@@ -1389,8 +1733,17 @@ def run_cases(
         peer_drivers[peer] = build_peer_driver(
             report, run_dir, peer, cargo, boot_env, boot_target, timeout, sample_ms,
         )
+    for peer in stub_generators:
+        if peer not in applicable:
+            continue
+        if peer in PBRS_STUB_ENV:
+            peer_drivers[peer] = pbrs_binary
+        elif peer == "tonic-build":
+            peer_drivers[peer] = build_peer_driver(
+                report, run_dir, peer, cargo, boot_env, boot_target, timeout, sample_ms,
+            )
 
-    order = plan_execution(cases, generators, repeats, seed)
+    order = plan_execution(cases, generators, stub_generators, repeats, seed)
     report["execution_order"] = [f"{case}/{generator}/r{rep}" for case, generator, rep in order]
     write_report(report, run_dir)
     for case, generator, rep in order:
@@ -1431,7 +1784,7 @@ def positive_int(value: str) -> int:
 
 
 def qualification_reasons(
-    reference_mode: bool, generators: tuple[str, ...], repeats: int,
+    reference_mode: bool, has_peer: bool, repeats: int,
 ) -> list[str]:
     if reference_mode:
         reasons = ["no_independent_pinned_host_qualification"]
@@ -1439,7 +1792,7 @@ def qualification_reasons(
             reasons.extend(["single_run_diagnostic", "no_paired_replicates_or_uncertainty"])
         return reasons
     reasons = []
-    if not any(name != "pbrs" for name in generators):
+    if not has_peer:
         reasons.append("no_equivalent_reference_peer")
     if repeats < 5:
         reasons.append("single_run_diagnostic")
@@ -1465,7 +1818,9 @@ def seed_arg(value: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--case", choices=["all", *CORPORA], default="all")
+    parser.add_argument(
+        "--case", choices=["all", *CORPORA, *STUB_CORPORA], default="all",
+    )
     parser.add_argument("--seed", type=seed_arg, default=DEFAULT_SEED)
     parser.add_argument("--out", type=Path, help="new directory under target/codegen-bench")
     inherited_jobs = os.environ.get("CARGO_BUILD_JOBS")
@@ -1493,12 +1848,23 @@ def main(argv: list[str] | None = None) -> int:
         "--repeats", type=positive_int, default=5,
         help="repeats per cell in seeded-random execution order (default: 5)",
     )
+    parser.add_argument(
+        "--stub-generators", default="pbrs-native",
+        help=f"comma-separated stub generators for svc cases: {','.join(STUB_GENERATORS)}",
+    )
     args = parser.parse_args(argv)
     generators = tuple(part for part in args.generators.split(",") if part)
     unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
     if not generators or unknown:
         parser.error(
             f"--generators must be a comma-separated subset of {','.join(MESSAGE_GENERATORS)}"
+        )
+    stub_generators = tuple(part for part in args.stub_generators.split(",") if part)
+    unknown_stubs = [name for name in stub_generators if name not in STUB_GENERATORS]
+    if not stub_generators or unknown_stubs:
+        parser.error(
+            "--stub-generators must be a comma-separated subset of "
+            f"{','.join(STUB_GENERATORS)}"
         )
     if args.reference_protoc is not None:
         if args.case == "all" or args.seed != DEFAULT_SEED or args.jobs != 2:
@@ -1517,7 +1883,15 @@ def main(argv: list[str] | None = None) -> int:
     if run_dir.exists():
         parser.error(f"output already exists: {run_dir} (refusing to overwrite evidence)")
     run_dir.mkdir(parents=True)
-    cases = list(CORPORA) if args.case == "all" else [args.case]
+    cases = (
+        list(CORPORA) + list(STUB_CORPORA) if args.case == "all" else [args.case]
+    )
+    measured = {
+        generator
+        for case in cases
+        for generator in generators_for_case(case, generators, stub_generators)
+    }
+    has_peer = any(generator != "pbrs" for generator in measured)
     report = {
         "schema_version": "cg19/1",
         "status": "pending",
@@ -1545,12 +1919,12 @@ def main(argv: list[str] | None = None) -> int:
         "qualification": {
             "qualified": False,
             "reasons": qualification_reasons(
-                args.reference_protoc is not None, generators, args.repeats,
+                args.reference_protoc is not None, has_peer, args.repeats,
             ),
         },
         "errors": [],
     }
-    if len(cases) != len(CORPORA):
+    if len(cases) != len(CORPORA) + len(STUB_CORPORA):
         report["qualification"]["reasons"].append("partial_corpus_matrix")
     write_report(report, run_dir)
     if args.require_qualified:
@@ -1564,6 +1938,7 @@ def main(argv: list[str] | None = None) -> int:
         run_cases(
             report, run_dir, cases, args.seed, args.jobs, args.timeout_seconds, args.rss_sample_ms,
             args.reference_protoc, generators=generators, repeats=args.repeats,
+            stub_generators=stub_generators,
         )
     except (BenchmarkError, OSError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, ValueError) as exc:

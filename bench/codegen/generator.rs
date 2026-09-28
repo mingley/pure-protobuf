@@ -18,13 +18,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(Error::new(ErrorKind::InvalidInput, "no proto inputs").into());
     }
 
-    pbrs::codegen::Config::new()
+    // SB09_PBRS_STUBS selects service-stub emission for the SB-09 stub
+    // matrix; unset keeps the exact CG-19 messages-only behavior.
+    let stubs = std::env::var("SB09_PBRS_STUBS").unwrap_or_default();
+    let mut config = pbrs::codegen::Config::new();
+    config
         .protoc_path(protoc)
         .out_dir(out)
-        .emit_kernel_stubs(false)
         .emit_deps(false)
         .no_reflect(false)
-        .include_source_info(false)
-        .compile_protos(&protos, &[&include])?;
+        .include_source_info(false);
+    match stubs.as_str() {
+        "" | "none" => {
+            config.emit_kernel_stubs(false);
+        }
+        "native" => {
+            config.emit_kernel_stubs(true);
+        }
+        "tonic" => {
+            config.emit_tonic_stubs(true);
+        }
+        other => {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("unknown SB09_PBRS_STUBS={other:?}"),
+            )
+            .into());
+        }
+    }
+    config.compile_protos(&protos, &[&include])?;
     Ok(())
 }

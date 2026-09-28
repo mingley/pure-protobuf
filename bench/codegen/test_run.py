@@ -189,7 +189,7 @@ class CorpusTests(unittest.TestCase):
                     out = root / "target" / "codegen-bench" / case
 
                     def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms, reference_protoc,
-                                   generators=("pbrs",), repeats=5):
+                                   generators=("pbrs",), repeats=5, stub_generators=("pbrs-native",)):
                         self.assertEqual(run_dir, out.resolve())
                         self.assertEqual(cases, [case])
                         self.assertEqual(seed, harness.DEFAULT_SEED)
@@ -197,6 +197,7 @@ class CorpusTests(unittest.TestCase):
                         self.assertEqual(reference_protoc.resolve(), (root / "pinned-protoc").resolve())
                         self.assertEqual(tuple(generators), ("pbrs",))
                         self.assertEqual(repeats, 5)
+                        self.assertEqual(tuple(stub_generators), ("pbrs-native",))
                         raise harness.BenchmarkError("stub pipeline reached")
 
                     with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
@@ -988,10 +989,11 @@ class PeerGeneratorTests(unittest.TestCase):
             out = root / "target" / "codegen-bench" / "matrix"
 
             def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms,
-                         reference_protoc, generators=("pbrs",), repeats=5):
+                         reference_protoc, generators=("pbrs",), repeats=5, stub_generators=("pbrs-native",)):
                 self.assertIsNone(reference_protoc)
                 self.assertEqual(tuple(generators), ("pbrs", "prost"))
                 self.assertEqual(repeats, 5)
+                self.assertEqual(tuple(stub_generators), ("pbrs-native",))
                 raise harness.BenchmarkError("stub pipeline reached")
 
             with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
@@ -1122,15 +1124,15 @@ class PeerGeneratorTests(unittest.TestCase):
             self.assertFalse((run_dir / "cases" / "small" / "consumer" / "Cargo.toml").exists())
 
     def test_plan_execution_is_seeded_covering_shuffle(self):
-        first = harness.plan_execution(["small", "100"], ("pbrs", "prost"), 2, 7)
-        again = harness.plan_execution(["small", "100"], ("pbrs", "prost"), 2, 7)
+        first = harness.plan_execution(["small", "100"], ("pbrs", "prost"), ("pbrs-native",), 2, 7)
+        again = harness.plan_execution(["small", "100"], ("pbrs", "prost"), ("pbrs-native",), 2, 7)
         self.assertEqual(first, again)
         self.assertEqual(len(first), 8)
         self.assertEqual(len(set(first)), 8)
         cases = {case for case, _, _ in first}
         self.assertEqual(cases, {"small", "100"})
         shuffled = any(
-            harness.plan_execution(["a", "b"], ("pbrs", "prost"), 1, seed)
+            harness.plan_execution(["a", "b"], ("pbrs", "prost"), ("pbrs-native",), 1, seed)
             != [("a", "pbrs", 0), ("a", "prost", 0), ("b", "pbrs", 0), ("b", "prost", 0)]
             for seed in range(100)
         )
@@ -1198,26 +1200,26 @@ class PeerGeneratorTests(unittest.TestCase):
 
     def test_qualification_reasons_track_repeats_and_peers(self):
         self.assertEqual(
-            harness.qualification_reasons(False, ("pbrs",), 1),
+            harness.qualification_reasons(False, False, 1),
             ["no_equivalent_reference_peer", "single_run_diagnostic"],
         )
         self.assertEqual(
-            harness.qualification_reasons(False, ("pbrs",), 5),
+            harness.qualification_reasons(False, False, 5),
             ["no_equivalent_reference_peer"],
         )
         self.assertEqual(
-            harness.qualification_reasons(False, ("pbrs", "prost"), 5), [],
+            harness.qualification_reasons(False, True, 5), [],
         )
         self.assertEqual(
-            harness.qualification_reasons(False, ("prost",), 5), [],
+            harness.qualification_reasons(False, True, 5), [],
         )
         self.assertEqual(
-            harness.qualification_reasons(True, ("pbrs",), 1),
+            harness.qualification_reasons(True, False, 1),
             ["no_independent_pinned_host_qualification", "single_run_diagnostic",
              "no_paired_replicates_or_uncertainty"],
         )
         self.assertEqual(
-            harness.qualification_reasons(True, ("pbrs",), 5),
+            harness.qualification_reasons(True, False, 5),
             ["no_independent_pinned_host_qualification"],
         )
 
@@ -1227,7 +1229,7 @@ class PeerGeneratorTests(unittest.TestCase):
             out = root / "target" / "codegen-bench" / "repeats"
 
             def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms,
-                         reference_protoc, generators=("pbrs",), repeats=5):
+                         reference_protoc, generators=("pbrs",), repeats=5, stub_generators=("pbrs-native",)):
                 self.assertEqual(repeats, 2)
                 raise harness.BenchmarkError("stub pipeline reached")
 
@@ -1343,6 +1345,235 @@ class PeerGeneratorTests(unittest.TestCase):
                 saved["matrix"]["cells"]["small/pbrs"]["metrics"]["output.rust_bytes"]["n"], 2,
             )
             self.assertEqual(saved["matrix"]["losses"], [])
+
+    def test_stub_corpus_renders_one_service_per_file(self):
+        first = harness.render_proto_with_services(harness.DEFAULT_SEED, 6, 2, 0)
+        again = harness.render_proto_with_services(harness.DEFAULT_SEED, 6, 2, 0)
+        self.assertEqual(first, again)
+        self.assertIn("service Service00 {", first)
+        self.assertIn("rpc Get (Message0000) returns (Message0001);", first)
+        self.assertIn("rpc Watch (Message0000) returns (stream Message0001);", first)
+        second = harness.render_proto_with_services(harness.DEFAULT_SEED, 6, 2, 1)
+        self.assertIn("service Service01 {", second)
+        self.assertIn("rpc Get (Message0003) returns (Message0004);", second)
+        self.assertEqual(
+            harness.stub_services("svc-small"),
+            [("Service00", 0, 1), ("Service01", 3, 4)],
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            case_dir = Path(temporary) / "case"
+            names, metadata = harness.prepare_corpus(
+                case_dir, "svc-small", harness.DEFAULT_SEED, ("pbrs-native",),
+            )
+            self.assertEqual(names, ["part_00.proto", "part_01.proto"])
+            self.assertEqual(metadata["messages"], 6)
+            self.assertEqual(metadata["services"], ["Service00", "Service01"])
+            self.assertFalse((case_dir / "consumer" / "Cargo.toml").exists())
+
+    def test_stub_consumers_do_message_work_plus_server_client(self):
+        services = [("Service00", 0, 1), ("Service01", 3, 4)]
+        native = harness.render_consumer_pbrs_native(6, 0, services)
+        self.assertEqual(native.count("roundtrip(bench::cg19::Message"), 6)
+        self.assertIn("impl bench::cg19::Service00 for Service00Svc {}", native)
+        self.assertIn("bench::cg19::Service01Server::new(Service01Svc)", native)
+        self.assertIn("bench::cg19::Service01Client::new(channel)", native)
+        self.assertIn('connect_lazy("127.0.0.1:1")', native)
+        self.assertNotEqual(native, harness.render_consumer_pbrs_native(6, 1, services))
+        tonic = harness.render_consumer_pbrs_tonic(6, 0, services)
+        self.assertEqual(tonic.count("roundtrip(bench::cg19::Message"), 6)
+        self.assertIn("impl bench::cg19::Service00 for Service00Svc {", tonic)
+        self.assertIn("async fn get(&self", tonic)
+        self.assertIn("async fn watch(&self", tonic)
+        self.assertIn("type WatchStream = tokio_stream::wrappers::ReceiverStream<", tonic)
+        self.assertIn("Channel::from_static(", tonic)
+        build = harness.render_consumer_tonic_build(6, 0, services)
+        self.assertEqual(build.count("roundtrip(bench_cg19::Message"), 6)
+        self.assertIn("#[tonic::async_trait]", build)
+        self.assertIn("impl bench_cg19::service00_server::Service00 for Service00Svc {", build)
+        self.assertIn("bench_cg19::service01_client::Service01Client::new(channel)", build)
+        self.assertEqual(
+            harness.render_consumer_for(6, 0, "pbrs-native", services), native,
+        )
+        with self.assertRaisesRegex(harness.BenchmarkError, "needs services"):
+            harness.render_consumer_for(6, 0, "pbrs-native", None)
+        self.assertEqual(harness.tonics_snake("Service00"), "service00")
+        self.assertEqual(harness.tonics_snake("Lookup"), "lookup")
+
+    def test_stub_manifests_pin_runtime_stacks(self):
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            self.skipTest("Python 3.11+ tomllib required")
+        native = harness.stub_manifest("sb09-pbrs-native-consumer-svc-small", "pbrs-native")
+        parsed = tomllib.loads(native)
+        self.assertIn("pbrs-grpc", parsed["dependencies"])
+        for generator in ("pbrs-native", "pbrs-tonic", "tonic-build"):
+            with self.subTest(generator=generator):
+                manifest = harness.stub_manifest(f"sb09-{generator}-x", generator)
+                parsed = tomllib.loads(manifest)
+                self.assertEqual(parsed["package"]["name"], f"sb09-{generator}-x")
+        self.assertIn('pbrs-grpc = { path = "', native)
+        self.assertNotIn("tonic", native)
+        ptonic = harness.stub_manifest("sb09-pbrs-tonic-consumer-svc-small", "pbrs-tonic")
+        self.assertIn('protobuf-tonic = { path = "', ptonic)
+        self.assertIn(f'tonic = {{ version = "={harness.TONIC014_VERSION}"', ptonic)
+        self.assertIn(f'tokio-stream = "={harness.TOKIO_STREAM_VERSION}"', ptonic)
+        build = harness.stub_manifest("sb09-tonic-build-consumer-svc-small", "tonic-build")
+        self.assertIn(f'prost = "={harness.PROST013_VERSION}"', build)
+        self.assertIn(f'tonic = {{ version = "={harness.TONIC013_VERSION}"', build)
+        self.assertNotIn("pbrs", build)
+        with self.assertRaisesRegex(harness.BenchmarkError, "unknown stub generator"):
+            harness.stub_manifest("x", "capnp")
+        driver = harness.peer_driver_manifest("tonic-build")
+        self.assertIn(f'tonic-build = "={harness.TONIC_BUILD_VERSION}"', driver)
+
+    def test_stub_snapshot_tables(self):
+        names = ["part_00.proto", "part_01.proto"]
+        self.assertEqual(
+            harness.peer_expected_files("pbrs-native", names),
+            frozenset({"mod.rs", "part_00.rs", "part_01.rs"}),
+        )
+        self.assertEqual(
+            harness.peer_expected_files("pbrs-tonic", names),
+            frozenset({"mod.rs", "part_00.rs", "part_01.rs"}),
+        )
+        self.assertEqual(
+            harness.peer_expected_files("tonic-build", names),
+            frozenset({harness.PROST_PACKAGE_FILE}),
+        )
+
+    def test_generators_for_case_routes_by_corpus_kind(self):
+        message = ("pbrs", "prost")
+        stubs = ("pbrs-native", "tonic-build")
+        self.assertEqual(harness.generators_for_case("small", message, stubs), message)
+        self.assertEqual(harness.generators_for_case("100", message, stubs), message)
+        self.assertEqual(harness.generators_for_case("svc-small", message, stubs), stubs)
+        plan = harness.plan_execution(["small", "svc-small"], message, stubs, 1, 11)
+        self.assertEqual(len(plan), 4)
+        kinds = {(case, generator) for case, generator, _ in plan}
+        self.assertEqual(
+            kinds,
+            {("small", "pbrs"), ("small", "prost"),
+             ("svc-small", "pbrs-native"), ("svc-small", "tonic-build")},
+        )
+
+    def test_stub_generators_flag_rejects_unknown_before_artifacts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_BUILD_JOBS": "2"}
+            ), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    harness.main(["--case", "svc-small", "--stub-generators", "prost"])
+                self.assertEqual(raised.exception.code, 2)
+            self.assertFalse((root / "target").exists())
+
+    def test_pbrs_native_pipeline_uses_strict_stubs_without_compilers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "repo"
+            run_dir = Path(temporary) / "run"
+            run_dir.mkdir()
+            shared_target = root / "target" / "integration-consumers"
+            shared_target.mkdir(parents=True)
+            shared_generator = shared_target / "debug" / "cg19-generator"
+            report = {
+                "schema_version": "cg19/1", "status": "pending", "setup": {},
+                "cells": [], "generators": ["pbrs"], "stub_generators": ["pbrs-native"],
+                "repeats": 1,
+            }
+            protoc = run_dir / "fake-protoc"
+            protoc.write_text("test compiler")
+            environment = {
+                "tools": {
+                    "cargo": {"executable": "fake-cargo"},
+                    "rustc": {"executable": "fake-rustc"},
+                    "protoc": {"executable": str(protoc)},
+                },
+                "repository": {"source_sha256": {}},
+                "cache": {},
+            }
+            seen_env = {}
+
+            def fake_command(command, cwd, env, stem, root, timeout, sample_ms):
+                name = stem.name
+                stdout, stderr, paths = harness.log_paths(stem, root)
+                stdout.parent.mkdir(parents=True, exist_ok=True)
+                stdout.write_text("")
+                stderr.write_text("")
+                if name == "driver-lock":
+                    (run_dir / "driver" / "Cargo.lock").write_text("driver lock")
+                elif name == "driver-build":
+                    harness.write_text(shared_generator, "test generator")
+                    shared_generator.chmod(0o755)
+                elif name == "consumer-lock":
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    manifest.with_name("Cargo.lock").write_text("stub lock")
+                elif name in ("generation", "generation-unchanged"):
+                    self.assertEqual(command[0], str(run_dir / "bin" / "cg19-generator"))
+                    seen_env[name] = env.get("SB09_PBRS_STUBS")
+                    if name == "generation":
+                        output = (
+                            run_dir / "cases" / "svc-small" / "gen" / "pbrs-native"
+                            / "consumer" / "generated"
+                        )
+                        harness.write_text(output / "mod.rs", 'include!("part_00.rs");\n')
+                        for proto in command[4:]:
+                            harness.write_text(
+                                output / proto.replace(".proto", ".rs"), "pub struct M;\n",
+                            )
+                elif name == "check-clean":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    target.mkdir(parents=True)
+                    manifest = Path(command[command.index("--manifest-path") + 1])
+                    source = manifest.parent / "src" / "main.rs"
+                    stat = source.stat()
+                    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 2_000_000_000))
+                elif name == "build-release":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    package = command[command.index("--bin") + 1]
+                    harness.write_text(target / "release" / package, "compiled")
+                elif name == "release-smoke":
+                    stdout.write_text("1\n")
+                if name in ("check-clean", "check-incremental", "build-release"):
+                    package = command[command.index("--bin") + 1]
+                    verb = "Compiling" if name == "build-release" else "Checking"
+                    stderr.write_text(f"{verb} {package} v0.0.0 (test)\n")
+                return {
+                    "command": command, "exit_code": 0, "elapsed_ns": 1234,
+                    "peak_rss_bytes": 4096, **paths,
+                }
+
+            def fake_plain(command, cwd, env, stem, root, timeout):
+                result = fake_command(command, cwd, env, stem, root, timeout, 100)
+                result.pop("elapsed_ns")
+                result.pop("peak_rss_bytes")
+                return {**result, "cwd": str(cwd), "timeout_seconds": timeout}
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_INCREMENTAL": "1"}
+            ), mock.patch.object(harness, "provenance", return_value=environment), mock.patch.object(
+                harness, "timed_command", side_effect=fake_command
+            ), mock.patch.object(
+                harness, "plain_command", side_effect=fake_plain
+            ), mock.patch.object(harness, "source_hashes", return_value={}), mock.patch.object(
+                harness.time, "sleep", return_value=None
+            ):
+                harness.run_cases(
+                    report, run_dir, ["svc-small"], harness.DEFAULT_SEED, 4, 15, 100,
+                    repeats=1,
+                )
+            saved = json.loads((run_dir / "summary.json").read_text())
+            self.assertEqual(len(saved["cells"]), 1)
+            cell = saved["cells"][0]
+            self.assertEqual(cell["generator"], "pbrs-native")
+            self.assertEqual(cell["corpus"]["services"], ["Service00", "Service01"])
+            self.assertEqual(cell["output"]["rust_file_count"], 3)
+            self.assertEqual(cell["output"]["unchanged_generation_verified_files"], 3)
+            self.assertEqual(
+                seen_env, {"generation": "native", "generation-unchanged": "native"},
+            )
+            self.assertTrue(cell["phases"]["release_smoke"]["output_verified"])
+            self.assertEqual(saved["stub_generators"], ["pbrs-native"])
 
     def test_v4_pipeline_uses_pinned_protoc_and_validated_lock(self):
         with tempfile.TemporaryDirectory() as temporary:
