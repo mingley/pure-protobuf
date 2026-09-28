@@ -47,12 +47,28 @@ PROST_VERSION = "0.14.4"
 BUFFA_VERSION = "0.9.1"
 # Seeded corpora share one package, so prost emits one file for every case.
 PROST_PACKAGE_FILE = "bench.cg19.rs"
-# generator -> (snapshot entrypoint, exact expected output set). pbrs and
-# the v4 reference keep their existing dedicated checks; matrix peers verify
-# bytes on unchanged inputs and count mtime rewrites instead of failing.
-PEER_SNAPSHOT = {
-    "prost": (PROST_PACKAGE_FILE, frozenset({PROST_PACKAGE_FILE})),
+# generator -> snapshot entrypoint. pbrs and the v4 reference keep their
+# existing dedicated checks; matrix peers verify bytes on unchanged inputs
+# and count mtime rewrites instead of failing. Expected output sets come
+# from peer_expected_files: buffa emits per-input files, prost one per package.
+PEER_ENTRYPOINT = {
+    "prost": PROST_PACKAGE_FILE,
+    "buffa": "mod.rs",
 }
+BUFFA_PACKAGE_FILE = "bench.cg19.mod.rs"
+
+
+def peer_expected_files(generator: str, names: list[str]) -> frozenset[str]:
+    if generator == "prost":
+        return frozenset({PROST_PACKAGE_FILE})
+    if generator == "buffa":
+        files = {"mod.rs", BUFFA_PACKAGE_FILE}
+        for name in names:
+            stem = name.removesuffix(".proto")
+            files.add(f"{stem}.rs")
+            files.add(f"{stem}.__view.rs")
+        return frozenset(files)
+    raise BenchmarkError(f"no snapshot table for generator: {generator}")
 
 
 class BenchmarkError(Exception):
@@ -230,7 +246,39 @@ def prepare_corpus(
 def render_consumer_for(messages: int, marker: int, generator: str) -> str:
     if generator == "prost":
         return render_consumer_prost(messages, marker)
+    if generator == "buffa":
+        return render_consumer_buffa(messages, marker)
     raise BenchmarkError(f"no consumer renderer for generator: {generator}")
+
+
+def render_consumer_buffa(messages: int, marker: int) -> str:
+    lines = [
+        'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));',
+        "",
+        "fn roundtrip<M: buffa::Message + Default>(msg: M) -> usize {",
+        "    let mut wire = Vec::new();",
+        "    msg.encode(&mut wire);",
+        '    let parsed = M::decode(&mut &wire[..]).expect("parse generated message");',
+        "    let mut wire2 = Vec::new();",
+        "    std::hint::black_box(parsed).encode(&mut wire2);",
+        "    wire2.len()",
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip(bench::cg19::Message{number:04d}::default());"
+        for number in range(messages)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
 
 
 def prepare_peer_consumer(
@@ -900,7 +948,8 @@ def measure_peer_cell(
         report, cell["phases"], "generation", generation, ROOT, base_env,
         run_dir, timeout, sample_ms, logs / "generation",
     )
-    entrypoint, expected = PEER_SNAPSHOT[generator]
+    entrypoint = PEER_ENTRYPOINT[generator]
+    expected = peer_expected_files(generator, names)
     before = snapshot_generated(generated, entrypoint, min_files=1)
     if before.keys() != expected:
         raise BenchmarkError(

@@ -866,9 +866,41 @@ class PeerGeneratorTests(unittest.TestCase):
             harness.peer_driver_manifest("v4")
 
     def test_peer_snapshot_table_covers_matrix_peers(self):
-        entrypoint, expected = harness.PEER_SNAPSHOT["prost"]
-        self.assertEqual(entrypoint, harness.PROST_PACKAGE_FILE)
-        self.assertEqual(set(expected), {harness.PROST_PACKAGE_FILE})
+        self.assertEqual(harness.PEER_ENTRYPOINT["prost"], harness.PROST_PACKAGE_FILE)
+        self.assertEqual(
+            harness.peer_expected_files("prost", ["part_00.proto", "part_01.proto"]),
+            frozenset({harness.PROST_PACKAGE_FILE}),
+        )
+        self.assertEqual(harness.PEER_ENTRYPOINT["buffa"], "mod.rs")
+        self.assertEqual(
+            harness.peer_expected_files("buffa", ["part_00.proto", "part_01.proto"]),
+            frozenset({
+                "mod.rs", harness.BUFFA_PACKAGE_FILE,
+                "part_00.rs", "part_00.__view.rs", "part_01.rs", "part_01.__view.rs",
+            }),
+        )
+        with self.assertRaisesRegex(harness.BenchmarkError, "no snapshot table"):
+            harness.peer_expected_files("v4", ["part_00.proto"])
+
+    def test_buffa_consumer_matches_pbrs_work(self):
+        text = harness.render_consumer_buffa(6, 0)
+        self.assertIn(
+            'include!(concat!(env!("CARGO_MANIFEST_DIR"), "/generated/mod.rs"));', text,
+        )
+        self.assertIn("fn roundtrip<M: buffa::Message + Default>(msg: M) -> usize {", text)
+        self.assertEqual(text.count("roundtrip(bench::cg19::Message"), 6)
+        self.assertIn("bench::cg19::Message0005::default()", text)
+        self.assertIn("msg.encode(&mut wire)", text)
+        self.assertIn("M::decode(&mut &wire[..])", text)
+        self.assertNotEqual(text, harness.render_consumer_buffa(6, 1))
+        self.assertEqual(
+            harness.render_consumer_for(6, 0, "buffa"), harness.render_consumer_buffa(6, 0),
+        )
+        dependency = harness.peer_manifest("sb09-buffa-consumer-small", "buffa")
+        self.assertIn(f'buffa = "={harness.BUFFA_VERSION}"', dependency)
+        self.assertNotIn("pbrs", dependency)
+        driver = harness.peer_driver_manifest("buffa")
+        self.assertIn(f'buffa-build = "={harness.BUFFA_VERSION}"', driver)
 
     def test_prepare_corpus_writes_protos_always_but_pbrs_consumer_on_request(self):
         with tempfile.TemporaryDirectory() as temporary:
