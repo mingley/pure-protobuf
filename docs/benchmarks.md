@@ -1,103 +1,134 @@
 # Benchmarks
 
+This page explains the local benchmark records for `pbrs`, `pbrs-grpc`, and
+the tonic adapter. It is for Rust developers who want to understand where the
+project is fast, where it loses, and which numbers are only diagnostic.
+
+Bottom line: the recorded runs show strong workload-specific wins, but they do
+not prove universal performance leadership or production readiness.
+
+## How to read this page
+
+- **Read the caveats first.** These are historical local measurements. They do
+  not include complete dated source revisions and per-run raw artifacts for
+  every table.
+- **Check the unit in each header.** Lower is better for time, latency,
+  memory, resident set size (RSS), and binary size. Higher is better for
+  throughput, queries per second (QPS), messages per second, and ratios.
+- **Do not compare owned decoders to borrowed views as equals.** Owned decoders
+  produce messages independent of the input buffer. Borrowed views can retain
+  slices of the input wire bytes.
+- **Treat gates as smoke checks.** A process gate means the local harness exits
+  non-zero for that loss. It is not the same as claim-grade comparative
+  evidence.
+- **Use the contract for stronger claims.** The
+  [benchmark contract](benchmark-contract.md) defines the evidence required
+  before promoting a comparative performance claim.
+
+## Summary
+
+| Area | Where pbrs looked faster | Where pbrs looked slower or open | What the numbers do not prove |
+|---|---|---|---|
+| Core codec `bench` | All twelve gated cases still won encode and owned decode against prost, v4 upb, and buffa owned in the recorded Apple M4 Pro capture. | `tat_populated` and `person` were in a ~3% band behind buffa view and are not process-gated. Large packed-fixed results are only reported, not gated. | No universal codec ranking, retained-memory claim, or view-versus-owned equivalence. |
+| Large payloads | pbrs, v4 upb, and buffa owned were in the same band for owned bytes encode/decode at 1-5 MiB. | buffa `decode_view` on bytes does not copy. v4 encode was a bit faster for 5 MiB packed fixed32. | No zero-copy claim from these rows: they time the copying `parse(&[u8])` path. The newer shared-buffer path (`parse_bytes`) is covered in [Large payloads / zero-copy](zero-copy.md). |
+| tonic codec survey | Most common-shape cached-encode-plus-parse rows beat prost and v4 in the historical capture. | pbrs loses some small common-shape rows versus prost (`empty`, `id`, `name_80`) and has diagnostic mutation/first-encode caveats. | No claim that historical "fresh" encode cells are direct first-encode timings. |
+| Native gRPC transport | Fair-loopback results show pbrs-grpc ahead on p50 latency, throughput, and most streaming axes. | tonic leads empty-unary p99 under the fair settings; old Xeon tables are superseded by SB-01. | No production tail-latency, network, or multicore leadership claim. |
+| Codegen and downstream compile | pbrs generated fewer Rust bytes and a smaller release executable in the small paired diagnostic. | pbrs was larger/slower on eight measured generation/check/build cost metrics. | No 100/1,000-message ranking, uncertainty bound, or qualified codegen claim. |
+
+## Provenance and scope
+
 The numeric tables below are historical local measurements, not a current
-performance-leadership claim. They do not link complete dated source revisions
-and per-run raw result artifacts; rerun commands alone cannot recreate their
-host conditions or supply uncertainty intervals. The
-[benchmark contract](benchmark-contract.md) defines the evidence required
-before promoting a comparative claim.
+performance-leadership claim. Rerun commands alone cannot recreate their host
+conditions or supply uncertainty intervals.
 
-## Method
+The page keeps every recorded caveat visible: missing raw artifacts, diagnostic
+versus claim-grade status, local host sensitivity, owned-versus-view
+differences, and known losses.
 
-The historical kernel comparisons target the same `.proto` per row. Most cases are
-`TestAllTypesProto3` (TAT), Google's kitchen-sink conformance message.
+## Core codec method
+
+The historical kernel comparisons target the same `.proto` per row. Most cases
+use `TestAllTypesProto3` (TAT), Google's kitchen-sink conformance message.
 pbrs types in the historical kernel table are plugin-generated, except
-`person` which uses the handwritten `pbrs::testdata::Person`.
-That handwritten type has no typed `extras` (tag 16); the Person specimens
-leave the field empty, so this is populated-field rather than full-schema
-equivalence.
+`person`, which uses the handwritten `pbrs::testdata::Person`.
+
+That handwritten type has no typed `extras` field (tag 16). The Person
+specimens leave the field empty, so this is populated-field equivalence rather
+than full-schema equivalence.
+
 Competitors are prost 0.13 (`prost-build` of that proto), crates.io
 `protobuf` 4.35.1-release (`protoc --rust_out kernel=upb`), buffa 0.9.1
 owned, and buffa `decode_view` where it exists.
 
-### Workload Taxonomy and Semantic Bias Controls
+### Workload taxonomy and semantic-bias controls
 
-In accordance with the Benchmark Contract (BM-01, BM-03), workloads are
-structured to avoid semantic bias across buffer ownership, caching, and layout:
+The benchmark contract's BM-01 and BM-03 rules require workloads to avoid
+semantic bias across layout, buffer ownership, caching, and access patterns:
 
-1. **Handwritten vs. Generated Schemas**:
-   `person` uses handwritten `pbrs::testdata::Person`, which optimizes repeat
-   storage via `InlineVec<ProtoString, 4>` (up to 4 small repeats inline in the
-   struct without heap allocation). All other historical cases use
-   compiler-generated structures (`TestAllTypesProto3`). To expose
-   handwritten versus generated implementation differences, the comparative row
-   `person_generated` uses the compiler-generated layout (`Repeated<LazyStr>`,
-   `Map<LazyStr, i32>`). The current `tonic-bench` additionally reports both
-   Person layouts in a separate same-input diagnostic; those measurements do
-   not replace this historical table.
-2. **Buffer Ownership (Owned vs. View Decode)**:
-   Owned decoders (`pbrs`, `prost`, `v4 upb`, `buffa owned`) produce messages
-   independent of the caller's input lifetime. pbrs can retain its own wire
-   backing and defer field materialization; prost eagerly owns fields, while
-   v4 uses an upb Arena. Borrowed view decoders (`buffa view`) borrow slices
-   directly from the input wire bytes. Following the Equivalence Rule, owned
-   and view decoders are reported in separate columns.
-3. **Fresh vs. Cached Encode & Mutation**:
-   - *Cached Encode*: Measures re-serializing a message whose length
-     (`cached_size`) and canonical packed varint representations
-     (`Packed::encoded`) are already computed and reused.
-   - *Fresh Encode*: Measures the first serialization of a freshly parsed
-     message before canonical caches are warmed. Parsing and preparation happen
-     outside the timed interval; each prepared message is encoded exactly once.
-     `fresh_encode_iters` is capped at 10,000 and an estimated 32 MiB of prepared
-     inputs per sample in `bench`, so it can differ from the main row's `iters`.
-     The current `bench` and `tonic-bench` executables directly time this path;
-     historical tonic tables below predate that fix and must not be read as
-     direct first-encode measurements. Construction/field assignment is not
-     included in this parse-prepared diagnostic.
-   - *Mutated Encode*: `bench` alternates a field before every pbrs encode to
-     include cache invalidation and size recomputation. `tonic-bench` reports
-     separate three-codec `Person` ID and variable-length name-mutation rows
-     for handwritten and generated pbrs; they are not part of the historical
-     rows or gates. These measurements consume full encoded buffers and are
-     diagnostic, not replacements for the cached encode rows.
-4. **Parse-Only vs. Parse-and-Touch**:
-   - *Parse-Only*: Deserializes wire bytes and drops the decoded message
-     immediately without inspecting fields.
-   - *Parse-and-Touch*: Deserializes wire bytes and recursively accesses
-     string, bytes, and collection fields on the parsed message, ensuring that
-     deferred materialization and accessor overheads are observed.
+1. **Handwritten vs. generated schemas.** `person` uses handwritten
+   `pbrs::testdata::Person`, which stores up to four repeated
+   `ProtoString` values inline with `InlineVec<ProtoString, 4>`. All other
+   historical cases use compiler-generated `TestAllTypesProto3` structures.
+   The `person_generated` row uses the generated layout
+   (`Repeated<LazyStr>`, `Map<LazyStr, i32>`) to show layout differences. The
+   current `tonic-bench` also reports both Person layouts in a same-input
+   diagnostic; that does not replace this historical table.
+2. **Owned vs. view decode.** Owned decoders (`pbrs`, `prost`, v4 upb, and
+   buffa owned) produce messages independent of the caller's input lifetime.
+   pbrs can retain its own wire backing and defer field materialization; prost
+   eagerly owns fields; v4 uses an upb Arena. Borrowed view decoders
+   (`buffa view`) borrow slices directly from the input wire bytes, so they
+   stay in a separate column.
+3. **Fresh, cached, and mutated encode.** Cached encode re-serializes a
+   message whose length (`cached_size`) and canonical packed varint bytes
+   (`Packed::encoded`) are already computed. Fresh encode serializes a freshly
+   parsed message once, before canonical caches are warmed; parsing and
+   preparation are outside the timed interval. `fresh_encode_iters` is capped
+   at 10,000 and an estimated 32 MiB of prepared inputs per sample in `bench`.
+   The current `bench` and `tonic-bench` executables directly time this path,
+   but the historical tonic tables below predate that fix. Construction and
+   field assignment are not included. Mutated encode alternates a field before
+   every pbrs encode to include cache invalidation and size recomputation.
+   `tonic-bench` reports separate three-codec `Person` ID and variable-length
+   name-mutation rows for handwritten and generated pbrs. Those rows are
+   diagnostic and do not replace cached encode rows.
+4. **Parse-only vs. parse-and-touch.** Parse-only deserializes wire bytes and
+   drops the message without field access. Parse-and-touch recursively accesses
+   string, bytes, and collection fields on the parsed message so deferred
+   materialization and accessor costs show up.
 
-Decode uses pbrs wire bytes. `./bench` (from `bench/`) runs 40000
-iterations and reports the median of 15 after warmup.
+Decode uses pbrs wire bytes. `./bench` from `bench/` runs 40000 iterations and
+reports the median of 15 after warmup. Builds are release, thin link-time
+optimization (LTO), one codegen unit. `size_of::<TestAllTypesProto3>()` is
+648. Default is ~19 ns.
 
-Builds are release, thin LTO, one codegen unit.
-`size_of::<TestAllTypesProto3>()` is 648. Default is ~19 ns.
+In the next two codec tables, each implementation cell is `encode / decode` in
+nanoseconds. Payload is encoded size in bytes. Lower is better. Buffa view has
+no encode, so that side is `n/a`.
 
-Each cell is encode ns / decode ns. Payload is encoded size in bytes.
-Buffa view has no encode, so that side is `n/a`.
+`./bench` exits non-zero if a gated case loses encode or owned decode to prost,
+v4, or buffa owned. Twelve cases are gated: the original nine plus
+`packed_fixed64_256`, `packed_float_256`, and `repeated_nested_8`. Buffa view
+is gated except `tat_populated`, `person`, and the packed-fixed rows. The view
+does not build an owned `Vec`; `person` and `tat_populated` sit in a ~3% band
+versus buffa view and are not process gates. These legacy owned-versus-view
+gates are smoke checks only, not comparable codec evidence under the benchmark
+contract; replacing them requires BM-13.
 
-`./bench` exits non-zero if a gated case loses encode or owned decode to
-prost, v4, or buffa owned. Twelve cases are gated: the original nine plus
-`packed_fixed64_256`, `packed_float_256`, and `repeated_nested_8`. Buffa
-view is gated except `tat_populated`, `person`, and the packed-fixed rows
-(view does not build an owned `Vec`; person and `tat_populated` sit in a
-~3% band versus buffa view and are not a process gate). These legacy
-owned-versus-view gates are smoke checks only, not comparable codec evidence
-under the benchmark contract; replacing them requires BM-13.
+JSON, text, proto2 required, maps larger than 64, and well-known types (WKT)
+are not gated. 1 MiB and 5 MiB rows are reported below and are not gated.
+Iteration counts drop with payload (120x9 at 1 MiB, 40x7 at 5 MiB) so the
+timer stays memcpy-bound rather than a 40k-iteration wall clock.
 
-JSON, text, proto2 required, maps larger than 64, and WKT are not gated.
-1 MiB and 5 MiB rows are reported below and are not gated. Iters drop
-with payload (120x9 at 1 MiB, 40x7 at 5 MiB) so the timer stays
-memcpy-bound rather than a 40k-iter wall clock.
-
-Numbers below are one Apple M4 Pro. Two consecutive
-`./target/release/bench` runs; the second capture is below. Both runs
-exited 0 (all twelve gated cases still win encode and owned decode).
+Numbers below are from one Apple M4 Pro. Two consecutive
+`./target/release/bench` runs were captured; the second capture is below. Both
+runs exited 0, so all twelve gated cases still win encode and owned decode.
 
 ## Gated
 
-| case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
+Lower is better. Each implementation cell is `encode / decode` in nanoseconds.
+
+| case | payload (bytes) | pbrs encode/decode (ns) | prost encode/decode (ns) | v4 upb encode/decode (ns) | buffa owned encode/decode (ns) | buffa view encode/decode (ns) |
 |---|---:|---:|---:|---:|---:|---:|
 | empty TAT | 0 | **26 / 20** | 83 / 130 | 144 / 74 | 67 / 163 | n/a / 115 |
 | person | 62 | **35 / 83** | 40 / 198 | 73 / 159 | 42 / 154 | n/a / 81 |
@@ -117,9 +148,10 @@ Everything else is generated TestAllTypesProto3.
 
 ## Extended
 
-Reported, not gated.
+Reported, not gated. Lower is better. Each implementation cell is
+`encode / decode` in nanoseconds.
 
-| case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
+| case | payload (bytes) | pbrs encode/decode (ns) | prost encode/decode (ns) | v4 upb encode/decode (ns) | buffa owned encode/decode (ns) | buffa view encode/decode (ns) |
 |---|---:|---:|---:|---:|---:|---:|
 | person_generated | 62 | **37 / 198** | 40 / 197 | 76 / 162 | 40 / 160 | n/a / 80 |
 | bytes | 315 | **73 / 168** | 134 / 508 | 224 / 204 | 122 / 384 | n/a / 219 |
@@ -142,20 +174,21 @@ are not process-gated: view does not materialize a `Vec`.
 
 ## Large payloads (reported, not gated)
 
-Same TAT schema. Cells are **microseconds** (encode / decode), not
-nanoseconds. One Apple M4 Pro; second of two runs.
+Same TAT schema. Lower is better. Each implementation cell is
+`encode / decode` in microseconds, not nanoseconds. One Apple M4 Pro; second
+of two runs.
 
-| case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
+| case | payload (bytes) | pbrs encode/decode (µs) | prost encode/decode (µs) | v4 upb encode/decode (µs) | buffa owned encode/decode (µs) | buffa view encode/decode (µs) |
 |---|---:|---:|---:|---:|---:|---:|
 | bytes 1 MiB | 1,000,004 | 12.1 / 12.0 | 12.3 / 24.4 | 12.2 / 12.5 | 12.2 / 12.3 | n/a / **0.12** |
 | bytes 5 MiB | 5,000,005 | 61.6 / 59.9 | 61.7 / 123.5 | 60.6 / 60.7 | 65.1 / 60.7 | n/a / **0.12** |
 | packed fixed32 1 MiB | 1,000,005 | 12.0 / 12.0 | 158 / 446 | **12.1 / 11.7** | 127 / 12.3 | n/a / 12.7 |
 | packed fixed32 5 MiB | 5,000,006 | 72.7 / 65.7 | 788 / 2527 | **60.5 / 66.2** | 629 / 66.3 | n/a / 64.8 |
 
-At 1-5 MiB the v4 Arena/FFI tax is gone. Owned encode/decode of a bytes
-blob is a memcpy of the payload. pbrs, v4, and buffa owned sit in the
-same band. prost decode is about 2x. buffa `decode_view` on bytes does
-not copy (~0.12 µs).
+At 1-5 MiB the v4 Arena/foreign function interface (FFI) tax is gone. Owned
+encode/decode of a bytes blob is a memcpy of the payload. pbrs, v4, and buffa
+owned sit in the same band. prost decode is about 2x. buffa `decode_view` on
+bytes does not copy (~0.12 µs).
 
 packed-fixed is memcpy for pbrs and v4, and a recode for prost / buffa
 owned encode. At 5 MiB v4 encode is a bit faster (60 vs 66 µs). Decode
@@ -190,7 +223,7 @@ harness; their risks cannot be counted as performance results:
 | **Deep recursive trees** (`nest_d4`, `nested_8`) | Deep submessage nesting, no collections | Eager recursion validation, stack-bounded by `RECURSION_LIMIT` | Stack overflow and pointer chasing |
 | **Sparse wide messages** (`rpc_sparse`, `empty`) | Hundreds of optional fields, 1 field populated | Fast tag scanning, cold field bypass via `Option<Box<Cold>>` | Size bloat and zero-initialization overhead |
 | **Wide header maps** (`map_8`, `headers`) | Dense string-to-string mapping, duplicate key checks | Inline entry decode with `MapView`, small lookup arrays | Hash collision and map rehash stalls |
-| **Unaligned packed varints** (`packed_256`, `unpacked_256`) | Multi-byte LEB128 sequences, variable widths | SIMD varint validation + lazy canonical cache | Varint decoding throughput and recoding allocation |
+| **Unaligned packed varints** (`packed_256`, `unpacked_256`) | Multi-byte little-endian base-128 (LEB128) sequences, variable widths | Single instruction, multiple data (SIMD) varint validation + lazy canonical cache | Varint decoding throughput and recoding allocation |
 | **Heterogeneous unions** (`oneof_ok`, `oneof`) | Polymorphic variants, tagged union representation | Rust `enum` variant with direct payload access | Tag mismatch and union memory inflation |
 
 ## Re-run
@@ -201,72 +234,116 @@ cd bench && cargo build --release && ./target/release/bench
 
 ## Codegen and downstream compilation (CG-19 diagnostic)
 
-`./scripts/codegen-bench.sh --case small` runs a bounded **unqualified**
-codegen/compile diagnostic; omit `--case` to request all three seeded,
-multi-file proto3 corpora (6 messages / 2 files, 100 / 5, 1,000 / 20).
+This diagnostic measures code generation and downstream Rust compilation. It
+is **unqualified**: useful for finding losses, but not enough for a release or
+performance claim.
+
+### Running the diagnostic
+
+`./scripts/codegen-bench.sh --case small` runs the bounded six-message case.
+Omit `--case` to request all three seeded, multi-file proto3 corpora:
+
+| case | corpus size |
+|---|---|
+| `small` | 6 messages / 2 files |
+| `100` | 100 messages / 5 files |
+| `1000` | 1,000 messages / 20 files |
+
 The default seed is `190019`; `--seed N` changes it. Results go to a **new**
-`target/codegen-bench/<UTC timestamp>-<pid>/` directory (or a new `--out`
-directory beneath `target/codegen-bench`). No existing evidence is removed.
-The command needs installed `protoc`, Cargo and Rust; it uses Cargo
-`--offline` and this checkout's `pbrs` path dependency, without downloading
-or adding dependencies. Run it only when compiler jobs are not competing
-for resources; `--jobs` defaults to `CARGO_BUILD_JOBS` or 2.
+`target/codegen-bench/<UTC timestamp>-<pid>/` directory, or to a new `--out`
+directory beneath `target/codegen-bench`. No existing evidence is removed.
+
+Requirements and resource notes:
+
+- The command needs installed `protoc`, Cargo, and Rust.
+- It uses Cargo `--offline` and this checkout's `pbrs` path dependency.
+- It does not download or add dependencies.
+- Run it only when compiler jobs are not competing for resources.
+- `--jobs` defaults to `CARGO_BUILD_JOBS` or 2.
+
+### What the harness measures
 
 The Python harness generates and hashes every `.proto` from a fixed SHA-256
-field-selection scheme. It builds a small out-of-band Rust driver using
-`pbrs::codegen::Config::compile_protos` with messages-only stubs, normal
-reflection, and the recorded `protoc` executable (pinned in opt-in mode).
-The measured generation phase
-**includes protoc descriptor compilation and Rust emission**, not Cargo.
-A second identical invocation checks *all* `.rs` bytes, paths and nanosecond
-mtimes without rewriting them. An external consumer includes the generated
-`mod.rs` and retains every message via parse/serialize calls. Separate phases
-measure an initially empty per-corpus-target `cargo check`, a second check
-after a real consumer-source edit (and assert Cargo rechecked that consumer),
-and an offline `cargo build --release` (opt-level 3, thin LTO, one codegen
-unit) with binary size. Bootstrap and offline lockfile resolution are
-recorded but **not counted as generation or consumer check**. Bootstrap
-reuses the shared `target/integration-consumers` Cargo cache with jobs
-capped at 2, then copies and hashes the executable under the new run's
-`bin/`; each corpus still uses its own **empty** target for a genuine cold
-check. Local Cargo registry/compiler-wrapper caches are *not* cleared.
-The cold check also includes normal `pbrs` dependency compilation and its
-build script; it does not rerun corpus generation. Both the driver and that
-build script use the recorded `protoc` (the latter via a local PATH symlink). See the
-[harness notes](../bench/codegen/README.md) for the cache and isolation
-boundary.
+field-selection scheme. It then builds a small out-of-band Rust driver that
+uses `pbrs::codegen::Config::compile_protos` with messages-only stubs, normal
+reflection, and the recorded `protoc` executable. In opt-in comparison mode,
+that `protoc` is pinned.
 
-Each `summary.json` (`schema_version: cg19/1`) contains pbrs source-tree,
-wrapper, lockfile and copied-binary SHA-256s, Git HEAD and tracked dirt,
-compiler/protoc paths and versions, host/cache/flags, per-corpus and
-per-input SHA-256s,
-generated bytes/hash/mtime assertion, per-phase `elapsed_ns`,
-`peak_rss_bytes` and raw `logs/<case>/<phase>.{stdout,stderr}.log` paths,
-plus release binary bytes. RSS is the maximum of the OS time command's
-direct-process peak and a 100 ms sampled descendant-tree **sum of RSS**:
-it is a lower bound on that sum's high-water mark, not physical memory
-(shared pages can be counted twice) or a complete allocator-aware peak.
+The measured generation phase **includes `protoc` descriptor compilation and
+Rust emission**. It does not include Cargo. A second identical invocation
+checks all `.rs` bytes, paths, and nanosecond modification times without
+rewriting them.
+
+The downstream consumer includes the generated `mod.rs` and retains every
+message through parse/serialize calls. Separate phases measure:
+
+- an initially empty per-corpus-target `cargo check`;
+- a second check after a real consumer-source edit, asserting Cargo rechecked
+  that consumer;
+- an offline `cargo build --release` with opt-level 3, thin LTO, one codegen
+  unit, and binary size.
+
+Bootstrap and offline lockfile resolution are recorded but **not counted as
+generation or consumer check**. Bootstrap reuses the shared
+`target/integration-consumers` Cargo cache with jobs capped at 2, then copies
+and hashes the executable under the new run's `bin/`. Each corpus still uses
+its own **empty** target for a genuine cold check. Local Cargo registry and
+compiler-wrapper caches are **not** cleared.
+
+The cold check includes normal `pbrs` dependency compilation and its build
+script; it does not rerun corpus generation. Both the driver and that build
+script use the recorded `protoc`; the build script uses it through a local
+`PATH` symlink. See the [harness notes](../bench/codegen/README.md) for the
+cache and isolation boundary.
+
+### What the JSON records
+
+Each `summary.json` (`schema_version: cg19/1`) records:
+
+- pbrs source-tree, wrapper, lockfile, and copied-binary SHA-256s;
+- Git HEAD and tracked dirt;
+- compiler and `protoc` paths and versions;
+- host, cache, and flag data;
+- per-corpus and per-input SHA-256s;
+- generated bytes, hash, and modification-time assertion;
+- per-phase `elapsed_ns`, `peak_rss_bytes`, and raw
+  `logs/<case>/<phase>.{stdout,stderr}.log` paths;
+- release binary bytes.
+
+RSS is the maximum of the operating system time command's direct-process peak
+and a 100 ms sampled descendant-tree **sum of RSS**. That value is a lower
+bound on the descendant sum's high-water mark. It is not physical memory:
+shared pages can be counted twice, and it is not a complete allocator-aware
+peak.
+
 `status: error` and a nonzero exit preserve partial data and logs on
 measurement failure.
-After each release build and binary hash, a separate **untimed**
-`release_smoke` executes the binary from its own consumer directory with a
-maximum 15-second timeout. It requires exit 0, stdout exactly `1\n`, and
-empty stderr. A passing phase records its raw stdout/stderr logs, hashes,
-cwd, timeout, exit code and `output_verified`. A failing phase retains
-status and log paths (plus exit code if the child exited), and stops
-comparison without reporting empty losses as success. The smoke does not invoke
-`/usr/bin/time` because its resource report would make raw stderr nonempty.
-It contributes no timing/RSS row to the 12 cost metrics.
 
-**Default behavior is unchanged:** no reference is invoked and successful
+After each release build and binary hash, a separate **untimed**
+`release_smoke` runs the binary from its own consumer directory with a maximum
+15-second timeout. It requires exit 0, stdout exactly `1\n`, and empty stderr.
+A passing phase records raw stdout/stderr logs, hashes, current working
+directory (cwd), timeout, exit code, and `output_verified`. A failing phase
+retains status and log paths, plus exit code if the child exited, and stops
+comparison without reporting empty losses as success.
+
+The smoke does not invoke `/usr/bin/time` because its resource report would
+make raw stderr nonempty. It contributes no timing or RSS row to the 12 cost
+metrics.
+
+### Reference opt-in
+
+**Default behavior is unchanged:** no reference is invoked. Successful
 pbrs-only runs retain `reference.status: missing`,
-`comparison.status: not_run`, `comparison.losing_cells: null` and
-`qualification.qualified: false`. The previous 6/100/1,000-message cells
-are historical pbrs-only measurements, **not** pairs. An explicit reference
-opt-in now accepts **one** seeded 6-, 100-, or 1,000-message corpus at a
-time; `--case all` or an omitted case is rejected before creating artifacts
-to avoid unplanned cold builds. For the existing **single local six-message
-pair** with the pinned compiler (not an arbitrary PATH `protoc`), use:
+`comparison.status: not_run`, `comparison.losing_cells: null`, and
+`qualification.qualified: false`. The previous 6/100/1,000-message cells are
+historical pbrs-only measurements, **not** pairs.
+
+An explicit reference opt-in accepts **one** seeded 6-, 100-, or 1,000-message
+corpus at a time. `--case all` or an omitted case is rejected before creating
+artifacts to avoid unplanned cold builds. For the existing **single local
+six-message pair** with the pinned compiler, not an arbitrary `PATH`
+`protoc`, use:
 
 ```sh
 CARGO_BUILD_JOBS=2 ./scripts/codegen-bench.sh --case small \
@@ -288,28 +365,42 @@ The opt-in Python harness test reproduces these generated-byte checks without
 running `rustc` or comparing performance; it does **not** establish that
 100/1,000-message consumers build or run.
 
+### Reference comparator boundary
+
 The opt-in fails closed unless that compiler is genuine `libprotoc 35.1`,
 SHA-256 `e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940`,
 from the clean checked upstream source at
 `35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`. Both generators receive the
-same byte-identical `.proto` inputs: proto3 scalars, repeated/map fields,
-cross-file imports, every concrete message in the selected corpus, and normal reflection
-metadata. Both consumers perform the same `new`/serialize/parse/serialize
-calls per type, but upstream's generated `generated.rs` module differs
-from pbrs's `mod.rs`. Upstream uses its built-in Rust output
+same byte-identical `.proto` inputs:
+
+- proto3 scalars;
+- repeated and map fields;
+- cross-file imports;
+- every concrete message in the selected corpus;
+- normal reflection metadata.
+
+Both consumers perform the same `new`/serialize/parse/serialize calls per type,
+but upstream's generated `generated.rs` module differs from pbrs's `mod.rs`.
+Upstream uses its built-in Rust output
 (`experimental-codegen=enabled,kernel=upb`) and **independent** registry
 `protobuf`/`protobuf-macros` `4.35.1-release` dependencies, verified by
-version and Cargo checksum; the reference lockfile must not contain `pbrs`.
-Opt-in requires Python 3.11+ for standard-library lockfile verification.
-That runtime compiles C/upb through the recorded C compiler. Pbrs uses its
-own Rust runtime and a pinned-protoc descriptor subprocess. Each side gets
-an initially empty cold-check target and the same two-job Cargo profile;
-bootstrap is excluded, while the registry/compiler-wrapper caches are
-shared and **pbrs always runs first**. These are full consumer/build costs,
-not isolated generator, C-free, identical-ABI or randomized cold-host
-comparisons. The reference repeat generation may rewrite identical Rust
-files; both bytes and mtime outcomes are explicit in the report. Only
-default-message values execute; this is not a nonempty-field semantic test.
+version and Cargo checksum. The reference lockfile must not contain `pbrs`.
+
+Opt-in requires Python 3.11+ for standard-library lockfile verification. That
+runtime compiles C/upb through the recorded C compiler. Pbrs uses its own Rust
+runtime and a pinned-protoc descriptor subprocess.
+
+Each side gets an initially empty cold-check target and the same two-job Cargo
+profile. Bootstrap is excluded, while registry and compiler-wrapper caches are
+shared and **pbrs always runs first**.
+
+These are full consumer/build costs. They are not isolated generator, C-free,
+identical application binary interface (ABI), or randomized cold-host
+comparisons. The reference repeat generation may rewrite identical Rust files;
+both bytes and modification-time outcomes are explicit in the report. Only
+default-message values execute, so this is not a nonempty-field semantic test.
+
+### Small paired diagnostic
 
 The **corrected** local small-cell diagnostic at
 `target/codegen-bench/20260924T211609Z-63179/summary.json` has **40 retained
@@ -318,7 +409,7 @@ metrics** for pbrs (raw units are ns for time and bytes for RSS). All seven
 previously observed losses persist; this run also observes a generation RSS
 loss, which is subject to the sampling limitation above:
 
-| Metric where pbrs is larger | pbrs | Pinned upb reference |
+| Metric where pbrs is larger (unit in metric name; lower is better) | pbrs raw value | Pinned upb reference raw value |
 |---|---:|---:|
 | generation elapsed ns | 294591958 | 178592792 |
 | generation peak RSS bytes | 19709952 | 18235392 |
@@ -347,8 +438,8 @@ with a reference. CG-19 and the [benchmark contract](benchmark-contract.md)
 still require the 100/1,000-message reference cells, multiple randomized
 paired runs with uncertainty on independent pinned hosts, controlled cache
 policy, retained/published raw data, and review of all losing cells before a
-qualified claim. No CI performance gate or release claim follows from this
-diagnostic.
+qualified claim. No continuous integration (CI) performance gate or release
+claim follows from this diagnostic.
 
 The earlier pair at
 `target/codegen-bench/20260924T205157Z-28795/summary.json` retains its
@@ -474,14 +565,18 @@ if `tags_32` decode loses to v4.
 
 ### Published 1-string
 
-| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |
+Lower is better for all time columns; timings are nanoseconds.
+
+| case | payload (bytes) | pbrs encode fresh/cached (ns) | pbrs decode parse/touch (ns) | prost encode/decode/touch (ns) | v4 encode/decode/touch (ns) | vs prost | vs v4 |
 |---|---:|---:|---:|---:|---:|---|---|
 | hello | 5 | 6.1 / 5.5 | 11.4 / 11.7 | 1.5 / 22.2 / 23.3 | 34.2 / 44.3 / 49.9 | win | win |
 | hello_4kib | 4099 | 53.8 / 46.1 | 86.8 / 86.7 | 48.4 / 147.3 / 148.8 | 105.6 / 274.2 / 262.0 | win | win |
 
 ### Common shapes
 
-| case | payload | pbrs enc (fresh/cached) | pbrs dec (parse/touch) | prost enc/dec/touch | v4 enc/dec/touch | vs prost | vs v4 |
+Lower is better for all time columns; timings are nanoseconds.
+
+| case | payload (bytes) | pbrs encode fresh/cached (ns) | pbrs decode parse/touch (ns) | prost encode/decode/touch (ns) | v4 encode/decode/touch (ns) | vs prost | vs v4 |
 |---|---:|---:|---:|---:|---:|---|---|
 | empty | 0 | 2.0 / 1.3 | 0.3 / 0.3 | 0.3 / 0.3 / 0.3 | 27.5 / 32.2 / 32.4 | loss | win |
 | id | 2 | 3.7 / 3.3 | 2.3 / 2.0 | 1.0 / 3.6 / 3.6 | 31.9 / 38.3 / 44.8 | loss | win |
@@ -515,7 +610,7 @@ perform the new cross-codec touch/output equivalence checks.
 
 Do not spend the next pass on:
 
-- prost empty (ZST, 0.3 ns)
+- prost empty (zero-sized type, ZST, 0.3 ns)
 - short-string encode (5.0 vs 3.8)
 - flatten `merge_inner` (#39, made hello worse)
 
@@ -524,9 +619,9 @@ Do not spend the next pass on:
 
 Worth measuring next:
 
-- `name_80` combined (still a loss): 80-byte string is just over the SSO
-  cutoff. Leftover is `merge_inner` after a draft heap-copy try (#57)
-  that is not shipped.
+- `name_80` combined (still a loss): 80-byte string is just over the
+  small-string optimization (SSO) cutoff. Leftover is `merge_inner` after a
+  draft heap-copy try (#57) that is not shipped.
 
 Keep: packed canonical cache, bytes window, `simdutf8` string arm,
 same-tag repeated strings, map/repeated vs prost.
@@ -568,7 +663,7 @@ exited 0.
 271828-byte request and a 314159-byte reply. 2000 and 200 samples after
 warmup.
 
-| run | case | kernel p50 | tonic p50 | kernel p99 | tonic p99 |
+| run | case | kernel p50 (unit in cell; lower better) | tonic p50 (unit in cell; lower better) | kernel p99 (unit in cell; lower better) | tonic p99 (unit in cell; lower better) |
 |---|---|---:|---:|---:|---:|
 | 1 | empty | **54.6 µs** | 88.7 µs | **186 µs** | 42.6 ms |
 | 2 | empty | **54.9 µs** | 86.1 µs | **191 µs** | 41.7 ms |
@@ -592,10 +687,11 @@ explanation is retracted — it was never measured, only theorized.
 
 Reported, not gated: it moves with core count and scheduler luck. Best of
 three 2-second windows per side. `conns` is HTTP/2 connections
-(`ChannelConfig::connections` against N tonic channels). Nonzero RPC
-errors fail the process, so these are also a correctness check.
+(`ChannelConfig::connections` against N tonic channels). Nonzero remote
+procedure call (RPC) errors fail the process, so these are also a correctness
+check.
 
-| case | conc | conns | kernel QPS | tonic QPS |
+| case | concurrency | HTTP/2 connections | kernel QPS (higher better) | tonic QPS (higher better) |
 |---|---:|---:|---:|---:|
 | empty | 1 | 1 | **73.6k** | 2.5-2.9k |
 | empty | 16 | 4 | **83.7-84.0k** | 21-27k |
@@ -612,7 +708,7 @@ fair rerun shows 1.3x at `conc=1`, not 30x.)
 One server-streaming RPC of 2000 messages × 1 KiB, best of eight rounds.
 Six consecutive runs:
 
-| run | kernel msgs/s | tonic msgs/s | ratio |
+| run | kernel msgs/s (higher better) | tonic msgs/s (higher better) | ratio |
 |---|---:|---:|---:|
 | 1 | **1093k** | 917k | 1.19x |
 | 2 | **1028k** | 1025k | 1.00x |
@@ -663,13 +759,13 @@ above is what makes that hop cheap enough not to decide the result.
 One bidi `FullDuplexCall` of 256 empty request/response pairs, best of eight
 rounds after warmup, reported as round-trips/s. Process-gated at 90% of tonic,
 the same band as server-streaming: each round-trip waits for a response
-before the next request, so scheduler luck shows up as RTT. This axis is a
-loopback capture in `rpc-bench`; it is not the 4-core Xeon unary/QPS/stream
-tables above.
+before the next request, so scheduler luck shows up as round-trip time (RTT).
+This axis is a loopback capture in `rpc-bench`; it is not the 4-core Xeon
+unary/QPS/stream tables above.
 
 This host, one release run, kernel and tonic sharing one process:
 
-| kernel round-trips/s | tonic round-trips/s | ratio |
+| kernel round-trips/s (higher better) | tonic round-trips/s (higher better) | ratio |
 |---|---:|---:|
 | **33919** | 22595 | **1.50x** |
 
@@ -684,7 +780,7 @@ tonic, the same band as server-streaming. This axis is a loopback capture in
 
 This host, one release run, kernel and tonic sharing one process:
 
-| kernel msgs/s | tonic msgs/s | ratio |
+| kernel msgs/s (higher better) | tonic msgs/s (higher better) | ratio |
 |---|---:|---:|
 | **1447599** | 555431 | **2.61x** |
 
@@ -700,21 +796,21 @@ the same codec; `rpc-bench` refuses to print comparisons unless every
 endpoint role meets that spec. Host: Apple M4 Pro, macOS; release;
 two consecutive runs (FAIRNESS record from run 1):
 
-| case | kernel p50 | tonic p50 | kernel p99 | tonic p99 |
+| case | kernel p50 (µs; lower better) | tonic p50 (µs; lower better) | kernel p99 (µs; lower better) | tonic p99 (µs; lower better) |
 |---|---|---:|---:|---:|---:|
 | empty (run 1) | **70.1 µs** | 94.5 µs | 123.0 µs | **110.3 µs** |
 | empty (run 2) | **69.5 µs** | 94.6 µs | 131.4 µs | **109.4 µs** |
 | large (run 1) | **345.6 µs** | 378.8 µs | **384.7 µs** | 463.4 µs |
 | large (run 2) | **348.3 µs** | 377.8 µs | **412.2 µs** | 426.3 µs |
 
-| case | conc | conns | kernel QPS | tonic QPS |
+| case | concurrency | HTTP/2 connections | kernel QPS (higher better) | tonic QPS (higher better) |
 |---|---:|---:|---:|---:|
 | empty | 1 | 1 | **13.1k** | 9.8k |
 | large | 1 | 1 | **2.5k** | 2.0k |
 | empty | 16 | 4 | **30.0k** | 18.3k |
 | large | 16 | 4 | **3.0k** | 2.2k |
 
-| axis | kernel | tonic | ratio |
+| axis | kernel (unit in axis; higher better) | tonic (unit in axis; higher better) | ratio |
 |---|---:|---:|---:|
 | server-stream msgs/s | **636-672k** | 461-472k | **~1.4x** |
 | ping-pong round-trips/s | 12.8-13.8k | **13.3-14.5k** | 0.95x |
@@ -753,7 +849,7 @@ is the server.
 Same 4-core Xeon. Three rounds, 2000 `empty_unary` and 200 `large_unary`
 samples each, nanoseconds:
 
-| Round | Server | empty p50 | empty p99 | large p50 | large p99 |
+| Round | Server | empty p50 (ns; lower better) | empty p99 (ns; lower better) | large p50 (ns; lower better) | large p99 (ns; lower better) |
 |---|---|---:|---:|---:|---:|
 | 1 | **kernel** | **53232** | **71064** | **596055** | **779373** |
 | 1 | grpc-go | 77763 | 109962 | 910288 | 1658270 |
@@ -779,7 +875,7 @@ This is a loopback capture in `scripts/grpc-server-bench.sh`; it is not the
 This host, three rounds, kernel client, two servers in separate processes.
 Reported, not gated. Later rounds are noisier on a contended machine.
 
-| Round | Server | ping_pong rps | upload msgs/s |
+| Round | Server | ping_pong round-trips/s (higher better) | upload msgs/s (higher better) |
 |---|---|---:|---:|
 | 1 | **kernel** | **57899** | **695945** |
 | 1 | grpc-go | 40998 | 538945 |
