@@ -6760,7 +6760,8 @@
     "D2",
     "E1"
    ],
-   "relates": []
+   "relates": [],
+   "notes": "Premise check 2026-09-28: run.py server_command/preflight and cells.py peer lists hardcode peers; new peers need code changes there, outside this card's write set (peers/ dirs only). Needs coordinator re-scope."
   },
   {
    "id": "SB-19",
@@ -6797,7 +6798,8 @@
     "E4",
     "E5"
    ],
-   "relates": []
+   "relates": [],
+   "notes": "Premise check 2026-09-28: new shapes/gzip/RTT/overload cells need cells.py/run.py/slo.py plus rpc-bench load flags; this card's write set (scenarios/ + stack-matrix.sh) cannot add cell types. Needs coordinator re-scope."
   },
   {
    "id": "SB-20",
