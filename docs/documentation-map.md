@@ -18,7 +18,7 @@ under `tests/documentation.rs` (section 9).
 | API reference | Signatures, traits, options, errors | rustdoc (`cargo doc --workspace`) | [docs.rs](https://docs.rs/pbrs) for `pbrs`, `pbrs-grpc`, `protobuf-tonic` |
 | Internals | Mental model, layout, parser design | [architecture.md](architecture.md) (109 lines) | [design.md](design.md) (81), [upb.md](upb.md) (100), [unsafe-invariants.md](unsafe-invariants.md) (287) |
 | Compatibility and evidence | What is supported and proven | [status.md](status.md) (172 lines) | [ROADMAP.md](ROADMAP.md) (415), [plan/README.md](plan/README.md), [world-class program](plan/world-class/README.md), [Rust frontend review](rust-frontend.md), [TODO.md](../TODO.md), [RELEASE.md](RELEASE.md) (110) |
-| Performance | Workload-specific measurements | [benchmarks.md](benchmarks.md) (487 lines) | [benchmark-contract.md](benchmark-contract.md) (299), [resource-budgets.md](resource-budgets.md) (612) |
+| Performance | Workload-specific measurements | [benchmarks.md](benchmarks.md) (487 lines) | [benchmark-contract.md](benchmark-contract.md) (299), [resource-budgets.md](resource-budgets.md) (612), [zero-copy.md](zero-copy.md) |
 | Operations and troubleshooting | Run, debug, and bound a service | [operations guide](guides/operations.md) (184 lines) | [retry-contract.md](retry-contract.md) (220), [cacheable-rpc.md](cacheable-rpc.md) (194), [codegen-compatibility.md](codegen-compatibility.md) (210), [codegen-layout.md](codegen-layout.md) (369), [edition-2024.md](edition-2024.md) (403) |
 
 Rule: a journey's canonical page owns the narrative; supporting pages
@@ -39,6 +39,7 @@ Each journey has one canonical page and a link to runnable code.
 | Generate code, migrate from prost/tonic | [codegen guide](guides/codegen.md), [migration guide](guides/migration.md) | [onboarding consumer builds](../tests/onboarding.rs), [protobuf-tonic interop tests](../protobuf-tonic/tests/interop.rs) |
 | Compare against tonic / gRPC-Go | [comparison guide](guides/comparison.md) | [bench](../bench), [rpc-bench](../rpc-bench), [tonic-bench](../tonic-bench) |
 | Evaluate performance claims | [benchmarks.md](benchmarks.md) | [bench](../bench), [rpc-bench](../rpc-bench), [tonic-bench](../tonic-bench) |
+| Send or receive large binary payloads | [zero-copy.md](zero-copy.md) | [tests/runtime.rs](../tests/runtime.rs), [rpc-bench](../rpc-bench) |
 | Check support boundaries | [status.md](status.md) | [conformance script](../scripts/conformance.sh), [interop script](../scripts/grpc-interop.sh) |
 
 ## 3. Historical evidence versus current support claims

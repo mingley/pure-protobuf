@@ -21,9 +21,9 @@ There are 127 initial cards across 14 lanes. This is a staged program, not 127
 simultaneous jobs or a claim that speculative architecture is already settled.
 
 The [large-payload zero-copy proposal](pbrs-zero-copy-large-payloads-plan.md)
-sets out a separate, measurement-gated experiment. Its proposed ZC cards are
-not yet part of `tasks.json`; Phase 0 must establish the baseline before any
-runtime optimization is eligible to ship.
+was executed through world-class cards SB-13, PK-09, PK-10 and PK-11. The
+outcome, including what was rejected by measurement, is in
+[zero-copy.md](../zero-copy.md).
 
 This is a source audit and execution plan, not a new benchmark result or a
 certification. The baseline's [completed CI run](https://github.com/mingley/pure-protobuf/actions/runs/33948308400)

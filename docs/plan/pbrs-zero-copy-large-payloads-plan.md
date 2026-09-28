@@ -1,7 +1,11 @@
 # pbrs: fewer copies for large `bytes` payloads (plan)
 
-**Status:** Proposal only. No code has been written and nothing has been measured.
-**Date:** 2026-09-23.
+**Status:** Executed; outcomes are summarized in [zero-copy.md](../zero-copy.md).
+Phase 0 shipped as SB-13, Phase 1b as PK-09, and Phase 2 as PK-11. Phase 1a
+was reverted after an end-to-end regression. Phase 3 was not started because
+its precondition failed (PK-10). The text below is the original proposal,
+kept as the design record.
+**Date:** 2026-09-23 (proposal); outcomes recorded 2026-09-28.
 **Source baseline:** `mingley/pure-protobuf` `main` at `7cdb29a2`
 (2026-09-22). The main checkout has uncommitted edits. Do the work in a
 separate worktree off `origin/main`.
@@ -381,7 +385,11 @@ Dependencies: 0 → 1a → 1b → 2. The frame-size experiment (3-alt) runs afte
   bottlenecks) and CG-20 (generated-code size). Decide whether these become
   cards in the `docs/plan/tasks.json` queue (proposed below).
 
-## 8. Proposed task cards (not added to `tasks.json`)
+## 8. Proposed task cards (superseded)
+
+These ZC cards were not added to `tasks.json`. The world-class plan carries the
+work instead: ZC-00 became SB-13, ZC-01 and ZC-02 became PK-09, ZC-03 became
+PK-11, and ZC-04 and ZC-05 were evaluated and closed under PK-10.
 
 ```json
 [
