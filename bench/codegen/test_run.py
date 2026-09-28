@@ -188,12 +188,14 @@ class CorpusTests(unittest.TestCase):
                 with self.subTest(case=case):
                     out = root / "target" / "codegen-bench" / case
 
-                    def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms, reference_protoc):
+                    def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms, reference_protoc,
+                                   generators=("pbrs",)):
                         self.assertEqual(run_dir, out.resolve())
                         self.assertEqual(cases, [case])
                         self.assertEqual(seed, harness.DEFAULT_SEED)
                         self.assertEqual(jobs, 2)
                         self.assertEqual(reference_protoc.resolve(), (root / "pinned-protoc").resolve())
+                        self.assertEqual(tuple(generators), ("pbrs",))
                         raise harness.BenchmarkError("stub pipeline reached")
 
                     with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
@@ -823,6 +825,231 @@ class CorpusTests(unittest.TestCase):
                 self.assertEqual((run_dir / smoke["stderr_log"]).read_bytes(), b"")
             self.assertNotEqual(saved["cells"][0]["target_dir"],
                                 saved["cells"][0]["reference"]["target_dir"])
+
+
+class PeerGeneratorTests(unittest.TestCase):
+    def test_prost_consumer_matches_pbrs_work(self):
+        for messages in (6, 100):
+            with self.subTest(messages=messages):
+                text = harness.render_consumer_prost(messages, 0)
+                self.assertIn(
+                    '#[path = "../generated/bench.cg19.rs"] mod bench_cg19;', text,
+                )
+                self.assertIn("fn roundtrip<M: prost::Message + Default>(msg: M) -> usize {", text)
+                self.assertEqual(text.count("roundtrip(bench_cg19::Message"), messages)
+                self.assertIn(f"bench_cg19::Message{messages - 1:04d}::default()", text)
+                # Same work shape as the pbrs consumer: serialize, parse, serialize.
+                self.assertIn("msg.encode_to_vec()", text)
+                self.assertIn("M::decode(", text)
+                self.assertIn("parsed.encode_to_vec()", text)
+        self.assertNotEqual(
+            harness.render_consumer_prost(6, 0), harness.render_consumer_prost(6, 1),
+        )
+        self.assertEqual(
+            harness.render_consumer_for(6, 0, "prost"), harness.render_consumer_prost(6, 0),
+        )
+        with self.assertRaisesRegex(harness.BenchmarkError, "no consumer renderer"):
+            harness.render_consumer_for(6, 0, "v4")
+        dependency = harness.peer_manifest("sb09-prost-consumer-small", "prost")
+        self.assertIn(f'prost = "={harness.PROST_VERSION}"', dependency)
+        self.assertNotIn("pbrs", dependency)
+        self.assertIn('opt-level = 3\nlto = "thin"\ncodegen-units = 1', dependency)
+        with self.assertRaisesRegex(harness.BenchmarkError, "unknown peer generator"):
+            harness.peer_manifest("x", "pbrs")
+
+    def test_peer_driver_manifest_pins_build_backend(self):
+        manifest = harness.peer_driver_manifest("prost")
+        self.assertIn(f'prost-build = "={harness.PROST_VERSION}"', manifest)
+        self.assertIn('name = "sb09-prost-driver"', manifest)
+        self.assertNotIn("pbrs", manifest)
+        with self.assertRaisesRegex(harness.BenchmarkError, "unknown peer generator"):
+            harness.peer_driver_manifest("v4")
+
+    def test_peer_snapshot_table_covers_matrix_peers(self):
+        entrypoint, expected = harness.PEER_SNAPSHOT["prost"]
+        self.assertEqual(entrypoint, harness.PROST_PACKAGE_FILE)
+        self.assertEqual(set(expected), {harness.PROST_PACKAGE_FILE})
+
+    def test_prepare_corpus_writes_protos_always_but_pbrs_consumer_on_request(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            case_dir = Path(temporary) / "case"
+            names, metadata = harness.prepare_corpus(
+                case_dir, "small", harness.DEFAULT_SEED, ("prost",),
+            )
+            self.assertEqual(len(names), 2)
+            self.assertEqual(metadata["messages"], 6)
+            for name in names:
+                self.assertTrue((case_dir / "consumer" / "proto" / name).is_file())
+            self.assertFalse((case_dir / "consumer" / "Cargo.toml").exists())
+            self.assertFalse((case_dir / "consumer" / "src" / "main.rs").exists())
+            consumer, package = harness.prepare_peer_consumer(case_dir, "small", 6, "prost")
+            self.assertEqual(package, "sb09-prost-consumer-small")
+            self.assertEqual(consumer, case_dir / "gen" / "prost" / "consumer")
+            main = (consumer / "src" / "main.rs").read_text()
+            self.assertEqual(main, harness.render_consumer_prost(6, 0))
+
+    def test_peer_generator_copy_is_pinned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            shared = root / "shared" / "sb09-prost-driver"
+            harness.write_text(shared, "original")
+            shared.chmod(0o755)
+            run_dir = root / "run"
+            copied, digest = harness.copy_peer_generator(shared, run_dir, "prost")
+            self.assertEqual(copied, run_dir / "bin" / "sb09-prost-driver")
+            self.assertEqual(digest, harness.sha256(copied))
+            harness.write_text(shared, "replaced")
+            self.assertEqual(copied.read_text(), "original")
+
+    def test_generators_flag_rejects_unknown_before_artifacts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_BUILD_JOBS": "2"}
+            ), contextlib.redirect_stderr(io.StringIO()):
+                for flag in ("", "pbrs,capnp", "prost,,tonic"):
+                    with self.subTest(flag=flag), self.assertRaises(SystemExit) as raised:
+                        harness.main(["--case", "small", "--generators", flag])
+                    self.assertEqual(raised.exception.code, 2)
+            self.assertFalse((root / "target").exists())
+
+    def test_generators_flag_reaches_pipeline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            out = root / "target" / "codegen-bench" / "matrix"
+
+            def fake_run(report, run_dir, cases, seed, jobs, timeout, sample_ms,
+                         reference_protoc, generators=("pbrs",)):
+                self.assertIsNone(reference_protoc)
+                self.assertEqual(tuple(generators), ("pbrs", "prost"))
+                raise harness.BenchmarkError("stub pipeline reached")
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_BUILD_JOBS": "2"}
+            ), mock.patch.object(
+                harness, "run_cases", side_effect=fake_run
+            ), contextlib.redirect_stderr(io.StringIO()):
+                result = harness.main([
+                    "--case", "small", "--generators", "pbrs,prost", "--out", str(out),
+                ])
+            self.assertEqual(result, 1)
+            report = json.loads((out / "summary.json").read_text())
+            self.assertIn("stub pipeline reached", report["errors"])
+
+    def test_prost_pipeline_uses_peer_paths_without_compilers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "repo"
+            run_dir = Path(temporary) / "run"
+            run_dir.mkdir()
+            shared_target = root / "target" / "integration-consumers"
+            shared_target.mkdir(parents=True)
+            shared_driver = shared_target / "debug" / "sb09-prost-driver"
+            report = {
+                "schema_version": "cg19/1", "status": "pending", "setup": {},
+                "cells": [], "generators": ["prost"],
+            }
+            protoc = run_dir / "fake-protoc"
+            protoc.write_text("test compiler")
+            environment = {
+                "tools": {
+                    "cargo": {"executable": "fake-cargo"},
+                    "rustc": {"executable": "fake-rustc"},
+                    "protoc": {"executable": str(protoc)},
+                },
+                "repository": {"source_sha256": {}},
+                "cache": {},
+            }
+
+            def manifest_arg(command, flag="--manifest-path"):
+                return Path(command[command.index(flag) + 1])
+
+            def fake_command(command, cwd, env, stem, root, timeout, sample_ms):
+                name = stem.name
+                stdout, stderr, paths = harness.log_paths(stem, root)
+                stdout.parent.mkdir(parents=True, exist_ok=True)
+                stdout.write_text("")
+                stderr.write_text("")
+                if name == "driver-lock-prost":
+                    (run_dir / "driver-prost" / "Cargo.lock").write_text("prost lock")
+                elif name == "driver-build-prost":
+                    self.assertIn("--bin", command)
+                    self.assertEqual(command[command.index("--bin") + 1], "sb09-prost-driver")
+                    harness.write_text(shared_driver, "test prost driver")
+                    shared_driver.chmod(0o755)
+                elif name == "consumer-lock":
+                    manifest = manifest_arg(command)
+                    self.assertEqual(manifest.parent.name, "consumer")
+                    manifest.with_name("Cargo.lock").write_text("peer lock")
+                elif name == "generation":
+                    self.assertEqual(command[0], str(run_dir / "bin" / "sb09-prost-driver"))
+                    output = run_dir / "cases" / "small" / "gen" / "prost" / "consumer" / "generated"
+                    harness.write_text(output / harness.PROST_PACKAGE_FILE, "pub struct Message;\n")
+                elif name == "check-clean":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    target.mkdir(parents=True)
+                    source = manifest_arg(command).parent / "src" / "main.rs"
+                    stat = source.stat()
+                    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns - 2_000_000_000))
+                elif name == "build-release":
+                    target = Path(command[command.index("--target-dir") + 1])
+                    package = command[command.index("--bin") + 1]
+                    harness.write_text(target / "release" / package, "compiled")
+                elif name == "release-smoke":
+                    stdout.write_text("1\n")
+                if name in ("check-clean", "check-incremental", "build-release"):
+                    package = command[command.index("--bin") + 1]
+                    verb = "Compiling" if name == "build-release" else "Checking"
+                    stderr.write_text(f"{verb} {package} v0.0.0 (test)\n")
+                return {
+                    "command": command, "exit_code": 0, "elapsed_ns": 1234,
+                    "peak_rss_bytes": 4096, **paths,
+                }
+
+            def fake_plain(command, cwd, env, stem, root, timeout):
+                result = fake_command(command, cwd, env, stem, root, timeout, 100)
+                result.pop("elapsed_ns")
+                result.pop("peak_rss_bytes")
+                return {**result, "cwd": str(cwd), "timeout_seconds": timeout}
+
+            with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
+                os.environ, {"CARGO_INCREMENTAL": "1"}
+            ), mock.patch.object(harness, "provenance", return_value=environment), mock.patch.object(
+                harness, "timed_command", side_effect=fake_command
+            ), mock.patch.object(
+                harness, "plain_command", side_effect=fake_plain
+            ), mock.patch.object(harness, "source_hashes", return_value={}), mock.patch.object(
+                harness.time, "sleep", return_value=None
+            ):
+                harness.run_cases(
+                    report, run_dir, ["small"], harness.DEFAULT_SEED, 4, 15, 100,
+                    generators=("prost",),
+                )
+            saved = json.loads((run_dir / "summary.json").read_text())
+            self.assertEqual(saved["generators"], ["prost"])
+            self.assertEqual(len(saved["cells"]), 1)
+            cell = saved["cells"][0]
+            self.assertEqual(cell["generator"], "prost")
+            self.assertEqual(cell["repeat"], 0)
+            self.assertEqual(cell["corpus"]["messages"], 6)
+            self.assertEqual(cell["output"]["rust_file_count"], 1)
+            self.assertTrue(cell["output"]["unchanged_generation_bytes_verified"])
+            self.assertEqual(
+                set(cell["phases"]), {
+                    "consumer_lock", "generation", "generation_unchanged", "check_clean",
+                    "check_incremental", "build_release", "release_smoke",
+                },
+            )
+            self.assertTrue(cell["phases"]["release_smoke"]["output_verified"])
+            self.assertNotIn("cargo", cell["phases"]["generation"]["command"][0])
+            self.assertEqual(
+                cell["phases"]["generation"]["command"][0],
+                str(run_dir / "bin" / "sb09-prost-driver"),
+            )
+            self.assertEqual(
+                cell["phases"]["generation"]["command"][3:],
+                ["part_00.proto", "part_01.proto"],
+            )
+            self.assertFalse((run_dir / "cases" / "small" / "consumer" / "Cargo.toml").exists())
 
 
 if __name__ == "__main__":

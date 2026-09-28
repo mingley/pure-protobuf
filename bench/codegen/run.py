@@ -38,6 +38,22 @@ FIELD_TYPES = (
     "map<string, uint32>",
 )
 
+# SB-09 message-generator matrix. "pbrs" keeps the exact CG-19 flow;
+# peers run the same phases on the same corpora under cases/<case>/gen/<name>/.
+MESSAGE_GENERATORS = ("pbrs", "prost", "buffa", "v4")
+# Peer generator pins. The harness resolves these --offline from the local
+# registry and records lockfile hashes per cell; a missing crate fails closed.
+PROST_VERSION = "0.14.4"
+BUFFA_VERSION = "0.9.1"
+# Seeded corpora share one package, so prost emits one file for every case.
+PROST_PACKAGE_FILE = "bench.cg19.rs"
+# generator -> (snapshot entrypoint, exact expected output set). pbrs and
+# the v4 reference keep their existing dedicated checks; matrix peers verify
+# bytes on unchanged inputs and count mtime rewrites instead of failing.
+PEER_SNAPSHOT = {
+    "prost": (PROST_PACKAGE_FILE, frozenset({PROST_PACKAGE_FILE})),
+}
+
 
 class BenchmarkError(Exception):
     """An incomplete or invalid measurement, never a successful comparison."""
@@ -129,7 +145,65 @@ def write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def prepare_corpus(case_dir: Path, case: str, seed: int) -> tuple[list[str], dict]:
+def render_consumer_prost(messages: int, marker: int) -> str:
+    lines = [
+        f'#[path = "../generated/{PROST_PACKAGE_FILE}"] mod bench_cg19;',
+        "",
+        "fn roundtrip<M: prost::Message + Default>(msg: M) -> usize {",
+        "    let wire = msg.encode_to_vec();",
+        '    let parsed = M::decode(std::hint::black_box(&wire[..])).expect("parse generated message");',
+        '    std::hint::black_box(parsed.encode_to_vec()).len()',
+        "}",
+        "",
+        "fn main() {",
+        "    let mut total = 0usize;",
+    ]
+    lines.extend(
+        f"    total += roundtrip(bench_cg19::Message{number:04d}::default());"
+        for number in range(messages)
+    )
+    lines.extend(
+        (
+            f"    println!(\"{{}}\", std::hint::black_box(total + {marker}));",
+            "}",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
+def peer_manifest(package: str, generator: str) -> str:
+    if generator == "prost":
+        dependency = f'prost = "={PROST_VERSION}"'
+    elif generator == "buffa":
+        dependency = f'buffa = "={BUFFA_VERSION}"'
+    else:
+        raise BenchmarkError(f"unknown peer generator: {generator}")
+    return (
+        f'[package]\nname = "{package}"\nversion = "0.0.0"\nedition = "2024"\n'
+        'publish = false\n\n[workspace]\n\n[dependencies]\n'
+        f"{dependency}\n\n"
+        '[profile.release]\nopt-level = 3\nlto = "thin"\ncodegen-units = 1\n'
+    )
+
+
+def peer_driver_manifest(generator: str) -> str:
+    if generator == "prost":
+        dependency = f'prost-build = "={PROST_VERSION}"'
+    elif generator == "buffa":
+        dependency = f'buffa-build = "={BUFFA_VERSION}"'
+    else:
+        raise BenchmarkError(f"unknown peer generator: {generator}")
+    return (
+        f'[package]\nname = "sb09-{generator}-driver"\nversion = "0.0.0"\nedition = "2021"\n'
+        'publish = false\n\n[workspace]\n\n[dependencies]\n'
+        f"{dependency}\n"
+    )
+
+
+def prepare_corpus(
+    case_dir: Path, case: str, seed: int, generators: tuple[str, ...] = ("pbrs",),
+) -> tuple[list[str], dict]:
     messages, files = CORPORA[case]
     consumer = case_dir / "consumer"
     names = []
@@ -145,19 +219,38 @@ def prepare_corpus(case_dir: Path, case: str, seed: int) -> tuple[list[str], dic
         inputs.append(
             {"path": relative(path, case_dir), "sha256": sha256(path), "bytes": path.stat().st_size}
         )
-    write_text(consumer / "Cargo.toml", manifest(f"cg19-consumer-{case}"))
-    write_text(consumer / "src" / "main.rs", render_consumer(messages, 0))
+    if "pbrs" in generators:
+        write_text(consumer / "Cargo.toml", manifest(f"cg19-consumer-{case}"))
+        write_text(consumer / "src" / "main.rs", render_consumer(messages, 0))
     return names, {
         "messages": messages, "proto_file_count": files, "sha256": digest.hexdigest(), "inputs": inputs
     }
 
 
-def snapshot_generated(out: Path, entrypoint: str = "mod.rs") -> dict[str, tuple[int, str, int]]:
+def render_consumer_for(messages: int, marker: int, generator: str) -> str:
+    if generator == "prost":
+        return render_consumer_prost(messages, marker)
+    raise BenchmarkError(f"no consumer renderer for generator: {generator}")
+
+
+def prepare_peer_consumer(
+    case_dir: Path, case: str, messages: int, generator: str,
+) -> tuple[Path, str]:
+    consumer = case_dir / "gen" / generator / "consumer"
+    package = f"sb09-{generator}-consumer-{case}"
+    write_text(consumer / "Cargo.toml", peer_manifest(package, generator))
+    write_text(consumer / "src" / "main.rs", render_consumer_for(messages, 0, generator))
+    return consumer, package
+
+
+def snapshot_generated(
+    out: Path, entrypoint: str = "mod.rs", min_files: int = 2,
+) -> dict[str, tuple[int, str, int]]:
     if not (out / entrypoint).is_file():
         raise BenchmarkError(f"generation omitted {out / entrypoint}")
     files = sorted(out.rglob("*.rs"))
-    if len(files) < 2:
-        raise BenchmarkError(f"generation produced fewer than two Rust files in {out}")
+    if len(files) < min_files:
+        raise BenchmarkError(f"generation produced fewer than {min_files} Rust files in {out}")
     return {
         path.relative_to(out).as_posix(): (path.stat().st_mtime_ns, sha256(path), path.stat().st_size)
         for path in files
@@ -633,6 +726,58 @@ def copy_generator(shared: Path, run_dir: Path) -> tuple[Path, str]:
     return generator, copied
 
 
+def copy_peer_generator(shared: Path, run_dir: Path, generator: str) -> tuple[Path, str]:
+    if not shared.is_file():
+        raise BenchmarkError(f"bootstrap did not produce {shared}")
+    before = sha256(shared)
+    binary = run_dir / "bin" / f"sb09-{generator}-driver"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(shared, binary)
+    copied = sha256(binary)
+    if copied != before or sha256(shared) != before:
+        raise BenchmarkError(f"shared {generator} driver changed during copy to {binary}")
+    if not os.access(binary, os.X_OK):
+        raise BenchmarkError(f"copied {generator} driver is not executable: {binary}")
+    return binary, copied
+
+
+def build_peer_driver(
+    report: dict, run_dir: Path, generator: str, cargo: str, boot_env: dict[str, str],
+    boot_target: Path, timeout: int, sample_ms: int,
+) -> Path:
+    driver = run_dir / f"driver-{generator}"
+    (driver / "src").mkdir(parents=True)
+    source = Path(__file__).with_name(f"{generator}_driver.rs")
+    if not source.is_file():
+        raise BenchmarkError(f"missing peer driver source: {source}")
+    shutil.copyfile(source, driver / "src" / "main.rs")
+    write_text(driver / "Cargo.toml", peer_driver_manifest(generator))
+    boot_log = run_dir / "logs" / "setup"
+    phase(
+        report, report["setup"], f"driver_lock_{generator}",
+        [cargo, "generate-lockfile", "--offline", "--manifest-path", str(driver / "Cargo.toml")],
+        ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / f"driver-lock-{generator}",
+    )
+    report["setup"][f"driver_lock_{generator}_sha256"] = sha256(driver / "Cargo.lock")
+    write_report(report, run_dir)
+    binary_name = f"sb09-{generator}-driver"
+    phase(
+        report, report["setup"], f"driver_build_{generator}",
+        [
+            cargo, "build", "--offline", "--locked", "--manifest-path", str(driver / "Cargo.toml"),
+            "--target-dir", str(boot_target), "--bin", binary_name,
+        ],
+        ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / f"driver-build-{generator}",
+    )
+    shared = boot_target / "debug" / binary_name
+    binary, digest = copy_peer_generator(shared, run_dir, generator)
+    report["setup"][f"{generator}_driver_binary_path"] = relative(binary, run_dir)
+    report["setup"][f"{generator}_driver_binary_sha256"] = digest
+    report["setup"][f"{generator}_driver_source_sha256"] = sha256(source)
+    write_report(report, run_dir)
+    return binary
+
+
 def release_smoke(
     report: dict, phases: dict, binary: Path, consumer: Path, env: dict[str, str],
     run_dir: Path, timeout: int, sample_ms: int, logs: Path,
@@ -668,7 +813,8 @@ def release_smoke(
 def measure_consumer_build(
     report: dict, cell: dict, case: str, consumer: Path, target_dir: Path, package: str,
     reference: bool, cargo: str, check_env: dict[str, str], run_dir: Path,
-    timeout: int, sample_ms: int, logs: Path,
+    timeout: int, sample_ms: int, logs: Path, generator: str = "pbrs",
+    messages: int | None = None,
 ) -> None:
     if target_dir.exists():
         raise BenchmarkError(f"clean check target already exists: {target_dir}")
@@ -684,7 +830,12 @@ def measure_consumer_build(
     main_rs = consumer / "src" / "main.rs"
     old_mtime = main_rs.stat().st_mtime_ns
     time.sleep(max(0, (old_mtime + 1_100_000_000 - time.time_ns()) / 1_000_000_000))
-    write_text(main_rs, render_consumer(CORPORA[case][0], 1, reference))
+    rewrite_messages = CORPORA[case][0] if messages is None else messages
+    if generator == "pbrs":
+        rewrite = render_consumer(rewrite_messages, 1, reference)
+    else:
+        rewrite = render_consumer_for(rewrite_messages, 1, generator)
+    write_text(main_rs, rewrite)
     if main_rs.stat().st_mtime_ns <= old_mtime:
         raise BenchmarkError(f"incremental source mtime did not advance: {main_rs}")
     incremental = phase(
@@ -710,6 +861,69 @@ def measure_consumer_build(
     write_report(report, run_dir)
     release_smoke(
         report, cell["phases"], binary, consumer, check_env, run_dir, timeout, sample_ms, logs,
+    )
+
+
+def measure_peer_cell(
+    report: dict, case: str, names: list[str], corpus: dict, generator: str,
+    case_dir: Path, driver: Path, cargo: str, protoc: str,
+    base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
+) -> None:
+    messages = CORPORA[case][0]
+    consumer, package = prepare_peer_consumer(case_dir, case, messages, generator)
+    generated = consumer / "generated"
+    generated.mkdir(parents=True)
+    target_dir = case_dir / "gen" / generator / "target"
+    cell = {
+        "case": case,
+        "generator": generator,
+        "repeat": 0,
+        "corpus": corpus,
+        "protoc": protoc,
+        "target_dir": relative(target_dir, run_dir),
+        "phases": {},
+    }
+    report["cells"].append(cell)
+    write_report(report, run_dir)
+    check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
+    logs = run_dir / "logs" / case / "gen" / generator
+    phase(
+        report, cell["phases"], "consumer_lock",
+        [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
+        ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
+    )
+    cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+    write_report(report, run_dir)
+    proto_dir = case_dir / "consumer" / "proto"
+    generation = [str(driver), str(proto_dir), str(generated), *names]
+    phase(
+        report, cell["phases"], "generation", generation, ROOT, base_env,
+        run_dir, timeout, sample_ms, logs / "generation",
+    )
+    entrypoint, expected = PEER_SNAPSHOT[generator]
+    before = snapshot_generated(generated, entrypoint, min_files=1)
+    if before.keys() != expected:
+        raise BenchmarkError(
+            f"{case}/{generator}: unexpected Rust outputs: "
+            f"missing={sorted(expected - before.keys())}, extra={sorted(before.keys() - expected)}"
+        )
+    phase(
+        report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
+        run_dir, timeout, sample_ms, logs / "generation-unchanged",
+    )
+    rewritten = assert_same_bytes(before, snapshot_generated(generated, entrypoint, min_files=1))
+    cell["output"] = {
+        "rust_file_count": len(before),
+        "rust_bytes": sum(item[2] for item in before.values()),
+        "rust_tree_sha256": tree_digest(before),
+        "unchanged_generation_bytes_verified": True,
+        "unchanged_generation_mtimes_preserved": rewritten == 0,
+        "unchanged_generation_rewritten_files": rewritten,
+    }
+    write_report(report, run_dir)
+    measure_consumer_build(
+        report, cell, case, consumer, target_dir, package, False, cargo, check_env,
+        run_dir, timeout, sample_ms, logs, generator=generator, messages=messages,
     )
 
 
@@ -816,9 +1030,14 @@ def compare_cell(report: dict, cell: dict, run_dir: Path) -> None:
 def run_cases(
     report: dict, run_dir: Path, cases: list[str], seed: int, jobs: int, timeout: int,
     sample_ms: int, reference_protoc: Path | None = None,
+    generators: tuple[str, ...] = ("pbrs",),
 ) -> None:
+    unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
+    if unknown:
+        raise BenchmarkError(f"unknown generators: {unknown}")
     details = provenance(run_dir, jobs, sample_ms, reference_protoc)
     report["environment"] = details
+    report["generators"] = list(generators)
     if reference_protoc is not None:
         report["reference"].update({
             "status": "ready",
@@ -868,10 +1087,7 @@ def run_cases(
         )
     write_report(report, run_dir)
 
-    driver = run_dir / "driver"
-    (driver / "src").mkdir(parents=True)
-    shutil.copyfile(Path(__file__).with_name("generator.rs"), driver / "src" / "main.rs")
-    write_text(driver / "Cargo.toml", manifest("cg19-generator"))
+    peer_drivers: dict[str, Path] = {}
     boot_target = ROOT / "target" / "integration-consumers"
     boot_jobs = min(jobs, 2)
     details["cache"].update({
@@ -885,86 +1101,107 @@ def run_cases(
     write_report(report, run_dir)
     boot_env = {**base_env, "CARGO_TARGET_DIR": str(boot_target), "CARGO_BUILD_JOBS": str(boot_jobs)}
     boot_log = run_dir / "logs" / "setup"
-    phase(
-        report, report["setup"], "driver_lock",
-        [cargo, "generate-lockfile", "--offline", "--manifest-path", str(driver / "Cargo.toml")],
-        ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / "driver-lock",
-    )
-    report["setup"]["driver_lock_sha256"] = sha256(driver / "Cargo.lock")
-    write_report(report, run_dir)
-    phase(
-        report, report["setup"], "driver_build",
-        [
-            cargo, "build", "--offline", "--locked", "--manifest-path", str(driver / "Cargo.toml"),
-            "--target-dir", str(boot_target), "--bin", "cg19-generator",
-        ],
-        ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / "driver-build",
-    )
-    shared_generator = boot_target / "debug" / "cg19-generator"
-    generator, digest = copy_generator(shared_generator, run_dir)
-    report["setup"]["shared_generator_binary_path"] = str(shared_generator)
-    report["setup"]["generator_binary_path"] = relative(generator, run_dir)
-    report["setup"]["generator_binary_sha256"] = digest
-    write_report(report, run_dir)
+    if "pbrs" in generators:
+        driver = run_dir / "driver"
+        (driver / "src").mkdir(parents=True)
+        shutil.copyfile(Path(__file__).with_name("generator.rs"), driver / "src" / "main.rs")
+        write_text(driver / "Cargo.toml", manifest("cg19-generator"))
+        phase(
+            report, report["setup"], "driver_lock",
+            [cargo, "generate-lockfile", "--offline", "--manifest-path", str(driver / "Cargo.toml")],
+            ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / "driver-lock",
+        )
+        report["setup"]["driver_lock_sha256"] = sha256(driver / "Cargo.lock")
+        write_report(report, run_dir)
+        phase(
+            report, report["setup"], "driver_build",
+            [
+                cargo, "build", "--offline", "--locked", "--manifest-path", str(driver / "Cargo.toml"),
+                "--target-dir", str(boot_target), "--bin", "cg19-generator",
+            ],
+            ROOT, boot_env, run_dir, timeout, sample_ms, boot_log / "driver-build",
+        )
+        shared_generator = boot_target / "debug" / "cg19-generator"
+        generator, digest = copy_generator(shared_generator, run_dir)
+        report["setup"]["shared_generator_binary_path"] = str(shared_generator)
+        report["setup"]["generator_binary_path"] = relative(generator, run_dir)
+        report["setup"]["generator_binary_sha256"] = digest
+        write_report(report, run_dir)
+    for peer in generators:
+        if peer == "pbrs":
+            continue
+        peer_drivers[peer] = build_peer_driver(
+            report, run_dir, peer, cargo, boot_env, boot_target, timeout, sample_ms,
+        )
 
     for case in cases:
         case_dir = run_dir / "cases" / case
-        names, corpus = prepare_corpus(case_dir, case, seed)
-        consumer = case_dir / "consumer"
-        generated = consumer / "generated"
-        target_dir = case_dir / "target"
-        package = f"cg19-consumer-{case}"
-        cell = {
-            "case": case,
-            "corpus": corpus,
-            "target_dir": relative(target_dir, run_dir),
-            "phases": {},
-        }
-        report["cells"].append(cell)
-        write_report(report, run_dir)
-        check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
-        logs = run_dir / "logs" / case
-        phase(
-            report, cell["phases"], "consumer_lock",
-            [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
-            ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
-        )
-        cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
-        generation = [
-            str(generator), str(consumer / "proto"), str(generated), protoc, *names
-        ]
-        phase(
-            report, cell["phases"], "generation", generation, ROOT, base_env,
-            run_dir, timeout, sample_ms, logs / "generation",
-        )
-        before = snapshot_generated(generated)
-        expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
-        missing = expected_files - before.keys()
-        if missing:
-            raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
-        phase(
-            report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
-            run_dir, timeout, sample_ms, logs / "generation-unchanged",
-        )
-        assert_unchanged(before, snapshot_generated(generated))
-        cell["output"] = {
-            "rust_file_count": len(before),
-            "rust_bytes": sum(item[2] for item in before.values()),
-            "rust_tree_sha256": tree_digest(before),
-            "unchanged_generation_mtimes_preserved": True,
-            "unchanged_generation_verified_files": len(before),
-        }
-        write_report(report, run_dir)
-        measure_consumer_build(
-            report, cell, case, consumer, target_dir, package, False, cargo, check_env,
-            run_dir, timeout, sample_ms, logs,
-        )
-        if reference_protoc is not None:
-            measure_reference(
-                report, cell, case, names, case_dir, cargo, protoc, base_env,
-                run_dir, timeout, sample_ms,
+        names, corpus = prepare_corpus(case_dir, case, seed, generators)
+        if "pbrs" in generators:
+            consumer = case_dir / "consumer"
+            generated = consumer / "generated"
+            target_dir = case_dir / "target"
+            package = f"cg19-consumer-{case}"
+            cell = {
+                "case": case,
+                "generator": "pbrs",
+                "repeat": 0,
+                "corpus": corpus,
+                "target_dir": relative(target_dir, run_dir),
+                "phases": {},
+            }
+            report["cells"].append(cell)
+            write_report(report, run_dir)
+            check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
+            logs = run_dir / "logs" / case
+            phase(
+                report, cell["phases"], "consumer_lock",
+                [cargo, "generate-lockfile", "--offline", "--manifest-path", str(consumer / "Cargo.toml")],
+                ROOT, check_env, run_dir, timeout, sample_ms, logs / "consumer-lock",
             )
-            compare_cell(report, cell, run_dir)
+            cell["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+            generation = [
+                str(generator), str(consumer / "proto"), str(generated), protoc, *names
+            ]
+            phase(
+                report, cell["phases"], "generation", generation, ROOT, base_env,
+                run_dir, timeout, sample_ms, logs / "generation",
+            )
+            before = snapshot_generated(generated)
+            expected_files = {"mod.rs", *(name.removesuffix(".proto") + ".rs" for name in names)}
+            missing = expected_files - before.keys()
+            if missing:
+                raise BenchmarkError(f"{case}: missing generated Rust outputs: {sorted(missing)}")
+            phase(
+                report, cell["phases"], "generation_unchanged", generation, ROOT, base_env,
+                run_dir, timeout, sample_ms, logs / "generation-unchanged",
+            )
+            assert_unchanged(before, snapshot_generated(generated))
+            cell["output"] = {
+                "rust_file_count": len(before),
+                "rust_bytes": sum(item[2] for item in before.values()),
+                "rust_tree_sha256": tree_digest(before),
+                "unchanged_generation_mtimes_preserved": True,
+                "unchanged_generation_verified_files": len(before),
+            }
+            write_report(report, run_dir)
+            measure_consumer_build(
+                report, cell, case, consumer, target_dir, package, False, cargo, check_env,
+                run_dir, timeout, sample_ms, logs,
+            )
+            if reference_protoc is not None:
+                measure_reference(
+                    report, cell, case, names, case_dir, cargo, protoc, base_env,
+                    run_dir, timeout, sample_ms,
+                )
+                compare_cell(report, cell, run_dir)
+        for peer in generators:
+            if peer == "pbrs":
+                continue
+            measure_peer_cell(
+                report, case, names, corpus, peer, case_dir, peer_drivers[peer],
+                cargo, protoc, base_env, run_dir, timeout, sample_ms,
+            )
 
     before = details["repository"]["source_sha256"]
     after = source_hashes(reference_protoc is not None)
@@ -1025,7 +1262,17 @@ def main(argv: list[str] | None = None) -> int:
         "--require-qualified", action="store_true",
         help="fail fast: even a local pinned-reference diagnostic lacks independent qualification",
     )
+    parser.add_argument(
+        "--generators", default="pbrs",
+        help=f"comma-separated message generators to measure: {','.join(MESSAGE_GENERATORS)}",
+    )
     args = parser.parse_args(argv)
+    generators = tuple(part for part in args.generators.split(",") if part)
+    unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
+    if not generators or unknown:
+        parser.error(
+            f"--generators must be a comma-separated subset of {','.join(MESSAGE_GENERATORS)}"
+        )
     if args.reference_protoc is not None:
         if args.case == "all" or args.seed != DEFAULT_SEED or args.jobs != 2:
             parser.error(
@@ -1092,7 +1339,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         run_cases(
             report, run_dir, cases, args.seed, args.jobs, args.timeout_seconds, args.rss_sample_ms,
-            args.reference_protoc,
+            args.reference_protoc, generators=generators,
         )
     except (BenchmarkError, OSError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, ValueError) as exc:
