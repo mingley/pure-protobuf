@@ -679,7 +679,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP dials consult `HTTPS_PROXY`\n/// / `NO_PROXY` and tunnel through HTTP CONNECT; there is no per-channel\n/// proxy disable. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
         ),
         "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
     );
@@ -6581,7 +6581,7 @@ fn channel_documents_with_no_proxy() {
     );
     assert!(
         src.contains(
-            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP dials consult `HTTPS_PROXY`\n/// / `NO_PROXY` and tunnel through HTTP CONNECT; there is no per-channel\n/// proxy disable. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
         ),
         "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
     );
@@ -6976,7 +6976,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
-            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP `host:port` is dialed\n/// directly; there is no HTTP CONNECT proxy. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
+            "There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by\n/// default; that DialOption disables it. TCP dials consult `HTTPS_PROXY`\n/// / `NO_PROXY` and tunnel through HTTP CONNECT; there is no per-channel\n/// proxy disable. There is no\n/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT\n/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,\n/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem\n/// path; this dialer is skipped). Distinct from\n/// [`ChannelConfig::local_address`] (source bind, not proxy)."
         ),
         "Channel rustdoc must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
     );
@@ -8463,7 +8463,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct Channel::connect_with next-RPC redial from grpc-go WithConnectParams reconnect backoff"
     );
     assert!(
-        crate_src.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map dials TCP `host:port` directly; there is no HTTP CONNECT proxy. There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy)."),
+        crate_src.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map consults `HTTPS_PROXY` / `NO_PROXY` on TCP dials and tunnels with HTTP CONNECT when the target is not bypassed; there is no per-channel proxy disable. Resolver-managed `dns:` dials connect to resolved IP literals, so host-suffix `NO_PROXY` rules only match before resolution. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy)."),
         "crate-map must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
     );
     assert!(
@@ -8511,11 +8511,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct ClientTls::ca required ALPN h2 from tonic ClientTlsConfig::assume_http2"
     );
     assert!(
-        crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
+        crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; JSON service config attaches with [`Channel::service_config`] or arrives from resolver service config on [`Channel::connect_uri`]. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: omit [`Channel::service_config`] or avoid resolver service config instead."),
         "crate-map must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
     );
     assert!(
-        crate_src.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY). There is no resolver or load balancer to shut down."),
+        crate_src.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Resolver-managed channels keep their resolver/LB handles until the channel is dropped. Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY)."),
         "crate-map must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
     );
     assert!(
