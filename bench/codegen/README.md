@@ -99,3 +99,59 @@ reported without changing the unqualified status.
 
 Run the no-compiler tests with
 `python3 -B -m unittest discover -s bench/codegen -p 'test_*.py'`.
+
+# SB-09 codegen comparator matrix
+
+SB-09 extends this harness with peer generators on the seeded corpora
+(`small`, `100`, `1000`), service-stub corpora (`svc-small`, `svc-100`),
+and realistic corpora (`otlp`, `googleapis`, `envoy-core`,
+`envoy-discovery`):
+
+```sh
+# One realistic case, all message generators, one repeat (smoke).
+./scripts/codegen-bench.sh --case googleapis \
+  --generators pbrs,prost,buffa,v4 --repeats 1
+# Service-stub comparison on the seeded service corpus.
+./scripts/codegen-bench.sh --case svc-small \
+  --stub-generators pbrs-native,pbrs-tonic,tonic-build --repeats 1
+```
+
+Message generators (`--generators`, default `pbrs`): `pbrs` keeps the
+exact CG-19 flow; `prost` (prost-build 0.14.4), `buffa` (buffa-build
+0.9.1), and `v4` (pinned protoc 35.1 `--rust_out`, kernel=upb) run the
+same phases on the same corpora under `cases/<case>/gen/<name>/`. Each
+consumer does equivalent work — construct, serialize, parse, serialize
+— for every message, with per-generator module wiring: pbrs/buffa
+include `mod.rs`, prost gets a rendered package tree (prost emits one
+file per package and extern-maps WKT to `prost-types`), v4 includes its
+single `generated.rs` entrypoint. Every consumer binary must exit 0 in
+`release_smoke`.
+
+Stub generators (`--stub-generators`, default `pbrs-native`) run only on
+the `svc-*` corpora (one unary + streaming service per file) and are
+compared separately: `pbrs-native`, `pbrs-tonic`, `tonic-build`. Stub
+consumers roundtrip every message and construct each service's server
+plus a lazy client.
+
+`--repeats N` (default 5) executes every cell N times in seeded-random
+order (`--seed`, default 190019); `summary.json#matrix` reports median,
+min/max, and standard deviation per metric plus the pbrs-vs-peer loss
+list. Case/generator exclusions (with reasons) are recorded under
+`summary.json#excluded` instead of failing.
+
+Realistic corpora fetch 27 hash-pinned `.proto` files (OTLP v1.7.0,
+googleapis, Envoy v1.39.1, udpa, xds, protoc-gen-validate v1.3.3) from
+`raw.githubusercontent.com` into `target/codegen-bench/vendor/` on first
+use; cached files are re-verified by SHA-256 on every run and any
+mismatch aborts the run. WKT support files come from the repo's pinned
+`third_party/protobuf` checkout, never the network. Every generator
+compiles the full file closure as inputs (pbrs/buffa/v4 need support
+messages for cross-file paths; prost compiles the closure on its own),
+while consumers roundtrip the subset's top-level messages only — nested
+types are out of scope. Package and message lists are baked into
+`run.py` and verified against the fetched bytes; generated-output sets
+are validated per generator (exact for pbrs/prost/v4, core-plus-aux for
+buffa). `envoy-discovery` excludes `v4`: its flat namespace cannot hold
+the `PackageVersionStatus` enum defined by both `udpa/annotations` and
+`xds/annotations/v3` (E0659). Only default message values run; all
+results stay `qualification.qualified: false`.
