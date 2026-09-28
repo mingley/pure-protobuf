@@ -3095,7 +3095,14 @@
    "scoreboard": [
     "F1"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "scripts/rust-out-abi.py",
+    "docs/evidence/rust-out-abi.json",
+    "docs/evidence/rust-out-abi.md"
+   ],
+   "note": "139 protos (60 rust-test + 79 SB-05) generated with protoc 35.1 and 36.1, compiled against pbrs: 0 gen failures, 0 errors both lines. 41 runtime items: 33 implemented, 8 stubs (all 6 known-stub groups captured), 0 missing. Script regenerates + --verify guards drift; error plumbing proven by negative control."
   },
   {
    "id": "UK-02",
