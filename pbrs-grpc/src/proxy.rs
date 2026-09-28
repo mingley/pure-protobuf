@@ -311,7 +311,7 @@ pub(crate) fn set_user_timeout(
     timeout: std::time::Duration,
 ) -> std::io::Result<()> {
     use std::os::unix::io::AsRawFd;
-    let ms = timeout.as_millis().min(libc::c_uint::MAX as u128) as libc::c_uint;
+    let ms = libc::c_uint::try_from(timeout.as_millis()).unwrap_or(libc::c_uint::MAX);
     // SAFETY: the fd is borrowed from a live `TcpStream` for the call;
     // `TCP_USER_TIMEOUT` takes a `u32` by pointer; `ms` outlives the
     // call; nothing aliases or retains the pointer afterwards.
@@ -321,7 +321,7 @@ pub(crate) fn set_user_timeout(
             libc::IPPROTO_TCP,
             libc::TCP_USER_TIMEOUT,
             &ms as *const _ as *const libc::c_void,
-            std::mem::size_of::<libc::c_uint>() as libc::socklen_t,
+            C_UINT_LEN,
         )
     };
     if ret != 0 {
@@ -329,6 +329,13 @@ pub(crate) fn set_user_timeout(
     }
     Ok(())
 }
+
+#[cfg(target_os = "linux")]
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "size_of::<c_uint>() is 4 and always fits socklen_t"
+)]
+const C_UINT_LEN: libc::socklen_t = std::mem::size_of::<libc::c_uint>() as libc::socklen_t;
 
 #[cfg(not(target_os = "linux"))]
 pub(crate) fn set_user_timeout(
@@ -339,7 +346,7 @@ pub(crate) fn set_user_timeout(
 }
 
 /// Read back `TCP_USER_TIMEOUT` (Linux test verification).
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", test))]
 #[allow(
     unsafe_code,
     reason = "raw TCP_USER_TIMEOUT getsockopt; socket2 exposes no public API"
@@ -347,7 +354,7 @@ pub(crate) fn set_user_timeout(
 pub(crate) fn get_user_timeout(tcp: &TcpStream) -> std::io::Result<Option<std::time::Duration>> {
     use std::os::unix::io::AsRawFd;
     let mut ms: libc::c_uint = 0;
-    let mut len = std::mem::size_of::<libc::c_uint>() as libc::socklen_t;
+    let mut len = C_UINT_LEN;
     // SAFETY: same borrowing discipline as `set_user_timeout`; `len`
     // correctly sizes the out param.
     let ret = unsafe {

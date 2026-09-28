@@ -410,9 +410,9 @@ impl super::ClientBuilder for ClientBuilder {
     }
 
     fn handshake<IO>(
-        &self,
+        self,
         io: IO,
-    ) -> impl Future<Output = Result<(SendRequest, ClientConnection<IO>), Error>> + use<IO>
+    ) -> impl Future<Output = Result<(SendRequest, ClientConnection<IO>), Error>>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
@@ -420,7 +420,7 @@ impl super::ClientBuilder for ClientBuilder {
         // stream: coroutine layouts keep dead upvar storage, and h2's
         // handshake future owns `io` again, so an unboxed upvar would pay
         // for it twice (a TLS stream is ~1KB). One setup-time alloc.
-        let builder = self.0.clone();
+        let builder = self.0;
         let io = Box::new(io);
         async move {
             builder
@@ -575,10 +575,7 @@ impl super::ServerBuilder for ServerBuilder {
         self
     }
 
-    fn handshake<IO>(
-        &self,
-        io: IO,
-    ) -> impl Future<Output = Result<ServerConnection<IO>, Error>> + use<IO>
+    fn handshake<IO>(self, io: IO) -> impl Future<Output = Result<ServerConnection<IO>, Error>>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
@@ -586,7 +583,7 @@ impl super::ServerBuilder for ServerBuilder {
         // stream: coroutine layouts keep dead upvar storage, and h2's
         // handshake future owns `io` again, so an unboxed upvar would pay
         // for it twice (a TLS stream is ~1KB). One setup-time alloc.
-        let builder = self.0.clone();
+        let builder = self.0;
         let io = Box::new(io);
         async move {
             builder

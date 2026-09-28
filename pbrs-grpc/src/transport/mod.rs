@@ -147,11 +147,14 @@ pub(crate) trait ClientBuilder {
     /// Outbound DATA frames in flight before backpressure.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
     /// Run the client handshake over `io`.
+    ///
+    /// Takes the builder by value so the future borrows nothing: callers
+    /// hand over temporaries, and precise `use<..>` capture in traits needs
+    /// Rust 1.87, above this crate's 1.85 MSRV.
     fn handshake<IO>(
-        &self,
+        self,
         io: IO,
     ) -> impl Future<Output = Result<(backend::SendRequest, backend::ClientConnection<IO>), Error>>
-    + use<IO, Self>
     where
         IO: AsyncRead + AsyncWrite + Unpin;
 }
@@ -185,10 +188,13 @@ pub(crate) trait ServerBuilder {
     /// Outbound DATA frames in flight before backpressure.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
     /// Run the server handshake over `io`.
+    ///
+    /// Takes the builder by value for the same MSRV reason as
+    /// [`ClientBuilder::handshake`].
     fn handshake<IO>(
-        &self,
+        self,
         io: IO,
-    ) -> impl Future<Output = Result<backend::ServerConnection<IO>, Error>> + use<IO, Self>
+    ) -> impl Future<Output = Result<backend::ServerConnection<IO>, Error>>
     where
         IO: AsyncRead + AsyncWrite + Unpin;
 }

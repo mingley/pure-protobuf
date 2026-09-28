@@ -100,6 +100,7 @@ mod tests {
             {
                 // SAFETY: `sched_getcpu` takes no pointers and only reads
                 // scheduler state.
+                #[allow(unsafe_code, reason = "raw sched_getcpu probe for the pin test")]
                 let cpu = unsafe { libc::sched_getcpu() };
                 let Ok(cpu) = usize::try_from(cpu) else {
                     return false;
