@@ -1,0 +1,755 @@
+{
+ "config": {
+  "protoc": "libprotoc 35.1",
+  "tiers": {
+   "huge": [
+    8388608,
+    67108864
+   ],
+   "large": [
+    65536,
+    1048576
+   ],
+   "tiny": [
+    0,
+    64
+   ],
+   "typical": [
+    64,
+    4096
+   ]
+  }
+ },
+ "corpora": {
+  "google-messages": {
+   "classification": "primary",
+   "files": {
+    "benchmarks/message1_proto2.proto": {
+     "sha256": "338244747c7ecbf8399b514958d5ade09782d2f766a4350f71db3ad5642545eb",
+     "upstream_pb_go": "internal/testprotos/benchmarks/datasets/google_message1/proto2/benchmark_message1_proto2.pb.go",
+     "upstream_pb_go_sha256": "4fa8aa7a9c5342b2534a54ff6bb570aed24d962a9eaf11fb3b6c92a1b5d0a268"
+    },
+    "benchmarks/message1_proto3.proto": {
+     "sha256": "929ad47130cf5f45c32b9c7698bccb1883a2bb5ee9204c411a5cbc3b9fb6c21d",
+     "upstream_pb_go": "internal/testprotos/benchmarks/datasets/google_message1/proto3/benchmark_message1_proto3.pb.go",
+     "upstream_pb_go_sha256": "a16e592fc4f7f3b27c5db5f87a1aa4257c373f4df7aee16143a346c470b91c4a"
+    },
+    "benchmarks/message2.proto": {
+     "sha256": "aba5dccf0251a3b725774ad8c92bf661f2bd319cffc8ea6bcb360f1b7c4e7e74",
+     "upstream_pb_go": "internal/testprotos/benchmarks/datasets/google_message2/benchmark_message2.pb.go",
+     "upstream_pb_go_sha256": "cd2fcf905115495e355bdddd060d2c17bc5bf40b6c422c914cc88f205f03ded8"
+    }
+   },
+   "payloads": {
+    "gm1_proto2/huge": {
+     "message": "benchmarks.proto2.GoogleMessage1",
+     "seed": 14399571024116338499,
+     "sha256": "1ee85aeff9d5f95ce2f8f3c919bce79802285d7e73dcc36e133584ccb7ee3395",
+     "size": 9634318
+    },
+    "gm1_proto2/large": {
+     "message": "benchmarks.proto2.GoogleMessage1",
+     "seed": 11711425733762296363,
+     "sha256": "a480848450ab4fee270f2d52221cf05b8a890b20cc290d4aa560885df90ea056",
+     "size": 131138
+    },
+    "gm1_proto2/tiny": {
+     "message": "benchmarks.proto2.GoogleMessage1",
+     "seed": 5611972498522346129,
+     "sha256": "f5ace18322ff386339416d3c1980e49b9b1b2acfbf2b1c42c1a96d54e476029b",
+     "size": 12
+    },
+    "gm1_proto2/typical": {
+     "message": "benchmarks.proto2.GoogleMessage1",
+     "seed": 1712984151826839807,
+     "sha256": "0bbf763ca2645e0ab76f1994c695fb65fe6caaabc9a6c8492feb93479e202f2a",
+     "size": 507
+    },
+    "gm1_proto3/huge": {
+     "message": "benchmarks.proto3.GoogleMessage1",
+     "seed": 1130674676149150899,
+     "sha256": "e956ab34306a891d0f06f2dfc04ac143378daa72d7bfcc028f7bc18eaf918678",
+     "size": 9175513
+    },
+    "gm1_proto3/large": {
+     "message": "benchmarks.proto3.GoogleMessage1",
+     "seed": 1470807313987383170,
+     "sha256": "180f67f04ce3698dd5bf9443e1e3da729a398eb27fde7e03216202a673517302",
+     "size": 123367
+    },
+    "gm1_proto3/tiny": {
+     "message": "benchmarks.proto3.GoogleMessage1",
+     "seed": 15540373699256283558,
+     "sha256": "27c60e40422a185f4b14412888b241a8f71972645e5297ff4f5d2fc4124f3483",
+     "size": 6
+    },
+    "gm1_proto3/typical": {
+     "message": "benchmarks.proto3.GoogleMessage1",
+     "seed": 3761055263379150508,
+     "sha256": "09b050264bcd4a91036ba780d9acf373697ebf42dabf15c279f9581fe7a0fcce",
+     "size": 495
+    },
+    "gm2/huge": {
+     "message": "benchmarks.proto2.GoogleMessage2",
+     "seed": 11716598114136120853,
+     "sha256": "bafa345ed74a9311d89c728e66713e59b5e3f7b0462cfbfaf2970270378b2daa",
+     "size": 9176526
+    },
+    "gm2/large": {
+     "message": "benchmarks.proto2.GoogleMessage2",
+     "seed": 9583261372263522690,
+     "sha256": "1d438945ca2d82c6ef864a88cf0970a4e28eb96d713e54bd56538eb418281a30",
+     "size": 93373
+    },
+    "gm2/tiny": {
+     "message": "benchmarks.proto2.GoogleMessage2",
+     "seed": 4409727884376181837,
+     "sha256": "5c3d327c76e771df32b564776247c9e2b3069367fc790f0bb44334cf0b14e52f",
+     "size": 3
+    },
+    "gm2/typical": {
+     "message": "benchmarks.proto2.GoogleMessage2",
+     "seed": 4307352533170709489,
+     "sha256": "168dc133ab30d808ee36813f52ab081eca0bb4c72929f0f3473aed9f00d9be61",
+     "size": 911
+    }
+   },
+   "roots": [
+    "benchmarks/message1_proto2.proto",
+    "benchmarks/message1_proto3.proto",
+    "benchmarks/message2.proto"
+   ],
+   "upstream": [
+    {
+     "commit": "cdd4c5f7406e82462949c7a65defa9f3029c162d",
+     "license": "BSD-3-Clause",
+     "repo": "protocolbuffers/protobuf-go",
+     "tag": "v1.36.12"
+    }
+   ]
+  },
+  "googleapis": {
+   "classification": "holdout",
+   "files": {
+    "google/api/annotations.proto": {
+     "repo": "googleapis",
+     "sha256": "e79ea741cb605a65e78ca322174764a4af9fde1962c1631e12b84c4934ba9a6c"
+    },
+    "google/api/http.proto": {
+     "repo": "googleapis",
+     "sha256": "ead99129aa15dd5f6233942030c72eec33bc0d7b1c7c260dc143293ef66c5b78"
+    },
+    "google/protobuf/any.proto": {
+     "repo": "wkt",
+     "sha256": "8e56f61e3078e9232d39ce1b1bab28613783af8191f93a910c3617933f87a179"
+    },
+    "google/protobuf/descriptor.proto": {
+     "repo": "wkt",
+     "sha256": "f46ec56fc26c48433f4cebfdc98cf1cdd5ae15f129f150256dfa82c1ec77e0a3"
+    },
+    "google/protobuf/duration.proto": {
+     "repo": "wkt",
+     "sha256": "a3f7301ff2956ec2e30c2241ece07197e4a86c752348d5607224819d4921c9fe"
+    },
+    "google/rpc/error_details.proto": {
+     "repo": "googleapis",
+     "sha256": "5c18d42e6924f447622534b4b7cdb8b53c0606c8ce729b912ee5edf88d1c5520"
+    },
+    "google/rpc/status.proto": {
+     "repo": "googleapis",
+     "sha256": "f5bfd262e6705c7ae73f32e0ad8ee20ce8c0a2578df8c4f76ebf76b572f295ed"
+    }
+   },
+   "payloads": {
+    "status/huge": {
+     "message": "google.rpc.Status",
+     "seed": 9693866176335493024,
+     "sha256": "15b6133cca94df73a1cd87f75c0bdeab3620946b04898e48e006c6937c0ffbd6",
+     "size": 9175322
+    },
+    "status/large": {
+     "message": "google.rpc.Status",
+     "seed": 4161566171761038492,
+     "sha256": "bd2c988f928f83c4acf65443b5a60874998e373c307586e5083db11c0a1cb3e2",
+     "size": 92362
+    },
+    "status/tiny": {
+     "message": "google.rpc.Status",
+     "seed": 11341902836719176289,
+     "sha256": "abee6523c03da1cea9a4c90c9163425f5f904a7060ad0594f83d69c40fc9eb1a",
+     "size": 4
+    },
+    "status/typical": {
+     "message": "google.rpc.Status",
+     "seed": 8301403368250913248,
+     "sha256": "373b929bc59bdd78b92922284b954a2afca3475831888503a3782d5374d29708",
+     "size": 132
+    }
+   },
+   "roots": [
+    "google/rpc/status.proto",
+    "google/rpc/error_details.proto",
+    "google/api/annotations.proto",
+    "google/api/http.proto"
+   ],
+   "upstream": [
+    {
+     "commit": "5174d7c27d275560a3c963d41c3911d0a060a207",
+     "license": "Apache-2.0",
+     "repo": "googleapis/googleapis"
+    },
+    {
+     "commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+     "license": "BSD-3-Clause",
+     "repo": "protocolbuffers/protobuf"
+    }
+   ]
+  },
+  "grpc-testing": {
+   "classification": "primary",
+   "files": {
+    "src/proto/grpc/testing/empty.proto": {
+     "repo": "grpc",
+     "sha256": "20d9f7b4cbdc299d82e8dec6019bbfc546534b51056824229777cdc9976f16a2"
+    },
+    "src/proto/grpc/testing/messages.proto": {
+     "repo": "grpc",
+     "sha256": "d10a590d8f02f33e22512590572e69bc8a2bd3ee61299ed1dac7e5c23f415a42"
+    },
+    "src/proto/grpc/testing/test.proto": {
+     "repo": "grpc",
+     "sha256": "2aa66f253fb47daa6a9dc8eca5af18f5e6124bb09dcf0aab66e9b92df41590a4"
+    }
+   },
+   "payloads": {
+    "request/huge": {
+     "message": "grpc.testing.SimpleRequest",
+     "seed": 17357958561000487627,
+     "sha256": "a2ae5b6c8f18e2dec1ccc0fb0300a958005bc3fd994abb7f7914bbde20fbcb5d",
+     "size": 9175247
+    },
+    "request/large": {
+     "message": "grpc.testing.SimpleRequest",
+     "seed": 16401703648522754530,
+     "sha256": "ab02ec98448683f3fa0f16299518d635a87e3088930380a93ef53ae85d404574",
+     "size": 92358
+    },
+    "request/tiny": {
+     "message": "grpc.testing.SimpleRequest",
+     "seed": 16118833344496247298,
+     "sha256": "eb4a58709dcb532b6b59d83f06d6784714d7b5a0258ade6c6eaa996360288722",
+     "size": 4
+    },
+    "request/typical": {
+     "message": "grpc.testing.SimpleRequest",
+     "seed": 8024368918772120820,
+     "sha256": "e8e9226e347bc74e9c7adf0d3a37fe982ed88471a1ccd1eca2bb6543f67e20f9",
+     "size": 157
+    },
+    "response/huge": {
+     "message": "grpc.testing.SimpleResponse",
+     "seed": 1088988763188504823,
+     "sha256": "7587141f609d403ca819943cf6b8acd7461df5f1223c3b6dc3268d69a7796b43",
+     "size": 9175120
+    },
+    "response/large": {
+     "message": "grpc.testing.SimpleResponse",
+     "seed": 8951816171328004029,
+     "sha256": "59bc6a460fda5f8160ef9f1dfbb03458a70a03de07a85689c4d4b9e6d2f45256",
+     "size": 92254
+    },
+    "response/tiny": {
+     "message": "grpc.testing.SimpleResponse",
+     "seed": 6786016022107892211,
+     "sha256": "bb56218cc6aeb313acf7d071988834bfcefaa8e8410ddefa310f9b2edf9e6b7d",
+     "size": 5
+    },
+    "response/typical": {
+     "message": "grpc.testing.SimpleResponse",
+     "seed": 7757115536019914963,
+     "sha256": "221b357443604037fda279eeb754ced06ec0017a81f21e0da8c92007462b09f6",
+     "size": 103
+    }
+   },
+   "roots": [
+    "src/proto/grpc/testing/messages.proto",
+    "src/proto/grpc/testing/empty.proto",
+    "src/proto/grpc/testing/test.proto"
+   ],
+   "upstream": [
+    {
+     "commit": "d1487957db6658bc532b72871775148229836627",
+     "license": "Apache-2.0",
+     "repo": "grpc/grpc"
+    }
+   ]
+  },
+  "otlp": {
+   "classification": "holdout",
+   "files": {
+    "opentelemetry/proto/common/v1/common.proto": {
+     "repo": "otlp",
+     "sha256": "620560f3ad4c45d606f8a9c455f2b98089f0d511c5859c3eadd3ee630ae0d4d8"
+    },
+    "opentelemetry/proto/logs/v1/logs.proto": {
+     "repo": "otlp",
+     "sha256": "6b2e1eba0c01ae2da47927c63eabfaf3f151ee7ad846f2cdf3b2b71fb61004fe"
+    },
+    "opentelemetry/proto/metrics/v1/metrics.proto": {
+     "repo": "otlp",
+     "sha256": "68cf07fe34bc5111d7873b5547ca41f0312dc8976d2635d81fac553d5ba98757"
+    },
+    "opentelemetry/proto/resource/v1/resource.proto": {
+     "repo": "otlp",
+     "sha256": "e0a7cdc0ffcfeffaa2606e8611839735ebffaa2d6acdf33e9356f2c48ae692d3"
+    },
+    "opentelemetry/proto/trace/v1/trace.proto": {
+     "repo": "otlp",
+     "sha256": "c3fb1385c90b8bc08a2a462e28b5d0c422c7b524a839f75f75e3cd9f64f36956"
+    }
+   },
+   "payloads": {
+    "logs/huge": {
+     "message": "opentelemetry.proto.logs.v1.ResourceLogs",
+     "seed": 11008875827518449818,
+     "sha256": "89abe47e6149fc81d69bfee5b25f4094960c89a3ce420c075c087e12a5e4d1cc",
+     "size": 9179895
+    },
+    "logs/large": {
+     "message": "opentelemetry.proto.logs.v1.ResourceLogs",
+     "seed": 12309672049091735340,
+     "sha256": "208bb1888d45e922e5f0682ec9546b3ae2da874c7b93658b904a8eaec320c8f1",
+     "size": 94878
+    },
+    "logs/tiny": {
+     "message": "opentelemetry.proto.logs.v1.ResourceLogs",
+     "seed": 7531294104400643519,
+     "sha256": "2ee856e533a4a0bc5b62e2578699a6bd6410fbd4f89c5593db5b194ec3ee7ee4",
+     "size": 36
+    },
+    "logs/typical": {
+     "message": "opentelemetry.proto.logs.v1.ResourceLogs",
+     "seed": 10460785817256347653,
+     "sha256": "21b077f0a098368f45104588cb504ddfe999d02ee3300653c2e1fa05e2a5e370",
+     "size": 1458
+    },
+    "metrics/huge": {
+     "message": "opentelemetry.proto.metrics.v1.ResourceMetrics",
+     "seed": 10520550827995194641,
+     "sha256": "76b0ba926d50f3d6478774a948ab319cbdf0570b947695e6c70cb9c306ec8458",
+     "size": 9185031
+    },
+    "metrics/large": {
+     "message": "opentelemetry.proto.metrics.v1.ResourceMetrics",
+     "seed": 1825135234169000203,
+     "sha256": "763f6ffc38f665a3cf2e0afebc78b7b9df8f0fef4cd68d4424c95e598807112b",
+     "size": 95927
+    },
+    "metrics/tiny": {
+     "message": "opentelemetry.proto.metrics.v1.ResourceMetrics",
+     "seed": 11907996605119212514,
+     "sha256": "6f755b03f18fd0b3d1d6ef432d73de108abd1598725e180fcf2dd633ef890b27",
+     "size": 37
+    },
+    "metrics/typical": {
+     "message": "opentelemetry.proto.metrics.v1.ResourceMetrics",
+     "seed": 10789797070253710327,
+     "sha256": "2573a93be1e8e0cc086a8969e858f1869403349f3214ab983fad2bbc4c21bc01",
+     "size": 1935
+    },
+    "spans/huge": {
+     "message": "opentelemetry.proto.trace.v1.ResourceSpans",
+     "seed": 13528376933673895005,
+     "sha256": "57b9bd4fb2107f9a43495b6bc0e0403af9286817ea70c8935caaeaf255dd2414",
+     "size": 9188978
+    },
+    "spans/large": {
+     "message": "opentelemetry.proto.trace.v1.ResourceSpans",
+     "seed": 13647245793605671086,
+     "sha256": "49837565b23a5a6a3c0f5bff6b6ee444be744b2553d797f04221380bb4ac3f2f",
+     "size": 68160
+    },
+    "spans/tiny": {
+     "message": "opentelemetry.proto.trace.v1.ResourceSpans",
+     "seed": 15283696867506000750,
+     "sha256": "b0ed74efa173d764d9ccfed1f62e873053cf961dac21c246fdc94327b46b4749",
+     "size": 34
+    },
+    "spans/typical": {
+     "message": "opentelemetry.proto.trace.v1.ResourceSpans",
+     "seed": 17179698814024840501,
+     "sha256": "a434081cdfcc33d64e73e533675fd6d62a45c610e92b78d591d66acc25d0a65e",
+     "size": 2375
+    }
+   },
+   "roots": [
+    "opentelemetry/proto/trace/v1/trace.proto",
+    "opentelemetry/proto/metrics/v1/metrics.proto",
+    "opentelemetry/proto/logs/v1/logs.proto"
+   ],
+   "upstream": [
+    {
+     "commit": "790608c4d51e6ffc12210b541e8514cbed9e91a4",
+     "license": "Apache-2.0",
+     "repo": "open-telemetry/opentelemetry-proto"
+    }
+   ]
+  },
+  "xds": {
+   "classification": "holdout",
+   "files": {
+    "envoy/annotations/deprecation.proto": {
+     "repo": "envoy",
+     "sha256": "bc72a2deefc60cacdb0f49380e1c92028078e219b02993d6772e2854a8929b36"
+    },
+    "envoy/config/cluster/v3/circuit_breaker.proto": {
+     "repo": "envoy",
+     "sha256": "1cda7251b58213c94d9da023ad27b0e6344197de29f0e0681b673f619d60dafc"
+    },
+    "envoy/config/cluster/v3/cluster.proto": {
+     "repo": "envoy",
+     "sha256": "affff05b290fdad4ec3684ac0eaf45352926ddbd7a937e8ad0f32ce2e705b8b4"
+    },
+    "envoy/config/cluster/v3/filter.proto": {
+     "repo": "envoy",
+     "sha256": "296976f79ec2c8a59d2a529f66fded952e37c84fbe3e8820898a34a8ea704351"
+    },
+    "envoy/config/cluster/v3/outlier_detection.proto": {
+     "repo": "envoy",
+     "sha256": "76deda37fde2848fbf55ef3958ea5d4ae173f42507d8ab42f25ab43ffa3bf04e"
+    },
+    "envoy/config/common/mutation_rules/v3/mutation_rules.proto": {
+     "repo": "envoy",
+     "sha256": "468dd456f50458b933e60b86943456ddc51d1e1ad01d9e31959850f4475b889b"
+    },
+    "envoy/config/core/v3/address.proto": {
+     "repo": "envoy",
+     "sha256": "33ec035d4e2a4b0fb20ab4a1b7790661404f7330ff322a74868fc0d7848fe79b"
+    },
+    "envoy/config/core/v3/backoff.proto": {
+     "repo": "envoy",
+     "sha256": "f347a6a36616ea6735ff031b546d10cc79aaae17da3a60e8174479c7f75ac53e"
+    },
+    "envoy/config/core/v3/base.proto": {
+     "repo": "envoy",
+     "sha256": "5a6a07551e0db451d6984d905aa45269f3134e00b2160ca19dc8875245edab7c"
+    },
+    "envoy/config/core/v3/config_source.proto": {
+     "repo": "envoy",
+     "sha256": "a7febf530579087616987afddb05fa0bf0ec8f32527d629f014c6f45c14f95a2"
+    },
+    "envoy/config/core/v3/event_service_config.proto": {
+     "repo": "envoy",
+     "sha256": "4658cb20712376e3173dad0f6ed6ac1d44b7ade8fe37f1f19abf76fcead1f1c0"
+    },
+    "envoy/config/core/v3/extension.proto": {
+     "repo": "envoy",
+     "sha256": "860106c686cab11106159f462243ce4009cbc405f197df7df8ab423af71a82a7"
+    },
+    "envoy/config/core/v3/grpc_service.proto": {
+     "repo": "envoy",
+     "sha256": "6d31cac5fe834c78a6a11df62f968d48003ad42f75cf484611498e432d00d86c"
+    },
+    "envoy/config/core/v3/health_check.proto": {
+     "repo": "envoy",
+     "sha256": "97946c6f865240cb6ee8aca1cd38ffec031f5d857696795cff55b117f922e97f"
+    },
+    "envoy/config/core/v3/http_uri.proto": {
+     "repo": "envoy",
+     "sha256": "ef5c59234f0be07a23327d695afc65435ef5052941a63184795b0d300fccf1e6"
+    },
+    "envoy/config/core/v3/protocol.proto": {
+     "repo": "envoy",
+     "sha256": "cd3e8569d0ffdd9963f85ab20e4247c3cef97742430a74edf35cb7a62b964ba2"
+    },
+    "envoy/config/core/v3/proxy_protocol.proto": {
+     "repo": "envoy",
+     "sha256": "920917807fd3f5d4cf5d0d579cfa2bbcdca60de8e7c554f55214b1206223569e"
+    },
+    "envoy/config/core/v3/resolver.proto": {
+     "repo": "envoy",
+     "sha256": "5c9b6f36dd71e6c9281ed5355005aa57aaa2430d5144f0132ef288c6a304f155"
+    },
+    "envoy/config/core/v3/socket_option.proto": {
+     "repo": "envoy",
+     "sha256": "78937443cba81f3a60a18b71debc9962b27b484ec55ea79892cfb1deabda9058"
+    },
+    "envoy/config/core/v3/substitution_format_string.proto": {
+     "repo": "envoy",
+     "sha256": "053e6cae4fb969479d5f6cc6609e670491d3b8621812d04112b86d13ad5ee087"
+    },
+    "envoy/config/endpoint/v3/endpoint.proto": {
+     "repo": "envoy",
+     "sha256": "1ba813ff2ecdd6a03662f66f1c9b9f9d86ca11fe0c9648ea4fa25eedb0bc7ca5"
+    },
+    "envoy/config/endpoint/v3/endpoint_components.proto": {
+     "repo": "envoy",
+     "sha256": "a8005e7b3b505782a3564e94d0965d13f159604c997b82684ecd3a682c83c4d4"
+    },
+    "envoy/config/route/v3/route.proto": {
+     "repo": "envoy",
+     "sha256": "dba5e4f5217bfe60b61352667110828904319d5ad5c14995cb37e580c75a03c5"
+    },
+    "envoy/config/route/v3/route_components.proto": {
+     "repo": "envoy",
+     "sha256": "e5b3d63d771b6c928991ab7ed5cfdf99b2cd595fe9fdf83cc6468cd81b7e438b"
+    },
+    "envoy/type/matcher/v3/address.proto": {
+     "repo": "envoy",
+     "sha256": "cd90334a44d5597f172fb82d6feb3cf91523953a0ec0299bfe674c6922a6975b"
+    },
+    "envoy/type/matcher/v3/filter_state.proto": {
+     "repo": "envoy",
+     "sha256": "fdb286b3589e3dd558bac9de8487d075591c16d3ae4add846aaac5b4176df523"
+    },
+    "envoy/type/matcher/v3/metadata.proto": {
+     "repo": "envoy",
+     "sha256": "e83c5443748ae0cbd29be7cf10c15f0a7395bf0c45693ad93fa5a2d4dee9a637"
+    },
+    "envoy/type/matcher/v3/number.proto": {
+     "repo": "envoy",
+     "sha256": "16c9fa77c345c47fa99831595e88ac9df6039ad7308438f704efbe9abeb6d562"
+    },
+    "envoy/type/matcher/v3/regex.proto": {
+     "repo": "envoy",
+     "sha256": "a4f5b1a62e5832fc84aa6b650a2a3a65904b7187b91808d2dc59ebd0d90e93a0"
+    },
+    "envoy/type/matcher/v3/string.proto": {
+     "repo": "envoy",
+     "sha256": "9dcc2bf3054652be5d6d47eec20dda156a38fdae9b85120fea1976f8befc425f"
+    },
+    "envoy/type/matcher/v3/value.proto": {
+     "repo": "envoy",
+     "sha256": "4526f66185f0382d03a7b8e2e7daea4411c976d10a168236e11ea2252f578c1d"
+    },
+    "envoy/type/metadata/v3/metadata.proto": {
+     "repo": "envoy",
+     "sha256": "61451e09ae762f5c71968dce88279318d626c6ce9c227cffda0981842dd50b3f"
+    },
+    "envoy/type/tracing/v3/custom_tag.proto": {
+     "repo": "envoy",
+     "sha256": "e0aad43f329604bd5bb0a6492421e8fcc5558f691ab8a29ff89dd07f2653977a"
+    },
+    "envoy/type/v3/http.proto": {
+     "repo": "envoy",
+     "sha256": "c09aab35e201e1a79d550aef7a9cbfe6345d708aba2e79773bd94aa85b7ab773"
+    },
+    "envoy/type/v3/percent.proto": {
+     "repo": "envoy",
+     "sha256": "b5b5ea7f6264f465ce4b398601e855b62395e3c83e4bb7e0d9d4ebae788210ca"
+    },
+    "envoy/type/v3/range.proto": {
+     "repo": "envoy",
+     "sha256": "7c311addf6883b5a8d286bf15f5ea09c5c5a6259c1832e8e04023a1666c7cade"
+    },
+    "envoy/type/v3/ratelimit_unit.proto": {
+     "repo": "envoy",
+     "sha256": "f746bc8695dcd09d12c1df3276b4ea90086b18cc6ee3842a19a3655fad625b0d"
+    },
+    "envoy/type/v3/semantic_version.proto": {
+     "repo": "envoy",
+     "sha256": "71cc18d6cbbccd0e3a027d3499bbdbe0a7e74cdf125565f36843736027cc8cc5"
+    },
+    "google/protobuf/any.proto": {
+     "repo": "wkt",
+     "sha256": "8e56f61e3078e9232d39ce1b1bab28613783af8191f93a910c3617933f87a179"
+    },
+    "google/protobuf/descriptor.proto": {
+     "repo": "wkt",
+     "sha256": "f46ec56fc26c48433f4cebfdc98cf1cdd5ae15f129f150256dfa82c1ec77e0a3"
+    },
+    "google/protobuf/duration.proto": {
+     "repo": "wkt",
+     "sha256": "a3f7301ff2956ec2e30c2241ece07197e4a86c752348d5607224819d4921c9fe"
+    },
+    "google/protobuf/empty.proto": {
+     "repo": "wkt",
+     "sha256": "ecef3d54cc9e079673b9816c67bac770f7f3bf6dada2d4596ba69d71daa971e6"
+    },
+    "google/protobuf/struct.proto": {
+     "repo": "wkt",
+     "sha256": "4f46aa6248ddcd0ac820aab2ffd4f4e02c5bcd09596edc763fa6764f74deb785"
+    },
+    "google/protobuf/timestamp.proto": {
+     "repo": "wkt",
+     "sha256": "fa6c44dca2c90a2aaf3a1e4776cef2e9177f70fba365f236269f0f41ac166c96"
+    },
+    "google/protobuf/wrappers.proto": {
+     "repo": "wkt",
+     "sha256": "6878dc7534cf9805eee56345cdc38b5e9ca39dece246710c663c7007a67fef49"
+    },
+    "udpa/annotations/migrate.proto": {
+     "repo": "udpa",
+     "sha256": "e2091c88268446db1bc5e9ff45a1e9ab35a526983d8810d2e03081b95bde67aa"
+    },
+    "udpa/annotations/security.proto": {
+     "repo": "udpa",
+     "sha256": "49cb3958b8b16ffb9c1e9abb74b25a728e30640346d79038edd9bf705e174a56"
+    },
+    "udpa/annotations/sensitive.proto": {
+     "repo": "udpa",
+     "sha256": "f2e7d5d84403df9bc407870534bfea5fea85f8503aa62da27d845bcdf495fb57"
+    },
+    "udpa/annotations/status.proto": {
+     "repo": "udpa",
+     "sha256": "564149dd66c6c92c8e56237e02960cc0629cbd7a0cfd0df846d3d6dc4e114aef"
+    },
+    "udpa/annotations/versioning.proto": {
+     "repo": "udpa",
+     "sha256": "657c807e024a3fcd6b47c56e86a5d27b5b64f9e56c540164eee6b1ae9c8d2d02"
+    },
+    "validate/validate.proto": {
+     "repo": "pgv",
+     "sha256": "68c9625ebe0668605a37670db1759ceb03864bc07c52eee919b049347cbc018c"
+    },
+    "xds/annotations/v3/status.proto": {
+     "repo": "xds",
+     "sha256": "0145b2d9437ace6c1201453cd57d44c96e2e89894e502c2d869e8ee2b59b8c19"
+    },
+    "xds/core/v3/authority.proto": {
+     "repo": "xds",
+     "sha256": "0ce53da787582cfe4e2dce5559f64e33cdf7db5b356b29c977e426efa1889429"
+    },
+    "xds/core/v3/cidr.proto": {
+     "repo": "xds",
+     "sha256": "ff53a68dd550507ffb8d734adb35102f84989fe9f1209dc29e090544317fb699"
+    },
+    "xds/core/v3/collection_entry.proto": {
+     "repo": "xds",
+     "sha256": "43c26ec97a6651d2f6fa9e841f3bd6479c34e024b2f2f281c74f43c8ac1202f3"
+    },
+    "xds/core/v3/context_params.proto": {
+     "repo": "xds",
+     "sha256": "912801a580c04553d75a0099d16206a668dd609277c860b6d05d86f8cbddc11c"
+    },
+    "xds/core/v3/extension.proto": {
+     "repo": "xds",
+     "sha256": "6bdea6532568235df89c138bb31c84f46ecdc8d0b4ea6dd2b7d35c1766567c7f"
+    },
+    "xds/core/v3/resource_locator.proto": {
+     "repo": "xds",
+     "sha256": "228e1c1d1ffafa4bd710bc02c8c732a76dea6f9a9518441e1f11a82ac0ad8ed7"
+    },
+    "xds/type/matcher/v3/matcher.proto": {
+     "repo": "xds",
+     "sha256": "7a70e3bc641796d4d12095654387cb1b98221ca9d9d2b91283283e9d416ccc22"
+    },
+    "xds/type/matcher/v3/regex.proto": {
+     "repo": "xds",
+     "sha256": "41d3bc54b310a8b60e34b0a82560b53f3d9172b24c8bfff9de9c501344645c75"
+    },
+    "xds/type/matcher/v3/string.proto": {
+     "repo": "xds",
+     "sha256": "07733b5768f821834792386f5ce591288d9c0b171e33582e3e04ab2bc8e09ca7"
+    }
+   },
+   "payloads": {
+    "cla/huge": {
+     "message": "envoy.config.endpoint.v3.ClusterLoadAssignment",
+     "seed": 5485874484346072998,
+     "sha256": "e90c998e42d916e81a30ebb6dccd51aa57c6068373c4f4488fcae23db935ed79",
+     "size": 9179154
+    },
+    "cla/large": {
+     "message": "envoy.config.endpoint.v3.ClusterLoadAssignment",
+     "seed": 14738452383011819292,
+     "sha256": "482cd25708a62e3d17107b4a6a14f865489610c741c0c232a4a29dcc28f8bce8",
+     "size": 94135
+    },
+    "cla/tiny": {
+     "message": "envoy.config.endpoint.v3.ClusterLoadAssignment",
+     "seed": 12225924743407046367,
+     "sha256": "8914b18ce1b172037755866122294a38768f85f1c9d36c06501a9214fbeb5f78",
+     "size": 6
+    },
+    "cla/typical": {
+     "message": "envoy.config.endpoint.v3.ClusterLoadAssignment",
+     "seed": 12735959164908423104,
+     "sha256": "0c6166755fe04fdd568bbb8f1b2a01056262fdb64a01dd40cecbcac72251ccb7",
+     "size": 1117
+    },
+    "cluster/huge": {
+     "message": "envoy.config.cluster.v3.Cluster",
+     "seed": 7346244190585852657,
+     "sha256": "bccecccf016276ef5f80b3ed762ef5de13f6a1b075c95695a09ffdcb68f85517",
+     "size": 9182738
+    },
+    "cluster/large": {
+     "message": "envoy.config.cluster.v3.Cluster",
+     "seed": 6573455739117601075,
+     "sha256": "00c4e18bb76cb8f076a80df6bce2e8ed2387adb7985514314c405f8cda7520ba",
+     "size": 70875
+    },
+    "cluster/tiny": {
+     "message": "envoy.config.cluster.v3.Cluster",
+     "seed": 2975342931778819759,
+     "sha256": "45d77b6fd1a83e1f3fa3fe407640d0fe42a2a658698dbc94f8b890364a596f7d",
+     "size": 3
+    },
+    "cluster/typical": {
+     "message": "envoy.config.cluster.v3.Cluster",
+     "seed": 4715940228712133240,
+     "sha256": "c36a16853546d8e2da8435545d3257f20de2cfddf371cc2bb762e5b89e1db249",
+     "size": 1309
+    },
+    "route/huge": {
+     "message": "envoy.config.route.v3.RouteConfiguration",
+     "seed": 4854072875643609938,
+     "sha256": "99d69e2e4a1a8e8333afa9b82d848bbb12a7ee6b7d6b9f741ad41e948f130425",
+     "size": 9186793
+    },
+    "route/large": {
+     "message": "envoy.config.route.v3.RouteConfiguration",
+     "seed": 7650797942130406321,
+     "sha256": "0440e215e5f3a4c43798bc6db9a55caafc3e767ac7f69e977b87eab15de8d939",
+     "size": 78091
+    },
+    "route/tiny": {
+     "message": "envoy.config.route.v3.RouteConfiguration",
+     "seed": 5295337494658184049,
+     "sha256": "bd4bf43333ca17ef495fc76a6946edfdedc5e00c8bde7901efce02688a2ebfab",
+     "size": 4
+    },
+    "route/typical": {
+     "message": "envoy.config.route.v3.RouteConfiguration",
+     "seed": 2558566747839257193,
+     "sha256": "8e71597e2f27edc8b6b7a6c01a2f1e8fca82402e952cb8c42e87ed4d729ef1ef",
+     "size": 2283
+    }
+   },
+   "roots": [
+    "envoy/config/cluster/v3/cluster.proto",
+    "envoy/config/endpoint/v3/endpoint.proto",
+    "envoy/config/route/v3/route.proto"
+   ],
+   "upstream": [
+    {
+     "commit": "b579d07d3ad7ee11d32b105e91a5a39ad24718d7",
+     "license": "Apache-2.0",
+     "repo": "envoyproxy/envoy"
+    },
+    {
+     "commit": "92b9a7df69ca9f71bfc492f7a90adf4d36eab569",
+     "license": "Apache-2.0",
+     "repo": "bufbuild/protoc-gen-validate"
+    },
+    {
+     "commit": "c52dc94e7fbe6449d8465faaeda22c76ca62d4ff",
+     "license": "Apache-2.0",
+     "repo": "cncf/udpa"
+    },
+    {
+     "commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+     "license": "BSD-3-Clause",
+     "repo": "protocolbuffers/protobuf"
+    },
+    {
+     "commit": "dba9d589def2cd10099a3a64887d859188c2f57a",
+     "license": "Apache-2.0",
+     "repo": "cncf/xds"
+    }
+   ]
+  }
+ },
+ "schema": "sb05/1"
+}

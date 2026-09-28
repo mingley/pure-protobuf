@@ -1478,7 +1478,13 @@
     "A12",
     "A14"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "bench/corpora/",
+    "bench/scoreboard/categories.json"
+   ],
+   "note": "5 corpora (otlp, xds, googleapis, grpc-testing, google-messages), 79 schema files at 9 pinned commits with SPDX licenses, 48 seeded payloads across tiny/typical/large/huge (byte-identical regen incl. varied PYTHONHASHSEED). message1/2 schemas reconstructed from protobuf-go descriptors, protoc-verified equivalent. A1-A15 carry workload+corpus_ref; no tbd(SB-05) left. codec-bench check name is undefined in tasks.json so the three --verify modes + protoc compiles + band audit substitute."
   },
   {
    "id": "SB-06",

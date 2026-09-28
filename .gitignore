@@ -3,6 +3,8 @@
 /bench/devloop/target
 /bench/capture-*.json
 /bench/capture-*.err
+/bench/corpora/payloads/*/*/large.bin
+/bench/corpora/payloads/*/*/huge.bin
 /tonic-bench/target
 /rpc-bench/target
 /fuzz/target
