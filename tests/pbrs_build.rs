@@ -243,6 +243,192 @@ fn compile_protos_defaults_to_kernel_stubs() {
     );
 }
 
+#[test]
+fn builder_option_parity_controls_output_and_protoc() {
+    let tmp = test_temp_dir("builder-option-parity");
+    let proto = tmp.join("options.proto");
+    std::fs::write(
+        &proto,
+        r#"syntax = "proto3";
+package option.demo;
+
+// Source comment that should be controlled by disable_comments.
+message Item {
+  // Source field comment.
+  string name = 1;
+}
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_ON = 1;
+}
+
+service Demo {
+  rpc Get(Item) returns (Item);
+}
+"#,
+    )
+    .unwrap();
+
+    let fds_out = tmp.join("descriptors").join("options.fds");
+    let out_dir = tmp.join("out");
+    pbrs::codegen::Config::new()
+        .out_dir(&out_dir)
+        .build_client(false)
+        .build_server(true)
+        .use_arc_self(true)
+        .include_file("include.rs")
+        .file_descriptor_set_path(&fds_out)
+        .emit_rerun_if_changed(false)
+        .protoc_arg("--include_source_info")
+        .message_attribute(".option.demo.Item", "#[allow(dead_code)]")
+        .enum_attribute(".option.demo.Mode", "#[allow(dead_code)]")
+        .field_attribute(".option.demo.Item.name", "#[allow(dead_code)]")
+        .disable_comments(true)
+        .skip_debug(true)
+        .compile_protos(&[&proto], &[&tmp])
+        .expect("compile with option parity");
+
+    let generated = std::fs::read_to_string(out_dir.join("options.rs")).unwrap();
+    assert!(out_dir.join("include.rs").exists(), "custom include file");
+    assert!(
+        !out_dir.join("mod.rs").exists(),
+        "custom include file replaces default mod.rs"
+    );
+    assert!(fds_out.exists(), "file_descriptor_set_path must be written");
+    assert!(std::fs::metadata(&fds_out).unwrap().len() > 0);
+    assert!(
+        !generated.contains("pub struct DemoClient"),
+        "build_client(false) omits client"
+    );
+    assert!(
+        generated.contains("pub trait Demo") && generated.contains("pub struct DemoServer"),
+        "build_server(true) keeps service trait/server"
+    );
+    assert!(
+        generated.contains("self: ::std::sync::Arc<Self>,"),
+        "use_arc_self(true) must change service receiver:\n{generated}"
+    );
+    assert!(
+        generated.contains("#[allow(dead_code)]\n#[derive(Clone)]\npub struct Item"),
+        "message attribute missing:\n{generated}"
+    );
+    assert!(
+        generated.contains("#[allow(dead_code)]\n#[repr(transparent)]"),
+        "enum attribute missing:\n{generated}"
+    );
+    assert!(
+        generated.contains("#[allow(dead_code)]\n    name: pbrs::rt::LazyStr"),
+        "field attribute missing:\n{generated}"
+    );
+    assert!(
+        generated.contains("#[derive(Clone)]\npub struct Item"),
+        "skip_debug must remove Debug from message derive:\n{generated}"
+    );
+    assert!(
+        !generated.contains("Source comment") && !generated.contains("Source field comment"),
+        "disable_comments must suppress source comments:\n{generated}"
+    );
+}
+
+#[test]
+fn builder_option_parity_client_only_and_tonic_codec_path() {
+    let tmp = test_temp_dir("builder-option-client-only");
+    let proto = repo_root().join("proto/hello.proto");
+
+    let native = tmp.join("native");
+    pbrs::codegen::Config::new()
+        .out_dir(&native)
+        .build_server(false)
+        .build_client(true)
+        .compile_protos(&[&proto], &[proto.parent().unwrap()])
+        .expect("native client-only");
+    let native_rs = std::fs::read_to_string(native.join("hello.rs")).unwrap();
+    assert!(native_rs.contains("pub struct GreeterClient"));
+    assert!(!native_rs.contains("pub trait Greeter"));
+    assert!(!native_rs.contains("pub struct GreeterServer"));
+
+    let tonic = tmp.join("tonic");
+    pbrs::codegen::Config::new()
+        .out_dir(&tonic)
+        .emit_tonic_stubs(true)
+        .codec_path("crate::CustomCodec")
+        .client_attribute(".helloworld.Greeter", "#[allow(dead_code)]")
+        .server_attribute(".helloworld.Greeter", "#[allow(dead_code)]")
+        .compile_protos(&[&proto], &[proto.parent().unwrap()])
+        .expect("tonic custom codec");
+    let tonic_rs = std::fs::read_to_string(tonic.join("hello.rs")).unwrap();
+    assert!(
+        tonic_rs.contains("crate::CustomCodec::<HelloRequest, HelloReply>::default()"),
+        "custom client codec path missing:\n{tonic_rs}"
+    );
+    assert!(
+        tonic_rs.contains("crate::CustomCodec::<HelloReply, HelloRequest>::default()"),
+        "custom server codec path missing:\n{tonic_rs}"
+    );
+    assert!(
+        !tonic_rs.contains("use protobuf_tonic::ProtobufCodec;"),
+        "custom codec path must not import default codec"
+    );
+    assert!(
+        tonic_rs.contains("#[allow(dead_code)]\n#[derive(Clone, Debug)]\npub struct GreeterClient"),
+        "client attribute missing:\n{tonic_rs}"
+    );
+    assert!(
+        tonic_rs.contains("#[allow(dead_code)]\npub struct GreeterServer"),
+        "server attribute missing:\n{tonic_rs}"
+    );
+}
+
+#[test]
+fn builder_option_parity_emit_rerun_if_changed_false_is_quiet() {
+    let tmp = test_temp_dir("rerun-option-quiet");
+    let root = repo_root();
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("quiet.proto"),
+        "syntax = \"proto3\";\npackage quiet;\nmessage Quiet { string name = 1; }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        r#"fn main() {
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .emit_rerun_if_changed(false)
+        .compile_protos(&["quiet.proto"], &["."])
+        .expect("quiet codegen");
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"rerun-option-quiet\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{root}\" }}\n[build-dependencies]\npbrs = {{ path = \"{root}\" }}\n",
+            root = root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        "include!(concat!(env!(\"OUT_DIR\"), \"/quiet.rs\"));\nfn main() { let _ = Quiet::new(); }\n",
+    )
+    .unwrap();
+
+    let out = cargo_build_verbose(&tmp, None);
+    assert!(
+        out.status.success(),
+        "quiet consumer failed:\n{}",
+        dump(&out)
+    );
+    let text = dump(&out);
+    assert!(
+        !text.contains("quiet.proto") && !text.contains("PURE_PROTOBUF"),
+        "emit_rerun_if_changed(false) should suppress cargo rerun lines:\n{text}"
+    );
+}
+
 fn test_temp_dir(name: &str) -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static TEST_SEQ: AtomicU64 = AtomicU64::new(0);

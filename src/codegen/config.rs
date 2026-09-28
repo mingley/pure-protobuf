@@ -243,6 +243,12 @@ thread_local! {
     pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static BUILD_CLIENT: Cell<bool> = const { Cell::new(true) };
+    pub(crate) static BUILD_SERVER: Cell<bool> = const { Cell::new(true) };
+    pub(crate) static GENERATE_DEFAULT_STUBS: Cell<bool> = const { Cell::new(true) };
+    pub(crate) static USE_ARC_SELF: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static DISABLE_COMMENTS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static SKIP_DEBUG: Cell<bool> = const { Cell::new(false) };
     pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
     pub(crate) static TYPE_FILES: RefCell<std::collections::BTreeMap<String, (String, String)>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -254,6 +260,20 @@ thread_local! {
         const { RefCell::new(None) };
     pub(crate) static TONIC_CRATE: RefCell<Option<String>> =
         const { RefCell::new(None) };
+    pub(crate) static CODEC_PATH: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+    pub(crate) static TYPE_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static MESSAGE_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static ENUM_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static FIELD_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static CLIENT_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
+    pub(crate) static SERVER_ATTRIBUTES: RefCell<Vec<(String, String)>> =
+        const { RefCell::new(Vec::new()) };
 }
 
 pub(crate) struct CodegenStateGuard;
@@ -273,12 +293,25 @@ impl CodegenStateGuard {
         NO_WKT.with(|c| c.set(false));
         SHARED_POOL.with(|c| c.set(false));
         NO_REFLECT.with(|c| c.set(false));
+        BUILD_CLIENT.with(|c| c.set(true));
+        BUILD_SERVER.with(|c| c.set(true));
+        GENERATE_DEFAULT_STUBS.with(|c| c.set(true));
+        USE_ARC_SELF.with(|c| c.set(false));
+        DISABLE_COMMENTS.with(|c| c.set(false));
+        SKIP_DEBUG.with(|c| c.set(false));
         CURRENT_TARGET.with(|c| c.borrow_mut().clear());
         TYPE_FILES.with(|c| c.borrow_mut().clear());
         EXTERN_PATHS.with(|c| c.borrow_mut().clear());
         RUNTIME_CRATE.with(|c| *c.borrow_mut() = None);
         GRPC_CRATE.with(|c| *c.borrow_mut() = None);
         TONIC_CRATE.with(|c| *c.borrow_mut() = None);
+        CODEC_PATH.with(|c| *c.borrow_mut() = None);
+        TYPE_ATTRIBUTES.with(|c| c.borrow_mut().clear());
+        MESSAGE_ATTRIBUTES.with(|c| c.borrow_mut().clear());
+        ENUM_ATTRIBUTES.with(|c| c.borrow_mut().clear());
+        FIELD_ATTRIBUTES.with(|c| c.borrow_mut().clear());
+        CLIENT_ATTRIBUTES.with(|c| c.borrow_mut().clear());
+        SERVER_ATTRIBUTES.with(|c| c.borrow_mut().clear());
     }
 }
 
@@ -323,10 +356,24 @@ pub(crate) struct ExplicitOptions {
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     no_reflect: Option<bool>,
+    build_client: Option<bool>,
+    build_server: Option<bool>,
+    generate_default_stubs: Option<bool>,
+    use_arc_self: Option<bool>,
+    disable_comments: Option<bool>,
+    skip_debug: Option<bool>,
+    include_file: Option<String>,
     pub(crate) extern_paths: Vec<(String, String)>,
     pub(crate) runtime_crate: Option<String>,
     pub(crate) grpc_crate: Option<String>,
     pub(crate) tonic_crate: Option<String>,
+    pub(crate) codec_path: Option<String>,
+    pub(crate) type_attributes: Vec<(String, String)>,
+    pub(crate) message_attributes: Vec<(String, String)>,
+    pub(crate) enum_attributes: Vec<(String, String)>,
+    pub(crate) field_attributes: Vec<(String, String)>,
+    pub(crate) client_attributes: Vec<(String, String)>,
+    pub(crate) server_attributes: Vec<(String, String)>,
     include_source_info: Option<bool>,
 }
 
@@ -337,10 +384,24 @@ pub(crate) struct ResolvedConfig {
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
     pub(crate) no_reflect: bool,
+    pub(crate) build_client: bool,
+    pub(crate) build_server: bool,
+    pub(crate) generate_default_stubs: bool,
+    pub(crate) use_arc_self: bool,
+    pub(crate) disable_comments: bool,
+    pub(crate) skip_debug: bool,
+    pub(crate) include_file: String,
     pub(crate) extern_paths: Vec<(String, String)>,
     pub(crate) runtime_crate: Option<String>,
     pub(crate) grpc_crate: Option<String>,
     pub(crate) tonic_crate: Option<String>,
+    pub(crate) codec_path: Option<String>,
+    pub(crate) type_attributes: Vec<(String, String)>,
+    pub(crate) message_attributes: Vec<(String, String)>,
+    pub(crate) enum_attributes: Vec<(String, String)>,
+    pub(crate) field_attributes: Vec<(String, String)>,
+    pub(crate) client_attributes: Vec<(String, String)>,
+    pub(crate) server_attributes: Vec<(String, String)>,
     pub(crate) include_source_info: bool,
 }
 
@@ -401,6 +462,41 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "no_reflect" => {
                 explicit.no_reflect = Some(parse_bool_param("no_reflect", val)?);
+            }
+            "build_client" => {
+                explicit.build_client = Some(parse_bool_param("build_client", val)?);
+            }
+            "build_server" => {
+                explicit.build_server = Some(parse_bool_param("build_server", val)?);
+            }
+            "generate_default_stubs" => {
+                explicit.generate_default_stubs =
+                    Some(parse_bool_param("generate_default_stubs", val)?);
+            }
+            "use_arc_self" => {
+                explicit.use_arc_self = Some(parse_bool_param("use_arc_self", val)?);
+            }
+            "disable_comments" => {
+                explicit.disable_comments = Some(parse_bool_param("disable_comments", val)?);
+            }
+            "skip_debug" => {
+                explicit.skip_debug = Some(parse_bool_param("skip_debug", val)?);
+            }
+            "compile_well_known_types" => {
+                explicit.no_wkt = Some(!parse_bool_param("compile_well_known_types", val)?);
+            }
+            "include_file" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "include_file".to_string(),
+                    detail: "expected value for 'include_file'".to_string(),
+                })?;
+                if val_str.trim().is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "include_file".to_string(),
+                        detail: "empty include_file".to_string(),
+                    });
+                }
+                explicit.include_file = Some(val_str.trim().to_string());
             }
             "extern_path" => {
                 let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
@@ -518,6 +614,71 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                 }
                 explicit.tonic_crate = Some(val_str.to_string());
             }
+            "codec_path" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: "codec_path".to_string(),
+                    detail: "expected value for 'codec_path'".to_string(),
+                })?;
+                let val_str = val_str.trim();
+                if val_str.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "codec_path".to_string(),
+                        detail: "empty codec path for 'codec_path'".to_string(),
+                    });
+                }
+                explicit.codec_path = Some(val_str.to_string());
+            }
+            "type_attribute"
+            | "message_attribute"
+            | "enum_attribute"
+            | "field_attribute"
+            | "client_attribute"
+            | "server_attribute"
+            | "client_mod_attribute"
+            | "server_mod_attribute" => {
+                let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: format!("expected 'path=attribute' for '{key}'"),
+                })?;
+                let (path, attr) =
+                    val_str
+                        .split_once('=')
+                        .ok_or_else(|| CodegenError::InvalidParameter {
+                            key: key.to_string(),
+                            detail: format!(
+                                "expected 'path=attribute' for '{key}', got '{val_str}'"
+                            ),
+                        })?;
+                let path = path.trim();
+                let attr = attr.trim();
+                if path.is_empty() || attr.is_empty() {
+                    return Err(CodegenError::InvalidParameter {
+                        key: key.to_string(),
+                        detail: format!("invalid empty path or attribute in '{key}={val_str}'"),
+                    });
+                }
+                match key {
+                    "type_attribute" => explicit
+                        .type_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    "message_attribute" => explicit
+                        .message_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    "enum_attribute" => explicit
+                        .enum_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    "field_attribute" => explicit
+                        .field_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    "client_attribute" | "client_mod_attribute" => explicit
+                        .client_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    "server_attribute" | "server_mod_attribute" => explicit
+                        .server_attributes
+                        .push((path.to_string(), attr.to_string())),
+                    _ => {}
+                }
+            }
             "include_source_info" | "source_info" | "preserve_comments" => {
                 explicit.include_source_info = Some(parse_bool_param(key, val)?);
             }
@@ -575,6 +736,16 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
             Ok("1") | Ok("true")
         )
     };
+    let build_client = explicit.build_client.unwrap_or(true);
+    let build_server = explicit.build_server.unwrap_or(true);
+    let generate_default_stubs = explicit.generate_default_stubs.unwrap_or(true);
+    let use_arc_self = explicit.use_arc_self.unwrap_or(false);
+    let disable_comments = explicit.disable_comments.unwrap_or(false);
+    let skip_debug = explicit.skip_debug.unwrap_or(false);
+    let include_file = explicit
+        .include_file
+        .clone()
+        .unwrap_or_else(|| "mod.rs".to_string());
     let runtime_crate = explicit.runtime_crate.clone().or_else(|| {
         std::env::var("PURE_PROTOBUF_RUNTIME_CRATE")
             .ok()
@@ -604,12 +775,108 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         no_wkt,
         shared_pool,
         no_reflect,
+        build_client,
+        build_server,
+        generate_default_stubs,
+        use_arc_self,
+        disable_comments,
+        skip_debug,
+        include_file,
         extern_paths: explicit.extern_paths.clone(),
         runtime_crate,
         grpc_crate,
         tonic_crate,
+        codec_path: explicit.codec_path.clone(),
+        type_attributes: explicit.type_attributes.clone(),
+        message_attributes: explicit.message_attributes.clone(),
+        enum_attributes: explicit.enum_attributes.clone(),
+        field_attributes: explicit.field_attributes.clone(),
+        client_attributes: explicit.client_attributes.clone(),
+        server_attributes: explicit.server_attributes.clone(),
         include_source_info,
     }
+}
+
+pub(crate) fn build_client() -> bool {
+    BUILD_CLIENT.with(Cell::get)
+}
+
+pub(crate) fn build_server() -> bool {
+    BUILD_SERVER.with(Cell::get)
+}
+
+pub(crate) fn generate_default_stubs() -> bool {
+    GENERATE_DEFAULT_STUBS.with(Cell::get)
+}
+
+pub(crate) fn use_arc_self() -> bool {
+    USE_ARC_SELF.with(Cell::get)
+}
+
+pub(crate) fn comments_disabled() -> bool {
+    DISABLE_COMMENTS.with(Cell::get)
+}
+
+pub(crate) fn skip_debug() -> bool {
+    SKIP_DEBUG.with(Cell::get)
+}
+
+pub(crate) fn tonic_codec_path() -> String {
+    CODEC_PATH
+        .with(|c| c.borrow().clone())
+        .unwrap_or_else(|| "ProtobufCodec".to_string())
+}
+
+fn attr_path_matches(rule_path: &str, fq_path: &str) -> bool {
+    let rule = rule_path.trim_start_matches('.');
+    let fq = fq_path.trim_start_matches('.');
+    rule == "." || rule == "*" || rule == fq
+}
+
+fn normalize_attr(attr: &str) -> String {
+    let trimmed = attr.trim();
+    if trimmed.starts_with("#[") || trimmed.starts_with("#!") {
+        trimmed.to_string()
+    } else {
+        format!("#[{trimmed}]")
+    }
+}
+
+pub(crate) fn emit_attr_lines(
+    src: &mut String,
+    rules: &[(String, String)],
+    fq_path: &str,
+    indent: &str,
+) {
+    for (path, attr) in rules {
+        if attr_path_matches(path, fq_path) {
+            let _ = writeln!(src, "{indent}{}", normalize_attr(attr));
+        }
+    }
+}
+
+pub(crate) fn emit_type_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    TYPE_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+}
+
+pub(crate) fn emit_message_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    MESSAGE_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+}
+
+pub(crate) fn emit_enum_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    ENUM_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+}
+
+pub(crate) fn emit_field_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    FIELD_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+}
+
+pub(crate) fn emit_client_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    CLIENT_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+}
+
+pub(crate) fn emit_server_attributes(src: &mut String, fq_path: &str, indent: &str) {
+    SERVER_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
 }
 
 /// Options for [`compile_protos`] and [`Config::compile_descriptor_set`].
@@ -652,10 +919,27 @@ pub struct Config {
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     no_reflect: Option<bool>,
+    build_client: Option<bool>,
+    build_server: Option<bool>,
+    generate_default_stubs: Option<bool>,
+    use_arc_self: Option<bool>,
+    disable_comments: Option<bool>,
+    skip_debug: Option<bool>,
+    include_file: Option<String>,
+    file_descriptor_set_path: Option<PathBuf>,
+    emit_rerun_if_changed: Option<bool>,
+    protoc_args: Vec<String>,
     pub(crate) extern_paths: Vec<(String, String)>,
     pub(crate) runtime_crate: Option<String>,
     pub(crate) grpc_crate: Option<String>,
     pub(crate) tonic_crate: Option<String>,
+    pub(crate) codec_path: Option<String>,
+    pub(crate) type_attributes: Vec<(String, String)>,
+    pub(crate) message_attributes: Vec<(String, String)>,
+    pub(crate) enum_attributes: Vec<(String, String)>,
+    pub(crate) field_attributes: Vec<(String, String)>,
+    pub(crate) client_attributes: Vec<(String, String)>,
+    pub(crate) server_attributes: Vec<(String, String)>,
     include_source_info: Option<bool>,
 }
 
@@ -822,6 +1106,87 @@ impl Config {
         self
     }
 
+    /// Emit generated client stubs. Default `true` when service stubs are enabled.
+    pub fn build_client(&mut self, enable: bool) -> &mut Self {
+        self.build_client = Some(enable);
+        self
+    }
+
+    /// Emit generated server traits and server wrappers. Default `true` when service stubs are enabled.
+    pub fn build_server(&mut self, enable: bool) -> &mut Self {
+        self.build_server = Some(enable);
+        self
+    }
+
+    /// Generate default service methods returning `UNIMPLEMENTED`.
+    ///
+    /// This applies to native `pbrs-grpc` stubs. It is enabled by default.
+    pub fn generate_default_stubs(&mut self, enable: bool) -> &mut Self {
+        self.generate_default_stubs = Some(enable);
+        self
+    }
+
+    /// Use `Arc<Self>` receivers in generated service traits where supported.
+    ///
+    /// This option is accepted for API parity. The current native and Tonic
+    /// adapter modes keep their default receiver shape unless an opt-in mode
+    /// uses this during emission.
+    pub fn use_arc_self(&mut self, enable: bool) -> &mut Self {
+        self.use_arc_self = Some(enable);
+        self
+    }
+
+    /// Disable source-comment emission from generated Rust.
+    ///
+    /// Synthetic documentation that explains generated APIs may still be
+    /// emitted; this mirrors `prost-build`'s source-comment suppression.
+    pub fn disable_comments(&mut self, enable: bool) -> &mut Self {
+        self.disable_comments = Some(enable);
+        self
+    }
+
+    /// Do not derive `Debug` for generated message storage where possible.
+    pub fn skip_debug(&mut self, enable: bool) -> &mut Self {
+        self.skip_debug = Some(enable);
+        self
+    }
+
+    /// Select whether Well-Known Types are generated.
+    ///
+    /// This is the prost-build shaped inverse of [`Self::no_wkt`].
+    pub fn compile_well_known_types(&mut self, enable: bool) -> &mut Self {
+        self.no_wkt = Some(!enable);
+        self
+    }
+
+    /// Write the root module include file under this relative file name.
+    ///
+    /// Default is `mod.rs`.
+    pub fn include_file(&mut self, path: impl Into<String>) -> &mut Self {
+        self.include_file = Some(path.into());
+        self
+    }
+
+    /// Also write the compiled `FileDescriptorSet` bytes to `path`.
+    pub fn file_descriptor_set_path(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+        self.file_descriptor_set_path = Some(path.into());
+        self
+    }
+
+    /// Control Cargo `rerun-if-changed` and `rerun-if-env-changed` emission.
+    ///
+    /// Defaults to `true`.
+    pub fn emit_rerun_if_changed(&mut self, enable: bool) -> &mut Self {
+        self.emit_rerun_if_changed = Some(enable);
+        self
+    }
+
+    /// Add an extra argument passed to `protoc` before input files.
+    pub fn protoc_arg(&mut self, arg: impl Into<String>) -> &mut Self {
+        self.protoc_args.push(arg.into());
+        self
+    }
+
     /// Map a protobuf package or message path to an external Rust type or module path.
     pub fn extern_path(
         &mut self,
@@ -849,6 +1214,90 @@ impl Config {
     pub fn tonic_crate(&mut self, rust_path: impl Into<String>) -> &mut Self {
         self.tonic_crate = Some(rust_path.into());
         self
+    }
+
+    /// Override the Tonic stub codec type path. Default `protobuf_tonic::ProtobufCodec`.
+    pub fn codec_path(&mut self, rust_path: impl Into<String>) -> &mut Self {
+        self.codec_path = Some(rust_path.into());
+        self
+    }
+
+    /// Add a Rust attribute to all generated messages or enums matching `path`.
+    pub fn type_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.type_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Add a Rust attribute to generated messages matching `path`.
+    pub fn message_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.message_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Add a Rust attribute to generated enums matching `path`.
+    pub fn enum_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.enum_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Add a Rust attribute to generated struct fields matching `path`.
+    pub fn field_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.field_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Add a Rust attribute to generated clients matching service `path`.
+    pub fn client_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.client_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Alias for [`Self::client_attribute`].
+    pub fn client_mod_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.client_attribute(path, attr)
+    }
+
+    /// Add a Rust attribute to generated servers matching service `path`.
+    pub fn server_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.server_attributes.push((path.into(), attr.into()));
+        self
+    }
+
+    /// Alias for [`Self::server_attribute`].
+    pub fn server_mod_attribute(
+        &mut self,
+        path: impl Into<String>,
+        attr: impl Into<String>,
+    ) -> &mut Self {
+        self.server_attribute(path, attr)
     }
 
     /// Include source code info (locations and comments) in generated descriptors and code.
@@ -883,6 +1332,27 @@ impl Config {
         if let Some(no_reflect) = self.no_reflect {
             opts.push(format!("no_reflect={no_reflect}"));
         }
+        if let Some(build_client) = self.build_client {
+            opts.push(format!("build_client={build_client}"));
+        }
+        if let Some(build_server) = self.build_server {
+            opts.push(format!("build_server={build_server}"));
+        }
+        if let Some(generate_default_stubs) = self.generate_default_stubs {
+            opts.push(format!("generate_default_stubs={generate_default_stubs}"));
+        }
+        if let Some(use_arc_self) = self.use_arc_self {
+            opts.push(format!("use_arc_self={use_arc_self}"));
+        }
+        if let Some(disable_comments) = self.disable_comments {
+            opts.push(format!("disable_comments={disable_comments}"));
+        }
+        if let Some(skip_debug) = self.skip_debug {
+            opts.push(format!("skip_debug={skip_debug}"));
+        }
+        if let Some(include_file) = &self.include_file {
+            opts.push(format!("include_file={include_file}"));
+        }
         for (proto, rust) in &self.extern_paths {
             opts.push(format!("extern_path={proto}={rust}"));
         }
@@ -894,6 +1364,27 @@ impl Config {
         }
         if let Some(tc) = &self.tonic_crate {
             opts.push(format!("tonic_crate={tc}"));
+        }
+        if let Some(codec) = &self.codec_path {
+            opts.push(format!("codec_path={codec}"));
+        }
+        for (path, attr) in &self.type_attributes {
+            opts.push(format!("type_attribute={path}={attr}"));
+        }
+        for (path, attr) in &self.message_attributes {
+            opts.push(format!("message_attribute={path}={attr}"));
+        }
+        for (path, attr) in &self.enum_attributes {
+            opts.push(format!("enum_attribute={path}={attr}"));
+        }
+        for (path, attr) in &self.field_attributes {
+            opts.push(format!("field_attribute={path}={attr}"));
+        }
+        for (path, attr) in &self.client_attributes {
+            opts.push(format!("client_attribute={path}={attr}"));
+        }
+        for (path, attr) in &self.server_attributes {
+            opts.push(format!("server_attribute={path}={attr}"));
         }
         if let Some(si) = self.include_source_info {
             opts.push(format!("include_source_info={si}"));
@@ -952,6 +1443,9 @@ impl Config {
             path: descriptor_set.to_path_buf(),
             source,
         })?;
+        if let Some(path) = &self.file_descriptor_set_path {
+            write_descriptor_set_bytes(path, &bytes)?;
+        }
         let names: Vec<String> = files_to_generate
             .iter()
             .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
@@ -970,10 +1464,12 @@ impl Config {
             other => other,
         })?;
 
-        emit_codegen_config_rerun_if_env_changed();
-        let mut seen_canonical = std::collections::BTreeSet::new();
-        emit_rerun_if_changed(descriptor_set, &mut seen_canonical);
-        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        if self.emit_rerun_if_changed.unwrap_or(true) {
+            emit_codegen_config_rerun_if_env_changed();
+            let mut seen_canonical = std::collections::BTreeSet::new();
+            emit_rerun_if_changed(descriptor_set, &mut seen_canonical);
+            emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        }
         for (name, src) in files {
             write_file_atomic_if_changed(&out.join(name), &src)?;
         }
@@ -991,8 +1487,10 @@ impl Config {
         }
         let out = self.output_dir()?;
 
-        println!("cargo:rerun-if-env-changed=PROTOC");
-        emit_codegen_config_rerun_if_env_changed();
+        if self.emit_rerun_if_changed.unwrap_or(true) {
+            println!("cargo:rerun-if-env-changed=PROTOC");
+            emit_codegen_config_rerun_if_env_changed();
+        }
 
         let mut seen_canonical = std::collections::BTreeSet::new();
         let mut sorted_protos: Vec<PathBuf> =
@@ -1000,8 +1498,10 @@ impl Config {
         sorted_protos.sort();
         sorted_protos.dedup();
 
-        for p in &sorted_protos {
-            emit_rerun_if_changed(p, &mut seen_canonical);
+        if self.emit_rerun_if_changed.unwrap_or(true) {
+            for p in &sorted_protos {
+                emit_rerun_if_changed(p, &mut seen_canonical);
+            }
         }
 
         let protoc_bin = self.resolve_protoc_path();
@@ -1021,6 +1521,9 @@ impl Config {
         cmd.arg(fds_arg);
         for inc in includes {
             cmd.arg("-I").arg(inc.as_ref());
+        }
+        for arg in &self.protoc_args {
+            cmd.arg(arg);
         }
         for p in &sorted_protos {
             let rel = resolve_proto_rel_path(p, includes);
@@ -1084,8 +1587,13 @@ impl Config {
             path: fds_path.clone(),
             source: e,
         })?;
+        if let Some(path) = &self.file_descriptor_set_path {
+            write_descriptor_set_bytes(path, &bytes)?;
+        }
 
-        emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        if self.emit_rerun_if_changed.unwrap_or(true) {
+            emit_descriptor_source_rerun_if_changed(&bytes, includes, &mut seen_canonical);
+        }
         let names: Vec<String> = sorted_protos
             .iter()
             .map(|p| resolve_proto_rel_path(p.as_ref(), includes))
@@ -1118,6 +1626,19 @@ impl Config {
         let _ = std::fs::remove_file(&fds_path);
         Ok(())
     }
+}
+
+pub(crate) fn write_descriptor_set_bytes(path: &Path, bytes: &[u8]) -> Result<(), CodegenError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|source| CodegenError::UnwritableOutput {
+            path: parent.to_path_buf(),
+            source,
+        })?;
+    }
+    std::fs::write(path, bytes).map_err(|source| CodegenError::UnwritableOutput {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 pub(crate) fn emit_codegen_config_rerun_if_env_changed() {

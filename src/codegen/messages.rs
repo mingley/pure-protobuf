@@ -8,7 +8,11 @@ pub(crate) fn emit_zeroed_fields_struct<'a>(
     name: &str,
     fields: impl Iterator<Item = &'a FieldDescriptor>,
 ) {
-    let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+    if skip_debug() {
+        let _ = writeln!(src, "#[derive(Clone, PartialEq)]");
+    } else {
+        let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+    }
     let _ = writeln!(src, "struct {name} {{");
     for f in fields {
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
@@ -323,6 +327,9 @@ pub(crate) fn emit_doc_line(src: &mut String, line: &str, indent: &str, in_code_
 }
 
 pub(crate) fn emit_doc_comments(src: &mut String, comments: &Comments, indent: &str) {
+    if comments_disabled() {
+        return;
+    }
     let mut in_code_fence = false;
     if let Some(leading) = comments.leading() {
         for line in leading.lines() {
@@ -520,10 +527,18 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
-    let _ = writeln!(src, "#[derive(Clone, Debug)]");
+    emit_type_attributes(src, &desc.full_name, "");
+    emit_message_attributes(src, &desc.full_name, "");
+    if skip_debug() {
+        let _ = writeln!(src, "#[derive(Clone)]");
+    } else {
+        let _ = writeln!(src, "#[derive(Clone, Debug)]");
+    }
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
         emit_doc_comments(src, &f.comments, "    ");
+        let field_path = format!("{}.{}", desc.full_name, f.name);
+        emit_field_attributes(src, &field_path, "    ");
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     if use_cold {
@@ -1141,6 +1156,8 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
+    emit_type_attributes(src, &ed.full_name, "");
+    emit_enum_attributes(src, &ed.full_name, "");
     let _ = writeln!(src, "#[repr(transparent)]");
     let _ = writeln!(
         src,

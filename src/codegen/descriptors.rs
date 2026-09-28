@@ -66,10 +66,23 @@ pub fn generate_from_code_generator_request(
     NO_WKT.with(|c| c.set(resolved.no_wkt));
     SHARED_POOL.with(|c| c.set(resolved.shared_pool));
     NO_REFLECT.with(|c| c.set(resolved.no_reflect));
+    BUILD_CLIENT.with(|c| c.set(resolved.build_client));
+    BUILD_SERVER.with(|c| c.set(resolved.build_server));
+    GENERATE_DEFAULT_STUBS.with(|c| c.set(resolved.generate_default_stubs));
+    USE_ARC_SELF.with(|c| c.set(resolved.use_arc_self));
+    DISABLE_COMMENTS.with(|c| c.set(resolved.disable_comments));
+    SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
     EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
     RUNTIME_CRATE.with(|c| *c.borrow_mut() = resolved.runtime_crate.clone());
     GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
     TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
+    CODEC_PATH.with(|c| *c.borrow_mut() = resolved.codec_path.clone());
+    TYPE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.type_attributes.clone());
+    MESSAGE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.message_attributes.clone());
+    ENUM_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.enum_attributes.clone());
+    FIELD_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.field_attributes.clone());
+    CLIENT_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.client_attributes.clone());
+    SERVER_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.server_attributes.clone());
 
     let mut fds = Vec::new();
     // Stabilize proto_files ordering by file name so fds is byte-identical across input order permutations
@@ -497,9 +510,13 @@ use pbrs::UnknownFields;\n\n"
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
         match resolved.stubs {
             Stubs::None => {}
-            Stubs::Tonic if !services.is_empty() => {
+            Stubs::Tonic
+                if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
+            {
                 src.push_str("\n// --- gRPC stubs (protobuf-tonic, not tonic-prost) ---\n");
-                src.push_str("use protobuf_tonic::ProtobufCodec;\n");
+                if resolved.codec_path.is_none() {
+                    src.push_str("use protobuf_tonic::ProtobufCodec;\n");
+                }
                 src.push_str("use std::convert::Infallible;\n");
                 src.push_str("use std::future::Future;\n");
                 src.push_str("use std::pin::Pin;\n");
@@ -509,7 +526,9 @@ use pbrs::UnknownFields;\n\n"
                     emit_service(&mut src, svc);
                 }
             }
-            Stubs::Kernel if !services.is_empty() => {
+            Stubs::Kernel
+                if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
+            {
                 src.push_str("\n// --- gRPC stubs (pbrs-grpc kernel) ---\n");
                 for svc in &services {
                     emit_kernel_service(&mut src, svc);
@@ -552,7 +571,7 @@ use pbrs::UnknownFields;\n\n"
         }
     }
     let mod_rs = emit_root_mod_rs(&targets, &file_packages, &pool);
-    out_files.push(("mod.rs".to_string(), mod_rs));
+    out_files.push((resolved.include_file.clone(), mod_rs));
     out_files.sort_by(|a, b| a.0.cmp(&b.0));
     out_files.dedup_by(|a, b| a.0 == b.0);
     Ok(out_files)

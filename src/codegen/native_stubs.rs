@@ -80,9 +80,13 @@ pub(crate) fn emit_kernel_service(src: &mut String, svc: &ServiceDescriptor) {
     let client = format!("{svc_ty}Client");
     let full_name = &svc.full_name;
 
-    emit_kernel_trait(src, &trait_name, svc);
-    emit_kernel_server(src, &trait_name, &server, full_name, svc);
-    emit_kernel_client(src, &trait_name, &client, full_name, svc);
+    if build_server() {
+        emit_kernel_trait(src, &trait_name, svc);
+        emit_kernel_server(src, &trait_name, &server, full_name, svc);
+    }
+    if build_client() {
+        emit_kernel_client(src, &trait_name, &client, full_name, svc);
+    }
 }
 
 pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
@@ -226,26 +230,38 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
             let _ = writeln!(src, "    #[deprecated]");
         }
         let _ = writeln!(src, "    fn {fn_name}(");
-        let _ = writeln!(src, "        &self,");
+        if use_arc_self() {
+            let _ = writeln!(src, "        self: ::std::sync::Arc<Self>,");
+        } else {
+            let _ = writeln!(src, "        &self,");
+        }
         let _ = writeln!(
             src,
             "        request: {G}::Request<{}>,",
             shape.trait_request
         );
-        let _ = writeln!(
-            src,
-            "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send {{",
-            shape.trait_response
-        );
-        let _ = writeln!(src, "        async move {{");
-        let _ = writeln!(src, "            drop(request);");
-        let _ = writeln!(
-            src,
-            "            ::core::result::Result::Err({G}::Status::unimplemented(\"method {}/{} not implemented\"))",
-            svc.full_name, m.name
-        );
-        let _ = writeln!(src, "        }}");
-        let _ = writeln!(src, "    }}");
+        if generate_default_stubs() {
+            let _ = writeln!(
+                src,
+                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send {{",
+                shape.trait_response
+            );
+            let _ = writeln!(src, "        async move {{");
+            let _ = writeln!(src, "            drop(request);");
+            let _ = writeln!(
+                src,
+                "            ::core::result::Result::Err({G}::Status::unimplemented(\"method {}/{} not implemented\"))",
+                svc.full_name, m.name
+            );
+            let _ = writeln!(src, "        }}");
+            let _ = writeln!(src, "    }}");
+        } else {
+            let _ = writeln!(
+                src,
+                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send;",
+                shape.trait_response
+            );
+        }
     }
     let _ = writeln!(src, "}}");
 }
@@ -272,6 +288,7 @@ pub(crate) fn emit_kernel_server(
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
+    emit_server_attributes(src, full_name, "");
     let _ = writeln!(src, "pub struct {server}<T> {{");
     let _ = writeln!(src, "    inner: ::std::sync::Arc<T>,");
     let _ = writeln!(src, "    config: {G}::ServerConfig,");
@@ -1466,6 +1483,7 @@ pub(crate) fn emit_kernel_client(
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
+    emit_client_attributes(src, full_name, "");
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
     let _ = writeln!(src, "    channel: {G}::Channel,");
