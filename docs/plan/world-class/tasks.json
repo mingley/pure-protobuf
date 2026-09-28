@@ -5269,7 +5269,11 @@
     "docs-contract"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/guides/comparison.md"
+   ]
   },
   {
    "id": "TC-09",
@@ -5295,7 +5299,10 @@
    "checks": [],
    "scoreboard": [],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/grpc-web-connect.md"
+   ]
   },
   {
    "id": "TC-10",
@@ -7591,6 +7598,366 @@
     "checks: fmt clean, clippy zero new errors, rustdoc clean, native-lib (262) green, authz (11) green incl custom-factory e2e, condition filtering, empty-rule default-deny, no-metadata record assertion; self-interop PASS; grfc.md A59 -> shipped",
     "boundaries: records carry only the five A59 fields, never headers/metadata (OB-03); pre-existing tls parallel flake unchanged"
    ]
+  },
+  {
+   "id": "TC-11",
+   "title": "Add an HTTP/2 gRPC-Web server adapter",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-09"
+   ],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/web/",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/grpc_web.rs",
+    "docs/grpc.md"
+   ],
+   "deliverable": "Optional grpc-web feature serving binary application/grpc-web(+proto) unary and server-streaming over the existing HTTP/2 transport, with trailers encoded in the response body.",
+   "accept": [
+    "Interops with a tonic-web peer; native gRPC behavior unchanged; unsupported HTTP/1.1 and h2c gRPC-Web requests are rejected clearly."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-12",
+   "title": "Add grpc-web-text and CORS",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "TC-11"
+   ],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/web/",
+    "pbrs-grpc/tests/grpc_web.rs"
+   ],
+   "deliverable": "Streaming-safe base64 (application/grpc-web-text) and gRPC-Web CORS preflight support.",
+   "accept": [
+    "A browser-protocol client (grpc-web JS or connect-web in gRPC-Web mode) passes unary and server-streaming; base64 chunk-boundary tests pass."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-13",
+   "title": "Decide HTTP/1.1 accept for tonic-web parity",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "TC-11"
+   ],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "docs/decisions/http1-grpc-web.md"
+   ],
+   "deliverable": "Decide whether to build an optional HTTP/1.1 accept layer (tonic accept_http1 parity) or keep proxy-only HTTP/1.1 gRPC-Web.",
+   "accept": [
+    "Decision records demand, dependency impact, and follow-up cards if approved."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-14",
+   "title": "Close tower middleware parity",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-04",
+    "TC-05"
+   ],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/tower_server.rs",
+    "pbrs-grpc/src/tower_client.rs",
+    "pbrs-grpc/tests/",
+    "docs/guides/migration.md",
+    "docs/guides/comparison.md"
+   ],
+   "deliverable": "Expose or document shims for tonic layer, trace_fn, concurrency limit, load shed, timeout, rate limit and buffer semantics.",
+   "accept": [
+    "tonic middleware examples port or have exact documented deltas; the default native path stays dependency- and allocation-neutral."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-15",
+   "title": "Evaluate adaptive HTTP/2 flow-control windows",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/config.rs",
+    "pbrs-grpc/src/transport/",
+    "pbrs-grpc/src/keepalive.rs",
+    "pbrs-grpc/tests/"
+   ],
+   "deliverable": "Add an opt-in adaptive (BDP-estimating) flow-control mode for client and server, matching tonic's http2_adaptive_window, or record a no-go with evidence.",
+   "accept": [
+    "Adaptive mode is tested on client and server and measured on a latency-injected large-payload cell; hostile and resource-bound tests stay green."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "C4",
+    "D3",
+    "E5"
+   ],
+   "relates": [],
+   "status": "in_progress"
+  },
+  {
+   "id": "TC-16",
+   "title": "Finish generic codec customization",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "TC-02"
+   ],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/codec.rs",
+    "pbrs-grpc/src/codec/",
+    "pbrs-grpc/tests/codec_generic.rs"
+   ],
+   "deliverable": "Complete tonic-like Codec/Encoder/Decoder customization for non-pbrs messages if TC-02/TC-03 leave gaps.",
+   "accept": [
+    "A tonic custom-codec fixture ports without transport changes; all four shapes pass."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-17",
+   "title": "Add TLS option parity where safe",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/tls.rs",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/tls.rs",
+    "docs/guides/production-service.md"
+   ],
+   "deliverable": "Evaluate and add native OS roots (optional feature), optional client auth on the server, key logging for debugging, and assume-h2 equivalents without weakening verification defaults.",
+   "accept": [
+    "New options are feature-gated where they add dependencies; there is still no skip-verify constructor; TLS/mTLS tests pass."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": [],
+   "status": "in_progress"
+  },
+  {
+   "id": "TC-18",
+   "title": "Add tonic-style connect-info extensions",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/request.rs",
+    "pbrs-grpc/src/server/rpc.rs",
+    "pbrs-grpc/tests/"
+   ],
+   "deliverable": "Provide TcpConnectInfo, UdsConnectInfo and TlsConnectInfo-style typed request extensions alongside the existing getters.",
+   "accept": [
+    "A tonic-shaped handler fixture reads connect info from extensions for TCP, UDS and TLS/mTLS."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-19",
+   "title": "Add an Endpoint-style URI, connector and balance facade",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/channel.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/tests/resolver.rs"
+   ],
+   "deliverable": "Cover tonic Endpoint::from_shared, connect_with_connector, balance_list/balance_channel and executor migration paths.",
+   "accept": [
+    "tonic examples using URI endpoints, custom connectors or dynamic balancing port or have documented replacements; resolver/LB tests stay green."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": []
+  },
+  {
+   "id": "TC-20",
+   "title": "Add pure-Rust zstd compression",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/compression/",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/",
+    "docs/decisions/compression.md"
+   ],
+   "deliverable": "Optional pure-Rust zstd codec negotiated alongside gzip and deflate.",
+   "accept": [
+    "Interops with tonic zstd; decompression bombs stay bounded; the default dependency graph is unchanged."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "E4"
+   ],
+   "relates": [],
+   "status": "in_progress"
+  },
+  {
+   "id": "TC-21",
+   "title": "Serve reflection v1alpha as a first-class service",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/guides/comparison.md",
+    "docs/decisions/better-tonic.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/reflection.rs",
+    "pbrs-grpc/tests/reflection.rs"
+   ],
+   "deliverable": "Serve a distinct grpc.reflection.v1alpha surface in addition to v1, instead of a router alias.",
+   "accept": [
+    "tonic-reflection v1alpha clients and grpcurl-style v1alpha lookups pass; v1 behavior unchanged."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": [],
+   "status": "in_progress"
   }
  ]
 }
