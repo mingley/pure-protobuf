@@ -1,25 +1,27 @@
 # Documentation map (DX-01)
 
-Design record for task-oriented documentation navigation. Audited at
-`0d65607c817fa8eecf6fdd75b8dacd76cfebaf82`; line counts below are
-`wc -l` at that revision. The hub-and-spoke layout this card designs
-is already landed: the gRPC hub is concise, the seven guides exist,
-and markdown prose is no longer pinned by multi-thousand-line
-exact-string tests. This file is the maintained navigation record, not
-a second copy of the guides. It must stay link- and reference-valid
-under `tests/documentation.rs` (section 9).
+This page is the navigation contract for contributors and doc reviewers. Bottom
+line: each reader journey has one canonical page, supporting pages should link
+rather than repeat it, and this map must stay valid under `tests/documentation.rs`
+(section 9).
+
+Audited at `0d65607c817fa8eecf6fdd75b8dacd76cfebaf82`. The hub-and-spoke
+layout designed by this card has landed: the gRPC hub is concise, the seven
+guides exist, and markdown prose is no longer pinned by multi-thousand-line
+exact-string tests. This file is a maintained navigation record, not a second
+copy of the guides.
 
 ## 1. Seven-domain content map
 
 | Domain | Reader intent | Canonical page | Supporting pages |
 |---|---|---|---|
-| Learn / tutorials | First working build and service | [README.md](../README.md) (241 lines) | [gRPC hub](grpc.md) (206 lines), [pbrs-grpc README](../pbrs-grpc/README.md) (142 lines), [protobuf-tonic README](../protobuf-tonic/README.md) (140 lines) |
-| How-to guides | Solve one production task | [guides/](guides/rpc-shapes.md) (7 guides, 1,076 lines total) | [rpc-shapes](guides/rpc-shapes.md) (311), [production-service](guides/production-service.md) (201), [operations](guides/operations.md) (184), [codegen](guides/codegen.md) (154), [interceptors](guides/interceptors.md) (121), [migration](guides/migration.md) (83), [comparison](guides/comparison.md) (72) |
+| Learn / tutorials | First working build and service | [README.md](../README.md) | [gRPC hub](grpc.md), [pbrs-grpc README](../pbrs-grpc/README.md), [protobuf-tonic README](../protobuf-tonic/README.md) |
+| How-to guides | Solve one production task | [guides/](guides/rpc-shapes.md) | [rpc-shapes](guides/rpc-shapes.md), [production-service](guides/production-service.md), [operations](guides/operations.md), [codegen](guides/codegen.md), [interceptors](guides/interceptors.md), [migration](guides/migration.md), [comparison](guides/comparison.md) |
 | API reference | Signatures, traits, options, errors | rustdoc (`cargo doc --workspace`) | [docs.rs](https://docs.rs/pbrs) for `pbrs`, `pbrs-grpc`, `protobuf-tonic` |
-| Internals | Mental model, layout, parser design | [architecture.md](architecture.md) (109 lines) | [design.md](design.md) (81), [upb.md](upb.md) (100), [unsafe-invariants.md](unsafe-invariants.md) (287) |
-| Compatibility and evidence | What is supported and proven | [status.md](status.md) (172 lines) | [ROADMAP.md](ROADMAP.md) (415), [plan/README.md](plan/README.md), [world-class program](plan/world-class/README.md), [Rust frontend review](rust-frontend.md), [TODO.md](../TODO.md), [RELEASE.md](RELEASE.md) (110) |
-| Performance | Workload-specific measurements | [benchmarks.md](benchmarks.md) (487 lines) | [benchmark-contract.md](benchmark-contract.md) (299), [resource-budgets.md](resource-budgets.md) (612), [zero-copy.md](zero-copy.md) |
-| Operations and troubleshooting | Run, debug, and bound a service | [operations guide](guides/operations.md) (184 lines) | [retry-contract.md](retry-contract.md) (220), [cacheable-rpc.md](cacheable-rpc.md) (194), [codegen-compatibility.md](codegen-compatibility.md) (210), [codegen-layout.md](codegen-layout.md) (369), [edition-2024.md](edition-2024.md) (403) |
+| Internals | Mental model, layout, parser design | [architecture.md](architecture.md) | [design.md](design.md), [upb.md](upb.md), [unsafe-invariants.md](unsafe-invariants.md) |
+| Compatibility and evidence | What is supported and proven | [status.md](status.md) | [ROADMAP.md](ROADMAP.md), [plan/README.md](plan/README.md), [world-class program](plan/world-class/README.md), [Rust frontend review](rust-frontend.md), [TODO.md](../TODO.md), [RELEASE.md](RELEASE.md) |
+| Performance | Workload-specific measurements | [benchmarks.md](benchmarks.md) | [benchmark-contract.md](benchmark-contract.md), [resource-budgets.md](resource-budgets.md), [zero-copy.md](zero-copy.md) |
+| Operations and troubleshooting | Run, debug, and bound a service | [operations guide](guides/operations.md) | [retry-contract.md](retry-contract.md), [cacheable-rpc.md](cacheable-rpc.md), [codegen-compatibility.md](codegen-compatibility.md), [codegen-layout.md](codegen-layout.md), [edition-2024.md](edition-2024.md) |
 
 Rule: a journey's canonical page owns the narrative; supporting pages
 are linked, not duplicated. New prose goes in exactly one page.
@@ -100,8 +102,7 @@ before its target text is moved or rewritten:
 
 - [examples/greeter/src/lib.rs](../examples/greeter/src/lib.rs),
   4 test functions, 38 `readme.contains(...)` assertions against
-  [examples/greeter/README.md](../examples/greeter/README.md)
-  (58 lines):
+  [examples/greeter/README.md](../examples/greeter/README.md):
   - `example_readme_names_from_error_details_on_interceptor_err`
   - `example_readme_names_from_error_details_on_handler_err`
   - `example_readme_names_from_error_details_on_client_interceptor_err`
@@ -172,16 +173,16 @@ crate behavior until new versions pass the release qualification.
 The concise landing page this card proposes is landed; this
 section records the shape to preserve:
 
-- [grpc.md](grpc.md) (206 lines): what `pbrs-grpc` is,
+- [grpc.md](grpc.md): what `pbrs-grpc` is,
   crates.io quickstart, four-shape summary, five production
   signpost cards linking into `guides/`, the threat-model
   section, the retry policy, and explicit omissions. Budget:
   stay under ~250 lines; new detail goes in a guide.
-- [pbrs-grpc README](../pbrs-grpc/README.md) (142 lines):
+- [pbrs-grpc README](../pbrs-grpc/README.md):
   badges, pre-release scope box, install, quickstart, feature
   list, invariant table, documentation links. Budget: stay under
   ~200 lines.
-- [status.md](status.md) (172 lines): compatibility matrix and
+- [status.md](status.md): compatibility matrix and
   recorded evidence. It is not a second tutorial layer; do not
   regrow guides inside it.
 

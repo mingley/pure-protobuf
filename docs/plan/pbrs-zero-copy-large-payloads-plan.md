@@ -1,17 +1,17 @@
 # pbrs: fewer copies for large `bytes` payloads (plan)
 
-**Status:** Executed; outcomes are summarized in [zero-copy.md](../zero-copy.md).
-Phase 0 shipped as SB-13, Phase 1b as PK-09, and Phase 2 as PK-11. Phase 1a
-was reverted after an end-to-end regression. Phase 3 was not started because
-its precondition failed (PK-10). The text below is the original proposal,
-kept as the design record.
-**Date:** 2026-09-23 (proposal); outcomes recorded 2026-09-28.
-**Source baseline:** `mingley/pure-protobuf` `main` at `7cdb29a2`
-(2026-09-22). The main checkout has uncommitted edits. Do the work in a
-separate worktree off `origin/main`.
-**Prior art:** [grpc/grpc-rust#1559](https://github.com/grpc/grpc-rust/pull/1559)
-(tonic `SliceBuffer`), closed unmerged on 2025-06-20, and issue #1558, which
-is still open.
+This page is a historical design record for large `bytes` payloads. Bottom
+line: the proposal was executed; [zero-copy.md](../zero-copy.md) summarizes the
+accepted and rejected outcomes. The text after this header is the original
+proposal, kept so future contributors can see the gates and measurements that
+were required.
+
+| Field | Value |
+|---|---|
+| Status | Executed. Phase 0 shipped as SB-13, Phase 1b as PK-09, and Phase 2 as PK-11. Phase 1a was reverted after an end-to-end regression. Phase 3 was not started because its precondition failed (PK-10). |
+| Date | 2026-09-23 proposal; outcomes recorded 2026-09-28. |
+| Source baseline | `mingley/pure-protobuf` `main` at `7cdb29a2` (2026-09-22). The main checkout has uncommitted edits. Do the work in a separate worktree off `origin/main`. |
+| Prior art | [grpc/grpc-rust#1559](https://github.com/grpc/grpc-rust/pull/1559) (tonic `SliceBuffer`), closed unmerged on 2025-06-20, and issue #1558, which is still open. |
 
 ## 0. Governing rule: ship only if it is actually faster or better
 
@@ -99,7 +99,8 @@ writes).
   Keep the `pbrs::rt::{Wire::ensure, Wire::window, LazyBytes::from_wire}`
   signatures, or prove old generated code still builds.
 - **Safety:** no new `unsafe` (the workspace uses `#![deny(unsafe_code)]`).
-  MSRV stays 1.85. `bytes` is already a dependency of `pbrs`.
+  The minimum supported Rust version (MSRV) stays 1.85. `bytes` is already a
+  dependency of `pbrs`.
 - **Fuzzing:** new entry points get fuzz coverage. Parsing from `Bytes`, and
   segmented parsing in Phase 3, must match contiguous parsing byte for byte
   (differential), across random chunk boundaries.
