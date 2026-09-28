@@ -254,7 +254,8 @@ independent. Invalid non-ASCII header values never print raw bytes. The opt-in
 view defaults to 64 entries and 256 bytes per value; callers who raise those
 limits also accept the resulting log-volume and disclosure risk.
 Do not put credentials in status messages or log raw peer fields without one;
-OB-03 remains open.
+OB-03 closed this policy: Display and raw getters stay application-controlled,
+and the kernel puts no peer credential values into messages.
 
 ---
 
