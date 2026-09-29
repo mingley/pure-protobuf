@@ -163,10 +163,14 @@ pub enum LazyStr {
 impl LazyStr {
     /// Matches [`ProtoString`] SSO. Inline copies do not keep a [`Wire`].
     const INLINE: usize = 23;
-    /// Near-whole medium strings are cheaper as owned `ProtoString` heaps than
-    /// as `Arc<[u8]>` wire windows; multi-field medium strings still share the
-    /// parent frame below.
-    const MEDIUM_OWNED_WHOLE: usize = 256;
+    /// Strings at or below this size copy into exact [`ProtoString`]
+    /// storage whenever they would otherwise pin a much larger parent
+    /// frame; above it, payload-only [`Wire`] copies win (validate the hot
+    /// copy, `name_4kib`).
+    const MEDIUM_OWNED_COPY: usize = 256;
+    /// Frames larger than this are "large": a sparse small field must not
+    /// pin one (PK-15). Smaller frames keep historical parent windowing.
+    const LARGE_FRAME: usize = 1024;
 
     pub fn owned(s: ProtoString) -> Self {
         if s.is_empty() {
@@ -198,10 +202,13 @@ impl LazyStr {
     /// [`Wire::ensure`] the parent frame (hello `"ada"` would otherwise
     /// Arc the 5-byte message and drop it).
     ///
-    /// Longer strings that are almost the whole message (`name_4kib`) copy
-    /// the payload once while checking UTF-8. Several medium strings in one
-    /// message (kernel `strings`) share the parent frame instead of one Arc
-    /// each.
+    /// Near-whole fields copy exact storage without touching the parent:
+    /// [`ProtoString`] heap at `len <= 256` (`name_80`), one-pass
+    /// copy-and-validate payload [`Wire`] above it (`name_4kib`). Sparse
+    /// fields (under a quarter of the frame) in frames over 1024 bytes
+    /// copy the same way instead of pinning the large parent (PK-15).
+    /// Dense medium fields in small frames (kernel `strings`) still share
+    /// the parent frame instead of one Arc each.
     ///
     /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
     /// [`Self::from_parse_span_unchecked`].
@@ -217,12 +224,17 @@ impl LazyStr {
             require_utf8(s)?;
             return Ok(Self::from_bytes(s));
         }
-        if s.len() <= Self::MEDIUM_OWNED_WHOLE && s.len().saturating_add(8) >= data.len() {
+        // Exact copy without pinning the parent: near-whole fields (the
+        // parent copy would be pure overhead) or sparse fields in large
+        // frames (pinning would retain 4x or more of the field).
+        let copy_exact = s.len().saturating_add(8) >= data.len()
+            || (data.len() > Self::LARGE_FRAME && s.len().saturating_mul(4) < data.len());
+        if s.len() <= Self::MEDIUM_OWNED_COPY && copy_exact {
             require_utf8(s)?;
             let _ = slot;
             return Ok(Self::from_bytes(s));
         }
-        if s.len().saturating_add(8) >= data.len() {
+        if copy_exact {
             let _ = slot;
             return Ok(Self::Wire(Wire::from_utf8_payload(s)?));
         }
@@ -841,6 +853,67 @@ mod tests {
             slot.is_some(),
             "medium string in a larger message shares the parent Wire"
         );
+        assert!(matches!(s, LazyStr::Wire(_)));
+    }
+
+    #[test]
+    fn sparse_short_field_does_not_pin_large_parent_frame() {
+        // PK-15 retained memory: a 24-200 byte field in a large frame copies
+        // to exact owned storage. No parent Arc is created (slot stays None),
+        // so the short field cannot pin the large frame.
+        for (len, frame) in [(24usize, 2050usize), (80, 2050), (200, 2050), (24, 1025)] {
+            let mut data = vec![0u8; frame];
+            data[10..10 + len].fill(b'x');
+            let mut slot = None;
+            let s = LazyStr::from_parse_span(&mut slot, &data, 10, 10 + len).unwrap();
+            assert_eq!(s.as_bytes(), &vec![b'x'; len]);
+            assert!(
+                slot.is_none(),
+                "len {len} in {frame}B frame must not Wire::ensure the parent"
+            );
+            assert!(
+                matches!(s, LazyStr::Owned(_)),
+                "len {len} in {frame}B frame must copy to owned storage"
+            );
+        }
+    }
+
+    #[test]
+    fn sparse_large_field_uses_payload_wire_not_parent() {
+        // 300-byte field in a 2050-byte frame: payload-only Wire copy, no
+        // parent Arc, so the large frame is not pinned either.
+        let mut data = vec![0u8; 2050];
+        data[10..310].fill(b'x');
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 10, 310).unwrap();
+        assert_eq!(s.as_bytes(), &vec![b'x'; 300]);
+        assert!(slot.is_none());
+        assert!(matches!(s, LazyStr::Wire(_)));
+    }
+
+    #[test]
+    fn dense_medium_field_still_shares_parent_frame() {
+        // 43-byte field in a 163-byte frame (kernel-strings-like): dense and
+        // small, so historical parent windowing is preserved.
+        let mut data = vec![0u8; 163];
+        data[10..53].fill(b'x');
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 10, 53).unwrap();
+        assert_eq!(s.as_bytes(), &vec![b'x'; 43]);
+        assert!(slot.is_some());
+        assert!(matches!(s, LazyStr::Wire(_)));
+    }
+
+    #[test]
+    fn dense_large_field_still_shares_parent_frame() {
+        // 300-byte field filling over a quarter of an 1100-byte frame:
+        // dense, so it windows the parent instead of copying.
+        let mut data = vec![0u8; 1100];
+        data[10..310].fill(b'x');
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 10, 310).unwrap();
+        assert_eq!(s.as_bytes(), &vec![b'x'; 300]);
+        assert!(slot.is_some());
         assert!(matches!(s, LazyStr::Wire(_)));
     }
 
