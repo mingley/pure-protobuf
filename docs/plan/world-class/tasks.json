@@ -4915,7 +4915,11 @@
     "D4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/sv-04-static-routing.md",
+    "pbrs-grpc/tests/static_routing.rs"
+   ]
   },
   {
    "id": "SV-05",
@@ -5250,7 +5254,11 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/compat_fixtures.rs",
+    "docs/guides/migration.md"
+   ]
   },
   {
    "id": "TC-07",
