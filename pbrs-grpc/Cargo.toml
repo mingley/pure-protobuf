@@ -38,6 +38,7 @@ rustls = { version = "0.23", default-features = false, features = ["std", "tls12
 # keeps the declared pbrs-grpc MSRV (1.85) honest. Same `default_provider()` API.
 rustls-graviola = "0.2.1"
 rustls-pemfile = "2"
+rustls-native-certs = { version = "0.8", optional = true }
 serde_json = "1"
 # Pure-Rust wrapper around libc socket options. Tokio already depends on it;
 # a direct dep lets the kernel set SO_KEEPALIVE without compiling C.
@@ -56,6 +57,9 @@ otel = ["dep:opentelemetry"]
 # Pure-Rust Zstandard message compression. Off by default so the shipping
 # dependency graph stays unchanged unless callers opt in.
 zstd = ["dep:zstd_rs"]
+# Native operating-system root stores for clients. Off by default; this uses
+# rustls-native-certs' Rust platform bindings and must pass dep-audit.
+native-roots = ["dep:rustls-native-certs"]
 # Bench-only user-space copy counters (SB-13). Off by default; every
 # note call compiles to nothing without it. Bench binaries only.
 # Enables the pbrs runtime counters too so one feature gives full-path

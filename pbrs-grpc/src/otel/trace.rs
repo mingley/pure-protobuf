@@ -1,8 +1,9 @@
 //! Optional OpenTelemetry tracing (GF-02, A72): W3C TraceContext
 //! propagation plus server spans with a safe-by-default attribute policy.
 //!
-//! Install [`ClientTracing`] on a channel to inject `traceparent` /
-//! `tracestate` from the ambient [`Context`], and [`ServerTracing`] on a
+//! Install [`ClientTracing`](crate::otel::trace::ClientTracing) on a channel to inject `traceparent` /
+//! `tracestate` from the ambient [`opentelemetry::Context`], and
+//! [`ServerTracing`](crate::otel::trace::ServerTracing) on a
 //! server or router to extract the remote parent and record one server
 //! span per RPC. Span names follow the RPC semantic conventions
 //! (`{service}/{method}`); attributes are exactly `rpc.system`,

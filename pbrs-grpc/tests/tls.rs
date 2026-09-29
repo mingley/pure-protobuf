@@ -618,6 +618,92 @@ async fn mtls_exposes_the_client_certificate() {
 }
 
 #[tokio::test]
+async fn optional_mtls_allows_anonymous_and_records_verified_client_certificate() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let anonymous_seen = Arc::new(AtomicUsize::new(0));
+    let identified_seen = Arc::new(AtomicUsize::new(0));
+    let wrong_seen = Arc::new(AtomicUsize::new(0));
+    let record_anonymous = Arc::clone(&anonymous_seen);
+    let record_identified = Arc::clone(&identified_seen);
+    let record_wrong = Arc::clone(&wrong_seen);
+    let want = Arc::new(
+        client_identity()
+            .certificates()
+            .next()
+            .expect("leaf")
+            .to_vec(),
+    );
+    let record_want = Arc::clone(&want);
+    let tls = ServerTls::optional_mtls(server_identity(), CA).expect("optional mtls server");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                match rpc.peer_identity().and_then(|id| id.leaf()) {
+                    None => {
+                        record_anonymous.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Some(leaf) if leaf == record_want.as_slice() => {
+                        record_identified.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Some(_) => {
+                        record_wrong.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+                Ok(())
+            })
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+
+    let anonymous = tls_client(
+        addr,
+        ClientTls::ca("localhost", CA).expect("anonymous client"),
+    )
+    .await;
+    echo_every_shape(&anonymous, "anon").await;
+
+    let identified = tls_client(
+        addr,
+        ClientTls::ca_mtls("localhost", CA, client_identity()).expect("identified client"),
+    )
+    .await;
+    echo_every_shape(&identified, "identified").await;
+
+    assert_eq!(
+        anonymous_seen.load(Ordering::SeqCst),
+        4,
+        "anonymous optional-mTLS calls must have no peer identity"
+    );
+    assert_eq!(
+        identified_seen.load(Ordering::SeqCst),
+        4,
+        "identified optional-mTLS calls must expose the verified leaf"
+    );
+    assert_eq!(wrong_seen.load(Ordering::SeqCst), 0, "wrong leaf");
+}
+
+#[tokio::test]
+async fn key_log_file_opt_in_still_serves_tls() {
+    let tls = ServerTls::new(server_identity())
+        .expect("server tls")
+        .key_log_file();
+    let (addr, _guard) = serve_tls(tls).await;
+    let client = tls_client(
+        addr,
+        ClientTls::ca("localhost", CA)
+            .expect("client tls")
+            .key_log_file(),
+    )
+    .await;
+    echo_every_shape(&client, "keylog").await;
+}
+
+#[tokio::test]
 async fn wrong_ca_is_unauthenticated() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, _guard) = serve_tls(tls).await;

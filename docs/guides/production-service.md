@@ -43,19 +43,31 @@ The [actual constructors](../../examples/greeter/src/production.rs) use:
 - `ServerTls::mtls(identity, client_ca_pem)` for mTLS;
 - `ClientTls::ca("localhost", ca_pem)` or `ClientTls::ca_mtls` on the client.
 
+`ServerTls::optional_mtls(identity, client_ca_pem)` is also available when a
+listener should request, but not require, a verified client certificate. A
+client that presents no certificate is allowed through with no peer identity;
+a client that does present a certificate must chain to `client_ca_pem`.
+
 The client verifies the certificate's `localhost` name independently of its
 loopback TCP address. TLS requires Application-Layer Protocol Negotiation
-(ALPN) `h2`, and certificate verification cannot be disabled. The exercise
-confirms that a wrong CA fails in TLS mode and missing client identity fails
-in mTLS mode with `UNAUTHENTICATED`.
+(ALPN) `h2`; there is no tonic-style `assume_http2` mode that skips ALPN, and
+certificate verification cannot be disabled. The exercise confirms that a
+wrong CA fails in TLS mode and missing client identity fails in mTLS mode with
+`UNAUTHENTICATED`.
 
 Production trust is separate from this sample:
 
 - Supply a maintained CA and server identity for the real Domain Name System
   (DNS) name.
+- Enable the optional `native-roots` feature and use
+  `ClientTls::native_roots` only when the operating system trust store is the
+  reviewed trust policy for that client.
 - Restrict access to private keys.
 - Define issuance, renewal, and connection-restart procedures.
 - Do not expect a live certificate-rotation or secret-provisioning API here.
+- Use `ServerTls::key_log_file()` / `ClientTls::key_log_file()` only for local
+  packet-decryption diagnostics with `SSLKEYLOGFILE`; key logs expose traffic
+  secrets and must not be enabled in production.
 
 mTLS authentication proves possession of a CA-issued client certificate.
 Ordinary TLS requires no client certificate. Authorization still needs an
@@ -153,9 +165,10 @@ to the certificate and authorization policy above.
 <a id="compression"></a>
 ## 6. Compression
 
-Inbound gzip is accepted by default; outbound gzip is opt-in through
+Inbound gzip and deflate are accepted by default; optional zstd is available
+with the `zstd` feature. Outbound compression is opt-in through
 `ServerConfig::send_compressed(true)` or
 `ChannelConfig::send_compressed(true)`. The demo leaves outbound compression
-off, and its uncompressed message caps still apply if gzip is enabled. See
-the [native TLS/compression tests](../../pbrs-grpc/tests/tls.rs) for every RPC
-shape.
+off, and its uncompressed message caps still apply if compression is enabled.
+See the [native TLS/compression tests](../../pbrs-grpc/tests/tls.rs) for every
+RPC shape.

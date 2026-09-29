@@ -1,6 +1,6 @@
 //! Optional OpenTelemetry metrics bridge (A66/A79/A94/A108 subset).
 //!
-//! [`Metrics`] is a [`LifecycleObserver`](crate::LifecycleObserver) that
+//! [`Metrics`] is a [`LifecycleObserver`] that
 //! records gRFC-named instruments. Install it with the existing
 //! observer builders ([`Channel::observer`](crate::Channel::observer),
 //! [`Server::observer`](crate::server::Server::observer),

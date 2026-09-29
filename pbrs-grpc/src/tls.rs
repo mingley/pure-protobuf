@@ -6,7 +6,8 @@
 use crate::status::Status;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{
-    ClientConfig as RustlsClientConfig, RootCertStore, ServerConfig as RustlsServerConfig,
+    ClientConfig as RustlsClientConfig, KeyLogFile, RootCertStore,
+    ServerConfig as RustlsServerConfig,
 };
 use std::fmt;
 use std::sync::Arc;
@@ -54,6 +55,18 @@ fn webpki_roots() -> RootCertStore {
     RootCertStore {
         roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
     }
+}
+
+#[cfg(feature = "native-roots")]
+fn native_roots() -> Result<RootCertStore, Status> {
+    let loaded = rustls_native_certs::load_native_certs();
+    if !loaded.errors.is_empty() {
+        return Err(Status::unavailable(format!(
+            "native roots: {:?}",
+            loaded.errors
+        )));
+    }
+    roots_from_certs(loaded.certs)
 }
 
 fn server_name(name: &str) -> Result<ServerName<'static>, Status> {
@@ -256,6 +269,7 @@ impl fmt::Debug for Identity {
 /// ```
 #[derive(Clone)]
 pub struct ServerTls {
+    config: Arc<RustlsServerConfig>,
     acceptor: TlsAcceptor,
 }
 
@@ -267,25 +281,57 @@ impl fmt::Debug for ServerTls {
 
 impl ServerTls {
     /// Serve with `identity`. Clients are not asked for a certificate.
-    /// There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls
-    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls
-    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client
-    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key
-    /// log). Distinct from a skip-verify constructor (there is none).
+    ///
+    /// This constructor does not enable rustls key logging; call
+    /// [`Self::key_log_file`] to opt into `SSLKEYLOGFILE` for local debugging.
+    /// Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake).
+    /// Distinct from [`Self::mtls`] (client cert require) and
+    /// [`Self::optional_mtls`] (client cert requested but optional). Distinct
+    /// from a skip-verify constructor (there is none).
     pub fn new(identity: Identity) -> Result<Self, Status> {
-        build_server(identity, None)
+        build_server(identity, ClientAuth::None)
     }
 
     /// Serve with `identity` and require a client certificate issued by `client_ca_pem`.
-    /// There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a
-    /// client certificate but does not require one. This constructor always
-    /// requires a client certificate issued by that CA. Distinct from
-    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify
-    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /
-    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require).
+    ///
+    /// Use [`Self::optional_mtls`] for tonic-style optional client auth. This
+    /// constructor always requires a client certificate issued by that CA.
+    /// Distinct from [`Self::new`] (clients are not asked). Distinct from a
+    /// skip-verify constructor (there is none). Distinct from
+    /// [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents;
+    /// this is the server require).
     pub fn mtls(identity: Identity, client_ca_pem: impl AsRef<[u8]>) -> Result<Self, Status> {
         let cas = roots_from_certs(certs_from_pem(client_ca_pem.as_ref())?)?;
-        build_server(identity, Some(cas))
+        build_server(identity, ClientAuth::Required(cas))
+    }
+
+    /// Serve with `identity` and request, but do not require, a client certificate.
+    ///
+    /// If the peer presents a certificate issued by `client_ca_pem`, the verified
+    /// chain is available from [`crate::Rpc::peer_identity`]. If the peer sends
+    /// no certificate, the handshake still succeeds and `peer_identity` is
+    /// `None`. Verification is still mandatory for any certificate the client
+    /// does send; unknown CAs fail the handshake. Distinct from [`Self::mtls`]
+    /// (client certificate required) and [`Self::new`] (client certificate not
+    /// requested).
+    pub fn optional_mtls(
+        identity: Identity,
+        client_ca_pem: impl AsRef<[u8]>,
+    ) -> Result<Self, Status> {
+        let cas = roots_from_certs(certs_from_pem(client_ca_pem.as_ref())?)?;
+        build_server(identity, ClientAuth::Optional(cas))
+    }
+
+    /// Enable rustls NSS-format key logging through `SSLKEYLOGFILE`.
+    ///
+    /// This is for local packet-decryption diagnostics only. It does not change
+    /// certificate verification, does not create a skip-verify path, and writes
+    /// nothing unless `SSLKEYLOGFILE` is set in the process environment.
+    #[must_use]
+    pub fn key_log_file(mut self) -> Self {
+        Arc::make_mut(&mut self.config).key_log = Arc::new(KeyLogFile::new());
+        self.acceptor = TlsAcceptor::from(Arc::clone(&self.config));
+        self
     }
 
     pub(crate) async fn accept(
@@ -304,26 +350,34 @@ impl ServerTls {
     }
 }
 
-fn build_server(
-    identity: Identity,
-    client_cas: Option<RootCertStore>,
-) -> Result<ServerTls, Status> {
+enum ClientAuth {
+    None,
+    Required(RootCertStore),
+    Optional(RootCertStore),
+}
+
+fn build_server(identity: Identity, client_auth: ClientAuth) -> Result<ServerTls, Status> {
     let provider = provider();
     let builder = RustlsServerConfig::builder_with_provider(Arc::clone(&provider))
         .with_safe_default_protocol_versions()
         .map_err(|e| Status::internal(format!("tls versions: {e}")))?;
-    let mut config = match client_cas {
-        None => builder
+    let optional_client_auth = matches!(&client_auth, ClientAuth::Optional(_));
+    let mut config = match client_auth {
+        ClientAuth::None => builder
             .with_no_client_auth()
             .with_single_cert(identity.certs, identity.key)
             .map_err(|e| Status::invalid_argument(format!("server certificate: {e}")))?,
-        Some(cas) => {
-            let verifier = rustls::server::WebPkiClientVerifier::builder_with_provider(
+        ClientAuth::Required(cas) | ClientAuth::Optional(cas) => {
+            let mut verifier = rustls::server::WebPkiClientVerifier::builder_with_provider(
                 Arc::new(cas),
                 provider,
-            )
-            .build()
-            .map_err(|e| Status::invalid_argument(format!("client CA: {e}")))?;
+            );
+            if optional_client_auth {
+                verifier = verifier.allow_unauthenticated();
+            }
+            let verifier = verifier
+                .build()
+                .map_err(|e| Status::invalid_argument(format!("client CA: {e}")))?;
             builder
                 .with_client_cert_verifier(verifier)
                 .with_single_cert(identity.certs, identity.key)
@@ -331,8 +385,10 @@ fn build_server(
         }
     };
     config.alpn_protocols = vec![ALPN_H2.to_vec()];
+    let config = Arc::new(config);
     Ok(ServerTls {
-        acceptor: TlsAcceptor::from(Arc::new(config)),
+        acceptor: TlsAcceptor::from(Arc::clone(&config)),
+        config,
     })
 }
 
@@ -362,6 +418,7 @@ fn build_server(
 /// ```
 #[derive(Clone)]
 pub struct ClientTls {
+    config: Arc<RustlsClientConfig>,
     connector: TlsConnector,
     server_name: ServerName<'static>,
 }
@@ -378,9 +435,10 @@ impl ClientTls {
     /// Trust Mozilla's CA set ([`webpki_roots`]) and verify `server_name`.
     /// There is no tonic `Endpoint::tls_config_with_verifier`: that replaces
     /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor
-    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]
-    /// (pin a CA, still verifies). Distinct from a skip-verify constructor
-    /// (there is none).
+    /// always verifies against Mozilla's CA set. Distinct from
+    /// `ClientTls::native_roots` (operating-system roots, when the
+    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).
+    /// Distinct from a skip-verify constructor (there is none).
     pub fn webpki(server_name: impl Into<String>) -> Result<Self, Status> {
         build_client(server_name.into(), webpki_roots(), None)
     }
@@ -388,6 +446,26 @@ impl ClientTls {
     /// Trust Mozilla's CA set and present `identity` (mTLS).
     pub fn webpki_mtls(server_name: impl Into<String>, identity: Identity) -> Result<Self, Status> {
         build_client(server_name.into(), webpki_roots(), Some(identity))
+    }
+
+    /// Trust the operating system's native root store and verify `server_name`.
+    ///
+    /// Requires the `native-roots` feature. This is equivalent to tonic's
+    /// native-root mode where safe, but still has no skip-verify constructor.
+    #[cfg(feature = "native-roots")]
+    pub fn native_roots(server_name: impl Into<String>) -> Result<Self, Status> {
+        build_client(server_name.into(), native_roots()?, None)
+    }
+
+    /// Trust the operating system's native root store and present `identity`.
+    ///
+    /// Requires the `native-roots` feature.
+    #[cfg(feature = "native-roots")]
+    pub fn native_roots_mtls(
+        server_name: impl Into<String>,
+        identity: Identity,
+    ) -> Result<Self, Status> {
+        build_client(server_name.into(), native_roots()?, Some(identity))
     }
 
     /// Trust this CA bundle (PEM) and verify `server_name`. For private PKI
@@ -412,6 +490,18 @@ impl ClientTls {
     ) -> Result<Self, Status> {
         let roots = roots_from_certs(certs_from_pem(ca_pem.as_ref())?)?;
         build_client(server_name.into(), roots, Some(identity))
+    }
+
+    /// Enable rustls NSS-format key logging through `SSLKEYLOGFILE`.
+    ///
+    /// This is for local packet-decryption diagnostics only. It does not change
+    /// certificate verification, does not create a skip-verify path, and writes
+    /// nothing unless `SSLKEYLOGFILE` is set in the process environment.
+    #[must_use]
+    pub fn key_log_file(mut self) -> Self {
+        Arc::make_mut(&mut self.config).key_log = Arc::new(KeyLogFile::new());
+        self.connector = TlsConnector::from(Arc::clone(&self.config));
+        self
     }
 
     pub(crate) async fn connect(
@@ -476,8 +566,10 @@ fn build_client(
             .map_err(|e| Status::invalid_argument(format!("client certificate: {e}")))?,
     };
     config.alpn_protocols = vec![ALPN_H2.to_vec()];
+    let config = Arc::new(config);
     Ok(ClientTls {
-        connector: TlsConnector::from(Arc::new(config)),
+        connector: TlsConnector::from(Arc::clone(&config)),
+        config,
         server_name,
     })
 }

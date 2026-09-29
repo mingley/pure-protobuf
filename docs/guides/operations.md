@@ -82,8 +82,9 @@ grpcurl -plaintext 127.0.0.1:50051 describe hello.Greeter
 grpcurl -plaintext -d '{"name": "Ada"}' 127.0.0.1:50051 hello.Greeter/SayHello
 ```
 
-Both `v1` and `v1alpha` paths are automatically served as aliases for
-compatibility with older tools.
+Mount `pbrs_grpc::reflection::v1alpha_service` after the v1 reflection service
+when older tools need `grpc.reflection.v1alpha.ServerReflection`; it uses the
+same wire-compatible reflection messages through a distinct service route.
 
 ---
 
