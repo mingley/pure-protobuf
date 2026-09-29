@@ -68,3 +68,90 @@ point (opener + server each hold N fds), `ip_local_port_range` wider
 than N. Non-Linux / unpinned runs record that in `pinning` and stay
 diagnostic. `grpc-bench-echo.json` in this directory is the SB-21
 contract-shaped echo scenario, untouched by SB-12.
+
+# SB-19 extended cells
+
+Adds the contract-section-3 axes the SB-11 harness does not cover:
+client-streaming and pipelined-bidi shapes, gzip on/off, emulated 1 ms
+and 10 ms RTT profiles, and overload/recovery cells. Runner:
+[`extended_cells.py`](extended_cells.py), invoked via
+`scripts/stack-matrix.sh --scenario <name>`. Server cells only: every
+cell pins one server peer under test behind the fixed native open-loop
+Poisson generator, reusing the SB-11 spawn/pin/preflight machinery.
+
+## Scenarios
+
+| File | Kind | Scoreboard | Cells |
+|---|---|---|---|
+| `extended-shapes.json` | fixed-rate new shapes | C3, D3 | client_stream 1 KiB x 2000 (runs); bidi_pipelined empty x 256 (frozen, unsupported) |
+| `extended-gzip.json` | gzip on/off pairs | D3 | unary + server_stream 64 KiB x identity/gzip (identity runs, gzip frozen, unsupported) |
+| `extended-rtt.json` | RTT holdouts | D7 | unary/client_stream/server_stream x 1 ms + 10 ms, verify-then-measure per repeat |
+| `extended-overload.json` | 2x saturation + recovery | E4, E5 | unary 1 KiB: saturation search, overload phase, recovery probes |
+
+Cell order is frozen: peers in file order x cells in file order. Every
+scenario keeps `repeats: 3`; the runner refuses fewer (accept-style
+gate, mirroring SB-12). These are validation-stage cells: pass means
+the cell ran and every offered call reconciles, never a leadership
+gate; claim-grade statistics (5+ paired runs, contract section 6) are
+SB-22's job, which re-freezes rates after a pilot.
+
+## Method in one paragraph
+
+One fresh server per cell, spawned with the exact SB-11 argv and pinning.
+Fixed-rate cells run one discarded warmup probe then 3 measured probes
+at the frozen offered rate. RTT cells add a recorded setting plus a
+measured ping probe (short constant-rate unary-empty `load` through the
+same `--latency-rtt-ms` loopback-proxy path) before the warmup and
+before every repeat; a repeat whose measured p50 does not evidence the
+configured delay is `invalid`. Overload cells search geometrically for the first rate the server
+cannot sustain -- server errors/timeouts, or rejections persisting at
+the escalated cap (a bounded generator sheds load before a slowing
+server errors, so rejection persistence within a fixed concurrency
+budget is the observable knee; the firing signal is recorded per
+repeat). Rejected steps escalate `--max-in-flight` once, CPU-saturated
+steps invalidate as inconclusive; then a baseline at the last clean
+rate, one overload phase at 2x saturation, and probes back at normal
+until clean or the budget exhausts. The report carries goodput
+(application bytes, framing excluded), error/timeout/rejection rates,
+p99 with retained failures, and recovery time (or `recovered: false`).
+
+## Frozen-but-unrunnable cells
+
+`load` at this base has no compression flag and its bidi mode is
+lockstep ping-pong only, and adding either needs files outside this
+card's write set. The gzip-on and pipelined-bidi definitions are
+therefore frozen in the scenario files and the runner reports them
+`unsupported` with the exact missing capability -- the SB-11 tonic-TLS
+precedent. They are never silently skipped and never faked with a
+mislabeled workload.
+
+## Accept evidence
+
+- **Accept (1)**: every report reconciles offered vs
+  successful/failed/rejected per probe; overload summaries carry
+  `median_overload_goodput_mib_s`, `median_overload_rejection_rate`
+  (+ error/timeout rates) and `median_recovery_time_s` with
+  `recovered_repeats`. Prove it without claim hosts:
+  `python3 extended_cells.py --self-test`, or run any scenario smoke
+  (`--smoke --server-peers native`, >=3 repeats, tiny durations).
+- **Accept (2)**: every RTT repeat embeds its `rtt_verify` record
+  (configured ms, mechanism, baseline TCP ping, measured ping p50,
+  verdict); unverified repeats are `invalid`, and the report carries
+  `rtt_authoritative: false` with the claim note that authoritative
+  RTT needs separate hosts plus tc netem.
+
+## Statuses
+
+`pass` | `invalid` (RTT unverified, saturation unreached, accounting
+mismatch, generator saturated: precondition unmet, never a peer loss)
+| `unsupported` (gzip-on, pipelined bidi) | `not_run` (optional peer
+unrunnable) | `fail` (peer died, probe crashed). Missing *required*
+peer binaries fail the run before any cell, matching SB-11. Only
+`fail` exits nonzero.
+
+## Claim hosts
+
+Linux, pinned CPUs; loopback-proxy RTT stays bench-only emulation
+everywhere (authoritative RTT needs separate hosts, contract 3.6/8).
+`load` payloads are zero bytes, so future gzip-on cells measure
+near-maximum compressibility -- any gzip claim must name that pattern.

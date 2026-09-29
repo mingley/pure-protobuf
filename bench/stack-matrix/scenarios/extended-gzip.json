@@ -1,0 +1,68 @@
+{
+  "scenario": "extended-gzip",
+  "kind": "extended-gzip",
+  "label": "SB-19 compression axis: gzip on/off pairs on 64 KiB unary and streaming (contract sections 3.4, 3.5 holdout)",
+  "contract": "docs/benchmark-contract.md",
+  "scoreboard": ["D3"],
+  "methodology": "server cells only: each server peer under test driven by the fixed native open-loop Poisson generator, one discarded warmup probe then 3 measured repeats at the frozen offered rate. Identity (off) cells run; gzip (on) cells are FROZEN definitions that the runner reports unsupported at this base (rpc-bench `load` has no compression flag), never silently skipped or faked. Validation stage: pass means the cell ran, every offered call reconciles, and no repeat is generator-capped (SB-11 client-CPU signal or rejections); no leadership threshold here. Cell order is frozen: peers in file order x cells in file order.",
+  "payload_caveat": "rpc-bench load payloads are zero bytes, so a future gzip-on cell measures near-maximum compressibility, not typical production entropy. Any gzip claim must name this payload pattern (contract 10.2); zeros are the standard load pattern, not benchmark-specific tuning (contract 10.3).",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "client_peer": "native",
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "cells": [
+    {
+      "shape": "unary",
+      "payload": "64kib",
+      "compression": "identity",
+      "rtt_ms": null,
+      "rate": 500.0,
+      "max_in_flight": 1000,
+      "note": "gzip-off half of the pair; identical wire to an SB-11 uncompressed cell, run explicitly to prove the pair structure"
+    },
+    {
+      "shape": "unary",
+      "payload": "64kib",
+      "compression": "gzip",
+      "rtt_ms": null,
+      "rate": 500.0,
+      "max_in_flight": 1000,
+      "note": "FROZEN, unrunnable at this base: needs a load compression flag plus per-peer gzip negotiation; runner reports unsupported"
+    },
+    {
+      "shape": "server_stream",
+      "payload": "64kib",
+      "stream_msgs": 8,
+      "compression": "identity",
+      "rtt_ms": null,
+      "rate": 20.0,
+      "max_in_flight": 1000,
+      "note": "gzip-off streaming half; 8 x 64 KiB msgs (512 KiB/RPC) keeps the pair runnable — the 2000-msg primary count would be 128 MiB/RPC at this payload"
+    },
+    {
+      "shape": "server_stream",
+      "payload": "64kib",
+      "stream_msgs": 8,
+      "compression": "gzip",
+      "rtt_ms": null,
+      "rate": 20.0,
+      "max_in_flight": 1000,
+      "note": "FROZEN, unrunnable at this base: same missing load compression flag; runner reports unsupported"
+    }
+  ],
+  "params": {
+    "warmup_s": 15.0,
+    "duration_s": 60.0,
+    "seed": 150019002,
+    "distribution": "poisson"
+  },
+  "smoke_params": {
+    "warmup_s": 1.0,
+    "duration_s": 2.0
+  },
+  "run": [
+    "./scripts/stack-matrix.sh --scenario extended-gzip --out-dir target/stack-matrix/sb19-gzip"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario extended-gzip --smoke --server-peers native --out-dir target/stack-matrix/sb19-gzip-smoke"
+}

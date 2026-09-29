@@ -1,0 +1,49 @@
+{
+  "scenario": "extended-shapes",
+  "kind": "extended-shapes",
+  "label": "SB-19 new call shapes: client-streaming upload and pipelined bidi (contract section 3.2)",
+  "contract": "docs/benchmark-contract.md",
+  "scoreboard": ["C3", "D3"],
+  "methodology": "server cells only: each server peer under test driven by the fixed native open-loop Poisson generator (rpc-bench `load`), one discarded warmup probe then 3 measured repeats at the frozen offered rate. Validation stage: pass means the cell ran, every offered call reconciles (offered == successful + failed + rejected), and no repeat is generator-capped (SB-11 client-CPU signal or rejections); no SLO gate and no leadership threshold here. Claim-grade runs need contract section 6 statistics (5+ paired runs, 15 s warmup, 60 s measurement) via SB-22, which re-freezes rates after a pilot. Cell order is frozen: peers in file order x cells in file order.",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "client_peer": "native",
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "cells": [
+    {
+      "shape": "client_stream",
+      "payload": "1kib",
+      "stream_msgs": 2000,
+      "compression": "identity",
+      "rtt_ms": null,
+      "rate": 20.0,
+      "max_in_flight": 1000,
+      "note": "contract primary: client streaming 1 KiB x 2000 msgs; runs via load --shape=client_stream"
+    },
+    {
+      "shape": "bidi_pipelined",
+      "payload": "empty",
+      "stream_msgs": 256,
+      "compression": "identity",
+      "rtt_ms": null,
+      "rate": 50.0,
+      "max_in_flight": 1000,
+      "note": "contract section 3.2 pipelined full-duplex (async interleaved, NOT lockstep); FROZEN but unrunnable at this base: load bidi is lockstep ping-pong only, so the runner reports unsupported with the exact missing capability instead of mislabeling a lockstep run"
+    }
+  ],
+  "params": {
+    "warmup_s": 15.0,
+    "duration_s": 60.0,
+    "seed": 150019001,
+    "distribution": "poisson"
+  },
+  "smoke_params": {
+    "warmup_s": 1.0,
+    "duration_s": 2.0
+  },
+  "run": [
+    "./scripts/stack-matrix.sh --scenario extended-shapes --out-dir target/stack-matrix/sb19-shapes"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario extended-shapes --smoke --server-peers native --out-dir target/stack-matrix/sb19-shapes-smoke"
+}

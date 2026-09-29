@@ -1,0 +1,55 @@
+{
+  "scenario": "extended-overload",
+  "kind": "extended-overload",
+  "label": "SB-19 overload/recovery: 2x saturation then back to normal, goodput/rejections/recovery time (contract section 3.7)",
+  "contract": "docs/benchmark-contract.md",
+  "scoreboard": ["E4", "E5"],
+  "methodology": "server cells only, unary 1 KiB, fixed native open-loop Poisson generator. Per repeat: (1) geometric saturation search from search_start_rate until the first rate the server cannot sustain (saturation_rate; the last clean rate is normal_rate; the firing signal is recorded per repeat). The knee signal is server errors/timeouts, or rejections persisting at the escalated cap: a bounded generator sheds load before a slowing server ever errors, so rejection persistence within a fixed concurrency budget is the observable knee. Rejected steps escalate --max-in-flight once (clean after escalation means the cap was too small: keep climbing); CPU-saturated steps invalidate as inconclusive; (2) a baseline probe at normal_rate, stepping normal down (bounded, recorded) until it reproduces clean; (3) one overload phase at overload_factor x saturation_rate reporting goodput, error/timeout/rejection rates and p99 with retained failures (rejections are a reported result, not an invalidator); (4) short recovery probes at normal_rate until clean (zero errors, p99 within recovery_p99_factor of baseline, generator uncapped) or the probe budget exhausts. Overload is a validation axis, not a gate: pass means every probe reconciles (offered == successful + failed + rejected), no probe is generator-capped except the overload phase's reported rejections, and recovery is measured and reported either way. Dropped or misclassified failures invalidate the run (contract 3.7). Gating uses the SB-11 client-CPU saturation signal plus rejections; the contract 4.1 lag rule is recorded per probe for auditors. Streaming-shape overload stays future work. Cell order is frozen: peers in file order.",
+  "goodput_formula": "goodput_mib_s = successful_rpcs x app_bytes_per_rpc / (duration_s x 1048576); unary app_bytes_per_rpc = req_bytes + resp_bytes (application payload, framing excluded, contract 5.3). Streaming shapes (future): msgs x per-message app bytes per direction summed per the shape.",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "client_peer": "native",
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "cells": [
+    {
+      "shape": "unary",
+      "payload": "1kib",
+      "compression": "identity",
+      "rtt_ms": null,
+      "overload": true,
+      "note": "2x-saturation overload plus recovery timing"
+    }
+  ],
+  "params": {
+    "seed": 150019004,
+    "distribution": "poisson",
+    "search_start_rate": 1000.0,
+    "search_growth": 2.0,
+    "max_search_steps": 10,
+    "max_search_down_steps": 3,
+    "search_duration_s": 10.0,
+    "max_in_flight": 1000,
+    "max_in_flight_escalated": 10000,
+    "overload_max_in_flight": 10000,
+    "baseline_duration_s": 10.0,
+    "overload_factor": 2.0,
+    "overload_duration_s": 30.0,
+    "recovery_probe_s": 5.0,
+    "max_recovery_probes": 12,
+    "recovery_p99_factor": 2.0
+  },
+  "smoke_params": {
+    "search_start_rate": 500.0,
+    "max_search_steps": 9,
+    "search_duration_s": 1.0,
+    "baseline_duration_s": 1.0,
+    "overload_duration_s": 2.0,
+    "recovery_probe_s": 1.0,
+    "max_recovery_probes": 6
+  },
+  "run": [
+    "./scripts/stack-matrix.sh --scenario extended-overload --out-dir target/stack-matrix/sb19-overload"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario extended-overload --smoke --server-peers native --out-dir target/stack-matrix/sb19-overload-smoke"
+}

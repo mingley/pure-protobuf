@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SB-11: cross-stack client/server matrix harness.
 # SB-12: connection-scale scenarios (idle RSS, stream RSS, TLS rate, storm).
+# SB-19: extended cells (new shapes, gzip pairs, RTT holdouts, overload).
 #
 # --stage path (SB-11): server cells pin each server under test (1/2/4 CPUs
 # via taskset on Linux) behind one independent pinned open-loop load
@@ -22,6 +23,16 @@
 #   ./scripts/stack-matrix.sh --scenario conn-scale-idle [--smoke]
 #       [--out-dir DIR] [--server-peers native] [--repeats N] [--skip-build] [-v]
 #
+# --scenario path (SB-19): run one bench/stack-matrix/scenarios/extended-*
+# scenario (extended-shapes, extended-gzip, extended-rtt,
+# extended-overload) for the SB-11 server peers. RTT cells verify the
+# emulated delay by measured ping before each run; overload cells report
+# goodput, rejections and recovery time. Frozen gzip-on and pipelined-bidi
+# cells report unsupported (load flags missing at this base), never fail.
+#
+#   ./scripts/stack-matrix.sh --scenario extended-rtt [--smoke]
+#       [--out-dir DIR] [--server-peers native] [--repeats N] [--skip-build] [-v]
+#
 # Peer pins live in rpc-bench/peers/*.json; the stage/scenario report lands
 # in <out-dir>/report.json with per-cell logs under <out-dir>/logs/.
 set -euo pipefail
@@ -39,7 +50,7 @@ INCLUDE_OPTIONAL=0
 VERBOSE=()
 
 usage() {
-  sed -n '2,30p' "$0"
+  sed -n '2,40p' "$0"
 }
 
 while [ $# -gt 0 ]; do
@@ -67,14 +78,14 @@ done
 
 if [ -n "$SCENARIO" ]; then
   case "$SCENARIO" in
-    conn-scale-*) ;;
-    *) echo "unknown --scenario '$SCENARIO' (want bench/stack-matrix/scenarios/conn-scale-*)" >&2; exit 2 ;;
+    conn-scale-*|extended-*) ;;
+    *) echo "unknown --scenario '$SCENARIO' (want bench/stack-matrix/scenarios/conn-scale-* or extended-*)" >&2; exit 2 ;;
   esac
   if [ ! -f "$ROOT/bench/stack-matrix/scenarios/$SCENARIO.json" ]; then
     echo "scenario file missing: bench/stack-matrix/scenarios/$SCENARIO.json" >&2; exit 2
   fi
   if [ -n "$CLIENT_PEERS" ]; then
-    echo "--client-peers is SB-11-only; SB-12 scenarios vary the server peer" >&2; exit 2
+    echo "--client-peers is SB-11-only; SB-12/SB-19 scenarios vary the server peer" >&2; exit 2
   fi
 else
   case "$STAGE" in
@@ -97,6 +108,10 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
 fi
 
 if [ -n "$SCENARIO" ]; then
+  case "$SCENARIO" in
+    extended-*) RUNNER="extended_cells.py" ;;
+    *) RUNNER="conn_scale.py" ;;
+  esac
   ARGS=(--scenario "$SCENARIO" --out-dir "$OUT_DIR")
   if [ -n "$SERVER_PEERS" ]; then ARGS+=(--server-peers "$SERVER_PEERS"); fi
   if [ "$SMOKE" -eq 1 ]; then ARGS+=(--smoke); fi
@@ -104,7 +119,7 @@ if [ -n "$SCENARIO" ]; then
   if [ "$INCLUDE_OPTIONAL" -eq 1 ]; then ARGS+=(--include-optional); fi
   ARGS+=("${VERBOSE[@]+"${VERBOSE[@]}"}")
   set +e
-  python3 "$ROOT/bench/stack-matrix/scenarios/conn_scale.py" "${ARGS[@]}"
+  python3 "$ROOT/bench/stack-matrix/scenarios/$RUNNER" "${ARGS[@]}"
   CODE=$?
   set -e
 else
@@ -140,6 +155,25 @@ if report.get("schema") == "sb12-conn-scale/1":
             line += f" {summary['median_handshakes_per_s_per_core']:>10.0f}hs/s/core"
         elif summary.get("median_accepts_per_s") is not None:
             line += f" {summary['median_accepts_per_s']:>10.0f}acc/s"
+        if cell.get("reason"):
+            line += f" ({cell['reason'][:100]})"
+        print(line)
+elif report.get("schema") == "sb19-extended/1":
+    print(f"SB-19 {report['scenario']}: matrix_complete={report.get('matrix_complete')}")
+    if report.get("fatal"):
+        print(f"  fatal: {report['fatal']}")
+    for cell in report.get("cells", []):
+        line = f"  {cell['id']:60} {cell['status']:11}"
+        summary = cell.get("summary") or {}
+        if summary.get("median_overload_goodput_mib_s") is not None:
+            line += f" {summary['median_overload_goodput_mib_s']:>8.2f}MiB/s"
+            line += f" rej={summary.get('median_overload_rejection_rate', 0):.3f}"
+            rec = summary.get("median_recovery_time_s")
+            line += f" rec={'%.1fs' % rec if rec is not None else 'unrecovered'}"
+        elif summary.get("median_success_qps") is not None:
+            line += f" {summary['median_success_qps']:>8.0f}qps"
+            if cell.get("rtt_ms") is not None:
+                line += f" rtt={cell['rtt_ms']}ms~x{summary.get('emulation_verified_repeats', 0)}"
         if cell.get("reason"):
             line += f" ({cell['reason'][:100]})"
         print(line)

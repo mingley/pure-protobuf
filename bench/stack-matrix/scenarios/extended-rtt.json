@@ -1,0 +1,98 @@
+{
+  "scenario": "extended-rtt",
+  "kind": "extended-rtt",
+  "label": "SB-19 RTT holdouts: emulated 1 ms and 10 ms round-trip profiles per RPC shape class (contract section 3.6)",
+  "contract": "docs/benchmark-contract.md",
+  "scoreboard": ["D7"],
+  "methodology": "server cells only: each server peer under test driven by the fixed native open-loop Poisson generator through rpc-bench's bench-only loopback TCP proxy (--latency-rtt-ms adds half the RTT per direction). Before EACH measured repeat the runner records the configured RTT setting and verifies the emulation with a measured ping probe (short constant-rate unary-empty load through the same proxy path); a repeat whose measured p50 does not evidence the configured delay is invalid, never silently accepted. One discarded warmup probe per cell, then 3 measured repeats. Validation stage: pass means ran + reconciled + emulation verified + no generator-capped repeat (SB-11 client-CPU signal or rejections); no leadership threshold here. Cell order is frozen: peers in file order x cells in file order.",
+  "authoritative": false,
+  "claim_note": "loopback-proxy RTT is bench-only emulation: authoritative RTT cells need client and server on separate hosts over a real network with tc netem (contract 3.6, 8). These cells prove harness wiring and window/pipelining behavior, not claim numbers.",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "client_peer": "native",
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "cells": [
+    {
+      "shape": "unary",
+      "payload": "1kib",
+      "compression": "identity",
+      "rtt_ms": 1,
+      "rate": 5000.0,
+      "max_in_flight": 1000,
+      "note": "unary class, 1 ms profile"
+    },
+    {
+      "shape": "unary",
+      "payload": "1kib",
+      "compression": "identity",
+      "rtt_ms": 10,
+      "rate": 5000.0,
+      "max_in_flight": 1000,
+      "note": "unary class, 10 ms profile"
+    },
+    {
+      "shape": "client_stream",
+      "payload": "1kib",
+      "stream_msgs": 2000,
+      "compression": "identity",
+      "rtt_ms": 1,
+      "rate": 50.0,
+      "max_in_flight": 1000,
+      "note": "client-streaming class, 1 ms profile"
+    },
+    {
+      "shape": "client_stream",
+      "payload": "1kib",
+      "stream_msgs": 2000,
+      "compression": "identity",
+      "rtt_ms": 10,
+      "rate": 50.0,
+      "max_in_flight": 1000,
+      "note": "client-streaming class, 10 ms profile"
+    },
+    {
+      "shape": "server_stream",
+      "payload": "1kib",
+      "stream_msgs": 2000,
+      "compression": "identity",
+      "rtt_ms": 1,
+      "rate": 50.0,
+      "max_in_flight": 1000,
+      "note": "server-streaming class, 1 ms profile"
+    },
+    {
+      "shape": "server_stream",
+      "payload": "1kib",
+      "stream_msgs": 2000,
+      "compression": "identity",
+      "rtt_ms": 10,
+      "rate": 50.0,
+      "max_in_flight": 1000,
+      "note": "server-streaming class, 10 ms profile; bidi-under-RTT stays future work until pipelined bidi is drivable"
+    }
+  ],
+  "params": {
+    "warmup_s": 15.0,
+    "duration_s": 60.0,
+    "seed": 150019003,
+    "distribution": "poisson",
+    "verify_duration_s": 2.0,
+    "verify_rate": 200.0,
+    "verify_min_ratio": 0.5,
+    "verify_max_slack_s": 0.05,
+    "baseline_ping_samples": 20,
+    "rtt_mechanism": "rpc-bench loopback TCP proxy via --latency-rtt-ms (RTT/2 added per direction); internal to each load process"
+  },
+  "smoke_params": {
+    "warmup_s": 1.0,
+    "duration_s": 2.0,
+    "verify_duration_s": 1.0,
+    "verify_rate": 50.0,
+    "baseline_ping_samples": 5
+  },
+  "run": [
+    "./scripts/stack-matrix.sh --scenario extended-rtt --out-dir target/stack-matrix/sb19-rtt"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario extended-rtt --smoke --server-peers native --out-dir target/stack-matrix/sb19-rtt-smoke"
+}
