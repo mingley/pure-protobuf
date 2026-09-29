@@ -2288,6 +2288,12 @@
       "checks": [
         "interop",
         "rpc-bench"
+      ],
+      "status": "done",
+      "implementer": "worker-bm07",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done 2026-09-29 (c7efd5cc): 4 commits; leadership.json 1.3.0 with 222 combos tagged (76 same-codec/146 end-to-end); tonic-pbrs/tonic-prost manifests pinned; matrix unit 17/17; quick runs classify + banner NOT QUALIFIED; C++ absence fails closed INCOMPLETE; worker ran interop PASS + release build (smoke large_unary p50 gate fail is workload-timing noise, zero Rust changes). Coordinator re-verified counts, dims, banners, and a quick native-pair run."
       ]
     },
     {
