@@ -7,11 +7,15 @@ on:
   # release.yml calls this so a tag/dispatch publish cannot proceed on a SHA
   # whose required lane failed or was skipped.
   workflow_call:
+  # Checkpoint runs on main: frequent pushes cancel each other, so a
+  # dispatched run (keyed separately below) verifies the current head.
+  workflow_dispatch:
 
 # Superseded development SHAs need no CI; a release's reusable CI must never
-# cancel the publisher running on its exact SHA.
+# cancel the publisher running on its exact SHA. The event name keeps a
+# dispatched checkpoint from being cancelled by later pushes.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.workflow == 'ci' }}
 
 env:
