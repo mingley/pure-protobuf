@@ -14,6 +14,27 @@ or mismatched matrix cannot look like a win.
 | `go` | `grpc-go` | Go | go runtime + net/http2 | `google.golang.org/protobuf` | commit `dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef` (v1.85.0-dev) |
 | `cpp` | `grpc-core` | C++ | grpc-core C++ event engine | `google::protobuf` (upb/C++) | commit `d1487957db6658bc532b72871775148229836627` (v1.84.0) |
 
+## Optional Peers (SB-18)
+
+Optional peers are pinned and scripted like required peers, but a peer
+that cannot run reports `not_run` with a reason and never blocks the
+required peers. All are server-only: no open-loop client driver exists
+for their transports, so server cells use the native generator. Each
+manifest's `transport_contract` repeats the SB-01 settings (16 MiB
+windows, 1 MiB frames, 256 streams, no adaptive window, TCP_NODELAY)
+its harness must implement; every cell records them in its `fairness`
+block (see `bench/stack-matrix/peers/fairness.py`).
+
+| Peer ID | Implementation | Language | Runtime | Upstream Pin |
+|---|---|---|---|---|
+| `grpc-java` | `grpc-java` | Java | JVM + Netty | `io.grpc:grpc-netty` 1.84.0 |
+| `grpc-dotnet` | `grpc-dotnet` | C# | .NET 9 + Kestrel | `Grpc.AspNetCore` 2.84.0, `net9.0` |
+| `volo-grpc` | `volo-grpc` | Rust | tokio + volo-grpc | `volo-grpc` 0.12.2 |
+| `connect-rust` | `connectrpc` | Rust | tokio + hyper | `connectrpc` 0.9.1 |
+| `google-grpc` | `grpc` | Rust | tokio + hyper (preview) | `grpc` 0.9.0 (server `pub(crate)`: upstream-incapable) |
+| `vertx` | `vertx-grpc` | Java | JVM + vert.x + Netty | `vertx-grpc-server` 4.4.4 + grpc 1.58.0 (grpc_bench@`48b6b95`) |
+| `quarkus` | `quarkus-grpc` | Java | JVM + Quarkus | `quarkus-grpc` 3.1.2.Final (grpc_bench@`48b6b95`) |
+
 ## Matching Configuration (Apples-to-Apples)
 
 All peers must use the same network and payload parameters:
@@ -83,3 +104,9 @@ test CA and `foo.test.google.fr` override. Tonic is explicitly
 unsupported (tonic 0.14 TLS pulls a C crypto provider, vs QG-04), and
 soak clients stay plaintext-only; both are recorded with reasons, never
 silently plaintext. See `docs/evidence/stack-matrix-sb11.md`.
+
+Optional peers (SB-18) serve the in-tree PEM test PKI once their
+harnesses exist, verified by the native generator exactly like the
+native peer; `google-grpc` has no TLS path while its server is
+upstream-incapable. See each manifest's `tls` section and
+`bench/stack-matrix/peers/__init__.py::tls_spec`.

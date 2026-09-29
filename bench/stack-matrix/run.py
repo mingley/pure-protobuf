@@ -22,9 +22,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 STACK_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(STACK_DIR))
 import cells as cells_mod
+import peers as peers_mod
 import peertls
 import pin as pin_mod
 import slo as slo_mod
+from peers import fairness as fairness_mod
+
+if set(peers_mod.OPTIONAL_PEER_IDS) != set(cells_mod.OPTIONAL_PEERS):
+    raise RuntimeError(
+        "SB-18 registry drift: peers.OPTIONAL_PEER_IDS != cells.OPTIONAL_PEERS"
+    )
 
 REPO_ROOT = STACK_DIR.parents[1]
 MATRIX_SCRIPT = REPO_ROOT / "scripts" / "rpc-bench-matrix.py"
@@ -137,6 +144,12 @@ def server_command(
         cmd = [str(cpp_server), f"--port={port}"]
         cmd.extend(tls_spec.server_args if tls_spec else ["--use_tls=false"])
         return cmd, str(cpp_server), "protobuf-cpp"
+    if peers_mod.is_optional(peer):
+        # Raises peers_mod.PeerNotRunnable when the peer cannot run; the
+        # caller maps that to a not_run cell, never a failure.
+        return peers_mod.server_command(
+            peer, host, port, timeout_secs, tls_spec, registry.repo_root
+        )
     raise ValueError(f"unsupported server peer: {peer}")
 
 
@@ -525,17 +538,44 @@ def check_headroom(
     }
 
 
+def cell_not_run_reason(
+    cell: cells_mod.Cell, optional_status: Dict[str, Any]
+) -> Optional[str]:
+    """Reason an optional-peered cell cannot run, or None when runnable."""
+    peer = cell.peer_under_test
+    if not peers_mod.is_optional(peer):
+        return None
+    if cell.role == "client":
+        return (
+            f"optional peer {peer} has no open-loop client driver; "
+            "client cells need native/tonic/go/cpp drivers"
+        )
+    entry = optional_status.get(peer)
+    if entry is None:
+        return f"optional peer {peer} was not preflighted"
+    if entry.get("status") != "ready":
+        return str(entry.get("reason") or f"optional peer {peer} is not runnable")
+    return None
+
+
 def preflight(
     registry, server_peers: List[str], client_peers: List[str]
-) -> Tuple[str, Dict[str, Any]]:
-    """Resolve every required peer binary; fail fast naming the missing one."""
+) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
+    """Resolve peer binaries; fail fast naming a missing *required* peer.
+
+    Returns (problem, resolved, optional_status). Optional peers are
+    always preflighted for the report but never fail the stage.
+    """
     resolved: Dict[str, Any] = {}
     missing: List[str] = []
+    optional_status: Dict[str, Any] = {}
     try:
         native = str(registry.resolve_native_binary(None))
         resolved["native"] = native
     except Exception as e:
-        return f"native rpc-bench binary unresolvable: {e}", resolved
+        for peer in peers_mod.OPTIONAL_PEER_IDS:
+            optional_status[peer] = peers_mod.preflight_peer(peer, registry.repo_root)
+        return f"native rpc-bench binary unresolvable: {e}", resolved, optional_status
     for peer in sorted(set(server_peers) | set(client_peers)):
         if peer in ("native", "tonic-pbrs"):
             resolved[peer] = native
@@ -564,11 +604,21 @@ def preflight(
                     "cpp (interop_server/client; set GRPC_INTEROP_CPP_SERVER/CLIENT "
                     "or build via scripts/grpc-interop-cpp.sh)"
                 )
+        elif peers_mod.is_optional(peer):
+            entry = peers_mod.preflight_peer(peer, registry.repo_root)
+            optional_status[peer] = entry
+            if entry["status"] == "ready":
+                resolved[peer] = entry["binary"]
         else:
             missing.append(peer)
+    # Every optional peer lands in the report (pinned + ready/not_run)
+    # whether or not the stage requested it.
+    for peer in peers_mod.OPTIONAL_PEER_IDS:
+        if peer not in optional_status:
+            optional_status[peer] = peers_mod.preflight_peer(peer, registry.repo_root)
     if missing:
-        return f"missing required peers: {'; '.join(missing)}", resolved
-    return "", resolved
+        return f"missing required peers: {'; '.join(missing)}", resolved, optional_status
+    return "", resolved, optional_status
 
 
 def run_stage(
@@ -578,6 +628,7 @@ def run_stage(
     server_peers: Optional[List[str]] = None,
     client_peers: Optional[List[str]] = None,
     verbose: bool = False,
+    include_optional: bool = False,
 ) -> Tuple[int, Dict[str, Any]]:
     """Run one stage; return (exit_code, report)."""
     params = STAGE_PARAMS[stage]
@@ -594,10 +645,12 @@ def run_stage(
         "params": params,
         "cpu_constraints": bench_matrix.collect_cpu_constraints(),
         "pinning": pin_mod.describe(1),
+        "fairness_spec": fairness_mod.SB01_SPEC,
     }
 
-    problem, resolved = preflight(registry, server_peers, client_peers)
+    problem, resolved, optional_status = preflight(registry, server_peers, client_peers)
     report["peers"] = resolved
+    report["optional_peers"] = optional_status
     if problem:
         report["matrix_complete"] = False
         report["fatal"] = problem
@@ -605,23 +658,58 @@ def run_stage(
         print(f"[STACK-MATRIX] {problem}")
         return 1, report
 
+    def fairness_for(cell: cells_mod.Cell, tls_active: bool) -> Dict[str, Any]:
+        return fairness_mod.for_cell(
+            cell.server_peer,
+            cell.client_peer,
+            tls_active,
+            is_optional=peers_mod.is_optional,
+        )
+
     runner = CellRunner(registry, resolved["native"], log_dir, params, verbose)
     tls_cache: Dict[str, Optional[peertls.ServerTlsSpec]] = {}
     cell_reports: List[Dict[str, Any]] = []
     failures = 0
     for cell in cells_mod.expand(
-        stage=stage, server_peers=server_peers, client_peers=client_peers
+        stage=stage,
+        server_peers=server_peers,
+        client_peers=client_peers,
+        include_optional=include_optional,
     ):
+        not_run = cell_not_run_reason(cell, optional_status)
+        if not_run:
+            cell_reports.append(
+                {
+                    **cells_mod.as_dict(cell),
+                    "status": "not_run",
+                    "reason": not_run,
+                    "fairness": fairness_for(cell, False),
+                }
+            )
+            print(f"[STACK-MATRIX] {cell.id}: not_run ({not_run[:120]})")
+            continue
         unsupported = cells_mod.validate(cell)
         if unsupported:
             cell_reports.append(
-                {**cells_mod.as_dict(cell), "status": "unsupported", "reason": unsupported}
+                {
+                    **cells_mod.as_dict(cell),
+                    "status": "unsupported",
+                    "reason": unsupported,
+                    "fairness": fairness_for(cell, False),
+                }
             )
             continue
         tls_spec = None
         if cell.tls:
             if cell.server_peer not in tls_cache:
-                tls_cache[cell.server_peer] = peertls.server_spec(cell.server_peer, repo_root)
+                if peers_mod.is_optional(cell.server_peer):
+                    tls_cache[cell.server_peer] = peers_mod.tls_spec(
+                        cell.server_peer, repo_root
+                    )
+                else:
+                    tls_cache[cell.server_peer] = peertls.server_spec(
+                        cell.server_peer, repo_root
+                    )
             tls_spec = tls_cache[cell.server_peer]
             if tls_spec is None:
                 cell_reports.append(
@@ -629,6 +717,7 @@ def run_stage(
                         **cells_mod.as_dict(cell),
                         "status": "unsupported",
                         "reason": f"TLS material unresolvable for {cell.server_peer}",
+                        "fairness": fairness_for(cell, False),
                     }
                 )
                 continue
@@ -637,12 +726,22 @@ def run_stage(
                 cell_report = runner.run_server_cell(cell, tls_spec)
             else:
                 cell_report = runner.run_client_cell(cell, tls_spec)
+        except peers_mod.PeerNotRunnable as e:
+            cell_report = {
+                **cells_mod.as_dict(cell),
+                "status": "not_run",
+                "reason": str(e),
+                "fairness": fairness_for(cell, False),
+            }
         except Exception as e:  # noqa: BLE001 - a dead cell must not kill the matrix
             cell_report = {
                 **cells_mod.as_dict(cell),
                 "status": "fail",
                 "reason": f"{type(e).__name__}: {e}"[-500:],
             }
+        cell_report.setdefault(
+            "fairness", fairness_for(cell, tls_spec is not None)
+        )
         if tls_spec is not None:
             cell_report["tls"] = peertls.spec_dict(tls_spec)
         if cell_report["status"] == "fail":
@@ -683,13 +782,33 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--server-peers", default=None)
     parser.add_argument("--client-peers", default=None)
     parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument(
+        "--include-optional",
+        action="store_true",
+        help="expand SB-18 optional peers into the matrix (not_run with reason when unrunnable)",
+    )
+    parser.add_argument(
+        "--verify-fairness",
+        default=None,
+        metavar="REPORT",
+        help="verify SB-01 fairness from a report's metadata and exit (no stage run)",
+    )
     args = parser.parse_args(argv)
+    if args.verify_fairness:
+        with open(args.verify_fairness, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+        ok, findings = fairness_mod.verify_report(loaded)
+        for item in findings:
+            print(f"[FAIRNESS:{item['severity']}] {item['check']}: {item['detail']}")
+        print(f"[FAIRNESS] {'PASS' if ok else 'FAIL'} ({len(findings)} findings)")
+        return 0 if ok else 1
     code, _ = run_stage(
         args.stage,
         Path(args.out_dir),
         server_peers=args.server_peers.split(",") if args.server_peers else None,
         client_peers=args.client_peers.split(",") if args.client_peers else None,
         verbose=args.verbose,
+        include_optional=args.include_optional,
     )
     return code
 

@@ -1,0 +1,74 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "grpc-dotnet",
+  "name": "grpc-dotnet (Kestrel)",
+  "description": "Official .NET reference gRPC implementation on Kestrel (Grpc.AspNetCore)",
+  "role": ["server"],
+  "optional": true,
+  "language": "csharp",
+  "runtime": ".NET 9 + Kestrel",
+  "codec": "protobuf-csharp",
+  "upstream_pin": {
+    "repository": "grpc/grpc-dotnet",
+    "artifact": "Grpc.AspNetCore",
+    "version": "2.84.0",
+    "tfm": "net9.0",
+    "resolved": "2026-09-29",
+    "notes": "NuGet latest stable at pin time; harness pins the exact package version and net9.0 TFM"
+  },
+  "server": {
+    "description": "SB-18 grpc-dotnet interop server (tests/interop/grpc-dotnet; followup, not yet in tree)",
+    "binary_name": "GrpcDotnetInterop.dll",
+    "candidates": [
+      "target/interop-dotnet/GrpcDotnetInterop.dll"
+    ],
+    "build_command": "cd tests/interop/grpc-dotnet && dotnet publish -c Release -p:GrpcAspNetCoreVersion=2.84.0 -o ../../../target/interop-dotnet",
+    "args_template": [
+      "dotnet",
+      "{binary}",
+      "--port={port}"
+    ],
+    "transport_contract": {
+      "tcp_nodelay": true,
+      "stream_window": 16777216,
+      "conn_window": 16777216,
+      "frame_size": 1048576,
+      "max_streams": 256,
+      "adaptive_window": false,
+      "header_list": 16384,
+      "mechanism": "KestrelServerOptions: Http2 InitialConnection/StreamWindowSize 16 MiB, MaxStreamsPerConnection 256, Socket NoDelay; see bench/stack-matrix/peers/__init__.py"
+    },
+    "readiness": {
+      "type": "socket_connect"
+    }
+  },
+  "client": {
+    "supported": false,
+    "reason": "No open-loop client driver for grpc-dotnet; optional client cells are not_run. Server cells use the native generator."
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "stream_window": 16777216,
+    "conn_window": 16777216,
+    "frame_size": 1048576,
+    "max_streams": 256,
+    "adaptive_window": false,
+    "header_list": 16384,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  },
+  "tls": {
+    "supported": true,
+    "plan": "Harness serves the in-tree PEM test PKI (--tls-cert/--tls-key) via X509Certificate2.CreateFromPemFile with a CipherSuitesPolicy pinning TLS_AES_128_GCM_SHA256; the native generator verifies with ca.crt and server name localhost.",
+    "server_args_template": ["--tls-cert={tls_cert}", "--tls-key={tls_key}"],
+    "default_server_name": "localhost"
+  }
+}

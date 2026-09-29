@@ -1,0 +1,72 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "google-grpc",
+  "name": "Google grpc crate (Rust)",
+  "description": "Official Rust implementation of gRPC (grpc crate); 0.9 preview has no usable server",
+  "role": ["server"],
+  "optional": true,
+  "language": "rust",
+  "runtime": "tokio + hyper (upstream preview)",
+  "codec": "protobuf",
+  "upstream_pin": {
+    "repository": "grpc/grpc-rust",
+    "artifact": "grpc",
+    "version": "0.9.0",
+    "resolved": "2026-09-29",
+    "notes": "crates.io max stable at pin time; server module is `pub(crate)` in 0.9.0, so the peer is upstream-incapable until a later release opens it"
+  },
+  "server": {
+    "description": "SB-18 google-grpc interop server (tests/interop/google-grpc; blocked on the upstream usability gate)",
+    "binary_name": "google-grpc-interop-server",
+    "candidates": [
+      "target/release/google-grpc-interop-server"
+    ],
+    "build_command": "cargo build --locked --release --manifest-path tests/interop/google-grpc/Cargo.toml --target-dir target",
+    "usability_gate": "Pinned grpc 0.9.0 declares `pub(crate) mod server` (verified from crate source 2026-09-29). Re-check on every version bump; the peer runs only where its server is usable.",
+    "args_template": [
+      "{binary}",
+      "server",
+      "--port={port}"
+    ],
+    "transport_contract": {
+      "tcp_nodelay": true,
+      "stream_window": 16777216,
+      "conn_window": 16777216,
+      "frame_size": 1048576,
+      "max_streams": 256,
+      "adaptive_window": false,
+      "header_list": 16384,
+      "mechanism": "to be set through the upstream server builder once usable; same SB-01 values, getsockopt-verified"
+    },
+    "readiness": {
+      "type": "socket_connect"
+    }
+  },
+  "client": {
+    "supported": false,
+    "reason": "No open-loop client driver for google-grpc; optional client cells are not_run. Server cells use the native generator."
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "stream_window": 16777216,
+    "conn_window": 16777216,
+    "frame_size": 1048576,
+    "max_streams": 256,
+    "adaptive_window": false,
+    "header_list": 16384,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  },
+  "tls": {
+    "supported": false,
+    "reason": "Server unusable in grpc 0.9.0, so no TLS path exists yet; the harness contract will serve the in-tree PEM test PKI once the upstream gate clears."
+  }
+}

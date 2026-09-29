@@ -16,6 +16,30 @@ from typing import Any, Dict, List, Optional
 REQUIRED_SERVER_PEERS = ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"]
 REQUIRED_CLIENT_PEERS = ["native", "tonic-pbrs", "go", "cpp"]
 
+# SB-18 optional peers: pinned and scripted in bench/stack-matrix/peers/
+# and rpc-bench/peers/<id>.json. One that cannot run reports not_run
+# with a reason and never blocks required peers. Must match
+# peers.OPTIONAL_PEER_IDS (run.py asserts this at import).
+OPTIONAL_SERVER_PEERS = [
+    "grpc-java",
+    "grpc-dotnet",
+    "volo-grpc",
+    "connect-rust",
+    "google-grpc",
+    "vertx",
+    "quarkus",
+]
+# No open-loop client driver exists for any optional transport yet, so
+# optional client cells are always not_run; server cells use the native
+# generator. Stays empty until a driver is scripted.
+OPTIONAL_CLIENT_PEERS: List[str] = []
+
+OPTIONAL_PEERS = frozenset(OPTIONAL_SERVER_PEERS + OPTIONAL_CLIENT_PEERS)
+
+
+def is_optional(peer: str) -> bool:
+    return peer in OPTIONAL_PEERS
+
 # payload -> (request_bytes, response_bytes); streaming cells reuse
 # response_bytes as the per-message size.
 PAYLOADS = {
@@ -112,6 +136,7 @@ def expand(
     stage: str,
     server_peers: Optional[List[str]] = None,
     client_peers: Optional[List[str]] = None,
+    include_optional: bool = False,
 ) -> List[Cell]:
     """Expand the matrix for a stage.
 
@@ -121,9 +146,18 @@ def expand(
       TLS path. Wiring proof, not numbers.
     primary: every required peer x payload x shape x TLS at 1 CPU, plus
       the 2/4-CPU core-scaling axis on unary/1kib/plaintext.
+    include_optional adds one cell per SB-18 optional peer over the same
+      shapes (default off; explicit peer lists already pass through).
     """
     server_peers = server_peers if server_peers is not None else REQUIRED_SERVER_PEERS
     client_peers = client_peers if client_peers is not None else REQUIRED_CLIENT_PEERS
+    if include_optional:
+        server_peers = list(server_peers) + [
+            p for p in OPTIONAL_SERVER_PEERS if p not in server_peers
+        ]
+        client_peers = list(client_peers) + [
+            p for p in OPTIONAL_CLIENT_PEERS if p not in client_peers
+        ]
     cells: List[Cell] = []
     if stage == "smoke":
         for peer in server_peers:
