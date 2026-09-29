@@ -3190,7 +3190,11 @@
     "F1"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/upb-kernel.md"
+   ],
+   "notes": "Closed 2026-09-29: draft landed; maintainer sign-off on the 6 open questions required before UK-03..UK-10 start."
   },
   {
    "id": "UK-03",
