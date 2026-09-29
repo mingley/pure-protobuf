@@ -1482,7 +1482,8 @@
       ],
       "evidence": [
         "Partial 2026-09-24: clean tracked main 141d604c on macOS arm64 with installed rustc 1.100.0-nightly (e7769602a 2026-08-24), MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-strict-provenance', CARGO_BUILD_JOBS=2 and reused isolated target/pb07-miri passed serial --offline --locked Miri pbrs lib 39/39, runtime integration 14/14 and original rust_out_shared 233/233 across 19 suites. Arena map/repeated adoption, lazy lifetime and zeroed-layout regressions are covered by these local checks, not a same-SHA scheduled CI artifact. Linux ASan/LSan, 32-bit and big-endian proof, plus the unapproved 24-CPU-hour-per-target sustained fuzz campaign remain open; PB-07 is not qualified."
-      ]
+      ],
+      "status": "in_progress"
     },
     {
       "id": "RT-01",
@@ -3229,7 +3230,8 @@
         "Distinguish transparent retries from application policy, cross-endpoint picks and ambiguous execution; arbitrary streaming replay stays unsupported.",
         "Provide exact invalid-config and side-effect test vectors for FL-07/08/09, with a reviewed public API and no exactly-once promise."
       ],
-      "checks": []
+      "checks": [],
+      "status": "in_progress"
     },
     {
       "id": "FL-07",
@@ -3399,7 +3401,8 @@
         "Set deadline/cancel/single-flight refresh and redaction rules; credential failure is explicit and tokens are never forwarded to unintended authorities.",
         "Map all six pinned auth cases to providers and real test prerequisites; local fakes are not official cloud-auth evidence."
       ],
-      "checks": []
+      "checks": [],
+      "status": "in_progress"
     },
     {
       "id": "EX-04",
@@ -3868,7 +3871,8 @@
       "checks": [],
       "evidence": [
         "Partial 2026-09-25 (spec-vs-runner provenance): Verified the pinned grpc/grpc d1487957 source describes cacheable_unary only in doc/interop-test-descriptions.md, while active run_interop_tests.py omits it. The registry now points procedure_source to the pinned description rather than the absent runner entry; a regression locks that distinction. The existing documented POST-only/not_applicable disposition is unchanged and no GET behavior was added. EX-20 stays pending coordinator review of the recorded exclusion and its maintainer approval evidence; this provenance correction alone does not close the gate."
-      ]
+      ],
+      "status": "in_progress"
     },
     {
       "id": "EX-21",
