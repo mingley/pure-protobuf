@@ -1,4 +1,4 @@
-//! Helpers for plugin-generated typed wrappers around [`DynamicMessage`].
+//! Helpers for plugin-generated typed wrappers around dynamic messages.
 #![allow(
     clippy::disallowed_types,
     clippy::unwrap_used,
