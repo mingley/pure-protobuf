@@ -7042,7 +7042,7 @@
    ],
    "relates": [],
    "notes": "Premise check 2026-09-28: new shapes/gzip/RTT/overload cells need cells.py/run.py/slo.py plus rpc-bench load flags; this card's write set (scenarios/ + stack-matrix.sh) cannot add cell types. Needs coordinator re-scope. 2026-09-29 RESOLVED: worker placed the new runner (extended_cells.py) inside scenarios/, within write scope — no re-scope needed. DONE (eb48de28): self-test 0 failures; all 4 scenario smokes verified (shapes/overload/RTT/gzip); overload reports goodput/rejections/recovery medians; RTT verified by measured ping probes; bidi-pipelined and gzip-on honestly unsupported (rpc-bench runner limits, frozen for future).",
-   "status": "done
+   "status": "done"
   },
   {
    "id": "SB-20",
