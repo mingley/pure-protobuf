@@ -15,7 +15,7 @@ futures-util = "0.3"
 http = "1"
 http-body = "1"
 pbrs = { path = "../../../" }
-pbrs-grpc = { path = "../../../pbrs-grpc" }
+pbrs-grpc = { path = "../../../pbrs-grpc", features = ["zstd"] }
 pin-project-lite = "0.2"
 prost = "0.14"
 protobuf-tonic = { path = "../../../protobuf-tonic" }
@@ -23,6 +23,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time",
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 tower-service = "0.3"
+zstd = { version = "0.14", default-features = false }
 
 [[bin]]
 name = "tonic-interop"

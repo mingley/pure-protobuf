@@ -1,13 +1,14 @@
 //! `zstd` coding (RFC 8878) for [`Codec`](super::Codec).
 //!
-//! Backed by `zstd-rs`, a pure-Rust `no_std` encoder/decoder with MSRV 1.85.
-//! The dependency is optional behind the `zstd` feature so default builds keep
-//! their dependency graph unchanged.
+//! Backed by `ruzstd`, a pure-Rust encoder/decoder with broad adoption. The
+//! dependency is optional behind the `zstd` feature so default builds keep
+//! their dependency graph unchanged. `ruzstd` declares MSRV 1.87, so this
+//! feature has a higher MSRV than pbrs-grpc's default 1.85 profile.
 
 use crate::limits::MessageLimits;
 use crate::status::Status;
-use std::io::Write;
-use zstd_rs::{CompressionConfig, Compressor, Decompressor, Error, MAX_LEVEL};
+use ruzstd::encoding::{CompressionLevel, compress_to_vec};
+use std::io::{Read, Write};
 
 /// Compress `payload` at the kernel default zstd level.
 pub(super) fn encode(payload: &[u8]) -> Result<Vec<u8>, Status> {
@@ -16,35 +17,20 @@ pub(super) fn encode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 
 /// Compress `payload` at a zstd level.
 ///
-/// The public compression-level knob is a `u32` shared with gzip/deflate; zstd
-/// level 0 is not valid, so 0 maps to level 1 and values above the backend's
-/// maximum are clamped.
+/// `ruzstd` 0.9 implements `CompressionLevel::Fastest` (roughly zstd level 1);
+/// its Default/Better/Best levels are still unimplemented. The shared public
+/// compression-level knob therefore maps every requested zstd level to Fastest.
 pub(super) fn encode_level(payload: &[u8], level: u32) -> Result<Vec<u8>, Status> {
-    let mut out = Vec::with_capacity(payload.len() / 2 + 32);
-    encode_vec(payload, level, &mut out)?;
-    Ok(out)
+    let _ = level;
+    Ok(compress_to_vec(payload, CompressionLevel::Fastest))
 }
 
 /// Compress `payload` at `level`, appending to `out`.
 pub(super) fn encode_into(payload: &[u8], level: u32, out: &mut impl Write) -> Result<(), Status> {
-    let mut encoded = Vec::with_capacity(payload.len() / 2 + 32);
-    encode_vec(payload, level, &mut encoded)?;
+    let encoded = encode_level(payload, level)?;
     out.write_all(&encoded)
         .map_err(|e| Status::internal(format!("zstd encode: {e}")))?;
     Ok(())
-}
-
-fn encode_vec(payload: &[u8], level: u32, out: &mut Vec<u8>) -> Result<(), Status> {
-    let level = i32::try_from(level)
-        .unwrap_or(MAX_LEVEL)
-        .clamp(1, MAX_LEVEL);
-    let cfg = CompressionConfig {
-        level,
-        ..CompressionConfig::FAST
-    };
-    Compressor::new(cfg)
-        .and_then(|mut compressor| compressor.compress(payload, None, out))
-        .map_err(|e| Status::internal(format!("zstd encode: {e}")))
 }
 
 /// Inflate `payload` with no cap.
@@ -57,13 +43,37 @@ pub(super) fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 /// Inflate `payload`, refusing to allocate past the inbound cap in `limits`.
 pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
     let budget = limits.inflate_budget();
+    let read_cap = budget.saturating_add(1);
     let mut out = Vec::new();
-    match Decompressor::new().decompress(payload, None, budget, &mut out) {
-        Ok(_) => Ok(out),
-        Err(Error::OutputLimit) => Err(Status::resource_exhausted(format!(
-            "decompressed message exceeds limit {budget}"
-        ))),
-        Err(e) => Err(Status::internal(format!("zstd decode: {e}"))),
+    let mut decoder = ruzstd::decoding::StreamingDecoder::new(payload)
+        .map_err(|e| Status::internal(format!("zstd decode: {e}")))?;
+    let mut buf = [0u8; 8192];
+    loop {
+        let remaining = read_cap.saturating_sub(out.len());
+        if remaining == 0 {
+            return Err(Status::resource_exhausted(format!(
+                "decompressed message exceeds limit {budget}"
+            )));
+        }
+        let want = remaining.min(buf.len());
+        let chunk = buf
+            .get_mut(..want)
+            .ok_or_else(|| Status::internal("zstd decode: short buffer"))?;
+        let n = decoder
+            .read(chunk)
+            .map_err(|e| Status::internal(format!("zstd decode: {e}")))?;
+        if n == 0 {
+            return Ok(out);
+        }
+        let decoded = buf
+            .get(..n)
+            .ok_or_else(|| Status::internal("zstd decode: short buffer"))?;
+        out.extend_from_slice(decoded);
+        if out.len() > budget {
+            return Err(Status::resource_exhausted(format!(
+                "decompressed message exceeds limit {budget}"
+            )));
+        }
     }
 }
 
@@ -118,16 +128,11 @@ mod tests {
     }
 
     #[test]
-    fn higher_level_compresses_zeros_tighter() {
+    fn all_levels_map_to_fastest() {
         let payload = vec![0u8; 64 * 1024];
         let fast = encode_level(&payload, 1).expect("fast");
         let best = encode_level(&payload, 9).expect("best");
-        assert!(
-            best.len() <= fast.len(),
-            "best={} fast={}",
-            best.len(),
-            fast.len()
-        );
+        assert_eq!(best, fast, "ruzstd 0.9 only implements Fastest");
         assert_eq!(decode(&best).expect("decode best"), payload);
     }
 }

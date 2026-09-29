@@ -20,20 +20,6 @@ mod zstd {
     use std::net::SocketAddr;
     use std::time::Duration;
 
-    #[test]
-    fn zstd_rs_interops_with_tonics_c_zstd_codec() {
-        let payload = b"tonic zstd interop payload".repeat(256);
-        let ours = Codec::Zstd.encode(&payload).expect("zstd-rs encode");
-        let decoded_by_c = zstd_c::stream::decode_all(ours.as_slice()).expect("zstd-c decode");
-        assert_eq!(decoded_by_c, payload);
-
-        let c = zstd_c::stream::encode_all(payload.as_slice(), 1).expect("zstd-c encode");
-        let decoded = Codec::Zstd
-            .decode_limited(&c, pbrs_grpc::MessageLimits::unlimited())
-            .expect("zstd-rs decode");
-        assert_eq!(decoded, payload);
-    }
-
     async fn client(addr: SocketAddr, config: ChannelConfig) -> GreeterClient {
         let mut last = Status::unavailable("connect");
         for _ in 0..80 {

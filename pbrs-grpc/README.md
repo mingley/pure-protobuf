@@ -36,6 +36,16 @@ unary method as a tower service so caller-selected layers such as timeout,
 concurrency limit, load shed, and tracing wrap the client without adding a
 buffer to the default `Channel` path. See `examples/axum-cohost`.
 
+Enable `zstd` only when you need `grpc-encoding: zstd`:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["zstd"] }
+```
+
+The default feature set keeps the crate MSRV at Rust 1.85. The `zstd` feature
+uses `ruzstd` 0.9 and therefore has MSRV 1.87; all requested compression levels
+map to `ruzstd`'s implemented `Fastest` mode (roughly zstd level 1).
+
 ## Installation
 
 Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:

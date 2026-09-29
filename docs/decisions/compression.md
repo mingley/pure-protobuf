@@ -110,35 +110,41 @@ Negotiation notes:
 ## zstd: optional pure-Rust feature (TC-20)
 
 Shipped as the opt-in `pbrs-grpc/zstd` feature. The default dependency graph
-is unchanged.
+is unchanged and still builds with Rust 1.85.
 
-The original RX-06 no-go remains true for `ruzstd`: `ruzstd` 0.9.0 still
-describes itself as a decoder, declares `rust-version = 1.87`, and is above
-the pbrs-grpc 1.85 MSRV. It is not a viable shipping dependency for this crate.
+TC-20 originally used `zstd-rs` 0.1.0, but coordinator review rejected it:
+the crate was first published on 2026-09-28, had no adoption, and had a single
+owner. That is too much supply-chain risk for a production library dependency,
+even optional. New dependencies now follow this provenance rule: do not add a
+crate younger than roughly 90 days, or with negligible downloads/adoption, or
+with a single unknown owner, unless the maintainer explicitly approves it.
 
-TC-20 found a newer pure-Rust alternative: `zstd-rs` 0.1.0. It is
-`#![forbid(unsafe_code)]`, `no_std + alloc`, dual MIT/Apache-2.0, declares
-`rust-version = 1.85`, and provides both `Compressor` and `Decompressor`.
-That makes it acceptable as an optional shipping dependency. The feature adds
-`Codec::Zstd`, advertises `identity,gzip,deflate,zstd`, parses
-`grpc-encoding: zstd`, and negotiates zstd through the same registry as gzip
-and deflate. A zstd-configured server still falls back to gzip or deflate when
-the peer does not advertise zstd.
+The shipped dependency is `ruzstd` 0.9.0 from KillingSpark/zstd-rs. It is pure
+Rust, established, and materially adopted. It declares `rust-version = 1.87`,
+so the `zstd` feature has a documented higher MSRV (1.87) than the default
+pbrs-grpc 1.85 profile. `ruzstd` 0.9 does provide an encoder:
+`ruzstd::encoding::compress_to_vec(source, CompressionLevel::Fastest)`.
+Only `Fastest` is implemented; `Default`, `Better`, and `Best` are explicitly
+unimplemented. Therefore every pbrs-grpc zstd compression-level request maps
+to Fastest, roughly zstd level 1. The feature adds `Codec::Zstd`, advertises
+`identity,gzip,deflate,zstd`, parses `grpc-encoding: zstd`, and negotiates
+zstd through the same registry as gzip and deflate. A zstd-configured server
+still falls back to gzip or deflate when the peer does not advertise zstd.
 
-Decompression stays bounded by the existing message limit: the zstd decoder is
-called with `MessageLimits::inflate_budget()`, and `OutputLimit` maps to
-`RESOURCE_EXHAUSTED` without inflating past the cap. The hostile-peer test
-`a_zstd_bomb_cannot_outgrow_the_cap` sends a compressed 64 MiB zero payload
-whose frame length is below the 256 KiB frame cap; the server rejects it at the
-uncompressed message limit.
+Decompression stays bounded by the existing message limit: the implementation
+uses `ruzstd::decoding::StreamingDecoder` and stops reading one byte past
+`MessageLimits::inflate_budget()`. Crossing the cap maps to
+`RESOURCE_EXHAUSTED`; it does not first inflate the whole message and then
+check its length. The hostile-peer test `a_zstd_bomb_cannot_outgrow_the_cap`
+sends a compressed 64 MiB zero payload whose frame length is below the 256 KiB
+frame cap; the server rejects it at the uncompressed message limit.
 
-Interop proof uses the C `zstd` crate only as a dev-dependency, matching
-tonic's zstd backend policy and keeping C out of the shipping graph:
-`tests/compression.rs` verifies `zstd-rs` frames decode with the C zstd crate
-and C zstd frames decode with `Codec::Zstd`. The same test also drives a real
-pbrs-grpc unary RPC with both request and response negotiated as zstd.
+The C `zstd` crate is not in `pbrs-grpc`'s dev-dependencies. C-backed zstd
+interop proof lives in the standalone `tests/interop/tonic` workspace, which
+already allows tonic/C-backed peer tooling. Its test verifies `Codec::Zstd`
+frames decode with the C zstd crate and C zstd frames decode with pbrs-grpc.
+`pbrs-grpc/tests/compression.rs` keeps the pure-Rust in-crate proof that a
+real unary RPC negotiates zstd in both directions.
 
 Remaining limits: there is still no official gRPC interop procedure for zstd,
-so this is a tonic-compatible proof rather than an upstream interop case. The
-public compression-level knob is shared with gzip/deflate (`u32`); zstd level
-0 maps to level 1 and high values clamp to the backend maximum.
+so this is a tonic-compatible proof rather than an upstream interop case.

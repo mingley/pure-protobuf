@@ -1211,6 +1211,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pbrs_grpc::{Codec, MessageLimits};
+
+    #[test]
+    fn zstd_codec_interops_with_c_zstd_peer() {
+        let payload = b"tonic zstd interop payload".repeat(256);
+        let ours = Codec::Zstd.encode(&payload).expect("pbrs zstd encode");
+        let decoded_by_c = zstd::stream::decode_all(ours.as_slice()).expect("C zstd decode");
+        assert_eq!(decoded_by_c, payload);
+
+        let c = zstd::stream::encode_all(payload.as_slice(), 1).expect("C zstd encode");
+        let decoded = Codec::Zstd
+            .decode_limited(&c, MessageLimits::unlimited())
+            .expect("pbrs zstd decode");
+        assert_eq!(decoded, payload);
+    }
+}
 /// Wire-independent prost mode: server, client and case procedures over
 /// prost 0.14 messages (vendored below) instead of the pbrs adapter.
 pub mod prost_mode {
@@ -1243,6 +1262,7 @@ pub mod prost_mode {
             #[prost(bool, tag = "1")]
             pub value: bool,
         }
+
         #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
         pub struct Payload {
             #[prost(enumeration = "PayloadType", tag = "1")]
