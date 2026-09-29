@@ -5438,7 +5438,11 @@
     "C4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/tc10-adapter.md"
+   ],
+   "notes": "Closed 2026-09-29: code halves landed via 97eaf5ce (PK-09 decoder) and 83c6f6bf (direct EncodeBuf encode); adapter tests 36/36. SB-13 tonic rows identified as tonic+pbrs cells; prost-arm comparison split to TC-24."
   },
   {
    "id": "SB-17",
@@ -8299,6 +8303,45 @@
     "TC-08"
    ],
    "status": "in_progress"
+  },
+  {
+   "id": "TC-24",
+   "title": "Add a tonic+prost large-payload comparison arm",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "TC-10"
+   ],
+   "read": [
+    "rpc-bench/src/main.rs",
+    "rpc-bench/build.rs",
+    "docs/evidence/large-payload-baseline/rpc.json"
+   ],
+   "write": [
+    "rpc-bench/build.rs",
+    "rpc-bench/Cargo.toml",
+    "rpc-bench/Cargo.lock",
+    "rpc-bench/src/main.rs",
+    "docs/evidence/tonic-prost-arm.md"
+   ],
+   "deliverable": "Add a prost-codec arm to rpc-bench --transport=tonic (prost gencode + tonic stubs alongside the pbrs tonic_gen) and record large-payload tonic+pbrs vs tonic+prost Bytes cells against the SB-13 tonic+pbrs baseline.",
+   "accept": [
+    "Tonic+pbrs and tonic+prost large-payload cells run from the same harness with matched settings; result recorded win-or-loss with no threshold gaming."
+   ],
+   "checks": [
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "A14",
+    "C4"
+   ],
+   "relates": [
+    "TC-10"
+   ],
+   "notes": "Split from TC-10 2026-09-29: SB-13 never measured tonic+prost (its tonic rows are tonic+pbrs). Keep the prost arm bench-only; shipping profiles stay prost-free per QG-04."
   }
  ]
 }
