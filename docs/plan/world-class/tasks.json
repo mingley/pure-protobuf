@@ -7730,7 +7730,11 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/grpc_web.rs",
+    "tests/interop/tonic/"
+   ]
   },
   {
    "id": "TC-12",
@@ -7763,7 +7767,10 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/grpc_web.rs"
+   ]
   },
   {
    "id": "TC-13",
@@ -7985,7 +7992,10 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/connect_info.rs"
+   ]
   },
   {
    "id": "TC-19",
