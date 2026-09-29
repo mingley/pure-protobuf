@@ -2162,11 +2162,11 @@
     "A5"
    ],
    "relates": [],
-   "status": "in_progress",
+   "status": "done",
    "evidence": [
     "docs/evidence/codec-profiles.md"
    ],
-   "notes": "2026-09-29 coordinator re-scope: portable SWAR excluded after disproof; arch-specific paths only, shared with the table engine. Runs after PK-22 (src/wire.rs hotspot) \u2014 PK-22 landed."
+   "notes": "2026-09-29 coordinator re-scope: portable SWAR excluded after disproof; arch-specific paths only, shared with the table engine. Runs after PK-22 (src/wire.rs hotspot) \u2014 PK-22 landed. 2026-09-29 DONE (cf579c68): 1016843009 differential inputs, no divergence (coordinator re-ran, exact count match); packed_256 owned -33.8% / parse_touch -58.1% (unpacked identical); tags_32 exactly neutral (no contiguous varint runs in tag path; neutral accepted); tiny cells all <1% (all slightly better); Miri strict-provenance 3/3, SSE2 compiles for x86_64-linux, scalar fallback byte-identical to verified test ref; 32-bit/BE execution stays with target-matrix CI (local cross-std download blocked)."
   },
   {
    "id": "PK-05",
