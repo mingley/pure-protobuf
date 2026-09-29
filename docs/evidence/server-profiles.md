@@ -18,6 +18,9 @@ Baseline artifacts:
 
 - `target/sv-server/devloop-sv01-base.json`: exact allocation/copy counts for
   `rpc.pbrs.{unary,server_stream,unary_compressed,server_stream_compressed}`.
+- `target/sv-server/devloop-sv02-trailers.json` and
+  `target/sv-server/devloop-sv02-no-observer-label.json`: after each adopted
+  allocation fix.
 - `target/sv-server/rpc-bench/*.json`: separate-process native server cells,
   plaintext/TLS, 1 and 4 server shards, unary and server-streaming.
 - `target/profile/rpc.pbrs.unary-20260928T234240Z/`: macOS `sample` profile.
@@ -74,7 +77,7 @@ sanity checks only.
 | 1 | Compression allocations | Compressed server-stream cell is ~937 allocs/op and ~25 MB allocated/op. | Compression-cell wins need RX/SV streaming-specific compression work, not the immediate unary fast path. |
 | 2 | Redundant per-RPC server state | `incoming_rpc` allocated a default `ByteBudgetTracker`, then `Single`/`Router` overwrote it before the handler. | SV-02 can remove one allocation per RPC by stamping the dispatcher's real tracker during `Rpc` construction. |
 | 3 | Empty OK trailer detail block | Successful responses allocated `Status` detail storage just to attach an empty `Metadata` trailer map before encoding OK trailers. | SV-02/SV-05 can skip allocating status detail unless OK trailers are nonempty. |
-| 4 | Per-RPC path/authority/scheme ownership | `run_unary_request` and `run_streaming_request` still allocate owned path/authority/scheme strings for interceptor-visible `Request` context. | SV-02 follow-up: requires changing request/context ownership outside this slice; not done here to preserve public behavior and scope. |
+| 4 | Per-RPC response label path clone | Response finalization cloned the already-owned path even when no lifecycle observer was installed. | SV-02 follow-up adopted: clone the path only when observer labels will use it. Request-context path/authority/scheme ownership remains unchanged. |
 | 5 | Per-RPC spawn | `serve_io` still spawns one task per accepted RPC before routing. | SV-03 should not inline dispatch on the connection task without a fairness budget; see `docs/decisions/server-dispatch.md`. |
 | 6 | Router boxing/string map lookup | `Router` still boxes heterogeneous services and hashes full service paths. | SV-04 static routing remains deferred by ownership rules; no router changes here. |
 | 7 | h2 internals / scheduler waits | macOS sample mostly shows waits and HTTP/2 IO (`writev`, `recvfrom`, `kevent`). | H2-01/H2 lane owns deeper transport-engine attribution. |
@@ -83,7 +86,7 @@ sanity checks only.
 
 | card | hypothesis |
 |---|---|
-| SV-02 | Remove the throwaway `ByteBudgetTracker` and empty OK-trailer status detail allocation; expect exact allocation count to fall on unary and uncompressed streaming cells with unchanged interceptor-visible context/metadata. |
+| SV-02 | Remove the throwaway `ByteBudgetTracker`, empty OK-trailer status detail allocation, and no-observer response-label path clone; exact allocation count should fall on unary and uncompressed streaming cells with unchanged interceptor-visible context/metadata. |
 | SV-03 | Do not adopt inline connection-task dispatch yet: per-RPC spawn is real cost, but safe removal needs a cooperative budget and slow-handler fairness proof. Decision recorded separately. |
 | SV-04 | Static generated routing likely reduces router boxing/string hashing, but it is deferred and outside this worker's write scope. |
 | SV-05 | Immediate error paths already use trailers-only responses; the measurable local trailer win is skipping empty OK trailer detail allocation. More HPACK/static-header work belongs to the H2/static-routing lane. |

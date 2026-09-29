@@ -626,9 +626,12 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            let path_clone = path.clone();
-            let call_labels =
-                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
+            let path_for_labels = observer.as_ref().and_then(|_| path.clone());
+            let call_labels = CallLabels::new(
+                path_for_labels.as_deref().unwrap_or(""),
+                None,
+                CallRole::Server,
+            );
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -734,9 +737,12 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            let path_clone = path.clone();
-            let call_labels =
-                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
+            let path_for_labels = observer.as_ref().and_then(|_| path.clone());
+            let call_labels = CallLabels::new(
+                path_for_labels.as_deref().unwrap_or(""),
+                None,
+                CallRole::Server,
+            );
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -849,9 +855,12 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            let path_clone = path.clone();
-            let call_labels =
-                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
+            let path_for_labels = observer.as_ref().and_then(|_| path.clone());
+            let call_labels = CallLabels::new(
+                path_for_labels.as_deref().unwrap_or(""),
+                None,
+                CallRole::Server,
+            );
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -965,9 +974,12 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            let path_clone = path.clone();
-            let call_labels =
-                CallLabels::new(path_clone.as_deref().unwrap_or(""), None, CallRole::Server);
+            let path_for_labels = observer.as_ref().and_then(|_| path.clone());
+            let call_labels = CallLabels::new(
+                path_for_labels.as_deref().unwrap_or(""),
+                None,
+                CallRole::Server,
+            );
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
