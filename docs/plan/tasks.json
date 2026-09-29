@@ -4085,6 +4085,29 @@
         "Release preference 2026-09-25: The maintainer prefers small, cohesive and compatible versions rather than a large catch-up release. Keep the next coordinated all-three-new-versions requirement, choose modest per-crate increments and claim only the qualified scope; later per-crate releases may skip unchanged versions only when adapter requirements pass the publisher preflight and indexed versions are actually compatible. Public crates.io metadata still showed pbrs 0.1.0, protobuf-tonic 0.1.0-alpha.1 and pbrs-grpc 0.1.0-alpha.1 (all indexed 2026-09-05). No new version/tag/publisher action was authorized before the release gates; QL-05 remains pending.",
         "Open naming decision 2026-09-25 (owner: maintainer): pbrs-tonic appears unindexed, and its name would more clearly identify the tonic adapter with pbrs, but crates.io cannot rename the published protobuf-tonic alpha in place. A replacement requires consumer migration, release-workflow changes and an explicit revision of the previous all-three-named-versions condition; retaining both would add a fourth crate contrary to the preference for small releases. No package was renamed or reserved. Recheck availability and decide the migration/scope policy before changing manifests or tagging."
       ]
+    },
+    {
+      "id": "CG-21",
+      "title": "Fix DescriptorPool nested-enum linkage on skeleton clones",
+      "depends_on": [
+        "GN-03"
+      ],
+      "read": [
+        "src/dynamic.rs"
+      ],
+      "write": [
+        "src/dynamic.rs",
+        "tests/dynamic.rs"
+      ],
+      "deliverable": "Fix DescriptorPool linking pre-resolution skeleton clones that drop nested-enum linkage on field.message descs (PK-21 root-cause finding); remove the text parse_enum pool-fallback workaround if it becomes dead.",
+      "accept": [
+        "Nested-enum linkage survives pool linking for text and JSON paths; dynamic differential fixtures unchanged."
+      ],
+      "checks": [
+        "descriptors",
+        "json-text"
+      ],
+      "notes": "Split from PK-21 2026-09-29: workaround shipped in text path; JSON likely shares the bug. Runs after GN-03 (src/dynamic.rs owner)."
     }
   ]
 }

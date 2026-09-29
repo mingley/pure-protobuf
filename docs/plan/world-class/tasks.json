@@ -7187,7 +7187,13 @@
     "A11"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "src/text.rs: TextReader streaming readers/writers",
+    "text conformance 909/909, 0 unexpected",
+    "byte-identical encode, allocs -11..-79% (probe)"
+   ],
+   "notes": "Closed 2026-09-29: streaming landed with compat shim; OTLP nested-enum round-trip fixed via pool fallback. Remainders: dev-loop text cells (PK-24), DescriptorPool nested-enum linkage bug (CG-21), dynamic-fallback dispatch in codegen/json.rs (json owner)."
   },
   {
    "id": "GN-06b",
@@ -8462,6 +8468,41 @@
     "SB-08"
    ],
    "notes": "Split from PK-17 2026-09-29: size claim currently rests on a scratch bench; guard cells only prove no regression."
+  },
+  {
+   "id": "PK-24",
+   "title": "Add text encode/decode cells to the dev-loop harness",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P2",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "SB-08",
+    "PK-21"
+   ],
+   "read": [
+    "bench/devloop/cells/"
+   ],
+   "write": [
+    "bench/devloop/cells/",
+    "docs/evidence/pk24-text-cells.md"
+   ],
+   "deliverable": "Add text encode/decode dev-loop cells over OTLP and TAT corpora so PK-21-class wins and regressions are CI-legible. Runs after SB-08 (cells/ owner).",
+   "accept": [
+    "Text cells run in the harness with exact alloc counts; PK-21 numbers reproduced on re-run."
+   ],
+   "checks": [
+    "devloop-compare"
+   ],
+   "scoreboard": [
+    "A11"
+   ],
+   "relates": [
+    "PK-21",
+    "SB-08"
+   ],
+   "notes": "Split from PK-21 2026-09-29: cell claim currently rests on a /tmp probe with exact allocs."
   }
  ]
 }
