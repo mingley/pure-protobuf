@@ -73,7 +73,7 @@ is the accept+handshake-processing rate, not SYN acceptance.
 
 `pass` | `invalid` (OS ceiling or server-side saturation: preflight
 budget, errno, `<99%` established, `>1%` streams reset) |
-`unsupported` (tonic TLS, unresolvable TLS material) | `not_run`
+`unsupported` (unresolvable TLS material) | `not_run`
 (optional peer unrunnable) | `fail` (peer died, RSS unreadable,
 handshake errors without an OS cause). Missing *required* peer binaries
 fail the run before any cell, matching SB-11.
@@ -151,7 +151,9 @@ RPC shapes for native and both tonic codecs. Gzip requires gzip response
 metadata on every call; a peer silently returning identity fails validation.
 `transport_smoke.py` covers all nine plaintext directions and native TLS,
 and captures plaintext gRPC message compression flags in both directions.
-Pipelined bidi, tonic TLS, and configured official-peer gzip responses remain
+Both tonic codecs support TLS with the existing pure-Rust Graviola provider,
+explicit CA/name verification and the TLS 1.3 AES-128-GCM suite.
+Pipelined bidi and configured official-peer gzip responses remain
 unsupported and block any claim covering those cells.
 
 ## Accept evidence

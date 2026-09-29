@@ -8,7 +8,7 @@
     "server": "rpc-bench load-server --transport=tonic --codec=prost --compression=identity|gzip",
     "client": "rpc-bench load --transport=tonic --codec=prost --compression=identity|gzip",
     "transport_settings": "fair_tonic_server/endpoint and NodelayIncoming; configured values do not certify runtime equality",
-    "tls": false,
+    "tls": true,
     "claim_qualified": false
   },
   "role": ["server"],
@@ -70,6 +70,6 @@
   },
   "tls": {
     "supported": false,
-    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-prost are unsupported with this reason, never silently plaintext."
+    "reason": "Legacy tonic-interop adapter has no TLS route. stack-matrix load-server/load supports verified TLS with the pure-Rust Graviola provider; see stack_matrix."
   }
 }

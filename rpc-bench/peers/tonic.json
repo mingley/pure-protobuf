@@ -114,6 +114,6 @@
   },
   "tls": {
     "supported": false,
-    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-pbrs/tonic-prost are unsupported with this reason, never silently plaintext."
+    "reason": "Legacy adapter is plaintext-only; stack-matrix supports TLS on explicit tonic-pbrs/tonic-prost load peers using the existing pure-Rust Graviola provider."
   }
 }

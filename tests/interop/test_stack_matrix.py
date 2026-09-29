@@ -80,10 +80,10 @@ class CellValidationTest(unittest.TestCase):
     def test_tonic_prost_client_supported(self):
         self.assertIsNone(cells.validate(self.mk(role="client", client_peer="tonic-prost")))
 
-    def test_tonic_tls_rejected(self):
-        self.assertIsNotNone(cells.validate(self.mk(tls=True, server_peer="tonic-pbrs")))
-        self.assertIsNotNone(cells.validate(self.mk(tls=True, server_peer="tonic-prost")))
-        self.assertIsNotNone(
+    def test_tonic_tls_supported(self):
+        self.assertIsNone(cells.validate(self.mk(tls=True, server_peer="tonic-pbrs")))
+        self.assertIsNone(cells.validate(self.mk(tls=True, server_peer="tonic-prost")))
+        self.assertIsNone(
             cells.validate(self.mk(role="client", tls=True, client_peer="tonic-pbrs"))
         )
 
@@ -251,7 +251,7 @@ class PeerTlsTest(unittest.TestCase):
         self.assertTrue(any(a.startswith("--tls-cert=") for a in spec.server_args))
 
     def test_unknown_peer_unresolvable(self):
-        self.assertIsNone(peertls.server_spec("tonic-pbrs", REPO_ROOT))
+        self.assertIsNotNone(peertls.server_spec("tonic-pbrs", REPO_ROOT))
         self.assertIsNone(peertls.server_spec("nope", REPO_ROOT))
 
     def test_go_spec_when_module_cache_present(self):

@@ -1,6 +1,14 @@
 {
   "$schema": "./peer.schema.json",
   "id": "tonic-pbrs",
+  "stack_matrix": {
+    "tls": true,
+    "provider": "rustls-graviola 0.2.1, existing pure-Rust provider; ring/aws-lc disabled",
+    "server": "rpc-bench load-server --transport=tonic --codec=pbrs --tls-cert=PATH --tls-key=PATH",
+    "client": "rpc-bench load --transport=tonic --codec=pbrs --tls-ca=PATH --tls-server-name=NAME",
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "claim_qualified": false
+  },
   "name": "tonic-pbrs",
   "description": "Same-codec transport reference: tonic 0.14 transport with the pbrs codec (rpc-bench --transport=tonic); isolates transport deltas from serialization",
   "role": ["client", "server"],
@@ -88,6 +96,6 @@
   },
   "tls": {
     "supported": false,
-    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-pbrs are unsupported with this reason, never silently plaintext."
+    "reason": "Legacy server/client adapter is plaintext-only. stack-matrix load-server/load supports verified tonic TLS via Graviola; see stack_matrix."
   }
 }

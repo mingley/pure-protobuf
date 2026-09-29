@@ -65,14 +65,14 @@ def _go_testdata(repo_root: Path) -> Optional[Path]:
 
 def server_spec(peer: str, repo_root: Path) -> Optional[ServerTlsSpec]:
     """Resolve the TLS server spec for `peer`, or None when unresolvable."""
-    if peer == "native":
+    if peer in ("native", "tonic-pbrs", "tonic-prost", "tonic"):
         cert = repo_root / "pbrs-grpc" / "tests" / "tls_data" / "server.crt"
         key = repo_root / "pbrs-grpc" / "tests" / "tls_data" / "server.key"
         ca = repo_root / "pbrs-grpc" / "tests" / "tls_data" / "ca.crt"
         if not (cert.is_file() and key.is_file() and ca.is_file()):
             return None
         return ServerTlsSpec(
-            peer="native",
+            peer=peer,
             server_args=[f"--tls-cert={cert}", f"--tls-key={key}"],
             ca_file=str(ca),
             server_name="localhost",

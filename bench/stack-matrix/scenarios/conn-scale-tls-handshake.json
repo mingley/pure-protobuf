@@ -19,7 +19,7 @@
     "handshakes_per_rep": 48,
     "workers": 4
   },
-  "unsupported": "tonic-pbrs/tonic-prost are unsupported on TLS (rpc-bench tonic transport is plaintext-only per the pure-Rust policy); their cells report unsupported with reason, matching SB-11.",
+  "tls_implementation": "Native and both tonic codecs use rpc-bench load-server and the existing pure-Rust Graviola provider. Tonic pins TLS_AES_128_GCM_SHA256; every opener verifies peer CA/name.",
   "claim_host_requirements": "Linux, server pinned to 1 CPU (the per-core figure is rate/1; multi-core scaling stays a follow-up), ephemeral ports >> handshakes_per_rep (connect-side TIME_WAIT churn); the report embeds the live values.",
   "os_limit_policy": "port/fd exhaustion during churn marks the cell invalid, never fail; only fail exits nonzero.",
   "run": [

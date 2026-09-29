@@ -1,8 +1,8 @@
 """Real separate-process shape/compression wiring; deliberately no performance claims.
 
 Usage: python3 bench/stack-matrix/transport_smoke.py --binary PATH --out-dir DIR
-Runs all native/tonic-pbrs/tonic-prost directions in plaintext and native TLS.
-Required official-peer and tonic-TLS gaps remain explicit in the report.
+Runs all native/tonic-pbrs/tonic-prost directions in plaintext and verified TLS.
+Required official-peer gaps remain explicit in the report.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import subprocess
 import socket
+import ssl
 import sys
 import threading
 import time
@@ -94,8 +95,8 @@ def main(argv=None):
     peers = ["native", "tonic-pbrs", "tonic-prost"]
     results = []
     for server in peers:
-        for tls in (False, True) if server == "native" else (False,):
-            tls_spec = peertls.server_spec("native", run.REPO_ROOT) if tls else None
+        for tls in (False, True):
+            tls_spec = peertls.server_spec(server, run.REPO_ROOT) if tls else None
             for compression in ("identity", "gzip"):
                 port = run.bench_matrix.find_free_port()
                 cmd = [binary, "load-server", f"--port={port}", "--timeout-secs=120",
@@ -105,18 +106,54 @@ def main(argv=None):
                 if tls_spec:
                     cmd.extend(tls_spec.server_args)
                 tag = f"{server}-{'tls' if tls else 'plain'}-{compression}"
-                with (args.out_dir / f"{tag}.server.log").open("w") as log:
+                server_log = args.out_dir / f"{tag}.server.log"
+                with server_log.open("w") as log:
                     proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
                     capture = None
+                    tls_probe = None
                     try:
                         run.bench_matrix.wait_for_server_readiness(proc, host="127.0.0.1", port=port, timeout_secs=15)
                         if not tls:
                             capture = FrameCapture(port)
-                        for client in ["native"] if tls else peers:
+                        elif ssl.HAS_TLSv1_3:
+                            context = ssl.create_default_context(cafile=tls_spec.ca_file)
+                            # The repository's test CA omits KeyUsage. Python 3.13+
+                            # enables an extra X.509 strictness policy by default;
+                            # keep chain and hostname verification, using the same
+                            # test-root validation policy as earlier Python releases.
+                            context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+                            context.minimum_version = ssl.TLSVersion.TLSv1_3
+                            context.maximum_version = ssl.TLSVersion.TLSv1_3
+                            context.set_alpn_protocols(["h2"])
+                            probe_log_start = server_log.stat().st_size
+                            with socket.create_connection(("127.0.0.1", port), timeout=5) as raw:
+                                with context.wrap_socket(raw, server_hostname=tls_spec.server_name) as secure:
+                                    tls_probe = {"version": secure.version(), "cipher": secure.cipher()[0],
+                                                 "alpn": secure.selected_alpn_protocol(),
+                                                 "supported": True,
+                                                 "source": "independent verified Python TLS probe, not load-session telemetry"}
+                                    tls_probe["matches_contract"] = (
+                                        tls_probe["version"] == "TLSv1.3"
+                                        and tls_probe["cipher"] == "TLS_AES_128_GCM_SHA256"
+                                        and tls_probe["alpn"] == "h2")
+                                    if server != "native" and not tls_probe["matches_contract"]:
+                                        raise RuntimeError(f"tonic TLS provider does not match its cipher contract: {tls_probe}")
+                            # Settle the independent probe's server observation before
+                            # taking offsets for actual load sessions.
+                            if server == "native":
+                                deadline = time.monotonic() + 2.0
+                                while "TLS_SERVER " not in server_log.read_text()[probe_log_start:]:
+                                    if time.monotonic() >= deadline:
+                                        raise RuntimeError("native TLS probe observation was not emitted")
+                                    time.sleep(0.005)
+                        else:
+                            tls_probe = {"supported": False, "reason": "Python SSL lacks TLS 1.3; Rust endpoints still verify TLS"}
+                        for client in peers:
                             for shape in cells.SHAPES:
                                 cell = cells.Cell("client", server, client, shape, "1kib", tls, 1, compression)
                                 path = args.out_dir / f"{tag}-{client}-{shape}.json"
                                 counts = {key: len(value) for key, value in capture.flags.items()} if capture else {}
+                                server_log_start = server_log.stat().st_size
                                 cmd = run.load_command(binary, client, f"127.0.0.1:{capture.port if capture else port}", cell,
                                                        50.0, 0.15, 210021, path, tls_spec)
                                 cmd = [arg for arg in cmd if not arg.startswith("--stream-msgs=")]
@@ -128,6 +165,26 @@ def main(argv=None):
                                            and metrics.get("offered_rpcs") == metrics.get("successful_rpcs"))
                                 result = {**cells.as_dict(cell), "server_peer": server,
                                           "status": "pass" if success else "fail", "metrics_file": path.name}
+                                if tls_probe:
+                                    result["server_tls_probe"] = tls_probe
+                                    observations = {}
+                                    sources = {"client": completed.stderr,
+                                               "server": server_log.read_text()[server_log_start:]}
+                                    for role, source in sources.items():
+                                        prefix = f"TLS_{role.upper()} "
+                                        observations[role] = [json.loads(line[len(prefix):]) for line in source.splitlines()
+                                                              if line.startswith(prefix)]
+                                    result["load_tls_handshakes"] = observations
+                                    seen = observations["client"] + observations["server"]
+                                    result["observed_load_tls_matches_contract"] = (
+                                        all(item["version"] == "TLSv1.3" and item["alpn"] == "h2"
+                                            and item["cipher"] == "TLS13_AES_128_GCM_SHA256" for item in seen)
+                                        if seen else None)
+                                    if client == "native" and len(observations["client"]) != 1:
+                                        success = False
+                                    if server == "native" and len(observations["server"]) != 1:
+                                        success = False
+                                    result["status"] = "pass" if success else "fail"
                                 if capture:
                                     calls = metrics.get("successful_rpcs", 0)
                                     expected_counts = {
@@ -162,7 +219,7 @@ def main(argv=None):
                             proc.wait()
     report = {"schema": "sb24-transport-smoke/1", "claim_eligible": False,
               "qualification": "diagnostic-loopback", "binary": binary, "cells": results,
-              "required_gaps": ["tonic TLS: provider-based implementation pending", "grpc-go/grpc-c++ equivalent open-loop clients",
+              "required_gaps": ["grpc-go/grpc-c++ equivalent open-loop clients",
                                 "official peer response compression and runtime effective-settings export",
                                 "dedicated-host CPU windows and headroom qualification"]}
     (args.out_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")

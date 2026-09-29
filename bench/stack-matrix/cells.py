@@ -64,10 +64,8 @@ FIXED_SERVER = "native"
 # Both tonic codecs use rpc-bench load; the prost arm was added by TC-24.
 NO_GENERATOR: set[str] = set()
 
-# rpc-bench has no TLS for the tonic transport (tonic 0.14 TLS pulls a C
-# crypto provider, conflicting with the pure-Rust dependency policy), so
-# any TLS cell touching tonic-pbrs/tonic-prost is unsupported with reason.
-NO_TLS_TRANSPORTS = {"tonic", "tonic-pbrs", "tonic-prost"}
+# load-server/load install the existing pure-Rust provider for tonic TLS.
+NO_TLS_TRANSPORTS: set[str] = set()
 
 # Reference soak clients drive fixed closed-loop interop loops, not the
 # open-loop `load` workload; their cells are labeled, never SLO-rated.

@@ -486,13 +486,6 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
                 .to_string(),
         );
     }
-    if tls_ca.is_some() && transport == Some(LoadTransport::Tonic) {
-        return Err(
-            "tonic transport has no TLS support in rpc-bench: tonic 0.14 TLS pulls a C crypto provider, \
-             conflicting with the pure-Rust dependency policy; use --transport=native for TLS cells"
-                .to_string(),
-        );
-    }
     if benchmark_service && transport == Some(LoadTransport::Tonic) {
         return Err(
             "tonic transport cannot drive --benchmark-service (no tonic BenchmarkService client); \
@@ -655,7 +648,8 @@ async fn load_native_channel(
             let ca_pem = std::fs::read(ca_path)
                 .map_err(|e| format!("failed to read --tls-ca '{ca_path}': {e}"))?;
             let tls = pbrs_grpc::ClientTls::ca(name, &ca_pem)
-                .map_err(|e| format!("invalid TLS config: {e}"))?;
+                .map_err(|e| format!("invalid TLS config: {e}"))?
+                .with_handshake_observer(|info| report_load_tls("CLIENT", info));
             pbrs_grpc::Channel::connect_tls_with(addr, config, tls)
                 .await
                 .map_err(|e| format!("TLS connect to {addr} as {name}: {e}"))?
@@ -668,6 +662,15 @@ async fn load_native_channel(
         Some(n) => channel.max_decoding_message_size(n),
         None => channel,
     })
+}
+
+fn report_load_tls(role: &str, info: &pbrs_grpc::TlsHandshakeInfo) {
+    eprintln!(
+        "TLS_{role} {}",
+        serde_json::json!({
+            "version": info.version, "cipher": info.cipher_suite, "alpn": info.alpn,
+        })
+    );
 }
 
 fn unary_request(req_bytes: usize, resp_bytes: usize) -> pbrs_grpc::SimpleRequest {
@@ -1156,7 +1159,7 @@ pub async fn serve_prost_tonic(
     listener: TcpListener,
     max_message_size: Option<usize>,
 ) -> Result<(), String> {
-    serve_load_tonic(listener, max_message_size, LoadCodec::Prost, false).await
+    serve_load_tonic(listener, max_message_size, LoadCodec::Prost, false, None).await
 }
 
 async fn serve_load_tonic(
@@ -1164,8 +1167,16 @@ async fn serve_load_tonic(
     max_message_size: Option<usize>,
     codec: LoadCodec,
     gzip: bool,
+    tls: Option<tonic::transport::ServerTlsConfig>,
 ) -> Result<(), String> {
     let incoming = process::NodelayIncoming::new(listener).0;
+    let mut builder = process::fair_tonic_server();
+    if let Some(tls) = tls {
+        install_tonic_crypto()?;
+        builder = builder
+            .tls_config(tls)
+            .map_err(|e| format!("tonic server TLS: {e}"))?;
+    }
     if codec == LoadCodec::Pbrs {
         let service = tonic_gen::TestServiceServer::new(process::TonicInterop)
             .max_decoding_message_size(max_message_size.unwrap_or(4 * 1024 * 1024));
@@ -1176,7 +1187,7 @@ async fn serve_load_tonic(
         } else {
             service
         };
-        return process::fair_tonic_server()
+        return builder
             .add_service(service)
             .serve_with_incoming(incoming)
             .await
@@ -1194,11 +1205,80 @@ async fn serve_load_tonic(
     } else {
         service
     };
-    process::fair_tonic_server()
+    builder
         .add_service(service)
         .serve_with_incoming(incoming)
         .await
         .map_err(|e| format!("prost tonic server error: {e}"))
+}
+
+/// Tonic's public TLS feature accepts an installed provider; ring/aws-lc stay disabled.
+/// Restrict the benchmark provider to the contract's TLS 1.3 AES-128-GCM suite.
+fn install_tonic_crypto() -> Result<(), String> {
+    let suite = rustls::CipherSuite::TLS13_AES_128_GCM_SHA256;
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let mut provider = rustls_graviola::default_provider();
+        provider
+            .cipher_suites
+            .retain(|candidate| candidate.suite() == suite);
+        if provider.cipher_suites.len() != 1 {
+            return Err("Graviola lacks the required TLS_AES_128_GCM_SHA256 suite".into());
+        }
+        // Another thread may install the identical provider concurrently.
+        let _ = provider.install_default();
+    }
+    let provider = rustls::crypto::CryptoProvider::get_default()
+        .ok_or("no tonic TLS crypto provider installed")?;
+    if provider.cipher_suites.len() != 1 || provider.cipher_suites[0].suite() != suite {
+        return Err(
+            "existing process TLS provider differs from the benchmark cipher contract".into(),
+        );
+    }
+    Ok(())
+}
+
+async fn load_tonic_channel(
+    addr: SocketAddr,
+    connections: usize,
+    tls_ca: Option<&str>,
+    tls_name: Option<&str>,
+) -> Result<tonic::transport::Channel, String> {
+    let tls = match (tls_ca, tls_name) {
+        (Some(path), Some(name)) => {
+            install_tonic_crypto()?;
+            let ca = std::fs::read(path).map_err(|e| format!("read --tls-ca: {e}"))?;
+            Some(
+                tonic::transport::ClientTlsConfig::new()
+                    .ca_certificate(tonic::transport::Certificate::from_pem(ca))
+                    .domain_name(name),
+            )
+        }
+        (None, None) => None,
+        _ => return Err("TLS requires both CA and server name".into()),
+    };
+    let scheme = if tls.is_some() { "https" } else { "http" };
+    let mut endpoints = Vec::with_capacity(connections);
+    for _ in 0..connections {
+        let mut endpoint = process::fair_tonic_endpoint(format!("{scheme}://{addr}"))?;
+        if let Some(config) = &tls {
+            endpoint = endpoint
+                .tls_config(config.clone())
+                .map_err(|e| format!("tonic client TLS: {e}"))?;
+        }
+        endpoints.push(endpoint);
+    }
+    if connections <= 1 {
+        endpoints
+            .pop()
+            .ok_or("at least one connection required")?
+            .connect()
+            .await
+            .map_err(|e| format!("tonic connect to {addr}: {e}"))
+    } else {
+        Ok(tonic::transport::Channel::balance_list(
+            endpoints.into_iter(),
+        ))
+    }
 }
 
 fn tonic_compression(
@@ -1237,14 +1317,25 @@ async fn run_load_server(args: &[String], opts: LoadCliArgs) -> Result<(), Strin
         return Err("TLS server needs --tls-cert and --tls-key".into());
     }
     let transport = opts.transport.unwrap_or(LoadTransport::Native);
-    if cert.is_some() && transport == LoadTransport::Tonic {
-        return Err("tonic TLS is unavailable under the current crypto dependency policy".into());
-    }
+    let mut tonic_tls = None;
     let native_tls = if let (Some(cert), Some(key)) = (cert, key) {
         let cert = std::fs::read(cert).map_err(|e| e.to_string())?;
         let key = std::fs::read(key).map_err(|e| e.to_string())?;
         let identity = pbrs_grpc::Identity::from_pem(&cert, &key).map_err(|e| e.to_string())?;
-        Some(pbrs_grpc::ServerTls::new(identity).map_err(|e| e.to_string())?)
+        if transport == LoadTransport::Tonic {
+            install_tonic_crypto()?;
+            tonic_tls = Some(
+                tonic::transport::ServerTlsConfig::new()
+                    .identity(tonic::transport::Identity::from_pem(&cert, &key)),
+            );
+            None
+        } else {
+            Some(
+                pbrs_grpc::ServerTls::new(identity)
+                    .map_err(|e| e.to_string())?
+                    .with_handshake_observer(|info| report_load_tls("SERVER", info)),
+            )
+        }
     } else {
         None
     };
@@ -1288,6 +1379,7 @@ async fn run_load_server(args: &[String], opts: LoadCliArgs) -> Result<(), Strin
                 opts.max_message_size,
                 opts.codec.unwrap_or(LoadCodec::Pbrs),
                 opts.gzip,
+                tonic_tls,
             )
             .await
         }
@@ -1315,18 +1407,12 @@ async fn run_load_tonic(
     max_message_size: Option<usize>,
     connections: usize,
     gzip: bool,
+    tls_ca: Option<&str>,
+    tls_name: Option<&str>,
 ) -> Result<load::LoadRecord, String> {
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
-    let channel = if connections <= 1 {
-        process::tonic_channel(addr).await?
-    } else {
-        let mut endpoints = Vec::with_capacity(connections);
-        for _ in 0..connections {
-            endpoints.push(process::fair_tonic_endpoint(format!("http://{addr}"))?);
-        }
-        tonic::transport::Channel::balance_list(endpoints.into_iter())
-    };
+    let channel = load_tonic_channel(addr, connections, tls_ca, tls_name).await?;
     match shape {
         LoadShape::Unary => {
             let client = tonic_compression(tonic_load_client(channel, max_message_size), gzip);
@@ -1515,18 +1601,12 @@ async fn run_load_prost(
     max_message_size: Option<usize>,
     connections: usize,
     gzip: bool,
+    tls_ca: Option<&str>,
+    tls_name: Option<&str>,
 ) -> Result<load::LoadRecord, String> {
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
-    let channel = if connections <= 1 {
-        process::tonic_channel(addr).await?
-    } else {
-        let mut endpoints = Vec::with_capacity(connections);
-        for _ in 0..connections {
-            endpoints.push(process::fair_tonic_endpoint(format!("http://{addr}"))?);
-        }
-        tonic::transport::Channel::balance_list(endpoints.into_iter())
-    };
+    let channel = load_tonic_channel(addr, connections, tls_ca, tls_name).await?;
     match shape {
         LoadShape::Unary => {
             let client = prost_compression(prost_load_client(channel, max_message_size), gzip);
@@ -1839,9 +1919,15 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 .map_err(|e| format!("failed to get local addr: {e}"))?;
             let max_message_size = opts.max_message_size;
             tokio::spawn(async move {
-                serve_load_tonic(listener, max_message_size, LoadCodec::Prost, opts.gzip)
-                    .await
-                    .ok();
+                serve_load_tonic(
+                    listener,
+                    max_message_size,
+                    LoadCodec::Prost,
+                    opts.gzip,
+                    None,
+                )
+                .await
+                .ok();
             });
             tokio::time::sleep(Duration::from_millis(50)).await;
             bound
@@ -1913,6 +1999,8 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                     opts.max_message_size,
                     connections,
                     opts.gzip,
+                    opts.tls_ca.as_deref(),
+                    opts.tls_server_name.as_deref(),
                 )
                 .await?
             }
@@ -1927,6 +2015,8 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                     opts.max_message_size,
                     connections,
                     opts.gzip,
+                    opts.tls_ca.as_deref(),
+                    opts.tls_server_name.as_deref(),
                 )
                 .await?
             }
@@ -2701,14 +2791,14 @@ mod tests {
         // TLS needs both halves.
         assert!(parse_load_cli_args(&load_args(&["--tls-ca=/tmp/ca.pem"])).is_err());
         assert!(parse_load_cli_args(&load_args(&["--tls-server-name=localhost"])).is_err());
-        // TLS + tonic is explicitly unsupported.
+        // Tonic load TLS uses the installed Graviola provider and explicit roots.
         assert!(
             parse_load_cli_args(&load_args(&[
                 "--transport=tonic",
                 "--tls-ca=/tmp/ca.pem",
                 "--tls-server-name=localhost",
             ]))
-            .is_err()
+            .is_ok()
         );
         // BenchmarkService is native unary only.
         assert!(
@@ -2762,6 +2852,74 @@ mod tests {
                 .gzip
         );
         assert!(parse_load_cli_args(&load_args(&["--compression=deflate"])).is_err());
+    }
+
+    #[tokio::test]
+    async fn load_tls_verifies_ca_and_name_across_native_and_tonic() {
+        let data =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../pbrs-grpc/tests/tls_data");
+        let cert = std::fs::read(data.join("server.crt")).unwrap();
+        let key = std::fs::read(data.join("server.key")).unwrap();
+        let ca = data.join("ca.crt");
+        let other_ca = data.join("other.crt");
+        for (transport, codec) in [
+            (LoadTransport::Native, LoadCodec::Pbrs),
+            (LoadTransport::Tonic, LoadCodec::Pbrs),
+            (LoadTransport::Tonic, LoadCodec::Prost),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            let cert = cert.clone();
+            let key = key.clone();
+            let server = tokio::spawn(async move {
+                match transport {
+                    LoadTransport::Native => {
+                        let identity = pbrs_grpc::Identity::from_pem(&cert, &key).unwrap();
+                        let tls = pbrs_grpc::ServerTls::new(identity).unwrap();
+                        create_dual_server(None)
+                            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                            .await
+                            .map_err(|e| e.to_string())
+                    }
+                    LoadTransport::Tonic => {
+                        let config = tonic::transport::ServerTlsConfig::new()
+                            .identity(tonic::transport::Identity::from_pem(cert, key));
+                        serve_load_tonic(listener, None, codec, false, Some(config)).await
+                    }
+                }
+            });
+            for (trust, name, expected) in [
+                (&ca, "wrong.invalid", false),
+                (&other_ca, "localhost", false),
+                (&ca, "localhost", true),
+            ] {
+                assert_eq!(
+                    load_tonic_channel(addr, 1, trust.to_str(), Some(name))
+                        .await
+                        .is_ok(),
+                    expected,
+                    "tonic client -> {transport}/{codec}: {name}, trust={trust:?}"
+                );
+                assert_eq!(
+                    load_native_channel(
+                        addr,
+                        trust.to_str(),
+                        Some(name),
+                        None,
+                        1,
+                        NativeWindowMode::Default,
+                        DEFAULT_SMALL_WINDOW_SIZE,
+                        false
+                    )
+                    .await
+                    .is_ok(),
+                    expected,
+                    "native client -> {transport}/{codec}: {name}, trust={trust:?}"
+                );
+            }
+            server.abort();
+            let _ = server.await;
+        }
     }
 
     #[tokio::test]
