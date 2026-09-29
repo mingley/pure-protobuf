@@ -8565,8 +8565,12 @@
     "SB-04",
     "SB-20"
    ],
-   "notes": "Split from SB-20 premise check 2026-09-29: runs 36488933446/36456626203 fail in devloop.sh cargo build --offline (no matching protobuf package). Gates SB-20 re-dispatch.",
-   "status": "in_progress"
+   "notes": "Closed 2026-09-29: no CI dispatch permitted, so CI-side green is inferred; first dispatched run must be watched (cold protoc build + 2x release in 30 min). Re-enables SB-20 after >=30 artifact runs.",
+   "status": "done",
+   "evidence": [
+    "scripts/devloop.sh + perf.yml: non-fatal lane, pinned protoc",
+    "local lane run: exit 0, 88 cells, devloop/1"
+   ]
   },
   {
    "id": "GF-11",
