@@ -85,16 +85,18 @@ builds it by hand, prost and protobuf v4 parse the same wire bytes
 
 - `codec.{pbrs,prost,v4}.{fresh_encode,cached_encode,owned_decode,parse_touch}`
 - `rpc.{pbrs,tonic}.{unary,server_stream}` — closed-loop loopback
-  (concurrency 1) over 127.0.0.1, 1 KiB payloads, 4 replies per
-  server-stream RPC.
+  (concurrency 1) over 127.0.0.1, approximately 1 KiB requests and four
+  replies per server-stream RPC. Reply sizes differ between stacks below.
 - Additional codec rows cover small-message losses, packed/repeated fields,
   and large-byte ownership/copy costs.
 - RPC rows include native compression and explicit prost-codec variants.
 - `lb.*.pick` rows measure steady-state load-balancer picker cost.
 
 The original pbrs/tonic RPC rows use different generated services and codecs
-(pbrs hello versus prost echo), so their cross-stack delta does not isolate
-transport. SB-01 repaired the separate `rpc-bench` comparator; that does not
+(pbrs hello versus prost echo). Native streaming splits its request into four
+roughly 256-byte replies; tonic sends four 1,024-byte replies. Their cross-stack
+delta therefore compares different work and cannot establish transport parity
+or a win. SB-01 repaired the separate `rpc-bench` comparator; that does not
 automatically qualify these dev-loop cells. Prefer within-stack before/after
 comparisons and inspect the cell's codec and settings before interpreting it.
 

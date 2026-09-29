@@ -1,0 +1,2036 @@
+{
+  "schema": "rx09-callgrind/1",
+  "measurement_class": "dev_loop_diagnostic",
+  "instruction_method": "differential_callgrind_2n_minus_n",
+  "iterations": 200,
+  "differential_iterations": 400,
+  "prepare_iterations": 400,
+  "repeats": 3,
+  "wall_time_claim": false,
+  "production_attribution_claim": false,
+  "equal_work_cross_stack_comparison": false,
+  "syscalls": {
+    "status": "not_run",
+    "reason": "strace absent from image"
+  },
+  "endpoint_cpu_and_retained_bytes": {
+    "status": "not_run",
+    "reason": "shared-runtime dev-loop counters only"
+  },
+  "baseline": {
+    "source_sha": "6cbf19e9cea350c146e7eb748fff900a794f571a",
+    "provenance": "source_sha=6cbf19e9cea350c146e7eb748fff900a794f571a\nstarted_utc=2026-09-29T19:06:21Z\nLinux f7631ed8b99d 7.0.14-linuxkit #1 SMP PREEMPT Fri Sep 18 10:19:32 UTC 2026 aarch64 GNU/Linux\nrustc 1.98.1 (48a229cea 2026-09-01)\ncargo 1.98.1 (797e8a9bc 2026-08-05)\nvalgrind-3.19.0\nlibprotoc 35.1\nonline_processors=14\nTOKIO_WORKER_THREADS=unset\nb8bc88d5c9fce05e06c523da983495c5d1f04b2cf2e36c0235afa1817e8f29b1  /build/release/devloop\n37b3fc2cb927e173032a2ece349091db23e0a002459e6d52cb1137d22c0ba9b9  /cargo/pinned-protoc-build/protoc\nb9aba6579e0a22cb1f2c9478879cc95ad505ec20c16de91d60700b59ef3526a6  /work/bench/devloop/Cargo.lock\n084c4c0d9992aac108f4f645fb6f1701cb66fa7a0ef6e89bda5492599644ff66  /work/bench/devloop/src/main.rs\nfinished_utc=2026-09-29T19:09:21Z\n",
+    "provenance_sha256": "d40eb8f6894dbef08a499dc3f2e8c691b823ef2eb7294dc36773bc5ca293be5a",
+    "cells": {
+      "rpc.pbrs.unary": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 137946.39,
+            "min": 137391.01,
+            "max": 137992.445,
+            "samples": [
+              137391.01,
+              137946.39,
+              137992.445
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 38.01,
+            "min": 38.01,
+            "max": 38.01,
+            "samples": [
+              38.01,
+              38.01,
+              38.01
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 54578.68,
+            "min": 54578.68,
+            "max": 54578.68,
+            "samples": [
+              54578.68,
+              54578.68,
+              54578.68
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 10915736,
+                "wall_ns": 174836417,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 28542376,
+              "stderr": "raw/rpc.pbrs.unary.repeat1.n200.stderr",
+              "stderr_sha256": "31321a4cd3d54e066548302b9278d49dee095caa14a00fb239603a0276a7f142",
+              "stdout": "raw/rpc.pbrs.unary.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat1.n200.out",
+              "callgrind_sha256": "8b1d4bd1f6558854d2bbc5b01abccb4e2550821d67436f306a7f09750278706b"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15202,
+                "alloc_bytes": 21827336,
+                "wall_ns": 346614750,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 56020578,
+              "stderr": "raw/rpc.pbrs.unary.repeat1.n400.stderr",
+              "stderr_sha256": "f2149170979705d910da918f28c9c7136afda5ea0906b951fa4b8b44f0fb1f53",
+              "stdout": "raw/rpc.pbrs.unary.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat1.n400.out",
+              "callgrind_sha256": "5b46af6ee2c18418bdccb6b61415178c260004ae5ed7fa43125099a756344c3b"
+            },
+            "instructions_per_rpc": 137391.01,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 54578.68
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 10915736,
+                "wall_ns": 175712917,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 28555378,
+              "stderr": "raw/rpc.pbrs.unary.repeat2.n200.stderr",
+              "stderr_sha256": "3a86c2aa628fc9250827582cf5302af37a6970940e03ed6acd904fb993181071",
+              "stdout": "raw/rpc.pbrs.unary.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat2.n200.out",
+              "callgrind_sha256": "78eb006ec40c4905a1106bf83e0d73e170c75dbcb32f0c262f37241fdf91d342"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15202,
+                "alloc_bytes": 21827336,
+                "wall_ns": 347978417,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 56144656,
+              "stderr": "raw/rpc.pbrs.unary.repeat2.n400.stderr",
+              "stderr_sha256": "91b1513b41e6c3aa835a0e1d096857286f24bcdc84544c52478e757bc6989a97",
+              "stdout": "raw/rpc.pbrs.unary.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat2.n400.out",
+              "callgrind_sha256": "522e833979717cb4b432adc3ef1627b11248e4a893f2c5b45b708c4aecd9ac3f"
+            },
+            "instructions_per_rpc": 137946.39,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 54578.68
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 10915736,
+                "wall_ns": 171008459,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 28530551,
+              "stderr": "raw/rpc.pbrs.unary.repeat3.n200.stderr",
+              "stderr_sha256": "56a49791839f96afd90b3a58725c1d6e7c7893bc1a7cdbb8809abee16af82623",
+              "stdout": "raw/rpc.pbrs.unary.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat3.n200.out",
+              "callgrind_sha256": "172a7a008f404a29b1b623d9ed2abefe991f3200030f7328a4bb03177bc58bc1"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15202,
+                "alloc_bytes": 21827336,
+                "wall_ns": 340758458,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 56129040,
+              "stderr": "raw/rpc.pbrs.unary.repeat3.n400.stderr",
+              "stderr_sha256": "48141b2c1812213ce4d019664723adf2fd69ddf40300e0c70f992d567098edd7",
+              "stdout": "raw/rpc.pbrs.unary.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat3.n400.out",
+              "callgrind_sha256": "91a1257f5cefd83796fd4c7d244b0adb8e3501d44eb3a026a25d666e446f5296"
+            },
+            "instructions_per_rpc": 137992.445,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 54578.68
+          }
+        ]
+      },
+      "rpc.tonic.unary": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 134900.945,
+            "min": 132284.735,
+            "max": 135411.645,
+            "samples": [
+              135411.645,
+              132284.735,
+              134900.945
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 71.44,
+            "min": 71.42,
+            "max": 71.44,
+            "samples": [
+              71.44,
+              71.44,
+              71.42
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 49175.16,
+            "min": 49174.63,
+            "max": 49175.16,
+            "samples": [
+              49175.16,
+              49175.16,
+              49174.63
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14288,
+                "alloc_bytes": 9835032,
+                "wall_ns": 9289331171,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27619651,
+              "stderr": "raw/rpc.tonic.unary.repeat1.n200.stderr",
+              "stderr_sha256": "9f287192e10457a0cf565fda53348517d759814c344dec96f132ae167fcf9016",
+              "stdout": "raw/rpc.tonic.unary.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat1.n200.out",
+              "callgrind_sha256": "6d1f943acd8655a5b355d85523c334fc56a2a35aa22b9146cc765c4a9f7d177d"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28568,
+                "alloc_bytes": 19656558,
+                "wall_ns": 18686466050,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 54701980,
+              "stderr": "raw/rpc.tonic.unary.repeat1.n400.stderr",
+              "stderr_sha256": "e68116daee7e430a71dcd9d50e19ba4d4e4a52ee775db7cdc0d17e50abe937ba",
+              "stdout": "raw/rpc.tonic.unary.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat1.n400.out",
+              "callgrind_sha256": "961ba460f12b277c65602414997c8d6aff5993658ee0071eb41ca8858d7bf83f"
+            },
+            "instructions_per_rpc": 135411.645,
+            "allocations_per_rpc": 71.44,
+            "allocated_bytes_per_rpc": 49175.16
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14288,
+                "alloc_bytes": 9835032,
+                "wall_ns": 9214285379,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27827697,
+              "stderr": "raw/rpc.tonic.unary.repeat2.n200.stderr",
+              "stderr_sha256": "c866eb8135e2782a607e14a820ef1b5e092ae0bdaa050b7c40388a6a3d2ca019",
+              "stdout": "raw/rpc.tonic.unary.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat2.n200.out",
+              "callgrind_sha256": "49a2302056fbf9fceb801ffecaafc44e07f343cbebf60526d8b293ab43a10779"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28560,
+                "alloc_bytes": 19656346,
+                "wall_ns": 18485221384,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 54284644,
+              "stderr": "raw/rpc.tonic.unary.repeat2.n400.stderr",
+              "stderr_sha256": "358b5090389b9e7239b6209520b947d8cd738e6a875532210ac42ff845f630bd",
+              "stdout": "raw/rpc.tonic.unary.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat2.n400.out",
+              "callgrind_sha256": "69db5dc2221efcbd9a134a3ff45df67e221e408aa14422d5db97f98f4353f55b"
+            },
+            "instructions_per_rpc": 132284.735,
+            "allocations_per_rpc": 71.44,
+            "allocated_bytes_per_rpc": 49175.16
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14284,
+                "alloc_bytes": 9834926,
+                "wall_ns": 9190123587,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27624489,
+              "stderr": "raw/rpc.tonic.unary.repeat3.n200.stderr",
+              "stderr_sha256": "3b3480fadd2ae802b1e5dd1fb5a9cde43e0af8d0c8eccb7ec44c52c23cb2c630",
+              "stdout": "raw/rpc.tonic.unary.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat3.n200.out",
+              "callgrind_sha256": "64d0c5b46a9519eda2228931d5e65324e29e8baa23953bfd0d1ba83b5a76d7f7"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28566,
+                "alloc_bytes": 19656505,
+                "wall_ns": 18498328134,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 54604678,
+              "stderr": "raw/rpc.tonic.unary.repeat3.n400.stderr",
+              "stderr_sha256": "a71851f99e7de23ee21ebbd3a15e705e9708367a29553482c316e92e00773f36",
+              "stdout": "raw/rpc.tonic.unary.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat3.n400.out",
+              "callgrind_sha256": "860ff4b74ada897c7b418a231238556c9eb68648dd4684f5b700e1a471cce998"
+            },
+            "instructions_per_rpc": 134900.945,
+            "allocations_per_rpc": 71.42,
+            "allocated_bytes_per_rpc": 49174.63
+          }
+        ]
+      },
+      "rpc.pbrs.server_stream": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 170150.875,
+            "min": 169421.145,
+            "max": 172785.83,
+            "samples": [
+              169421.145,
+              172785.83,
+              170150.875
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 53.025,
+            "min": 53.025,
+            "max": 53.025,
+            "samples": [
+              53.025,
+              53.025,
+              53.025
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 65269.64,
+            "min": 65269.64,
+            "max": 65269.64,
+            "samples": [
+              65269.64,
+              65269.64,
+              65269.64
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10605,
+                "alloc_bytes": 13053928,
+                "wall_ns": 214960375,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 34676267,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat1.n200.stderr",
+              "stderr_sha256": "7d5fe9d4f5cb5369b80a600447d3fcfbea1793f691e6c6d79d428f13f87eb864",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat1.n200.out",
+              "callgrind_sha256": "9f0928bce2603f413158bc5c70e4ddaf1b95ceaabf03eaae2285f6b1a38b1ef7"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 26103528,
+                "wall_ns": 475676709,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 68560496,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat1.n400.stderr",
+              "stderr_sha256": "773fd822f16bc9f88ecf0bc644b72ebb9d8a691c250b715ccfa7e29fe4f5e78a",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat1.n400.out",
+              "callgrind_sha256": "1e302f06752b74d62250efea4b0487f1cc87abc191b12b36aa0d7167a9db3421"
+            },
+            "instructions_per_rpc": 169421.145,
+            "allocations_per_rpc": 53.025,
+            "allocated_bytes_per_rpc": 65269.64
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10605,
+                "alloc_bytes": 13053928,
+                "wall_ns": 236635917,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 34885449,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat2.n200.stderr",
+              "stderr_sha256": "cd357c7757cf8154cd918bc99346e094b4a48b298d14739ed656afcc405dbf06",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat2.n200.out",
+              "callgrind_sha256": "1c5ba0283a96be71289e915240b3dae589dbe2a71542002faf2b3ea75c16fea6"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 26103528,
+                "wall_ns": 503283500,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 69442615,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat2.n400.stderr",
+              "stderr_sha256": "061fd385b86ccc942721c45e46148c024c5d5e8065ab5f039b641a34503bb33e",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat2.n400.out",
+              "callgrind_sha256": "44204d9ebd13076e279da9dbd253217edbef9634fde2fab09b2d4c726d89e3c8"
+            },
+            "instructions_per_rpc": 172785.83,
+            "allocations_per_rpc": 53.025,
+            "allocated_bytes_per_rpc": 65269.64
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10605,
+                "alloc_bytes": 13053928,
+                "wall_ns": 239564500,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 34716490,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat3.n200.stderr",
+              "stderr_sha256": "f17e46d51b923c30c498a2bcf5099091e90b4abedba41b56f7fe0eacea13052f",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat3.n200.out",
+              "callgrind_sha256": "320df507a818ce500b0822e9e25090886d05c8e56c9fb3da4768a608ab368789"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 26103528,
+                "wall_ns": 563291958,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 68746665,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat3.n400.stderr",
+              "stderr_sha256": "084a355c42a7ccf059780f3559750dd6b28bcb763f4562d28c837de11efc7bbb",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat3.n400.out",
+              "callgrind_sha256": "2f8494662eed96998c4932e19adacb4325db56d1500bbbbb627faec18fcfc63d"
+            },
+            "instructions_per_rpc": 170150.875,
+            "allocations_per_rpc": 53.025,
+            "allocated_bytes_per_rpc": 65269.64
+          }
+        ]
+      },
+      "rpc.tonic.server_stream": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 152074.98,
+            "min": 151902.5,
+            "max": 153248.015,
+            "samples": [
+              153248.015,
+              151902.5,
+              152074.98
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 81.43,
+            "min": 81.43,
+            "max": 81.46,
+            "samples": [
+              81.46,
+              81.43,
+              81.43
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 58058.31,
+            "min": 58058.31,
+            "max": 58059.105,
+            "samples": [
+              58059.105,
+              58058.31,
+              58058.31
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16292,
+                "alloc_bytes": 11611821,
+                "wall_ns": 9184814213,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31806017,
+              "stderr": "raw/rpc.tonic.server_stream.repeat1.n200.stderr",
+              "stderr_sha256": "8a6192ee3ef90a180840dd609c2ee08589c0bf4b735e034941b53c6e8a64c399",
+              "stdout": "raw/rpc.tonic.server_stream.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat1.n200.out",
+              "callgrind_sha256": "383a562819cb2830a7e9e6aba5cedb53b72ac4add545acaf621862243da2c386"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32562,
+                "alloc_bytes": 23201599,
+                "wall_ns": 18284730884,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 62455620,
+              "stderr": "raw/rpc.tonic.server_stream.repeat1.n400.stderr",
+              "stderr_sha256": "b568dd2f01f9dcb94b0a129d116bba7d03440c1fa2c73fd1791f06d35b4d287a",
+              "stdout": "raw/rpc.tonic.server_stream.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat1.n400.out",
+              "callgrind_sha256": "615826b5ba518c7d3a32011511c6567bb3fa4e62e13e3820aa0db6fa095bb12b"
+            },
+            "instructions_per_rpc": 153248.015,
+            "allocations_per_rpc": 81.46,
+            "allocated_bytes_per_rpc": 58059.105
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16286,
+                "alloc_bytes": 11611662,
+                "wall_ns": 9323364254,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31463618,
+              "stderr": "raw/rpc.tonic.server_stream.repeat2.n200.stderr",
+              "stderr_sha256": "cbd103873250e64d6e10b95056a02b08e19af3b79c377814cf94b95bd9fefa9b",
+              "stdout": "raw/rpc.tonic.server_stream.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat2.n200.out",
+              "callgrind_sha256": "a5378e2fe5cee32b96c23b894556bcc7e3b6a1b35cb6fedee1ea3cbe9a42d333"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32576,
+                "alloc_bytes": 23201970,
+                "wall_ns": 18862325301,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 61844118,
+              "stderr": "raw/rpc.tonic.server_stream.repeat2.n400.stderr",
+              "stderr_sha256": "eed3eb354747716a63779d6fd05ab38e3c7fa78474ce1d246d192a80d459f0d0",
+              "stdout": "raw/rpc.tonic.server_stream.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat2.n400.out",
+              "callgrind_sha256": "b0d751ddb61d561079bcf18ef3b26a4359b611e74985c33560d8b86b53285e88"
+            },
+            "instructions_per_rpc": 151902.5,
+            "allocations_per_rpc": 81.43,
+            "allocated_bytes_per_rpc": 58058.31
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16286,
+                "alloc_bytes": 11611662,
+                "wall_ns": 9272592046,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31689520,
+              "stderr": "raw/rpc.tonic.server_stream.repeat3.n200.stderr",
+              "stderr_sha256": "459e428cf1842d766e7288be61f20c96e95d8cb780843af281c0e331720a6921",
+              "stdout": "raw/rpc.tonic.server_stream.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat3.n200.out",
+              "callgrind_sha256": "ae7795a4d462ec99254056dddee726df6b3d17d48f438ee739bcf3992d1c1576"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32564,
+                "alloc_bytes": 23201652,
+                "wall_ns": 18799624509,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 62104516,
+              "stderr": "raw/rpc.tonic.server_stream.repeat3.n400.stderr",
+              "stderr_sha256": "22eb7782c9bcfdb76059ddaa69fd169d1ff0c82f3d31c3310a14e533b10a6d4a",
+              "stdout": "raw/rpc.tonic.server_stream.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat3.n400.out",
+              "callgrind_sha256": "d6df2ce7990c8fd8cab8973e771cbe8633efdba0ee5be0f6ac092dd9430d4f19"
+            },
+            "instructions_per_rpc": 152074.98,
+            "allocations_per_rpc": 81.43,
+            "allocated_bytes_per_rpc": 58058.31
+          }
+        ]
+      }
+    }
+  },
+  "current": {
+    "source_sha": "9a04f82b87d932954437cdb1446d673e7aee3899",
+    "provenance": "source_sha=9a04f82b87d932954437cdb1446d673e7aee3899\nstarted_utc=2026-09-29T19:12:14Z\nLinux b9fe89fa1e06 7.0.14-linuxkit #1 SMP PREEMPT Fri Sep 18 10:19:32 UTC 2026 aarch64 GNU/Linux\nrustc 1.98.1 (48a229cea 2026-09-01)\ncargo 1.98.1 (797e8a9bc 2026-08-05)\nvalgrind-3.19.0\nlibprotoc 35.1\nonline_processors=14\nTOKIO_WORKER_THREADS=unset\nac768db0cea5451b8b5eccbb03270cc5cbef653e3fb2e4b636b77340ac28ef3f  /build/release/devloop\n37b3fc2cb927e173032a2ece349091db23e0a002459e6d52cb1137d22c0ba9b9  /cargo/pinned-protoc-build/protoc\nb9aba6579e0a22cb1f2c9478879cc95ad505ec20c16de91d60700b59ef3526a6  /work/bench/devloop/Cargo.lock\n9ff004303a7ca7cd9b7efbbcf64ab38273eced18f48e392917a0fd942f31144c  /work/bench/devloop/src/main.rs\nfinished_utc=2026-09-29T19:15:17Z\n",
+    "provenance_sha256": "f2583aa62f97af32afb493447e69eb54f4bfc22d599d4139a9b07798574ed861",
+    "cells": {
+      "rpc.pbrs.unary": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 125079.25,
+            "min": 124531.74,
+            "max": 127043.195,
+            "samples": [
+              127043.195,
+              125079.25,
+              124531.74
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 38.01,
+            "min": 38.01,
+            "max": 38.01,
+            "samples": [
+              38.01,
+              38.01,
+              38.01
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 44170.68,
+            "min": 44170.68,
+            "max": 44170.68,
+            "samples": [
+              44170.68,
+              44170.68,
+              44170.68
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 8834136,
+                "wall_ns": 180038876,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 26093106,
+              "stderr": "raw/rpc.pbrs.unary.repeat1.n200.stderr",
+              "stderr_sha256": "7b7d16aac2e4ee5ead14fbf9ac7174b80c1354e7f5f26ddab8a2f4dfb260f11c",
+              "stdout": "raw/rpc.pbrs.unary.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat1.n200.out",
+              "callgrind_sha256": "3bd9c01a938016abb33f445c58f459dd3907f1a9359f3c1255f71bef03df8e86"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15202,
+                "alloc_bytes": 17664136,
+                "wall_ns": 910545917,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 51501745,
+              "stderr": "raw/rpc.pbrs.unary.repeat1.n400.stderr",
+              "stderr_sha256": "e31d6cc0790cd4004423ab6ef1e92bd532870bbe7b5af726f585be601d13ce88",
+              "stdout": "raw/rpc.pbrs.unary.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat1.n400.out",
+              "callgrind_sha256": "44a739d5c77b8ad1044ff23c7ef756bb8d814ebc722f58598cdf5e186fc71ee4"
+            },
+            "instructions_per_rpc": 127043.195,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 44170.68
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 8834136,
+                "wall_ns": 301241875,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 26263165,
+              "stderr": "raw/rpc.pbrs.unary.repeat2.n200.stderr",
+              "stderr_sha256": "790a929e7ded40f5ab1e8c20801b619776d7c9dea54a80959371873d4b70d811",
+              "stdout": "raw/rpc.pbrs.unary.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat2.n200.out",
+              "callgrind_sha256": "db6d070bb459785e3bd33549967a51c6c52593ebabd7ce04912053694714b5ed"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15204,
+                "alloc_bytes": 17664166,
+                "wall_ns": 477884917,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 51279015,
+              "stderr": "raw/rpc.pbrs.unary.repeat2.n400.stderr",
+              "stderr_sha256": "9a8eeec7f98c6e6d2c6b2f982c628caedc03f51603f612801e213f7aeaf9837e",
+              "stdout": "raw/rpc.pbrs.unary.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat2.n400.out",
+              "callgrind_sha256": "4ca1c7b6492146117385db1886fe65f16fcc49d89541f739bd055dfbb0bbd1be"
+            },
+            "instructions_per_rpc": 125079.25,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 44170.68
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 200,
+                "allocs": 7602,
+                "alloc_bytes": 8834136,
+                "wall_ns": 184839125,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 409600,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 400,
+                  "chunk_slice_bytes": 410800,
+                  "encode_calls": 400,
+                  "encode_bytes": 410800,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 26161968,
+              "stderr": "raw/rpc.pbrs.unary.repeat3.n200.stderr",
+              "stderr_sha256": "2aebed90a81d46bad5ba05b559f6bad6538f8e8b12e1995a23f0fb7c355b5ae9",
+              "stdout": "raw/rpc.pbrs.unary.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat3.n200.out",
+              "callgrind_sha256": "77aa19d75240076838161118a06ba9dd04066b64dcba279378153a58256e6136"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.unary",
+                "iters": 400,
+                "allocs": 15202,
+                "alloc_bytes": 17664136,
+                "wall_ns": 320761125,
+                "copy_counts": {
+                  "wire_calls": 800,
+                  "wire_bytes": 819200,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 800,
+                  "chunk_slice_bytes": 821600,
+                  "encode_calls": 800,
+                  "encode_bytes": 821600,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 51068316,
+              "stderr": "raw/rpc.pbrs.unary.repeat3.n400.stderr",
+              "stderr_sha256": "e29cf4a7972d2fc5c807a009862ca2c28be93a63fde55382a739c00fdaa57ff0",
+              "stdout": "raw/rpc.pbrs.unary.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.unary.repeat3.n400.out",
+              "callgrind_sha256": "cf9bc579f04cb6974af7c3b47f2b5052022a2e3c9f25cb954b48c5a746112e09"
+            },
+            "instructions_per_rpc": 124531.74,
+            "allocations_per_rpc": 38.01,
+            "allocated_bytes_per_rpc": 44170.68
+          }
+        ]
+      },
+      "rpc.tonic.unary": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 135150.72,
+            "min": 131237.91,
+            "max": 136040.995,
+            "samples": [
+              131237.91,
+              136040.995,
+              135150.72
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 71.43,
+            "min": 71.42,
+            "max": 71.43,
+            "samples": [
+              71.43,
+              71.42,
+              71.43
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 49174.895,
+            "min": 49174.63,
+            "max": 49174.895,
+            "samples": [
+              49174.895,
+              49174.63,
+              49174.895
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14286,
+                "alloc_bytes": 9834979,
+                "wall_ns": 9290391462,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27682822,
+              "stderr": "raw/rpc.tonic.unary.repeat1.n200.stderr",
+              "stderr_sha256": "e13f065061c1c58fdc959613f8de20cb2a27efde38279149f6b8044074f44d46",
+              "stdout": "raw/rpc.tonic.unary.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat1.n200.out",
+              "callgrind_sha256": "cca782972c572f8d9f85864958572bd0beb5ad4412fbf84100296e08ef439291"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28562,
+                "alloc_bytes": 19656399,
+                "wall_ns": 18571673384,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 53930404,
+              "stderr": "raw/rpc.tonic.unary.repeat1.n400.stderr",
+              "stderr_sha256": "f09d872683830d74b93e265333b6f431a6c5aa95cddb04f9ac9f63e714d78b34",
+              "stdout": "raw/rpc.tonic.unary.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat1.n400.out",
+              "callgrind_sha256": "9128916184607c3769bcd6a7d4034ff0688dae463e287a3420d5e5f3e08555ef"
+            },
+            "instructions_per_rpc": 131237.91,
+            "allocations_per_rpc": 71.43,
+            "allocated_bytes_per_rpc": 49174.895
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14284,
+                "alloc_bytes": 9834926,
+                "wall_ns": 9304901545,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27718925,
+              "stderr": "raw/rpc.tonic.unary.repeat2.n200.stderr",
+              "stderr_sha256": "ffa8df76617005d27b44e6d079e2abc0e64cfcc81b60e88c0fed945295d9ff82",
+              "stdout": "raw/rpc.tonic.unary.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat2.n200.out",
+              "callgrind_sha256": "b0adbb2ac6e75bf5ab5d13a6da75750a8fffe061c60cbb314221bebf59f310df"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28578,
+                "alloc_bytes": 19656823,
+                "wall_ns": 19603986551,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 54927124,
+              "stderr": "raw/rpc.tonic.unary.repeat2.n400.stderr",
+              "stderr_sha256": "95365447cf15406dcdd0c4693e08fefcbfa346f7b978241bc3bd72999844621c",
+              "stdout": "raw/rpc.tonic.unary.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat2.n400.out",
+              "callgrind_sha256": "9aa1c6bbfd320f8b82efb9a7946cc8b542ad513b80f80d35ef78dc08fc0bda2f"
+            },
+            "instructions_per_rpc": 136040.995,
+            "allocations_per_rpc": 71.42,
+            "allocated_bytes_per_rpc": 49174.63
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 200,
+                "allocs": 14286,
+                "alloc_bytes": 9834979,
+                "wall_ns": 9306440503,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 27782927,
+              "stderr": "raw/rpc.tonic.unary.repeat3.n200.stderr",
+              "stderr_sha256": "4a8d2409509816e99de1b95ce4540ea3a0d2bdd7e7fcaede4b9b8c1f6870810b",
+              "stdout": "raw/rpc.tonic.unary.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat3.n200.out",
+              "callgrind_sha256": "4bfa95c5b528c6a6b8ad06743f60a23c67debf2bafe327cb1b9eac53ef59d6a0"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.unary",
+                "iters": 400,
+                "allocs": 28568,
+                "alloc_bytes": 19656558,
+                "wall_ns": 18970554551,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 54813071,
+              "stderr": "raw/rpc.tonic.unary.repeat3.n400.stderr",
+              "stderr_sha256": "5d3fd790e02d22228c8b1798f61dafca00de8cb13c991b3e736ad21478619f21",
+              "stdout": "raw/rpc.tonic.unary.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.unary.repeat3.n400.out",
+              "callgrind_sha256": "bc0538e60f2577d4d26a0be3f61c46e9ee12a6049120b2a0964c19be121be2f2"
+            },
+            "instructions_per_rpc": 135150.72,
+            "allocations_per_rpc": 71.43,
+            "allocated_bytes_per_rpc": 49174.895
+          }
+        ]
+      },
+      "rpc.pbrs.server_stream": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 155544.565,
+            "min": 153878.105,
+            "max": 155567.7,
+            "samples": [
+              153878.105,
+              155567.7,
+              155544.565
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 53.02,
+            "min": 53.02,
+            "max": 53.025,
+            "samples": [
+              53.025,
+              53.02,
+              53.02
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 54869.32,
+            "min": 54869.32,
+            "max": 54869.64,
+            "samples": [
+              54869.64,
+              54869.32,
+              54869.32
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10605,
+                "alloc_bytes": 10973928,
+                "wall_ns": 217192750,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 32238277,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat1.n200.stderr",
+              "stderr_sha256": "4094dc687adcd71662715a636c947eb0aaea3514efb4f8e5b2827c758b1e0088",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat1.n200.out",
+              "callgrind_sha256": "eda143cd282213bdf2b8ce9682536aca6837afaea315c6c289ee5d045e54610a"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 21943528,
+                "wall_ns": 442815500,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 63013898,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat1.n400.stderr",
+              "stderr_sha256": "3fe934038e7529f00017da8a063b8b36443d3180531647fd6258d7683943d071",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat1.n400.out",
+              "callgrind_sha256": "ae75f4481879b6c7e324ca9331beb48d1190141ee3691b460e2c9842271282e6"
+            },
+            "instructions_per_rpc": 153878.105,
+            "allocations_per_rpc": 53.025,
+            "allocated_bytes_per_rpc": 54869.64
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10604,
+                "alloc_bytes": 10973864,
+                "wall_ns": 221979083,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 32070269,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat2.n200.stderr",
+              "stderr_sha256": "1b3a6b9709c3f80a45c55eef8ef9e47132dc84bf2a2e407de3915dfd4c083120",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat2.n200.out",
+              "callgrind_sha256": "28a76f3536a61e78696a989582c6c532e4d918ebb21c14330b53c17bcd454160"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 21943528,
+                "wall_ns": 432657959,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 63183809,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat2.n400.stderr",
+              "stderr_sha256": "b0c8f6d9edd58369d1590a682bca96600b1f18668c07179a268d5fbd7fd7ede2",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat2.n400.out",
+              "callgrind_sha256": "ac59aa137b25d5967968bae8986e9e1f32b580511dac8ffd78d3646b460da292"
+            },
+            "instructions_per_rpc": 155567.7,
+            "allocations_per_rpc": 53.02,
+            "allocated_bytes_per_rpc": 54869.32
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 200,
+                "allocs": 10604,
+                "alloc_bytes": 10973864,
+                "wall_ns": 210327791,
+                "copy_counts": {
+                  "wire_calls": 200,
+                  "wire_bytes": 205400,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 1000,
+                  "chunk_slice_bytes": 413200,
+                  "encode_calls": 200,
+                  "encode_bytes": 206000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31925440,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat3.n200.stderr",
+              "stderr_sha256": "85cbbd5112d5e2976941d9735e56cf04b16374ad156beac27178d4a6d8df15cb",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat3.n200.out",
+              "callgrind_sha256": "ac000a928231feaed3483843af9b69552346ce489ff72b14491064ca5ce1368e"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.pbrs.server_stream",
+                "iters": 400,
+                "allocs": 21205,
+                "alloc_bytes": 21943528,
+                "wall_ns": 443321333,
+                "copy_counts": {
+                  "wire_calls": 400,
+                  "wire_bytes": 410800,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 2000,
+                  "chunk_slice_bytes": 826400,
+                  "encode_calls": 400,
+                  "encode_bytes": 412000,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 63034353,
+              "stderr": "raw/rpc.pbrs.server_stream.repeat3.n400.stderr",
+              "stderr_sha256": "a9cf9654dce8c4b1f09093c70a4a7710412719d6eafd49e29f60e931c2fc234a",
+              "stdout": "raw/rpc.pbrs.server_stream.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.pbrs.server_stream.repeat3.n400.out",
+              "callgrind_sha256": "9adef53ebafcb2df5831e6703fa1d7e444627f8fc0e4f7613e08d807b27e9536"
+            },
+            "instructions_per_rpc": 155544.565,
+            "allocations_per_rpc": 53.02,
+            "allocated_bytes_per_rpc": 54869.32
+          }
+        ]
+      },
+      "rpc.tonic.server_stream": {
+        "metrics": {
+          "instructions_per_rpc": {
+            "median": 150463.955,
+            "min": 149555.34,
+            "max": 151153.205,
+            "samples": [
+              150463.955,
+              151153.205,
+              149555.34
+            ]
+          },
+          "allocations_per_rpc": {
+            "median": 81.45,
+            "min": 81.42,
+            "max": 81.45,
+            "samples": [
+              81.45,
+              81.45,
+              81.42
+            ]
+          },
+          "allocated_bytes_per_rpc": {
+            "median": 58058.84,
+            "min": 58058.045,
+            "max": 58058.84,
+            "samples": [
+              58058.84,
+              58058.84,
+              58058.045
+            ]
+          }
+        },
+        "repeats": [
+          {
+            "repeat": 1,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16290,
+                "alloc_bytes": 11611768,
+                "wall_ns": 9405155629,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31570827,
+              "stderr": "raw/rpc.tonic.server_stream.repeat1.n200.stderr",
+              "stderr_sha256": "e94ef4e1f14c00485c7bb89566d353843a450ce06bbd93bec21ff19da9ca893e",
+              "stdout": "raw/rpc.tonic.server_stream.repeat1.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat1.n200.out",
+              "callgrind_sha256": "a7f0c4c21744c8501c71a0a5b6910478749ee39feadd79385b808ade1dae324a"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32566,
+                "alloc_bytes": 23201705,
+                "wall_ns": 18686278551,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 61663618,
+              "stderr": "raw/rpc.tonic.server_stream.repeat1.n400.stderr",
+              "stderr_sha256": "fa985a07717356d46df66b8cf6a2a0a1be1b1e342269a546845c160e22283943",
+              "stdout": "raw/rpc.tonic.server_stream.repeat1.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat1.n400.out",
+              "callgrind_sha256": "1e05eb98cb02e0435d565dae14a754c3d149cf2e993340df446b9f3c8ff1081e"
+            },
+            "instructions_per_rpc": 150463.955,
+            "allocations_per_rpc": 81.45,
+            "allocated_bytes_per_rpc": 58058.84
+          },
+          {
+            "repeat": 2,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16290,
+                "alloc_bytes": 11611768,
+                "wall_ns": 9307706212,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31579603,
+              "stderr": "raw/rpc.tonic.server_stream.repeat2.n200.stderr",
+              "stderr_sha256": "81fa8edca77920034e89947c485f85706558c48c23172cadd2d66c4203866ecb",
+              "stdout": "raw/rpc.tonic.server_stream.repeat2.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat2.n200.out",
+              "callgrind_sha256": "2bcd30b2561e4dd869aa0f0299060a68332a59256614ead388941ef34c21c8ca"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32564,
+                "alloc_bytes": 23201652,
+                "wall_ns": 18666379134,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 61810244,
+              "stderr": "raw/rpc.tonic.server_stream.repeat2.n400.stderr",
+              "stderr_sha256": "d5d25d66e2227942852c1fcb2266fa401177a231292ab9c51445922f19ad75c2",
+              "stdout": "raw/rpc.tonic.server_stream.repeat2.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat2.n400.out",
+              "callgrind_sha256": "b66ac4fa5404fbacdc1a92d1ddbb4a73fb6f56577defbeec120759ad36763610"
+            },
+            "instructions_per_rpc": 151153.205,
+            "allocations_per_rpc": 81.45,
+            "allocated_bytes_per_rpc": 58058.84
+          },
+          {
+            "repeat": 3,
+            "n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 200,
+                "allocs": 16284,
+                "alloc_bytes": 11611609,
+                "wall_ns": 9521949463,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 31367157,
+              "stderr": "raw/rpc.tonic.server_stream.repeat3.n200.stderr",
+              "stderr_sha256": "ad796df5363f03e709571f3286437f6239a00c98ee170572cb0e22767834caca",
+              "stdout": "raw/rpc.tonic.server_stream.repeat3.n200.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat3.n200.out",
+              "callgrind_sha256": "054627e93ebf695b64be5582793a2ffc5f37f69e1ccb3b59162a661b11d39eca"
+            },
+            "two_n": {
+              "child": {
+                "cell": "rpc.tonic.server_stream",
+                "iters": 400,
+                "allocs": 32572,
+                "alloc_bytes": 23201864,
+                "wall_ns": 18830026801,
+                "copy_counts": {
+                  "wire_calls": 0,
+                  "wire_bytes": 0,
+                  "emit_calls": 0,
+                  "emit_bytes": 0,
+                  "carry_calls": 0,
+                  "carry_bytes": 0,
+                  "chunk_slices": 0,
+                  "chunk_slice_bytes": 0,
+                  "encode_calls": 0,
+                  "encode_bytes": 0,
+                  "serialize_calls": 0,
+                  "serialize_bytes": 0,
+                  "shared_segments": 0,
+                  "shared_bytes": 0
+                }
+              },
+              "whole_process_instructions": 61278225,
+              "stderr": "raw/rpc.tonic.server_stream.repeat3.n400.stderr",
+              "stderr_sha256": "c7f78d2907ee13379f2593e54a42e24cfd32faf23e860768d5d53f97e36ed076",
+              "stdout": "raw/rpc.tonic.server_stream.repeat3.n400.stdout",
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "callgrind": "callgrind/rpc.tonic.server_stream.repeat3.n400.out",
+              "callgrind_sha256": "7c334f3096b126f4e7b787e3085439cef6fd7d5c75555763b1ccd36aa700a9fc"
+            },
+            "instructions_per_rpc": 149555.34,
+            "allocations_per_rpc": 81.42,
+            "allocated_bytes_per_rpc": 58058.045
+          }
+        ]
+      }
+    }
+  },
+  "current_change_from_baseline_percent": {
+    "rpc.pbrs.unary": {
+      "instructions_per_rpc": -9.327638077371947,
+      "allocations_per_rpc": 0.0,
+      "allocated_bytes_per_rpc": -19.069717332848647
+    },
+    "rpc.tonic.unary": {
+      "instructions_per_rpc": 0.18515437382591315,
+      "allocations_per_rpc": -0.01399776035833078,
+      "allocated_bytes_per_rpc": -0.0005388899599001462
+    },
+    "rpc.pbrs.server_stream": {
+      "instructions_per_rpc": -8.584328467308788,
+      "allocations_per_rpc": -0.009429514379999393,
+      "allocated_bytes_per_rpc": -15.934391548658766
+    },
+    "rpc.tonic.server_stream": {
+      "instructions_per_rpc": -1.0593622961515559,
+      "allocations_per_rpc": 0.02456097261451795,
+      "allocated_bytes_per_rpc": 0.0009128753489351382
+    }
+  },
+  "current_pbrs_relative_to_tonic_percent": {
+    "unary": {
+      "instructions_per_rpc": -7.4520283724718634,
+      "allocations_per_rpc": -46.787064258714835,
+      "allocated_bytes_per_rpc": -10.176361332342443
+    },
+    "server_stream": {
+      "instructions_per_rpc": 3.376629306334533,
+      "allocations_per_rpc": -34.90484960098219,
+      "allocated_bytes_per_rpc": -5.493599252069103
+    }
+  }
+}
