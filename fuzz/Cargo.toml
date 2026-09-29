@@ -40,3 +40,9 @@ name = "grpc_wire"
 path = "fuzz_targets/grpc_wire.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "varint_diff"
+path = "fuzz_targets/varint_diff.rs"
+test = false
+doc = false

@@ -223,6 +223,16 @@ pub fn validate_varints(buf: &[u8]) -> Result<(), ParseError> {
     let mut i = 0;
     let n = buf.len();
     while i < n {
+        while n - i >= 8 {
+            let chunk = u64::from_ne_bytes(buf[i..i + 8].try_into().unwrap());
+            if chunk & 0x8080_8080_8080_8080 != 0 {
+                break;
+            }
+            i += 8;
+        }
+        if i == n {
+            break;
+        }
         let b = buf[i];
         i += 1;
         if b < 0x80 {
@@ -561,6 +571,64 @@ mod tests {
         assert!(read_len_span(&buf, &mut pos).is_err());
         let mut pos = 1usize;
         assert!(skip_field(&buf, &mut pos, WIRE_LEN).is_err());
+    }
+
+    fn validate_varints_reference(buf: &[u8]) -> Result<(), ParseError> {
+        let mut i = 0;
+        while i < buf.len() {
+            let mut cnt = 0u32;
+            loop {
+                if i >= buf.len() {
+                    return Err(ParseError::new("truncated varint"));
+                }
+                let byte = buf[i];
+                i += 1;
+                cnt += 1;
+                if byte < 0x80 {
+                    if cnt == 10 && byte > 1 {
+                        return Err(ParseError::new("varint overflow"));
+                    }
+                    break;
+                }
+                if cnt >= 10 {
+                    return Err(ParseError::new("varint overflow"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn validate_varints_matches_scalar_reference() {
+        let cases: &[&[u8]] = &[
+            b"",
+            &[0],
+            &[1, 2, 3, 4, 5, 6, 7, 8],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+            &[0x80, 0x01],
+            &[0xff, 0x01, 0x00, 0x7f],
+            &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+            &[0x80],
+            &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02],
+            &[
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+            ],
+        ];
+        for case in cases {
+            assert_eq!(
+                validate_varints(case).is_ok(),
+                validate_varints_reference(case).is_ok(),
+                "case {case:?}"
+            );
+        }
+        let mut many_single = Vec::new();
+        for i in 0..255 {
+            encode_varint(&mut many_single, i);
+        }
+        assert_eq!(
+            validate_varints(&many_single).is_ok(),
+            validate_varints_reference(&many_single).is_ok()
+        );
     }
 
     /// Recording sink: counts `put_shared` vs inline writes.
