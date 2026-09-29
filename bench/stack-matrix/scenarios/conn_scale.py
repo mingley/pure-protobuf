@@ -204,6 +204,13 @@ def preflight_budget(target_conns: int, limits: Dict[str, Any]) -> Optional[str]
     single-source ladder point. Hitting this check marks the cell invalid
     without spawning anything (accept 1).
     """
+    if target_conns > 65535:
+        return (
+            f"topology preflight: {target_conns} TCP connections cannot use one source "
+            "address and one destination address/port (16-bit source-port limit). "
+            "Provide at least ceil(target / usable_ephemeral_ports) independent "
+            "source-address or destination-endpoint tuples; this opener is single-endpoint."
+        )
     soft_no = limits.get("rlimit_nofile_soft")
     if isinstance(soft_no, int) and soft_no > 0:
         need = 2 * target_conns + 256
@@ -1556,8 +1563,10 @@ def self_test() -> int:
     check("rss-self", isinstance(rss, int) and rss > 0, f"rss={rss}")
     # Preflight trips deterministically above the fd budget.
     fake = dict(limits, rlimit_nofile_soft=1024)
-    note = preflight_budget(100_000, fake)
+    note = preflight_budget(10_000, fake)
     check("preflight-fd-invalid", note is not None and "ulimit" in note, (note or "")[:80])
+    note = preflight_budget(100_000, dict(limits, rlimit_nofile_soft=1_000_000))
+    check("preflight-100k-topology", note is not None and "16-bit" in note, (note or "")[:80])
     note_ok = preflight_budget(10, dict(limits, rlimit_nofile_soft=100000))
     ports = ephemeral_port_budget(limits)
     if ports is not None and ports < 10:

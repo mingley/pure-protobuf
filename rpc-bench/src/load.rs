@@ -502,6 +502,24 @@ impl LoadGenerator {
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
         R: Fn() + Send + Sync,
     {
+        self.run_scheduled_with_rejections(move |_| invoke(), move |_| on_rejection())
+            .await
+    }
+
+    /// Run with each call's predetermined arrival time, including rejected calls.
+    /// Observers can measure completion relative to the schedule instead of dispatch.
+    /// Open-loop callbacks construct their future at admission, before spawning,
+    /// so observers also see admitted tasks cancelled before their first poll.
+    pub async fn run_scheduled_with_rejections<F, Fut, R>(
+        &self,
+        invoke: F,
+        on_rejection: R,
+    ) -> LoadRecord
+    where
+        F: Fn(Instant) -> Fut + Send + Sync + 'static + Clone,
+        Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
+        R: Fn(Instant) + Send + Sync,
+    {
         match self.cfg.distribution {
             LoadDistribution::Closed => self.run_closed_loop(invoke).await,
             LoadDistribution::Constant => self.run_open_loop_constant(invoke, &on_rejection).await,
@@ -511,7 +529,7 @@ impl LoadGenerator {
 
     async fn run_closed_loop<F, Fut>(&self, invoke: F) -> LoadRecord
     where
-        F: Fn() -> Fut + Send + Sync + 'static + Clone,
+        F: Fn(Instant) -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
     {
         let state = Arc::new(GeneratorState::new(self.cfg.collect_samples));
@@ -550,7 +568,7 @@ impl LoadGenerator {
                     state.dispatched_calls.fetch_add(1, Ordering::Relaxed);
                     state.active_in_flight.fetch_add(1, Ordering::SeqCst);
 
-                    let fut = invoke();
+                    let fut = invoke(t_sched);
                     let (res, timed_out) = if let Some(t) = timeout {
                         match tokio::time::timeout(t, fut).await {
                             Ok(r) => (r, false),
@@ -576,9 +594,9 @@ impl LoadGenerator {
 
     async fn run_open_loop_constant<F, Fut, R>(&self, invoke: F, on_rejection: &R) -> LoadRecord
     where
-        F: Fn() -> Fut + Send + Sync + 'static + Clone,
+        F: Fn(Instant) -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
-        R: Fn(),
+        R: Fn(Instant),
     {
         let rate_qps = self
             .cfg
@@ -624,14 +642,13 @@ impl LoadGenerator {
                     state.dispatched_calls.fetch_add(1, Ordering::Relaxed);
                     state.active_in_flight.fetch_add(1, Ordering::SeqCst);
 
-                    let invoke = invoke.clone();
+                    let fut = invoke(t_sched);
                     let state = state.clone();
                     let timeout = self.cfg.timeout;
 
                     handles.spawn(async move {
                         let _permit = permit;
                         let t_actual = state.record_scheduling_lag(t_sched);
-                        let fut = invoke();
                         let (res, timed_out) = if let Some(t) = timeout {
                             match tokio::time::timeout(t, fut).await {
                                 Ok(r) => (r, false),
@@ -646,7 +663,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
-                    on_rejection();
+                    on_rejection(t_sched);
                     state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
@@ -663,9 +680,9 @@ impl LoadGenerator {
 
     async fn run_open_loop_poisson<F, Fut, R>(&self, invoke: F, on_rejection: &R) -> LoadRecord
     where
-        F: Fn() -> Fut + Send + Sync + 'static + Clone,
+        F: Fn(Instant) -> Fut + Send + Sync + 'static + Clone,
         Fut: Future<Output = Result<(), RpcCallError>> + Send + 'static,
-        R: Fn(),
+        R: Fn(Instant),
     {
         let rate_qps = self
             .cfg
@@ -714,14 +731,13 @@ impl LoadGenerator {
                     state.dispatched_calls.fetch_add(1, Ordering::Relaxed);
                     state.active_in_flight.fetch_add(1, Ordering::SeqCst);
 
-                    let invoke = invoke.clone();
+                    let fut = invoke(t_sched);
                     let state = state.clone();
                     let timeout = self.cfg.timeout;
 
                     handles.spawn(async move {
                         let _permit = permit;
                         let t_actual = state.record_scheduling_lag(t_sched);
-                        let fut = invoke();
                         let (res, timed_out) = if let Some(t) = timeout {
                             match tokio::time::timeout(t, fut).await {
                                 Ok(r) => (r, false),
@@ -736,7 +752,7 @@ impl LoadGenerator {
                 }
                 Err(_) => {
                     // Queue overflow! Do not spawn unbounded tasks
-                    on_rejection();
+                    on_rejection(t_sched);
                     state.record_scheduling_lag(t_sched);
                     state.rejected_calls.fetch_add(1, Ordering::Relaxed);
                     state.unstarted_calls.fetch_add(1, Ordering::Relaxed);
@@ -953,6 +969,30 @@ mod tests {
         })
         .await
         .expect("completed tasks must not accumulate in a long run");
+    }
+
+    #[tokio::test]
+    async fn scheduled_observer_sees_admitted_calls_even_if_cancelled_before_first_poll() {
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let observed = admitted.clone();
+        let generator = LoadGenerator::new(
+            LoadConfig::open_constant(1e12, Duration::from_millis(10))
+                .with_max_calls(1)
+                .with_drain_timeout(Duration::ZERO),
+        );
+        let record = generator
+            .run_scheduled_with_rejections(
+                move |scheduled| {
+                    assert!(scheduled <= Instant::now());
+                    observed.fetch_add(1, Ordering::SeqCst);
+                    std::future::pending::<Result<(), RpcCallError>>()
+                },
+                |_| {},
+            )
+            .await;
+        assert_eq!(record.dispatched_calls, 1);
+        assert_eq!(record.unfinished_calls, 1);
+        assert_eq!(admitted.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]

@@ -236,12 +236,10 @@ def expand(
 
 def validate_cell(cell: ExtendedCell) -> Optional[str]:
     """Return None when runnable, else the unsupported reason."""
-    if cell.compression == "gzip":
+    if cell.compression == "gzip" and cell.server_peer not in ("native", "tonic-pbrs", "tonic-prost"):
         return (
-            "gzip-on cells are frozen but unrunnable at this base: rpc-bench "
-            "`load` has no compression flag and per-peer gzip negotiation is "
-            "unscripted (needs rpc-bench load flags outside the SB-19 write "
-            "set); the identity half of the pair runs"
+            "official/optional peer response gzip configuration is not implemented or verified; "
+            "native and tonic codec peers support explicit request/response gzip"
         )
     if cell.shape == "bidi_pipelined":
         return (
@@ -330,7 +328,7 @@ def cell_load_command(
     distribution: str = "poisson",
 ) -> List[str]:
     req_bytes, resp_bytes = cells_mod.PAYLOADS[cell.payload]
-    return load_command(
+    cmd = load_command(
         native_bin,
         addr,
         cell.shape,
@@ -345,6 +343,8 @@ def cell_load_command(
         distribution,
         cell.rtt_ms,
     )
+    cmd.append(f"--compression={cell.compression}")
+    return cmd
 
 
 def parse_metrics(out_path: Path) -> Dict[str, Any]:
@@ -495,6 +495,7 @@ class Prober:
             distribution,
             cell.rtt_ms,
         )
+        cmd.append(f"--compression={cell.compression}")
         pinned, pin_state = pin_mod.wrap(cmd, self.cpus, self.cpus)
         stdout_path = self.log_dir / f"{cell.id}-{tag}.stdout"
         stderr_path = self.log_dir / f"{cell.id}-{tag}.stderr"
@@ -1135,12 +1136,13 @@ def spawn_server(
     log_dir: Path,
     tag: str,
     verbose: bool = False,
+    compression: str = "identity",
 ) -> Tuple[subprocess.Popen, str, str, str, Dict[str, Any], Path, Path]:
     """Spawn one plaintext server; return (proc, addr, binary, codec, pin, out, err)."""
     host = "127.0.0.1"
     port = bench_matrix.find_free_port()
     cmd, binary, codec = matrix_run.server_command(
-        registry, peer, host, port, SERVER_TIMEOUT_SECS, None
+        registry, peer, host, port, SERVER_TIMEOUT_SECS, None, compression
     )
     pinned, pin_state = pin_mod.wrap(cmd, cpus, 0)
     stdout_path = log_dir / f"{tag}.stdout"
@@ -1265,7 +1267,8 @@ def run_scenario(
         proc = None
         try:
             proc, addr, binary, codec, pin_state, out_path, err_path = spawn_server(
-                registry, cell.server_peer, cell.cpus, log_dir, f"{cell.id}-server", verbose
+                registry, cell.server_peer, cell.cpus, log_dir, f"{cell.id}-server", verbose,
+                cell.compression,
             )
             host = "127.0.0.1"
             port = int(addr.rsplit(":", 1)[-1])
@@ -1427,7 +1430,7 @@ def self_test() -> int:
     gzip_cell = ExtendedCell("extended-gzip", "go", "native", "unary",
                              "64kib", 0, "gzip", None, False, 500.0, 1000, 1)
     gzip_reason = validate_cell(gzip_cell) or ""
-    check("unsupported-gzip", "compress" in gzip_reason.lower(), gzip_reason[:100])
+    check("unsupported-gzip", "gzip" in gzip_reason.lower(), gzip_reason[:100])
     runnable = ExtendedCell("extended-shapes", "native", "native", "client_stream",
                             "1kib", 2000, "identity", None, False, 20.0, 1000, 1)
     check("runnable-client-stream", validate_cell(runnable) is None)

@@ -12,7 +12,9 @@ It implements parts of the
 - **Tracks offered load.** Open-loop Poisson and constant-paced arrivals track
   scheduling lag; saturated generators are flagged. `load` reports
   schedule-relative end-to-end latency. The WorkerService histogram still
-  reports dispatch-relative service time; see the qualification gap below.
+  reports dispatch-relative service time for upstream compatibility. Native
+  `QPS_ACCOUNTING` log records separately export schedule-relative latency and
+  atomic offered/dispatched/completed/rejected/timed-out/unfinished counters.
 - **Separates endpoint resources.** Runs in separate processes can attribute
   client/server CPU and resident set size (RSS). The `load` report also carries
   queue/scheduling delay; not every upstream driver exports every metric.
@@ -30,10 +32,13 @@ performance diagnostics. The native worker rejects synchronous and generic
 byte-buffer modes explicitly.
 
 [SB-21](../docs/evidence/sb21-claims-scenarios.md) adds longer open-loop
-scenario definitions, but a qualified campaign still needs worker export of
-schedule-relative latency, complete offered-call reconciliation, execution of
-the frozen repeat orders, matched peer settings, and controlled hosts. The
-QPS-only C++ driver output cannot establish a latency or CPU claim. See the
+scenario definitions, native worker accounting, and seeded per-repeat scenario
+and peer order (`--repeats=5 --order-seed=210021`). `--claim-check` requires
+independent accounting and schedule-relative histograms over the actual mark
+window; reference clients without equivalent exports fail this check. A
+qualified campaign still needs matched peer settings, controlled hosts, and
+the full benchmark contract. QPS-only C++ driver output by itself cannot
+establish a latency or CPU claim. See the
 [scoreboard](../docs/scoreboard.md) before using a result as a ranking.
 
 ## 1. Pinned Upstream Specifications and Peers
@@ -275,6 +280,18 @@ Every benchmark run produces verifiable, immutable evidence in `target/qps-logs/
    only `qps`; it must not be treated as a substitute for these raw metrics.
 3. **`*-server.log` & `*-client.log`**: Standard output and error logs from each worker process.
 4. **`*-driver.log`**: Driver control stream logs and step-by-step mark transitions.
+5. **`execution-plan.json`**: Seed, repeat count and independently shuffled
+   scenario/peer order for every repeat. Repeated runs use `repeat-N/` directories
+   so their raw artifacts cannot overwrite each other.
+6. **`*-accounting.json`**: Independent accounting proof for a native client,
+   including service and scheduled-send histograms. Counters obey
+   `offered = dispatched + rejected`,
+   `incoming_in_flight + dispatched = completed + unfinished`, and
+   `completed = successful + failed`; timeouts are a subset of failures.
+   Marks retain carry-in across resets and have zero drain. Missing independent
+   evidence is explicit for diagnostic reference runs and fails `--claim-check`.
+   The proof always leaves `claim_eligible` false: accounting alone does not
+   establish a benchmark-contract performance claim.
 
 ### No Cloud Deployment Required
 In accordance with task BM-11 acceptance criteria:

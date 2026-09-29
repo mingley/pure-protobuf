@@ -44,6 +44,9 @@ SERVER_PORT_ARG=""
 CLIENT_PORT_ARG=""
 STARTUP_TIMEOUT_SEC="${STARTUP_TIMEOUT_SEC:-5}"
 OVERALL_FAILED=0
+REPEATS=1
+ORDER_SEED=210021
+CLAIM_CHECK=0
 
 show_help() {
   cat << 'EOF'
@@ -77,6 +80,9 @@ Options:
   --server-port <PORT>        Explicit driver port for server worker (default: dynamically allocated)
   --client-port <PORT>        Explicit driver port for client worker (default: dynamically allocated)
   --skip-build                Skip building worker and driver binaries
+  --repeats <N>               Independently shuffle scenario and peer order per repeat (default: 1)
+  --order-seed <N>            Reproducible order seed (default: 210021)
+  --claim-check               Require independent mark accounting and scheduled-send histograms
 
 Environment Variables:
   GRPC_QPS_DRIVER             Path to official C++ qps_json_driver or integrated Go qps-driver
@@ -87,6 +93,7 @@ Environment Variables:
   GRPC_QPS_DURATION           Benchmark duration override in seconds
   GRPC_QPS_SKIP_BUILD         If 1, skip binary builds
   GRPC_QPS_LOG_DIR            Directory for execution logs and reports
+  GRPC_QPS_NATIVE_WORKER      Explicit prebuilt native worker path (use with --skip-build)
   CARGO_TARGET_DIR            Cargo cache for the native worker (default: repository target/)
   CARGO_BUILD_JOBS            Build jobs (default 2; larger requests capped at 2)
 
@@ -207,6 +214,13 @@ while [[ $# -gt 0 ]]; do
       SKIP_BUILD=1
       shift
       ;;
+    --repeats|--order-seed)
+      if [[ "$1" == --repeats ]]; then REPEATS="$2"; else ORDER_SEED="$2"; fi
+      shift 2
+      ;;
+    --repeats=*) REPEATS="${1#*=}"; shift ;;
+    --order-seed=*) ORDER_SEED="${1#*=}"; shift ;;
+    --claim-check) CLAIM_CHECK=1; shift ;;
     *)
       echo "Unknown argument: $1" >&2
       echo "Use --help for usage information." >&2
@@ -757,6 +771,14 @@ if [[ ! "$WARMUP_OVERRIDE" =~ ^[0-9]+$ || ! "$DURATION_OVERRIDE" =~ ^[0-9]+$ ]];
   echo "FAIL: warmup and duration overrides must be nonnegative integer seconds" >&2
   exit 1
 fi
+if [[ ! "$REPEATS" =~ ^[1-9][0-9]*$ || ! "$ORDER_SEED" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: repeats must be positive and order-seed must be nonnegative integers" >&2
+  exit 1
+fi
+plan_args=(--repeats "$REPEATS" --seed "$ORDER_SEED" --output "$LOG_DIR/execution-plan.json")
+for scenario in "${SCENARIO_NAMES[@]}"; do plan_args+=(--scenario "$scenario"); done
+for direction in "${DIRECTIONS[@]}"; do plan_args+=(--direction "$direction"); done
+python3 "$ROOT/scripts/qps-proof.py" plan "${plan_args[@]}"
 NEEDS_REFERENCE_WORKER=0
 for direction in "${DIRECTIONS[@]}"; do
   if [[ "$direction" != native_pair ]]; then
@@ -779,7 +801,11 @@ if [[ ${#requested_jobs} -gt 1 || "$requested_jobs" -gt 2 ]]; then
 fi
 export CARGO_TARGET_DIR="$WORKER_TARGET_DIR"
 export CARGO_BUILD_JOBS="$requested_jobs"
-NATIVE_WORKER_BIN="$WORKER_TARGET_DIR/release/rpc-bench"
+NATIVE_WORKER_BIN="${GRPC_QPS_NATIVE_WORKER:-$WORKER_TARGET_DIR/release/rpc-bench}"
+if [[ -n "${GRPC_QPS_NATIVE_WORKER:-}" && "$SKIP_BUILD" != 1 ]]; then
+  echo "FAIL: GRPC_QPS_NATIVE_WORKER requires --skip-build; source provenance cannot be inferred for an external binary" >&2
+  exit 1
+fi
 
 # Handle --dry-run
 if [[ $DRY_RUN -eq 1 ]]; then
@@ -822,7 +848,9 @@ if [[ $DRY_RUN -eq 1 ]]; then
     echo "  - $sc"
   done
   echo ""
-  echo "Total Runs Planned: $((${#DIRECTIONS[@]} * ${#SCENARIO_NAMES[@]}))"
+  echo "Total Runs Planned: $((${#DIRECTIONS[@]} * ${#SCENARIO_NAMES[@]} * REPEATS))"
+  echo "Randomized Order:   $LOG_DIR/execution-plan.json (seed=$ORDER_SEED, repeats=$REPEATS)"
+  echo "Claim Accounting:   $CLAIM_CHECK"
   echo "DRY RUN COMPLETE: configurations, scenario definitions, and matrices verified."
   exit 0
 fi
@@ -915,12 +943,10 @@ else
   DRIVER_SOURCE_PIN="$GO_PEER_PIN"
 fi
 
-if [[ "$DRIVER_KIND" == "cpp" ]]; then
-  for scenario in "${SCENARIO_NAMES[@]}"; do
-    python3 "$ROOT/scripts/qps-proof.py" prepare \
-      "$SCENARIOS_FILE" "$scenario" "$WARMUP_OVERRIDE" "$DURATION_OVERRIDE" "$LOG_DIR/$scenario.scenario.json"
-  done
-fi
+for scenario in "${SCENARIO_NAMES[@]}"; do
+  python3 "$ROOT/scripts/qps-proof.py" prepare \
+    "$SCENARIOS_FILE" "$scenario" "$WARMUP_OVERRIDE" "$DURATION_OVERRIDE" "$LOG_DIR/$scenario.scenario.json"
+done
 
 start_worker() {
   local role="$1" # native or go or cpp
@@ -998,6 +1024,10 @@ declare -a SUMMARY_ROWS=()
 run_scenario_cell() {
   local scenario="$1"
   local direction="$2"
+  local repeat="$3"
+  local run_dir="$LOG_DIR"
+  if [[ "$REPEATS" -gt 1 ]]; then run_dir="$LOG_DIR/repeat-$repeat"; fi
+  mkdir -p "$run_dir"
 
   local server_role=""
   local client_role=""
@@ -1026,16 +1056,17 @@ run_scenario_cell() {
     c_port="$(find_free_port)"
   done
 
-  local s_log="$LOG_DIR/${scenario}-${direction}-server.log"
-  local c_log="$LOG_DIR/${scenario}-${direction}-client.log"
-  local d_log="$LOG_DIR/${scenario}-${direction}-driver.log"
-  local result_json="$LOG_DIR/${scenario}-${direction}-result.json"
+  local s_log="$run_dir/${scenario}-${direction}-server.log"
+  local c_log="$run_dir/${scenario}-${direction}-client.log"
+  local d_log="$run_dir/${scenario}-${direction}-driver.log"
+  local result_json="$run_dir/${scenario}-${direction}-result.json"
   if [[ "$DRIVER_KIND" == "cpp" ]]; then
-    result_json="$LOG_DIR/${scenario}-${direction}-driver-metrics.json"
+    result_json="$run_dir/${scenario}-${direction}-driver-metrics.json"
   fi
 
   echo "--------------------------------------------------------------------------------"
   echo "SCENARIO:  $scenario"
+  echo "REPEAT:    $repeat"
   echo "DIRECTION: $direction (Server: $server_role, Client: $client_role)"
   echo "PORTS:     Server worker=$s_port, Client worker=$c_port"
 
@@ -1047,7 +1078,7 @@ run_scenario_cell() {
     OVERALL_FAILED=1
     return 1
   fi
-  s_pid="${TRACKED_PIDS[-1]}"
+  s_pid="${TRACKED_PIDS[${#TRACKED_PIDS[@]}-1]}"
 
   if ! start_worker "$client_role" "$c_port" "$c_log"; then
     echo "FAIL: could not start client worker ($client_role)" >&2
@@ -1055,7 +1086,7 @@ run_scenario_cell() {
     OVERALL_FAILED=1
     return 1
   fi
-  c_pid="${TRACKED_PIDS[-1]}"
+  c_pid="${TRACKED_PIDS[${#TRACKED_PIDS[@]}-1]}"
 
   # Prepare driver command
   local driver_args=()
@@ -1085,7 +1116,10 @@ run_scenario_cell() {
   stop_worker "$s_pid"
 
   if [[ $driver_status -eq 0 && -f "$result_json" ]]; then
-    if ! python3 "$ROOT/scripts/qps-proof.py" validate "$result_json" "$DRIVER_KIND"; then
+    local proof_args=(--scenario "$LOG_DIR/$scenario.scenario.json" --worker-log "$c_log"
+      --proof-output "$run_dir/${scenario}-${direction}-accounting.json")
+    if [[ "$CLAIM_CHECK" -eq 1 ]]; then proof_args+=(--claims); fi
+    if ! python3 "$ROOT/scripts/qps-proof.py" validate "$result_json" "$DRIVER_KIND" "${proof_args[@]}"; then
       driver_status=1
     fi
   fi
@@ -1097,14 +1131,14 @@ run_scenario_cell() {
     local qps p50 p99 scpu ccpu
     if [[ "$DRIVER_KIND" == "cpp" ]]; then
       qps=$(python3 -c 'import json, sys; print("{:.1f}".format(json.load(open(sys.argv[1]))["qps"]))' "$result_json")
-      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|N/A|N/A|N/A|N/A")
+      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|N/A|N/A|N/A|N/A|$repeat")
     else
       qps=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d['summary']['qps']:.1f}\")" "$result_json")
       p50=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency50',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
       p99=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('latency99',0)/1000.0:.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
       scpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('serverUserTime',0)+d.get('summary',{}).get('serverSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
       ccpu=$(python3 -c "import json, sys; d=json.load(open(sys.argv[1])); print(f\"{d.get('summary',{}).get('clientUserTime',0)+d.get('summary',{}).get('clientSystemTime',0):.1f}\")" "$result_json" 2>/dev/null || echo "N/A")
-      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|$p50 us|$p99 us|${scpu}%|${ccpu}%")
+      SUMMARY_ROWS+=("$scenario|$direction|PASS|$qps|$p50 us|$p99 us|${scpu}%|${ccpu}%|$repeat")
     fi
   else
     echo "  FAIL: $scenario ($direction)" >&2
@@ -1112,7 +1146,7 @@ run_scenario_cell() {
       cat "$d_log" >&2
     fi
     OVERALL_FAILED=1
-    SUMMARY_ROWS+=("$scenario|$direction|FAIL|N/A|N/A|N/A|N/A|N/A")
+    SUMMARY_ROWS+=("$scenario|$direction|FAIL|N/A|N/A|N/A|N/A|N/A|$repeat")
   fi
 }
 
@@ -1135,11 +1169,11 @@ echo "Scenarios Count:    ${#SCENARIO_NAMES[@]}"
 echo "Directions:         ${DIRECTIONS[*]}"
 echo ""
 
-for sc in "${SCENARIO_NAMES[@]}"; do
-  for dir in "${DIRECTIONS[@]}"; do
-    run_scenario_cell "$sc" "$dir" || true
-  done
-done
+while IFS=$'\t' read -r repeat sc dir; do
+  run_scenario_cell "$sc" "$dir" "$repeat" || true
+done < <(python3 -c 'import json, sys
+for run in json.load(open(sys.argv[1]))["runs"]:
+    print(run["repeat"], run["scenario"], run["direction"], sep="\t")' "$LOG_DIR/execution-plan.json")
 
 echo ""
 echo "================================================================================"
@@ -1150,7 +1184,7 @@ printf "%-38s %-28s %-6s %-10s %-10s %-10s %-10s %-10s\n" \
 printf "%s\n" "----------------------------------------------------------------------------------------------------------------------------------------"
 
 for row in "${SUMMARY_ROWS[@]}"; do
-  IFS='|' read -r r_sc r_dir r_stat r_qps r_p50 r_p99 r_scpu r_ccpu <<< "$row"
+  IFS='|' read -r r_sc r_dir r_stat r_qps r_p50 r_p99 r_scpu r_ccpu r_repeat <<< "$row"
   printf "%-38s %-28s %-6s %-10s %-10s %-10s %-10s %-10s\n" \
     "$r_sc" "$r_dir" "$r_stat" "$r_qps" "$r_p50" "$r_p99" "$r_scpu" "$r_ccpu"
 done
@@ -1174,6 +1208,7 @@ for r in rows:
             "latency_p99": parts[5],
             "server_cpu": parts[6],
             "client_cpu": parts[7],
+            "repeat": int(parts[8]),
         })
 with open(summary_file, "w") as f:
     json.dump({
@@ -1195,6 +1230,8 @@ with open(summary_file, "w") as f:
             "source_pin": ref_source_pin,
         } if ref_binary else None,
         "runs": results,
+        "execution_plan": "execution-plan.json",
+        "claim_eligible": False,
     }, f, indent=2)
 ' "$SUMMARY_JSON" "$DRIVER_BIN" "$DRIVER_KIND" "$DRIVER_SHA256" "$DRIVER_SOURCE_PIN" "$NATIVE_SOURCE_SHA" "$NATIVE_WORKER_SHA256" "$NATIVE_SOURCE_DIRTY" "$REF_WORKER_BIN" "$REF_WORKER_SHA256" "$REF_WORKER_SOURCE_PIN" "${SUMMARY_ROWS[@]}"
 

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 # Required peers: a peer that cannot run fails the stage, never not_run.
 REQUIRED_SERVER_PEERS = ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"]
-REQUIRED_CLIENT_PEERS = ["native", "tonic-pbrs", "go", "cpp"]
+REQUIRED_CLIENT_PEERS = ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"]
 
 # SB-18 optional peers: pinned and scripted in bench/stack-matrix/peers/
 # and rpc-bench/peers/<id>.json. One that cannot run reports not_run
@@ -48,10 +48,10 @@ PAYLOADS = {
     "64kib": (65536, 65536),
 }
 
-SHAPES = ["unary", "server_stream", "bidi"]
+SHAPES = ["unary", "server_stream", "bidi", "client_stream"]
 
 # Messages per streaming RPC (contract primary workloads).
-STREAM_MSGS = {"server_stream": 2000, "bidi": 256}
+STREAM_MSGS = {"server_stream": 2000, "bidi": 256, "client_stream": 2000}
 
 # CPU counts for the server/core-scaling axis (§3.6). The harness pins with
 # taskset on Linux; hosts without pinning record that explicitly.
@@ -61,9 +61,8 @@ CORE_COUNTS = [1, 2, 4]
 FIXED_GENERATOR = "native"
 FIXED_SERVER = "native"
 
-# tonic-prost has no load generator (tonic-interop only runs named interop
-# cases), so it can only sit on the server side of a cell.
-NO_GENERATOR = {"tonic-prost"}
+# Both tonic codecs use rpc-bench load; the prost arm was added by TC-24.
+NO_GENERATOR: set[str] = set()
 
 # rpc-bench has no TLS for the tonic transport (tonic 0.14 TLS pulls a C
 # crypto provider, conflicting with the pure-Rust dependency policy), so
@@ -86,6 +85,7 @@ class Cell:
     payload: str
     tls: bool
     cpus: int
+    compression: str = "identity"
 
     @property
     def peer_under_test(self) -> str:
@@ -97,7 +97,7 @@ class Cell:
         return (
             f"{self.role}-{self.peer_under_test}-{self.shape}-{self.payload}"
             f"-{tls}-{self.cpus}cpu"
-        )
+        ) + ("-gzip" if self.compression == "gzip" else "")
 
     def workload(self) -> str:
         """Methodology label: open-loop `load` or reference soak."""
@@ -108,6 +108,10 @@ class Cell:
 
 def validate(cell: Cell) -> Optional[str]:
     """Return None when runnable, else the unsupported reason."""
+    if cell.compression not in ("identity", "gzip"):
+        return f"unknown compression {cell.compression!r}"
+    if cell.compression == "gzip" and (cell.server_peer in ("go", "cpp") or cell.client_peer in SOAK_CLIENTS):
+        return "official peer gzip response configuration is not implemented or verified"
     if cell.client_peer in NO_GENERATOR:
         return (
             f"client {cell.client_peer} has no load generator; "
@@ -256,5 +260,6 @@ def as_dict(cell: Cell) -> Dict[str, Any]:
         "payload": cell.payload,
         "tls": cell.tls,
         "cpus": cell.cpus,
+        "compression": cell.compression,
         "workload": cell.workload(),
     }

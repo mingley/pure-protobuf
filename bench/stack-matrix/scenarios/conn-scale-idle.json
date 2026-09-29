@@ -29,7 +29,8 @@
     "open_workers": 16,
     "warmup_settle_s": 0.3
   },
-  "claim_host_requirements": "Linux, pinned 1 CPU for the server, RLIMIT_NOFILE >= 200k (opener + server each hold N fds), ip_local_port_range wider than N (single-source ladder), fs.file-max headroom; the report embeds the live values.",
+  "claim_host_requirements": "Linux, pinned server CPU, RLIMIT_NOFILE >= 200256, fs.file-max headroom. The 100k point needs multiple source addresses or destination address/port tuples; a single tuple cannot exceed 65,535 source ports. Current single-endpoint opener blocks it.",
+  "required_100k_topology": {"connections": 100000, "example_source_addresses": 4, "destination_endpoints": 1, "usable_ephemeral_ports_per_source": 28232, "capacity": 112928, "status": "requires multi-address opener and recorded route/source binding; not yet executed"},
   "os_limit_policy": "fd/port/backlog exhaustion (preflight budget, EMFILE/ENFILE/ENOBUFS/ENOMEM, refused-with-live-server, server-stderr fd notes, <99% established) marks the cell invalid, never fail; only fail exits nonzero.",
   "run": [
     "./scripts/stack-matrix.sh --scenario conn-scale-idle --out-dir target/stack-matrix/sb12-idle"

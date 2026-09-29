@@ -1,7 +1,9 @@
 """SB-11 unit tests: cell expansion, SLO search, pinning, TLS specs, builders."""
 
 import importlib.util
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -75,8 +77,8 @@ class CellValidationTest(unittest.TestCase):
         base.update(kw)
         return cells.Cell(**base)
 
-    def test_tonic_prost_client_rejected(self):
-        self.assertIsNotNone(cells.validate(self.mk(role="client", client_peer="tonic-prost")))
+    def test_tonic_prost_client_supported(self):
+        self.assertIsNone(cells.validate(self.mk(role="client", client_peer="tonic-prost")))
 
     def test_tonic_tls_rejected(self):
         self.assertIsNotNone(cells.validate(self.mk(tls=True, server_peer="tonic-pbrs")))
@@ -335,11 +337,80 @@ class CommandBuilderTest(unittest.TestCase):
         self.assertEqual(out["server_peak_rss_mib"], 12.0)
 
     def test_headroom_budget(self):
-        ok = run.check_headroom({"user_cpu_seconds": 1.0, "system_cpu_seconds": 0.0}, 2.0, 1, True)
+        ok = run.check_headroom({"supported": True, "user_cpu_seconds": 1.0, "system_cpu_seconds": 0.0}, 2.0, 1, True)
         self.assertTrue(ok["ok"])  # 50% of one core
-        bad = run.check_headroom({"user_cpu_seconds": 1.9, "system_cpu_seconds": 0.0}, 2.0, 1, True)
+        bad = run.check_headroom({"supported": True, "user_cpu_seconds": 1.9, "system_cpu_seconds": 0.0}, 2.0, 1, True)
         self.assertFalse(bad["ok"])  # 95% of one core
         self.assertIn("95.0%", bad["reason"])
+
+    def test_unpinned_or_missing_samples_do_not_prove_headroom(self):
+        self.assertFalse(run.check_headroom({"supported": True}, 2.0, 4, False)["ok"])
+        self.assertFalse(run.check_headroom({}, 2.0, 4, True)["ok"])
+
+    def test_timeout_is_a_failed_call_not_an_extra_completion(self):
+        step = slo.StepResult(offered_rate=1, offered_calls=10, successful_calls=8,
+                              failed_calls=2, timed_out_calls=2, p99_s=0.001)
+        self.assertIn("errors:", slo.check_step(step, 0.01).invalid_reason)
+
+
+class FrozenScenarioTest(unittest.TestCase):
+    path = STACK_DIR / "scenarios" / "grpc-bench-echo.json"
+
+    def test_all_repeats_preserve_frozen_pair_order(self):
+        definition = json.loads(self.path.read_text())
+        loaded = run.frozen_mod.load(self.path, run.STAGE_PARAMS["primary"])
+        self.assertEqual(len(loaded["plan"]), 5 * 19)
+        for rep, expected in definition["frozen_order_per_repeat"].items():
+            self.assertEqual([c.id for r, c in loaded["plan"] if r == rep], expected)
+        self.assertEqual(loaded["params"], definition["params"])
+
+    def test_filter_preserves_relative_order_in_every_repeat(self):
+        chosen = ["server-native-unary-1kib-plain-1cpu", "server-tonic-pbrs-unary-1kib-plain-1cpu"]
+        loaded = run.frozen_mod.load(self.path, run.STAGE_PARAMS["primary"], chosen)
+        self.assertEqual(len(loaded["plan"]), 10)
+        self.assertTrue(loaded["filtered"])
+        self.assertEqual({tuple(order) for order in loaded["order"].values()},
+                         {tuple(chosen), tuple(reversed(chosen))})
+
+    def test_bad_order_and_params_fail_before_launch(self):
+        definition = json.loads(self.path.read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.json"
+            definition["frozen_order_per_repeat"]["rep2"].pop()
+            path.write_text(json.dumps(definition))
+            with self.assertRaisesRegex(ValueError, "every cell"):
+                run.frozen_mod.load(path, run.STAGE_PARAMS["primary"])
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            run.frozen_mod.load(self.path, run.STAGE_PARAMS["primary"], ["typo"])
+
+    def test_claim_blocks_before_resolving_or_building_peers(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(run, "preflight") as resolve:
+            code, report = run.run_stage("primary", Path(tmp), scenario_path=self.path, claim=True)
+        self.assertEqual(code, 1)
+        self.assertFalse(report["matrix_complete"])
+        self.assertFalse(report["claim_eligible"])
+        self.assertTrue(report["claim_blockers"])
+        resolve.assert_not_called()
+
+    def test_configured_values_cannot_pass_claim_fairness(self):
+        cell = cells.Cell("server", "native", "native", "unary", "empty", False, 1)
+        report = {"fairness_spec": run.fairness_mod.SB01_SPEC, "matrix_complete": True,
+                  "qualification": "dedicated-network", "cells": [{**cells.as_dict(cell),
+                    "status": "pass", "fairness": run.fairness_mod.for_cell("native", "native", False)}]}
+        self.assertTrue(run.fairness_mod.verify_report(report)[0])
+        ok, findings = run.fairness_mod.verify_report(report, claim=True)
+        self.assertFalse(ok)
+        self.assertTrue(any(f["check"] == "effective-setting" for f in findings))
+
+    def test_claim_coverage_does_not_trust_complete_boolean(self):
+        loaded = run.frozen_mod.load(self.path, run.STAGE_PARAMS["primary"])
+        report = {"scenario": loaded, "matrix_complete": True,
+                  "cells": [{"repeat": rep, "id": cell.id} for rep, cell in loaded["plan"]]}
+        _, findings = run.fairness_mod.verify_report(report, claim=True)
+        self.assertFalse(any(f["check"] == "coverage" for f in findings))
+        report["cells"].pop()
+        _, findings = run.fairness_mod.verify_report(report, claim=True)
+        self.assertTrue(any(f["check"] == "coverage" for f in findings))
 
 
 if __name__ == "__main__":

@@ -245,6 +245,7 @@ pub struct LoadCliArgs {
     pub stream_msgs: Option<u32>,
     pub transport: Option<LoadTransport>,
     pub codec: Option<LoadCodec>,
+    pub gzip: bool,
     pub tls_ca: Option<String>,
     pub tls_server_name: Option<String>,
     pub max_message_size: Option<usize>,
@@ -446,6 +447,18 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     } else {
         None
     };
+    let gzip = match get_arg_val(args, "--compression")
+        .as_deref()
+        .unwrap_or("identity")
+    {
+        "identity" => false,
+        "gzip" => true,
+        other => {
+            return Err(format!(
+                "invalid --compression '{other}': expected identity or gzip"
+            ));
+        }
+    };
     if codec == Some(LoadCodec::Prost) && transport != Some(LoadTransport::Tonic) {
         return Err(
             "--codec=prost needs --transport=tonic (prost is the tonic comparison arm; native is pbrs-only)"
@@ -494,8 +507,8 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         );
     }
 
-    let window_mode = if let Some(val) = get_arg_val(args, "--window-mode")
-        .or_else(|| get_arg_val(args, "--native-window-mode"))
+    let window_mode = if let Some(val) =
+        get_arg_val(args, "--window-mode").or_else(|| get_arg_val(args, "--native-window-mode"))
     {
         val.parse::<NativeWindowMode>()?
     } else {
@@ -567,6 +580,7 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         stream_msgs,
         transport,
         codec,
+        gzip,
         tls_ca,
         tls_server_name,
         max_message_size,
@@ -594,6 +608,8 @@ pub fn extended_usage() -> String {
            --stream-msgs <N>        Messages per streaming RPC (default: 2000 server_stream, 256 bidi)\n  \
            --transport <MODE>       Load client transport: native or tonic (default: native; tonic is plaintext only)\n  \
            --codec <CODEC>          Tonic message codec: pbrs or prost (default: pbrs; prost needs --transport=tonic)\n  \
+           --compression <MODE>     identity or gzip; validates matching response encoding\n  \
+           load-server             Separate-process native/tonic load peer; same codec/compression flags\n  \
            --tls-ca <PATH>          PEM CA to verify the server (requires --tls-server-name; native only)\n  \
            --tls-server-name <N>    Server name to verify against the CA\n  \
            --max-message-size <N>   Max decoded message bytes (default: transport default, 4 MiB)\n  \
@@ -737,6 +753,40 @@ fn prost_payload_len(payload: &Option<prost_gen::Payload>) -> usize {
     payload.as_ref().map(|p| p.body.len()).unwrap_or(0)
 }
 
+trait VerifyLoadCompression: Sized {
+    fn verify_load_compression(self, gzip: bool) -> Result<Self, load::RpcCallError>;
+}
+
+fn check_response_encoding(encoding: Option<&str>, gzip: bool) -> Result<(), load::RpcCallError> {
+    let expected = if gzip { "gzip" } else { "identity" };
+    let actual = encoding.unwrap_or("identity");
+    if actual != expected {
+        return Err(load::RpcCallError::Other(format!(
+            "response compression mismatch: got {actual}, want {expected}"
+        )));
+    }
+    Ok(())
+}
+
+impl<T> VerifyLoadCompression for pbrs_grpc::Response<T> {
+    fn verify_load_compression(self, gzip: bool) -> Result<Self, load::RpcCallError> {
+        check_response_encoding(self.encoding(), gzip)?;
+        Ok(self)
+    }
+}
+
+impl<T> VerifyLoadCompression for tonic::Response<T> {
+    fn verify_load_compression(self, gzip: bool) -> Result<Self, load::RpcCallError> {
+        check_response_encoding(
+            self.metadata()
+                .get("grpc-encoding")
+                .and_then(|v| v.to_str().ok()),
+            gzip,
+        )?;
+        Ok(self)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn run_load_native(
     load_gen: &load::LoadGenerator,
@@ -753,6 +803,7 @@ async fn run_load_native(
     window_mode: NativeWindowMode,
     small_window_size: u32,
     small_window_override: bool,
+    gzip: bool,
 ) -> Result<load::LoadRecord, String> {
     let channel = load_native_channel(
         addr,
@@ -765,6 +816,11 @@ async fn run_load_native(
         small_window_override,
     )
     .await?;
+    let channel = if gzip {
+        channel.send_compressed()
+    } else {
+        channel
+    };
     match (shape, benchmark_service) {
         (LoadShape::Unary, true) => {
             let client = benchmark_service::BenchmarkServiceClient::new(channel);
@@ -782,7 +838,8 @@ async fn run_load_native(
                         let resp = client
                             .unary_call(pbrs_grpc::Request::new(req))
                             .await
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?;
                         let got = resp.into_inner().payload().body().len();
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
@@ -805,7 +862,8 @@ async fn run_load_native(
                                 req_bytes, resp_bytes,
                             )))
                             .await
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?;
                         let got = resp.into_inner().payload().body().len();
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
@@ -829,6 +887,7 @@ async fn run_load_native(
                             .streaming_output_call(pbrs_grpc::Request::new(template))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         let mut n = 0u32;
                         while let Some(msg) = inbound
@@ -877,6 +936,7 @@ async fn run_load_native(
                         send_res?;
                         let got = resp_res
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner()
                             .aggregated_payload_size();
                         if got != want {
@@ -901,6 +961,7 @@ async fn run_load_native(
                         let mut inbound = call
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         for i in 0..stream_msgs {
                             tx.send(template.clone()).await.map_err(|e| {
@@ -1095,17 +1156,142 @@ pub async fn serve_prost_tonic(
     listener: TcpListener,
     max_message_size: Option<usize>,
 ) -> Result<(), String> {
+    serve_load_tonic(listener, max_message_size, LoadCodec::Prost, false).await
+}
+
+async fn serve_load_tonic(
+    listener: TcpListener,
+    max_message_size: Option<usize>,
+    codec: LoadCodec,
+    gzip: bool,
+) -> Result<(), String> {
     let incoming = process::NodelayIncoming::new(listener).0;
+    if codec == LoadCodec::Pbrs {
+        let service = tonic_gen::TestServiceServer::new(process::TonicInterop)
+            .max_decoding_message_size(max_message_size.unwrap_or(4 * 1024 * 1024));
+        let service = if gzip {
+            service
+                .accept_compressed(tonic::codec::CompressionEncoding::Gzip)
+                .send_compressed(tonic::codec::CompressionEncoding::Gzip)
+        } else {
+            service
+        };
+        return process::fair_tonic_server()
+            .add_service(service)
+            .serve_with_incoming(incoming)
+            .await
+            .map_err(|e| format!("tonic server: {e}"));
+    }
     let service = prost_gen::test_service_server::TestServiceServer::new(ProstInterop);
     let service = match max_message_size {
         Some(n) => service.max_decoding_message_size(n),
         None => service,
+    };
+    let service = if gzip {
+        service
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip)
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip)
+    } else {
+        service
     };
     process::fair_tonic_server()
         .add_service(service)
         .serve_with_incoming(incoming)
         .await
         .map_err(|e| format!("prost tonic server error: {e}"))
+}
+
+fn tonic_compression(
+    client: tonic_gen::TestServiceClient<tonic::transport::Channel>,
+    gzip: bool,
+) -> tonic_gen::TestServiceClient<tonic::transport::Channel> {
+    if gzip {
+        client
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip)
+    } else {
+        client
+    }
+}
+
+fn prost_compression(
+    client: prost_gen::test_service_client::TestServiceClient<tonic::transport::Channel>,
+    gzip: bool,
+) -> prost_gen::test_service_client::TestServiceClient<tonic::transport::Channel> {
+    if gzip {
+        client
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip)
+    } else {
+        client
+    }
+}
+
+/// Separate-process peer for the load workload, with explicit response compression.
+async fn run_load_server(args: &[String], opts: LoadCliArgs) -> Result<(), String> {
+    let host = get_arg_val(args, "--host").unwrap_or_else(|| "127.0.0.1".into());
+    let port = get_arg_val(args, "--port").unwrap_or_else(|| "0".into());
+    let cert = get_arg_val(args, "--tls-cert");
+    let key = get_arg_val(args, "--tls-key");
+    if cert.is_some() != key.is_some() {
+        return Err("TLS server needs --tls-cert and --tls-key".into());
+    }
+    let transport = opts.transport.unwrap_or(LoadTransport::Native);
+    if cert.is_some() && transport == LoadTransport::Tonic {
+        return Err("tonic TLS is unavailable under the current crypto dependency policy".into());
+    }
+    let native_tls = if let (Some(cert), Some(key)) = (cert, key) {
+        let cert = std::fs::read(cert).map_err(|e| e.to_string())?;
+        let key = std::fs::read(key).map_err(|e| e.to_string())?;
+        let identity = pbrs_grpc::Identity::from_pem(&cert, &key).map_err(|e| e.to_string())?;
+        Some(pbrs_grpc::ServerTls::new(identity).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    let listener = TcpListener::bind(format!("{host}:{port}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    let addr = listener.local_addr().map_err(|e| e.to_string())?;
+    println!(
+        "READY port={} addr={} transport={} compression={}",
+        addr.port(),
+        addr,
+        transport,
+        if opts.gzip { "gzip" } else { "identity" }
+    );
+    match transport {
+        LoadTransport::Native => {
+            let router = create_dual_server(opts.max_message_size).config(
+                native_server_config(
+                    opts.window_mode,
+                    opts.small_window_size,
+                    opts.small_window_override,
+                    opts.max_message_size,
+                )
+                .send_compressed(opts.gzip),
+            );
+            if let Some(tls) = native_tls {
+                router
+                    .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                    .await
+                    .map_err(|e| e.to_string())
+            } else {
+                router
+                    .serve_listener(listener)
+                    .await
+                    .map_err(|e| e.to_string())
+            }
+        }
+        LoadTransport::Tonic => {
+            serve_load_tonic(
+                listener,
+                opts.max_message_size,
+                opts.codec.unwrap_or(LoadCodec::Pbrs),
+                opts.gzip,
+            )
+            .await
+        }
+    }
 }
 
 fn tonic_load_client(
@@ -1128,6 +1314,7 @@ async fn run_load_tonic(
     stream_msgs: u32,
     max_message_size: Option<usize>,
     connections: usize,
+    gzip: bool,
 ) -> Result<load::LoadRecord, String> {
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
@@ -1142,7 +1329,7 @@ async fn run_load_tonic(
     };
     match shape {
         LoadShape::Unary => {
-            let client = tonic_load_client(channel, max_message_size);
+            let client = tonic_compression(tonic_load_client(channel, max_message_size), gzip);
             Ok(load_gen
                 .run(move || {
                     let client = client.clone();
@@ -1153,7 +1340,8 @@ async fn run_load_tonic(
                                 req_bytes, resp_bytes,
                             )))
                             .await
-                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                            .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?;
                         let got = resp.into_inner().payload().body().len();
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
@@ -1166,7 +1354,7 @@ async fn run_load_tonic(
                 .await)
         }
         LoadShape::ServerStream => {
-            let client = tonic_load_client(channel, max_message_size);
+            let client = tonic_compression(tonic_load_client(channel, max_message_size), gzip);
             let template = process::stream_tonic_req(stream_msgs as i32, resp_bytes as i32);
             Ok(load_gen
                 .run(move || {
@@ -1178,6 +1366,7 @@ async fn run_load_tonic(
                             .streaming_output_call(tonic::Request::new(template))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         let mut n = 0u32;
                         while let Some(msg) = inbound
@@ -1204,7 +1393,7 @@ async fn run_load_tonic(
                 .await)
         }
         LoadShape::ClientStream => {
-            let client = tonic_load_client(channel, max_message_size);
+            let client = tonic_compression(tonic_load_client(channel, max_message_size), gzip);
             let template = process::upload_tonic_req(req_bytes as i32);
             let want = process::upload_want_bytes(stream_msgs as i32, req_bytes as i32);
             Ok(load_gen
@@ -1230,6 +1419,7 @@ async fn run_load_tonic(
                         send_res?;
                         let got = resp_res
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner()
                             .aggregated_payload_size();
                         if got != want {
@@ -1243,7 +1433,7 @@ async fn run_load_tonic(
                 .await)
         }
         LoadShape::Bidi => {
-            let client = tonic_load_client(channel, max_message_size);
+            let client = tonic_compression(tonic_load_client(channel, max_message_size), gzip);
             let template = bidi_tonic_request(resp_bytes);
             Ok(load_gen
                 .run(move || {
@@ -1258,6 +1448,7 @@ async fn run_load_tonic(
                             ))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         for i in 0..stream_msgs {
                             tx.send(template.clone()).await.map_err(|e| {
@@ -1323,6 +1514,7 @@ async fn run_load_prost(
     stream_msgs: u32,
     max_message_size: Option<usize>,
     connections: usize,
+    gzip: bool,
 ) -> Result<load::LoadRecord, String> {
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
@@ -1337,7 +1529,7 @@ async fn run_load_prost(
     };
     match shape {
         LoadShape::Unary => {
-            let client = prost_load_client(channel, max_message_size);
+            let client = prost_compression(prost_load_client(channel, max_message_size), gzip);
             Ok(load_gen
                 .run(move || {
                     let client = client.clone();
@@ -1349,6 +1541,7 @@ async fn run_load_prost(
                             )))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
+                        let resp = resp.verify_load_compression(gzip)?;
                         let got = prost_payload_len(&resp.into_inner().payload);
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
@@ -1361,7 +1554,7 @@ async fn run_load_prost(
                 .await)
         }
         LoadShape::ServerStream => {
-            let client = prost_load_client(channel, max_message_size);
+            let client = prost_compression(prost_load_client(channel, max_message_size), gzip);
             let template = stream_prost_req(stream_msgs as i32, resp_bytes as i32);
             Ok(load_gen
                 .run(move || {
@@ -1373,6 +1566,7 @@ async fn run_load_prost(
                             .streaming_output_call(tonic::Request::new(template))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         let mut n = 0u32;
                         while let Some(msg) = inbound
@@ -1399,7 +1593,7 @@ async fn run_load_prost(
                 .await)
         }
         LoadShape::ClientStream => {
-            let client = prost_load_client(channel, max_message_size);
+            let client = prost_compression(prost_load_client(channel, max_message_size), gzip);
             let template = upload_prost_req(req_bytes as i32);
             let want = process::upload_want_bytes(stream_msgs as i32, req_bytes as i32);
             Ok(load_gen
@@ -1425,6 +1619,7 @@ async fn run_load_prost(
                         send_res?;
                         let got = resp_res
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner()
                             .aggregated_payload_size;
                         if got != want {
@@ -1438,7 +1633,7 @@ async fn run_load_prost(
                 .await)
         }
         LoadShape::Bidi => {
-            let client = prost_load_client(channel, max_message_size);
+            let client = prost_compression(prost_load_client(channel, max_message_size), gzip);
             let template = bidi_prost_request(resp_bytes);
             Ok(load_gen
                 .run(move || {
@@ -1453,6 +1648,7 @@ async fn run_load_prost(
                             ))
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                            .verify_load_compression(gzip)?
                             .into_inner();
                         for i in 0..stream_msgs {
                             tx.send(template.clone()).await.map_err(|e| {
@@ -1643,7 +1839,9 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 .map_err(|e| format!("failed to get local addr: {e}"))?;
             let max_message_size = opts.max_message_size;
             tokio::spawn(async move {
-                serve_prost_tonic(listener, max_message_size).await.ok();
+                serve_load_tonic(listener, max_message_size, LoadCodec::Prost, opts.gzip)
+                    .await
+                    .ok();
             });
             tokio::time::sleep(Duration::from_millis(50)).await;
             bound
@@ -1660,12 +1858,15 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
             let small_window_override = opts.small_window_override;
             tokio::spawn(async move {
                 let router = create_dual_server(max_message_size);
-                let router = router.config(native_server_config(
-                    window_mode,
-                    small_window_size,
-                    small_window_override,
-                    max_message_size,
-                ));
+                let router = router.config(
+                    native_server_config(
+                        window_mode,
+                        small_window_size,
+                        small_window_override,
+                        max_message_size,
+                    )
+                    .send_compressed(opts.gzip),
+                );
                 router.serve_listener(listener).await.ok();
             });
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1696,6 +1897,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 opts.window_mode,
                 opts.small_window_size,
                 opts.small_window_override,
+                opts.gzip,
             )
             .await?
         }
@@ -1710,6 +1912,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                     stream_msgs,
                     opts.max_message_size,
                     connections,
+                    opts.gzip,
                 )
                 .await?
             }
@@ -1723,6 +1926,7 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                     stream_msgs,
                     opts.max_message_size,
                     connections,
+                    opts.gzip,
                 )
                 .await?
             }
@@ -1856,8 +2060,8 @@ async fn start_scale_server(
                 (Some(cert), Some(key)) => {
                     let cert = std::fs::read(cert)
                         .map_err(|e| format!("read --tls-cert '{cert}': {e}"))?;
-                    let key = std::fs::read(key)
-                        .map_err(|e| format!("read --tls-key '{key}': {e}"))?;
+                    let key =
+                        std::fs::read(key).map_err(|e| format!("read --tls-key '{key}': {e}"))?;
                     let identity = pbrs_grpc::Identity::from_pem(&cert, &key)
                         .map_err(|e| format!("server identity: {e}"))?;
                     let tls = pbrs_grpc::ServerTls::new(identity)
@@ -2015,8 +2219,12 @@ async fn run_scale_benchmark(opts: ScaleCliArgs) -> Result<(), String> {
             None
         };
 
-    let idle_delta = idle.current_rss_bytes.saturating_sub(baseline.current_rss_bytes);
-    let stream_delta = streams.current_rss_bytes.saturating_sub(idle.current_rss_bytes);
+    let idle_delta = idle
+        .current_rss_bytes
+        .saturating_sub(baseline.current_rss_bytes);
+    let stream_delta = streams
+        .current_rss_bytes
+        .saturating_sub(idle.current_rss_bytes);
     let report = serde_json::json!({
         "schema": "sb12-scale/1",
         "transport": opts.transport.to_string(),
@@ -2120,6 +2328,28 @@ async fn main() {
         }
     };
 
+    if args.get(1).map(String::as_str) == Some("load-server") {
+        let timeout = get_arg_val(&args, "--timeout-secs")
+            .map(|value| value.parse::<u64>())
+            .transpose()
+            .unwrap_or_else(|error| {
+                eprintln!("invalid --timeout-secs: {error}");
+                std::process::exit(2);
+            });
+        let serve = run_load_server(&args, load_opts);
+        let result = if let Some(seconds) = timeout {
+            tokio::time::timeout(Duration::from_secs(seconds), serve)
+                .await
+                .unwrap_or(Ok(()))
+        } else {
+            serve.await
+        };
+        if let Err(error) = result {
+            eprintln!("Load server failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.get(1).map(String::as_str) == Some("load") {
         if let Err(e) = run_load_benchmark(&args, load_opts).await {
             eprintln!("Load benchmark failed: {e}");
@@ -2515,6 +2745,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn load_compression_requires_matching_response_encoding() {
+        assert!(check_response_encoding(None, false).is_ok());
+        assert!(check_response_encoding(Some("gzip"), true).is_ok());
+        assert!(check_response_encoding(None, true).is_err());
+        assert!(check_response_encoding(Some("gzip"), false).is_err());
+        assert!(
+            parse_load_cli_args(&load_args(&["--compression=gzip"]))
+                .unwrap()
+                .gzip
+        );
+        assert!(
+            !parse_load_cli_args(&load_args(&["--compression=identity"]))
+                .unwrap()
+                .gzip
+        );
+        assert!(parse_load_cli_args(&load_args(&["--compression=deflate"])).is_err());
+    }
+
     #[tokio::test]
     async fn test_prost_tonic_unary_roundtrip() {
         // In-process prost server + generated prost client: unary sizes
@@ -2608,7 +2857,10 @@ mod tests {
         assert_eq!(opts.streams, 500);
         assert_eq!(opts.repeats, 5);
         assert!(opts.print_json);
-        assert!(parse_scale_cli_args(&["rpc-bench".into(), "scale".into(), "--connections=0".into()]).is_err());
+        assert!(
+            parse_scale_cli_args(&["rpc-bench".into(), "scale".into(), "--connections=0".into()])
+                .is_err()
+        );
         assert!(
             parse_scale_cli_args(&[
                 "rpc-bench".into(),

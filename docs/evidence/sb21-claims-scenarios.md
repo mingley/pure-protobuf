@@ -1,122 +1,146 @@
-# SB-21: contract-compliant scenario variants for E1/E2 claims
+# SB-21: scenario execution and independent QPS accounting
 
-**Status: scenario definitions delivered; claim-runner integration incomplete.**
-The smokes below verify selected workload paths. They do not qualify an E1/E2
-claim or complete the campaign. This distinction was rechecked on 2026-09-29.
+**Status: runner integration and native accounting implemented; campaign qualification remains open.**
+The 2026-09-29 changes export scheduled-send latency, reconcile observed mark
+windows, and execute independently randomized repeat orders. These are
+functionality checks, not an E1/E2 performance claim.
 
-## What
+## Frozen inputs and execution
 
-Two frozen variant sets so E1/E2 claims never rely on closed-loop
-diagnostic runs:
+- `rpc-bench/scenarios/claims.json` retains eight open-loop Poisson variants:
+  empty, 1 KiB, 64 KiB, streaming-empty, streaming-1 KiB, open25k, poisson5k,
+  and overload2x; each specifies 15 seconds warmup and 60 seconds measurement.
+  It remains a strict official `Scenarios` message without custom top-level keys.
+- The QPS runner accepts `--repeats=5 --order-seed=210021`, writes
+  `execution-plan.json`, and independently shuffles scenario order and peer
+  direction order for every repeat. Repeat artifacts use separate
+  `repeat-N/` directories. The executable archived order replaces the old
+  manually documented rep1–rep5 order; input file order is not an execution promise.
+- The stack-matrix runner now loads
+  `bench/stack-matrix/scenarios/grpc-bench-echo.json` through `--scenario`,
+  executes its frozen cells/repeats and per-repeat peer ordering, and supports
+  explicit smoke/cell filters. See [SB-24](sb24-matrix.md) for execution evidence.
+- Closed-loop `official.json` and earlier ghz comparisons remain diagnostics.
 
-- `rpc-bench/scenarios/claims.json`: 8 open-loop poisson QPS
-  variants of the 7 SB-10 `protobuf_*` scenarios (15 s warmup /
-  60 s measurement), plus one 2x overload variant. Offered loads
-  sit at ~70% of the SB-10 native-pair closed-loop QPS (empty 12k,
-  1kb 10k, 64kb 5k, streaming 9k/9k, open 25k, poisson 5k,
-  overload 24k); in-flight caps stay within the worker resource
-  policy (1x64; 2x100 for the open variant). File order is the
-  frozen rep1 execution order (the runner executes in file order).
-  No extra top-level keys: the integrated Go driver proto-parses
-  the whole file strictly (verified: an extra block fails with
-  `unknown field "claims"`).
-- `bench/stack-matrix/scenarios/grpc-bench-echo.json`: 19 claims
-  cells translating the SB-17 workload (unary, 1kib plaintext —
-  nearest above the ~200 B complex_proto message — 1/2/4 server
-  CPUs, matched-rate client cells), with frozen params (15 s /
-  60 s, seed 210021, SLO search bounds) and per-repeat orders. All
-  19 cell ids verified present in the `primary` expansion.
-  `run.py` has no scenario loader yet (follow-up). Running `--stage primary`
-  and filtering `report.json` can locate the matching diagnostic cells, but
-  does not execute the frozen per-repeat orders or constitute this claim run.
+Rates are initial shared-host pilot values, not campaign-host capacity
+measurements. The overload2x name does not prove saturation or recovery.
 
-Originals stay labeled diagnostic: `official.json` (closed-loop,
-5 s / 30 s) and `docs/evidence/grpc-bench.md` Run A/B (closed-loop
-ghz, 5 s / 20 s).
+## Native worker measurement contract
 
-## Pre-registration (seed 210021, 5 repeats)
+The official WorkerService protobuf is unchanged. `ClientStats.latencies`
+retains dispatch-relative service time. Each native client mark also writes
+one `QPS_ACCOUNTING {json}` record to its process log containing both service
+and scheduled-send latency histograms with observed counters. Histogram
+values and counters are captured under one lock.
 
-QPS pairings per repeat: native_pair, cpp_client_to_native_server,
-native_client_to_cpp_server, go_client_to_native_server,
-native_client_to_go_server; claim driver is the pinned C++ driver
-(SB-10 pins). QPS rep orders (S=short names: empty, 1kb, 64kb,
-s-empty, s-1kb, open25k, poisson5k, overload2x):
+These are **completion-mark windows**, not arrival cohorts or drain reports.
+Admission is recorded synchronously before the generator spawns the RPC
+future. `dispatched` means admitted to a channel/task; a task cancelled before
+its first poll is still unfinished. Service time starts when the admitted
+future executes; scheduled-send time starts at its original Poisson arrival.
+A timeout records actual elapsed time, including scheduler delay, rather than
+substituting its configured deadline.
 
-- rep1 (== claims.json file order): empty, 64kb, poisson5k,
-  open25k, overload2x, s-1kb, s-empty, 1kb
-- rep2: overload2x, 64kb, poisson5k, 1kb, s-empty, open25k,
-  s-1kb, empty
-- rep3: overload2x, s-1kb, s-empty, 1kb, poisson5k, empty, 64kb,
-  open25k
-- rep4: empty, s-1kb, 64kb, 1kb, s-empty, overload2x, open25k,
-  poisson5k
-- rep5: s-1kb, 1kb, open25k, poisson5k, empty, 64kb, overload2x,
-  s-empty
+For each mark:
 
-Stack-matrix rep orders are frozen per cell id in
-`grpc-bench-echo.json# frozen_order_per_repeat` (same seed).
+```text
+offered = dispatched + rejected
+incoming_in_flight + dispatched = completed + unfinished
+completed = successful + failed
+timed_out <= failed
+```
 
-## Smoke: QPS harness
+Here `failed` counts completed non-OK calls; unfinished calls are a separate
+outcome. Marks have `drain_seconds = 0`. A reset carries unfinished calls into
+the next window as `incoming_in_flight`; `carried_in_completed` identifies their
+completions. Rejections have status counts but no invented latency sample.
+This explicit carry-in matters: completed may legitimately exceed offered
+within a short window. Neither offered nor unfinished is inferred from
+configured QPS multiplied by duration.
 
-Integrated Go driver (`dd51b1c9`), native_pair, no warmup/duration
-overrides (2026-09-28 runs under `target/qps-logs/`):
+`scripts/qps-proof.py` checks conservation, reset boundaries, actual elapsed
+time, both histogram totals, official error counts, and the driver's QPS and
+service histogram against this independent record. It rejects gross Poisson
+offered-rate violations even in diagnostic mode. `--claim-check` additionally
+requires open-loop input, a reset boundary, and independent accounting with
+scheduled-send latency. Reference clients without equivalent evidence fail
+closed. The output always keeps `claim_eligible: false`: this check alone
+cannot establish controlled resources, matched peer behavior, a spare-capacity
+generator, adequate tail samples, or confidence intervals.
 
-- `claims_unary_poisson_5000qps`: PASS, 4997.6 QPS; 60.0 s
-  measurement window; offered 300,000 -> 299,859 histogram +
-  zero failures/rejections (141 in flight at drain).
-- `claims_unary_ping_pong_empty` + `claims_unary_empty_overload_2x`
-  (one invocation): executed in file order (empty first); PASS
-  11,986 / 23,445 QPS; 60.0 s windows; counts reconcile
-  (719,203 / 1,406,789).
-- Asserts: configured durations honored (60.0 s windows),
-  offered/completed/rejected reconcile, file (frozen) order
-  executed. The overload variant did not saturate this host (no
-  rejections observed); rejection accounting itself is covered by
-  existing worker tests.
+## Reproducible accounting smoke (2026-09-29)
 
-## Smoke: stack-matrix workload path
+[Raw evidence](sb21-accounting-smoke.json) retains both native repeats'
+complete integrated-driver results, all worker mark records, the execution
+plan, scenario, binary fingerprints, and the rejected Go result. Source:
+`deea5e3f` plus the SB-21 working changes. Native binary is a **debug build**;
+the summary correctly reports dirty/unverified source because an explicitly
+selected prebuilt binary was used. This shared Darwin host smoke is not a
+speed comparison.
 
-`rpc-bench load` with the frozen params against a native server
-(15 s warmup at 1k qps + one 60 s probe at 20k qps, seed 210021):
+```sh
+GRPC_QPS_NATIVE_WORKER="$PWD/rpc-bench/target/debug/rpc-bench" \
+  bash scripts/grpc-qps-interop.sh --skip-build \
+  --driver=/path/to/pinned/qps-driver \
+  --scenarios=rpc-bench/scenarios/claims.json \
+  --scenario=claims_unary_poisson_5000qps --mode=native_pair \
+  --warmup=1 --duration=2 --repeats=2 --claim-check \
+  --log-dir=target/qps-sb21-native-accounting
+```
 
-- Wall 15.012 s / 60.080 s; offered = dispatched = completed =
-  1,200,228 with 0 failures/timeouts/overflows.
-- e2e (T_complete - T_sched) p50/p90/p99 1.86/2.68/3.35 ms vs
-  service p50 0.97 ms: schedule-relative accounting verified,
-  scheduling lag separately recorded.
+Both accounting checks passed:
 
-## Known gaps (coordinator follow-ups, outside SB-21's write set)
+| Repeat | Actual seconds | Offered / dispatched | Incoming | Completed | Unfinished |
+|---|---:|---:|---:|---:|---:|
+| 1 | 2.014601292 | 10,210 / 10,210 | 11 | 10,213 | 8 |
+| 2 | 2.015884792 | 10,221 / 10,221 | 10 | 10,217 | 14 |
 
-- Worker ClientStats latencies are dispatch-relative: the QPS
-  worker records `track_worker_rpc` service time, while the
-  schedule-relative e2e lives only in the unexported `LoadRecord`.
-  Claim latencies from the QPS path need a worker export change.
-- `run.py` needs a scenario loader for `scenarios/*.json`
-  (repeats + frozen order + cell filter); until then the mapping
-  in the scenario file's `run` key is manual.
-- Per-repeat re-shuffling needs runner support in
-  `grpc-qps-interop.sh`; reps 2-5 orders above are the frozen
-  procedure for the claim-run operator.
+Both had zero rejected, failed or timed-out calls. Scheduled-send mean latency
+was 1.737 / 1.603 ms, versus service mean 0.738 / 0.634 ms, proving the exported
+histograms have distinct time origins. Nonzero incoming and unfinished
+counts reconcile directly in the retained mark records.
 
-## Before SB-22 can use these definitions
+The earlier 2026-09-28 note inferred 300,000 offers from 5,000 QPS × 60 seconds
+and called the histogram difference in-flight. Those figures lacked
+independent offer and boundary counters; that note did not prove conservation
+and is superseded by the observed accounting above.
 
-The campaign preflight must verify the gaps above are closed, reject missing
-required peers/settings, and retain evidence that the generator has spare
-capacity. Reconcile offered, admitted, rejected, completed, failed, and
-unfinished calls over the same measurement/drain windows. Retain both service
-and schedule-relative latency; one cannot substitute for the other.
+## Investigating the archived Go 11,058.2 QPS at nominal 5,000 QPS
 
-The listed rates are initial pilot values derived from a shared-host
-diagnostic. Re-freeze them on the campaign hosts before measuring. In
-particular, the `overload_2x` name does not prove overload: the recorded smoke
-did not reach saturation. A campaign must establish its saturation knee and
-show actual overload/recovery under the declared budget.
+The archived SB-10 artifact contains only `{"qps": 11058.2}`. Its scenario
+has one channel and 64 outstanding slots. It cannot establish the actual
+offered count, carry-in, failures, or measured window that produced that value.
 
-Five repeats, 60-second windows, or a scenario filename alone do not qualify
-the results. Apply the full [benchmark contract](../benchmark-contract.md),
-including paired 95% intervals and correctness checks at the measured revision.
+Inspection of the pinned grpc-go
+[`benchmark_client.go`](https://github.com/grpc/grpc-go/blob/dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef/benchmark/worker/benchmark_client.go#L259)
+establishes a concrete workload mismatch: `unaryLoop` creates a Poisson chain
+for each channel/outstanding slot, passing the full configured `OfferedLoad`
+to every chain; `poissonUnary` reschedules each chain with that same rate.
+Thus this source does not interpret 5,000 as an aggregate rate for 64 slots.
+Its theoretical scheduled aggregate is 64 × 5,000, before timer/runtime
+limitations. This is not a measurement of achieved offers, and does not
+uniquely reconstruct the historical 11,058.2 result.
 
-## Gates
+A fresh 1-second warmup / 2-second measurement of that pinned Go worker against
+the debug native server reported 11,240.4 QPS. The runner rejected it with
+`reported QPS exceeds configured Poisson offered load`; the result and source
+pin are retained in the smoke artifact. We do not normalize or relabel the Go
+number as a 5,000-QPS comparison. A matched campaign needs a verified aggregate
+schedule and independent accounting for that peer.
 
-`rpc-bench-tests` and `stack-matrix` (smoke stage) re-run at
-completion; `plan-lint.py` OK.
+## Tests and remaining qualification gates
+
+Focused validation: 12 Python QPS tests, 93 worker integration tests, the binary
+unit suite, and a separate admitted-before-first-poll regression. Tests cover
+concurrent mark/reset races, carry-in conservation, scheduling delay, real
+timeout elapsed time, malformed histograms/counters, randomized peer order,
+saved native evidence, and rejection of the archived Go outlier. The runner
+also works with macOS's older Bash array indexing.
+
+Before SB-22: qualify all required peer/direction implementations, establish
+matched offered-load semantics, retain independent accounting for reference
+clients, measure generator spare capacity, choose measured saturation/overload
+points, and run on declared controlled hosts. The full
+[benchmark contract](../benchmark-contract.md), including samples and paired
+95% intervals, remains mandatory. Five repeats or a successful accounting
+preflight does not qualify a claim.

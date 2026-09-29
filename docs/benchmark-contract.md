@@ -285,10 +285,17 @@ requested. Offered calls rejected at the local cap appear as
 `RESOURCE_EXHAUSTED` in `ClientStats.request_results`; they do **not** get
 a fabricated latency sample. Published benchmark comparisons still need
 independent offered/rejected-call evidence; a `ClientStats` histogram alone
-cannot prove all offered calls completed. The worker's exported latency
-histogram is dispatch-relative; schedule-relative end-to-end latency still
-needs the export work recorded by [SB-21](evidence/sb21-claims-scenarios.md).
-The separate `rpc-bench load` report already carries both. A per-channel semaphore enforces
+cannot prove all offered calls completed. The official `ClientStats` histogram
+remains dispatch-relative. Native worker `QPS_ACCOUNTING` log records export
+both service and schedule-relative end-to-end histograms, atomically with
+offered/dispatched/completed/successful/failed/rejected/timed-out/unfinished
+counters. Completion-mark windows explicitly retain incoming in-flight calls
+and carried-in completions across resets; a mark has no drain. The QPS runner's
+`--claim-check` requires this independent evidence and reconciles actual window
+duration and driver counts; upstream peers without equivalent accounting fail
+the check. This is an accounting preflight, not full claim qualification. See
+[SB-21](evidence/sb21-claims-scenarios.md) for semantics and limitations.
+The separate `rpc-bench load` report also carries both latency definitions. A per-channel semaphore enforces
 the requested outstanding-call limit; a call is assigned to a free channel
 or rejected visibly, not silently queued behind a saturated channel.
 Per-channel scheduling behavior against the original driver is not yet

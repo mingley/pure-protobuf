@@ -317,8 +317,8 @@
     }
   ],
   "run": [
-    "python3 bench/stack-matrix/run.py --stage primary --server-peers native,tonic-pbrs,tonic-prost,go,cpp --client-peers native,tonic-pbrs,go,cpp --out-dir target/stack-matrix/claims",
-    "NOTE: run.py has no scenario loader yet (follow-up); a claim run executes the primary stage above and the claims analysis filters report.json to the frozen cell ids in file order per repeat."
+    "python3 bench/stack-matrix/run.py --scenario bench/stack-matrix/scenarios/grpc-bench-echo.json --out-dir target/stack-matrix/claims",
+    "The loader runs all five frozen orders with isolated repeat logs. This remains diagnostic loopback; --claim fails before launching peers until dedicated hosts and effective settings are verified."
   ],
-  "smoke": "rpc-bench `load` directly with params above (one warmup + one 60 s probe) against a native server; asserts wall durations, offered/completed/rejected reconciliation, frozen order, and e2e latency from the scheduled send time."
+  "smoke": "python3 bench/stack-matrix/run.py --scenario bench/stack-matrix/scenarios/grpc-bench-echo.json --scenario-smoke --cells server-native-unary-1kib-plain-1cpu,server-tonic-pbrs-unary-1kib-plain-1cpu --out-dir target/stack-matrix/frozen-smoke"
 }

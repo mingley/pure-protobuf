@@ -952,7 +952,10 @@ async fn worker_rpc_timeout_is_a_counted_error_not_a_missing_sample() {
     assert!(matches!(result, Err(load::RpcCallError::Timeout)));
     let (histogram, results) = tracker.snapshot(false);
     assert_eq!(histogram.count(), 1.0);
-    assert_eq!(histogram.min_seen(), 5_000_000.0);
+    assert!(
+        histogram.min_seen() >= 5_000_000.0,
+        "timeout latency must retain actual elapsed scheduler delay"
+    );
     assert_eq!(results.len(), 1);
     assert_eq!(
         results[0].status_code(),

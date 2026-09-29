@@ -64,11 +64,14 @@ class SloResult:
 
 def check_step(step: StepResult, slo_p99_s: float) -> StepResult:
     """Rate one probe step against the SLO; pure, unit-testable."""
-    accounted = (
-        step.successful_calls + step.failed_calls + step.timed_out_calls
-    )
+    # failed_calls already includes timeouts in rpc-bench LoadRecord.
+    accounted = step.successful_calls + step.failed_calls
+    step.valid = False
+    step.invalid_reason = ""
     if step.offered_calls <= 0:
         step.invalid_reason = "no offered calls recorded"
+    elif step.timed_out_calls > step.failed_calls:
+        step.invalid_reason = "timeouts exceed failed calls"
     elif accounted + step.rejected_calls != step.offered_calls:
         step.invalid_reason = (
             f"unaccounted calls: offered={step.offered_calls} "

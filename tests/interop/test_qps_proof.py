@@ -1,6 +1,7 @@
 """QPS driver preparation and result validation without a live peer."""
 
 import importlib.util
+import copy
 import hashlib
 import json
 import os
@@ -19,6 +20,104 @@ spec.loader.exec_module(qps_proof)
 
 
 class QpsProofTest(unittest.TestCase):
+    @staticmethod
+    def accounting_window():
+        return {
+            "schema_version": 1, "window_kind": "completion_mark", "window_epoch": 1,
+            "reset": False, "window_seconds": 1.0, "drain_seconds": 0.0,
+            "offered": 100, "dispatched": 90, "completed": 89, "successful": 87,
+            "failed": 2, "rejected": 10, "timed_out": 1,
+            "incoming_in_flight": 2, "carried_in_completed": 2, "unfinished": 3,
+            "service_latency_nanos": {"count": 89, "bucket": [89], "sum": 890.0, "min_seen": 10, "max_seen": 10},
+            "scheduled_latency_nanos": {"count": 89, "bucket": [89], "sum": 1780.0, "min_seen": 20, "max_seen": 20},
+        }
+
+    def test_each_repeat_independently_randomizes_scenario_and_peer_order(self):
+        scenarios = ["empty", "1k", "64k"]
+        directions = ["native_pair", "native_client_to_ref_server", "ref_client_to_native_server"]
+        plan = qps_proof.execution_plan(scenarios, directions, 5, 210021)
+        self.assertEqual(plan, qps_proof.execution_plan(scenarios, directions, 5, 210021))
+        self.assertNotEqual(plan["runs"], qps_proof.execution_plan(scenarios, directions, 5, 42)["runs"])
+        peer_orders = []
+        for repeat in range(1, 6):
+            runs = [run for run in plan["runs"] if run["repeat"] == repeat]
+            self.assertEqual(len(runs), len(scenarios) * len(directions))
+            self.assertEqual({(run["scenario"], run["direction"]) for run in runs},
+                             {(scenario, direction) for scenario in scenarios for direction in directions})
+            peer_orders.append(tuple(run["direction"] for run in runs if run["scenario"] == "empty"))
+        self.assertGreater(len(set(peer_orders)), 1)
+        with self.assertRaises(ValueError):
+            qps_proof.execution_plan(scenarios, directions, 0, 42)
+
+    def test_independent_accounting_conserves_carry_in_and_every_outcome(self):
+        valid = self.accounting_window()
+        qps_proof.validate_accounting(valid)
+        mutations = [
+            ("offered", 99), ("completed", 88), ("successful", 88),
+            ("timed_out", 3), ("unfinished", 2), ("incoming_in_flight", 0),
+            ("carried_in_completed", 3), ("window_seconds", float("nan")),
+            ("dispatched", True), ("rejected", -1),
+        ]
+        for field, value in mutations:
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                qps_proof.validate_accounting({**valid, field: value})
+        for key in ("service_latency_nanos", "scheduled_latency_nanos"):
+            damaged = copy.deepcopy(valid)
+            damaged[key]["bucket"] = [88]
+            with self.assertRaisesRegex(ValueError, "histogram"):
+                qps_proof.validate_accounting(damaged)
+        damaged = copy.deepcopy(valid)
+        damaged["scheduled_latency_nanos"]["sum"] = 1
+        with self.assertRaisesRegex(ValueError, "shorter than service"):
+            qps_proof.validate_accounting(damaged)
+
+    def test_claim_preflight_fails_closed_without_accounting_or_open_load(self):
+        scenario = {"benchmark_seconds": 1, "client_config": {"load_params": {"poisson": {"offered_load": 100}}}}
+        diagnostic = qps_proof.validate_measurement({"qps": 89}, "cpp", scenario, [], False)
+        self.assertFalse(diagnostic["accounting_verified"])
+        with self.assertRaisesRegex(ValueError, "lacks independent"):
+            qps_proof.validate_measurement({"qps": 89}, "cpp", scenario, [], True)
+        with self.assertRaisesRegex(ValueError, "open-loop"):
+            qps_proof.validate_measurement({"qps": 89}, "cpp", {"benchmark_seconds": 1}, [], True)
+        measured = self.accounting_window()
+        warmup = {**measured, "reset": True, "window_epoch": 0, "offered": 99, "dispatched": 89, "unfinished": 2}
+        proof = qps_proof.validate_measurement({"qps": 89}, "cpp", scenario, [warmup, measured], True)
+        self.assertTrue(proof["accounting_verified"])
+        self.assertFalse(proof["claim_eligible"])
+        self.assertEqual(proof["successful_qps"], 87)
+        with self.assertRaisesRegex(ValueError, "does not reconcile"):
+            qps_proof.validate_measurement({"qps": 100}, "cpp", scenario, [warmup, measured], True)
+
+    def test_old_go_poisson_outlier_is_rejected_without_guessing_its_cause(self):
+        source = ROOT / "docs/evidence/qps-sb10/run5-go-c2n"
+        scenario = json.loads((source / "protobuf_unary_poisson_5000qps.scenario.json").read_text())["scenarios"][0]
+        result = json.loads((source / "protobuf_unary_poisson_5000qps-ref_client_to_native_server-driver-metrics.json").read_text())
+        with self.assertRaisesRegex(ValueError, "exceeds configured Poisson offered load"):
+            qps_proof.validate_measurement(result, "cpp", scenario, [], False)
+
+    def test_worker_log_rejects_nonjoining_reset_windows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "client.log"
+            first = self.accounting_window()
+            first.update({"reset": True, "window_epoch": 0})
+            second = self.accounting_window()
+            log.write_text("QPS_ACCOUNTING " + json.dumps(first) + "\nQPS_ACCOUNTING " + json.dumps(second) + "\n")
+            with self.assertRaisesRegex(ValueError, "do not join"):
+                qps_proof.accounting_from_log(log)
+
+    def test_saved_native_smokes_reconcile_and_go_smoke_fails_closed(self):
+        evidence = json.loads((ROOT / "docs/evidence/sb21-accounting-smoke.json").read_text())
+        for run in evidence["native_runs"]:
+            proof = qps_proof.validate_measurement(run["result"], "go", evidence["scenario"], run["worker_windows"], True)
+            self.assertTrue(proof["accounting_verified"])
+            self.assertFalse(proof["claim_eligible"])
+            measured = proof["measurement"]
+            self.assertGreater(measured["incoming_in_flight"], 0)
+            self.assertGreater(measured["unfinished"], 0)
+            self.assertGreater(measured["scheduled_latency_nanos"]["sum"], measured["service_latency_nanos"]["sum"])
+        with self.assertRaisesRegex(ValueError, "exceeds configured Poisson offered load"):
+            qps_proof.validate_measurement(evidence["go_rejection"]["result"], "go", evidence["scenario"], [], True)
+
     def test_runner_dry_run_uses_shared_cargo_target_and_caps_jobs(self):
         with tempfile.TemporaryDirectory() as directory:
             command = [

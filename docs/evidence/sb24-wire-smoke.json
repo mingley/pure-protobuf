@@ -1,0 +1,2705 @@
+{
+  "schema": "sb24-transport-smoke/1",
+  "claim_eligible": false,
+  "qualification": "diagnostic-loopback",
+  "binary": "rpc-bench/target/debug/rpc-bench",
+  "cells": [
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-tls-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-tls-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-tls-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-tls-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-tls-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-tls-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-tls-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-tls-1cpu-gzip",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": true,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-pbrs",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            0
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            0
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-native-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "native",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-pbrs-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-pbrs",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-unary-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-server_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "server_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-bidi-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "bidi",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "id": "client-tonic-prost-client_stream-1kib-plain-1cpu-gzip",
+      "role": "client",
+      "server_peer": "tonic-prost",
+      "client_peer": "tonic-prost",
+      "shape": "client_stream",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "gzip",
+      "workload": "open-loop-load",
+      "status": "pass",
+      "wire_message_flags": {
+        "request": {
+          "count": 27,
+          "flags": [
+            1
+          ]
+        },
+        "response": {
+          "count": 9,
+          "flags": [
+            1
+          ]
+        }
+      },
+      "accounting": {
+        "offered": 9,
+        "dispatched": 9,
+        "successful": 9,
+        "failed": 0,
+        "timed_out": 0,
+        "rejected": 0
+      }
+    }
+  ],
+  "required_gaps": [
+    "tonic TLS: crypto dependency policy",
+    "grpc-go/grpc-c++ equivalent open-loop clients",
+    "official peer response compression and runtime effective-settings export",
+    "dedicated-host CPU windows and headroom qualification"
+  ],
+  "binary_sha256": "cef1420622f252ff92a878596a59e852e2147d03c0c07a9ac053a6af418c2ca4",
+  "date": "2026-09-29",
+  "host": "local macOS arm64; diagnostic loopback"
+}

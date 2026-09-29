@@ -2,7 +2,15 @@
   "$schema": "./peer.schema.json",
   "id": "tonic-prost",
   "name": "tonic-prost",
-  "description": "End-to-end reference: tonic 0.14 transport with the prost codec (tonic-interop binary); server-only because no prost load generator exists",
+  "description": "Tonic 0.14 with prost: legacy rpc-bench-matrix adapter is server-only; stack-matrix uses rpc-bench for both roles (see stack_matrix)",
+  "stack_matrix": {
+    "roles": ["client", "server"],
+    "server": "rpc-bench load-server --transport=tonic --codec=prost --compression=identity|gzip",
+    "client": "rpc-bench load --transport=tonic --codec=prost --compression=identity|gzip",
+    "transport_settings": "fair_tonic_server/endpoint and NodelayIncoming; configured values do not certify runtime equality",
+    "tls": false,
+    "claim_qualified": false
+  },
   "role": ["server"],
   "comparison": "end_to_end",
   "language": "rust",
@@ -39,7 +47,7 @@
   },
   "client": {
     "supported": false,
-    "reason": "No prost load generator exists (tonic-interop only runs named interop cases, not the rpc-bench workload). The matrix fails tonic-prost client cells explicitly instead of substituting the pbrs codec."
+    "reason": "Legacy scripts/rpc-bench-matrix.py adapter has no prost client route. bench/stack-matrix/run.py uses the existing rpc-bench --codec=prost load generator; see stack_matrix."
   },
   "matching_configuration": {
     "tcp_nodelay": true,

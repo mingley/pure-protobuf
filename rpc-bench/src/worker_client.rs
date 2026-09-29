@@ -187,81 +187,212 @@ impl Histogram {
 
 /// Thread-safe accumulator for client latency histogram and error code counts.
 pub struct ClientStatsTracker {
-    histogram: Mutex<Histogram>,
-    request_results: Mutex<BTreeMap<i32, i64>>,
+    state: Mutex<ClientStatsWindow>,
+}
+
+struct ClientStatsWindow {
+    service: Histogram,
+    scheduled: Histogram,
+    request_results: BTreeMap<i32, i64>,
+    started: Instant,
+    epoch: u64,
+    offered: u64,
+    dispatched: u64,
+    completed: u64,
+    successful: u64,
+    failed: u64,
+    timed_out: u64,
+    rejected: u64,
+    incoming: u64,
+    active: u64,
+    carried_in_completed: u64,
 }
 
 impl ClientStatsTracker {
     /// Create a new tracker wrapping the configured histogram.
     pub fn new(histogram: Histogram) -> Self {
         Self {
-            histogram: Mutex::new(histogram),
-            request_results: Mutex::new(BTreeMap::new()),
+            state: Mutex::new(ClientStatsWindow {
+                service: histogram.clone(),
+                scheduled: histogram,
+                request_results: BTreeMap::new(),
+                started: Instant::now(),
+                epoch: 0,
+                offered: 0,
+                dispatched: 0,
+                completed: 0,
+                successful: 0,
+                failed: 0,
+                timed_out: 0,
+                rejected: 0,
+                incoming: 0,
+                active: 0,
+                carried_in_completed: 0,
+            }),
+        }
+    }
+
+    fn record_dispatch(&self) -> u64 {
+        let mut state = self.state.lock().unwrap();
+        state.offered += 1;
+        state.dispatched += 1;
+        state.active += 1;
+        state.epoch
+    }
+
+    fn record_outcome(&self, epoch: u64, service: f64, scheduled: f64, status_code: i32) {
+        let mut state = self.state.lock().unwrap();
+        state.service.add(service);
+        state.scheduled.add(scheduled);
+        state.completed += 1;
+        state.active -= 1;
+        if epoch != state.epoch {
+            state.carried_in_completed += 1;
+        }
+        if status_code == 0 {
+            state.successful += 1;
+        } else {
+            state.failed += 1;
+            if status_code == pbrs_grpc::Code::DeadlineExceeded as i32 {
+                state.timed_out += 1;
+            }
+            *state.request_results.entry(status_code).or_insert(0) += 1;
         }
     }
 
     /// Record a successful RPC with its measured latency in nanoseconds.
     pub fn record_success(&self, latency_nanos: f64) {
-        let mut h = self.histogram.lock().unwrap();
-        h.add(latency_nanos);
+        let epoch = self.record_dispatch();
+        self.record_outcome(epoch, latency_nanos, latency_nanos, 0);
     }
 
     /// Record a failed RPC with its measured latency in nanoseconds and gRPC status code.
     pub fn record_error(&self, latency_nanos: f64, status_code: i32) {
-        {
-            let mut h = self.histogram.lock().unwrap();
-            h.add(latency_nanos);
-        }
-        if status_code != 0 {
-            let mut r = self.request_results.lock().unwrap();
-            *r.entry(status_code).or_insert(0) += 1;
-        }
+        let epoch = self.record_dispatch();
+        self.record_outcome(epoch, latency_nanos, latency_nanos, status_code);
     }
 
     /// Record an offered call rejected before dispatch, without fabricating a latency sample.
     pub fn record_rejection(&self, status_code: i32) {
-        let mut results = self.request_results.lock().unwrap();
-        *results.entry(status_code).or_insert(0) += 1;
+        let mut state = self.state.lock().unwrap();
+        state.offered += 1;
+        state.rejected += 1;
+        *state.request_results.entry(status_code).or_insert(0) += 1;
     }
 
     /// Generate initial empty `HistogramData` for the setup status message.
     pub fn initial_histogram_data(&self) -> HistogramData {
-        let h = self.histogram.lock().unwrap();
-        h.to_data()
+        self.state.lock().unwrap().service.to_data()
     }
 
     /// Capture a snapshot of histogram data and request results, optionally resetting counters.
     pub fn snapshot(&self, reset: bool) -> (HistogramData, Vec<RequestResultCount>) {
-        let hist_data = {
-            let mut h = self.histogram.lock().unwrap();
-            let d = h.to_data();
-            if reset {
-                h.reset();
-            }
-            d
-        };
+        let (histogram, results, _) = self.snapshot_accounting(reset);
+        (histogram, results)
+    }
 
-        let result_counts = {
-            let mut r = self.request_results.lock().unwrap();
-            let mut list = Vec::with_capacity(r.len());
-            for (&code, &count) in r.iter() {
-                let mut rrc = RequestResultCount::new();
-                rrc.set_status_code(code);
-                rrc.set_count(count);
-                list.push(rrc);
-            }
-            if reset {
-                r.clear();
-            }
-            list
+    /// Atomic completion-window counters. Carry-in explicitly accounts for RPCs
+    /// crossing a reset; marks do not stop arrivals or imply a drain.
+    fn snapshot_accounting(
+        &self,
+        reset: bool,
+    ) -> (HistogramData, Vec<RequestResultCount>, serde_json::Value) {
+        let mut state = self.state.lock().unwrap();
+        let now = Instant::now();
+        let elapsed = now.duration_since(state.started).as_secs_f64();
+        let hist_data = state.service.to_data();
+        let result_counts = state
+            .request_results
+            .iter()
+            .map(|(&code, &count)| {
+                let mut result = RequestResultCount::new();
+                result.set_status_code(code);
+                result.set_count(count);
+                result
+            })
+            .collect();
+        let histogram_json = |histogram: &Histogram| {
+            serde_json::json!({
+                "resolution": histogram.resolution,
+                "max_possible": histogram.max_possible,
+                "count": histogram.count as u64,
+                "bucket": histogram.buckets,
+                "sum": histogram.sum,
+                "min_seen": if histogram.count > 0.0 { histogram.min_seen } else { 0.0 },
+                "max_seen": histogram.max_seen,
+            })
         };
-
-        (hist_data, result_counts)
+        let accounting = serde_json::json!({
+            "schema_version": 1,
+            "window_kind": "completion_mark",
+            "window_epoch": state.epoch,
+            "reset": reset,
+            "window_seconds": elapsed,
+            "drain_seconds": 0.0,
+            "offered": state.offered,
+            "dispatched": state.dispatched,
+            "completed": state.completed,
+            "successful": state.successful,
+            "failed": state.failed,
+            "rejected": state.rejected,
+            "timed_out": state.timed_out,
+            "incoming_in_flight": state.incoming,
+            "carried_in_completed": state.carried_in_completed,
+            "unfinished": state.active,
+            "service_latency_nanos": histogram_json(&state.service),
+            "scheduled_latency_nanos": histogram_json(&state.scheduled),
+        });
+        if reset {
+            state.service.reset();
+            state.scheduled.reset();
+            state.request_results.clear();
+            state.started = now;
+            state.epoch += 1;
+            state.offered = 0;
+            state.dispatched = 0;
+            state.completed = 0;
+            state.successful = 0;
+            state.failed = 0;
+            state.timed_out = 0;
+            state.rejected = 0;
+            state.incoming = state.active;
+            state.carried_in_completed = 0;
+        }
+        (hist_data, result_counts, accounting)
     }
 }
 
+#[cfg(test)]
+#[allow(dead_code, reason = "used by the standalone worker integration test")]
 pub(crate) async fn track_worker_rpc<F>(
     tracker: &ClientStatsTracker,
+    timeout: Duration,
+    call: F,
+) -> Result<(), RpcCallError>
+where
+    F: Future<Output = Result<(), Status>>,
+{
+    track_scheduled_worker_rpc(tracker, Instant::now(), timeout, call).await
+}
+
+#[cfg(test)]
+async fn track_scheduled_worker_rpc<F>(
+    tracker: &ClientStatsTracker,
+    scheduled: Instant,
+    timeout: Duration,
+    call: F,
+) -> Result<(), RpcCallError>
+where
+    F: Future<Output = Result<(), Status>>,
+{
+    let epoch = tracker.record_dispatch();
+    track_dispatched_worker_rpc(tracker, scheduled, epoch, timeout, call).await
+}
+
+async fn track_dispatched_worker_rpc<F>(
+    tracker: &ClientStatsTracker,
+    scheduled: Instant,
+    epoch: u64,
     timeout: Duration,
     call: F,
 ) -> Result<(), RpcCallError>
@@ -271,16 +402,32 @@ where
     let start = Instant::now();
     match tokio::time::timeout(timeout, call).await {
         Ok(Ok(())) => {
-            tracker.record_success(start.elapsed().as_nanos() as f64);
+            tracker.record_outcome(
+                epoch,
+                start.elapsed().as_nanos() as f64,
+                scheduled.elapsed().as_nanos() as f64,
+                0,
+            );
             Ok(())
         }
         Ok(Err(status)) => {
-            tracker.record_error(start.elapsed().as_nanos() as f64, status.code() as i32);
-            Err(RpcCallError::Status(format!("{:?}", status.code())))
+            tracker.record_outcome(
+                epoch,
+                start.elapsed().as_nanos() as f64,
+                scheduled.elapsed().as_nanos() as f64,
+                status.code() as i32,
+            );
+            if status.code() == pbrs_grpc::Code::DeadlineExceeded {
+                Err(RpcCallError::Timeout)
+            } else {
+                Err(RpcCallError::Status(format!("{:?}", status.code())))
+            }
         }
         Err(_) => {
-            tracker.record_error(
-                timeout.as_nanos() as f64,
+            tracker.record_outcome(
+                epoch,
+                start.elapsed().as_nanos() as f64,
+                scheduled.elapsed().as_nanos() as f64,
                 pbrs_grpc::Code::DeadlineExceeded as i32,
             );
             Err(RpcCallError::Timeout)
@@ -739,32 +886,35 @@ pub(crate) async fn run_client(
         let invoke_template = template_req.clone();
         let invoke_cancel = cancel_rx.clone();
 
-        let invoke = move || {
+        let invoke = move |scheduled: Instant| {
             let channels = invoke_channels.clone();
             let slots = invoke_slots.clone();
             let rr = invoke_rr.clone();
             let tracker = invoke_tracker.clone();
             let template = invoke_template.clone();
             let mut cancel_watch = invoke_cancel.clone();
+            // Admission is synchronous with the generator, before it spawns
+            // the future. An admitted task cancelled before its first poll
+            // therefore remains visible as unfinished at the next mark.
+            let admission = match acquire_channel_slot(&slots, rr.fetch_add(1, Ordering::Relaxed)) {
+                Ok(Some((idx, slot))) => Ok((idx, slot, tracker.record_dispatch())),
+                Ok(None) => {
+                    tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
+                    Err(RpcCallError::Status("RESOURCE_EXHAUSTED".into()))
+                }
+                Err(status) => {
+                    tracker.record_rejection(status.code() as i32);
+                    Err(RpcCallError::Status(format!("{:?}", status.code())))
+                }
+            };
 
             async move {
+                let (idx, _slot, epoch) = admission?;
                 if *cancel_watch.borrow() {
                     std::future::pending::<()>().await;
                     return Err(RpcCallError::Other("cancelled".to_string()));
                 }
 
-                let (idx, _slot) =
-                    match acquire_channel_slot(&slots, rr.fetch_add(1, Ordering::Relaxed)) {
-                        Ok(Some(slot)) => slot,
-                        Ok(None) => {
-                            tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
-                            return Err(RpcCallError::Status("RESOURCE_EXHAUSTED".into()));
-                        }
-                        Err(status) => {
-                            tracker.record_rejection(status.code() as i32);
-                            return Err(RpcCallError::Status(format!("{:?}", status.code())));
-                        }
-                    };
                 let client = &channels[idx];
 
                 tokio::select! {
@@ -772,7 +922,7 @@ pub(crate) async fn run_client(
                         std::future::pending::<()>().await;
                         Err(RpcCallError::Other("cancelled".to_string()))
                     }
-                    res = track_worker_rpc(&tracker, WORKER_RPC_TIMEOUT, async {
+                    res = track_dispatched_worker_rpc(&tracker, scheduled, epoch, WORKER_RPC_TIMEOUT, async {
                         if rpc_type == RpcType::Unary {
                             client.unary_call(Request::new((*template).clone())).await.map(|_| ())
                         } else {
@@ -792,7 +942,7 @@ pub(crate) async fn run_client(
         let rejection_tracker = stats_tracker.clone();
         let run_generator = async move {
             generator
-                .run_with_rejections(invoke, || {
+                .run_scheduled_with_rejections(invoke, |_| {
                     rejection_tracker.record_rejection(pbrs_grpc::Code::ResourceExhausted as i32);
                 })
                 .await;
@@ -887,10 +1037,19 @@ pub(crate) async fn run_client(
             };
             let delta = baseline_snapshot.delta_to(&current_snapshot);
 
-            let (latencies, request_results) = stats_tracker.snapshot(mark.reset());
+            let (latencies, request_results, accounting) =
+                stats_tracker.snapshot_accounting(mark.reset());
+            // The official protocol has no offered/rejected/unfinished fields.
+            // Keep its service-time histogram wire-compatible and publish the
+            // schedule-relative histogram and conservation counters separately.
+            eprintln!("QPS_ACCOUNTING {accounting}");
 
             let mut stats = ClientStats::new();
-            stats.set_time_elapsed(time_elapsed);
+            stats.set_time_elapsed(
+                accounting["window_seconds"]
+                    .as_f64()
+                    .unwrap_or(time_elapsed),
+            );
             stats.set_time_user(delta.user_cpu_seconds);
             stats.set_time_system(delta.system_cpu_seconds);
             stats.set_latencies(latencies);
@@ -1079,5 +1238,116 @@ mod tests {
         assert_eq!(hist3.count(), 0.0);
         assert_eq!(hist3.sum(), 0.0);
         assert_eq!(req_results3.len(), 0);
+    }
+
+    #[test]
+    fn reset_preserves_in_flight_conservation_without_counting_old_offers_twice() {
+        let tracker = ClientStatsTracker::new(Histogram::new(0.01, 60e9).unwrap());
+        let old_epoch = tracker.record_dispatch();
+        tracker.record_rejection(8);
+        let (_, _, warmup) = tracker.snapshot_accounting(true);
+        assert_eq!(warmup["offered"], 2);
+        assert_eq!(warmup["unfinished"], 1);
+        tracker.record_outcome(old_epoch, 10.0, 100.0, 0);
+        tracker.record_error(50.0, 4);
+        tracker.record_rejection(8);
+        let _unfinished = tracker.record_dispatch();
+        let (official, errors, measured) = tracker.snapshot_accounting(false);
+        assert_eq!(measured["incoming_in_flight"], 1);
+        assert_eq!(measured["carried_in_completed"], 1);
+        assert_eq!(measured["offered"], 3);
+        assert_eq!(measured["dispatched"], 2);
+        assert_eq!(measured["completed"], 2);
+        assert_eq!(measured["successful"], 1);
+        assert_eq!(measured["failed"], 1);
+        assert_eq!(measured["timed_out"], 1);
+        assert_eq!(measured["rejected"], 1);
+        assert_eq!(measured["unfinished"], 1);
+        assert_eq!(official.count(), 2.0);
+        assert_eq!(official.sum(), 60.0);
+        assert_eq!(measured["scheduled_latency_nanos"]["sum"], 150.0);
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn worker_exports_scheduling_delay_and_retains_cancelled_calls_as_unfinished() {
+        let tracker = ClientStatsTracker::new(Histogram::new(0.01, 60e9).unwrap());
+        track_scheduled_worker_rpc(
+            &tracker,
+            Instant::now() - Duration::from_millis(25),
+            Duration::from_secs(1),
+            async { Ok(()) },
+        )
+        .await
+        .unwrap();
+        let (_, _, measured) = tracker.snapshot_accounting(false);
+        let service = measured["service_latency_nanos"]["sum"].as_f64().unwrap();
+        let scheduled = measured["scheduled_latency_nanos"]["sum"].as_f64().unwrap();
+        assert!(scheduled >= service + 25_000_000.0);
+
+        let cancelled = tokio::time::timeout(
+            Duration::from_millis(5),
+            track_scheduled_worker_rpc(
+                &tracker,
+                Instant::now(),
+                Duration::from_secs(30),
+                std::future::pending(),
+            ),
+        )
+        .await;
+        assert!(cancelled.is_err());
+        let (_, _, final_window) = tracker.snapshot_accounting(false);
+        assert_eq!(final_window["offered"], 2);
+        assert_eq!(final_window["completed"], 1);
+        assert_eq!(final_window["unfinished"], 1);
+        assert_eq!(final_window["timed_out"], 0);
+    }
+
+    #[test]
+    fn racing_marks_and_completions_never_split_histograms_from_counters() {
+        let tracker = Arc::new(ClientStatsTracker::new(Histogram::new(0.01, 60e9).unwrap()));
+        let producer_tracker = tracker.clone();
+        let producer = std::thread::spawn(move || {
+            for index in 0..2_000 {
+                let epoch = producer_tracker.record_dispatch();
+                std::thread::yield_now();
+                producer_tracker.record_outcome(
+                    epoch,
+                    10.0,
+                    20.0,
+                    if index % 5 == 0 { 4 } else { 0 },
+                );
+                if index % 3 == 0 {
+                    producer_tracker.record_rejection(8);
+                }
+            }
+        });
+        let mut completed = 0;
+        let mut rejected = 0;
+        loop {
+            let done = producer.is_finished();
+            let (official, _, window) = tracker.snapshot_accounting(true);
+            let count = |key: &str| window[key].as_u64().unwrap();
+            assert_eq!(count("offered"), count("dispatched") + count("rejected"));
+            assert_eq!(
+                count("incoming_in_flight") + count("dispatched"),
+                count("completed") + count("unfinished")
+            );
+            assert_eq!(count("completed"), count("successful") + count("failed"));
+            assert_eq!(official.count(), count("completed") as f64);
+            assert_eq!(
+                window["scheduled_latency_nanos"]["count"],
+                count("completed")
+            );
+            completed += count("completed");
+            rejected += count("rejected");
+            if done {
+                break;
+            }
+            std::thread::yield_now();
+        }
+        producer.join().unwrap();
+        assert_eq!(completed, 2_000);
+        assert_eq!(rejected, 667);
     }
 }

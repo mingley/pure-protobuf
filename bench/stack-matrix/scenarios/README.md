@@ -8,7 +8,7 @@ They are local validation tools, with explicit gaps before a claim campaign.
 | Check connection-scale plumbing | `./scripts/stack-matrix.sh --scenario conn-scale-idle --smoke --server-peers native` | A small ladder diagnostic; inspect every cell's status |
 | Check overload accounting | `./scripts/stack-matrix.sh --scenario extended-overload --smoke --server-peers native` | Accounting/recovery evidence for the supported peer and shape |
 | Check the runners without launching peers | `python3 bench/stack-matrix/scenarios/conn_scale.py --self-test` and `python3 bench/stack-matrix/scenarios/extended_cells.py --self-test` | Logic checks, not live performance measurements |
-| Run a qualified echo campaign | `grpc-bench-echo.json` describes the intended cells | Runner integration is still missing; see [SB-21](../../../docs/evidence/sb21-claims-scenarios.md) |
+| Execute frozen echo orders | `python3 bench/stack-matrix/run.py --scenario bench/stack-matrix/scenarios/grpc-bench-echo.json --scenario-smoke` | All frozen repeats execute; claim eligibility still requires independent evidence |
 
 Only `fail` makes the scenario runners exit nonzero. A zero exit can therefore
 contain `invalid`, `unsupported`, or `not_run` cells. Read those statuses before
@@ -89,8 +89,14 @@ qualified. Do not prescribe an impossible `ip_local_port_range` wider than
 100,000, or count an OS-limit row as a server loss.
 
 Non-Linux / unpinned runs record that in `pinning` and stay diagnostic.
-`grpc-bench-echo.json` is the SB-21 claim-shaped echo definition; the current
-`--scenario` wrapper accepts only `conn-scale-*` and `extended-*` kinds.
+`grpc-bench-echo.json` is loaded directly by `run.py --scenario PATH`.
+`--cells ID,ID` preserves the selected cells' order within every frozen repeat;
+`--scenario-smoke` shortens durations but retains all repeats and the seed.
+The report records frozen/effective parameters, source SHA-256, actual order,
+and separate repeat logs. `--claim` blocks before launching endpoints because
+this runner currently uses loopback and lacks verified runtime peer settings.
+`--verify-fairness REPORT --claim` rejects configured/scripted settings,
+missing repeats, resource windows, or headroom evidence.
 
 ## SB-19 extended cells
 
@@ -107,7 +113,7 @@ Poisson generator, reusing the SB-11 spawn/pin/preflight machinery.
 | File | Kind | Scoreboard | Cells |
 |---|---|---|---|
 | `extended-shapes.json` | fixed-rate new shapes | C3, D3 | client_stream 1 KiB x 2000 (runs); bidi_pipelined empty x 256 (frozen, unsupported) |
-| `extended-gzip.json` | gzip on/off pairs | E4 | unary + server_stream 64 KiB x identity/gzip (identity runs, gzip frozen, unsupported) |
+| `extended-gzip.json` | gzip on/off pairs | E4 | unary + server_stream 64 KiB x identity/gzip; native and tonic codecs runnable, official-peer gzip unsupported |
 | `extended-rtt.json` | RTT holdouts | E5 | unary/client_stream/server_stream x 1 ms + 10 ms, verify-then-measure per repeat |
 | `extended-overload.json` | 2x saturation + recovery | D7 | unary 1 KiB: saturation search, overload phase, recovery probes |
 
@@ -140,13 +146,13 @@ p99 with retained failures, and recovery time (or `recovered: false`).
 
 ## Frozen-but-unrunnable cells
 
-`load` at this base has no compression flag and its bidi mode is
-lockstep ping-pong only, and adding either needs files outside this
-card's write set. The gzip-on and pipelined-bidi definitions are
-therefore frozen in the scenario files and the runner reports them
-`unsupported` with the exact missing capability -- the SB-11 tonic-TLS
-precedent. They are never silently skipped and never faked with a
-mislabeled workload.
+`load --compression=identity|gzip` and `load-server` support all four
+RPC shapes for native and both tonic codecs. Gzip requires gzip response
+metadata on every call; a peer silently returning identity fails validation.
+`transport_smoke.py` covers all nine plaintext directions and native TLS,
+and captures plaintext gRPC message compression flags in both directions.
+Pipelined bidi, tonic TLS, and configured official-peer gzip responses remain
+unsupported and block any claim covering those cells.
 
 ## Accept evidence
 

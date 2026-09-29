@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 STACK_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(STACK_DIR))
 import cells as cells_mod
+import frozen as frozen_mod
 import peers as peers_mod
 import peertls
 import pin as pin_mod
@@ -90,43 +91,24 @@ def server_command(
     port: int,
     timeout_secs: float,
     tls_spec: Optional[peertls.ServerTlsSpec],
+    compression: str = "identity",
 ) -> Tuple[List[str], str, str]:
     """Build the server argv for `peer`. Returns (cmd, binary, codec)."""
-    if peer == "native":
+    if peer in ("native", "tonic-pbrs", "tonic-prost", "tonic"):
         binary = str(registry.resolve_native_binary(None))
         cmd = [
             binary,
-            "server",
-            "--transport=native",
+            "load-server",
+            f"--transport={'native' if peer == 'native' else 'tonic'}",
+            f"--codec={'prost' if peer in ('tonic', TONIC_PROST) else 'pbrs'}",
+            f"--compression={compression}",
             f"--host={host}",
             f"--port={port}",
             f"--timeout-secs={int(timeout_secs)}",
         ]
         if tls_spec is not None:
             cmd.extend(tls_spec.server_args)
-        return cmd, binary, "pbrs"
-    if peer == TONIC_PBRS:
-        binary = str(registry.resolve_native_binary(None))
-        return (
-            [
-                binary,
-                "server",
-                "--transport=tonic",
-                f"--host={host}",
-                f"--port={port}",
-                f"--timeout-secs={int(timeout_secs)}",
-            ],
-            binary,
-            "pbrs",
-        )
-    if peer in ("tonic", TONIC_PROST):
-        tonic_server = registry.resolve_tonic_binary()
-        if not tonic_server:
-            raise FileNotFoundError(
-                "tonic-prost server peer (tonic-interop) not found and could not be built. "
-                f"{registry.tonic_build_error}"
-            )
-        return [str(tonic_server), "server", f"--port={port}"], str(tonic_server), "prost"
+        return cmd, binary, "prost" if peer in ("tonic", TONIC_PROST) else "pbrs"
     if peer == "go":
         go_server = registry.resolve_go_peer("server")
         if not go_server:
@@ -166,13 +148,14 @@ def load_command(
 ) -> List[str]:
     """Build the open-loop `load` argv for one probe."""
     req_bytes, resp_bytes = cells_mod.PAYLOADS[cell.payload]
-    transport = "tonic" if client_peer in ("tonic", TONIC_PBRS) else "native"
+    transport = "tonic" if client_peer in ("tonic", TONIC_PBRS, TONIC_PROST) else "native"
     cmd = [
         native_bin,
         "load",
         f"--server_addr={addr}",
         f"--transport={transport}",
         f"--shape={cell.shape}",
+        f"--compression={cell.compression}",
         f"--req-bytes={req_bytes}",
         f"--resp-bytes={resp_bytes}",
         "--distribution=poisson",
@@ -181,6 +164,8 @@ def load_command(
         f"--duration-secs={duration_s:g}",
         f"--output={out_path}",
     ]
+    if client_peer == TONIC_PROST:
+        cmd.append("--codec=prost")
     if cell.shape in cells_mod.STREAM_MSGS:
         cmd.append(f"--stream-msgs={cells_mod.STREAM_MSGS[cell.shape]}")
     if tls_spec is not None:
@@ -317,7 +302,14 @@ class CellRunner:
                 f"(client={client_res.get('method')}, server={server_res.get('method')})"
             )
         metrics = parse_metrics(metrics_path)
-        step = to_step(rate, metrics, bool(sat_check.get("saturated")))
+        lag = (metrics.get("scheduling_lag_nanos") or {}).get("p50")
+        p50 = (metrics.get("e2e_latency_nanos") or {}).get("p50_nanos")
+        lag_verified = lag is not None and p50 is not None and p50 > 0
+        lag_saturated = not lag_verified or lag > 0.10 * p50
+        sat_check["schedule_lag_verified"] = lag_verified
+        sat_check["schedule_lag_saturated"] = lag_saturated
+        # This is a contract validity check even when CPU sampling has spare capacity.
+        step = to_step(rate, metrics, bool(sat_check.get("saturated")) or lag_saturated)
         resources = {
             "client": client_res,
             "server": server_res,
@@ -327,6 +319,23 @@ class CellRunner:
             "metrics_file": str(metrics_path.name),
         }
         return step, resources
+
+    def warmup(self, cell, addr, tls_spec, rate):
+        path = self.log_dir / f"{cell.id}-warmup.json"
+        cmd = load_command(self.native_bin, cell.client_peer, addr, cell, rate,
+                           self.params["warmup_s"], self.params["seed"], path, tls_spec)
+        proc, _, _, _ = self._spawn(cmd, cell.cpus, cell.cpus, "warmup", cell.id)
+        try:
+            proc.communicate(timeout=self.params["warmup_s"] + 60.0)
+            if proc.returncode != 0:
+                raise RuntimeError(f"warmup exited {proc.returncode}")
+            metrics = parse_metrics(path)
+            if metrics.get("successful_rpcs", 0) <= 0 or metrics.get("failed_rpcs", 0):
+                raise RuntimeError("warmup failed or completed no calls")
+            return {"metrics_file": path.name, "duration_s": self.params["warmup_s"],
+                    "successful_rpcs": metrics["successful_rpcs"]}
+        finally:
+            self._terminate(proc)
 
     def run_server_cell(
         self, cell: cells_mod.Cell, tls_spec: Optional[peertls.ServerTlsSpec]
@@ -340,7 +349,7 @@ class CellRunner:
             + 120.0
         )
         cmd, binary, codec = server_command(
-            self.registry, cell.server_peer, host, port, budget, tls_spec
+            self.registry, cell.server_peer, host, port, budget, tls_spec, cell.compression
         )
         server_proc, server_pin, _, _ = self._spawn(cmd, cell.cpus, 0, "server", cell.id)
         report: Dict[str, Any] = {
@@ -356,23 +365,7 @@ class CellRunner:
             )
             report["addr"] = addr
             # Warmup at the search start rate; discarded.
-            warm_metrics = self.log_dir / f"{cell.id}-warmup.json"
-            warm_cmd = load_command(
-                self.native_bin,
-                cell.client_peer,
-                addr,
-                cell,
-                self.params["start_rate"],
-                self.params["warmup_s"],
-                self.params["seed"],
-                warm_metrics,
-                tls_spec,
-            )
-            warm_proc, _, _, _ = self._spawn(warm_cmd, cell.cpus, cell.cpus, "warmup", cell.id)
-            try:
-                warm_proc.communicate(timeout=self.params["warmup_s"] + 60.0)
-            finally:
-                self._terminate(warm_proc)
+            report["warmup"] = self.warmup(cell, addr, tls_spec, self.params["start_rate"])
 
             per_step_resources: List[Dict[str, Any]] = []
 
@@ -391,7 +384,9 @@ class CellRunner:
                 max_steps=self.params["max_steps"],
             )
             report["slo"] = result.as_dict()
+            report["probe_resources"] = per_step_resources
             if result.sustained_step < 0:
+                report["status"] = "invalid"
                 report["reason"] = f"no SLO-valid step: {result.ceiling_reason}"
                 return report
             best = per_step_resources[result.sustained_step]
@@ -414,7 +409,7 @@ class CellRunner:
         # The fixed reference server matches the cell's TLS mode so the
         # client under test exercises its TLS path on TLS cells.
         cmd, binary, codec = server_command(
-            self.registry, cell.server_peer, host, port, budget, tls_spec
+            self.registry, cell.server_peer, host, port, budget, tls_spec, cell.compression
         )
         server_proc, server_pin, _, _ = self._spawn(cmd, cell.cpus, 0, "server", cell.id)
         report: Dict[str, Any] = {
@@ -430,10 +425,13 @@ class CellRunner:
             )
             report["addr"] = addr
             rate = self.params["matched_rate"]
+            report["warmup"] = self.warmup(cell, addr, tls_spec, rate)
             step, resources = self.probe(cell, server_proc, addr, tls_spec, rate, "matched")
+            report["probe_resources"] = [resources]
             step = slo_mod.check_step(step, self.params["slo_p99_s"])
             report["probe"] = step.as_dict()
             if not step.valid:
+                report["status"] = "invalid"
                 report["reason"] = f"matched probe invalid: {step.invalid_reason}"
                 return report
             headroom = check_headroom(
@@ -444,6 +442,7 @@ class CellRunner:
             )
             report["headroom"] = headroom
             if not headroom["ok"]:
+                report["status"] = "invalid"
                 report["reason"] = f"no verified server headroom: {headroom['reason']}"
                 return report
             report["sustained"] = summarize(step, resources, cell.cpus)
@@ -524,7 +523,8 @@ def check_headroom(
     # The pin is the budget; unpinned hosts budget one core and carry the
     # caveat that multicore headroom is unverifiable there.
     budget = 100.0 * cpus
-    ok = avg_pct < HEADROOM_MAX_SERVER_FRACTION * budget
+    ok = bool(pinned and server_res.get("supported") and wall_s > 0
+              and avg_pct < HEADROOM_MAX_SERVER_FRACTION * budget)
     return {
         "ok": ok,
         "server_avg_cpu_pct": round(avg_pct, 1),
@@ -534,7 +534,8 @@ def check_headroom(
         "pinned": pinned,
         "reason": ""
         if ok
-        else f"server at {avg_pct:.1f}% of {budget:.0f}% budget (>{HEADROOM_MAX_SERVER_FRACTION:.0%})",
+        else ("resource sampling or pinned CPU budget unverified" if not pinned or not server_res.get("supported")
+              else f"server at {avg_pct:.1f}% of {budget:.0f}% budget (>{HEADROOM_MAX_SERVER_FRACTION:.0%})"),
     }
 
 
@@ -577,14 +578,8 @@ def preflight(
             optional_status[peer] = peers_mod.preflight_peer(peer, registry.repo_root)
         return f"native rpc-bench binary unresolvable: {e}", resolved, optional_status
     for peer in sorted(set(server_peers) | set(client_peers)):
-        if peer in ("native", "tonic-pbrs"):
+        if peer in ("native", "tonic-pbrs", "tonic-prost", "tonic"):
             resolved[peer] = native
-        elif peer == TONIC_PROST:
-            path = registry.resolve_tonic_binary()
-            if path:
-                resolved[peer] = str(path)
-            else:
-                missing.append(f"tonic-prost ({registry.tonic_build_error})")
         elif peer == "go":
             server = registry.resolve_go_peer("server")
             client = registry.resolve_go_peer("client")
@@ -629,14 +624,30 @@ def run_stage(
     client_peers: Optional[List[str]] = None,
     verbose: bool = False,
     include_optional: bool = False,
+    scenario_path: Optional[Path] = None,
+    cell_filter: Optional[List[str]] = None,
+    scenario_smoke: bool = False,
+    claim: bool = False,
 ) -> Tuple[int, Dict[str, Any]]:
     """Run one stage; return (exit_code, report)."""
-    params = STAGE_PARAMS[stage]
+    scenario = frozen_mod.load(scenario_path, STAGE_PARAMS["primary"], cell_filter) if scenario_path else None
+    params = dict(scenario["params"] if scenario else STAGE_PARAMS[stage])
+    if scenario_smoke:
+        if not scenario:
+            raise ValueError("scenario-smoke requires a frozen scenario")
+        params.update(STAGE_PARAMS["smoke"])
+        params["seed"] = scenario["params"]["seed"]
     out_dir.mkdir(parents=True, exist_ok=True)
     log_dir = out_dir / "logs"
     registry = bench_matrix.PeerRegistry(repo_root)
-    server_peers = server_peers or cells_mod.REQUIRED_SERVER_PEERS
-    client_peers = client_peers or cells_mod.REQUIRED_CLIENT_PEERS
+    server_peers = server_peers if server_peers is not None else cells_mod.REQUIRED_SERVER_PEERS
+    client_peers = client_peers if client_peers is not None else cells_mod.REQUIRED_CLIENT_PEERS
+    plan = scenario["plan"] if scenario else [("rep1", cell) for cell in cells_mod.expand(
+        stage=stage, server_peers=server_peers, client_peers=client_peers,
+        include_optional=include_optional)]
+    if scenario:
+        server_peers = sorted({cell.server_peer for _, cell in plan})
+        client_peers = sorted({cell.client_peer for _, cell in plan})
 
     report: Dict[str, Any] = {
         "schema": "stack-matrix/1",
@@ -646,7 +657,25 @@ def run_stage(
         "cpu_constraints": bench_matrix.collect_cpu_constraints(),
         "pinning": pin_mod.describe(1),
         "fairness_spec": fairness_mod.SB01_SPEC,
+        "qualification": "diagnostic-loopback",
+        "claim_eligible": False,
+        "scenario": {k: v for k, v in scenario.items() if k != "plan"} if scenario else None,
+        "scenario_smoke": scenario_smoke,
+        "execution_order": [{"repeat": rep, "id": cell.id} for rep, cell in plan],
     }
+
+    if claim:
+        report["matrix_complete"] = False
+        report["fatal"] = (
+            "claim preflight blocked: this runner uses loopback; effective peer settings, "
+            "dedicated host topology, generator/reference headroom and aligned endpoint "
+            "measurement windows are not independently verified. Use diagnostic mode "
+            "to collect wiring evidence; no defaults or scripted settings certify equality."
+        )
+        report["claim_blockers"] = fairness_mod.claim_preflight([cell for _, cell in plan])
+        write_report(out_dir, report)
+        print(f"[STACK-MATRIX] {report['fatal']}")
+        return 1, report
 
     problem, resolved, optional_status = preflight(registry, server_peers, client_peers)
     report["peers"] = resolved
@@ -670,18 +699,16 @@ def run_stage(
     tls_cache: Dict[str, Optional[peertls.ServerTlsSpec]] = {}
     cell_reports: List[Dict[str, Any]] = []
     failures = 0
-    for cell in cells_mod.expand(
-        stage=stage,
-        server_peers=server_peers,
-        client_peers=client_peers,
-        include_optional=include_optional,
-    ):
+    for repeat, cell in plan:
+        runner.log_dir = log_dir / repeat
+        runner.log_dir.mkdir(parents=True, exist_ok=True)
         not_run = cell_not_run_reason(cell, optional_status)
         if not_run:
             cell_reports.append(
                 {
                     **cells_mod.as_dict(cell),
                     "status": "not_run",
+                    "repeat": repeat,
                     "reason": not_run,
                     "fairness": fairness_for(cell, False),
                 }
@@ -694,6 +721,7 @@ def run_stage(
                 {
                     **cells_mod.as_dict(cell),
                     "status": "unsupported",
+                    "repeat": repeat,
                     "reason": unsupported,
                     "fairness": fairness_for(cell, False),
                 }
@@ -716,6 +744,7 @@ def run_stage(
                     {
                         **cells_mod.as_dict(cell),
                         "status": "unsupported",
+                        "repeat": repeat,
                         "reason": f"TLS material unresolvable for {cell.server_peer}",
                         "fairness": fairness_for(cell, False),
                     }
@@ -742,6 +771,7 @@ def run_stage(
         cell_report.setdefault(
             "fairness", fairness_for(cell, tls_spec is not None)
         )
+        cell_report["repeat"] = repeat
         if tls_spec is not None:
             cell_report["tls"] = peertls.spec_dict(tls_spec)
         if cell_report["status"] == "fail":
@@ -758,7 +788,10 @@ def run_stage(
         )
 
     report["cells"] = cell_reports
-    report["matrix_complete"] = failures == 0
+    required_reports = [c for c in cell_reports if not cells_mod.is_optional(c["server_peer"])
+                        and not cells_mod.is_optional(c["client_peer"])]
+    report["selection_complete"] = bool(required_reports) and all(c["status"] == "pass" for c in required_reports)
+    report["matrix_complete"] = report["selection_complete"] and not (scenario and scenario["filtered"])
     if failures:
         report["fatal"] = f"{failures} cell(s) failed"
     write_report(out_dir, report)
@@ -782,6 +815,10 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--server-peers", default=None)
     parser.add_argument("--client-peers", default=None)
     parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--scenario", type=Path, help="frozen scenario JSON path")
+    parser.add_argument("--cells", help="comma-separated frozen cell ids, preserving repeat order")
+    parser.add_argument("--scenario-smoke", action="store_true", help="short diagnostic params, retaining every frozen repeat")
+    parser.add_argument("--claim", action="store_true", help="fail closed unless all claim preconditions are verified")
     parser.add_argument(
         "--include-optional",
         action="store_true",
@@ -797,19 +834,30 @@ def main(argv: List[str]) -> int:
     if args.verify_fairness:
         with open(args.verify_fairness, "r", encoding="utf-8") as f:
             loaded = json.load(f)
-        ok, findings = fairness_mod.verify_report(loaded)
+        ok, findings = fairness_mod.verify_report(loaded, claim=args.claim)
         for item in findings:
             print(f"[FAIRNESS:{item['severity']}] {item['check']}: {item['detail']}")
         print(f"[FAIRNESS] {'PASS' if ok else 'FAIL'} ({len(findings)} findings)")
         return 0 if ok else 1
-    code, _ = run_stage(
-        args.stage,
-        Path(args.out_dir),
-        server_peers=args.server_peers.split(",") if args.server_peers else None,
-        client_peers=args.client_peers.split(",") if args.client_peers else None,
-        verbose=args.verbose,
-        include_optional=args.include_optional,
-    )
+    if (args.cells or args.scenario_smoke) and not args.scenario:
+        parser.error("--cells and --scenario-smoke require --scenario")
+    if args.scenario and (args.server_peers or args.client_peers or args.include_optional):
+        parser.error("a frozen scenario selects peers; use --cells to narrow it")
+    try:
+        code, _ = run_stage(
+            args.stage,
+            Path(args.out_dir),
+            server_peers=args.server_peers.split(",") if args.server_peers else None,
+            client_peers=args.client_peers.split(",") if args.client_peers else None,
+            verbose=args.verbose,
+            include_optional=args.include_optional,
+            scenario_path=args.scenario,
+            cell_filter=args.cells.split(",") if args.cells else None,
+            scenario_smoke=args.scenario_smoke,
+            claim=args.claim,
+        )
+    except (ValueError, KeyError, TypeError) as error:
+        parser.error(str(error))
     return code
 
 

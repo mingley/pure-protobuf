@@ -70,10 +70,10 @@ REQUIRED_PROVENANCE: Dict[str, Dict[str, str]] = {
         ),
     },
     "tonic-prost": {
-        "kind": "upstream-default",
+        "kind": "configured+observed",
         "note": (
-            "tonic-interop uses Server::builder() defaults; SB-01 matching "
-            "covers rpc-bench transports only"
+            "rpc-bench load-server --codec=prost uses fair_tonic_server and "
+            "NodelayIncoming; settings are configured, not runtime-export verified"
         ),
     },
     "go": {
@@ -195,7 +195,24 @@ def for_cell(
     }
 
 
-def verify_report(report: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
+def claim_preflight(cells) -> List[str]:
+    """Required runtime capabilities, never inferred from declared defaults."""
+    blockers = [
+        "loopback topology is diagnostic-only under benchmark contract section 3.6",
+        "runtime effective-settings export is incomplete for required peers",
+        "endpoint CPU samples include process setup/drain; aligned measurement windows unverified",
+    ]
+    import cells as cells_mod
+    for cell in cells:
+        reason = cells_mod.validate(cell)
+        if reason:
+            blockers.append(f"{cell.id}: {reason}")
+        if cell.workload() != "open-loop-load":
+            blockers.append(f"{cell.id}: reference soak is not equivalent open-loop work")
+    return list(dict.fromkeys(blockers))
+
+
+def verify_report(report: Dict[str, Any], *, claim: bool = False) -> Tuple[bool, List[Dict[str, Any]]]:
     """Verify SB-18 fairness from report metadata.
 
     Hard checks (fail): the report carries the SB-01 spec, every cell
@@ -212,6 +229,23 @@ def verify_report(report: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
     spec = report.get("fairness_spec")
     if spec != SB01_SPEC:
         add("fail", "spec", "report fairness_spec missing or differs from SB-01")
+    if claim:
+        if report.get("qualification") != "dedicated-network":
+            add("fail", "topology", "claim needs recorded dedicated-network topology")
+        if report.get("matrix_complete") is not True or not report.get("cells"):
+            add("fail", "complete", "claim needs nonempty complete required cells")
+        scenario = report.get("scenario") or {}
+        order = scenario.get("order", {})
+        rows = report.get("cells", [])
+        expected = [(rep, cid) for rep, ids in order.items() for cid in ids]
+        actual = [(cell.get("repeat"), cell.get("id")) for cell in rows]
+        if (len(order) < 5 or not expected or len(set(expected)) != len(expected)
+                or expected != actual or scenario.get("filtered") is not False):
+            add("fail", "coverage", "claim needs every frozen cell in all 5+ unfiltered repeat orders")
+        topology = report.get("topology") or {}
+        hosts = (topology.get("client_host"), topology.get("server_host"))
+        if not all(hosts) or hosts[0] == hosts[1] or not topology.get("evidence"):
+            add("fail", "topology-evidence", "distinct endpoint hosts and retained topology evidence required")
     optional = report.get("optional_peers", {})
     for peer, entry in sorted(optional.items()):
         if not isinstance(entry, dict) or not entry.get("pin"):
@@ -223,6 +257,33 @@ def verify_report(report: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
     cells = report.get("cells", [])
     for cell in cells:
         cid = cell.get("id", "?")
+        if claim and cell.get("status") != "pass":
+            add("fail", "required-cell", f"cell {cid} did not pass")
+        if claim and cell.get("workload") != "open-loop-load":
+            add("fail", "workload", f"cell {cid} is not comparable open-loop work")
+        if claim:
+            if "tonic" in (cell.get("server_peer"), cell.get("client_peer")):
+                add("fail", "codec", f"cell {cid} must name an explicit tonic codec")
+            resources = cell.get("probe_resources") or []
+            if not resources:
+                add("fail", "resources", f"cell {cid} lacks per-probe endpoint resources")
+            for probe in resources:
+                if not probe.get("measurement_window_verified"):
+                    add("fail", "measurement-window", f"cell {cid} endpoint windows unverified")
+                for role in ("server", "client"):
+                    res = probe.get(role) or {}
+                    if (res.get("supported") is not True
+                            or not all(name in res for name in ("user_cpu_seconds", "system_cpu_seconds", "peak_rss_mib"))):
+                        add("fail", "endpoint-resources", f"cell {cid} {role} CPU/RSS unavailable")
+                saturation = probe.get("saturation") or {}
+                if (saturation.get("schedule_lag_verified") is not True
+                        or saturation.get("schedule_lag_saturated") is not False
+                        or saturation.get("saturated") is not False):
+                    add("fail", "generator-headroom", f"cell {cid} generator headroom unverified")
+            if cell.get("role") == "client":
+                headroom = cell.get("headroom") or {}
+                if headroom.get("ok") is not True or headroom.get("pinned") is not True:
+                    add("fail", "reference-headroom", f"cell {cid} reference headroom unverified")
         fair = cell.get("fairness")
         if not isinstance(fair, dict) or "server" not in fair or "client" not in fair:
             add("fail", "metadata", f"cell {cid} carries no fairness block")
@@ -230,6 +291,18 @@ def verify_report(report: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
         for role in ("server", "client"):
             ep = fair[role]
             fields = ep.get("fields", {})
+            if claim:
+                expected = {name: SB01_SPEC[name] for name in MATCHED_FIELDS}
+                expected.update({"message_limit": 4 * 1024 * 1024,
+                                 "compression": cell.get("compression", "identity")})
+                if cell.get("tls"):
+                    expected.update({"tls_version": "TLSv1.3", "tls_cipher": SB01_SPEC["tls_cipher"]})
+                for name, value in expected.items():
+                    observed = fields.get(name, {})
+                    if (observed.get("value") != value
+                            or observed.get("provenance") != "observed"
+                            or not observed.get("evidence")):
+                        add("fail", "effective-setting", f"cell {cid} {role}: {name} lacks matching runtime evidence")
             is_scripted = any(
                 str(f.get("provenance", "")).startswith("scripted")
                 for f in fields.values()
@@ -243,7 +316,7 @@ def verify_report(report: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
                 )
             elif not is_scripted and not ep.get("matches_spec"):
                 add(
-                    "info",
+                    "fail" if claim else "info",
                     "required-unmatched",
                     f"cell {cid} {role} {ep.get('peer')}: {ep.get('note', '')}",
                 )

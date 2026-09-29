@@ -4,7 +4,7 @@
   "label": "SB-19 compression axis: gzip on/off pairs on 64 KiB unary and streaming (contract sections 3.4, 3.5 holdout)",
   "contract": "docs/benchmark-contract.md",
   "scoreboard": ["D3"],
-  "methodology": "server cells only: each server peer under test driven by the fixed native open-loop Poisson generator, one discarded warmup probe then 3 measured repeats at the frozen offered rate. Identity (off) cells run; gzip (on) cells are FROZEN definitions that the runner reports unsupported at this base (rpc-bench `load` has no compression flag), never silently skipped or faked. Validation stage: pass means the cell ran, every offered call reconciles, and no repeat is generator-capped (SB-11 client-CPU signal or rejections); no leadership threshold here. Cell order is frozen: peers in file order x cells in file order.",
+  "methodology": "server cells driven by the native open-loop Poisson generator, discarded warmup then 3 repeats in frozen peer/cell order. Native and both tonic codecs run identity/gzip using explicit request and response compression; load validates response grpc-encoding. Official peer gzip cells remain unsupported until response configuration is implemented and verified. Diagnostic validation only; no leadership threshold.",
   "payload_caveat": "rpc-bench load payloads are zero bytes, so a future gzip-on cell measures near-maximum compressibility, not typical production entropy. Any gzip claim must name this payload pattern (contract 10.2); zeros are the standard load pattern, not benchmark-specific tuning (contract 10.3).",
   "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
   "client_peer": "native",
@@ -28,7 +28,7 @@
       "rtt_ms": null,
       "rate": 500.0,
       "max_in_flight": 1000,
-      "note": "FROZEN, unrunnable at this base: needs a load compression flag plus per-peer gzip negotiation; runner reports unsupported"
+      "note": "Native and tonic codecs run with --compression=gzip on both endpoints; official-peer gzip remains unsupported"
     },
     {
       "shape": "server_stream",
@@ -48,7 +48,7 @@
       "rtt_ms": null,
       "rate": 20.0,
       "max_in_flight": 1000,
-      "note": "FROZEN, unrunnable at this base: same missing load compression flag; runner reports unsupported"
+      "note": "Native and tonic codecs run with --compression=gzip on both endpoints; official-peer gzip remains unsupported"
     }
   ],
   "params": {
