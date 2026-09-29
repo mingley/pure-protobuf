@@ -2525,7 +2525,8 @@
    ],
    "relates": [
     "OP-06"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "PK-14",
@@ -3179,7 +3180,8 @@
     "A3",
     "F1"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "UK-03",
@@ -3862,7 +3864,8 @@
     "D2",
     "D8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "H2-04",
@@ -5934,7 +5937,8 @@
    ],
    "relates": [
     "EX-07"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "XD-02",
