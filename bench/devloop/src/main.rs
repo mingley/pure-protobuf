@@ -404,6 +404,43 @@ fn pbrs_specimen() -> PbrsTat {
     m
 }
 
+fn pbrs_packed_256() -> PbrsTat {
+    let mut m = PbrsTat::new();
+    for i in 0..256 {
+        m.packed_int32_mut().push(i);
+    }
+    m
+}
+
+fn pbrs_unpacked_256() -> PbrsTat {
+    let mut m = PbrsTat::new();
+    for i in 0..256 {
+        m.repeated_int32_mut().push(i);
+    }
+    m
+}
+
+fn pbrs_tags_32() -> PbrsTat {
+    let mut m = PbrsTat::new();
+    for i in 0..32 {
+        m.repeated_string_mut().push(format!("t{i:02}"));
+    }
+    m
+}
+
+fn pbrs_specimen_for_cell(cell: &str) -> PbrsTat {
+    match cell {
+        "codec.pbrs.packed_256_owned_decode" | "codec.pbrs.packed_256_parse_touch" => {
+            pbrs_packed_256()
+        }
+        "codec.pbrs.unpacked_256_owned_decode" | "codec.pbrs.unpacked_256_parse_touch" => {
+            pbrs_unpacked_256()
+        }
+        "codec.pbrs.tags_32_owned_decode" | "codec.pbrs.tags_32_parse_touch" => pbrs_tags_32(),
+        _ => pbrs_specimen(),
+    }
+}
+
 fn touch_pbrs(m: &PbrsTat) -> u64 {
     let mut acc = m.optional_int32() as u64;
     acc = acc.wrapping_add(m.optional_int64() as u64);
@@ -421,6 +458,9 @@ fn touch_pbrs(m: &PbrsTat) -> u64 {
     }
     for i in m.packed_int32().iter() {
         acc = acc.wrapping_add(i as u64);
+    }
+    for s in m.repeated_string().iter() {
+        acc = acc.wrapping_add(s.as_view().as_bytes().len() as u64);
     }
     acc
 }
@@ -442,6 +482,9 @@ fn touch_prost(m: &prost_tat::TestAllTypesProto3) -> u64 {
     }
     for i in m.packed_int32.iter() {
         acc = acc.wrapping_add(*i as u64);
+    }
+    for s in m.repeated_string.iter() {
+        acc = acc.wrapping_add(s.len() as u64);
     }
     acc
 }
@@ -468,6 +511,9 @@ fn touch_v4_view(m: v4_tat::TestAllTypesProto3View<'_>) -> u64 {
     for i in m.packed_int32().iter() {
         acc = acc.wrapping_add(i as u64);
     }
+    for s in m.repeated_string().iter() {
+        acc = acc.wrapping_add(s.len() as u64);
+    }
     acc
 }
 
@@ -484,8 +530,8 @@ struct CodecCase {
 }
 
 impl CodecCase {
-    fn prepare(iters: u64) -> Self {
-        let pbrs_msg = pbrs_specimen();
+    fn prepare(cell: &str, iters: u64) -> Self {
+        let pbrs_msg = pbrs_specimen_for_cell(cell);
         let wire = pbrs::Serialize::serialize(&pbrs_msg).expect("pbrs wire");
         let prost_msg =
             prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("prost cross-parse");
@@ -538,6 +584,16 @@ fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
         "codec.pbrs.parse_touch" => {
             black_box(touch_pbrs(&PbrsTat::parse(&case.wire).expect("dec")))
         }
+        "codec.pbrs.packed_256_owned_decode"
+        | "codec.pbrs.unpacked_256_owned_decode"
+        | "codec.pbrs.tags_32_owned_decode" => {
+            black_box(PbrsTat::parse(&case.wire).expect("dec").optional_int32() as u64)
+        }
+        "codec.pbrs.packed_256_parse_touch"
+        | "codec.pbrs.unpacked_256_parse_touch"
+        | "codec.pbrs.tags_32_parse_touch" => {
+            black_box(touch_pbrs(&PbrsTat::parse(&case.wire).expect("dec")))
+        }
         "codec.prost.fresh_encode" => {
             let mut buf = Vec::new();
             prost013::Message::encode(&case.prost_fresh[i], &mut buf).expect("enc");
@@ -584,6 +640,12 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
         ("codec.pbrs.cached_encode", "pbrs"),
         ("codec.pbrs.owned_decode", "pbrs"),
         ("codec.pbrs.parse_touch", "pbrs"),
+        ("codec.pbrs.packed_256_owned_decode", "pbrs"),
+        ("codec.pbrs.packed_256_parse_touch", "pbrs"),
+        ("codec.pbrs.unpacked_256_owned_decode", "pbrs"),
+        ("codec.pbrs.unpacked_256_parse_touch", "pbrs"),
+        ("codec.pbrs.tags_32_owned_decode", "pbrs"),
+        ("codec.pbrs.tags_32_parse_touch", "pbrs"),
         ("codec.prost.fresh_encode", "prost"),
         ("codec.prost.cached_encode", "prost"),
         ("codec.prost.owned_decode", "prost"),
@@ -1271,7 +1333,7 @@ fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -
 }
 
 fn run_codec_cell(cell: &str, iters: u64, warmup: u64) {
-    let case = CodecCase::prepare(iters);
+    let case = CodecCase::prepare(cell, iters);
     let n = iters as usize;
     for i in 0..warmup as usize {
         black_box(codec_work(cell, &case, i % n.max(1)));
