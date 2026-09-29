@@ -7763,7 +7763,8 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-14",
@@ -7800,7 +7801,11 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/guides/migration.md",
+    "pbrs-grpc/tests/tower_client.rs"
+   ]
   },
   {
    "id": "TC-15",
@@ -7869,7 +7874,11 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/codec_generic.rs",
+    "pbrs-grpc/tests/prost_codec.rs"
+   ]
   },
   {
    "id": "TC-17",
