@@ -8133,7 +8133,10 @@
     "CL-02",
     "CL-05"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/rx-08.md"
+   ]
   },
   {
    "id": "TC-22",
