@@ -515,8 +515,9 @@ def v4_generation_command(
     ]
 
 
-def resolve_pinned_protoc() -> Path:
-    candidate = ROOT / "target" / "pinned-protoc-build" / "protoc"
+def resolve_pinned_protoc(candidate: Path | None = None) -> Path:
+    if candidate is None:
+        candidate = ROOT / "target" / "pinned-protoc-build" / "protoc"
     if not candidate.is_file() or not os.access(candidate, os.X_OK):
         raise BenchmarkError(
             "v4 generator needs the pinned protoc "

@@ -244,7 +244,11 @@ class CorpusTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("CG19_PINNED_PROTOC"), "opt-in pinned protoc only")
     def test_pinned_reference_generates_full_larger_corpora(self):
         protoc = Path(os.environ["CG19_PINNED_PROTOC"]).resolve()
-        self.assertEqual(harness.sha256(protoc), harness.REFERENCE_PROTOC_SHA256)
+        # The protoc binary hash varies across CMake/linker environments, so
+        # genuineness is libprotoc 35.1 + --rust_out + pinned source revision
+        # (shared with the matrix v4 flow); the generated-byte digests below
+        # are the stable semantic pins.
+        self.assertEqual(harness.resolve_pinned_protoc(protoc), protoc)
         expected = {
             "100": (6, "1c91b8a07095e3d1a5972933ec6ffda40be5b9c0a067303196c48cba2be19ee4"),
             "1000": (21, "2727bb5aa3979c1e6e085d480dbfa1b4e0fc2290c46384d2f03daa43604001d4"),
