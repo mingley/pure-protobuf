@@ -66,6 +66,13 @@ fails. Local regression comparisons still exit nonzero. CI uses
 `scripts/perf-report.py` to validate provenance, host/tool metadata, sample
 counts, metric units and finite values before interpreting a comparison.
 
+Counter parsers require the tool's actual output format; a present executable
+does not prove a usable counter. Missing or malformed output stays `not_run`,
+including partial-repeat measurements. The legacy `locks` JSON field counts
+futex-family syscalls, including wakes and unsuccessful waits, not blocking
+lock acquisitions. Its corrected unit is deliberately incompatible with older
+reports labeled as blocking waits; do not mix those series.
+
 ## Cell families
 
 The matrix has expanded beyond the original 16 cells. Run

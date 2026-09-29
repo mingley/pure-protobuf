@@ -26,6 +26,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 mod blob;
+mod counters;
+use counters::{parse_callgrind_instructions, parse_perf_instructions, parse_strace_summary};
 
 /// Report schema version. Bump on any breaking JSON change.
 const SCHEMA: &str = "devloop/1";
@@ -1780,7 +1782,7 @@ fn run_cell_process(
         .arg(iters.to_string())
         .arg("--prepare-iters")
         .arg(prepare_iters.to_string());
-    let out = cmd.output().expect("spawn child");
+    let out = cmd.env("LC_ALL", "C").output().expect("spawn child");
     assert!(
         out.status.success(),
         "cell {cell} child failed: {}",
@@ -1848,6 +1850,7 @@ fn run_child(
     // metric is parsed from the same output: no extra run.
     let (syscalls, locks) = if tools.strace {
         let sout = std::process::Command::new("strace")
+            .env("LC_ALL", "C")
             .arg("-c")
             .arg("-f")
             .arg(exe)
@@ -1859,7 +1862,9 @@ fn run_child(
             .expect("spawn strace");
         if sout.status.success() {
             let text = String::from_utf8_lossy(&sout.stderr);
-            (parse_strace_total(&text), Some(parse_strace_futex(&text)))
+            parse_strace_summary(&text).map_or((None, None), |(calls, futex)| {
+                (Some(calls), Some(futex))
+            })
         } else {
             (None, None)
         }
@@ -1867,70 +1872,6 @@ fn run_child(
         (None, None)
     };
     (child, instructions, syscalls, locks)
-}
-
-/// Parse `perf stat -x,` output: `<count>,instructions,...`.
-fn parse_perf_instructions(stderr: &str) -> Option<f64> {
-    stderr.lines().find_map(|line| {
-        let mut parts = line.split(',');
-        let count = parts.next()?.trim().replace(' ', "");
-        let event = parts.next()?.trim();
-        if event == "instructions" {
-            count.parse::<f64>().ok()
-        } else {
-            None
-        }
-    })
-}
-
-/// Parse callgrind's summary line (`-bbi` off): `events: Ir ...` plus
-/// the `summary:` line callgrind prints with --quiet... valgrind's
-/// callgrind prints `I refs:` in its final summary; use that.
-fn parse_callgrind_instructions(stderr: &str) -> Option<f64> {
-    stderr.lines().find_map(|line| {
-        let line = line.trim();
-        line.split_once("I   refs:").and_then(|(_, rest)| {
-            rest.split_whitespace()
-                .next()
-                .and_then(|n| n.replace(',', "").parse::<f64>().ok())
-        })
-    })
-}
-
-/// Parse `strace -c` totals: the `total` line's first column is the
-/// call count... actually `% time seconds usecs/call calls ...`;
-/// use the `total` row's `calls` field (4th column).
-fn parse_strace_total(stderr: &str) -> Option<f64> {
-    stderr.lines().find_map(|line| {
-        let line = line.trim();
-        line.strip_prefix("total").and_then(|rest| {
-            rest.split_whitespace()
-                .nth(3)
-                .and_then(|n| n.parse::<f64>().ok())
-        })
-    })
-}
-
-/// Parse blocking lock waits from `strace -c`: the `calls` column of the
-/// `futex` row plus `futex_waitv` (newer kernels split the wait family).
-/// No such row means no waits: strace has known `futex` since 2003, so a
-/// missing row is a zero, not a skip.
-fn parse_strace_futex(stderr: &str) -> f64 {
-    let mut total = 0.0;
-    for line in stderr.lines() {
-        let mut parts = line.split_whitespace();
-        let Some(name) = parts.next_back() else {
-            continue;
-        };
-        if name == "futex" || name == "futex_waitv" {
-            let mut cols = line.split_whitespace();
-            // %time seconds usecs/call calls errors syscall
-            if let Some(calls) = cols.nth(3).and_then(|n| n.parse::<f64>().ok()) {
-                total += calls;
-            }
-        }
-    }
-    total
 }
 
 fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
@@ -2009,29 +1950,47 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                 Metric::measured(median(alloc_bytes), "heap bytes per RPC (median)"),
             )
         };
+        let complete_instructions = instrs.len() == repeats as usize;
         out.push(CellResult {
             id: cell.to_string(),
             kind: kind.to_string(),
             codec: codec.to_string(),
             iters: cell_iters,
             repeats,
-            instructions: if instrs.is_empty() {
-                Metric::not_run("no perf or valgrind on PATH")
+            instructions: if !complete_instructions {
+                Metric::not_run(if tools.perf || tools.valgrind {
+                    "instruction counter output missing or invalid in one or more repeats"
+                } else {
+                    "no perf or valgrind on PATH"
+                })
             } else {
                 Metric::measured(median(instrs), "retired/callgrind-ir per op")
             },
-            instruction_method: instruction_method.unwrap_or("not_run").to_owned(),
+            instruction_method: if complete_instructions {
+                instruction_method.unwrap_or("not_run")
+            } else {
+                "not_run"
+            }
+            .to_owned(),
             allocs: alloc_metric,
             alloc_bytes: bytes_metric,
-            syscalls: if syscalls.is_empty() {
-                Metric::not_run("no strace on PATH")
+            syscalls: if syscalls.len() != repeats as usize {
+                Metric::not_run(if tools.strace {
+                    "strace failed or summary was invalid in one or more repeats"
+                } else {
+                    "no strace on PATH"
+                })
             } else {
                 Metric::measured(median(syscalls), "syscalls per op")
             },
-            locks: if locks.is_empty() {
-                Metric::not_run("no strace on PATH")
+            locks: if locks.len() != repeats as usize {
+                Metric::not_run(if tools.strace {
+                    "strace failed or summary was invalid in one or more repeats"
+                } else {
+                    "no strace on PATH"
+                })
             } else {
-                Metric::measured(median(locks), "blocking lock waits per op (futex)")
+                Metric::measured(median(locks), "futex-family syscalls per op (includes wakes)")
             },
             wall_ns: Metric::measured(median(walls.clone()), "ns per op (secondary)"),
             wall_cv: wall_cv(&walls),

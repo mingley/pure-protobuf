@@ -93,7 +93,7 @@ PY
 }
 
 FETCH_LOG="$(mktemp -t devloop-fetch.XXXXXX.log)"
-if cargo fetch --locked --manifest-path "$MANIFEST" >"$FETCH_LOG" 2>&1; then
+if CARGO_TERM_COLOR=never cargo fetch --locked --manifest-path "$MANIFEST" >"$FETCH_LOG" 2>&1; then
   rm -f "$FETCH_LOG"
 else
   echo "devloop: warning: cargo fetch failed (offline?); trying offline build with cached deps" >&2
@@ -102,7 +102,7 @@ else
 fi
 
 BUILD_LOG="$(mktemp -t devloop-build.XXXXXX.log)"
-if ! cargo build --locked --manifest-path "$MANIFEST" --release --offline >"$BUILD_LOG" 2>&1; then
+if ! CARGO_TERM_COLOR=never cargo build --locked --manifest-path "$MANIFEST" --release --offline >"$BUILD_LOG" 2>&1; then
   echo "devloop: harness build failed (offline release build of $MANIFEST)" >&2
   tail -n 30 "$BUILD_LOG" >&2
   DETAIL="$(grep -m1 '^error' "$BUILD_LOG" || echo "see build log $BUILD_LOG")"

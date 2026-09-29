@@ -54,6 +54,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
+      - name: Check counter-output parsers
+        run: |
+          rustc --edition=2024 --test bench/devloop/src/counters.rs \
+            -o "$RUNNER_TEMP/devloop-counter-tests"
+          "$RUNNER_TEMP/devloop-counter-tests"
 
       - name: Resolve immutable comparison revisions
         id: revisions
