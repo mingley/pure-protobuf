@@ -2925,7 +2925,12 @@
     "B8"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "in_progress",
+   "notes": "2026-09-29 coordinator: option slice integrated (emit_reflection/emit_json/emit_text Config+plugin+env; 156 tests/clippy/fmt green; lean consumer verified). REMAINDER: dedup embedded descriptor bytes across files + lazy descriptor load when reflection is enabled; defaults still embed per-file bytes.",
+   "evidence": [
+    "docs/evidence/gn-03-reflection-options.md",
+    "docs/evidence/gn-02-generated-shrink.md"
+   ]
   },
   {
    "id": "GN-04",
