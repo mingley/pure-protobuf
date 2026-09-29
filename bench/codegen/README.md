@@ -162,6 +162,14 @@ Rust bytes, output hashes, and the usual matrix medians for the metrics that
 exist. Use it for generator B1/B2 evidence; do not use it for B3-B8
 compile/build claims.
 
+For pbrs-only profile experiments, set `SB09_PBRS_EMIT_REFLECTION=0`,
+`SB09_PBRS_EMIT_JSON=0`, and/or `SB09_PBRS_EMIT_TEXT=0` to change the emitted
+surface. Set `SB09_PBRS_RUNTIME_PROFILE=minimal` to make generated consumers
+depend on `pbrs` with `default-features = false`, or `json-text` for
+`default-features = false, features = ["json", "text"]`. The bootstrap
+generator driver always keeps default `pbrs` features so `pbrs::codegen`
+remains available.
+
 Realistic corpora fetch 27 hash-pinned `.proto` files (OTLP v1.7.0,
 googleapis, Envoy v1.39.1, udpa, xds, protoc-gen-validate v1.3.3) from
 `raw.githubusercontent.com` into `target/codegen-bench/vendor/` on first

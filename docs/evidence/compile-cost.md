@@ -39,6 +39,22 @@ The runtime/build split was checked independently of generated-output changes:
 | 100-message generated consumer, `features = ["json", "text"]` | `/usr/bin/time -l env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=target/pk03-feature-split/target-json-text cargo check --offline --locked --manifest-path target/pk03-feature-split/100-json-text/Cargo.toml --bin cg19-consumer-100 --timings` | 9.48 s real, 560 MiB max RSS; cargo timing total 9.4 s; top units: consumer check 4.66 s, `pbrs` check 1.45 s. |
 | 1,000-message generated consumer, default `pbrs` | `/usr/bin/time -l env CARGO_BUILD_JOBS=3 CARGO_TARGET_DIR=target/pk03-feature-split/target-1000-default cargo check --offline --locked --manifest-path target/pk03-feature-split/1000-default/Cargo.toml --bin cg19-consumer-1000 --timings` | 73.84 s real, 4.00 GiB max RSS; cargo timing total 73.6 s; top units: consumer check 54.37 s, `pbrs` check 7.68 s. |
 
+## GN-02/GN-03 follow-up
+
+The accessor-only generation profile added in GN-02/GN-03 confirms row 1:
+removing optional reflection/JSON/text helpers cuts generated source volume
+substantially, but the remaining binary parse/encode/accessor surface still
+dominates large corpora.
+
+| Cell | Default pbrs | Accessor-only pbrs |
+|---|---:|---:|
+| 100 generated Rust bytes | 2,150,801 | 1,112,692 |
+| 100 clean check | 16.38 s | 8.67 s |
+| 100 release build | 54.49 s | 20.03 s |
+| 1,000 generated Rust bytes | 34,130,773 | 10,980,049 |
+| 1,000 clean check (same-tree diagnostic) | 51.70 s | 40.55 s |
+| 1,000 release build (same-tree diagnostic) | 270.85 s | 241.34 s |
+
 Raw self-profile files:
 
 - `target/pk03-feature-split/100-json-text/target/pk03-feature-split/self-profile-json-text/cg19_consumer_100-0039453.mm_profdata`

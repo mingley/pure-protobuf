@@ -604,7 +604,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         emit_accessors(src, desc, f, cold);
     }
     emit_codec(src, desc, edition2024, cold);
-    if std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref() != Ok("1") {
+    if emit_json_enabled() || emit_text_enabled() {
         emit_json_text(src, desc);
     }
     let _ = writeln!(src, "}}");

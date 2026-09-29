@@ -647,10 +647,27 @@ def render_consumer(messages: int, marker: int, reference: bool = False) -> str:
 
 
 def manifest(name: str, reference: bool = False) -> str:
-    dependency = (
-        f'protobuf = "={REFERENCE_RUNTIME_VERSION}"'
-        if reference else f"pbrs = {{ path = {json.dumps(str(ROOT))} }}"
-    )
+    if reference:
+        dependency = f'protobuf = "={REFERENCE_RUNTIME_VERSION}"'
+    elif name == "cg19-generator":
+        dependency = f"pbrs = {{ path = {json.dumps(str(ROOT))} }}"
+    else:
+        profile = os.environ.get("SB09_PBRS_RUNTIME_PROFILE", "default")
+        if profile == "default":
+            dependency = f"pbrs = {{ path = {json.dumps(str(ROOT))} }}"
+        elif profile == "minimal":
+            dependency = (
+                f"pbrs = {{ default-features = false, path = {json.dumps(str(ROOT))} }}"
+            )
+        elif profile == "json-text":
+            dependency = (
+                "pbrs = { default-features = false, features = [\"json\", \"text\"], "
+                f"path = {json.dumps(str(ROOT))} }}"
+            )
+        else:
+            raise BenchmarkError(
+                "SB09_PBRS_RUNTIME_PROFILE must be default, minimal, or json-text"
+            )
     return (
         f'[package]\nname = "{name}"\nversion = "0.0.0"\nedition = "2024"\n'
         'publish = false\n\n[workspace]\n\n[dependencies]\n'

@@ -243,6 +243,8 @@ thread_local! {
     pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static EMIT_JSON: Cell<bool> = const { Cell::new(true) };
+    pub(crate) static EMIT_TEXT: Cell<bool> = const { Cell::new(true) };
     pub(crate) static BUILD_CLIENT: Cell<bool> = const { Cell::new(true) };
     pub(crate) static BUILD_SERVER: Cell<bool> = const { Cell::new(true) };
     pub(crate) static GENERATE_DEFAULT_STUBS: Cell<bool> = const { Cell::new(true) };
@@ -293,6 +295,8 @@ impl CodegenStateGuard {
         NO_WKT.with(|c| c.set(false));
         SHARED_POOL.with(|c| c.set(false));
         NO_REFLECT.with(|c| c.set(false));
+        EMIT_JSON.with(|c| c.set(true));
+        EMIT_TEXT.with(|c| c.set(true));
         BUILD_CLIENT.with(|c| c.set(true));
         BUILD_SERVER.with(|c| c.set(true));
         GENERATE_DEFAULT_STUBS.with(|c| c.set(true));
@@ -360,6 +364,8 @@ pub(crate) struct ExplicitOptions {
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     no_reflect: Option<bool>,
+    emit_json: Option<bool>,
+    emit_text: Option<bool>,
     build_client: Option<bool>,
     build_server: Option<bool>,
     generate_default_stubs: Option<bool>,
@@ -388,6 +394,8 @@ pub(crate) struct ResolvedConfig {
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
     pub(crate) no_reflect: bool,
+    pub(crate) emit_json: bool,
+    pub(crate) emit_text: bool,
     pub(crate) build_client: bool,
     pub(crate) build_server: bool,
     pub(crate) generate_default_stubs: bool,
@@ -467,6 +475,15 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "no_reflect" => {
                 explicit.no_reflect = Some(parse_bool_param("no_reflect", val)?);
+            }
+            "emit_reflection" => {
+                explicit.no_reflect = Some(!parse_bool_param("emit_reflection", val)?);
+            }
+            "emit_json" => {
+                explicit.emit_json = Some(parse_bool_param("emit_json", val)?);
+            }
+            "emit_text" => {
+                explicit.emit_text = Some(parse_bool_param("emit_text", val)?);
             }
             "build_client" => {
                 explicit.build_client = Some(parse_bool_param("build_client", val)?);
@@ -742,6 +759,20 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
             Ok("1") | Ok("true")
         )
     };
+    let emit_json = if let Some(j) = explicit.emit_json {
+        j
+    } else if let Ok(v) = std::env::var("PURE_PROTOBUF_EMIT_JSON") {
+        !v.is_empty() && v != "0" && v != "false"
+    } else {
+        !no_reflect
+    };
+    let emit_text = if let Some(t) = explicit.emit_text {
+        t
+    } else if let Ok(v) = std::env::var("PURE_PROTOBUF_EMIT_TEXT") {
+        !v.is_empty() && v != "0" && v != "false"
+    } else {
+        !no_reflect
+    };
     let build_client = explicit.build_client.unwrap_or(true);
     let build_server = explicit.build_server.unwrap_or(true);
     let generate_default_stubs = explicit.generate_default_stubs.unwrap_or(true);
@@ -781,6 +812,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         no_wkt,
         shared_pool,
         no_reflect,
+        emit_json,
+        emit_text,
         build_client,
         build_server,
         generate_default_stubs,
@@ -821,6 +854,18 @@ pub(crate) fn use_arc_self() -> bool {
 
 pub(crate) fn comments_disabled() -> bool {
     DISABLE_COMMENTS.with(Cell::get)
+}
+
+pub(crate) fn emit_reflection_enabled() -> bool {
+    !NO_REFLECT.with(Cell::get)
+}
+
+pub(crate) fn emit_json_enabled() -> bool {
+    EMIT_JSON.with(Cell::get)
+}
+
+pub(crate) fn emit_text_enabled() -> bool {
+    EMIT_TEXT.with(Cell::get)
 }
 
 pub(crate) fn skip_debug() -> bool {
@@ -899,6 +944,7 @@ pub(crate) fn emit_server_attributes(src: &mut String, fq_path: &str, indent: &s
 ///    fallback for existing build scripts (`PURE_PROTOBUF_STUBS`,
 ///    `PURE_PROTOBUF_EMIT_DEPS`, `PURE_PROTOBUF_NO_WKT`,
 ///    `PURE_PROTOBUF_SHARED_POOL`, `PURE_PROTOBUF_NO_REFLECT`,
+///    `PURE_PROTOBUF_EMIT_JSON`, `PURE_PROTOBUF_EMIT_TEXT`,
 ///    `PURE_PROTOBUF_RUNTIME_CRATE`, `PURE_PROTOBUF_GRPC_CRATE`,
 ///    `PURE_PROTOBUF_TONIC_CRATE`, `PURE_PROTOBUF_INCLUDE_SOURCE_INFO`).
 ///    New code should prefer explicit options.
@@ -925,6 +971,8 @@ pub struct Config {
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     no_reflect: Option<bool>,
+    emit_json: Option<bool>,
+    emit_text: Option<bool>,
     build_client: Option<bool>,
     build_server: Option<bool>,
     generate_default_stubs: Option<bool>,
@@ -1119,6 +1167,33 @@ impl Config {
     /// Skip embedding FileDescriptorSet and JSON/text methods for lightweight accessors.
     pub fn no_reflect(&mut self, enable: bool) -> &mut Self {
         self.no_reflect = Some(enable);
+        if enable {
+            self.emit_json.get_or_insert(false);
+            self.emit_text.get_or_insert(false);
+        }
+        self
+    }
+
+    /// Emit reflection descriptor bytes and descriptor-backed helpers.
+    ///
+    /// This is the positive form of [`Self::no_reflect`]. Disabling
+    /// reflection does not remove binary parse/serialize APIs. JSON/text
+    /// methods default off with reflection disabled, but can be controlled
+    /// independently with [`Self::emit_json`] and [`Self::emit_text`].
+    pub fn emit_reflection(&mut self, enable: bool) -> &mut Self {
+        self.no_reflect = Some(!enable);
+        self
+    }
+
+    /// Emit generated JSON helpers. Default `true` unless reflection is disabled.
+    pub fn emit_json(&mut self, enable: bool) -> &mut Self {
+        self.emit_json = Some(enable);
+        self
+    }
+
+    /// Emit generated text-format helpers. Default `true` unless reflection is disabled.
+    pub fn emit_text(&mut self, enable: bool) -> &mut Self {
+        self.emit_text = Some(enable);
         self
     }
 
@@ -1666,6 +1741,8 @@ pub(crate) fn emit_codegen_config_rerun_if_env_changed() {
         "PURE_PROTOBUF_NO_WKT",
         "PURE_PROTOBUF_SHARED_POOL",
         "PURE_PROTOBUF_NO_REFLECT",
+        "PURE_PROTOBUF_EMIT_JSON",
+        "PURE_PROTOBUF_EMIT_TEXT",
         "PURE_PROTOBUF_RUNTIME_CRATE",
         "PURE_PROTOBUF_GRPC_CRATE",
         "PURE_PROTOBUF_TONIC_CRATE",

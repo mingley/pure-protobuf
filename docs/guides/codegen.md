@@ -46,6 +46,27 @@ binary wire API can depend on `pbrs = { version = "0.2", default-features =
 false }`; that profile does not compile the generator, descriptor pool, JSON,
 text, or bundled conformance gencode.
 
+Codegen can also emit a smaller accessor-only surface:
+
+```rust
+pbrs::codegen::Config::new()
+    .emit_reflection(false)
+    .emit_json(false)
+    .emit_text(false)
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+The plugin equivalents are:
+
+```bash
+--pbrs_opt=emit_reflection=false,emit_json=false,emit_text=false
+```
+
+Defaults stay source-compatible: reflection bytes plus JSON and text methods
+are still emitted unless you opt out. `no_reflect=true` remains supported as a
+shorthand for disabling reflection and, unless separately requested, generated
+JSON/text methods.
+
 ### Basic Compilation
 
 Compile your `.proto` files during the build:

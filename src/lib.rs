@@ -39,6 +39,8 @@ pub use crate::dynamic::{
     DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, FileDescriptor, MapKeyValue,
     MessageDescriptor, MethodDescriptor, Presence, RECURSION_LIMIT, ServiceDescriptor, Value,
 };
+#[cfg(not(feature = "reflect"))]
+pub const RECURSION_LIMIT: u32 = 100;
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
 pub use crate::message::{

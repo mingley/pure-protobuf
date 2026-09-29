@@ -66,6 +66,8 @@ pub fn generate_from_code_generator_request(
     NO_WKT.with(|c| c.set(resolved.no_wkt));
     SHARED_POOL.with(|c| c.set(resolved.shared_pool));
     NO_REFLECT.with(|c| c.set(resolved.no_reflect));
+    EMIT_JSON.with(|c| c.set(resolved.emit_json));
+    EMIT_TEXT.with(|c| c.set(resolved.emit_text));
     BUILD_CLIENT.with(|c| c.set(resolved.build_client));
     BUILD_SERVER.with(|c| c.set(resolved.build_server));
     GENERATE_DEFAULT_STUBS.with(|c| c.set(resolved.generate_default_stubs));

@@ -80,6 +80,37 @@ remaining gap requires generated-output shrink or optional emission of
 reflection/JSON/text helpers; those changes touch `messages.rs`, `parse.rs`,
 `encode.rs`, `json.rs`, or `text.rs`, outside this worker's write scope.
 
+## GN-02/GN-03 lean-profile rerun
+
+After adding the accessor-only generation profile, GN-04 B1/B2 was rerun with:
+
+```sh
+SB09_PBRS_EMIT_REFLECTION=0 SB09_PBRS_EMIT_JSON=0 SB09_PBRS_EMIT_TEXT=0 \
+SB09_PBRS_RUNTIME_PROFILE=minimal \
+  CARGO_BUILD_JOBS=3 ./scripts/codegen-bench.sh --case all \
+  --generators pbrs,prost,v4 --stub-generators pbrs-native --repeats 5 \
+  --jobs 3 --generation-only \
+  --out target/codegen-bench/gn04-lean-genonly-20260929T020504Z
+```
+
+Medians of 5, generation time / peak RSS:
+
+| case | pbrs accessor-only | prost-build | protoc `--rust_out` |
+|---|---:|---:|---:|
+| small | **90 ms / 12 MB** | 160 ms / 12 MB | 162 ms / 17 MB |
+| 100 | 197 ms / 13 MB | **169 ms / 13 MB** | 549 ms / 25 MB |
+| 1,000 | **328 ms / 45 MB** | 333 ms / 37 MB | 4.26 s / 87 MB |
+| OTLP | 157 ms / 13 MB | **153 ms / 13 MB** | 324 ms / 21 MB |
+| googleapis | 202 ms / 14 MB | **181 ms / 15 MB** | 380 ms / 26 MB |
+| Envoy core | **252 ms / 28 MB** | 261 ms / 16 MB | 847 ms / 31 MB |
+| Envoy discovery | 484 ms / 39 MB | **281 ms / 18 MB** | excluded |
+
+Verdict: shrinking optional reflection/format output moves pbrs much closer to
+prost and keeps it faster than v4 on all measured v4 cells. pbrs now narrowly
+beats prost on the 1,000-message and Envoy-core generation-time cells, but still
+loses to prost on 100, OTLP, googleapis, and Envoy discovery. GN-04 remains
+partial rather than complete.
+
 ## Gates
 
 - `python3 -B -m unittest discover -s bench/codegen -p 'test_run.py' -q`:

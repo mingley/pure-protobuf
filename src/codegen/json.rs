@@ -321,38 +321,49 @@ pub(crate) fn emit_json_oneof_guard(
 }
 
 pub(crate) fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
-    match desc.full_name.trim_start_matches('.') {
-        "google.protobuf.Timestamp" => {
-            emit_wkt_string_json(src, "timestamp");
-            emit_typed_text(src, desc);
+    let name = desc.full_name.trim_start_matches('.');
+    if emit_json_enabled() {
+        match name {
+            "google.protobuf.Timestamp" => emit_wkt_string_json(src, "timestamp"),
+            "google.protobuf.Duration" => emit_wkt_string_json(src, "duration"),
+            "google.protobuf.Empty" => emit_wkt_empty_json(src),
+            name if wrapper_json_spec(name).is_some() => {
+                let (encode, decode, value_expr) = wrapper_json_spec(name).expect("wrapper");
+                emit_wkt_wrapper_json(src, encode, decode, value_expr);
+            }
+            name if name.starts_with("google.protobuf.") => {
+                if emit_reflection_enabled() {
+                    // Struct / Value / ListValue / Any / FieldMask keep official
+                    // JSON via DynamicMessage. Field-wise object JSON for those
+                    // would disagree with the official mapping.
+                    emit_dynamic_json(src, &desc.full_name);
+                }
+            }
+            _ if can_typed_json(desc) => emit_typed_json(src, desc),
+            _ => {
+                if emit_reflection_enabled() {
+                    emit_dynamic_json(src, &desc.full_name);
+                }
+            }
         }
-        "google.protobuf.Duration" => {
-            emit_wkt_string_json(src, "duration");
-            emit_typed_text(src, desc);
-        }
-        "google.protobuf.Empty" => {
-            emit_wkt_empty_json(src);
-            emit_typed_text(src, desc);
-        }
-        name if wrapper_json_spec(name).is_some() => {
-            let (encode, decode, value_expr) = wrapper_json_spec(name).expect("wrapper");
-            emit_wkt_wrapper_json(src, encode, decode, value_expr);
-            emit_typed_text(src, desc);
-        }
-        name if name.starts_with("google.protobuf.") => {
-            // Struct / Value / ListValue / Any / FieldMask keep official
-            // JSON via DynamicMessage. Field-wise object JSON for those
-            // would disagree with the official mapping.
-            emit_dynamic_json(src, &desc.full_name);
-            emit_dynamic_text(src, &desc.full_name);
-        }
-        _ if can_typed_json(desc) => {
-            emit_typed_json(src, desc);
-            emit_typed_text(src, desc);
-        }
-        _ => {
-            emit_dynamic_json(src, &desc.full_name);
-            emit_dynamic_text(src, &desc.full_name);
+    }
+    if emit_text_enabled() {
+        match name {
+            "google.protobuf.Timestamp" | "google.protobuf.Duration" | "google.protobuf.Empty" => {
+                emit_typed_text(src, desc);
+            }
+            name if wrapper_json_spec(name).is_some() => emit_typed_text(src, desc),
+            name if name.starts_with("google.protobuf.") => {
+                if emit_reflection_enabled() {
+                    emit_dynamic_text(src, &desc.full_name);
+                }
+            }
+            _ if can_typed_json(desc) => emit_typed_text(src, desc),
+            _ => {
+                if emit_reflection_enabled() {
+                    emit_dynamic_text(src, &desc.full_name);
+                }
+            }
         }
     }
 }
