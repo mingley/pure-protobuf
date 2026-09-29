@@ -488,7 +488,8 @@
         "Partial 2026-09-23: 14af5af9 requires actual local-peer completion markers for all eight spec-derived HTTP/2 cases; 8/8 passed locally with retained client/peer logs and a fake-success client recorded failed. This purpose-built peer is not the upstream runner binary; independent-peer qualification remains open.",
         "Blocker: grpc/grpc@d1487957 test/http2_test/http2_test_server.py imports Twisted and uses Python 2 dict.has_key. No reviewed original-runner toolchain is available; coordinator must review and pin one before a full-profile pass.",
         "2026-09-24: tests/interop/cases.json distinguishes the original eight not_run procedures from passing local-peer coverage. An explicit spec-derived adapter report passed 8/8 with qualification.qualified=false, retained logs, and full native-profile validation rejected its actual results."
-      ]
+      ],
+      "status": "in_progress"
     },
     {
       "id": "IO-09",

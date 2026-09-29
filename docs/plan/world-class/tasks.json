@@ -1526,7 +1526,8 @@
     "A9",
     "A10"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "SB-07",
@@ -2233,7 +2234,8 @@
     "A3",
     "A5"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "PK-07",
@@ -8371,7 +8373,8 @@
    "relates": [
     "TC-10"
    ],
-   "notes": "Split from TC-10 2026-09-29: SB-13 never measured tonic+prost (its tonic rows are tonic+pbrs). Keep the prost arm bench-only; shipping profiles stay prost-free per QG-04."
+   "notes": "Split from TC-10 2026-09-29: SB-13 never measured tonic+prost (its tonic rows are tonic+pbrs). Keep the prost arm bench-only; shipping profiles stay prost-free per QG-04.",
+   "status": "in_progress"
   },
   {
    "id": "PK-22",
