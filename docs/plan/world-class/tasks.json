@@ -2949,7 +2949,8 @@
    ],
    "relates": [
     "CG-16"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "GN-06",
@@ -3052,7 +3053,8 @@
     "B9",
     "F1"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "GN-09",
