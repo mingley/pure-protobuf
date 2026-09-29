@@ -7020,7 +7020,8 @@
    "relates": [
     "BM-13"
    ],
-   "status": "in_progress"
+   "status": "pending",
+   "notes": "Premise check 2026-09-29: only 2 perf-lane runs ever, both failed with 0 artifacts; need >=30 completed runs with devloop-* artifacts. Unblocked by SB-23 (lane repair) + ~30 qualifying PR pushes."
   },
   {
    "id": "SB-21",
@@ -8515,6 +8516,40 @@
     "SB-08"
    ],
    "notes": "Split from PK-21 2026-09-29: cell claim currently rests on a /tmp probe with exact allocs."
+  },
+  {
+   "id": "SB-23",
+   "title": "Repair the perf lane so it completes and uploads artifacts",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "SB-04"
+   ],
+   "read": [
+    ".github/workflows/perf.yml",
+    "scripts/devloop.sh",
+    "bench/devloop/Cargo.toml"
+   ],
+   "write": [
+    ".github/workflows/perf.yml",
+    "scripts/devloop.sh",
+    "bench/devloop/Cargo.toml",
+    "bench/devloop/Cargo.lock"
+   ],
+   "deliverable": "Fix the red dev-loop perf lane: offline resolve of the protobuf =4.35.1-release pin during cargo fetch/build, and make the build/compare steps non-fatal per the non-blocking design so base/head JSONs always upload.",
+   "accept": [
+    "A dispatched perf-lane run completes and uploads devloop-* base/head artifacts; a bench compile failure is reported, not exit-101-silent."
+   ],
+   "checks": [],
+   "scoreboard": [],
+   "relates": [
+    "SB-04",
+    "SB-20"
+   ],
+   "notes": "Split from SB-20 premise check 2026-09-29: runs 36488933446/36456626203 fail in devloop.sh cargo build --offline (no matching protobuf package). Gates SB-20 re-dispatch."
   }
  ]
 }
