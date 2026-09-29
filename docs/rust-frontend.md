@@ -6,7 +6,9 @@ the full profile, so `compile_descriptor_set` remains the Rust-only path and
 new `.proto` source compilation stays blocked.
 
 **Review date:** 2026-09-23. **Repository source:** `d34334e1`. **Decision
-status:** blocked, not an approved dependency or implemented build path.
+status:** decided upstream-first in [the frontend route record](decisions/rust-frontend-route.md)
+(GN-05, draft for maintainer review); still not an approved dependency or
+implemented build path.
 `Config::compile_descriptor_set` already generates from checked descriptors
 without `protoc`; compiling new `.proto` source does not. The codegen plugin
 still advertises maximum Edition 2023 (`1000`). Edition 2024 (`1001`) descriptor
@@ -64,9 +66,10 @@ requirements. Then run differential descriptor/output fixtures for nested and
 public imports, same-stem files, custom/extension options, source comments, and
 malformed inputs. A passing `cargo check` alone is not a semantic proof.
 
-**Next decision:** the maintainer chooses whether an independently labeled
-proto2/proto3-only profile is useful. Full-profile `CG-17` remains blocked
-until a reviewed frontend implements Edition 2023/2024 descriptors and grammar,
-including `export`/`local`, `import option`, naming and feature defaults, or
-those gaps are split into bounded upstream tasks. Do not add a dependency or
-build a new protobuf compiler as an unbounded workaround.
+**Decision (GN-05):** contribute the missing surface to `protox` upstream
+as bounded slices; do not build an in-repo compiler. See [the frontend
+route record](decisions/rust-frontend-route.md) for license, MSRV,
+transitive-graph, ownership, acceptance-risk, and schedule terms.
+Full-profile `CG-17` remains blocked until the editions slices land
+upstream. Do not add a dependency or build a new protobuf compiler as
+an unbounded workaround.
