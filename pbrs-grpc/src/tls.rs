@@ -282,23 +282,24 @@ impl fmt::Debug for ServerTls {
 impl ServerTls {
     /// Serve with `identity`. Clients are not asked for a certificate.
     ///
-    /// There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls
-    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls
-    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client
-    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key
-    /// log). Distinct from a skip-verify constructor (there is none).
+    /// This constructor does not enable rustls key logging; call
+    /// [`Self::key_log_file`] to opt into `SSLKEYLOGFILE` for local debugging.
+    /// Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake).
+    /// Distinct from [`Self::mtls`] (client cert require) and
+    /// [`Self::optional_mtls`] (client cert requested but optional). Distinct
+    /// from a skip-verify constructor (there is none).
     pub fn new(identity: Identity) -> Result<Self, Status> {
         build_server(identity, ClientAuth::None)
     }
 
     /// Serve with `identity` and require a client certificate issued by `client_ca_pem`.
     ///
-    /// There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a
-    /// client certificate but does not require one. This constructor always
-    /// requires a client certificate issued by that CA. Distinct from
-    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify
-    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /
-    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require).
+    /// Use [`Self::optional_mtls`] for tonic-style optional client auth. This
+    /// constructor always requires a client certificate issued by that CA.
+    /// Distinct from [`Self::new`] (clients are not asked). Distinct from a
+    /// skip-verify constructor (there is none). Distinct from
+    /// [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents;
+    /// this is the server require).
     pub fn mtls(identity: Identity, client_ca_pem: impl AsRef<[u8]>) -> Result<Self, Status> {
         let cas = roots_from_certs(certs_from_pem(client_ca_pem.as_ref())?)?;
         build_server(identity, ClientAuth::Required(cas))
@@ -435,9 +436,10 @@ impl ClientTls {
     ///
     /// There is no tonic `Endpoint::tls_config_with_verifier`: that replaces
     /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor
-    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]
-    /// (pin a CA, still verifies). Distinct from a skip-verify constructor
-    /// (there is none).
+    /// always verifies against Mozilla's CA set. Distinct from
+    /// `ClientTls::native_roots` (operating-system roots, when the
+    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).
+    /// Distinct from a skip-verify constructor (there is none).
     pub fn webpki(server_name: impl Into<String>) -> Result<Self, Status> {
         build_client(server_name.into(), webpki_roots(), None)
     }
