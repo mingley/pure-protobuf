@@ -534,6 +534,9 @@ impl Metadata {
     }
 
     pub(crate) fn write_to(&self, headers: &mut HeaderMap) -> Result<(), Status> {
+        if self.map.is_empty() {
+            return Ok(());
+        }
         for (name, value) in &self.map {
             if is_reserved(name.as_str()) {
                 continue;

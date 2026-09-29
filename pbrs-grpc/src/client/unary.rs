@@ -1,7 +1,8 @@
 //! Unary call shape.
 
 use super::call::{
-    AttemptCommitment, first_of, open, prefer_peer_rejection_after_send, race, send_request_frame,
+    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open,
+    prefer_peer_rejection_after_send, race, reject_attempt, send_request_frame,
 };
 use super::retry::{HedgeUnary, PolicyDecision, policy_retry_delay, retry_exhausted};
 use crate::binlog::CallLogger;
@@ -45,12 +46,48 @@ pub(crate) async fn run_unary<Resp>(
 where
     Resp: CodecMessage,
 {
+    run_unary_frame(
+        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+        user_agent, https, permit, tap,
+    )
+    .await
+    .map_err(|(status, _)| status)
+}
+
+/// [`run_unary`] that hands the request frame back when the open fails.
+///
+/// A transparent retry reuses the returned frame instead of cloning up
+/// front; `None` means the frame was consumed (send started) and only a
+/// re-encode can replay.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "thin cancel-logging wrapper over run_unary_inner"
+)]
+async fn run_unary_frame<Resp>(
+    send_req: backend::SendRequest,
+    authority: &Authority,
+    path: &'static str,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+    compress: bool,
+    frame: SegFrame,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    user_agent: HeaderValue,
+    https: bool,
+    permit: BytePermit,
+    tap: Option<&CallLogger>,
+) -> Result<Response<Resp>, (Status, Option<SegFrame>)>
+where
+    Resp: CodecMessage,
+{
     let outcome = run_unary_inner(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
         user_agent, https, permit, tap,
     )
     .await;
-    if let (Some(tap), Err(status)) = (tap, &outcome) {
+    if let (Some(tap), Err((status, _))) = (tap, &outcome) {
         if status.code() == Code::Cancelled {
             tap.log_cancel();
         }
@@ -77,7 +114,7 @@ async fn run_unary_inner<Resp>(
     https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
-) -> Result<Response<Resp>, Status>
+) -> Result<Response<Resp>, (Status, Option<SegFrame>)>
 where
     Resp: CodecMessage,
 {
@@ -85,7 +122,7 @@ where
     if let Some(tap) = tap {
         tap.log_client_header(md, path, authority.as_str(), timeout);
     }
-    let (resp_fut, mut send_stream) = open(
+    let (resp_fut, mut send_stream) = match open(
         send_req,
         authority,
         path,
@@ -99,7 +136,12 @@ where
         https,
     )
     .await
-    .map_err(|e| commitment.classify(e))?;
+    {
+        Ok(opened) => opened,
+        // HEADERS never went out: hand the frame back so a transparent
+        // retry reuses it instead of cloning up front.
+        Err(status) => return Err((commitment.classify(status), Some(frame))),
+    };
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
     let sent = send_request_frame(
@@ -113,7 +155,7 @@ where
     drop(permit);
     if let Err(status) = sent {
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
-            return Err(status);
+            return Err((status, None));
         }
         return race(
             prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
@@ -121,7 +163,8 @@ where
             deadline,
             Some(&mut send_stream),
         )
-        .await;
+        .await
+        .map_err(|status| (status, None));
     }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Unary sends with end-of-stream set: message and half-close together.
@@ -143,6 +186,7 @@ where
         Some(&mut send_stream),
     )
     .await
+    .map_err(|status| (status, None))
 }
 
 impl super::Channel {
@@ -185,16 +229,23 @@ impl super::Channel {
         let channel = self.clone();
         let wire = self.wire_for(path);
         let observer = self.observer.clone();
+        // Destructure before the async block so the envelope is not stored
+        // in the future; only the parts cross awaits.
+        let wait = req.wait_for_ready();
+        let req_timeout = req.timeout();
+        let (msg, md, _, compress, ua) = req.into_parts();
         Call::new(
             cancel,
             Box::pin(async move {
-                let call_labels =
-                    CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                // Labels are built per use, only when observed, so an
+                // unobserved call neither constructs nor stores them.
+                let labels =
+                    || CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
                 let call_start = std::time::Instant::now();
                 if let Some(obs) = &observer {
-                    obs.on_call_start(&call_labels);
+                    obs.on_call_start(&labels());
                 }
-                let owned_labels = observer.as_ref().map(|_| call_labels.to_owned());
+                let owned_labels = observer.as_ref().map(|_| labels().to_owned());
                 let mut call_guard = CallGuard::new(
                     observer.clone(),
                     owned_labels.clone(),
@@ -206,8 +257,7 @@ impl super::Channel {
                     call_guard.reject(RejectionReason::ClientInterceptor, &status);
                     return Err(status);
                 }
-                let wait = req.wait_for_ready();
-                let deadline = deadline_from(req.timeout());
+                let deadline = deadline_from(req_timeout);
                 let _ = match remaining_timeout(deadline) {
                     Ok(t) => t,
                     Err(status) => {
@@ -215,11 +265,9 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                let req_timeout = req.timeout();
-                let (msg, md, _, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = match encode_msg(
+                let mut frame = match encode_msg(
                     &msg,
                     compress.then_some(wire.send_codec),
                     wire.limits,
@@ -284,44 +332,56 @@ impl super::Channel {
                             return Err(status);
                         }
                     };
-                    let attempt_labels = AttemptLabels::new(call_labels, attempt_idx);
-                    let attempt_start = std::time::Instant::now();
                     if let Some(obs) = &observer {
-                        obs.on_attempt_start(&attempt_labels);
+                        obs.on_attempt_start(&AttemptLabels::new(labels(), attempt_idx));
                     }
-                    let mut attempt_guard = AttemptGuard::new(
-                        observer.clone(),
-                        owned_labels.clone(),
-                        attempt_idx,
-                        attempt_start,
-                    );
-                    let queue_start = tokio::time::Instant::now();
+                    // The attempt guard has no effects without an observer,
+                    // so it (and its start clock) only exists then.
+                    let mut attempt_guard = observer.as_ref().map(|_| {
+                        AttemptGuard::new(
+                            observer.clone(),
+                            owned_labels.clone(),
+                            attempt_idx,
+                            std::time::Instant::now(),
+                        )
+                    });
+                    let queue_start = observer.as_ref().map(|_| tokio::time::Instant::now());
                     let live = match channel
                         .grab(cancel_rx.clone(), deadline, wait, Some(&md))
                         .await
                     {
                         Ok(live) => {
-                            if let Some(obs) = &observer {
-                                obs.on_queue_wait(&call_labels, queue_start.elapsed());
+                            if let (Some(obs), Some(queue_start)) = (&observer, &queue_start) {
+                                obs.on_queue_wait(&labels(), queue_start.elapsed());
                             }
                             live
                         }
                         Err(status) => {
                             if *cancel_rx.borrow() {
-                                attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                cancel_attempt(
+                                    &mut attempt_guard,
+                                    CancellationReason::CallerCancelled,
+                                );
                                 call_guard.cancel(CancellationReason::CallerCancelled);
                             } else if status.code() == Code::DeadlineExceeded {
-                                attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                cancel_attempt(
+                                    &mut attempt_guard,
+                                    CancellationReason::DeadlineExceeded,
+                                );
                                 call_guard.cancel(CancellationReason::DeadlineExceeded);
                             } else {
-                                attempt_guard.reject(RejectionReason::SetupFailed, &status);
+                                reject_attempt(
+                                    &mut attempt_guard,
+                                    RejectionReason::SetupFailed,
+                                    &status,
+                                );
                                 call_guard.reject(RejectionReason::SetupFailed, &status);
                             }
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
                             channel.retry_stats.record_committed(false);
-                            attempt_guard.finish(&status);
+                            finish_attempt(&mut attempt_guard, &status);
                             return Err(status);
                         }
                     };
@@ -336,18 +396,22 @@ impl super::Channel {
                     let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
-                            attempt_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
+                            reject_attempt(
+                                &mut attempt_guard,
+                                RejectionReason::ByteBudgetExceeded,
+                                &status,
+                            );
                             call_guard.reject(RejectionReason::ByteBudgetExceeded, &status);
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
                             channel.retry_stats.record_committed(false);
-                            attempt_guard.finish(&status);
+                            finish_attempt(&mut attempt_guard, &status);
                             return Err(status);
                         }
                     };
                     if let Some(obs) = &observer {
-                        obs.on_bytes_sent(&call_labels, frame.total_len());
+                        obs.on_bytes_sent(&labels(), frame.total_len());
                     }
                     let attempt_deadline = retry_policy
                         .as_ref()
@@ -363,7 +427,7 @@ impl super::Channel {
                     if let Some(socket) = live_socket {
                         crate::channelz::Registry::global().note_stream_started(socket, true);
                     }
-                    match run_unary(
+                    match run_unary_frame(
                         live.send,
                         &channel.authority,
                         path,
@@ -371,7 +435,7 @@ impl super::Channel {
                         req_timeout,
                         attempt_deadline,
                         compress,
-                        frame.clone(),
+                        frame,
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
@@ -381,14 +445,35 @@ impl super::Channel {
                     )
                     .await
                     {
-                        Err(status)
+                        Err((status, frame_back))
                             if !retried
                                 && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
+                            finish_attempt(&mut attempt_guard, &status);
+                            // The open-failure path hands the untouched frame
+                            // back; a send that already started consumed it,
+                            // so re-encode from the retained message. The
+                            // server guaranteed non-processing, so replay is
+                            // safe either way.
+                            frame = match frame_back {
+                                Some(f) => f,
+                                None => match encode_msg(
+                                    &msg,
+                                    compress.then_some(wire.send_codec),
+                                    wire.limits,
+                                    wire.gzip_level,
+                                ) {
+                                    Ok(f) => f,
+                                    Err(status) => {
+                                        call_guard.reject(RejectionReason::MessageEncode, &status);
+                                        channel.retry_stats.record_committed(false);
+                                        return Err(status);
+                                    }
+                                },
+                            };
                             retried = true;
                             channel.retry_stats.record_transparent_retry();
-                            attempt_guard.finish(&status);
                             if let Some(socket) = live_socket {
                                 crate::channelz::Registry::global().note_stream_end(socket, false);
                             }
@@ -399,6 +484,10 @@ impl super::Channel {
                             attempt_idx += 1;
                         }
                         result => {
+                            // A consumed frame (or a retry that is not
+                            // transparent) lands here for terminal handling.
+                            let result: Result<Response<Resp>, Status> =
+                                result.map_err(|(status, _)| status);
                             // Channelz: the attempt's stream ends here. A
                             // completed unary claims one message each way;
                             // failed attempts claim none (the write may
@@ -472,7 +561,7 @@ impl super::Channel {
                                                 .discard_conn(slot, r#gen, rr_addr.as_ref())
                                                 .await;
                                         }
-                                        attempt_guard.finish(status);
+                                        finish_attempt(&mut attempt_guard, status);
                                         let slept = first_of(
                                             async {
                                                 tokio::time::sleep(delay).await;
@@ -495,6 +584,27 @@ impl super::Channel {
                                             call_guard.finish(&sleep_status);
                                             return Err(sleep_status);
                                         }
+                                        // The attempt consumed the frame; re-encode
+                                        // for the next one. The inputs are
+                                        // unchanged since the first encode
+                                        // succeeded, so this cannot fail, but
+                                        // handle it rather than panic.
+                                        frame = match encode_msg(
+                                            &msg,
+                                            compress.then_some(wire.send_codec),
+                                            wire.limits,
+                                            wire.gzip_level,
+                                        ) {
+                                            Ok(f) => f,
+                                            Err(status) => {
+                                                call_guard.reject(
+                                                    RejectionReason::MessageEncode,
+                                                    &status,
+                                                );
+                                                channel.retry_stats.record_committed(false);
+                                                return Err(status);
+                                            }
+                                        };
                                         policy_attempts += 1;
                                         attempt_idx += 1;
                                         continue;
@@ -531,22 +641,28 @@ impl super::Channel {
                             match &final_result {
                                 Ok(_) => {
                                     if let Some(obs) = &observer {
-                                        obs.on_bytes_received(&call_labels, 0);
+                                        obs.on_bytes_received(&labels(), 0);
                                     }
                                     channel.note_call_outcome(true).await;
-                                    attempt_guard.finish(&Status::ok());
+                                    finish_attempt(&mut attempt_guard, &Status::ok());
                                     call_guard.finish(&Status::ok());
                                 }
                                 Err(status) => {
                                     if *cancel_rx.borrow() {
-                                        attempt_guard.cancel(CancellationReason::CallerCancelled);
+                                        cancel_attempt(
+                                            &mut attempt_guard,
+                                            CancellationReason::CallerCancelled,
+                                        );
                                         call_guard.cancel(CancellationReason::CallerCancelled);
                                     } else if status.code() == Code::DeadlineExceeded {
-                                        attempt_guard.cancel(CancellationReason::DeadlineExceeded);
+                                        cancel_attempt(
+                                            &mut attempt_guard,
+                                            CancellationReason::DeadlineExceeded,
+                                        );
                                         call_guard.cancel(CancellationReason::DeadlineExceeded);
                                     }
                                     channel.note_call_outcome(false).await;
-                                    attempt_guard.finish(status);
+                                    finish_attempt(&mut attempt_guard, status);
                                     call_guard.finish(status);
                                 }
                             }

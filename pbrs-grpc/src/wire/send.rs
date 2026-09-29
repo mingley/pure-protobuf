@@ -3,8 +3,8 @@
 use super::encode::SegFrame;
 use super::headers::{
     APPLICATION_GRPC, GRPC_ACCEPT_ENCODING, GRPC_ENCODING, GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS,
-    GRPC_STATUS, GRPC_STATUS_DETAILS_BIN, HEADER_CAPACITY, RequestReject, STATUS_OK,
-    accept_encoding_value, encoding_value,
+    GRPC_STATUS, GRPC_STATUS_DETAILS_BIN, RequestReject, STATUS_OK, accept_encoding_value,
+    encoding_value,
 };
 use super::out_batch::{OutBatch, let_producer_catch_up};
 use crate::codec::CodecMessage;
@@ -221,7 +221,10 @@ pub(crate) fn send_ok_headers(
 ) -> Result<backend::SendStream, Status> {
     let mut res = Response::new(());
     *res.status_mut() = StatusCode::OK;
-    *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
+    // Exact sizing: the fixed headers plus response metadata. A minimal
+    // table for the common no-metadata call, and never a rehash past it.
+    let capacity = 2 + md.len() + usize::from(send_codec.is_some());
+    *res.headers_mut() = HeaderMap::with_capacity(capacity);
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));

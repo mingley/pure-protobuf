@@ -67,8 +67,9 @@ pub(crate) fn encoding_value(codec: Codec) -> HeaderValue {
     }
 }
 
-/// Headers a gRPC request or response carries before user metadata, rounded to
+/// Headers a gRPC-Web response carries before user metadata, rounded to
 /// what `HeaderMap` will actually allocate. Sizing up front avoids a rehash.
+#[cfg(feature = "grpc-web")]
 pub(crate) const HEADER_CAPACITY: usize = 10;
 
 #[allow(
@@ -93,8 +94,11 @@ pub(crate) fn grpc_request(
     let mut req = Request::new(());
     *req.method_mut() = http::Method::POST;
     *req.uri_mut() = uri;
-    // Pre-sized so the fixed gRPC headers do not force a rehash.
-    *req.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
+    // Exact sizing: the fixed headers plus user metadata. A minimal table
+    // for the common no-metadata call, and never a rehash past it.
+    let capacity =
+        4 + md.len() + usize::from(send_codec.is_some()) + usize::from(timeout.is_some());
+    *req.headers_mut() = HeaderMap::with_capacity(capacity);
     let headers = req.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);
@@ -144,17 +148,26 @@ pub(crate) fn grpc_encoding(headers: &HeaderMap) -> Option<&str> {
 /// unreadable header means identity only — never compress for a peer that
 /// did not ask for it.
 pub(crate) fn accepts_codec(headers: &HeaderMap, codec: Codec) -> bool {
+    let Some(value) = headers.get(GRPC_ACCEPT_ENCODING) else {
+        return false;
+    };
+    // Fast path: our own clients (and the common peer set) advertise exactly
+    // the codings we emit. A byte compare skips UTF-8 validation, splitting,
+    // and trimming; anything else falls through to the slow path.
+    if *value == IDENTITY_GZIP_DEFLATE {
+        #[cfg(feature = "zstd")]
+        return true;
+        #[cfg(not(feature = "zstd"))]
+        return matches!(codec, Codec::Gzip | Codec::Deflate);
+    }
     let want = codec.name();
-    headers
-        .get(GRPC_ACCEPT_ENCODING)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|raw| {
-            raw.split(',').any(|part| {
-                part.split(';')
-                    .next()
-                    .is_some_and(|token| token.trim().eq_ignore_ascii_case(want))
-            })
+    value.to_str().is_ok_and(|raw| {
+        raw.split(',').any(|part| {
+            part.split(';')
+                .next()
+                .is_some_and(|token| token.trim().eq_ignore_ascii_case(want))
         })
+    })
 }
 
 /// Whether the peer advertised gzip in `grpc-accept-encoding`.
@@ -171,9 +184,13 @@ pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
 /// [`super::frame_reader::refuse_encoding_reply`] on the client), so an
 /// unknown coding never reaches the decoder.
 pub(crate) fn inbound_codec(headers: &HeaderMap) -> Codec {
-    grpc_encoding(headers)
-        .and_then(Codec::parse)
-        .unwrap_or_default()
+    inbound_codec_from_token(grpc_encoding(headers))
+}
+
+/// [`inbound_codec`] when the caller already fetched the token, so one
+/// header lookup serves the refuse check, the decode, and the envelope.
+pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> Codec {
+    token.and_then(Codec::parse).unwrap_or_default()
 }
 
 /// The best coding the peer accepts, preferring `configured`.
@@ -264,6 +281,11 @@ pub(crate) enum RequestReject {
 /// feature explicitly admits them. Without the `grpc-web` feature,
 /// `application/grpc-web` is not a match either (`-web` is not `+` / `;`).
 pub(crate) fn grpc_content_type(ct: &str) -> bool {
+    // Fast path: exact tokens cover pbrs/tonic/go peers without trimming,
+    // splitting, or case folding; anything else falls through below.
+    if ct == "application/grpc" || ct == "application/grpc+proto" {
+        return true;
+    }
     let ct = ct.trim();
     let Some((ty, rest)) = ct.split_once('/') else {
         return false;

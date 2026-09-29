@@ -2,7 +2,7 @@
 
 use super::headers::{
     GRPC_MESSAGE, GRPC_RETRY_PUSHBACK_MS, GRPC_STATUS, GRPC_STATUS_DETAILS_BIN,
-    encoding_not_supported, grpc_encoding, inbound_codec,
+    encoding_not_supported, grpc_encoding, inbound_codec_from_token,
 };
 use crate::binlog::{CallLogger, Logger};
 use crate::codec::{self, CodecMessage, Frame};
@@ -21,38 +21,54 @@ use std::task::{Context, Poll};
 /// Read `grpc-status` from trailers, falling back to headers for
 /// Trailers-Only responses.
 pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> Status {
+    // Single pass over the status block. OK responses carry exactly one
+    // trailer, so this replaces four hashed lookups with one short scan.
+    // First values win, matching `HeaderMap::get`; an unreadable or
+    // unparseable first `grpc-status` fails the pick, as before.
     let pick = |map: &HeaderMap| {
-        let code = map.get(GRPC_STATUS)?.to_str().ok()?.parse::<i32>().ok()?;
-        let message = map
-            .get(GRPC_MESSAGE)
-            .and_then(|v| v.to_str().ok())
-            .map(percent_decode)
-            .unwrap_or_default();
-        Some((Code::from_i32(code), message))
+        let mut code = None;
+        let mut message = None;
+        let mut pushback = None;
+        let mut details = None;
+        for (name, value) in map.iter() {
+            if name == GRPC_STATUS {
+                if code.is_none() {
+                    code = Some(value.to_str().ok()?.parse::<i32>().ok()?);
+                }
+            } else if name == GRPC_MESSAGE {
+                if message.is_none() {
+                    message = value.to_str().ok().map(percent_decode);
+                }
+            } else if name == GRPC_RETRY_PUSHBACK_MS {
+                if pushback.is_none() {
+                    pushback = value.to_str().ok().and_then(parse_pushback_value);
+                }
+            } else if name == GRPC_STATUS_DETAILS_BIN && details.is_none() {
+                details = value.to_str().ok().and_then(metadata::decode_base64);
+            }
+        }
+        let code = code?;
+        Some((
+            Code::from_i32(code),
+            message.unwrap_or_default(),
+            pushback,
+            details,
+        ))
     };
     let found = trailers
         .and_then(|t| pick(t).map(|hit| (hit, t)))
         .or_else(|| pick(headers).map(|hit| (hit, headers)));
     match found {
-        Some(((code, message), map)) => {
+        Some(((code, message, pushback, details), map)) => {
             let mut status = Status::new(code, message);
             if code != Code::Ok {
                 *status.metadata_mut() = Metadata::from_headers(map);
             }
-            if let Some(pushback) = map
-                .get(GRPC_RETRY_PUSHBACK_MS)
-                .and_then(|v| v.to_str().ok())
-                .and_then(parse_pushback_value)
-            {
+            if let Some(pushback) = pushback {
                 status.set_retry_pushback(pushback);
             }
-            if let Some(raw) = map
-                .get(GRPC_STATUS_DETAILS_BIN)
-                .and_then(|v| v.to_str().ok())
-            {
-                if let Some(details) = metadata::decode_base64(raw) {
-                    status.set_details(details);
-                }
+            if let Some(details) = details {
+                status.set_details(details);
             }
             status
         }
@@ -424,8 +440,8 @@ impl<T> WireStream<T> {
 /// compression is on: failing the gunzip with `Internal` would hide a
 /// negotiation bug as a data error. A known coding is refused only when
 /// the channel opted out of inbound compression.
-pub(crate) fn refuse_encoding_reply(headers: &HeaderMap, accept_gzip: bool) -> Result<(), Status> {
-    let Some(token) = grpc_encoding(headers) else {
+pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> Result<(), Status> {
+    let Some(token) = token else {
         return Ok(());
     };
     if Codec::parse(token).is_none() {
@@ -477,13 +493,16 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     if let Some(tap) = tap {
         tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
     }
-    if let Err(status) = refuse_encoding_reply(&parts.headers, accept_gzip) {
+    // One `grpc-encoding` lookup serves the refuse check, the decode, and
+    // the envelope below.
+    let encoding_token = grpc_encoding(&parts.headers);
+    if let Err(status) = refuse_encoding_reply(encoding_token, accept_gzip) {
         if let Some(tap) = tap {
             tap.log_trailer(&Metadata::new(), &status);
         }
         return Err(status);
     }
-    let codec = inbound_codec(&parts.headers);
+    let codec = inbound_codec_from_token(encoding_token);
     let framed = match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap).await {
         Ok(framed) => framed,
         Err(status) => {
@@ -503,7 +522,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
         }
     };
     let status = status_from(&parts.headers, trailers.as_ref());
-    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
+    let encoding = encoding_token.map(str::to_owned);
     let header_md = Metadata::from_owned_headers(parts.headers);
     let trailers_md = trailers
         .map(Metadata::from_owned_headers)
@@ -551,15 +570,18 @@ pub(crate) async fn finish_stream<Resp: CodecMessage + Send + 'static>(
             return Err(status);
         }
     }
-    if let Err(status) = refuse_encoding_reply(&parts.headers, accept_gzip) {
+    // One `grpc-encoding` lookup serves the refuse check, the decode, and
+    // the envelope below.
+    let encoding_token = grpc_encoding(&parts.headers);
+    if let Err(status) = refuse_encoding_reply(encoding_token, accept_gzip) {
         if let Some(tap) = &tap {
             tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
             tap.log_trailer(&Metadata::new(), &status);
         }
         return Err(status);
     }
-    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
-    let codec = inbound_codec(&parts.headers);
+    let encoding = encoding_token.map(str::to_owned);
+    let codec = inbound_codec_from_token(encoding_token);
     let header_md = Metadata::from_owned_headers(parts.headers);
     if let Some(tap) = &tap {
         tap.log_server_header(&header_md);

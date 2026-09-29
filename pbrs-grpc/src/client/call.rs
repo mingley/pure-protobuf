@@ -11,7 +11,9 @@ use crate::transport::{
 use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
 use http::HeaderValue;
 use http::uri::Authority;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Poll;
 use std::time::Duration;
 use tokio::sync::{OwnedSemaphorePermit, watch};
 
@@ -94,6 +96,18 @@ pub(crate) fn send_request_frame(
 }
 
 /// [`send_request_frame`] on runtime `R`; production callers use Tokio.
+/// Poll `fut` once without arming cancellation. Callers fall back to
+/// [`first_of_in`] on `None`, so the race (and its waiter registration)
+/// is paid only when the operation actually waits.
+fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Output> {
+    let waker = std::task::Waker::noop();
+    let mut cx = std::task::Context::from_waker(waker);
+    match fut.poll(&mut cx) {
+        Poll::Ready(value) => Some(value),
+        Poll::Pending => None,
+    }
+}
+
 pub(crate) async fn send_request_frame_in<R: Runtime>(
     send: &mut backend::SendStream,
     frame: SegFrame,
@@ -101,15 +115,26 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<(), Status> {
-    let result = prefer_deadline_in::<R, _>(
-        first_of_in::<R, _>(
-            send_frame(send, frame, true, send_buffer),
-            cancel_rx,
-            deadline,
-        )
-        .await,
-        deadline,
-    );
+    // Optimistic: a send with capacity completes without arming the race.
+    // The pre-checks mirror `first_of_in`'s biased order (cancel, then
+    // deadline) so an already-fired signal still wins, with the same reset.
+    if *cancel_rx.borrow() {
+        send.send_reset(Reason::CANCEL);
+        return Err(Status::cancelled());
+    }
+    if remaining_timeout(deadline).is_err() {
+        send.send_reset(Reason::CANCEL);
+        return Err(Status::deadline_exceeded());
+    }
+    let raced = {
+        let send_fut = send_frame(send, frame, true, send_buffer);
+        tokio::pin!(send_fut);
+        match poll_now(send_fut.as_mut()) {
+            Some(result) => result,
+            None => first_of_in::<R, _>(send_fut, cancel_rx, deadline).await,
+        }
+    };
+    let result = prefer_deadline_in::<R, _>(raced, deadline);
     if matches!(
         &result,
         Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
@@ -173,15 +198,20 @@ pub(crate) async fn open_in<R: Runtime>(
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
-    let mut send_req = prefer_deadline_in::<R, _>(
-        first_of_in::<R, _>(
-            async { send_req.ready().await.map_err(Status::from_h2_pre_headers) },
-            cancel_rx,
-            deadline,
-        )
-        .await,
-        deadline,
-    )?;
+    // Optimistic: an idle connection is ready without arming the race. The
+    // pre-checks mirror `first_of_in`'s biased order (cancel, then deadline)
+    // so an already-fired signal still wins.
+    if *cancel_rx.borrow() {
+        return Err(Status::cancelled());
+    }
+    remaining_timeout(deadline)?;
+    let ready = async { send_req.ready().await.map_err(Status::from_h2_pre_headers) };
+    tokio::pin!(ready);
+    let raced = match poll_now(ready.as_mut()) {
+        Some(result) => result,
+        None => first_of_in::<R, _>(ready, cancel_rx, deadline).await,
+    };
+    let mut send_req = prefer_deadline_in::<R, _>(raced, deadline)?;
     let remaining = match (timeout, remaining_timeout(deadline)?) {
         (Some(initial), Some(rem)) => {
             if initial > rem && initial - rem < Duration::from_millis(20) {
@@ -310,16 +340,47 @@ pub(crate) struct Opened {
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
+/// Finish an optional attempt guard. The guard exists only when an
+/// observer is attached (it has no other effects), so call sites hold
+/// `Option<AttemptGuard>` and skip the 144-byte guard otherwise.
+pub(crate) fn finish_attempt(guard: &mut Option<crate::telemetry::AttemptGuard>, status: &Status) {
+    if let Some(guard) = guard {
+        guard.finish(status);
+    }
+}
+
+/// Cancel an optional attempt guard; see [`finish_attempt`].
+pub(crate) fn cancel_attempt(
+    guard: &mut Option<crate::telemetry::AttemptGuard>,
+    reason: crate::telemetry::CancellationReason,
+) {
+    if let Some(guard) = guard {
+        guard.cancel(reason);
+    }
+}
+
+/// Reject an optional attempt guard; see [`finish_attempt`].
+pub(crate) fn reject_attempt(
+    guard: &mut Option<crate::telemetry::AttemptGuard>,
+    reason: crate::telemetry::RejectionReason,
+    status: &Status,
+) {
+    if let Some(guard) = guard {
+        guard.reject(reason, status);
+    }
+}
+
 impl super::Channel {
     pub(crate) fn apply_response_hooks<T>(
         &self,
         path: &'static str,
         response: Response<T>,
     ) -> Result<Response<T>, Status> {
-        crate::interceptor::intercept_response_all(
-            response.with_static_path(path),
-            &self.response_interceptors,
-        )
+        let response = response.with_static_path(path);
+        if self.response_interceptors.is_empty() {
+            return Ok(response);
+        }
+        crate::interceptor::intercept_response_all(response, &self.response_interceptors)
     }
 
     pub(crate) fn prepare_outbound<T>(
@@ -405,19 +466,23 @@ impl super::Channel {
         md: Option<&crate::metadata::Metadata>,
     ) -> Result<LiveConn, Status> {
         let _ = remaining_timeout(deadline)?;
+        // Optimistic: a pool hit completes without arming the race. The
+        // cancel pre-check mirrors `first_of_in`'s biased order (the deadline
+        // was just checked above) so an already-fired cancel still wins.
+        if *cancel_rx.borrow() {
+            return Err(Status::cancelled());
+        }
         let inner = Arc::clone(&self.inner);
         let obs = self.observer.clone();
         let health = self.health_directive();
         let hash = md.and_then(|md| self.ring_request_hash(md));
-        let grabbed = prefer_deadline_in::<R, _>(
-            first_of_in::<R, _>(
-                inner.acquire(wait_for_ready, obs.as_deref(), health, hash),
-                cancel_rx,
-                deadline,
-            )
-            .await,
-            deadline,
-        )?;
+        let acquire = inner.acquire(wait_for_ready, obs.as_deref(), health, hash);
+        tokio::pin!(acquire);
+        let raced = match poll_now(acquire.as_mut()) {
+            Some(result) => result,
+            None => first_of_in::<R, _>(acquire, cancel_rx, deadline).await,
+        };
+        let grabbed = prefer_deadline_in::<R, _>(raced, deadline)?;
         let _ = remaining_timeout(deadline)?;
         Ok(grabbed)
     }

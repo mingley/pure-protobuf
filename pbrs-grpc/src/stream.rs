@@ -595,9 +595,13 @@ impl<T> StreamSender<T> {
     where
         T: CodecMessage,
     {
-        if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
-            self.tx.send(Err(status.clone())).await.ok();
-            return Err(status);
+        // Skip the length walk when no cap is set: `check_encode` is a
+        // no-op then, and the drain measures again for the frame anyway.
+        if self.limits.max_encoding().is_some() {
+            if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
+                self.tx.send(Err(status.clone())).await.ok();
+                return Err(status);
+            }
         }
         self.tx
             .send(Ok(item))

@@ -381,7 +381,10 @@ where
     });
     let channelz_socket_id = _channelz_socket.as_ref().map(|handle| handle.id());
     let (interval, timeout) = config.keepalive();
+    // In-flight tracking only feeds the idle timer; without one, skip the
+    // lease, the wakeups, and the idle bookkeeping entirely.
     let (age, idle, grace) = config.connection_lifetime();
+    let track_busy = idle.is_some();
     let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer.remote)));
     let dead = crate::keepalive::spawn_in::<R>(conn.ping_pong(), interval, timeout);
     let born = R::now();
@@ -390,16 +393,28 @@ where
     let mut occupied = false;
     let mut draining = false;
     let mut force_close: Option<tokio::time::Instant> = None;
+    // Hoisted one-shot waits: re-creating them every round re-registers a
+    // waiter per RPC. Each fires once (`drain` arms `draining`, `dead`
+    // breaks), so they are never polled after completion.
+    let drain_fut = wait_for_drain(goaway.clone());
+    tokio::pin!(drain_fut);
+    let dead_fut = crate::keepalive::wait_opt(dead.clone());
+    tokio::pin!(dead_fut);
     loop {
-        let in_flight = busy.count();
-        if in_flight == 0 {
-            if occupied {
-                last_idle = R::now();
-                occupied = false;
+        let in_flight = if track_busy {
+            let n = busy.count();
+            if n == 0 {
+                if occupied {
+                    last_idle = R::now();
+                    occupied = false;
+                }
+            } else {
+                occupied = true;
             }
+            n
         } else {
-            occupied = true;
-        }
+            0
+        };
         let age_at = age.map(|d| born + d);
         let idle_at = if in_flight == 0 {
             idle.map(|d| last_idle + d)
@@ -412,7 +427,9 @@ where
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
-                occupied = true;
+                if track_busy {
+                    occupied = true;
+                }
                 #[cfg(feature = "grpc-web")]
                 if crate::web::send_cors_preflight(&request, &mut respond, config.grpc_web_cors()) {
                     continue;
@@ -524,7 +541,7 @@ where
                         }
                     },
                 };
-                let lease = busy.start();
+                let lease = track_busy.then(|| busy.start());
                 let queued_at = dispatch
                     .observer()
                     .map(|_| std::time::Instant::now());
@@ -553,26 +570,26 @@ where
                         .await;
                 }));
             }
-            _ = busy.notified() => {}
-            _ = wait_for_drain(goaway.clone()), if !draining => {
+            _ = busy.notified(), if track_busy => {}
+            _ = &mut drain_fut, if !draining => {
                 draining = true;
                 force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt::<R>(age_at), if !draining => {
+            _ = sleep_until_opt::<R>(age_at), if !draining && age_at.is_some() => {
                 draining = true;
                 force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt::<R>(idle_at), if !draining => {
+            _ = sleep_until_opt::<R>(idle_at), if !draining && idle_at.is_some() => {
                 draining = true;
                 force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            _ = sleep_until_opt::<R>(force_close) => {
+            _ = sleep_until_opt::<R>(force_close), if force_close.is_some() => {
                 break;
             }
-            _ = crate::keepalive::wait_opt(dead.clone()) => {
+            _ = &mut dead_fut => {
                 break;
             }
         }
