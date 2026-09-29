@@ -489,7 +489,7 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
     }
     if benchmark_service && shape.is_some_and(|s| s != LoadShape::Unary) {
         return Err(
-            "--benchmark-service only supports --shape=unary (BenchmarkService has no streaming methods)"
+            "--benchmark-service only supports --shape=unary (load drives BenchmarkService.UnaryCall only; use a WorkerService RunClient for streaming procedures)"
                 .to_string(),
         );
     }
