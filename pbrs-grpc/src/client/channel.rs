@@ -676,306 +676,6 @@ impl fmt::Debug for Channel {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Target;
-    use std::net::SocketAddr;
-
-    #[test]
-    fn targets_accept_addresses_and_names() {
-        let addr: SocketAddr = "127.0.0.1:50051".parse().expect("addr");
-        assert_eq!(Target::from(addr).authority(), "127.0.0.1:50051");
-        assert_eq!(Target::from("host:1").authority(), "host:1");
-        assert_eq!(Target::from("host:1".to_owned()).authority(), "host:1");
-    }
-
-    #[test]
-    fn bad_authority_is_unavailable_not_a_panic() {
-        let err = Target::from("not a host").parse().expect_err("invalid");
-        assert_eq!(err.code(), crate::status::Code::Unavailable);
-    }
-
-    #[test]
-    fn tonic_style_channel_uri_is_invalid_argument() {
-        for uri in [
-            "https://example.com:443",
-            "http://127.0.0.1:50051",
-            "unix:///tmp/grpc.sock",
-            "HTTPS://example.com:443",
-        ] {
-            let err = Target::from(uri).parse().expect_err(uri);
-            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
-            assert!(
-                err.message().contains("not a tonic http://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc-go unix-abstract://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc://"),
-                "{}",
-                err.message()
-            );
-        }
-        let err = Target::from("not a host").parse().expect_err("malformed");
-        assert_eq!(err.code(), crate::status::Code::Unavailable);
-        assert_eq!(
-            Target::from("https://example.com:443").authority(),
-            "https://example.com:443"
-        );
-    }
-
-    #[test]
-    fn grpc_go_resolver_uri_is_invalid_argument() {
-        for uri in [
-            "dns:///localhost:50051",
-            "passthrough:///127.0.0.1:50051",
-            "xds:///backend",
-            "DNS:///example.com:443",
-        ] {
-            let err = Target::from(uri).parse().expect_err(uri);
-            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
-            assert!(
-                err.message().contains("not a grpc-go dns:///"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a tonic http://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc-go unix-abstract://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc://"),
-                "{}",
-                err.message()
-            );
-        }
-        let err = Target::from("https://example.com:443")
-            .parse()
-            .expect_err("tonic");
-        assert!(
-            err.message().contains("not a tonic http://"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc-go dns:///"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc-go unix-abstract://"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc://"),
-            "{}",
-            err.message()
-        );
-    }
-
-    #[test]
-    fn grpc_go_unix_abstract_uri_is_invalid_argument() {
-        for uri in [
-            "unix-abstract:///grpc.sock",
-            "unix-abstract://localhost/grpc.sock",
-            "UNIX-ABSTRACT:///grpc.sock",
-        ] {
-            let err = Target::from(uri).parse().expect_err(uri);
-            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
-            assert!(
-                err.message().contains("not a grpc-go unix-abstract://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a tonic http://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc-go dns:///"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc://"),
-                "{}",
-                err.message()
-            );
-        }
-        let err = Target::from("unix:///tmp/grpc.sock")
-            .parse()
-            .expect_err("tonic unix");
-        assert!(
-            err.message().contains("not a tonic http://"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc-go unix-abstract://"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc://"),
-            "{}",
-            err.message()
-        );
-        let err = Target::from("not a host").parse().expect_err("malformed");
-        assert_eq!(err.code(), crate::status::Code::Unavailable);
-    }
-
-    #[test]
-    fn grpc_scheme_uri_is_invalid_argument() {
-        for uri in [
-            "grpc://127.0.0.1:50051",
-            "grpcs://example.com:443",
-            "GRPC://localhost:50051",
-            "GRPCS://example.com:443",
-        ] {
-            let err = Target::from(uri).parse().expect_err(uri);
-            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
-            assert!(err.message().contains("not a grpc://"), "{}", err.message());
-            assert!(
-                !err.message().contains("not a tonic http://"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc-go dns:///"),
-                "{}",
-                err.message()
-            );
-            assert!(
-                !err.message().contains("not a grpc-go unix-abstract://"),
-                "{}",
-                err.message()
-            );
-        }
-        let err = Target::from("https://example.com:443")
-            .parse()
-            .expect_err("tonic https");
-        assert!(
-            err.message().contains("not a tonic http://"),
-            "{}",
-            err.message()
-        );
-        assert!(
-            !err.message().contains("not a grpc://"),
-            "{}",
-            err.message()
-        );
-        let err = Target::from("not a host").parse().expect_err("malformed");
-        assert_eq!(err.code(), crate::status::Code::Unavailable);
-        assert!(
-            !err.message().contains("not a grpc://"),
-            "{}",
-            err.message()
-        );
-    }
-
-    #[test]
-    fn channel_debug_masks_the_authority_and_target() {
-        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
-        let dbg = format!("{channel:?}");
-        assert!(dbg.contains("authority: \"[REDACTED]\""), "{dbg}");
-        assert!(dbg.contains("endpoint: \"[REDACTED]\""), "{dbg}");
-        assert!(dbg.contains("user_agent: \"[REDACTED]\""), "{dbg}");
-        assert!(!dbg.contains("127.0.0.1:9"), "{dbg}");
-        assert!(dbg.contains("connections: 1"), "{dbg}");
-        assert!(dbg.contains("tls: false"), "{dbg}");
-        assert!(dbg.contains("interceptors: 0"), "{dbg}");
-        assert!(dbg.contains("response_interceptors: 0"), "{dbg}");
-    }
-
-    #[test]
-    fn stream_buffer_overlays_a_live_channel() {
-        let channel = super::Channel::connect_lazy("127.0.0.1:9")
-            .expect("lazy")
-            .stream_buffer(64);
-        assert_eq!(channel.stream_buffer_size(), 64);
-        assert_eq!(channel.config().stream_buffer_size(), 64);
-    }
-
-    #[test]
-    fn send_buffer_overlays_a_live_channel() {
-        let channel = super::Channel::connect_lazy("127.0.0.1:9")
-            .expect("lazy")
-            .max_send_buffer_size(123_456);
-        assert_eq!(channel.send_buffer_size(), 123_456);
-        assert_eq!(channel.config().send_buffer_size(), 123_456);
-    }
-
-    #[test]
-    fn overlay_getters_read_timeout_wait_for_ready_and_gzip() {
-        use std::time::Duration;
-
-        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
-        assert_eq!(channel.rpc_timeout(), None);
-        assert!(!channel.waits_for_ready());
-        assert!(!channel.compresses_outbound());
-        assert_eq!(channel.gzip_level(), 1);
-        assert_eq!(channel.stream_buffer_size(), crate::DEFAULT_STREAM_BUFFER);
-        assert_eq!(
-            channel.send_buffer_size(),
-            crate::DEFAULT_MAX_SEND_BUFFER_SIZE
-        );
-        assert_eq!(channel.limits(), crate::MessageLimits::default());
-        let channel = channel
-            .timeout(Duration::from_secs(5))
-            .wait_for_ready()
-            .send_compressed()
-            .gzip_compression_level(9)
-            .stream_buffer(32)
-            .max_send_buffer_size(123_456)
-            .message_limits(crate::MessageLimits::unlimited());
-        assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
-        assert!(channel.waits_for_ready());
-        assert!(channel.compresses_outbound());
-        assert_eq!(channel.gzip_level(), 9);
-        assert_eq!(channel.stream_buffer_size(), 32);
-        assert_eq!(channel.send_buffer_size(), 123_456);
-        assert_eq!(channel.rpc_timeout(), channel.config().rpc_timeout());
-        assert_eq!(
-            channel.waits_for_ready(),
-            channel.config().waits_for_ready()
-        );
-        assert_eq!(
-            channel.compresses_outbound(),
-            channel.config().compresses_outbound()
-        );
-        assert_eq!(channel.gzip_level(), channel.config().gzip_level());
-        assert_eq!(
-            channel.stream_buffer_size(),
-            channel.config().stream_buffer_size()
-        );
-        assert_eq!(
-            channel.send_buffer_size(),
-            channel.config().send_buffer_size()
-        );
-        assert_eq!(channel.limits().max_decoding(), None);
-        assert_eq!(channel.limits(), channel.config().limits());
-        assert_eq!(
-            super::Channel::connect_lazy("127.0.0.1:9")
-                .expect("lazy")
-                .gzip_compression_level(10)
-                .gzip_level(),
-            9
-        );
-    }
-}
 impl super::Channel {
     /// Dial `target` with default configuration: one connection, 4 MiB
     /// inbound cap. Applies to every call shape.
@@ -2009,5 +1709,306 @@ impl super::Channel {
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         if self.https { "https" } else { "http" }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Target;
+    use std::net::SocketAddr;
+
+    #[test]
+    fn targets_accept_addresses_and_names() {
+        let addr: SocketAddr = "127.0.0.1:50051".parse().expect("addr");
+        assert_eq!(Target::from(addr).authority(), "127.0.0.1:50051");
+        assert_eq!(Target::from("host:1").authority(), "host:1");
+        assert_eq!(Target::from("host:1".to_owned()).authority(), "host:1");
+    }
+
+    #[test]
+    fn bad_authority_is_unavailable_not_a_panic() {
+        let err = Target::from("not a host").parse().expect_err("invalid");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
+
+    #[test]
+    fn tonic_style_channel_uri_is_invalid_argument() {
+        for uri in [
+            "https://example.com:443",
+            "http://127.0.0.1:50051",
+            "unix:///tmp/grpc.sock",
+            "HTTPS://example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+        assert_eq!(
+            Target::from("https://example.com:443").authority(),
+            "https://example.com:443"
+        );
+    }
+
+    #[test]
+    fn grpc_go_resolver_uri_is_invalid_argument() {
+        for uri in [
+            "dns:///localhost:50051",
+            "passthrough:///127.0.0.1:50051",
+            "xds:///backend",
+            "DNS:///example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("https://example.com:443")
+            .parse()
+            .expect_err("tonic");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go dns:///"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
+    }
+
+    #[test]
+    fn grpc_go_unix_abstract_uri_is_invalid_argument() {
+        for uri in [
+            "unix-abstract:///grpc.sock",
+            "unix-abstract://localhost/grpc.sock",
+            "UNIX-ABSTRACT:///grpc.sock",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("unix:///tmp/grpc.sock")
+            .parse()
+            .expect_err("tonic unix");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
+
+    #[test]
+    fn grpc_scheme_uri_is_invalid_argument() {
+        for uri in [
+            "grpc://127.0.0.1:50051",
+            "grpcs://example.com:443",
+            "GRPC://localhost:50051",
+            "GRPCS://example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(err.message().contains("not a grpc://"), "{}", err.message());
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("https://example.com:443")
+            .parse()
+            .expect_err("tonic https");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
+    }
+
+    #[test]
+    fn channel_debug_masks_the_authority_and_target() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+        let dbg = format!("{channel:?}");
+        assert!(dbg.contains("authority: \"[REDACTED]\""), "{dbg}");
+        assert!(dbg.contains("endpoint: \"[REDACTED]\""), "{dbg}");
+        assert!(dbg.contains("user_agent: \"[REDACTED]\""), "{dbg}");
+        assert!(!dbg.contains("127.0.0.1:9"), "{dbg}");
+        assert!(dbg.contains("connections: 1"), "{dbg}");
+        assert!(dbg.contains("tls: false"), "{dbg}");
+        assert!(dbg.contains("interceptors: 0"), "{dbg}");
+        assert!(dbg.contains("response_interceptors: 0"), "{dbg}");
+    }
+
+    #[test]
+    fn stream_buffer_overlays_a_live_channel() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9")
+            .expect("lazy")
+            .stream_buffer(64);
+        assert_eq!(channel.stream_buffer_size(), 64);
+        assert_eq!(channel.config().stream_buffer_size(), 64);
+    }
+
+    #[test]
+    fn send_buffer_overlays_a_live_channel() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9")
+            .expect("lazy")
+            .max_send_buffer_size(123_456);
+        assert_eq!(channel.send_buffer_size(), 123_456);
+        assert_eq!(channel.config().send_buffer_size(), 123_456);
+    }
+
+    #[test]
+    fn overlay_getters_read_timeout_wait_for_ready_and_gzip() {
+        use std::time::Duration;
+
+        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+        assert_eq!(channel.rpc_timeout(), None);
+        assert!(!channel.waits_for_ready());
+        assert!(!channel.compresses_outbound());
+        assert_eq!(channel.gzip_level(), 1);
+        assert_eq!(channel.stream_buffer_size(), crate::DEFAULT_STREAM_BUFFER);
+        assert_eq!(
+            channel.send_buffer_size(),
+            crate::DEFAULT_MAX_SEND_BUFFER_SIZE
+        );
+        assert_eq!(channel.limits(), crate::MessageLimits::default());
+        let channel = channel
+            .timeout(Duration::from_secs(5))
+            .wait_for_ready()
+            .send_compressed()
+            .gzip_compression_level(9)
+            .stream_buffer(32)
+            .max_send_buffer_size(123_456)
+            .message_limits(crate::MessageLimits::unlimited());
+        assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
+        assert!(channel.waits_for_ready());
+        assert!(channel.compresses_outbound());
+        assert_eq!(channel.gzip_level(), 9);
+        assert_eq!(channel.stream_buffer_size(), 32);
+        assert_eq!(channel.send_buffer_size(), 123_456);
+        assert_eq!(channel.rpc_timeout(), channel.config().rpc_timeout());
+        assert_eq!(
+            channel.waits_for_ready(),
+            channel.config().waits_for_ready()
+        );
+        assert_eq!(
+            channel.compresses_outbound(),
+            channel.config().compresses_outbound()
+        );
+        assert_eq!(channel.gzip_level(), channel.config().gzip_level());
+        assert_eq!(
+            channel.stream_buffer_size(),
+            channel.config().stream_buffer_size()
+        );
+        assert_eq!(
+            channel.send_buffer_size(),
+            channel.config().send_buffer_size()
+        );
+        assert_eq!(channel.limits().max_decoding(), None);
+        assert_eq!(channel.limits(), channel.config().limits());
+        assert_eq!(
+            super::Channel::connect_lazy("127.0.0.1:9")
+                .expect("lazy")
+                .gzip_compression_level(10)
+                .gzip_level(),
+            9
+        );
     }
 }

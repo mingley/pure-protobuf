@@ -324,7 +324,7 @@ mod tests {
         assert_eq!(frame.total_len(), codec::HEADER_LEN + len);
         let mut expect = Vec::with_capacity(codec::HEADER_LEN + len);
         expect.push(0);
-        expect.extend_from_slice(&(len as u32).to_be_bytes());
+        expect.extend_from_slice(&u32::try_from(len).expect("test len fits u32").to_be_bytes());
         expect.extend_from_slice(&pbrs::Serialize::serialize(&msg).expect("serialize"));
         assert_eq!(frame.concat(), expect);
     }

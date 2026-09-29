@@ -618,7 +618,11 @@ mod tests {
     fn framed(payload: &[u8]) -> Vec<u8> {
         let mut buf = Vec::with_capacity(codec::HEADER_LEN + payload.len());
         buf.push(0);
-        buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        buf.extend_from_slice(
+            &u32::try_from(payload.len())
+                .expect("test len fits u32")
+                .to_be_bytes(),
+        );
         buf.extend_from_slice(payload);
         buf
     }

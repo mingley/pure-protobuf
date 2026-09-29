@@ -21,6 +21,8 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 const ONE_MIB: usize = 1024 * 1024;
+const ONE_MIB_U32: u32 = 1024 * 1024;
+const ONE_MIB_I32: i32 = 1024 * 1024;
 
 struct ServerGuard(tokio::task::JoinHandle<()>);
 
@@ -62,7 +64,7 @@ async fn connect(addr: SocketAddr, config: ChannelConfig) -> TestServiceClient {
 fn adaptive_server_config() -> ServerConfig {
     ServerConfig::new()
         .adaptive_window(true)
-        .adaptive_window_max_size(ONE_MIB as u32)
+        .adaptive_window_max_size(ONE_MIB_U32)
         .keep_alive_interval(Duration::from_millis(20))
         .keep_alive_timeout(Duration::from_secs(2))
 }
@@ -70,14 +72,14 @@ fn adaptive_server_config() -> ServerConfig {
 fn adaptive_channel_config() -> ChannelConfig {
     ChannelConfig::new()
         .adaptive_window(true)
-        .adaptive_window_max_size(ONE_MIB as u32)
+        .adaptive_window_max_size(ONE_MIB_U32)
         .keep_alive_interval(Duration::from_millis(20))
         .keep_alive_timeout(Duration::from_secs(2))
 }
 
-fn unary_request(req_bytes: usize, resp_bytes: usize) -> SimpleRequest {
+fn unary_request(req_bytes: usize, resp_bytes: i32) -> SimpleRequest {
     let mut request = SimpleRequest::new();
-    request.set_response_size(resp_bytes as i32);
+    request.set_response_size(resp_bytes);
     if req_bytes > 0 {
         let mut payload = Payload::new();
         payload.set_body(vec![0u8; req_bytes]);
@@ -86,11 +88,11 @@ fn unary_request(req_bytes: usize, resp_bytes: usize) -> SimpleRequest {
     request
 }
 
-fn output_request(msgs: usize, resp_bytes: usize) -> StreamingOutputCallRequest {
+fn output_request(msgs: usize, resp_bytes: i32) -> StreamingOutputCallRequest {
     let mut request = StreamingOutputCallRequest::new();
     for _ in 0..msgs {
         let mut param = ResponseParameters::new();
-        param.set_size(resp_bytes as i32);
+        param.set_size(resp_bytes);
         request.response_parameters_mut().push(param);
     }
     request
@@ -110,7 +112,7 @@ async fn adaptive_client_and_server_handle_large_unary_with_keepalive() {
         let (addr, _guard) = spawn(adaptive_server_config()).await;
         let client = connect(addr, adaptive_channel_config()).await;
         let response = client
-            .unary_call(Request::new(unary_request(ONE_MIB, ONE_MIB)))
+            .unary_call(Request::new(unary_request(ONE_MIB, ONE_MIB_I32)))
             .await
             .expect("large unary");
         assert_eq!(response.get_ref().payload().body().len(), ONE_MIB);
@@ -126,7 +128,7 @@ async fn adaptive_client_and_server_handle_large_streaming_with_keepalive() {
         let client = connect(addr, adaptive_channel_config()).await;
 
         let mut inbound = client
-            .streaming_output_call(Request::new(output_request(4, ONE_MIB / 4)))
+            .streaming_output_call(Request::new(output_request(4, ONE_MIB_I32 / 4)))
             .await
             .expect("server stream")
             .into_inner();
@@ -142,7 +144,7 @@ async fn adaptive_client_and_server_handle_large_streaming_with_keepalive() {
         }
         tx.close();
         let response = call.await.expect("client stream");
-        assert_eq!(response.get_ref().aggregated_payload_size(), ONE_MIB as i32);
+        assert_eq!(response.get_ref().aggregated_payload_size(), ONE_MIB_I32);
     })
     .await
     .expect("adaptive streaming timed out");

@@ -2162,7 +2162,7 @@ mod tests {
 
     #[test]
     fn with_cause_is_error_source() {
-        let cause = std::io::Error::new(std::io::ErrorKind::Other, "disk");
+        let cause = std::io::Error::other("disk");
         let status = Status::internal("write failed").with_cause(cause);
         let src = std::error::Error::source(&status).expect("cause");
         assert!(src.to_string().contains("disk"), "{src}");
@@ -2230,7 +2230,7 @@ mod tests {
         assert!(Status::unavailable("gone").retry_delay().is_none());
         assert!(
             Status::unavailable("gone")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .retry_delay()
                 .is_none()
         );
@@ -2272,7 +2272,7 @@ mod tests {
         assert!(Status::not_found("row").error_info().is_none());
         assert!(
             Status::not_found("row")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .error_info()
                 .is_none()
         );
@@ -2319,7 +2319,7 @@ mod tests {
         assert!(Status::invalid_argument("name").bad_request().is_none());
         assert!(
             Status::invalid_argument("name")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .bad_request()
                 .is_none()
         );
@@ -2383,7 +2383,7 @@ mod tests {
         );
         assert!(
             Status::resource_exhausted("tokens")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .quota_failure()
                 .is_none()
         );
@@ -2469,7 +2469,7 @@ mod tests {
         );
         assert!(
             Status::failed_precondition("tos")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .precondition_failure()
                 .is_none()
         );
@@ -2545,7 +2545,7 @@ mod tests {
         assert!(Status::unavailable("backend").help().is_none());
         assert!(
             Status::unavailable("backend")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .help()
                 .is_none()
         );
@@ -2597,7 +2597,7 @@ mod tests {
         assert!(Status::not_found("row").localized_message().is_none());
         assert!(
             Status::not_found("row")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .localized_message()
                 .is_none()
         );
@@ -2654,7 +2654,7 @@ mod tests {
         assert!(Status::internal("boom").request_info().is_none());
         assert!(
             Status::internal("boom")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .request_info()
                 .is_none()
         );
@@ -2714,7 +2714,7 @@ mod tests {
         assert!(Status::not_found("gone").resource_info().is_none());
         assert!(
             Status::not_found("gone")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .resource_info()
                 .is_none()
         );
@@ -2770,7 +2770,7 @@ mod tests {
         assert!(Status::internal("boom").debug_info().is_none());
         assert!(
             Status::internal("boom")
-                .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+                .with_cause(std::io::Error::other("local"))
                 .debug_info()
                 .is_none()
         );

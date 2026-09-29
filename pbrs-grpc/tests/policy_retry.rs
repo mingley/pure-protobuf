@@ -36,7 +36,6 @@ enum Step {
     Fail(Code),
     FailPushback(Code, Pushback),
     SleepOk(Duration, &'static str),
-    SleepFail(Duration, Code),
 }
 
 /// One scripted server-streaming outcome.
@@ -45,7 +44,6 @@ enum StreamStep {
     Messages(&'static [&'static str]),
     FailAfter(&'static [&'static str], Code),
     Fail(Code),
-    SleepMessages(Duration, &'static [&'static str]),
     SleepFail(Duration, Code),
 }
 
@@ -103,10 +101,6 @@ impl Scripted {
                 reply.set_message(message);
                 Ok(Response::new(reply))
             }
-            Step::SleepFail(delay, code) => {
-                tokio::time::sleep(delay).await;
-                Err(Status::new(code, "scripted"))
-            }
         }
     }
 }
@@ -163,20 +157,6 @@ impl Greeter for Scripted {
                         }
                     }
                     tx.fail(Status::new(code, "scripted")).await;
-                }));
-                Ok(Response::new(rx))
-            }
-            StreamStep::SleepMessages(delay, messages) => {
-                let (tx, rx) = Streaming::channel(8);
-                drop(tokio::spawn(async move {
-                    tokio::time::sleep(delay).await;
-                    for message in messages {
-                        let mut reply = HelloReply::new();
-                        reply.set_message(*message);
-                        if tx.send(reply).await.is_err() {
-                            break;
-                        }
-                    }
                 }));
                 Ok(Response::new(rx))
             }

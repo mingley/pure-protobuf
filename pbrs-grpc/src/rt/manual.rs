@@ -50,7 +50,7 @@ impl ManualRuntime {
     /// polls its sleeper does not re-enter the borrow.
     pub(crate) fn advance(elapsed: Duration) {
         let wakers = with_clock(|clock| {
-            clock.now = clock.now + elapsed;
+            clock.now += elapsed;
             std::mem::take(&mut clock.wakers)
         });
         for waker in wakers {
@@ -154,14 +154,12 @@ struct ManualInterval {
 }
 
 impl Interval for ManualInterval {
-    fn tick(&mut self) -> impl Future<Output = Instant> + Send {
-        async {
-            SleepUntil(self.next).await;
-            // Delay semantics: the next tick is a full period after this
-            // one completes, never a catch-up burst.
-            self.next = ManualRuntime::now() + self.period;
-            self.next
-        }
+    async fn tick(&mut self) -> Instant {
+        SleepUntil(self.next).await;
+        // Delay semantics: the next tick is a full period after this
+        // one completes, never a catch-up burst.
+        self.next = ManualRuntime::now() + self.period;
+        self.next
     }
 }
 

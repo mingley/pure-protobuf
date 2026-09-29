@@ -310,108 +310,6 @@ pub(crate) struct Opened {
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{first_of_in, prefer_deadline_in, prefer_peer_rejection_after_send};
-    use crate::rt::manual::{ManualGuard, ManualRuntime};
-    use crate::rt::{Runtime, TokioRuntime};
-    use crate::status::{Code, Status, TransportEvidence};
-    use crate::transport::h2 as backend;
-    use crate::transport::{
-        ClientBuilder, Reason, SendRequest, SendResponse, ServerBuilder, ServerConnection,
-    };
-    use std::time::Duration;
-
-    #[tokio::test]
-    async fn refused_response_overrides_ambiguous_request_send_error() {
-        let status = tokio::time::timeout(Duration::from_secs(3), async {
-            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-                .await
-                .expect("bind");
-            let addr = listener.local_addr().expect("addr");
-            let peer = tokio::spawn(async move {
-                let (socket, _) = listener.accept().await.expect("accept");
-                let mut connection = backend::ServerBuilder::new()
-                    .handshake(socket)
-                    .await
-                    .expect("handshake");
-                let (_, mut respond) = connection
-                    .accept()
-                    .await
-                    .expect("request")
-                    .expect("headers");
-                respond.send_reset(Reason::REFUSED_STREAM);
-                while let Some(result) = connection.accept().await {
-                    result.expect("drive reset");
-                }
-            });
-
-            let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
-            let (sender, connection) = backend::ClientBuilder::new()
-                .handshake(socket)
-                .await
-                .expect("handshake");
-            let driver = tokio::spawn(async move { drop(connection.await) });
-            let mut sender = sender.ready().await.expect("ready");
-            let (response, _send) = sender
-                .send_request(
-                    http::Request::builder()
-                        .uri("http://localhost/first")
-                        .body(())
-                        .expect("request"),
-                    false,
-                )
-                .expect("send headers");
-            let result =
-                prefer_peer_rejection_after_send::<()>(response, Status::stream_closed()).await;
-            driver.abort();
-            peer.abort();
-            result.expect_err("REFUSED_STREAM must not be reported as an ambiguous send loss")
-        })
-        .await
-        .expect("HTTP/2 refusal stalled");
-        assert_eq!(
-            status.transport_evidence(),
-            Some(TransportEvidence::RefusedStream)
-        );
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn manual_runtime_drives_deadlines_without_wall_waits() {
-        let now = TokioRuntime::now();
-        let _guard = ManualGuard::install(now);
-        // An already-expired deadline resolves on first poll, off the manual
-        // clock rather than a wall wait.
-        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-        let expired =
-            first_of_in::<ManualRuntime, ()>(std::future::pending(), cancel_rx, Some(now)).await;
-        assert_eq!(expired.unwrap_err().code(), Code::DeadlineExceeded);
-        // The rewrite reads the manual clock too.
-        let rewritten =
-            prefer_deadline_in::<ManualRuntime, ()>(Err(Status::unavailable("raced")), Some(now));
-        assert_eq!(rewritten.unwrap_err().code(), Code::DeadlineExceeded);
-        // A future deadline parks until the manual clock advances.
-        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-        let (done_tx, mut done_rx) = tokio::sync::oneshot::channel();
-        ManualRuntime::spawn(async move {
-            let outcome = first_of_in::<ManualRuntime, ()>(
-                std::future::pending(),
-                cancel_rx,
-                Some(now + Duration::from_secs(10)),
-            )
-            .await;
-            done_tx.send(outcome).ok();
-        });
-        tokio::task::yield_now().await;
-        tokio::task::yield_now().await;
-        done_rx
-            .try_recv()
-            .expect_err("deadline race must not finish before the clock moves");
-        ManualRuntime::advance(Duration::from_secs(10));
-        let outcome = done_rx.await.expect("deadline race must finish");
-        assert_eq!(outcome.unwrap_err().code(), Code::DeadlineExceeded);
-    }
-}
 impl super::Channel {
     pub(crate) fn apply_response_hooks<T>(
         &self,
@@ -621,5 +519,108 @@ impl super::Channel {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{first_of_in, prefer_deadline_in, prefer_peer_rejection_after_send};
+    use crate::rt::manual::{ManualGuard, ManualRuntime};
+    use crate::rt::{Runtime, TokioRuntime};
+    use crate::status::{Code, Status, TransportEvidence};
+    use crate::transport::h2 as backend;
+    use crate::transport::{
+        ClientBuilder, Reason, SendRequest, SendResponse, ServerBuilder, ServerConnection,
+    };
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn refused_response_overrides_ambiguous_request_send_error() {
+        let status = tokio::time::timeout(Duration::from_secs(3), async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let peer = tokio::spawn(async move {
+                let (socket, _) = listener.accept().await.expect("accept");
+                let mut connection = backend::ServerBuilder::new()
+                    .handshake(socket)
+                    .await
+                    .expect("handshake");
+                let (_, mut respond) = connection
+                    .accept()
+                    .await
+                    .expect("request")
+                    .expect("headers");
+                respond.send_reset(Reason::REFUSED_STREAM);
+                while let Some(result) = connection.accept().await {
+                    result.expect("drive reset");
+                }
+            });
+
+            let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+            let (sender, connection) = backend::ClientBuilder::new()
+                .handshake(socket)
+                .await
+                .expect("handshake");
+            let driver = tokio::spawn(async move { drop(connection.await) });
+            let mut sender = sender.ready().await.expect("ready");
+            let (response, _send) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://localhost/first")
+                        .body(())
+                        .expect("request"),
+                    false,
+                )
+                .expect("send headers");
+            let result =
+                prefer_peer_rejection_after_send::<()>(response, Status::stream_closed()).await;
+            driver.abort();
+            peer.abort();
+            result.expect_err("REFUSED_STREAM must not be reported as an ambiguous send loss")
+        })
+        .await
+        .expect("HTTP/2 refusal stalled");
+        assert_eq!(
+            status.transport_evidence(),
+            Some(TransportEvidence::RefusedStream)
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn manual_runtime_drives_deadlines_without_wall_waits() {
+        let now = TokioRuntime::now();
+        let _guard = ManualGuard::install(now);
+        // An already-expired deadline resolves on first poll, off the manual
+        // clock rather than a wall wait.
+        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let expired =
+            first_of_in::<ManualRuntime, ()>(std::future::pending(), cancel_rx, Some(now)).await;
+        assert_eq!(expired.unwrap_err().code(), Code::DeadlineExceeded);
+        // The rewrite reads the manual clock too.
+        let rewritten =
+            prefer_deadline_in::<ManualRuntime, ()>(Err(Status::unavailable("raced")), Some(now));
+        assert_eq!(rewritten.unwrap_err().code(), Code::DeadlineExceeded);
+        // A future deadline parks until the manual clock advances.
+        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let (done_tx, mut done_rx) = tokio::sync::oneshot::channel();
+        ManualRuntime::spawn(async move {
+            let outcome = first_of_in::<ManualRuntime, ()>(
+                std::future::pending(),
+                cancel_rx,
+                Some(now + Duration::from_secs(10)),
+            )
+            .await;
+            done_tx.send(outcome).ok();
+        });
+        tokio::task::yield_now().await;
+        tokio::task::yield_now().await;
+        done_rx
+            .try_recv()
+            .expect_err("deadline race must not finish before the clock moves");
+        ManualRuntime::advance(Duration::from_secs(10));
+        let outcome = done_rx.await.expect("deadline race must finish");
+        assert_eq!(outcome.unwrap_err().code(), Code::DeadlineExceeded);
     }
 }

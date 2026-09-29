@@ -17,7 +17,7 @@
     reason = "integration tests"
 )]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
@@ -663,7 +663,7 @@ fn valid_flags_tls_end_to_end() {
     assert!(stdout.contains("Passed"));
 }
 
-fn spawn_openssl_server_without_alpn(cert: &PathBuf, key: &PathBuf, port: u16) -> ServerGuard {
+fn spawn_openssl_server_without_alpn(cert: &Path, key: &Path, port: u16) -> ServerGuard {
     let port_str = port.to_string();
     let child = Command::new("openssl")
         .args([

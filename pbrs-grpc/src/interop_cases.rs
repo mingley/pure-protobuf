@@ -1522,11 +1522,11 @@ mod tests {
             gz.finish().expect("finish probe").len()
         };
         assert!(
-            gzip_size(low.body().as_ref()) < low.body().len() / 10,
+            gzip_size(low.body()) < low.body().len() / 10,
             "zero payload must compress substantially"
         );
         assert!(
-            gzip_size(high.body().as_ref()) > high.body().len() * 9 / 10,
+            gzip_size(high.body()) > high.body().len() * 9 / 10,
             "high-entropy payload must not collapse like zeros"
         );
     }

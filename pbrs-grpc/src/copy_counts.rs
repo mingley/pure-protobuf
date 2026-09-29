@@ -188,7 +188,11 @@ mod tests {
     fn framed(payload: &[u8]) -> BytesMut {
         let mut buf = BytesMut::with_capacity(codec::HEADER_LEN + payload.len());
         buf.extend_from_slice(&[0]);
-        buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        buf.extend_from_slice(
+            &u32::try_from(payload.len())
+                .expect("test len fits u32")
+                .to_be_bytes(),
+        );
         buf.extend_from_slice(payload);
         buf
     }

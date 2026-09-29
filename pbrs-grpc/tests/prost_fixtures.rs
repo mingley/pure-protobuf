@@ -3,10 +3,11 @@
 #![cfg(feature = "prost")]
 #![allow(
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    reason = "integration tests invoke fixture crates"
+    reason = "integration tests invoke fixture crates; the cargo lock is a sync test-only mutex never held across await"
 )]
 
 use std::path::{Path, PathBuf};
@@ -51,7 +52,7 @@ fn run_fixture(package: &str, proto_rel: &str, main_rs: &str, want_stdout: &str)
     let dir = manifest
         .join("target")
         .join(format!("prost-fixture-{package}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let _removed = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
 
     std::fs::write(
@@ -112,7 +113,7 @@ fn run_manual_fixture(package: &str, main_rs: &str, want_stdout: &str) {
     let dir = manifest
         .join("target")
         .join(format!("prost-fixture-{package}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let _removed = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
     std::fs::write(dir.join("build.rs"), "fn main() {}\n").unwrap();
     std::fs::write(

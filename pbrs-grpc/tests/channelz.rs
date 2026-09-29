@@ -9,6 +9,12 @@
 //! registry is shared across tests in this binary, so each test
 //! scopes its entities by its own listener port.
 
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    reason = "integration test helpers assert helper behavior"
+)]
+
 mod common;
 
 use common::{Echo, ServerGuard, name_of, req};

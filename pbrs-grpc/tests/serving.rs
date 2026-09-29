@@ -22776,7 +22776,7 @@ async fn assert_test_typed_status_after_streamed_message(client: &TestServiceCli
         .expect("headers")
         .into_inner();
     let first = stream.message().await.expect("msg").expect("item");
-    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_eq!(first.payload().body(), b"ada");
     assert_typed_after_headers(&stream.message().await.expect_err("status"));
 
     let mut stream = client
@@ -22785,21 +22785,21 @@ async fn assert_test_typed_status_after_streamed_message(client: &TestServiceCli
         .expect("headers")
         .into_inner();
     let first = stream.message().await.expect("msg").expect("item");
-    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_eq!(first.payload().body(), b"ada");
     assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
 
     let (tx, call) = client.full_duplex_call(Request::new(()));
     tx.close();
     let mut stream = call.await.expect("headers").into_inner();
     let first = stream.message().await.expect("msg").expect("item");
-    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_eq!(first.payload().body(), b"ada");
     assert_typed_after_headers(&stream.message().await.expect_err("status"));
 
     let (tx, call) = client.full_duplex_call(Request::new(()));
     tx.close();
     let mut stream = call.await.expect("headers").into_inner();
     let first = stream.message().await.expect("msg").expect("item");
-    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_eq!(first.payload().body(), b"ada");
     assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
 }
 
@@ -38120,8 +38120,10 @@ async fn channel_config_gzip_compression_level_still_gzips_every_shape() {
 }
 
 /// Records the `grpc-encoding` + Compressed-Flag of every request it sees.
+type SeenLog = Vec<(Option<String>, bool)>;
+
 struct EncodingRecorder {
-    seen: Arc<Mutex<Vec<(Option<String>, bool)>>>,
+    seen: Arc<Mutex<SeenLog>>,
 }
 
 impl EncodingRecorder {

@@ -1924,6 +1924,10 @@ mod handshake {
 
     /// Both ends must observe a successful handshake: TLS parameters (A118)
     /// and TCP addresses (A80), with cross-matching socket pairs.
+    #[allow(
+        clippy::disallowed_types,
+        reason = "sync test-only observer log; guard never held across await"
+    )]
     #[tokio::test]
     async fn handshake_observer_fires_on_both_ends() {
         use super::fixtures as f;
@@ -1974,6 +1978,10 @@ mod handshake {
     }
 
     /// A resumed handshake must be reported as resumed on both ends (A118).
+    #[allow(
+        clippy::disallowed_types,
+        reason = "sync test-only observer log; guard never held across await"
+    )]
     #[tokio::test]
     async fn handshake_observer_reports_resumption() {
         use super::fixtures as f;

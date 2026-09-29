@@ -885,7 +885,7 @@ async fn scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded(
 
     // Call 1: occupies the sole stream slot by sending on an active stream without half-closing
     let (tx1, call1) = client.client_hello(Request::new(()));
-    let call1_task = tokio::spawn(async move { call1.await });
+    let call1_task = tokio::spawn(call1);
     tx1.send(req("call1_blocking")).await.expect("send msg 1");
 
     // Wait until Call 1 is active on the server

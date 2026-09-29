@@ -4,7 +4,9 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
-    reason = "integration tests assert fixture behavior"
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "integration tests assert fixture behavior; sync cargo lock never held across await; fixture files written synchronously"
 )]
 
 use pbrs_grpc::HelloReply;
@@ -72,7 +74,7 @@ fn run_fixture(package: &str, proto_rel: &str, main_rs: &str, want_stdout: &str)
     let dir = manifest
         .join("target")
         .join(format!("compat-fixture-{package}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let _removed = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("src")).unwrap();
 
     std::fs::write(
