@@ -396,6 +396,30 @@ where
                     reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
+                if crate::wire::effective_timeout(request.headers(), config.rpc_timeout())
+                    .is_some_and(|timeout| timeout.is_zero())
+                {
+                    let status = Status::deadline_exceeded();
+                    if let Some(obs) = dispatch.observer() {
+                        let path = request.uri().path();
+                        let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                        let labels = CallLabels::new(path, authority, CallRole::Server);
+                        obs.on_server_call_start(&labels);
+                        obs.on_rejection(&RejectionEvent {
+                            call: labels,
+                            reason: RejectionReason::Other,
+                            code: Code::DeadlineExceeded,
+                        });
+                        obs.on_server_call_end(&labels, &status, Duration::ZERO);
+                    }
+                    note_rejected_call(channelz_server, channelz_socket_id);
+                    reject(
+                        &mut respond,
+                        status,
+                        config.accepts_compressed(),
+                    );
+                    continue;
+                }
                 let permit = match &rpc_slots {
                     None => None,
                     Some(slots) => match slots.clone().try_acquire_owned() {

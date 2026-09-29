@@ -75,6 +75,15 @@ impl RawPeer {
             .expect("request")
     }
 
+    fn grpc_request_builder(&self, path: &str) -> http::request::Builder {
+        let uri = format!("http://{}{path}", self.authority);
+        HttpRequest::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .header(http::header::CONTENT_TYPE, "application/grpc")
+            .header(http::header::TE, "trailers")
+    }
+
     /// Send `body` as the whole request and read back the gRPC status.
     async fn call(&mut self, path: &str, body: Bytes) -> Answer {
         self.call_with(self.request(path, "application/grpc"), body)
@@ -87,7 +96,7 @@ impl RawPeer {
         stream.send_data(body, true).expect("send_data");
         let response = response.await.expect("response");
         let http_status = response.status();
-        let header_status = grpc_status(response.headers());
+        let header_code = grpc_status(response.headers()).map(Code::from_i32);
         let mut body = response.into_body();
         let mut payload_frames = 0usize;
         while let Some(chunk) = body.data().await {
@@ -97,15 +106,18 @@ impl RawPeer {
             }
             body.flow_control().release_capacity(chunk.len()).ok();
         }
-        let trailer_status = body
+        let trailer_code = body
             .trailers()
             .await
             .ok()
             .flatten()
-            .and_then(|t| grpc_status(&t));
+            .and_then(|t| grpc_status(&t))
+            .map(Code::from_i32);
         Answer {
             http_status,
-            code: trailer_status.or(header_status).map(Code::from_i32),
+            code: trailer_code.or(header_code),
+            header_code,
+            trailer_code,
             payload_frames,
         }
     }
@@ -114,6 +126,8 @@ impl RawPeer {
 struct Answer {
     http_status: StatusCode,
     code: Option<Code>,
+    header_code: Option<Code>,
+    trailer_code: Option<Code>,
     payload_frames: usize,
 }
 
@@ -127,9 +141,32 @@ impl Answer {
         assert_eq!(self.code, Some(want));
     }
 
+    fn expect_trailers_only(&self, want: Code) {
+        assert_eq!(
+            self.http_status,
+            StatusCode::OK,
+            "gRPC trailers-only errors answer 200"
+        );
+        assert_eq!(
+            self.header_code,
+            Some(want),
+            "trailers-only puts grpc-status in initial headers"
+        );
+        assert_eq!(
+            self.trailer_code, None,
+            "trailers-only must not send separate trailers"
+        );
+        assert_eq!(
+            self.payload_frames, 0,
+            "trailers-only must not send DATA frames"
+        );
+    }
+
     fn expect_http(&self, want: StatusCode) {
         assert_eq!(self.http_status, want);
         assert_eq!(self.code, None, "HTTP {want} is not a gRPC status");
+        assert_eq!(self.header_code, None);
+        assert_eq!(self.trailer_code, None);
         assert_eq!(self.payload_frames, 0);
     }
 }
@@ -187,6 +224,45 @@ async fn a_giant_declared_length_is_refused_from_the_header() {
     peer.call(SAY_HELLO, body)
         .await
         .expect_code(Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn immediate_unimplemented_is_trailers_only() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    peer.call("/helloworld.Greeter/Nope", frame(&hello_request()))
+        .await
+        .expect_trailers_only(Code::Unimplemented);
+}
+
+#[tokio::test]
+async fn expired_timeout_before_dispatch_is_trailers_only() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let req = peer
+        .grpc_request_builder(SAY_HELLO)
+        .header("grpc-timeout", "0S")
+        .body(())
+        .expect("request");
+    peer.call_with(req, frame(&hello_request()))
+        .await
+        .expect_trailers_only(Code::DeadlineExceeded);
+}
+
+#[tokio::test]
+async fn process_rpc_cap_rejection_is_trailers_only() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().max_concurrent_rpcs(1)).await;
+    let holder = RawPeer::connect(addr).await;
+    let mut send = holder.send.clone().ready().await.expect("ready");
+    let (response, _body) = send
+        .send_request(holder.request(STREAM_HELLO, "application/grpc"), false)
+        .expect("send held stream");
+    response.await.expect("held stream response headers");
+
+    let mut peer = RawPeer::connect(addr).await;
+    peer.call(SAY_HELLO, frame(&hello_request()))
+        .await
+        .expect_trailers_only(Code::ResourceExhausted);
 }
 
 #[tokio::test]
