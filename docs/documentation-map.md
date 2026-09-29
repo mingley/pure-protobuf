@@ -55,6 +55,7 @@ and [security policy](../SECURITY.md) cover maintenance and publishing.
 | Why was a design chosen? | [Decision index](decisions/README.md) |
 | What should I work on next? | [Current queue](../TODO.md), [repository audit](audit-2026-09-29.md) |
 | What is the performance strategy? | [World-class gRPC program](plan/world-class/README.md) |
+| What must change for existing prost/tonic systems to adopt pbrs? | [Adoption program](plan/adoption/README.md) |
 | What are the task and review rules? | [Foundation execution contract](plan/README.md#small-executor-contract) |
 | How are product profiles promoted? | [Roadmap](ROADMAP.md) |
 | What happened to earlier experiments? | [Closed inventory](inventory/README.md) |

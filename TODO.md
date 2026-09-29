@@ -60,7 +60,15 @@ API was changed. Finish these gaps, RX-09's equivalent-work profiles and
 SB-20's calibration. The
 [benchmark contract](docs/benchmark-contract.md) owns numeric thresholds.
 
-## Adoption findings (2026-09-29)
+## Adoption program
+
+Goal: teams on prost and tonic adopt pbrs one layer at a time, without
+rewriting handlers, middleware or build pipelines, and get clearly lower CPU
+and memory cost. The [adoption program](docs/plan/adoption/README.md) defines
+targets, phases and cards. Start with SB-26 (measure what adopters run), then
+the P0 cards: GN-10, PK-26 then PK-27, TC-25, TC-29, TC-30 and AD-04.
+
+### Findings that opened the program (2026-09-29)
 
 An adoption evaluation against a production-shaped schema set and
 tonic-based service stack filed these cards. Dev-loop evidence is in each

@@ -28,7 +28,8 @@
   "CH": "Channel architecture, resolvers and load balancing",
   "XD": "xDS",
   "GF": "Observability, security and remaining gRFCs",
-  "QG": "Quality gates for new kernels and engines"
+  "QG": "Quality gates for new kernels and engines",
+  "AD": "Adoption: integrate into existing stacks without rewrites, and adopter readiness"
  },
  "milestones": {
   "M0": "Truthful baseline and fast feedback loop",
@@ -9160,7 +9161,8 @@
    "executor": "small",
    "size": "M",
    "depends_on": [
-    "PK-26"
+    "PK-26",
+    "SB-26"
    ],
    "read": [
     "src/lazy.rs",
@@ -9171,13 +9173,11 @@
    "write": [
     "src/lazy.rs",
     "src/rt.rs",
-    "src/codegen/parse.rs",
-    "bench/devloop/src/main.rs",
-    "bench/devloop/proto/"
+    "src/codegen/parse.rs"
    ],
    "deliverable": "Lazy decode wins only when fields go unread. When a handler reads every field, pbrs costs 2-5x prost instructions on deeply nested recursive messages and about 2x on repeated records with Any payloads. Add public dev-loop cells for both shapes and remove the repeated work.",
    "accept": [
-    "New dev-loop cells with public schemas: a recursive boolean query tree (message Q { oneof v { QList and = 1; QList or = 2; Q not = 3; Pred field = 4; } } with typed-value predicates, 5+ levels) and a repeated record list with Any payloads (10/100/1000 records, 512 B values). Each has decode and parse_touch variants against prost 0.14 with identical touch checksums.",
+    "Use SB-26's recursive query-tree and Any-payload record-list corpora; both have decode and parse_touch cells against prost 0.14 with identical read checksums.",
     "Profile attribution recorded for the current cost: Wire::window Arc clones per nested field, per-level validate_inner re-walks of already-validated subtrees, repeated UTF-8 validation of the same bytes, and default-instance lookups (PK-26).",
     "parse_touch instructions are at or below prost on both new cells with no allocation regression, and existing codec gates stay green; otherwise record the residual gap and its cause."
    ],
@@ -9379,6 +9379,549 @@
    "relates": [
     "TC-24"
    ]
+  },
+  {
+   "id": "SB-26",
+   "title": "Build the adoption matrix: production-shaped corpora and read-all cells",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/benchmark-contract.md",
+    "bench/devloop/src/main.rs",
+    "bench/devloop/cells/codec_peers.rs",
+    "rpc-bench/src/main.rs"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-26.md"
+   ],
+   "deliverable": "Public corpora for common service shapes, and dev-loop cells that measure what adopters run. Codec cells cover fresh encode, decode, parse-then-read-all and clone for prost 0.14 vs pbrs. RPC cells cover unary and server-streaming across four profiles (prost or pbrs messages × tonic or pbrs-grpc), with the server reading the whole request and the client reading the whole response. A report scores every adoption target (P1-P5).",
+   "accept": [
+    "Corpora, all public and synthetic: (1) recursive boolean query trees 3-8 levels deep with typed-value predicates, sub-queries and edge traversals, 40+ variants of 100-800 B; (2) entity-list responses with key strings, 256-512 B google.protobuf.Any payloads and nested edge lists at 10/100/1000 records; (3) wide sparse messages with 100+ optional fields, about 10% set; (4) map-heavy messages; (5) an option-heavy schema set that imports descriptor.proto for custom options, for codegen size and check-time cells.",
+    "Every compared pair passes equality checks before timing: identical read checksums, and wire bytes that decode to equal messages in both codecs.",
+    "Instructions use the existing (2N-N)/N method, allocations are exact counts, and handler work is identical across profiles.",
+    "A baseline JSON and docs/evidence/sb-26.md record every target's current value and its limits; `devloop list` shows the cells."
+   ],
+   "checks": [
+    "codec-bench",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "A1",
+    "A3",
+    "A5",
+    "A8",
+    "A13",
+    "B3",
+    "B5",
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "BM-03",
+    "TC-24",
+    "PK-27"
+   ],
+   "notes": "Phase 0 of the adoption program. Every adoption performance card measures against this matrix."
+  },
+  {
+   "id": "TC-29",
+   "title": "Run unmodified tonic-generated clients over pbrs-grpc",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "pbrs-grpc/src/client.rs",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/tower_client.rs",
+    "examples/tonic-ports/"
+   ],
+   "write": [
+    "pbrs-grpc/src/tower_client.rs",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/",
+    "tests/interop/tonic/"
+   ],
+   "deliverable": "Behind an opt-in feature, pbrs_grpc::Channel and resolver-managed channels act as the transport for unmodified tonic-generated clients. They implement tower::Service<http::Request<tonic::body::Body>> with a response body tonic's client accepts. Swapping the transport under an existing client is then a one-line channel change.",
+   "accept": [
+    "The TC-22 tonic example clients run unchanged over a pbrs Channel for all four call shapes, including with_interceptor, compression, max message sizes and grpc-timeout deadlines.",
+    "The SB-26 transport-only-with-tonic-codegen profile is measured against tonic's Channel. Any extra per-message copy relative to native prost stubs is removed or documented.",
+    "The default dependency graph is unchanged when the feature is off."
+   ],
+   "checks": [
+    "tonic",
+    "native-rpc",
+    "clippy"
+   ],
+   "scoreboard": [
+    "C5"
+   ],
+   "relates": [
+    "TC-26",
+    "TC-30"
+   ]
+  },
+  {
+   "id": "TC-30",
+   "title": "Serve unmodified tonic-generated services from pbrs-grpc",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-26"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "pbrs-grpc/src/server.rs",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/tower_server.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/tower_server.rs",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/",
+    "tests/interop/tonic/"
+   ],
+   "deliverable": "Behind the same opt-in feature, Router and Server accept tonic-generated services (tower::Service<http::Request<tonic::body::Body>> + NamedService, including tonic interceptors and layers). They serve them with pbrs-grpc's HTTP/2, TLS, limits, keepalive and drain, mixed with native services.",
+   "accept": [
+    "The TC-22 tonic example servers run unchanged on the pbrs-grpc server and pass cross-stack interop.",
+    "Request extensions carry tonic-compatible connect info (TC-26), so tonic-typed authentication layers work.",
+    "The SB-26 profile is measured against tonic's server."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "D4"
+   ],
+   "relates": [
+    "TC-29"
+   ]
+  },
+  {
+   "id": "CH-12",
+   "title": "Plug in external service discovery and balancers without forking",
+   "lane": "CH",
+   "milestone": "M6",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/resolver-contract.md",
+    "pbrs-grpc/src/resolver/",
+    "pbrs-grpc/src/lb/"
+   ],
+   "write": [
+    "pbrs-grpc/src/resolver/",
+    "pbrs-grpc/src/lb/",
+    "examples/",
+    "docs/resolver-contract.md",
+    "pbrs-grpc/tests/"
+   ],
+   "deliverable": "A supported public API for out-of-crate ResolverFactory and LbPolicyFactory implementations. It adds a push-style endpoint-set API, where an external discovery watcher sends endpoints with weights, locality, health and arbitrary attributes, and a tower::discover::Discover adapter.",
+   "accept": [
+    "An example crate outside pbrs-grpc implements a custom resolver and a weighted policy using public APIs only.",
+    "Tests cover endpoint churn, empty sets, health transitions and attribute changes, and show no reconnect storms.",
+    "docs/resolver-contract.md documents the plugin contract and its stability."
+   ],
+   "checks": [
+    "native-discovery",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "CH-03"
+   ]
+  },
+  {
+   "id": "GF-12",
+   "title": "Keep existing Tower observability and context layers working",
+   "lane": "GF",
+   "milestone": "M7",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-29",
+    "TC-30"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "pbrs-grpc/src/otel/",
+    "pbrs-grpc/src/telemetry.rs",
+    "pbrs-grpc/src/tower_server.rs",
+    "pbrs-grpc/src/tower_client.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/otel/",
+    "pbrs-grpc/src/telemetry.rs",
+    "pbrs-grpc/tests/",
+    "docs/guides/operations.md"
+   ],
+   "deliverable": "On client and server adapter paths, Tower layers that read http::Request extensions, headers and grpc-status must see the same values they see under tonic, whether the status arrives in trailers or a trailers-only response. Document layer ordering, and align built-in OpenTelemetry names with the OpenTelemetry RPC semantic conventions.",
+   "accept": [
+    "A test runs a tracing layer, a status-counting metrics layer and a request-context propagation layer unchanged against both stacks. It records equal observations for OK, error, deadline and cancellation cases.",
+    "The operations guide shows where to place existing layers."
+   ],
+   "checks": [
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "OB-02"
+   ]
+  },
+  {
+   "id": "TC-31",
+   "title": "Publish and test behavior differences from tonic",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "pbrs-grpc/src/status.rs",
+    "docs/guides/migration.md",
+    "docs/guides/comparison.md"
+   ],
+   "write": [
+    "docs/guides/migration.md",
+    "pbrs-grpc/tests/",
+    "tests/interop/tonic/"
+   ],
+   "deliverable": "A reference table, with tests, of behaviors callers branch on. It covers: status codes for inbound and outbound size-limit violations; client timeouts (DEADLINE_EXCEEDED vs CANCELLED); cancellation; empty or missing request messages; trailers-only errors; metadata key normalization; grpc-message encoding; keepalive and GOAWAY. Add opt-in compatibility settings only where a difference breaks common caller code.",
+   "accept": [
+    "docs/guides/migration.md gains a behavior-differences section. Each row gives pbrs-grpc's behavior, tonic 0.14's behavior and the test that pins it.",
+    "Any compatibility setting is off by default and documented."
+   ],
+   "checks": [
+    "tonic",
+    "docs-contract"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-08"
+   ]
+  },
+  {
+   "id": "TC-32",
+   "title": "Let prost and pbrs messages coexist in one build",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-28"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "src/codegen/tonic_stubs.rs",
+    "src/codegen/native_stubs.rs",
+    "src/codegen/prost_stubs.rs",
+    "protobuf-tonic/src/lib.rs"
+   ],
+   "write": [
+    "src/codegen/",
+    "protobuf-tonic/",
+    "pbrs-grpc/src/codec/",
+    "tests/",
+    "docs/guides/migration.md"
+   ],
+   "deliverable": "Adopters usually depend on shared schema crates already generated with prost. Let a service choose the codec per package or per message set, in both native and tonic stubs, and add cheap conversions between the prost and pbrs representations of the same message via wire bytes (zero-copy parse where possible).",
+   "accept": [
+    "An example service whose request imports one prost-generated package and one pbrs-generated package builds and round-trips.",
+    "Conversions round-trip on SB-26 corpora and their cost is reported."
+   ],
+   "checks": [
+    "codegen",
+    "tonic",
+    "native-codegen"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-28",
+    "AD-02"
+   ]
+  },
+  {
+   "id": "AD-01",
+   "title": "Write the adopter playbook",
+   "lane": "AD",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "SB-26"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/guides/migration.md",
+    "docs/documentation-map.md",
+    "tests/onboarding.rs"
+   ],
+   "write": [
+    "docs/guides/adoption.md",
+    "docs/documentation-map.md",
+    "docs/guides/migration.md",
+    "tests/onboarding.rs"
+   ],
+   "deliverable": "docs/guides/adoption.md covers the integration profiles: transport only with prost messages, codec only on tonic, and full native. It includes a decision table backed by SB-26 evidence, prerequisites, step-by-step setup per profile, rollout (per service, per connection, canary), rollback, a mixed-fleet interoperability checklist and known gaps with their cards.",
+   "accept": [
+    "Build and code recipes compile through onboarding tests, following the QG-07 pattern.",
+    "The guide is linked from docs/documentation-map.md and the migration guide, and every performance statement cites dated evidence."
+   ],
+   "checks": [
+    "docs-contract",
+    "consumers"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "QL-02"
+   ]
+  },
+  {
+   "id": "AD-02",
+   "title": "Remove the handler rewrite when switching message types",
+   "lane": "AD",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "coordinator",
+   "size": "L",
+   "depends_on": [
+    "SB-26"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/guides/migration.md",
+    "src/codegen/messages.rs",
+    "examples/tonic-ports/"
+   ],
+   "write": [
+    "docs/decisions/",
+    "src/codegen/",
+    "examples/",
+    "tests/"
+   ],
+   "deliverable": "Record a decision between three routes, then implement the chosen one: (a) a prost-shaped owned-struct API mode for pbrs codegen (public fields, Option, Vec and String, enum oneofs) backed by pbrs parse and encode kernels; (b) generated conversions between prost and pbrs types; (c) a mechanical codemod.",
+   "accept": [
+    "A public prost+tonic example service (TC-22 ports) switches to pbrs messages with only build-configuration changes for route (a), or with a codemod and no manual edits for route (c).",
+    "SB-26 shows the chosen route keeps the P2 targets, or records the cost."
+   ],
+   "checks": [
+    "codegen",
+    "conformance"
+   ],
+   "scoreboard": [
+    "A5"
+   ],
+   "relates": [
+    "TC-32"
+   ]
+  },
+  {
+   "id": "AD-03",
+   "title": "Stabilize and semver-check the integration surface",
+   "lane": "AD",
+   "milestone": "M8",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/support-policy.md",
+    "docs/RELEASE.md",
+    ".github/workflows/ci.yml"
+   ],
+   "write": [
+    "docs/support-policy.md",
+    ".github/workflows/ci.yml",
+    "docs/RELEASE.md"
+   ],
+   "deliverable": "List the integration-point APIs: TLS config injection, resolver and LB factories, interceptors, Tower adapters, codec traits, and the runtime contract for generated code. Mark them stable in the support policy, and add a semver check in CI for pbrs, pbrs-grpc and protobuf-tonic against the last published release.",
+   "accept": [
+    "A deliberate breaking change to a listed API fails CI.",
+    "The support policy names the stable surface and its deprecation rules.",
+    "Installing the CI tool is approved by the maintainer before landing."
+   ],
+   "checks": [
+    "workspace",
+    "docs-contract"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "QL-05",
+    "OB-05"
+   ]
+  },
+  {
+   "id": "AD-04",
+   "title": "Budget per-RPC cost against the adoption targets",
+   "lane": "AD",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "M",
+   "depends_on": [
+    "SB-26"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/profiling.md",
+    "docs/evidence/rx-09.md",
+    "docs/evidence/h2-costs.md"
+   ],
+   "write": [
+    "docs/decisions/",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Take separate-process Linux profiles from SB-26 for the transport-only and full-native profiles. Attribute instructions and allocations per RPC to HTTP/2 framing, headers and metadata, codec buffers and copies, runtime scheduling, TLS and handler work. Model the gap to P3, and file ranked cards with expected gains in the RX, SV, CL and PK lanes.",
+   "accept": [
+    "The attribution table sums to the measured totals within 5%.",
+    "Every filed card states its expected per-RPC delta and the SB-26 cell that will show it.",
+    "The decision record says whether P3 is reachable on the current h2 backend and feeds the H2-16 gate."
+   ],
+   "checks": [
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "RX-09",
+    "H2-16"
+   ]
+  },
+  {
+   "id": "CL-07",
+   "title": "Send the first request with the connection preface",
+   "lane": "CL",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/evidence/cl-06.md",
+    "docs/evidence/sb-12.md",
+    "pbrs-grpc/src/client/"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/transport/",
+    "pbrs-grpc/tests/"
+   ],
+   "deliverable": "CL-06 found that the client waits for peer SETTINGS before sending its first stream, which costs cold-start latency against tonic. Pipeline the first request behind the preface where RFC 9113 allows it, keeping lazy-connect, wait-for-ready, deadline, cancellation and stream-cap semantics.",
+   "accept": [
+    "Time to first RPC is no slower than tonic's in the SB-12 scale cells, both cold and with TLS (target P4).",
+    "Semantics tests cover each preserved behavior."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "C7"
+   ],
+   "relates": [
+    "CL-06"
+   ]
+  },
+  {
+   "id": "QG-08",
+   "title": "Assemble the adopter security packet",
+   "lane": "QG",
+   "milestone": "M8",
+   "priority": "P1",
+   "executor": "operator",
+   "size": "M",
+   "depends_on": [
+    "SB-26"
+   ],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/unsafe-invariants.md",
+    "docs/security.md",
+    "fuzz/"
+   ],
+   "write": [
+    "docs/evidence/security-packet.md",
+    "fuzz/"
+   ],
+   "deliverable": "One evidence page adopters can review. It covers: the unsafe inventory and its invariants; a fuzz campaign of at least 24 CPU-hours across wire parse, JSON, text, HTTP/2 frame and gRPC framing targets seeded with SB-26 corpora; Miri on the kernels; a TLS configuration review covering defaults, ALPN, verification and TC-25 rotation; and a dependency audit per profile.",
+   "accept": [
+    "Artifacts and commands are retained.",
+    "Every crash is fixed or filed as a card.",
+    "The packet is linked from docs/security.md."
+   ],
+   "checks": [
+    "fuzz-build",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F6",
+    "F7"
+   ],
+   "relates": [
+    "QG-02",
+    "QG-04"
+   ]
+  },
+  {
+   "id": "QG-09",
+   "title": "Publish release provenance",
+   "lane": "QG",
+   "milestone": "M8",
+   "priority": "P2",
+   "executor": "operator",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "docs/RELEASE.md",
+    ".github/workflows/release.yml"
+   ],
+   "write": [
+    ".github/workflows/release.yml",
+    "docs/RELEASE.md"
+   ],
+   "deliverable": "Publish through crates.io Trusted Publishing instead of a long-lived token, with signed release tags and a CycloneDX SBOM plus build-provenance attestation attached to each release.",
+   "accept": [
+    "A dry-run rehearsal produces the SBOM and the attestation.",
+    "The release workflow no longer needs a long-lived registry token.",
+    "The maintainer configures the crates.io trusted publisher."
+   ],
+   "checks": [
+    "docs-contract"
+   ],
+   "scoreboard": [],
+   "relates": []
   }
  ],
  "last_audit": {

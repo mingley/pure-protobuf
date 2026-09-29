@@ -303,6 +303,7 @@ run `cargo doc --workspace --no-deps --open`.
 | Roadmap and stronger-claim evidence | [Implementation plan and scorecard](docs/ROADMAP.md) |
 | Next contribution and audit findings | [Execution queue](TODO.md), [repository audit](docs/audit-2026-09-29.md), [task contracts](docs/plan/README.md) |
 | gRPC performance program | [World-class gRPC program](docs/plan/world-class/README.md) and [worker cards](docs/plan/world-class/tasks.json) |
+| Adopting pbrs in existing prost/tonic systems | [Adoption program](docs/plan/adoption/README.md) |
 
 ## License
 
