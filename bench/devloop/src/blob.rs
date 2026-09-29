@@ -178,12 +178,9 @@ pub fn is_blob_cell(cell: &str) -> bool {
 }
 
 pub fn blob_size_of(cell: &str) -> Option<BlobSize> {
-    for size in BlobSize::all() {
-        if cell.ends_with(size.id()) {
-            return Some(size);
-        }
-    }
-    None
+    BlobSize::all()
+        .into_iter()
+        .find(|&size| cell.ends_with(size.id()))
 }
 
 pub fn blob_cells() -> Vec<(&'static str, &'static str)> {

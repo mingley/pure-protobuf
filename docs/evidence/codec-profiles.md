@@ -63,14 +63,14 @@ Current tonic-bench reproduction of the documented small common-shape rows:
 | `id` | 4.8 / 3.6 | 2.4 / 3.8 | 2.8 / 3.6 / 3.6 | current combined row wins despite historical loss |
 | `name_80` | 7.5 / 7.6 | 23.5 / 23.7 | 4.9 / 23.5 / 24.1 | decode parity; remaining loss is encode overhead |
 
-## Implemented PK-04 fast path
+## Attempted PK-04 fast path
 
 Hypothesis: packed-varint validation is on the pbrs owned-decode path through
 `Packed<VarintI32>::append_wire`; skipping runs of one-byte varints eight bytes
 at a time with a portable high-bit mask should help varint-heavy decodes while
 preserving truncation/overflow/overlong semantics.
 
-Change:
+Initial change in `6b32ba7d`:
 
 - `src/wire.rs`: `validate_varints` now skips 8-byte chunks when no byte has
   the continuation bit set. This is safe, portable scalar SWAR and uses no
@@ -78,6 +78,11 @@ Change:
 - `fuzz/fuzz_targets/varint_diff.rs`: new differential fuzz target comparing
   `decode_varint`, `decode_tag`, and packed-varint validation against a scalar
   reference on the same input.
+
+Follow-up Linux/callgrind confirmation on 2026-09-29 disproved the fast-path
+hypothesis on the target cells. The final code restores the scalar
+`validate_varints` loop and keeps the differential fuzz target plus targeted
+dev-loop cells.
 
 Correctness checks run:
 
@@ -87,7 +92,7 @@ CARGO_BUILD_JOBS=3 cargo test -p pbrs wire::tests::validate_varints_matches_scal
 CARGO_BUILD_JOBS=3 cargo check --manifest-path fuzz/Cargo.toml --bin varint_diff --offline
 ```
 
-## After evidence
+## macOS after evidence
 
 Primary deterministic counts did not change on the broad dev-loop TAT cells:
 allocations and allocated bytes are identical. macOS has no `perf`/`strace`
@@ -109,18 +114,59 @@ The auto-sized profile captured usable samples; top pbrs-side symbols included
 and `Wire::ensure` (0.3%). Allocator/drop/memmove costs dominate this broad
 cell more than varint validation.
 
-Verdict: keep the no-unsafe SWAR validator and differential target as a small
-PK-04 step, but do not mark PK-04 done. The local wall result is directionally
-positive for owned decode and parse-touch in the after repeat, but decode CV is
-too high for a standalone performance claim without Linux instruction counts.
+This was insufficient to qualify PK-04 because the target cells had no
+instruction counts yet.
+
+## Linux/callgrind confirmation
+
+Tooling:
+
+```sh
+./scripts/devloop-linux.sh --cells codec.pbrs.packed_256_owned_decode,codec.pbrs.packed_256_parse_touch,codec.pbrs.unpacked_256_owned_decode,codec.pbrs.unpacked_256_parse_touch,codec.pbrs.tags_32_owned_decode,codec.pbrs.tags_32_parse_touch,codec.pbrs.owned_decode,codec.pbrs.cached_encode --iters 500 --repeats 3 --out target/devloop/pk04-linux-swar.json
+```
+
+The wrapper runs in Docker Desktop's arm64 Linux VM with valgrind/callgrind.
+Artifacts:
+
+- scalar baseline: `target/devloop/pk04-linux-scalar.json`
+- original SWAR fast path: `target/devloop/pk04-linux-swar.json`
+- direct-array SWAR variant: `target/devloop/pk04-linux-swar-array.json`
+
+Instruction counts are `retired/callgrind-ir per op`, medians of 3 repeats at
+500 iterations.
+
+| cell | scalar | original SWAR | delta | verdict |
+|---|---:|---:|---:|---|
+| `codec.pbrs.packed_256_owned_decode` | 44270.154 | 46289.530 | +4.56% | regression |
+| `codec.pbrs.packed_256_parse_touch` | 56332.610 | 58351.986 | +3.59% | regression |
+| `codec.pbrs.unpacked_256_owned_decode` | 44264.960 | 46284.336 | +4.56% | regression |
+| `codec.pbrs.unpacked_256_parse_touch` | 56331.006 | 58350.382 | +3.59% | regression |
+| `codec.pbrs.tags_32_owned_decode` | 63390.220 | 63385.958 | -0.01% | noise |
+| `codec.pbrs.tags_32_parse_touch` | 63987.836 | 63983.574 | -0.01% | noise |
+| `codec.pbrs.owned_decode` | 33061.184 | 32955.616 | -0.32% | below bar |
+| `codec.pbrs.cached_encode` | 27785.454 | 27735.124 | -0.18% | below bar |
+
+The direct-array SWAR variant was worse on the packed cells
+(`packed_256_owned_decode` +31.92%, `packed_256_parse_touch` +25.08%), so it
+was not kept.
+
+**Verdict:** PK-04 does **not** meet the dev-loop win rule. It does not improve
+the target cells by >=2%, and it regresses packed/unpacked target cells by more
+than the 1% codec limit. The final code restores scalar validation; this card
+should be re-scoped before another SWAR/SIMD attempt.
 
 ## Disproved or reverted attempts
 
 - Empty-message generated `Serialize::encode` early return: reverted. It made
   broad fresh/cached encode slower in the dev-loop comparison.
+- `decode_varint` one/two-byte fast-path cleanup: reverted. Linux/callgrind
+  showed small directionally positive deltas only (-0.00% to -0.27% on target
+  cells), below the >=2% rule and with no allocation change.
 - Fixed-width packed byte view from decoded vectors: reverted. It required a
   new unsafe block and did not produce a stable large packed-fixed encode win
   in the current noisy bench run.
+- Portable packed-varint SWAR validation: reverted after Linux/callgrind showed
+  +3.6-4.6% instruction regressions on the packed/unpacked target cells.
 - The historical `packed_fixed_5mb` encode loss versus upb did not reproduce
   on this host with pinned `libprotoc 35.1`: base pbrs/v4 encode was
   73.7/142.2 us and final was 69.7/146.6 us. The row remains local smoke
@@ -144,3 +190,38 @@ too high for a standalone performance claim without Linux instruction counts.
    diagnostics and prost 0.14; `bench` still carries older peer helper crates
    and a handwritten `person` gate. Updating those helper crates requires
    write-scope expansion or a follow-up SB card.
+
+## Small-message follow-up
+
+Added dev-loop cells for generated `codec_cases.proto` small shapes:
+
+- `codec.{pbrs,prost}.small_empty_{encode,decode}`
+- `codec.{pbrs,prost}.small_id_{encode,decode}`
+- `codec.{pbrs,prost}.small_name80_{encode,decode}`
+
+Baseline artifact: `target/devloop/small-linux-baseline.json`.
+
+The Linux/callgrind baseline showed the `name_80` decode gap was not an
+instruction gap; it was an allocation-size gap. pbrs used one allocation of
+96 bytes/op for a near-whole 80-byte string because `LazyStr` stored it as an
+`Arc<[u8]>` wire window. Prost used one 80-byte allocation/op.
+
+Change: `LazyStr::from_parse_span` now stores near-whole medium strings
+(`len <= 256`, payload nearly the whole message) as owned `ProtoString` data
+after UTF-8 validation. Multi-field medium strings still share the parent
+`Wire`, and large near-whole strings still use the existing `Wire` path.
+
+After artifact: `target/devloop/medium-string-linux.json`.
+
+| cell | before instr | after instr | delta | allocs | bytes |
+|---|---:|---:|---:|---:|---:|
+| `codec.pbrs.small_name80_decode` | 26544.020 | 26502.938 | -0.15% | 1.0 -> 1.0 | 96.0 -> 80.0 |
+| `codec.pbrs.small_empty_decode` | 25875.102 | 25917.054 | +0.16% | 0.0 -> 0.0 | 0.0 -> 0.0 |
+| `codec.pbrs.small_id_decode` | 25909.830 | 25951.508 | +0.16% | 0.0 -> 0.0 | 0.0 -> 0.0 |
+| `codec.pbrs.tags_32_owned_decode` | 63390.220 | 63405.354 | +0.02% | 2.0 -> 2.0 | 1544.0 -> 1544.0 |
+| `codec.pbrs.tags_32_parse_touch` | 63987.836 | 64000.570 | +0.02% | 2.0 -> 2.0 | 1544.0 -> 1544.0 |
+
+Verdict: keep the medium-string ownership threshold as a measured allocation
+win for `name_80` decode (same allocation count, 16 fewer bytes/op) with no
+instruction regression over the 1% codec guard. The remaining `name_80` encode
+loss is still open; no safe encode-path change in this pass met the win rule.

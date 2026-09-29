@@ -10,9 +10,14 @@
 //! versioned JSON. Missing tools yield `not_run` for that metric,
 //! never a pass. `--baseline` compares two reports with the win-rule
 //! thresholds from the scoreboard.
+#![allow(
+    clippy::disallowed_methods,
+    reason = "devloop is a synchronous CLI harness, not async runtime code"
+)]
 
 use serde::{Deserialize, Serialize};
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::RefCell;
 use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -324,10 +329,10 @@ fn rustc_version() -> String {
 }
 
 fn git_commit() -> String {
-    if let Ok(commit) = std::env::var("PBRS_DEVLOOP_COMMIT") {
-        if !commit.trim().is_empty() {
-            return commit;
-        }
+    if let Ok(commit) = std::env::var("PBRS_DEVLOOP_COMMIT")
+        && !commit.trim().is_empty()
+    {
+        return commit;
     }
     std::process::Command::new("git")
         .args(["rev-parse", "--short=12", "HEAD"])
@@ -383,6 +388,26 @@ use pbrs::gencode::{NestedMessage, TestAllTypesProto3 as PbrsTat};
 use pbrs::prelude::*;
 use prost013::Message as _;
 use protobuf::Parse as _;
+
+mod pbrs_cases {
+    #![allow(dead_code, unused, non_snake_case, clippy::all)]
+    include!(concat!(env!("OUT_DIR"), "/pbrs_cases/codec_cases.rs"));
+}
+
+#[derive(Clone, PartialEq, prost::Message)]
+struct ProstEmpty {}
+
+#[derive(Clone, PartialEq, prost::Message)]
+struct ProstId {
+    #[prost(int64, tag = "1")]
+    id: i64,
+}
+
+#[derive(Clone, PartialEq, prost::Message)]
+struct ProstName {
+    #[prost(string, tag = "1")]
+    name: String,
+}
 
 fn pbrs_specimen() -> PbrsTat {
     let mut nested = NestedMessage::new();
@@ -522,6 +547,16 @@ struct CodecCase {
     pbrs_msg: PbrsTat,
     prost_msg: prost_tat::TestAllTypesProto3,
     v4_msg: v4_tat::TestAllTypesProto3,
+    pbrs_empty: pbrs_cases::Empty,
+    pbrs_id: pbrs_cases::Id,
+    pbrs_name80: pbrs_cases::Name,
+    prost_empty: ProstEmpty,
+    prost_id: ProstId,
+    prost_name80: ProstName,
+    small_empty_wire: Vec<u8>,
+    small_id_wire: Vec<u8>,
+    small_name80_wire: Vec<u8>,
+    small_scratch: RefCell<Vec<u8>>,
     /// Separately parsed messages for fresh-encode (parsed outside the
     /// timer, each encoded exactly once).
     pbrs_fresh: Vec<PbrsTat>,
@@ -536,6 +571,27 @@ impl CodecCase {
         let prost_msg =
             prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("prost cross-parse");
         let v4_msg = v4_tat::TestAllTypesProto3::parse(&wire).expect("v4 cross-parse");
+        let pbrs_empty = pbrs_cases::Empty::new();
+        let prost_empty = ProstEmpty::default();
+        let mut pbrs_id = pbrs_cases::Id::new();
+        pbrs_id.set_id(7);
+        let prost_id = ProstId { id: 7 };
+        let mut pbrs_name80 = pbrs_cases::Name::new();
+        let name80 = "x".repeat(80);
+        pbrs_name80.set_name(name80.as_str());
+        let prost_name80 = ProstName { name: name80 };
+        let small_empty_wire = pbrs_empty.serialize().expect("empty wire");
+        let small_id_wire = pbrs_id.serialize().expect("id wire");
+        let small_name80_wire = pbrs_name80.serialize().expect("name80 wire");
+        assert_eq!(
+            prost::Message::encode_to_vec(&prost_empty),
+            small_empty_wire
+        );
+        assert_eq!(prost::Message::encode_to_vec(&prost_id), small_id_wire);
+        assert_eq!(
+            prost::Message::encode_to_vec(&prost_name80),
+            small_name80_wire
+        );
         // Checksums must agree: same observable content on all three.
         let (a, b, c) = (
             touch_pbrs(&PbrsTat::parse(&wire).expect("pbrs cross-parse")),
@@ -558,6 +614,16 @@ impl CodecCase {
             pbrs_msg,
             prost_msg,
             v4_msg,
+            pbrs_empty,
+            pbrs_id,
+            pbrs_name80,
+            prost_empty,
+            prost_id,
+            prost_name80,
+            small_empty_wire,
+            small_id_wire,
+            small_name80_wire,
+            small_scratch: RefCell::new(Vec::new()),
             pbrs_fresh,
             prost_fresh,
             v4_fresh,
@@ -594,6 +660,75 @@ fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
         | "codec.pbrs.tags_32_parse_touch" => {
             black_box(touch_pbrs(&PbrsTat::parse(&case.wire).expect("dec")))
         }
+        "codec.pbrs.small_empty_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            pbrs::Serialize::encode(&case.pbrs_empty, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.pbrs.small_id_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            pbrs::Serialize::encode(&case.pbrs_id, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.pbrs.small_name80_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            pbrs::Serialize::encode(&case.pbrs_name80, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.pbrs.small_empty_decode" => black_box(
+            pbrs_cases::Empty::parse(&case.small_empty_wire)
+                .expect("dec")
+                .compute_size(),
+        ),
+        "codec.pbrs.small_id_decode" => black_box(
+            pbrs_cases::Id::parse(&case.small_id_wire)
+                .expect("dec")
+                .id() as u64,
+        ),
+        "codec.pbrs.small_name80_decode" => black_box(
+            pbrs_cases::Name::parse(&case.small_name80_wire)
+                .expect("dec")
+                .name()
+                .as_bytes()
+                .len() as u64,
+        ),
+        "codec.prost.small_empty_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            prost::Message::encode(&case.prost_empty, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.prost.small_id_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            prost::Message::encode(&case.prost_id, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.prost.small_name80_encode" => {
+            let mut out = case.small_scratch.borrow_mut();
+            out.clear();
+            prost::Message::encode(&case.prost_name80, &mut *out).expect("enc");
+            black_box(out.len() as u64)
+        }
+        "codec.prost.small_empty_decode" => black_box(
+            <ProstEmpty as prost::Message>::decode(case.small_empty_wire.as_slice())
+                .expect("dec")
+                .eq(&case.prost_empty) as u64,
+        ),
+        "codec.prost.small_id_decode" => black_box(
+            <ProstId as prost::Message>::decode(case.small_id_wire.as_slice())
+                .expect("dec")
+                .id as u64,
+        ),
+        "codec.prost.small_name80_decode" => black_box(
+            <ProstName as prost::Message>::decode(case.small_name80_wire.as_slice())
+                .expect("dec")
+                .name
+                .len() as u64,
+        ),
         "codec.prost.fresh_encode" => {
             let mut buf = Vec::new();
             prost013::Message::encode(&case.prost_fresh[i], &mut buf).expect("enc");
@@ -646,10 +781,22 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
         ("codec.pbrs.unpacked_256_parse_touch", "pbrs"),
         ("codec.pbrs.tags_32_owned_decode", "pbrs"),
         ("codec.pbrs.tags_32_parse_touch", "pbrs"),
+        ("codec.pbrs.small_empty_encode", "pbrs"),
+        ("codec.pbrs.small_empty_decode", "pbrs"),
+        ("codec.pbrs.small_id_encode", "pbrs"),
+        ("codec.pbrs.small_id_decode", "pbrs"),
+        ("codec.pbrs.small_name80_encode", "pbrs"),
+        ("codec.pbrs.small_name80_decode", "pbrs"),
         ("codec.prost.fresh_encode", "prost"),
         ("codec.prost.cached_encode", "prost"),
         ("codec.prost.owned_decode", "prost"),
         ("codec.prost.parse_touch", "prost"),
+        ("codec.prost.small_empty_encode", "prost"),
+        ("codec.prost.small_empty_decode", "prost"),
+        ("codec.prost.small_id_encode", "prost"),
+        ("codec.prost.small_id_decode", "prost"),
+        ("codec.prost.small_name80_encode", "prost"),
+        ("codec.prost.small_name80_decode", "prost"),
         ("codec.v4.fresh_encode", "v4-upb"),
         ("codec.v4.cached_encode", "v4-upb"),
         ("codec.v4.owned_decode", "v4-upb"),
@@ -1511,8 +1658,7 @@ fn parse_callgrind_instructions(stderr: &str) -> Option<f64> {
     stderr.lines().find_map(|line| {
         let line = line.trim();
         line.split_once("I   refs:").and_then(|(_, rest)| {
-            rest.trim()
-                .split_whitespace()
+            rest.split_whitespace()
                 .next()
                 .and_then(|n| n.replace(',', "").parse::<f64>().ok())
         })

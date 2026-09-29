@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let proto = manifest.join("proto/echo.proto");
     println!("cargo:rerun-if-changed={}", proto.display());
     tonic_prost_build::configure()
@@ -21,4 +22,13 @@ fn main() {
         .emit_kernel_stubs(true)
         .compile_protos(&[&blob], &[&manifest.join("proto")])
         .expect("pbrs blob.proto codegen");
+
+    let cases = manifest.join("../../proto/codec_cases.proto");
+    let cases_out = out.join("pbrs_cases");
+    std::fs::create_dir_all(&cases_out).expect("create pbrs cases out dir");
+    println!("cargo:rerun-if-changed={}", cases.display());
+    pbrs::codegen::Config::new()
+        .out_dir(&cases_out)
+        .compile_protos(&[&cases], &[&manifest.join("../../proto")])
+        .expect("pbrs codec_cases.proto codegen");
 }

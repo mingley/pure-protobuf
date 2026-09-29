@@ -223,16 +223,6 @@ pub fn validate_varints(buf: &[u8]) -> Result<(), ParseError> {
     let mut i = 0;
     let n = buf.len();
     while i < n {
-        while n - i >= 8 {
-            let chunk = u64::from_ne_bytes(buf[i..i + 8].try_into().unwrap());
-            if chunk & 0x8080_8080_8080_8080 != 0 {
-                break;
-            }
-            i += 8;
-        }
-        if i == n {
-            break;
-        }
         let b = buf[i];
         i += 1;
         if b < 0x80 {

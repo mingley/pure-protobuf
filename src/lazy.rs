@@ -163,6 +163,10 @@ pub enum LazyStr {
 impl LazyStr {
     /// Matches [`ProtoString`] SSO. Inline copies do not keep a [`Wire`].
     const INLINE: usize = 23;
+    /// Near-whole medium strings are cheaper as owned `ProtoString` heaps than
+    /// as `Arc<[u8]>` wire windows; multi-field medium strings still share the
+    /// parent frame below.
+    const MEDIUM_OWNED_WHOLE: usize = 256;
 
     pub fn owned(s: ProtoString) -> Self {
         if s.is_empty() {
@@ -211,6 +215,11 @@ impl LazyStr {
         let s = &data[rel_start..rel_end];
         if s.len() <= Self::INLINE {
             require_utf8(s)?;
+            return Ok(Self::from_bytes(s));
+        }
+        if s.len() <= Self::MEDIUM_OWNED_WHOLE && s.len().saturating_add(8) >= data.len() {
+            require_utf8(s)?;
+            let _ = slot;
             return Ok(Self::from_bytes(s));
         }
         if s.len().saturating_add(8) >= data.len() {
@@ -799,15 +808,25 @@ mod tests {
     }
 
     #[test]
-    fn from_parse_span_long_copies_payload_not_parent() {
+    fn from_parse_span_near_whole_medium_owns_payload() {
         let data = [b'x'; 24];
         let mut slot = None;
         let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len()).unwrap();
         assert_eq!(s.as_bytes(), &data);
         assert!(
             slot.is_none(),
-            "len > 23 copies the payload once; does not Wire::ensure the parent"
+            "near-whole medium string does not Wire::ensure the parent"
         );
+        assert!(matches!(s, LazyStr::Owned(_)));
+    }
+
+    #[test]
+    fn from_parse_span_large_near_whole_copies_payload_wire() {
+        let data = [b'x'; 4096];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len()).unwrap();
+        assert_eq!(s.as_bytes(), &data);
+        assert!(slot.is_none());
         assert!(matches!(s, LazyStr::Wire(_)));
     }
 
