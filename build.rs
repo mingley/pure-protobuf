@@ -11,6 +11,10 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
+    if std::env::var_os("CARGO_FEATURE_CONFORMANCE").is_none() {
+        println!("cargo:rerun-if-changed=build.rs");
+        return;
+    }
     println!("cargo:rerun-if-changed=proto/person.proto");
     println!("cargo:rerun-if-changed=third_party/protobuf");
     println!("cargo:rerun-if-changed=vendor/google/conformance_fds.bin");

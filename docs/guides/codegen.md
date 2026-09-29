@@ -22,6 +22,30 @@ pbrs-grpc = "0.1.0-alpha.2"
 pbrs = "0.2"
 ```
 
+### Cargo features
+
+The default `pbrs` feature set is source-compatible with earlier releases: it
+includes `codegen`, `reflect`, `json`, `text`, and the bundled conformance
+gencode. Use that default when you run `pbrs::codegen` from `build.rs` and also
+compile generated code in the same crate.
+
+For split runtime/build setups, keep code generation on the build-dependency and
+trim the runtime dependency:
+
+```toml
+[dependencies]
+pbrs = { version = "0.2", default-features = false, features = ["json", "text"] }
+
+[build-dependencies]
+pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
+```
+
+`json` and `text` imply `reflect`, which current generated files need for
+descriptor-backed format helpers. A runtime crate that only uses the core
+binary wire API can depend on `pbrs = { version = "0.2", default-features =
+false }`; that profile does not compile the generator, descriptor pool, JSON,
+text, or bundled conformance gencode.
+
 ### Basic Compilation
 
 Compile your `.proto` files during the build:

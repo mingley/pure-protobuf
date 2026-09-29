@@ -63,6 +63,19 @@ name = "conformance"
 path = "src/bin/conformance.rs"
 
 [features]
+default = ["codegen", "conformance", "json", "reflect", "text"]
+# Build-time generator APIs (`pbrs::codegen`). This includes descriptor
+# parsing, but not JSON/text runtime helpers unless those features are
+# selected separately.
+codegen = ["reflect"]
+# Bundled conformance/WKT generated messages and the conformance binary support.
+conformance = ["json", "reflect", "text"]
+# Runtime descriptor pool and DynamicMessage.
+reflect = []
+# ProtoJSON support for DynamicMessage and generated field-wise helpers.
+json = ["reflect", "dep:serde", "dep:serde_json"]
+# Text-format support for DynamicMessage and generated field-wise helpers.
+text = ["reflect"]
 # Bench-only user-space copy counters (SB-13). Off by default; every
 # note call compiles to nothing without it. Bench binaries only.
 copy-counts = []
@@ -70,8 +83,8 @@ copy-counts = []
 [dependencies]
 bytes = "1"
 paste = "1.0"
-serde = "1.0"
-serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", features = ["arbitrary_precision"], optional = true }
 simdutf8 = "0.1"
 
 [dev-dependencies]

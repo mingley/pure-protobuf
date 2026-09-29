@@ -33,6 +33,7 @@ extern crate self as pbrs;
 #[doc(hidden)]
 pub use paste as __paste;
 
+#[cfg(feature = "reflect")]
 pub use crate::dynamic::{
     Cardinality, DescriptorOption, DescriptorPool, DynamicMessage, DynamicMessageMut,
     DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, FileDescriptor, MapKeyValue,
@@ -64,14 +65,19 @@ pub mod __internal {
     pub use crate::runtime;
 }
 
+#[cfg(feature = "codegen")]
 pub mod codegen;
 pub mod copy_counts;
+#[cfg(feature = "reflect")]
 mod dynamic;
 mod error;
 pub mod gen_support;
+#[cfg(feature = "conformance")]
 pub mod gencode;
+#[cfg(feature = "conformance")]
 mod generated;
 mod internal;
+#[cfg(feature = "json")]
 pub mod json;
 mod lazy;
 mod map;
@@ -84,6 +90,7 @@ pub mod rt;
 pub mod runtime;
 mod string;
 pub mod testdata;
+#[cfg(feature = "text")]
 pub mod text;
 mod wire;
 

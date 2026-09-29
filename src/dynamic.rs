@@ -715,6 +715,7 @@ impl DescriptorPool {
         self.enums.keys().cloned().collect()
     }
 
+    #[cfg(feature = "codegen")]
     pub(crate) fn public_import_files(&self, targets: &[String]) -> Vec<String> {
         let mut out = Vec::new();
         for t in targets {
@@ -989,6 +990,7 @@ impl DynamicMessage {
         &self.desc
     }
 
+    #[cfg(any(feature = "json", feature = "text"))]
     pub(crate) fn raw_fields(&self) -> &BTreeMap<u32, FieldValue> {
         &self.fields
     }
@@ -1078,14 +1080,17 @@ impl DynamicMessage {
         self.clear_field(number);
     }
 
+    #[cfg(feature = "json")]
     pub fn to_json(&self) -> Result<String, SerializeError> {
         crate::json::encode(self)
     }
 
+    #[cfg(feature = "json")]
     pub fn from_json(desc: Arc<MessageDescriptor>, json: &str) -> Result<Self, ParseError> {
         crate::json::decode(desc, json, false, None)
     }
 
+    #[cfg(feature = "json")]
     pub fn from_json_ignore_unknown(
         desc: Arc<MessageDescriptor>,
         json: &str,
@@ -1093,6 +1098,7 @@ impl DynamicMessage {
         crate::json::decode(desc, json, true, None)
     }
 
+    #[cfg(feature = "json")]
     pub fn from_json_with_pool(
         desc: Arc<MessageDescriptor>,
         pool: Option<Arc<DescriptorPool>>,
@@ -1102,18 +1108,22 @@ impl DynamicMessage {
         crate::json::decode(desc, json, ignore_unknown, pool)
     }
 
+    #[cfg(feature = "text")]
     pub fn to_text(&self) -> Result<String, SerializeError> {
         crate::text::encode(self)
     }
 
+    #[cfg(feature = "text")]
     pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
         crate::text::encode_with_unknown(self)
     }
 
+    #[cfg(feature = "text")]
     pub fn from_text(desc: Arc<MessageDescriptor>, text: &str) -> Result<Self, ParseError> {
         crate::text::decode(desc, text)
     }
 
+    #[cfg(feature = "text")]
     pub fn from_text_with_pool(
         desc: Arc<MessageDescriptor>,
         pool: Option<Arc<DescriptorPool>>,

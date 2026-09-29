@@ -526,13 +526,30 @@ def resolve_pinned_protoc() -> Path:
         version = subprocess.check_output(
             [str(candidate), "--version"], text=True, timeout=30,
         ).strip()
+        help_text = subprocess.check_output(
+            [str(candidate), "--help"], text=True, timeout=30,
+        )
     except subprocess.SubprocessError as exc:
         raise BenchmarkError(f"pinned protoc --version failed: {exc}") from exc
     digest = sha256(candidate)
-    if version != "libprotoc 35.1" or digest != REFERENCE_PROTOC_SHA256:
+    if version != "libprotoc 35.1" or "--rust_out=OUT_DIR" not in help_text:
         raise BenchmarkError(
-            "pinned protoc is not v35.1 "
+            "pinned protoc is not v35.1 Rust generator "
             f"(version={version!r} sha256={digest}); run scripts/build-pinned-protoc.sh"
+        )
+    try:
+        source_head = subprocess.check_output(
+            ["git", "-C", str(ROOT / "third_party" / "protobuf"), "rev-parse", "HEAD"],
+            text=True,
+            timeout=30,
+        ).strip()
+    except subprocess.SubprocessError as exc:
+        raise BenchmarkError(f"pinned protobuf source check failed: {exc}") from exc
+    if source_head != REFERENCE_REVISION:
+        raise BenchmarkError(
+            "pinned protoc is not v35.1 Rust generator "
+            f"(version={version!r} sha256={digest} source={source_head}); "
+            "run scripts/build-pinned-protoc.sh"
         )
     return candidate
 
@@ -1566,8 +1583,6 @@ def timed_command(
             stop.set()
             sampler.join()
         elapsed_ns = time.perf_counter_ns() - started
-    if sampling_errors:
-        raise BenchmarkError(f"{sampling_errors[0]}; logs: {paths}")
     direct_peak = parse_time_rss(stderr.read_text(encoding="utf-8", errors="replace"), system)
     sampled_peak = max(samples) if samples else None
     return {
@@ -1578,6 +1593,7 @@ def timed_command(
         "direct_command_peak_rss_bytes": direct_peak,
         "process_tree_sample_peak_rss_bytes": sampled_peak,
         "process_tree_samples": len(samples),
+        "process_tree_sampling_error": sampling_errors[0] if sampling_errors else None,
         "rss_peak_is_lower_bound": True,
         **paths,
     }
@@ -2014,7 +2030,7 @@ def measure_pbrs_cell(
     report: dict, case: str, names: list[str], corpus: dict, rep: int,
     case_dir: Path, pbrs_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
-    reference_protoc: Path | None,
+    reference_protoc: Path | None, generation_only: bool,
 ) -> None:
     consumer = case_dir / "consumer"
     generated = consumer / "generated"
@@ -2072,6 +2088,8 @@ def measure_pbrs_cell(
         "unchanged_generation_verified_files": len(before),
     }
     write_report(report, run_dir)
+    if generation_only:
+        return
     measure_consumer_build(
         report, cell, case, consumer, target_dir, package, False, cargo, check_env,
         run_dir, timeout, sample_ms, logs,
@@ -2093,6 +2111,7 @@ def measure_peer_cell(
     report: dict, case: str, names: list[str], corpus: dict, generator: str, rep: int,
     case_dir: Path, generator_binary: Path, cargo: str, protoc: str,
     base_env: dict[str, str], run_dir: Path, timeout: int, sample_ms: int,
+    generation_only: bool,
 ) -> None:
     if case in REALISTIC_CORPORA:
         messages = len(realistic_entries(case))
@@ -2196,6 +2215,8 @@ def measure_peer_cell(
             "unchanged_generation_rewritten_files": rewritten,
         }
     write_report(report, run_dir)
+    if generation_only:
+        return
     measure_consumer_build(
         report, cell, case, consumer, target_dir, package, False, cargo, check_env,
         run_dir, timeout, sample_ms, logs, generator=generator, messages=messages,
@@ -2311,11 +2332,12 @@ MATRIX_PHASE_METRICS = ("elapsed_ns", "peak_rss_bytes")
 
 
 def matrix_metrics(cell: dict) -> dict[str, int]:
-    metrics = {
-        "output.rust_bytes": cell["output"]["rust_bytes"],
-        "release_binary.size_bytes": cell["release_binary"]["size_bytes"],
-    }
+    metrics = {"output.rust_bytes": cell["output"]["rust_bytes"]}
+    if "release_binary" in cell:
+        metrics["release_binary.size_bytes"] = cell["release_binary"]["size_bytes"]
     for phase_name in MATRIX_PHASES:
+        if phase_name not in cell["phases"]:
+            continue
         for metric in MATRIX_PHASE_METRICS:
             metrics[f"{phase_name}.{metric}"] = cell["phases"][phase_name][metric]
     return metrics
@@ -2425,7 +2447,7 @@ def run_cases(
     report: dict, run_dir: Path, cases: list[str], seed: int, jobs: int, timeout: int,
     sample_ms: int, reference_protoc: Path | None = None,
     generators: tuple[str, ...] = ("pbrs",), repeats: int = 5,
-    stub_generators: tuple[str, ...] = ("pbrs-native",),
+    stub_generators: tuple[str, ...] = ("pbrs-native",), generation_only: bool = False,
 ) -> None:
     unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
     if unknown:
@@ -2436,6 +2458,7 @@ def run_cases(
     if repeats < 1:
         raise BenchmarkError(f"repeats must be at least 1, got {repeats}")
     details = provenance(run_dir, jobs, sample_ms, reference_protoc)
+    details.setdefault("measurement", {})["generation_only"] = generation_only
     report["environment"] = details
     report["generators"] = list(generators)
     report["stub_generators"] = list(stub_generators)
@@ -2573,13 +2596,13 @@ def run_cases(
             measure_pbrs_cell(
                 report, case, names, corpus, rep, case_dir, pbrs_binary,
                 cargo, protoc, base_env, run_dir, timeout, sample_ms,
-                reference_protoc,
+                reference_protoc, generation_only,
             )
         else:
             measure_peer_cell(
                 report, case, names, corpus, generator, rep, case_dir,
                 peer_drivers[generator], cargo, protoc, base_env,
-                run_dir, timeout, sample_ms,
+                run_dir, timeout, sample_ms, generation_only,
             )
 
     before = details["repository"]["source_sha256"]
@@ -2673,6 +2696,10 @@ def main(argv: list[str] | None = None) -> int:
         "--stub-generators", default="pbrs-native",
         help=f"comma-separated stub generators for svc cases: {','.join(STUB_GENERATORS)}",
     )
+    parser.add_argument(
+        "--generation-only", action="store_true",
+        help="measure generation and unchanged-output verification only; skip cargo check/build phases",
+    )
     args = parser.parse_args(argv)
     generators = tuple(part for part in args.generators.split(",") if part)
     unknown = [name for name in generators if name not in MESSAGE_GENERATORS]
@@ -2749,6 +2776,8 @@ def main(argv: list[str] | None = None) -> int:
     }
     if len(cases) != len(CORPORA) + len(STUB_CORPORA) + len(REALISTIC_CORPORA):
         report["qualification"]["reasons"].append("partial_corpus_matrix")
+    if args.generation_only:
+        report["qualification"]["reasons"].append("generation_only")
     write_report(report, run_dir)
     if args.require_qualified:
         report["status"] = "unqualified"
@@ -2758,10 +2787,16 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
     try:
+        run_kwargs = {
+            "generators": generators,
+            "repeats": args.repeats,
+            "stub_generators": stub_generators,
+        }
+        if args.generation_only:
+            run_kwargs["generation_only"] = True
         run_cases(
             report, run_dir, cases, args.seed, args.jobs, args.timeout_seconds, args.rss_sample_ms,
-            args.reference_protoc, generators=generators, repeats=args.repeats,
-            stub_generators=stub_generators,
+            args.reference_protoc, **run_kwargs,
         )
     except (BenchmarkError, OSError, subprocess.CalledProcessError,
             subprocess.TimeoutExpired, ValueError) as exc:
