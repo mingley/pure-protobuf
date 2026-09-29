@@ -4866,7 +4866,8 @@
     "C7"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 DONE as tests-only disproof (9583ea98): two independent passes agree no effective C6/C7 lever exists in channel.rs/tcp.rs scope. C6 beats tonic pre-existing (~83.8K vs ~104.3K bytes/held-conn, unchanged); C7 trails ~40-60us with the gap in pool::finish_h2 SETTINGS wait (totals-neutral) + ~40us call.rs RPC leg, both outside write scope. Dial fast paths measured (~0.2us/dial, below significance) and reverted; kept tests lock semantics. Follow-ups: C7 pool/transport pipelining needs a new card (proposed CL-06b, not yet minted); RPC-leg gap is RX-09 scope (active). Accept clause C7-improves NOT met in this scope by measurement, not by omission."
   },
   {
    "id": "SV-01",
