@@ -1,0 +1,5 @@
+shared-consumers	Run original shared consumer tests (19 crates)	2026-09-29T18:53:31.7934391Z Runtime target:         pbrs v0.2.0 (remapped as protobuf) @ c89608bd2073f2fa7e7d30d7299b1fd08466904c
+shared-consumers	Run original shared consumer tests (19 crates)	2026-09-29T18:54:24.4674280Z   Crates tested: 19 / 19
+shared-consumers	Run original shared consumer tests (19 crates)	2026-09-29T18:54:24.4674608Z   Total passed:  233
+shared-consumers	Run original shared consumer tests (19 crates)	2026-09-29T18:54:24.4674835Z   Total failed:  0
+shared-consumers	Run original shared consumer tests (19 crates)	2026-09-29T18:54:24.4676024Z SUCCESS: All 19 original upstream shared test crates passed against pbrs.

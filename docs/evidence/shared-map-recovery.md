@@ -54,16 +54,33 @@ numbers without constructing an invalid value under Miri.
 
 ## Qualification
 
-The working implementation passed all 19 original crates (233 tests), plus
-three additional generated-API regressions, in ordinary execution and under
-Miri. Core tests passed 93 library, 38 native shared, 26 runtime, and 18 kernel
-tests. Warning-strict Clippy and rustdoc passed. Broader Miri also exposed two
+Committed source `c89608bd2073f2fa7e7d30d7299b1fd08466904c` passed all 19
+original crates (233 tests), plus three additional generated-API regressions,
+in ordinary execution and under Miri. The exact-source rerun used a clean
+detached worktree at `/Users/mingley/dev/pure-protobuf-qg05-qualification-20260929`.
+Core tests passed 93 library, 38 native shared, 26 runtime, and 18 kernel tests.
+The exact-source Miri rerun also passed all 93 library, 26 runtime, and 18 kernel
+tests with strict provenance and leak checking enabled. Warning-strict Clippy
+and rustdoc passed. Broader preliminary Miri exposed two
 preexisting test-only scratch MiniTables that were never freed; the kernel
 fixtures now reclaim their owned tables after the assertions without disabling
 leak checking or changing runtime MiniTable ownership.
-These preliminary runs used a tracked-dirty integration worktree; they are not
-yet an exact-SHA qualification. The committed-source rerun will be recorded
-here before QG-05 is marked complete.
+
+The retained [summary JSON](shared-map-recovery/summary-c89608bd.json) records
+the source SHA, clean-worktree checks before and after execution, exact commands
+and environment, toolchain/compiler identity, per-suite results, and SHA-256
+hashes for all seven retained transcripts. The
+[normal shared log](shared-map-recovery/shared-c89608bd.txt),
+[Miri shared log](shared-map-recovery/miri-shared-c89608bd.txt), and
+[Miri core log](shared-map-recovery/miri-core-c89608bd.txt) retain the complete
+test results. These committed-source results supersede the preliminary runs
+from the dirty integration worktree.
+
+The exact same SHA also passed the Linux
+[compatibility run](https://github.com/mingley/pure-protobuf/actions/runs/36615248310):
+the `shared-consumers` job reports 19/19 crates, 233 passed, zero failed.
+Its upstream-drift, upstream-cases, and gRFC-drift jobs passed; fuzz-campaign,
+target-matrix, and miri-sanitizers were skipped and provide no coverage claim.
 
 Toolchains: `rustc 1.98.1 (48a229cea 2026-09-01)`,
 `cargo 1.98.1 (797e8a9bc 2026-08-05)`,
@@ -108,5 +125,5 @@ Original consumer counts, identical in ordinary execution and Miri:
 | utf8_test | 3 |
 | **Total: 19 crates** | **233** |
 
-This is local macOS qualification; it makes no Linux sanitizer, 32-bit,
+This includes local macOS qualification and Linux shared-consumer CI; it makes no Linux sanitizer, 32-bit,
 big-endian, or sustained fuzzing claim.

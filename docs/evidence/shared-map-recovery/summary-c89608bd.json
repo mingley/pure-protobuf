@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "task": "QG-05",
+  "outcome": "passed",
+  "date": "2026-09-29",
+  "source_sha": "c89608bd2073f2fa7e7d30d7299b1fd08466904c",
+  "source_worktree": "/Users/mingley/dev/pure-protobuf-qg05-qualification-20260929",
+  "source_clean_before": true,
+  "source_clean_after": true,
+  "platform": "aarch64-apple-darwin",
+  "rustc": "1.98.1 (48a229cea 2026-09-01)",
+  "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+  "nightly_cargo": "1.100.0-nightly (e8cb624d5 2026-08-22)",
+  "miri": "0.1.0 (e7769602ac 2026-08-24)",
+  "environment": {
+    "PATH_prefix": "/opt/homebrew/bin",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TERM_COLOR": "never",
+    "CARGO_TARGET_DIR_normal": "/Users/mingley/dev/pure-protobuf-audit-20260929/target/qg05-exact",
+    "CARGO_TARGET_DIR_miri": "/Users/mingley/dev/pure-protobuf-audit-20260929/target/qg05-miri",
+    "MIRIFLAGS": "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+  },
+  "upstream": {
+    "pin": "v35.1",
+    "sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+    "source_clean": true,
+    "protoc": "/Users/mingley/dev/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "protoc_version": "libprotoc 35.1",
+    "protoc_sha256": "e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940",
+    "generator_flags": "--rust_out --rust_opt=experimental-codegen=enabled,kernel=upb"
+  },
+  "original_consumer_crates": 19,
+  "original_consumer_tests": 233,
+  "additional_generated_regressions": 3,
+  "checks": [
+    {
+      "name": "shared",
+      "command": "bash scripts/test-rust-out-shared.sh",
+      "exit_code": 0,
+      "log": "shared-c89608bd.txt",
+      "sha256": "a3bd8e23556d7137cd72e525bd316a76bd22244695e5841d823ebc09d4da1dd4",
+      "test_suites": {
+        "lib": {
+          "passed": 3,
+          "failed": 0
+        },
+        "accessors_map_test": {
+          "passed": 35,
+          "failed": 0
+        },
+        "accessors_proto3_test": {
+          "passed": 16,
+          "failed": 0
+        },
+        "accessors_repeated_test": {
+          "passed": 29,
+          "failed": 0
+        },
+        "accessors_test": {
+          "passed": 50,
+          "failed": 0
+        },
+        "bad_names_test": {
+          "passed": 5,
+          "failed": 0
+        },
+        "child_parent_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "edition2023_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "enum_test": {
+          "passed": 17,
+          "failed": 0
+        },
+        "fields_with_imported_types_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "import_public_test": {
+          "passed": 1,
+          "failed": 0
+        },
+        "message_copy_merge_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "message_generics_test": {
+          "passed": 7,
+          "failed": 0
+        },
+        "nested_types_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "package_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "proto_macro_test": {
+          "passed": 9,
+          "failed": 0
+        },
+        "serialization_test": {
+          "passed": 30,
+          "failed": 0
+        },
+        "simple_nested_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "threading_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "utf8_test": {
+          "passed": 3,
+          "failed": 0
+        }
+      },
+      "passed": 236,
+      "failed": 0
+    },
+    {
+      "name": "core",
+      "command": "cargo test --locked -p pbrs --lib --test runtime --test upb_kernel --test google_shared",
+      "exit_code": 0,
+      "log": "core-c89608bd.txt",
+      "sha256": "99a1ea76a6464158696e6f1979c0c1037eea6460193caa450b0d37e31dace6b1",
+      "test_suites": {
+        "lib": {
+          "passed": 93,
+          "failed": 0
+        },
+        "google_shared": {
+          "passed": 38,
+          "failed": 0
+        },
+        "runtime": {
+          "passed": 26,
+          "failed": 0
+        },
+        "upb_kernel": {
+          "passed": 18,
+          "failed": 0
+        }
+      },
+      "passed": 175,
+      "failed": 0
+    },
+    {
+      "name": "miri-shared",
+      "command": "cargo +nightly miri test --locked --offline --manifest-path rust_out_shared/Cargo.toml -- --test-threads=1",
+      "exit_code": 0,
+      "log": "miri-shared-c89608bd.txt",
+      "sha256": "edfecf14f5db02506abaef52801c62eb7dae46769d7e69b27dbda5013786c5b2",
+      "test_suites": {
+        "lib": {
+          "passed": 3,
+          "failed": 0
+        },
+        "accessors_map_test": {
+          "passed": 35,
+          "failed": 0
+        },
+        "accessors_proto3_test": {
+          "passed": 16,
+          "failed": 0
+        },
+        "accessors_repeated_test": {
+          "passed": 29,
+          "failed": 0
+        },
+        "accessors_test": {
+          "passed": 50,
+          "failed": 0
+        },
+        "bad_names_test": {
+          "passed": 5,
+          "failed": 0
+        },
+        "child_parent_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "edition2023_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "enum_test": {
+          "passed": 17,
+          "failed": 0
+        },
+        "fields_with_imported_types_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "import_public_test": {
+          "passed": 1,
+          "failed": 0
+        },
+        "message_copy_merge_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "message_generics_test": {
+          "passed": 7,
+          "failed": 0
+        },
+        "nested_types_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "package_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "proto_macro_test": {
+          "passed": 9,
+          "failed": 0
+        },
+        "serialization_test": {
+          "passed": 30,
+          "failed": 0
+        },
+        "simple_nested_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "threading_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "utf8_test": {
+          "passed": 3,
+          "failed": 0
+        }
+      },
+      "passed": 236,
+      "failed": 0
+    },
+    {
+      "name": "miri-core",
+      "command": "cargo +nightly miri test --locked --offline -p pbrs --lib --test runtime --test upb_kernel -- --test-threads=1",
+      "exit_code": 0,
+      "log": "miri-core-c89608bd.txt",
+      "sha256": "c74eb22a812e2b66e6278cb58b442d0f0d03a6c19ca08eab8b3914e511820211",
+      "test_suites": {
+        "lib": {
+          "passed": 93,
+          "failed": 0
+        },
+        "runtime": {
+          "passed": 26,
+          "failed": 0
+        },
+        "upb_kernel": {
+          "passed": 18,
+          "failed": 0
+        }
+      },
+      "passed": 137,
+      "failed": 0
+    },
+    {
+      "name": "clippy",
+      "command": "cargo clippy --locked -p pbrs --lib --test upb_kernel -- -D warnings",
+      "exit_code": 0,
+      "log": "clippy-c89608bd.txt",
+      "sha256": "4a40c1e516a9ddaf0e7525fd44cff292ae77dc8abb9f4913ff648c244a1b1167",
+      "test_suites": {},
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "rustdoc",
+      "command": "RUSTDOCFLAGS='-D warnings' cargo doc --locked -p pbrs --no-deps",
+      "exit_code": 0,
+      "log": "rustdoc-c89608bd.txt",
+      "sha256": "518043ebcc8ed56cbcecd158389a4b02534b740105766ae8d20968eae45b7fbb",
+      "test_suites": {},
+      "passed": 0,
+      "failed": 0
+    }
+  ],
+  "linux_compatibility_ci": {
+    "run": 36615248310,
+    "url": "https://github.com/mingley/pure-protobuf/actions/runs/36615248310",
+    "head_sha": "c89608bd2073f2fa7e7d30d7299b1fd08466904c",
+    "conclusion": "success",
+    "shared_consumers": {
+      "crates": 19,
+      "passed": 233,
+      "failed": 0,
+      "log": "ci-shared-c89608bd.txt",
+      "sha256": "f8094b666bf230f875b5b28e1ba07816a1396877948883dba883d938201d7847"
+    },
+    "other_passing_jobs": [
+      "upstream-drift",
+      "upstream-cases",
+      "grfc-drift"
+    ],
+    "skipped_jobs": [
+      "fuzz-campaign",
+      "target-matrix",
+      "miri-sanitizers"
+    ]
+  },
+  "limitations": [
+    "No Linux sanitizer qualification",
+    "No 32-bit or big-endian qualification",
+    "No sustained fuzzing qualification"
+  ]
+}

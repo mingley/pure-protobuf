@@ -496,6 +496,19 @@ PB-07 harness smoke (2026-09-29, not a campaign): the `wire` target built under 
 
 ---
 
+### 6.4 Enum collection recovery qualification (QG-05)
+
+On 2026-09-29, clean detached source `c89608bd2073f2fa7e7d30d7299b1fd08466904c`
+passed Miri with `-Zmiri-disable-isolation -Zmiri-strict-provenance` on macOS
+arm64: all 19 original shared suites (233 tests), three additional generated
+enum-collection regressions, 93 core library tests, 26 runtime tests, and 18
+kernel tests. Both closed-enum fixtures exercise rejection of invalid Rust
+discriminants; no leak checks were disabled. The same source passed the Linux
+original-shared-consumer CI gate. Exact commands, pinned compiler identity,
+per-suite results, and hashed transcripts are retained in the
+[recovery report](evidence/shared-map-recovery.md). This proof does not qualify
+Linux sanitizers, 32-bit/big-endian targets, or sustained fuzzing.
+
 ## 7. New Kernels and Engines Policy (QG-01)
 
 The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04), and SIMD/table parse kernels (PK-04/PK-06) land under stricter rules than the historical code above because their `unsafe` has no production track record yet:

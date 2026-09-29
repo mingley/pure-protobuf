@@ -7103,9 +7103,18 @@
     "rpc-bench/scenarios/claims.json",
     "bench/stack-matrix/scenarios/",
     "rpc-bench/src/worker/",
+    "rpc-bench/src/worker_client.rs",
+    "rpc-bench/src/load.rs",
+    "rpc-bench/tests/worker.rs",
     "bench/stack-matrix/run.py",
+    "bench/stack-matrix/frozen.py",
     "scripts/grpc-qps-interop.sh",
-    "tests/interop/test_qps_proof.py"
+    "scripts/qps-proof.py",
+    "tests/interop/test_qps_proof.py",
+    "docs/benchmark-contract.md",
+    "rpc-bench/README.md",
+    "docs/evidence/sb21-claims-scenarios.md",
+    "docs/evidence/sb21-accounting-smoke.json"
    ],
    "deliverable": "Define open-loop, contract-duration (15 s warmup, 60 s measurement, paired randomized runs) variants of the SB-10 official scenarios and the SB-17 grpc_bench workload, with offered-load and failure accounting, so E1/E2 claims do not rely on closed-loop diagnostic runs.",
    "accept": [
@@ -7126,7 +7135,7 @@
    "evidence": [
     "docs/evidence/sb21-claims-scenarios.md"
    ],
-   "notes": "Audit 2026-09-29: scenario definitions landed, but the second acceptance item is not met. Finish scheduled-send-to-completion latency, loading frozen scenario files in run.py, and independent randomized peer order per repeat. Existing evidence explicitly lists these omissions.",
+   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate. Keep open for equivalent reference arrival schedules/independent accounting and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag.",
    "implementer": "sb21_claim_accounting",
    "reviewer": "coordinator"
   },
@@ -8621,7 +8630,9 @@
     "scripts/perf-report.py",
     "tests/test_perf_report.py",
     "tests/test_devloop_wrapper.py",
-    "bench/devloop/README.md"
+    "bench/devloop/README.md",
+    "bench/devloop/src/main.rs",
+    "bench/devloop/src/counters.rs"
    ],
    "deliverable": "Fix the red dev-loop perf lane: offline resolve of the protobuf =4.35.1-release pin during cargo fetch/build, and make the build/compare steps non-fatal per the non-blocking design so base/head JSONs always upload.",
    "accept": [
@@ -8733,7 +8744,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "depends_on": [],
    "read": [
     "docs/audit-2026-09-29.md",
@@ -8757,7 +8768,8 @@
     "rust_out_shared/src/lib.rs",
     "rust_out_shared/src/enum_map_regression.rs",
     "docs/unsafe-invariants.md",
-    "docs/evidence/shared-map-recovery.md"
+    "docs/evidence/shared-map-recovery.md",
+    "docs/evidence/shared-map-recovery/"
    ],
    "deliverable": "Repair generated enum-map and repeated-enum access with a sound typed conversion contract; restore original shared consumers without weakening assertions.",
    "accept": [
@@ -8775,7 +8787,9 @@
     "F6"
    ],
    "evidence": [
-    "Baseline 37683917: https://github.com/mingley/pure-protobuf/actions/runs/36594563929 failed accessors_map_test (34 pass, 1 fail); only 1/19 crates ran."
+    "Baseline 37683917: https://github.com/mingley/pure-protobuf/actions/runs/36594563929 failed accessors_map_test (34 pass, 1 fail); only 1/19 crates ran.",
+    "c89608bd2073f2fa7e7d30d7299b1fd08466904c: clean exact-source ordinary/Miri runs pass 19 original crates (233 tests) plus 3 added regressions; core 93/shared38/runtime26/kernel18 pass, Miri core93/runtime26/kernel18 pass, strict Clippy and rustdoc pass. docs/evidence/shared-map-recovery/summary-c89608bd.json retains commands, hashes and transcripts.",
+    "Exact Linux compatibility CI passes: https://github.com/mingley/pure-protobuf/actions/runs/36615248310. No original assertions or exclusions changed."
    ],
    "implementer": "qg05_enum_maps",
    "reviewer": "coordinator"
@@ -8961,7 +8975,7 @@
    "priority": "P1",
    "executor": "small",
    "size": "S",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "DX-07"
    ],
@@ -8987,7 +9001,9 @@
     "docs-contract",
     "codegen"
    ],
-   "scoreboard": []
+   "scoreboard": [],
+   "implementer": "sb21_claim_accounting (guide follow-up)",
+   "reviewer": "coordinator"
   }
  ],
  "last_audit": {

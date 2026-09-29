@@ -1,0 +1,3 @@
+   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-qg05-qualification-20260929)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.80s

@@ -5,10 +5,12 @@ qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed
 `37683917`; [the queue](../TODO.md) names the next work.
 
 At that revision, ordinary workspace tests and conformance passed in CI, but
-warning-strict rustdoc and the original shared-consumer suite failed. This
-documentation update repairs the rustdoc links. The enum-map defect remains
-QG-05; do not read the historical passes below as a green current release.
-This page is not a production certification.
+warning-strict rustdoc and the original shared-consumer suite failed. The
+documentation repair landed in `deea5e3f`. The enum-map and repeated-enum
+repair landed in `c89608bd`; its [Linux compatibility run](https://github.com/mingley/pure-protobuf/actions/runs/36615248310)
+passes all 19 original consumer crates. See the
+[recovery evidence](evidence/shared-map-recovery.md) for the conversion contract
+and Miri coverage. These repairs are not a production certification.
 
 ## Recovery classification
 
@@ -62,9 +64,10 @@ listen+accept proof. Bind failure is not treated as success.
   `proto/person.proto` links against this crate as `protobuf` and
   parse -> serialize -> parse roundtrips (`rust_out_person/`).
 - `rust_out_shared` targets 19 original `rust/test/shared` consumer crates.
-  An older run passed; at `37683917`, `test_map_int32_enum` fails and the
-  runner stops after the first crate (34 pass, 1 fail). QG-05 restores this
-  gate. The additional suite exclusions are listed below.
+  At `37683917`, `test_map_int32_enum` failed and stopped the runner after the
+  first crate. At `c89608bd`, all 19 crates pass (233 original tests), with
+  three additional generated-API regressions. The original assertions are
+  unchanged. The additional suite exclusions are listed below.
 - Fixed-input parser smoke tests coexist with coverage-guided targets in
   `fuzz/`. The [2026-09-28 campaign](evidence/fuzz-2026-09-28.md) ran five
   targets for about five minutes each and found defects that were fixed.

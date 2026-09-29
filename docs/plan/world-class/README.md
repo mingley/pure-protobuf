@@ -21,7 +21,7 @@ current proof of correctness and performance across comparable peers.
 
 | Area | Current source and evidence | What to do next |
 |---|---|---|
-| Correctness | The baseline passes its ordinary workspace and conformance checks, but warning-strict rustdoc fails and the original shared-consumer run stops at an enum-map failure. | Fix documentation links in this audit; QG-05 restores all 19 upstream consumer crates. |
+| Correctness | The audit's rustdoc links are repaired. The enum-collection fix at `c89608bd` passes all 19 original consumer crates in Linux CI; [recovery evidence](../../evidence/shared-map-recovery.md) records Miri and regression coverage. | Preserve these gates and finish current-backend qualification; passing compatibility is not production certification. |
 | RPC efficiency | RX-09 landed allocation/header/telemetry changes. The earlier shared-runtime profiles are diagnostic and cannot attribute production CPU cost. | Measure the merged candidate and separate client/server Linux profiles before choosing the next optimization. |
 | Benchmark machinery | Fair tonic setup, worker thread controls, separate-process runners, codec peers and codegen matrices exist. | SB-21 closes scheduled-latency/accounting gaps; SB-24 makes required TLS/compression/shape cells comparable. |
 | Performance CI | The lane is advisory; local repair does not prove a successful CI comparison. | SB-23 retains real base/head artifacts; SB-20 selects thresholds after 30 comparable runs. |
