@@ -1878,7 +1878,7 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
             break;
         };
         match accepted {
-            Ok((io, _peer)) => {
+            Ok((io, peer_addr)) => {
                 let Some(permit) = take_connection_slot(&slots) else {
                     drop(io);
                     continue;
@@ -1893,7 +1893,7 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
                         serve_io(
                             dispatch,
                             io,
-                            ConnectionInfo::unix(cred),
+                            ConnectionInfo::unix(cred, Some(peer_addr)),
                             config,
                             goaway,
                             rpcs,

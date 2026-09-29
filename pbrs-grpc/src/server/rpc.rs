@@ -478,9 +478,10 @@ impl Rpc {
     /// Typed values an interceptor may attach for the handler.
     ///
     /// Distinct from [`Self::extensions_mut`]: that inserts typed values the handler will see; this borrows the map.
-    /// Empty until an [`crate::Interceptor`] (or wrapping [`Service`]) inserts
-    /// into [`Self::extensions_mut`]. Survives onto the [`Request`] the
-    /// handler receives.
+    /// Starts with tonic-style transport connect info when the server has it,
+    /// then any [`crate::Interceptor`] (or wrapping [`Service`]) may insert
+    /// more values through [`Self::extensions_mut`]. Survives onto the
+    /// [`Request`] the handler receives.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions

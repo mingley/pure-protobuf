@@ -6,7 +6,11 @@ use std::future::poll_fn;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-pub use crate::{Code, Request, Response, Status, StreamSender, Streaming};
+#[cfg(unix)]
+pub use crate::UdsConnectInfo;
+pub use crate::{
+    Code, Request, Response, Status, StreamSender, Streaming, TcpConnectInfo, TlsConnectInfo,
+};
 pub use futures_core::Stream as ResponseStream;
 
 /// Convert a value into a tonic-shaped unary request envelope.

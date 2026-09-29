@@ -11,6 +11,9 @@ use super::rpc::Rpc;
 use crate::config::ServerConfig;
 use crate::limits::ByteBudgetTracker;
 use crate::metadata::Metadata;
+#[cfg(unix)]
+use crate::request::UdsConnectInfo;
+use crate::request::{TcpConnectInfo, TlsConnectInfo};
 use crate::rt::{Runtime, TokioRuntime};
 use crate::status::{Code, Status};
 use crate::telemetry::{CallLabels, CallRole, LifecycleObserver, RejectionEvent, RejectionReason};
@@ -76,6 +79,8 @@ pub struct ConnectionInfo {
     local: Option<SocketAddr>,
     identity: Option<PeerIdentity>,
     cred: Option<PeerCred>,
+    #[cfg(unix)]
+    uds_peer_addr: Option<Arc<tokio::net::unix::SocketAddr>>,
     /// Transport `:scheme` when the accept loop knows it. `None` keeps the
     /// peer's `:scheme` ([`Incoming`] / [`Server::serve_connection`]).
     scheme: Option<&'static str>,
@@ -83,12 +88,17 @@ pub struct ConnectionInfo {
 
 impl std::fmt::Debug for ConnectionInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConnectionInfo")
-            .field("remote", &self.remote.as_ref().map(|_| "[REDACTED]"))
+        let mut dbg = f.debug_struct("ConnectionInfo");
+        dbg.field("remote", &self.remote.as_ref().map(|_| "[REDACTED]"))
             .field("local", &self.local.as_ref().map(|_| "[REDACTED]"))
             .field("identity", &self.identity.as_ref().map(|_| "[REDACTED]"))
-            .field("cred", &self.cred.as_ref().map(|_| "[REDACTED]"))
-            .field("scheme", &self.scheme.map(|_| "[REDACTED]"))
+            .field("cred", &self.cred.as_ref().map(|_| "[REDACTED]"));
+        #[cfg(unix)]
+        dbg.field(
+            "uds_peer_addr",
+            &self.uds_peer_addr.as_ref().map(|_| "[REDACTED]"),
+        );
+        dbg.field("scheme", &self.scheme.map(|_| "[REDACTED]"))
             .finish()
     }
 }
@@ -194,6 +204,8 @@ impl ConnectionInfo {
             local,
             identity: None,
             cred: None,
+            #[cfg(unix)]
+            uds_peer_addr: None,
             scheme: Some("http"),
         }
     }
@@ -208,16 +220,23 @@ impl ConnectionInfo {
             local,
             identity,
             cred: None,
+            #[cfg(unix)]
+            uds_peer_addr: None,
             scheme: Some("https"),
         }
     }
 
-    pub(crate) fn unix(cred: Option<PeerCred>) -> Self {
+    #[cfg(unix)]
+    pub(crate) fn unix(
+        cred: Option<PeerCred>,
+        peer_addr: Option<tokio::net::unix::SocketAddr>,
+    ) -> Self {
         Self {
             remote: None,
             local: None,
             identity: None,
             cred,
+            uds_peer_addr: peer_addr.map(Arc::new),
             scheme: Some("http"),
         }
     }
@@ -233,6 +252,23 @@ pub(crate) fn incoming_rpc(
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
+    let mut extensions = http::Extensions::new();
+    let tcp_info = TcpConnectInfo {
+        local_addr: peer.local,
+        remote_addr: peer.remote,
+    };
+    if peer.scheme == Some("https") {
+        extensions.insert(TlsConnectInfo::new(tcp_info, peer.identity.clone()));
+    } else if peer.remote.is_some() || peer.local.is_some() {
+        extensions.insert(tcp_info);
+    }
+    #[cfg(unix)]
+    if peer.uds_peer_addr.is_some() || peer.cred.is_some() {
+        extensions.insert(UdsConnectInfo {
+            peer_addr: peer.uds_peer_addr.clone(),
+            peer_cred: peer.cred,
+        });
+    }
     Rpc {
         request,
         respond,
@@ -242,7 +278,7 @@ pub(crate) fn incoming_rpc(
         peer_identity: peer.identity,
         peer_cred: peer.cred,
         transport_scheme: peer.scheme,
-        extensions: http::Extensions::new(),
+        extensions,
         metadata,
         diagnostic_config: None,
         timeout: None,

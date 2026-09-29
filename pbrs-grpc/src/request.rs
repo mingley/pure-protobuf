@@ -12,9 +12,118 @@ use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
+#[cfg(unix)]
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::watch;
+
+/// Connection info for standard TCP server transports.
+///
+/// The server inserts this into [`Request::extensions`] for cleartext TCP
+/// RPCs, matching tonic's typed connect-info pattern. TLS RPCs use
+/// [`TlsConnectInfo<TcpConnectInfo>`] instead. Existing address getters
+/// ([`Request::local_addr`] / [`Request::remote_addr`]) continue to expose the
+/// same values directly.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TcpConnectInfo {
+    /// Local address of this accepted connection.
+    pub local_addr: Option<SocketAddr>,
+    /// Remote peer address of this accepted connection.
+    pub remote_addr: Option<SocketAddr>,
+}
+
+impl TcpConnectInfo {
+    /// Local address of this accepted connection.
+    #[must_use]
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        self.local_addr
+    }
+
+    /// Remote peer address of this accepted connection.
+    #[must_use]
+    pub fn remote_addr(&self) -> Option<SocketAddr> {
+        self.remote_addr
+    }
+}
+
+/// Connection info for Unix-domain server transports.
+///
+/// The server inserts this into [`Request::extensions`] for Unix-domain
+/// sockets. The peer address follows Tokio's Unix socket representation and
+/// may be unnamed; peer credentials use this crate's portable [`PeerCred`]
+/// wrapper, the same value exposed by [`Request::peer_cred`].
+#[cfg(unix)]
+#[derive(Clone, Debug)]
+pub struct UdsConnectInfo {
+    /// Peer Unix socket address, when the OS reports one.
+    pub peer_addr: Option<Arc<tokio::net::unix::SocketAddr>>,
+    /// Peer process credentials, when the OS reports them.
+    pub peer_cred: Option<PeerCred>,
+}
+
+#[cfg(unix)]
+impl UdsConnectInfo {
+    /// Peer Unix socket address, when the OS reports one.
+    #[must_use]
+    pub fn peer_addr(&self) -> Option<Arc<tokio::net::unix::SocketAddr>> {
+        self.peer_addr.clone()
+    }
+
+    /// Peer process credentials, when the OS reports them.
+    #[must_use]
+    pub fn peer_cred(&self) -> Option<PeerCred> {
+        self.peer_cred
+    }
+}
+
+/// Connection info for TLS server transports.
+///
+/// The inner value is the transport connect info below TLS, usually
+/// [`TcpConnectInfo`]. The peer identity contains the verified client
+/// certificate chain for mTLS and is `None` for anonymous TLS.
+#[derive(Clone, Debug)]
+pub struct TlsConnectInfo<T = TcpConnectInfo> {
+    inner: T,
+    peer_identity: Option<PeerIdentity>,
+}
+
+impl<T> TlsConnectInfo<T> {
+    /// Construct TLS connect info from the inner transport and peer identity.
+    #[must_use]
+    pub fn new(inner: T, peer_identity: Option<PeerIdentity>) -> Self {
+        Self {
+            inner,
+            peer_identity,
+        }
+    }
+
+    /// Borrow the underlying transport connect info.
+    #[must_use]
+    pub fn get_ref(&self) -> &T {
+        &self.inner
+    }
+
+    /// Mutably borrow the underlying transport connect info.
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
+    /// Verified peer certificate chain for mTLS, leaf first.
+    #[must_use]
+    pub fn peer_identity(&self) -> Option<&PeerIdentity> {
+        self.peer_identity.as_ref()
+    }
+
+    /// Verified peer certificate chain for mTLS, leaf first.
+    ///
+    /// This tonic-shaped alias returns the same value as
+    /// [`Self::peer_identity`].
+    #[must_use]
+    pub fn peer_certs(&self) -> Option<&PeerIdentity> {
+        self.peer_identity()
+    }
+}
 
 /// A message plus the metadata, deadline, and compression choice around it.
 ///

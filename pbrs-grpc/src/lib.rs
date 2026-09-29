@@ -1185,7 +1185,12 @@ pub use interceptor::{
 pub use limits::{ByteBudgetTracker, BytePermit, DEFAULT_MAX_DECODING_MESSAGE_SIZE, MessageLimits};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
-pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response, ResponseParts};
+#[cfg(unix)]
+pub use request::UdsConnectInfo;
+pub use request::{
+    Call, CallHandle, Outgoing, Parts, Request, Response, ResponseParts, TcpConnectInfo,
+    TlsConnectInfo,
+};
 pub use server::{
     ConnectionInfo, Incoming, IncomingAccept, PeerCred, Router, Rpc, Server, Service,
 };
