@@ -2765,7 +2765,11 @@
    "scoreboard": [
     "A12"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress",
+   "evidence": [
+    "Partial 2026-09-29 (bbe4563e): lazy per-descriptor pool table cache with ABA fix plus direct map-entry decode without temporary messages; 8 new pk18_* tests (cache identity, mutation visibility, pool-vs-link precedence, table split, map last-wins). Full pbrs suite green, workspace clippy -D warnings clean, fmt clean. Leadership-vs-hyperpb/upb measurement on OTLP/Envoy corpora still open; PK-18 stays pending."
+   ]
   },
   {
    "id": "PK-19",
