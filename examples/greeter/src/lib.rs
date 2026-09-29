@@ -102,6 +102,7 @@ mod proto {
 }
 
 pub mod production;
+pub mod telemetry;
 
 use pbrs_grpc::health::{HealthReporter, ServingStatus, service as health_service};
 use pbrs_grpc::reflection::service as reflection_service;

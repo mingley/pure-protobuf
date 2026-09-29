@@ -10,7 +10,12 @@
 
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
+#[cfg(feature = "otel")]
+use opentelemetry::metrics::{Counter, Histogram, Meter};
+#[cfg(feature = "otel")]
+use opentelemetry::{KeyValue, global};
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::Deref;
@@ -1393,6 +1398,607 @@ pub(crate) fn diagnostic_value(value: &str, max_bytes: usize) -> Cow<'_, str> {
     Cow::Owned(format!("{}... [TRUNCATED]", &value[..boundary]))
 }
 
+/// Zero-sized [`LifecycleObserver`] that records nothing.
+///
+/// Use it as the enabled-but-idle endpoint of [`measure_dispatch_overhead`],
+/// or anywhere an observer slot must be filled without affecting behavior.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NoopObserver;
+
+impl LifecycleObserver for NoopObserver {}
+
+/// Thread-shared in-memory [`MetricSink`] for tests and local diagnosis.
+///
+/// Pair with [`BoundedMetricObserver`] so every recorded event already carries
+/// only static allowlisted (or fallback) labels; this sink adds no labels of
+/// its own. Clone shares the recording. [`InMemoryMetricSink::diagnose`] folds
+/// the recording into timeout, retry, and saturation counts.
+///
+/// ```
+/// use pbrs_grpc::telemetry::InMemoryMetricSink;
+/// use pbrs_grpc::{
+///     BoundedMetricObserver, CallLabels, CallRole, CancellationEvent, CancellationReason,
+///     LifecycleObserver, MetricLabelPolicy,
+/// };
+///
+/// static RPCS: &[&str] = &["/helloworld.Greeter/SayHello"];
+/// static TARGETS: &[&str] = &[];
+/// let policy = MetricLabelPolicy::new(RPCS, TARGETS).expect("static allowlist");
+/// let sink = InMemoryMetricSink::new();
+/// let observer = BoundedMetricObserver::new(policy, sink.clone());
+/// let call = CallLabels::new("/helloworld.Greeter/SayHello", None, CallRole::Client);
+/// observer.on_cancellation(&CancellationEvent {
+///     call,
+///     reason: CancellationReason::DeadlineExceeded,
+/// });
+/// assert_eq!(sink.diagnose().timeouts, 1);
+/// ```
+#[allow(
+    clippy::disallowed_types,
+    reason = "sync MetricSink::record never awaits; the critical section pushes one small enum"
+)]
+#[derive(Clone, Debug, Default)]
+pub struct InMemoryMetricSink {
+    events: Arc<std::sync::Mutex<Vec<MetricEvent>>>,
+}
+
+impl InMemoryMetricSink {
+    /// Create an empty recording sink.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Snapshot every recorded event in arrival order.
+    #[must_use]
+    pub fn events(&self) -> Vec<MetricEvent> {
+        self.lock_events().clone()
+    }
+
+    /// Number of recorded events.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.lock_events().len()
+    }
+
+    /// Whether no event has been recorded yet.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.lock_events().is_empty()
+    }
+
+    /// Drop every recorded event.
+    pub fn clear(&self) {
+        self.lock_events().clear();
+    }
+
+    /// Fold the recording into timeout, retry, and saturation counts.
+    ///
+    /// Timeout and saturation signals are observations, not deduplicated
+    /// calls: one timed-out call may contribute both a cancellation and a
+    /// terminal `DEADLINE_EXCEEDED` status.
+    #[must_use]
+    pub fn diagnose(&self) -> MetricDiagnosis {
+        let mut diagnosis = MetricDiagnosis::default();
+        for event in self.events() {
+            diagnosis.events += 1;
+            match event {
+                MetricEvent::CallStart { call } | MetricEvent::ServerCallStart { call } => {
+                    diagnosis.count_rpc(call);
+                }
+                MetricEvent::CallEnd { call, code, .. }
+                | MetricEvent::ServerCallEnd { call, code, .. } => {
+                    diagnosis.count_rpc(call);
+                    diagnosis.count_terminal(code);
+                }
+                MetricEvent::AttemptStart { call, .. } => {
+                    diagnosis.count_rpc(call);
+                }
+                MetricEvent::AttemptEnd {
+                    call, class, code, ..
+                } => {
+                    diagnosis.count_rpc(call);
+                    diagnosis.count_terminal(code);
+                    if class == MetricAttemptClass::Retry {
+                        diagnosis.retries += 1;
+                    }
+                }
+                MetricEvent::ClientQueueWait { call, wait } => {
+                    diagnosis.count_rpc(call);
+                    diagnosis.client_queue_waits += 1;
+                    diagnosis.add_queue_wait(wait);
+                }
+                MetricEvent::ServerQueueWait { call, wait } => {
+                    diagnosis.count_rpc(call);
+                    diagnosis.server_queue_waits += 1;
+                    diagnosis.add_queue_wait(wait);
+                }
+                MetricEvent::BytesSent { call, .. } | MetricEvent::BytesReceived { call, .. } => {
+                    diagnosis.count_rpc(call);
+                }
+                MetricEvent::Reconnect { target, .. } => {
+                    diagnosis.reconnects += 1;
+                    *diagnosis.reconnect_targets.entry(target).or_default() += 1;
+                }
+                MetricEvent::Rejection { call, reason, .. } => {
+                    diagnosis.count_rpc(call);
+                    match reason {
+                        RejectionReason::ConcurrencyLimit => {
+                            diagnosis.rejected_concurrency += 1;
+                        }
+                        RejectionReason::ConnectionLimit => {
+                            diagnosis.rejected_connection += 1;
+                        }
+                        _ => {}
+                    }
+                }
+                MetricEvent::Cancellation { call, reason } => {
+                    diagnosis.count_rpc(call);
+                    if reason == CancellationReason::DeadlineExceeded {
+                        diagnosis.timeouts += 1;
+                    }
+                }
+            }
+        }
+        diagnosis
+    }
+
+    fn lock_events(&self) -> std::sync::MutexGuard<'_, Vec<MetricEvent>> {
+        self.events
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+impl MetricSink for InMemoryMetricSink {
+    fn record(&self, event: MetricEvent) {
+        self.lock_events().push(event);
+    }
+}
+
+/// Timeout, retry, and saturation counts folded from one [`InMemoryMetricSink`].
+///
+/// `by_rpc` keys prove label cardinality: behind a [`BoundedMetricObserver`]
+/// every key is a registered static path or [`OTHER_METRIC_LABEL`], no matter
+/// how many distinct peer paths arrived. `reconnect_targets` gives the same
+/// proof for reconnect target labels.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MetricDiagnosis {
+    /// Total metric events folded.
+    pub events: u64,
+    /// Timeout signals: `DeadlineExceeded` cancellations plus completed
+    /// calls and attempts carrying [`Code::DeadlineExceeded`].
+    pub timeouts: u64,
+    /// Transparent-retry signals: attempt completions with
+    /// [`MetricAttemptClass::Retry`].
+    pub retries: u64,
+    /// Client queue waits (pool acquisition or wait-for-ready).
+    pub client_queue_waits: u64,
+    /// Server post-admission scheduling delays.
+    pub server_queue_waits: u64,
+    /// Total queue wait observed (client plus server), saturating at
+    /// [`Duration::MAX`].
+    pub queue_wait_total: Duration,
+    /// Rejections naming [`RejectionReason::ConcurrencyLimit`].
+    pub rejected_concurrency: u64,
+    /// Rejections naming [`RejectionReason::ConnectionLimit`].
+    pub rejected_connection: u64,
+    /// Completed calls and attempts carrying [`Code::ResourceExhausted`].
+    pub resource_exhausted: u64,
+    /// Completed reconnects observed.
+    pub reconnects: u64,
+    /// Event counts keyed by bounded rpc label.
+    pub by_rpc: BTreeMap<&'static str, u64>,
+    /// Reconnect counts keyed by bounded static target label.
+    pub reconnect_targets: BTreeMap<&'static str, u64>,
+}
+
+impl MetricDiagnosis {
+    /// Total saturation signals: rejected concurrency/connection budgets and
+    /// resource-exhausted completions.
+    ///
+    /// Queue waits are counted separately (see `client_queue_waits`,
+    /// `server_queue_waits`, and `queue_wait_total`) because every RPC waits
+    /// briefly to acquire a connection or dispatch slot; only waits over a
+    /// caller-chosen threshold indicate saturation.
+    #[must_use]
+    pub fn saturation_signals(&self) -> u64 {
+        self.rejected_concurrency + self.rejected_connection + self.resource_exhausted
+    }
+
+    fn count_rpc(&mut self, call: MetricCallLabels) {
+        *self.by_rpc.entry(call.rpc()).or_default() += 1;
+    }
+
+    fn count_terminal(&mut self, code: Code) {
+        if code == Code::DeadlineExceeded {
+            self.timeouts += 1;
+        }
+        if code == Code::ResourceExhausted {
+            self.resource_exhausted += 1;
+        }
+    }
+
+    fn add_queue_wait(&mut self, wait: Duration) {
+        self.queue_wait_total = self
+            .queue_wait_total
+            .checked_add(wait)
+            .unwrap_or(Duration::MAX);
+    }
+}
+
+/// Explicit W3C Trace Context header contract, without the `otel` feature.
+///
+/// The recording propagator is `otel::trace::W3CPropagator` (feature `otel`);
+/// this module pins the header names and the strict version-00 `traceparent`
+/// shape so fixtures, examples, and redaction tests can assert propagation
+/// bytes without linking OpenTelemetry.
+pub mod propagation {
+    /// `traceparent` header carrying version, trace id, parent span id, flags.
+    pub const TRACEPARENT: &str = "traceparent";
+    /// `tracestate` header carrying the vendor list.
+    pub const TRACESTATE: &str = "tracestate";
+
+    /// Whether `value` is a strict version-00 W3C `traceparent`.
+    ///
+    /// Accepts exactly `00-<32 lowercase-or-upper hex>-<16 hex>-<2 hex>` with
+    /// non-zero trace and span ids. Future versions (extra trailing fields)
+    /// and `tracestate` parsing belong to the real propagator; this predicate
+    /// only certifies fixture bytes.
+    #[must_use]
+    pub fn valid_traceparent(value: &str) -> bool {
+        let mut parts = value.split('-');
+        let (Some(version), Some(trace), Some(span), Some(flags)) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return false;
+        };
+        if parts.next().is_some() || version != "00" {
+            return false;
+        }
+        is_hex_len(trace, 32)
+            && is_hex_len(span, 16)
+            && is_hex_len(flags, 2)
+            && !is_all_zero(trace)
+            && !is_all_zero(span)
+    }
+
+    fn is_hex_len(text: &str, len: usize) -> bool {
+        text.len() == len && text.bytes().all(|byte| byte.is_ascii_hexdigit())
+    }
+
+    fn is_all_zero(text: &str) -> bool {
+        text.bytes().all(|byte| byte == b'0')
+    }
+}
+
+/// Cost of lifecycle dispatch measured over `iters` iterations per path.
+///
+/// The baseline loop performs the same iteration shape with no dispatch; the
+/// disabled path installs `None` (the production shape without an observer);
+/// the enabled path installs [`NoopObserver`] behind an opaque `dyn` call.
+/// Totals are wall-clock nanoseconds and only comparable within one run.
+///
+/// Per-iteration figures include the loop and [`std::hint::black_box`]
+/// harness, so they overstate the dispatch itself; that makes them a
+/// conservative input to the 2% disabled-CPU budget below.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DispatchOverhead {
+    /// Loop iterations per path.
+    pub iters: u32,
+    /// Total nanoseconds of the loop with no dispatch (comparator).
+    pub baseline_ns: u64,
+    /// Total nanoseconds with `None` installed (disabled path).
+    pub disabled_ns: u64,
+    /// Total nanoseconds with [`NoopObserver`] installed (enabled path).
+    pub enabled_ns: u64,
+}
+
+impl DispatchOverhead {
+    /// Harness floor in picoseconds per iteration (0 when `iters` is 0).
+    #[must_use]
+    pub fn baseline_ps_per_iter(&self) -> u128 {
+        Self::ps_per_iter(self.baseline_ns, self.iters)
+    }
+
+    /// Disabled-path cost in picoseconds per iteration (0 when `iters` is 0).
+    ///
+    /// Divide by the measured per-RPC CPU cost of the workload (for example
+    /// the `rpc-bench` unary ping-pong CPU per RPC) to check the proposed 2%
+    /// disabled-CPU budget: a 7,500 ps dispatch against a 20,000,000 ps RPC
+    /// is 0.04%.
+    #[must_use]
+    pub fn disabled_ps_per_iter(&self) -> u128 {
+        Self::ps_per_iter(self.disabled_ns, self.iters)
+    }
+
+    /// Enabled-path cost in picoseconds per iteration (0 when `iters` is 0).
+    #[must_use]
+    pub fn enabled_ps_per_iter(&self) -> u128 {
+        Self::ps_per_iter(self.enabled_ns, self.iters)
+    }
+
+    fn ps_per_iter(total_ns: u64, iters: u32) -> u128 {
+        if iters == 0 {
+            return 0;
+        }
+        u128::from(total_ns) * 1_000 / u128::from(iters)
+    }
+}
+
+/// Measure disabled (`None`) and enabled ([`NoopObserver`]) dispatch cost.
+///
+/// The dispatch helper mirrors the `if let Some(observer)` guard used by the
+/// call and attempt guards, and the observer slot passes through
+/// [`std::hint::black_box`] every iteration so the loop cannot be folded away
+/// and the `dyn` call cannot be devirtualized. Wall-clock totals vary by host
+/// and load; committed tests assert only the probe shape, while benchmark
+/// evidence comes from repeated local runs plus the `rpc-bench` check.
+///
+/// ```
+/// use pbrs_grpc::telemetry::measure_dispatch_overhead;
+///
+/// let overhead = measure_dispatch_overhead(8);
+/// assert_eq!(overhead.iters, 8);
+/// ```
+#[must_use]
+pub fn measure_dispatch_overhead(iters: u32) -> DispatchOverhead {
+    use std::hint::black_box;
+
+    let call = CallLabels::new(
+        "/helloworld.Greeter/SayHello",
+        Some("127.0.0.1:1"),
+        CallRole::Client,
+    );
+    let status = Status::ok();
+    let latency = Duration::from_micros(7);
+    let noop = NoopObserver;
+    let disabled: Option<&dyn LifecycleObserver> = black_box(None);
+    let enabled: Option<&dyn LifecycleObserver> = black_box(Some(&noop));
+
+    let baseline_ns = time_observer_loop(iters, || {
+        black_box(&call);
+    });
+    let disabled_ns = time_observer_loop(iters, || {
+        dispatch_call_end(black_box(disabled), &call, &status, latency);
+    });
+    let enabled_ns = time_observer_loop(iters, || {
+        dispatch_call_end(black_box(enabled), &call, &status, latency);
+    });
+    DispatchOverhead {
+        iters,
+        baseline_ns,
+        disabled_ns,
+        enabled_ns,
+    }
+}
+
+/// The production dispatch shape: one predictable branch, no label work.
+#[inline]
+fn dispatch_call_end(
+    observer: Option<&dyn LifecycleObserver>,
+    call: &CallLabels<'_>,
+    status: &Status,
+    latency: Duration,
+) {
+    if let Some(observer) = observer {
+        observer.on_call_end(call, status, latency);
+    }
+}
+
+fn time_observer_loop(iters: u32, mut body: impl FnMut()) -> u64 {
+    let start = std::time::Instant::now();
+    for _ in 0..iters {
+        body();
+    }
+    u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX)
+}
+
+/// [`MetricSink`] recording gRFC-named OpenTelemetry instruments with bounded labels.
+///
+/// Pair with [`BoundedMetricObserver`]: every `grpc.method` value is a
+/// registered static path or [`OTHER_METRIC_LABEL`], and `grpc.target` is
+/// either the statically configured client target
+/// ([`OtelMetricSink::with_target`]) or a registered reconnect target — never
+/// a peer-supplied authority. This is the export-safe counterpart to
+/// [`crate::otel::Metrics`], which records raw paths and authorities for
+/// diagnostics and therefore has unbounded cardinality.
+///
+/// Recorded instruments reuse the names in [`crate::otel::instrument`]:
+/// client attempt started/duration, client call duration, server call
+/// started/duration, and subchannel connection outcomes. Queue waits, byte
+/// counts, rejections, and cancellations have no instrument in this bridge
+/// subset and are ignored; diagnose them from [`InMemoryMetricSink`].
+/// Attempt classes likewise carry no label: retries are visible as repeated
+/// `grpc.client.attempt.*` measurements, not as a separate series.
+///
+/// ```text
+/// let sink = OtelMetricSink::with_meter(meter).with_target("greeter-primary");
+/// let observer = BoundedMetricObserver::new(policy, sink);
+/// let channel = Channel::connect(addr).await?.observer(observer);
+/// ```
+#[cfg(feature = "otel")]
+#[derive(Clone)]
+pub struct OtelMetricSink {
+    inner: Arc<OtelInner>,
+}
+
+#[cfg(feature = "otel")]
+#[derive(Clone)]
+struct OtelInner {
+    attempt_started: Counter<u64>,
+    attempt_duration: Histogram<f64>,
+    call_duration: Histogram<f64>,
+    server_call_started: Counter<u64>,
+    server_call_duration: Histogram<f64>,
+    conn_succeeded: Counter<u64>,
+    conn_failed: Counter<u64>,
+    target: Option<&'static str>,
+}
+
+#[cfg(feature = "otel")]
+impl OtelMetricSink {
+    /// Record through the global meter provider.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::with_meter(global::meter_provider().meter("pbrs-grpc"))
+    }
+
+    /// Record through an explicit meter (tests, custom providers).
+    #[must_use]
+    pub fn with_meter(meter: Meter) -> Self {
+        Self {
+            inner: Arc::new(OtelInner {
+                attempt_started: meter
+                    .u64_counter(crate::otel::instrument::CLIENT_ATTEMPT_STARTED)
+                    .with_unit("{attempt}")
+                    .with_description("Total number of RPC attempts started (A66).")
+                    .build(),
+                attempt_duration: meter
+                    .f64_histogram(crate::otel::instrument::CLIENT_ATTEMPT_DURATION)
+                    .with_unit("s")
+                    .with_description("End-to-end time to complete an RPC attempt (A66).")
+                    .build(),
+                call_duration: meter
+                    .f64_histogram(crate::otel::instrument::CLIENT_CALL_DURATION)
+                    .with_unit("s")
+                    .with_description("End-to-end time to complete an RPC from the app view (A66).")
+                    .build(),
+                server_call_started: meter
+                    .u64_counter(crate::otel::instrument::SERVER_CALL_STARTED)
+                    .with_unit("{call}")
+                    .with_description("Total number of server RPCs started (A66).")
+                    .build(),
+                server_call_duration: meter
+                    .f64_histogram(crate::otel::instrument::SERVER_CALL_DURATION)
+                    .with_unit("s")
+                    .with_description("End-to-end time of a server RPC (A66).")
+                    .build(),
+                conn_succeeded: meter
+                    .u64_counter(crate::otel::instrument::SUBCHANNEL_CONN_SUCCEEDED)
+                    .with_unit("{attempt}")
+                    .with_description("Successful subchannel connection attempts (A94).")
+                    .build(),
+                conn_failed: meter
+                    .u64_counter(crate::otel::instrument::SUBCHANNEL_CONN_FAILED)
+                    .with_unit("{attempt}")
+                    .with_description("Failed subchannel connection attempts (A94).")
+                    .build(),
+                target: None,
+            }),
+        }
+    }
+
+    /// Attach a static client target label to every per-call measurement.
+    ///
+    /// The value must be operator-configured (a deployment or pool name), not
+    /// copied from a peer-supplied authority, or the bounded-label guarantee
+    /// is void. Without a target the per-call instruments carry method and
+    /// status only.
+    #[must_use]
+    pub fn with_target(self, target: &'static str) -> Self {
+        let mut inner = Arc::unwrap_or_clone(self.inner);
+        inner.target = Some(target);
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
+    fn method_of(call: &MetricCallLabels) -> &'static str {
+        call.rpc().strip_prefix('/').unwrap_or(call.rpc())
+    }
+
+    fn call_attrs(&self, call: &MetricCallLabels, code: Option<Code>) -> Vec<KeyValue> {
+        let mut attrs = Vec::with_capacity(3);
+        attrs.push(KeyValue::new(
+            crate::otel::label::METHOD,
+            Self::method_of(call),
+        ));
+        if let Some(target) = self.inner.target {
+            attrs.push(KeyValue::new(crate::otel::label::TARGET, target));
+        }
+        if let Some(code) = code {
+            attrs.push(KeyValue::new(crate::otel::label::STATUS, code.name()));
+        }
+        attrs
+    }
+}
+
+#[cfg(feature = "otel")]
+impl Default for OtelMetricSink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "otel")]
+impl MetricSink for OtelMetricSink {
+    fn record(&self, event: MetricEvent) {
+        match event {
+            MetricEvent::CallStart { .. } => {}
+            MetricEvent::CallEnd {
+                call,
+                code,
+                latency,
+            } => {
+                self.inner
+                    .call_duration
+                    .record(latency.as_secs_f64(), &self.call_attrs(&call, Some(code)));
+            }
+            MetricEvent::AttemptStart { call, .. } => {
+                self.inner
+                    .attempt_started
+                    .add(1, &self.call_attrs(&call, None));
+            }
+            MetricEvent::AttemptEnd {
+                call,
+                code,
+                latency,
+                ..
+            } => {
+                self.inner
+                    .attempt_duration
+                    .record(latency.as_secs_f64(), &self.call_attrs(&call, Some(code)));
+            }
+            MetricEvent::ServerCallStart { call } => {
+                // A66 server instruments carry method only; the configured
+                // client target never leaks onto the server series.
+                let attrs = [KeyValue::new(
+                    crate::otel::label::METHOD,
+                    Self::method_of(&call),
+                )];
+                self.inner.server_call_started.add(1, &attrs);
+            }
+            MetricEvent::ServerCallEnd {
+                call,
+                code,
+                latency,
+            } => {
+                let attrs = [
+                    KeyValue::new(crate::otel::label::METHOD, Self::method_of(&call)),
+                    KeyValue::new(crate::otel::label::STATUS, code.name()),
+                ];
+                self.inner
+                    .server_call_duration
+                    .record(latency.as_secs_f64(), &attrs);
+            }
+            MetricEvent::Reconnect { target, status, .. } => {
+                let attrs = [KeyValue::new(crate::otel::label::TARGET, target)];
+                match status {
+                    None => self.inner.conn_succeeded.add(1, &attrs),
+                    Some(_) => self.inner.conn_failed.add(1, &attrs),
+                }
+            }
+            MetricEvent::ClientQueueWait { .. }
+            | MetricEvent::ServerQueueWait { .. }
+            | MetricEvent::BytesSent { .. }
+            | MetricEvent::BytesReceived { .. }
+            | MetricEvent::Rejection { .. }
+            | MetricEvent::Cancellation { .. } => {}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DiagnosticConfig, diagnostic_debug_value};
@@ -1426,5 +2032,336 @@ mod tests {
             "ééé... [TRUNCATED]"
         );
         assert_eq!(calls.get(), 1);
+    }
+}
+
+#[cfg(test)]
+mod ob02_tests {
+    use super::*;
+    use std::time::Duration;
+
+    static RPCS: &[&str] = &["/helloworld.Greeter/SayHello"];
+    static TARGETS: &[&str] = &["primary"];
+
+    fn rig() -> (
+        BoundedMetricObserver<InMemoryMetricSink>,
+        InMemoryMetricSink,
+    ) {
+        let policy = MetricLabelPolicy::new(RPCS, TARGETS).expect("static allowlist");
+        let sink = InMemoryMetricSink::new();
+        let observer = BoundedMetricObserver::new(policy, sink.clone());
+        (observer, sink)
+    }
+
+    #[test]
+    fn in_memory_sink_diagnoses_timeout_retry_and_saturation() {
+        let (observer, sink) = rig();
+        let client = CallLabels::new(
+            "/helloworld.Greeter/SayHello",
+            Some("tenant-a.internal"),
+            CallRole::Client,
+        );
+        let server = CallLabels::new("/helloworld.Greeter/SayHello", None, CallRole::Server);
+
+        // Timeout: caller-visible cancellation plus a terminal deadline status.
+        observer.on_cancellation(&CancellationEvent {
+            call: client,
+            reason: CancellationReason::DeadlineExceeded,
+        });
+        observer.on_call_end(
+            &client,
+            &Status::deadline_exceeded(),
+            Duration::from_millis(5),
+        );
+
+        // Transparent retry: initial attempt fails retryable, second succeeds.
+        observer.on_attempt_start(&AttemptLabels::new(client, 1));
+        observer.on_attempt_end(
+            &AttemptLabels::new(client, 1),
+            &Status::unavailable("reset"),
+            Duration::from_millis(1),
+        );
+        observer.on_attempt_start(&AttemptLabels::new(client, 2));
+        observer.on_attempt_end(
+            &AttemptLabels::new(client, 2),
+            &Status::ok(),
+            Duration::from_millis(2),
+        );
+
+        // Saturation: a concurrency rejection, waits on both sides, an
+        // exhausted server call.
+        observer.on_rejection(&RejectionEvent {
+            call: server,
+            reason: RejectionReason::ConcurrencyLimit,
+            code: Code::ResourceExhausted,
+        });
+        observer.on_queue_wait(&client, Duration::from_millis(2));
+        observer.on_server_queue_wait(&server, Duration::from_millis(3));
+        observer.on_server_call_end(
+            &server,
+            &Status::resource_exhausted("quota"),
+            Duration::from_millis(4),
+        );
+
+        // Hostile cardinality: 1024 distinct peer paths plus a secret
+        // reconnect target collapse to the fallback bucket.
+        for index in 0..1024u32 {
+            let path = format!("/evil.Service/Method{index}");
+            let evil = CallLabels::new(path.as_str(), Some("tenant-secret"), CallRole::Server);
+            observer.on_call_start(&evil);
+        }
+        observer.on_reconnect(&ReconnectEvent {
+            target: "user:pass@hidden",
+            attempt: 1,
+            duration: Duration::from_millis(1),
+            status: None,
+        });
+
+        let diagnosis = sink.diagnose();
+        assert_eq!(diagnosis.timeouts, 2);
+        assert_eq!(diagnosis.retries, 1);
+        assert_eq!(diagnosis.rejected_concurrency, 1);
+        assert_eq!(diagnosis.rejected_connection, 0);
+        assert_eq!(diagnosis.client_queue_waits, 1);
+        assert_eq!(diagnosis.server_queue_waits, 1);
+        assert_eq!(diagnosis.queue_wait_total, Duration::from_millis(5));
+        assert_eq!(diagnosis.resource_exhausted, 1);
+        assert_eq!(diagnosis.reconnects, 1);
+        assert_eq!(diagnosis.saturation_signals(), 2);
+        assert_eq!(diagnosis.events, 1035);
+        assert_eq!(diagnosis.by_rpc.len(), 2);
+        assert!(
+            diagnosis
+                .by_rpc
+                .contains_key("/helloworld.Greeter/SayHello")
+        );
+        assert_eq!(
+            diagnosis.by_rpc.get(OTHER_METRIC_LABEL),
+            Some(&1024),
+            "1024 hostile paths share one bucket"
+        );
+        assert_eq!(diagnosis.reconnect_targets.len(), 1);
+        assert!(diagnosis.reconnect_targets.contains_key(OTHER_METRIC_LABEL));
+    }
+
+    #[test]
+    fn bounded_metric_events_carry_no_peer_secrets() {
+        let (observer, sink) = rig();
+        let evil = CallLabels::new(
+            "/evil.Service/Method",
+            Some("tenant-secret"),
+            CallRole::Server,
+        );
+        observer.on_server_call_start(&evil);
+        observer.on_server_call_end(
+            &evil,
+            &Status::unavailable("token=hunter2"),
+            Duration::from_millis(1),
+        );
+        observer.on_reconnect(&ReconnectEvent {
+            target: "user:pass@hidden",
+            attempt: 2,
+            duration: Duration::from_millis(1),
+            status: Some(Code::Unavailable),
+        });
+
+        let dumped = format!("{:?}", sink.events());
+        for secret in [
+            "tenant-secret",
+            "hunter2",
+            "user:pass@hidden",
+            "/evil.Service/Method",
+        ] {
+            assert!(!dumped.contains(secret), "leaked {secret}: {dumped}");
+        }
+        assert!(dumped.contains(OTHER_METRIC_LABEL));
+    }
+
+    #[test]
+    fn traceparent_validator_accepts_only_strict_v00() {
+        let good = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        assert!(propagation::valid_traceparent(good));
+        assert!(propagation::valid_traceparent(
+            "00-4BF92F3577B34DA6A3CE929D0E0E4736-00F067AA0BA902B7-00"
+        ));
+        for bad in [
+            "",
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",
+            "ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            "00-00000000000000000000000000000000-00f067aa0ba902b7-01",
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01",
+            "00-zzf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-011",
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-extra",
+        ] {
+            assert!(!propagation::valid_traceparent(bad), "accepted {bad:?}");
+        }
+    }
+
+    #[test]
+    fn telemetry_context_debug_redacts_values_but_keeps_keys() {
+        let mut metadata = Metadata::new();
+        metadata
+            .set("authorization", "Bearer hunter2")
+            .expect("ascii value");
+        metadata
+            .set(
+                propagation::TRACEPARENT,
+                "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            )
+            .expect("ascii value");
+        let status = Status::unavailable("token=hunter2");
+        let call = CallLabels::new(
+            "/helloworld.Greeter/SayHello",
+            Some("tenant-a.internal"),
+            CallRole::Client,
+        );
+        let ctx = TelemetryContext::new(call)
+            .with_metadata(&metadata)
+            .with_status(&status);
+        let dumped = format!("{ctx:?}");
+        assert!(dumped.contains("authorization"), "key visible: {dumped}");
+        assert!(dumped.contains("traceparent"), "key visible: {dumped}");
+        for secret in ["hunter2", "Bearer", "4bf92f35", "tenant-a.internal"] {
+            assert!(!dumped.contains(secret), "leaked {secret}: {dumped}");
+        }
+    }
+
+    #[test]
+    fn dispatch_overhead_probe_reports_disabled_and_enabled() {
+        let overhead = measure_dispatch_overhead(200_000);
+        eprintln!(
+            "OB-02 dispatch overhead over {} iters (ps/iter): baseline={} disabled={} enabled={}",
+            overhead.iters,
+            overhead.baseline_ps_per_iter(),
+            overhead.disabled_ps_per_iter(),
+            overhead.enabled_ps_per_iter(),
+        );
+        assert_eq!(overhead.iters, 200_000);
+    }
+
+    #[test]
+    fn metric_event_stays_stack_small() {
+        assert!(
+            std::mem::size_of::<MetricEvent>() <= 64,
+            "MetricEvent grew: {} bytes",
+            std::mem::size_of::<MetricEvent>()
+        );
+    }
+
+    #[cfg(feature = "otel")]
+    #[test]
+    fn otel_sink_exports_only_bounded_labels() {
+        use opentelemetry::metrics::MeterProvider as _;
+        use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
+        use opentelemetry_sdk::metrics::{
+            InMemoryMetricExporterBuilder, PeriodicReader, SdkMeterProvider,
+        };
+
+        let exporter = InMemoryMetricExporterBuilder::new().build();
+        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let sink = OtelMetricSink::with_meter(provider.meter("ob02")).with_target("test-target");
+        let policy = MetricLabelPolicy::new(RPCS, TARGETS).expect("static allowlist");
+        let observer = BoundedMetricObserver::new(policy, sink);
+
+        let registered = CallLabels::new(
+            "/helloworld.Greeter/SayHello",
+            Some("tenant-a.internal"),
+            CallRole::Client,
+        );
+        let hostile = CallLabels::new(
+            "/evil.Service/Method",
+            Some("tenant-secret"),
+            CallRole::Client,
+        );
+        observer.on_attempt_start(&AttemptLabels::new(registered, 1));
+        observer.on_attempt_end(
+            &AttemptLabels::new(registered, 1),
+            &Status::ok(),
+            Duration::from_micros(3),
+        );
+        observer.on_call_end(&registered, &Status::ok(), Duration::from_micros(5));
+        observer.on_attempt_start(&AttemptLabels::new(hostile, 1));
+        observer.on_call_end(
+            &hostile,
+            &Status::unavailable("token=hunter2"),
+            Duration::from_micros(5),
+        );
+        observer.on_reconnect(&ReconnectEvent {
+            target: "user:pass@hidden",
+            attempt: 1,
+            duration: Duration::from_millis(1),
+            status: None,
+        });
+        observer.on_reconnect(&ReconnectEvent {
+            target: "primary",
+            attempt: 2,
+            duration: Duration::from_millis(1),
+            status: Some(Code::Unavailable),
+        });
+
+        provider.force_flush().expect("flush");
+        let mut pairs: Vec<(String, String)> = Vec::new();
+        for resource in exporter.get_finished_metrics().expect("metrics") {
+            for scope in resource.scope_metrics() {
+                for metric in scope.metrics() {
+                    match metric.data() {
+                        AggregatedMetrics::U64(MetricData::Sum(sum)) => {
+                            for point in sum.data_points() {
+                                pairs.extend(
+                                    point
+                                        .attributes()
+                                        .map(|kv| (kv.key.to_string(), kv.value.to_string())),
+                                );
+                            }
+                        }
+                        AggregatedMetrics::F64(MetricData::Histogram(hist)) => {
+                            for point in hist.data_points() {
+                                pairs.extend(
+                                    point
+                                        .attributes()
+                                        .map(|kv| (kv.key.to_string(), kv.value.to_string())),
+                                );
+                            }
+                        }
+                        other => panic!("unexpected aggregation: {other:?}"),
+                    }
+                }
+            }
+        }
+        assert!(!pairs.is_empty());
+        for secret in [
+            "tenant-secret",
+            "hunter2",
+            "user:pass@hidden",
+            "evil.Service",
+            "tenant-a.internal",
+        ] {
+            assert!(
+                !pairs.iter().any(|(_, value)| value.contains(secret)),
+                "leaked {secret}: {pairs:?}"
+            );
+        }
+        let values_of = |key: &str| -> Vec<&str> {
+            pairs
+                .iter()
+                .filter(|(k, _)| k == key)
+                .map(|(_, v)| v.as_str())
+                .collect()
+        };
+        for method in values_of(crate::otel::label::METHOD) {
+            assert!(
+                method == "helloworld.Greeter/SayHello" || method == OTHER_METRIC_LABEL,
+                "unbounded method {method:?}"
+            );
+        }
+        for target in values_of(crate::otel::label::TARGET) {
+            assert!(
+                target == "test-target" || target == "primary" || target == OTHER_METRIC_LABEL,
+                "unbounded target {target:?}"
+            );
+        }
     }
 }
