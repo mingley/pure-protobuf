@@ -10,7 +10,7 @@ The registry lives in `cases.json`. It records the upstream source, peer directi
 |---|---|---|---|
 | Standard gRPC peer interop | `./scripts/grpc-interop.sh` | Native client/server self-test plus the required base-case matrix against pinned `grpc-go`. | Compression is not run against `grpc-go` because that peer ignores compression flags. |
 | Protobuf conformance | `./scripts/conformance.sh` | Official Protobuf `v35.1` required and recommended conformance behavior through Edition 2023. | It is separate from gRPC transport interop. |
-| Native HTTP/2 server probes | `./scripts/grpc-http2-server-interop.sh` | Local TLS and framing probes against `pbrs-grpc-interop-server`. | These are spec-derived local probes, not the original upstream Go probe result. |
+| Native HTTP/2 server probes | `./scripts/grpc-http2-server-interop.sh` | Local TLS/framing probes plus an attempted original Go probe run against `pbrs-grpc-interop-server`. | Local passes are spec-derived adapters; unavailable original runners are explicit `not_run`, never assumed. |
 | C++ compression peer | `./scripts/grpc-interop-cpp.sh` | Both native/C++ directions for 14 baseline cases plus 4 compression cases. | The C++ peer must be the pinned `grpc/grpc` build and digest-recorded binary. |
 | Case and evidence registry | `cases.json` | The single source of truth for case status, profile, direction, and evidence. | A local adapter pass cannot relabel an unresolved original upstream procedure. |
 
@@ -171,15 +171,37 @@ These official server transport probes come from `tools/run_tests/run_interop_te
 | `server_tls_probe` | ALPN negotiation for `h2`, rejection of invalid ALPN `http/1.1`, TLS 1.2/1.3 protocol versions and AEAD ciphers, server certificate presentation, and live TLS gRPC RPC. | Local spec-derived probe passes; original Go probe remains failed at TLS 0/3. |
 | `server_framing_probe` | HTTP/2 24-byte connection preface, SETTINGS exchange and ACK, rapid reset stream cancellation flood (CVE-2023-44487), small DATA frames flow control, fragmented HEADERS across CONTINUATION frames and CONTINUATION flood protection, bad headers, non-POST HTTP 405, unsupported media type HTTP 415, and post-probe server health. | Local spec-derived probe passes; original Go probe remains failed at framing 5/6. |
 
-`scripts/grpc-http2-server-interop.sh` runs spec-derived local TLS and framing probes against `pbrs-grpc-interop-server`. It writes two required result rows and retained logs. It decodes the response `:status` and requires HTTP 405/415, rather than accepting any HEADERS frame.
+`scripts/grpc-http2-server-interop.sh` runs two phases against `pbrs-grpc-interop-server`: spec-derived local TLS and framing probes (peer `local-native-server`), then the original upstream Go probes (peer `grpc-http2-probe`) through the fail-closed [diagnostic driver](../../scripts/grpc-http2-upstream-server-interop.py). The local phase decodes the response `:status` and requires HTTP 405/415, rather than accepting any HEADERS frame. Each phase writes its own required result rows and retained logs.
 
-The script does not invoke the upstream probe binary. `IO-09` remains open. The original Go probes are registered `failed` rather than inheriting the local 2/2 result.
+The upstream phase maps the official runner's separate server modes to the native server one-to-one:
 
-The [original upstream Go probes](../../scripts/grpc-http2-upstream-server-interop.py) are a separate, fail-closed local diagnostic. With an existing clean `third_party/grpc` checkout at `d1487957db6658bc532b72871775148229836627`, Go 1.25.3, and cached Rust dependencies, run:
+| Official probe mode | Subcases asserted | Native probe row | Transport |
+|---|---|---|---|
+| `framing` (`-test_case=framing`) | `TestSoonClientShortSettings`, `TestSoonShortPreface`, `TestSoonUnknownFrameType`, `TestSoonClientPrefaceWithStreamId`, `TestSoonSmallMaxFrameSize`, `TestSoonAllSettingsFramesAcked` | `server_framing_probe` | `http2_cleartext` |
+| `tls` (`-test_case=tls`) | `TestSoonTLSApplicationProtocol`, `TestSoonTLSMaxVersion`, `TestSoonTLSBadCipherSuites` | `server_tls_probe` | `http2_tls` |
+
+The probe binary is built standard-library-only (`GO111MODULE=off`) from `tools/http2_interop` in the pinned checkout, so no Go module downloads are involved. The framing mode dials a cleartext native server; the TLS mode dials a TLS native server serving the upstream test credentials with ALPN `h2` verified against the upstream test CA for `foo.test.google.fr`. Each row records the Go version, the probe and native binary SHA-256 digests, the native git SHA and dirty flag, and the per-mode raw and server logs.
+
+When the runner prerequisites are unavailable, the upstream phase records both probes as `not_run` with the exact reason and repro steps in the row notes and console output, and the required-profile aggregate fails. Local hostile tests (`pbrs-grpc/tests/hostile.rs`) and TLS tests (`pbrs-grpc/tests/tls.rs`) are complementary and are never recorded as probe results.
+
+Exact upstream prerequisites:
+
+* Host toolchain: Go exactly as pinned in `tests/interop/go/go.mod` (currently 1.25.3), Python 3 standard library only, and a cargo cache warm enough for the diagnostic's `cargo build --offline --locked` debug build of `pbrs-grpc-interop-server`.
+* Pinned checkout: a clean `third_party/grpc` at `d1487957db6658bc532b72871775148229836627` with no tracked, untracked, or ignored changes under `tools/http2_interop` or `src/core/tsi/test_creds`. No submodules are needed for the Go probe build.
+* Native provenance: a clean HEAD for `src` and `pbrs-grpc`; a dirty tree (or a cached binary via `--skip-rust-build`) is explicitly unqualified.
+
+Reproduce the upstream run from a fresh checkout:
 
 ```bash
-python3 scripts/grpc-http2-upstream-server-interop.py
+mkdir -p third_party
+git init third_party/grpc
+git -C third_party/grpc remote add origin https://github.com/grpc/grpc.git
+git -C third_party/grpc fetch --depth 1 origin d1487957db6658bc532b72871775148229836627
+git -C third_party/grpc checkout FETCH_HEAD
+./scripts/grpc-http2-server-interop.sh --upstream-only
 ```
+
+Premise check on 2026-09-29 (this host): no `python2`, no Twisted module, no `third_party/grpc`, no `h2spec`/`nghttpd`; Go 1.25.3 present and matching the pin. The original probes are therefore `not_run` here until the pinned checkout above is provided. The Python-2/Twisted runner is the client-negative (IO-08) peer, not the server-probe runner; the server probes need only the Go toolchain plus the pinned checkout.
 
 That harness:
 
@@ -323,11 +345,11 @@ Invocation:
 
 ### Server HTTP/2 Framing and TLS Probes (`scripts/grpc-http2-server-interop.sh`)
 
-The server probe harness verifies native server framing, transport security, and protocol resilience against simulated client probes. Those probes map to official upstream server test probes in `tools/run_tests/run_interop_tests.py`.
+The server probe harness runs in two phases. The local phase verifies native server framing, transport security, and protocol resilience against simulated client probes. The upstream phase executes the official upstream server test probes from `tools/http2_interop` against a fresh native server and records the outcome per probe.
 
 #### 1. Probe Contract and Architecture
 
-The script starts two native `pbrs-grpc-interop-server` processes.
+The local phase starts two native `pbrs-grpc-interop-server` processes.
 
 | Server | Transport | Important flags |
 |---|---|---|
@@ -336,6 +358,8 @@ The script starts two native `pbrs-grpc-interop-server` processes.
 
 Both servers run as background jobs with process tracking, startup readiness checks, and clean shutdown traps on exit or interruption.
 
+The upstream phase delegates execution to `scripts/grpc-http2-upstream-server-interop.py`, which builds the pinned Go probe binary and a native debug server, starts one native server per mode with retained logs, and writes a fail-closed `summary.json`. The shell wrapper maps that summary to one `interop-report.py` row per probe (peer `grpc-http2-probe`, peer pin `d1487957db6658bc532b72871775148229836627`), so the record format matches the local phase and the IO-08 client-negative runner: case, status, duration, peer, direction, transport, suite, profile, stdout/stderr logs, exit code, attempt count, and notes.
+
 #### 2. Probe Test Matrix
 
 | Probe | Checks |
@@ -343,34 +367,56 @@ Both servers run as background jobs with process tracking, startup readiness che
 | `server_tls_probe` (`http2_tls`) | ALPN `h2` negotiation; rejection of non-`h2` ALPN (`http/1.1`) with `TLSV1_ALERT_NO_APPLICATION_PROTOCOL`; certificate presentation; live TLS RPC using `pbrs-grpc-interop-client --use_tls=true --tls_ca_file=... --server_host_override=localhost --test_case=empty_unary`. |
 | `server_framing_probe` (`http2_cleartext`) | 24-byte client preface; empty SETTINGS frame; server SETTINGS validation; two-way SETTINGS ACK; rapid HEADERS followed by RST_STREAM (CANCEL) across 32 streams for CVE-2023-44487 simulation; 1-byte DATA fragmentation; flow-control budget enforcement; HEADERS plus CONTINUATION assembly; CONTINUATION flood protection; non-POST HTTP 405 with `allow: POST`; `application/json` HTTP 415; post-probe `empty_unary` health check. |
 
+The upstream phase asserts the official subcases mapped in [Server Probes](#4-server-probes): six `TestSoon*` framing subcases for `server_framing_probe` and three `TestSoonTLS*` subcases for `server_tls_probe`.
+
 #### 3. Prerequisites
+
+Local phase:
 
 * Python 3 standard library only: `socket`, `ssl`, `struct`, `subprocess`, and `time`.
 * Zero third-party pip dependencies.
 * Compiled `pbrs-grpc-interop-server` and `pbrs-grpc-interop-client` binaries. The script builds them unless `--skip-build` is provided.
 * Throwaway loopback test certificates in `pbrs-grpc/tests/tls_data/`.
 
+Upstream phase (see [Server Probes](#4-server-probes) for the exact repro):
+
+* Go exactly as pinned in `tests/interop/go/go.mod`.
+* Clean `third_party/grpc` checkout at `d1487957db6658bc532b72871775148229836627`.
+* Warm cargo cache for the diagnostic's offline locked debug build.
+
 #### 4. Invocation
 
 ```bash
-# Run all server probes (TLS and framing):
+# Run both phases (local probes, then original upstream probes):
 ./scripts/grpc-http2-server-interop.sh
 
-# Run specific probe:
+# Run specific probe (both phases record only that probe and fail the
+# required matrix, proving a narrowed run cannot qualify):
 ./scripts/grpc-http2-server-interop.sh --cases=server_tls_probe
 ./scripts/grpc-http2-server-interop.sh --cases=server_framing_probe
+
+# Local spec-derived phase only (explicitly narrowed scope):
+./scripts/grpc-http2-server-interop.sh --skip-upstream
+
+# Original upstream phase only (needs the pinned third_party/grpc checkout):
+./scripts/grpc-http2-server-interop.sh --upstream-only
 
 # Skip cargo build and specify custom log directory:
 ./scripts/grpc-http2-server-interop.sh --skip-build --log-dir=target/interop-logs/custom
 ```
 
-Execution traces and logs go under `target/interop-logs/`. The script records `results.json`, validates against `cases.json`, and aggregates into `report.json`.
+Execution traces and logs go under `target/interop-logs/`. The local phase records `results.json`, validates against `cases.json` with `--suite server_probe --profile native --spec-adapter --require-matrix`, and aggregates into `report.json`. The upstream phase records `upstream-results.json`, validates without `--spec-adapter` (these rows claim original-procedure execution), and aggregates into `upstream-report.json`. Both phases require fresh, distinct report paths: a prior report cannot fill a missing row in a later run.
 
-Required-profile gating runs validation and aggregation with `--suite server_probe --profile native --require-matrix`. A run that omits a probe, such as `--cases=server_tls_probe`, or hits an unexpected failure exits non-zero and cannot qualify.
+Exit status and gating:
+
+* Exit `0` only when every executed phase passed and aggregated cleanly.
+* A run that omits a probe, hits an unexpected failure, or finds the upstream runner unavailable exits non-zero and cannot qualify.
+* Upstream driver exit `0` maps qualified modes to `passed`; exit `1` maps unqualified modes to `failed` with the failure list in the row notes; exit `2` (missing prerequisites or aborted run) maps both probes to `not_run` with the exact reason and repro steps. A missing or unparseable upstream summary after exit `0`/`1` is recorded `failed`, never passed.
+* A future genuine upstream pass still fails validation until the coordinator reconciles the `failed` registry dispositions in `cases.json`: a pass cannot be reported while the registry disposition is unresolved.
 
 Local hostile tests in `pbrs-grpc/tests/hostile.rs` and TLS tests in `pbrs-grpc/tests/tls.rs` are complementary. They never substitute for these probe records.
 
-Both HTTP/2 runners require fresh, distinct report paths. They fail if any case cannot be recorded or aggregated; a prior report cannot fill a missing row in a later run.
+CI runs the required local gate (`--skip-upstream`) as a blocking step and the original upstream phase (`--upstream-only`) as an advisory step whose `not_run`/`failed` outcome and retained logs stay visible without blocking other lanes while full-profile qualification is open. Both reports are uploaded as artifacts (`grpc-interop-report` and `grpc-interop-upstream-report`).
 
 ## 5. Machine-Readable Proof, Reporting, and Aggregation (`scripts/interop-report.py`)
 

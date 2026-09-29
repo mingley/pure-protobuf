@@ -1,14 +1,33 @@
 #!/usr/bin/env bash
 # Run HTTP/2 server framing and TLS verification probes against native pbrs-grpc-interop-server.
 #
-# Covers upstream official runner server probes from tools/run_tests/run_interop_tests.py:
-#   server_tls_probe     - ALPN negotiation (h2), rejection of non-h2 ALPN (http/1.1),
-#                          TLS 1.2/1.3 ciphers, certificate exchange, and live TLS gRPC RPC.
-#   server_framing_probe - HTTP/2 preface and SETTINGS exchange, rapid reset flood
-#                          (CVE-2023-44487 simulation), small DATA frames flow control,
-#                          CONTINUATION frame reassembly and flood protection,
-#                          bad headers / HTTP 405 / HTTP 415 rejection, and post-probe
-#                          server health verification.
+# Two phases, two result files, one log directory:
+#
+#   Local phase (spec-derived adapter, peer local-native-server):
+#     server_tls_probe     - ALPN negotiation (h2), rejection of non-h2 ALPN (http/1.1),
+#                            TLS 1.2/1.3 ciphers, certificate exchange, and live TLS gRPC RPC.
+#     server_framing_probe - HTTP/2 preface and SETTINGS exchange, rapid reset flood
+#                            (CVE-2023-44487 simulation), small DATA frames flow control,
+#                            CONTINUATION frame reassembly and flood protection,
+#                            bad headers / HTTP 405 / HTTP 415 rejection, and post-probe
+#                            server health verification.
+#     The local phase proves the native server against a purpose-built peer. It is
+#     regression coverage, never original-upstream qualification. In-tree hostile
+#     tests (pbrs-grpc/tests/hostile.rs) and TLS tests (pbrs-grpc/tests/tls.rs)
+#     are complementary and are never recorded as probe results.
+#
+#   Upstream phase (original runner, peer grpc-http2-probe):
+#     Executes the pinned grpc/grpc tools/http2_interop Go probes against a fresh
+#     native server via scripts/grpc-http2-upstream-server-interop.py and records
+#     one row per probe: the framing mode maps to server_framing_probe and the
+#     tls mode maps to server_tls_probe. When the runner prerequisites are
+#     unavailable the probes are recorded as not_run with the exact reason and
+#     reproduction steps -- never silent, never faked.
+#
+# Prerequisites for the upstream phase: Go per tests/interop/go/go.mod, a clean
+# third_party/grpc checkout at d1487957db6658bc532b72871775148229836627, and a
+# cargo cache warm enough for the diagnostic's offline locked debug build.
+# See tests/interop/README.md for the exact repro commands.
 #
 # Usage:
 #   ./scripts/grpc-http2-server-interop.sh [OPTIONS]
@@ -21,11 +40,19 @@
 #   --tls-cert-file=PATH       Path to PEM certificate file (default: pbrs-grpc/tests/tls_data/server.crt)
 #   --tls-key-file=PATH        Path to PEM private key file (default: pbrs-grpc/tests/tls_data/server.key)
 #   --tls-ca-file=PATH         Path to PEM CA certificate file (default: pbrs-grpc/tests/tls_data/ca.crt)
-#   --skip-build               Skip cargo build step
+#   --skip-build               Skip cargo build step (local phase only; the upstream
+#                              diagnostic always builds through its own fail-closed path)
+#   --skip-upstream            Run only the local spec-derived phase (explicitly narrowed
+#                              scope; the original-probe evidence stays missing)
+#   --upstream-only            Run only the original-upstream phase
 #   --log-dir=DIR              Directory for log files (default: target/interop-logs/server_probes_<timestamp>)
-#   --results-json=PATH        Path to write results JSON
-#   --report-json=PATH         Path to write report JSON
+#   --results-json=PATH        Path to write local-phase results JSON
+#   --report-json=PATH         Path to write local-phase report JSON
 #   -h, --help                 Show this help message
+#
+# Exit status: 0 only when every executed phase passed and aggregated cleanly.
+# A missing probe row, an unexpected failure, or an unavailable upstream runner
+# fails the run; use --skip-upstream / --upstream-only to narrow scope explicitly.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -43,6 +70,8 @@ SERVER_HOST="127.0.0.1"
 CLEARTEXT_PORT=""
 TLS_PORT=""
 SKIP_BUILD=0
+SKIP_UPSTREAM=0
+UPSTREAM_ONLY=0
 LOG_DIR=""
 RESULTS_JSON=""
 REPORT_JSON=""
@@ -112,6 +141,14 @@ while [[ $# -gt 0 ]]; do
       SKIP_BUILD=1
       shift
       ;;
+    --skip-upstream)
+      SKIP_UPSTREAM=1
+      shift
+      ;;
+    --upstream-only)
+      UPSTREAM_ONLY=1
+      shift
+      ;;
     --log-dir|--output-dir)
       LOG_DIR="$2"
       shift 2
@@ -161,55 +198,93 @@ mkdir -p "$LOG_DIR"
 RESULTS_JSON="${RESULTS_JSON:-$LOG_DIR/results.json}"
 REPORT_JSON="${REPORT_JSON:-$LOG_DIR/report.json}"
 
+RUN_LOCAL=1
+RUN_UPSTREAM=1
+if [[ "$SKIP_UPSTREAM" -eq 1 && "$UPSTREAM_ONLY" -eq 1 ]]; then
+  echo "Error: --skip-upstream and --upstream-only are mutually exclusive" >&2
+  exit 1
+fi
+if [[ "$SKIP_UPSTREAM" -eq 1 ]]; then
+  RUN_UPSTREAM=0
+fi
+if [[ "$UPSTREAM_ONLY" -eq 1 ]]; then
+  RUN_LOCAL=0
+fi
+
+UPSTREAM_DRIVER="$ROOT/scripts/grpc-http2-upstream-server-interop.py"
+UPSTREAM_DIR="$LOG_DIR/upstream"
+UPSTREAM_RESULTS_JSON="$LOG_DIR/upstream-results.json"
+UPSTREAM_REPORT_JSON="$LOG_DIR/upstream-report.json"
+UPSTREAM_DRIVER_LOG="$LOG_DIR/upstream-driver.log"
+UPSTREAM_PEER="grpc-http2-probe"
+UPSTREAM_PEER_PIN="d1487957db6658bc532b72871775148229836627"
+
 if [[ ! -f "$INTEROP_REPORT" ]]; then
   echo "Error: required interop reporter missing at $INTEROP_REPORT" >&2
   exit 1
 fi
-if [[ "$RESULTS_JSON" == "$REPORT_JSON" ||
-      -e "$RESULTS_JSON" || -L "$RESULTS_JSON" ||
-      -e "$REPORT_JSON" || -L "$REPORT_JSON" ]]; then
-  echo "Error: use distinct, fresh results and report paths for these probes" >&2
-  exit 1
+if [[ "$RUN_LOCAL" -eq 1 ]]; then
+  if [[ "$RESULTS_JSON" == "$REPORT_JSON" ||
+        -e "$RESULTS_JSON" || -L "$RESULTS_JSON" ||
+        -e "$REPORT_JSON" || -L "$REPORT_JSON" ]]; then
+    echo "Error: use distinct, fresh results and report paths for these probes" >&2
+    exit 1
+  fi
+fi
+if [[ "$RUN_UPSTREAM" -eq 1 ]]; then
+  if [[ "$UPSTREAM_RESULTS_JSON" == "$UPSTREAM_REPORT_JSON" ||
+        -e "$UPSTREAM_RESULTS_JSON" || -L "$UPSTREAM_RESULTS_JSON" ||
+        -e "$UPSTREAM_REPORT_JSON" || -L "$UPSTREAM_REPORT_JSON" ||
+        -e "$UPSTREAM_DIR" || -L "$UPSTREAM_DIR" ]]; then
+    echo "Error: use a fresh log directory so upstream probe proof cannot be reused" >&2
+    exit 1
+  fi
 fi
 
-if [[ "$SKIP_BUILD" -ne 1 ]]; then
-  echo "== building pbrs-grpc interop server and client =="
-  cargo build --release -p pbrs-grpc --bin pbrs-grpc-interop-server --bin pbrs-grpc-interop-client
-fi
+OVERALL_FAILED=0
 
-KERNEL_SERVER="${GRPC_INTEROP_KERNEL_SERVER:-$ROOT/target/release/pbrs-grpc-interop-server}"
-if [[ ! -x "$KERNEL_SERVER" && -x "$ROOT/target/debug/pbrs-grpc-interop-server" ]]; then
-  KERNEL_SERVER="$ROOT/target/debug/pbrs-grpc-interop-server"
-fi
+if [[ "$RUN_LOCAL" -eq 1 ]]; then
+  if [[ "$SKIP_BUILD" -ne 1 ]]; then
+    echo "== building pbrs-grpc interop server and client =="
+    cargo build --release -p pbrs-grpc --bin pbrs-grpc-interop-server --bin pbrs-grpc-interop-client
+  fi
 
-if [[ ! -x "$KERNEL_SERVER" ]]; then
-  echo "Error: pbrs-grpc-interop-server binary not found at $KERNEL_SERVER" >&2
-  exit 1
-fi
+  KERNEL_SERVER="${GRPC_INTEROP_KERNEL_SERVER:-$ROOT/target/release/pbrs-grpc-interop-server}"
+  if [[ ! -x "$KERNEL_SERVER" && -x "$ROOT/target/debug/pbrs-grpc-interop-server" ]]; then
+    KERNEL_SERVER="$ROOT/target/debug/pbrs-grpc-interop-server"
+  fi
 
-KERNEL_CLIENT="${GRPC_INTEROP_KERNEL_CLIENT:-$ROOT/target/release/pbrs-grpc-interop-client}"
-if [[ ! -x "$KERNEL_CLIENT" && -x "$ROOT/target/debug/pbrs-grpc-interop-client" ]]; then
-  KERNEL_CLIENT="$ROOT/target/debug/pbrs-grpc-interop-client"
-fi
+  if [[ ! -x "$KERNEL_SERVER" ]]; then
+    echo "Error: pbrs-grpc-interop-server binary not found at $KERNEL_SERVER" >&2
+    exit 1
+  fi
 
-if [[ ! -x "$KERNEL_CLIENT" ]]; then
-  echo "Error: pbrs-grpc-interop-client binary not found at $KERNEL_CLIENT" >&2
-  exit 1
+  KERNEL_CLIENT="${GRPC_INTEROP_KERNEL_CLIENT:-$ROOT/target/release/pbrs-grpc-interop-client}"
+  if [[ ! -x "$KERNEL_CLIENT" && -x "$ROOT/target/debug/pbrs-grpc-interop-client" ]]; then
+    KERNEL_CLIENT="$ROOT/target/debug/pbrs-grpc-interop-client"
+  fi
+
+  if [[ ! -x "$KERNEL_CLIENT" ]]; then
+    echo "Error: pbrs-grpc-interop-client binary not found at $KERNEL_CLIENT" >&2
+    exit 1
+  fi
 fi
 
 find_free_port() {
   python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
 }
 
-if [[ -z "$CLEARTEXT_PORT" ]]; then
-  CLEARTEXT_PORT="$(find_free_port)"
-fi
+if [[ "$RUN_LOCAL" -eq 1 ]]; then
+  if [[ -z "$CLEARTEXT_PORT" ]]; then
+    CLEARTEXT_PORT="$(find_free_port)"
+  fi
 
-if [[ -z "$TLS_PORT" ]]; then
-  TLS_PORT="$(find_free_port)"
-  while [[ "$TLS_PORT" == "$CLEARTEXT_PORT" ]]; do
+  if [[ -z "$TLS_PORT" ]]; then
     TLS_PORT="$(find_free_port)"
-  done
+    while [[ "$TLS_PORT" == "$CLEARTEXT_PORT" ]]; do
+      TLS_PORT="$(find_free_port)"
+    done
+  fi
 fi
 
 TRACKED_PIDS=()
@@ -261,14 +336,17 @@ start_server() {
   return 1
 }
 
-# Start native servers
-echo "== starting native pbrs-grpc TLS server on port $TLS_PORT =="
-start_server "pbrs-grpc TLS server" "$TLS_PORT" "$LOG_DIR/server-tls.log" \
-  "$KERNEL_SERVER" --port "$TLS_PORT" --use_tls=true --tls_cert_file "$TLS_CERT_FILE" --tls_key_file "$TLS_KEY_FILE"
+# Start native servers for the local phase. The upstream phase starts and stops
+# its own native servers through the diagnostic driver.
+if [[ "$RUN_LOCAL" -eq 1 ]]; then
+  echo "== starting native pbrs-grpc TLS server on port $TLS_PORT =="
+  start_server "pbrs-grpc TLS server" "$TLS_PORT" "$LOG_DIR/server-tls.log" \
+    "$KERNEL_SERVER" --port "$TLS_PORT" --use_tls=true --tls_cert_file "$TLS_CERT_FILE" --tls_key_file "$TLS_KEY_FILE"
 
-echo "== starting native pbrs-grpc cleartext server on port $CLEARTEXT_PORT =="
-start_server "pbrs-grpc cleartext server" "$CLEARTEXT_PORT" "$LOG_DIR/server-cleartext.log" \
-  "$KERNEL_SERVER" --port "$CLEARTEXT_PORT"
+  echo "== starting native pbrs-grpc cleartext server on port $CLEARTEXT_PORT =="
+  start_server "pbrs-grpc cleartext server" "$CLEARTEXT_PORT" "$LOG_DIR/server-cleartext.log" \
+    "$KERNEL_SERVER" --port "$CLEARTEXT_PORT"
+fi
 
 # Python probe runner implementation
 run_probe_python() {
@@ -581,8 +659,8 @@ else:
 EOF
 }
 
-echo "== running server HTTP/2 probes (${#CASES[@]} cases) =="
-OVERALL_FAILED=0
+if [[ "$RUN_LOCAL" -eq 1 ]]; then
+echo "== running local server HTTP/2 probes (${#CASES[@]} cases) =="
 PASSED_COUNT=0
 FAILED_COUNT=0
 
@@ -658,11 +736,242 @@ echo "Server HTTP/2 probe summary: $PASSED_COUNT passed, $FAILED_COUNT failed"
 echo "Logs saved to $LOG_DIR"
 echo "=================================================="
 
-echo "== validating interop results =="
+echo "== validating local interop results =="
 python3 "$INTEROP_REPORT" validate --results "$RESULTS_JSON" --suite server_probe --profile native --spec-adapter --require-matrix || OVERALL_FAILED=1
 
-echo "== aggregating interop results =="
+echo "== aggregating local interop results =="
 python3 "$INTEROP_REPORT" aggregate --results "$RESULTS_JSON" --output "$REPORT_JSON" --suite server_probe --profile native --spec-adapter --require-matrix || OVERALL_FAILED=1
+fi
+
+# Map the upstream driver's summary.json to one |-separated row per probe mode:
+#   mode|status|stdout_log|stderr_log|notes
+# Exit 2 (or any driver/mapping failure) yields not_run/failed rows with the
+# exact reason and repro steps -- an unavailable runner is never silent.
+map_upstream_results() {
+  python3 - "$@" << 'EOF'
+import json
+import sys
+
+summary_path, driver_exit_raw, driver_log, upstream_dir, root, pin = sys.argv[1:7]
+try:
+    driver_exit = int(driver_exit_raw)
+except ValueError:
+    driver_exit = 2
+
+
+def clean(value):
+    return " ".join(str(value).split()).replace("|", "/")[:1500]
+
+
+def go_pin():
+    try:
+        with open(root + "/tests/interop/go/go.mod", encoding="utf-8") as handle:
+            for line in handle:
+                parts = line.split()
+                if len(parts) == 2 and parts[0] == "go":
+                    return parts[1]
+    except OSError:
+        pass
+    return "per tests/interop/go/go.mod"
+
+
+reason = "driver exited %d" % driver_exit
+try:
+    with open(driver_log, encoding="utf-8") as handle:
+        lines = [line.strip() for line in handle if line.strip()]
+    for line in reversed(lines):
+        if line.startswith("upstream Go server proof incomplete:"):
+            reason = line.split("upstream Go server proof incomplete:", 1)[1]
+            reason = reason.split("; logs:")[0].strip()
+            break
+except OSError:
+    reason = "driver produced no log at %s" % driver_log
+
+summary = None
+summary_error = ""
+if driver_exit in (0, 1):
+    try:
+        with open(summary_path, encoding="utf-8") as handle:
+            summary = json.load(handle)
+    except (OSError, ValueError) as exc:
+        summary_error = str(exc)
+        summary = None
+
+
+def not_run_notes():
+    return (
+        "original Go probe did not run: %s; "
+        "prereqs: Go %s, clean third_party/grpc@%s "
+        "(tools/http2_interop, src/core/tsi/test_creds), warm cargo cache for the "
+        "diagnostic offline locked build; repro: git init third_party/grpc && "
+        "git -C third_party/grpc remote add origin https://github.com/grpc/grpc.git && "
+        "git -C third_party/grpc fetch --depth 1 origin %s && "
+        "git -C third_party/grpc checkout FETCH_HEAD && "
+        "./scripts/grpc-http2-server-interop.sh --upstream-only; "
+        "driver: %s" % (reason, go_pin(), pin, pin, driver_log)
+    )
+
+
+profiles = summary.get("profiles", {}) if isinstance(summary, dict) else {}
+for mode in ("tls", "framing"):
+    status = "failed"
+    stdout_log = driver_log
+    stderr_log = driver_log
+    notes = ""
+    profile = profiles.get(mode)
+    if isinstance(profile, dict):
+        rows = [row for row in profile.get("cases", []) if isinstance(row, dict)]
+        decided = [row for row in rows if row.get("status") in ("passed", "failed", "not_run")]
+        passed = sum(1 for row in decided if row.get("status") == "passed")
+        status = "passed" if profile.get("qualified") is True else "failed"
+        failures = [str(item) for item in profile.get("failures", [])]
+        notes = (
+            "original Go probe grpc/grpc@%s tools/http2_interop (%s): %d/%d subcases passed"
+            % (pin, mode, passed, len(decided))
+        )
+        if failures:
+            notes += "; failures: " + ", ".join(failures)
+        notes += "; %s; probe sha256:%s; native sha256:%s git:%s dirty:%s" % (
+            profile.get("go_version", "go version unrecorded"),
+            profile.get("go_binary_sha256", "unrecorded"),
+            profile.get("native_binary_sha256", "unrecorded"),
+            profile.get("native_git_sha", "unrecorded"),
+            profile.get("native_dirty", "unrecorded"),
+        )
+        stdout_log = profile.get("raw_log", driver_log)
+        stderr_log = profile.get("server_log", driver_log)
+        notes += "; raw: %s; server: %s" % (stdout_log, stderr_log)
+    elif driver_exit in (0, 1):
+        notes = (
+            "upstream driver exited %d without a parseable summary (%s); see %s and %s"
+            % (driver_exit, summary_error or ("missing " + summary_path), driver_log, upstream_dir)
+        )
+    else:
+        status = "not_run"
+        notes = not_run_notes()
+    print("%s|%s|%s|%s|%s" % (mode, status, clean(stdout_log), clean(stderr_log), clean(notes)))
+EOF
+}
+
+if [[ "$RUN_UPSTREAM" -eq 1 ]]; then
+echo ""
+echo "== running original upstream Go server probes =="
+UP_PASSED_COUNT=0
+UP_FAILED_COUNT=0
+UP_NOTRUN_COUNT=0
+upstream_exit=0
+upstream_dur_ms=0
+UPSTREAM_MAP="$LOG_DIR/upstream-map.tsv"
+
+if [[ ! -f "$UPSTREAM_DRIVER" ]]; then
+  echo "Error: required upstream probe driver missing at $UPSTREAM_DRIVER" >&2
+  upstream_exit=1
+  : > "$UPSTREAM_MAP"
+else
+  upstream_start=$(python3 -c 'import time; print(time.perf_counter())')
+  if python3 "$UPSTREAM_DRIVER" --log-dir="$UPSTREAM_DIR" > "$UPSTREAM_DRIVER_LOG" 2>&1; then
+    upstream_exit=0
+  else
+    upstream_exit=$?
+  fi
+  upstream_end=$(python3 -c 'import time; print(time.perf_counter())')
+  upstream_dur_ms=$(python3 -c "print(round(($upstream_end - $upstream_start) * 1000, 2))")
+  if ! map_upstream_results "$UPSTREAM_DIR/summary.json" "$upstream_exit" "$UPSTREAM_DRIVER_LOG" "$UPSTREAM_DIR" "$ROOT" "$UPSTREAM_PEER_PIN" > "$UPSTREAM_MAP" 2>"$LOG_DIR/upstream-map.err"; then
+    echo "WARN: upstream result mapping failed; recording failed rows" >&2
+    : > "$UPSTREAM_MAP"
+  fi
+fi
+
+for case in "${CASES[@]}"; do
+  case "$case" in
+    server_tls_probe)
+      mode="tls"
+      transport="http2_tls"
+      known=1
+      ;;
+    server_framing_probe)
+      mode="framing"
+      transport="http2_cleartext"
+      known=1
+      ;;
+    *)
+      mode=""
+      transport="http2_cleartext"
+      known=0
+      ;;
+  esac
+
+  if [[ "$known" -eq 0 ]]; then
+    status="failed"
+    out_log="$UPSTREAM_DRIVER_LOG"
+    err_log="$UPSTREAM_DRIVER_LOG"
+    notes="Unknown server probe case: $case"
+    echo "  FAIL $case (unknown server probe case)"
+    UP_FAILED_COUNT=$((UP_FAILED_COUNT + 1))
+    OVERALL_FAILED=1
+  else
+    line="$(grep "^${mode}|" "$UPSTREAM_MAP" 2>/dev/null || true)"
+    if [[ -z "$line" ]]; then
+      status="failed"
+      out_log="$UPSTREAM_DRIVER_LOG"
+      err_log="$UPSTREAM_DIR"
+      notes="upstream result mapping produced no row for $mode; driver exit $upstream_exit; see $UPSTREAM_DRIVER_LOG and $UPSTREAM_DIR"
+    else
+      IFS='|' read -r _mode status out_log err_log notes <<< "$line"
+    fi
+    case "$status" in
+      passed)
+        echo "  ok   $case (upstream $mode)"
+        UP_PASSED_COUNT=$((UP_PASSED_COUNT + 1))
+        ;;
+      not_run)
+        echo "  SKIP $case (upstream $mode runner unavailable)"
+        echo "       $notes"
+        UP_NOTRUN_COUNT=$((UP_NOTRUN_COUNT + 1))
+        OVERALL_FAILED=1
+        ;;
+      *)
+        echo "  FAIL $case (upstream $mode)"
+        echo "       $notes"
+        UP_FAILED_COUNT=$((UP_FAILED_COUNT + 1))
+        OVERALL_FAILED=1
+        ;;
+    esac
+  fi
+
+  if ! python3 "$INTEROP_REPORT" record \
+      --output "$UPSTREAM_RESULTS_JSON" \
+      --case "$case" \
+      --status "$status" \
+      --duration-ms "$upstream_dur_ms" \
+      --peer "$UPSTREAM_PEER" \
+      --direction "client_to_server" \
+      --transport "$transport" \
+      --suite "server_probe" \
+      --profile "native" \
+      --peer-pin "$UPSTREAM_PEER_PIN" \
+      --stdout-log "$out_log" \
+      --stderr-log "$err_log" \
+      --exit-code "$upstream_exit" \
+      --attempt-count 1 \
+      --notes "$notes" >/dev/null; then
+    echo "FAIL: could not record $case in $UPSTREAM_RESULTS_JSON" >&2
+    OVERALL_FAILED=1
+  fi
+done
+
+echo ""
+echo "=================================================="
+echo "Upstream Go probe summary: $UP_PASSED_COUNT passed, $UP_FAILED_COUNT failed, $UP_NOTRUN_COUNT not run"
+echo "Logs saved to $LOG_DIR"
+echo "=================================================="
+
+echo "== validating upstream interop results =="
+python3 "$INTEROP_REPORT" validate --results "$UPSTREAM_RESULTS_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
+
+echo "== aggregating upstream interop results =="
+python3 "$INTEROP_REPORT" aggregate --results "$UPSTREAM_RESULTS_JSON" --output "$UPSTREAM_REPORT_JSON" --suite server_probe --profile native --require-matrix || OVERALL_FAILED=1
+fi
 
 if [[ $OVERALL_FAILED -ne 0 ]]; then
   exit 1
