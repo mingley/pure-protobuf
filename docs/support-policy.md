@@ -9,13 +9,15 @@ promised.
 
 ## Supported versions and MSRV
 
-| Crate | Latest published (check manifests, not this table) | MSRV | MSRV CI job |
+| Crate | Source manifest version | MSRV | MSRV CI job |
 |---|---|---|---|
 | `pbrs` | `0.2.0` | 1.85 (`rust-version`) | `msrv-core` |
 | `pbrs-grpc` | `0.1.0-alpha.2` | 1.85 (`rust-version`) | `msrv-core` |
 | `protobuf-tonic` | `0.1.0-alpha.2` | 1.88 (`rust-version`) | `msrv-tonic` |
 
-Only the latest published version of each crate is supported.
+The table records source versions; check the registry and release evidence
+before treating them as published versions. The proposed support policy is
+to support only the latest published version of each crate.
 Pre-release versions are supported only as the newest alpha of that
 crate. MSRV floors are enforced by the CI jobs above; raising a floor
 is a maintainer-level decision and must update the manifest, this

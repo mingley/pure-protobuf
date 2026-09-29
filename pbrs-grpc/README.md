@@ -4,14 +4,18 @@
 [![Documentation](https://docs.rs/pbrs-grpc/badge.svg)](https://docs.rs/pbrs-grpc)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE-MIT)
 
-`pbrs-grpc` is the native gRPC client and server crate for [`pbrs`](../README.md). Use it when you want pure-Rust protobuf messages and a direct HTTP/2 gRPC stack without Tonic, Tower, Hyper, or a C/C++ build toolchain. The crate is still preview software at `0.1.0-alpha.2`.
+`pbrs-grpc` is a pure-Rust gRPC client and server built directly on HTTP/2.
+It supports all four RPC shapes, generated [`pbrs`](../README.md) messages,
+TLS, and optional Prost and Tower integration. The default transport uses
+`h2`, Tokio, rustls, and Graviola without a C/C++ build toolchain.
 
-> ⚠️ **Pre-Release Notice**: `pbrs-grpc` is currently in **preview / pre-release (`0.1.0-alpha.2`)** and is undergoing active production qualification.
->
-> ### Scope & Boundaries
-> - **Name resolution and load balancing**: plain `Channel::connect` still dials one `host:port`; resolver URIs opt in with `Channel::connect_uri`. Built-in schemes are `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. xDS targets are not supported.
-> - **Retries and hedging**: transparent retry stays at most once before a call commits. JSON service config is opt-in through `Channel::service_config` or resolver-delivered DNS TXT and supplies bounded `retryPolicy`, `hedgingPolicy`, throttling, and pushback.
-> - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY`/`NO_PROXY` on every dial and tunnel with HTTP CONNECT. There is no per-channel proxy configuration surface yet.
+Version `0.1.0-alpha.2` is preview software. Production qualification and
+comparative performance work are still underway; see the [project status](../docs/status.md)
+and [scoreboard](../docs/scoreboard.md). Configure connection, RPC, message,
+and byte limits for your workload before deployment.
+
+For a runnable introduction, start with [the greeter example](../examples/greeter/README.md).
+The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
 
 ## What it provides
 
@@ -22,8 +26,18 @@
 
 ## Optional features
 
-The default feature set stays small. Enable `tower` only when you want Tower
-integration:
+Features are opt-in:
+
+| Feature | Use it for |
+|---|---|
+| `prost` | Existing `prost::Message` types on the native transport. |
+| `tower` | Client middleware or server co-hosting with axum/Hyper. |
+| `grpc-web` | Unary and server-streaming gRPC-Web on the native HTTP/2 listener. |
+| `otel` | OpenTelemetry metrics and traces with explicitly installed observers. |
+| `native-roots` | Client certificate trust from the operating system. |
+| `zstd` | Zstandard message compression; requires Rust 1.87. |
+
+For example, enable `tower` for Tower integration:
 
 ```toml
 pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
@@ -34,7 +48,7 @@ With that feature, `Router::into_tower_service()` exposes native services as
 reflection use the same router path. `Channel::tower_unary()` exposes one
 unary method as a tower service so caller-selected layers such as timeout,
 concurrency limit, load shed, and tracing wrap the client without adding a
-buffer to the default `Channel` path. See `examples/axum-cohost`.
+buffer to the default `Channel` path. See [the axum co-host example](../examples/axum-cohost/).
 
 Enable `zstd` only when you need `grpc-encoding: zstd`:
 
@@ -57,6 +71,7 @@ The feature supports binary and text gRPC-Web content types for unary and
 server-streaming methods. CORS preflight is deny-all by default; configure an
 allowed origin with `ServerConfig::grpc_web_allow_origin` or allow all origins
 with `grpc_web_allow_any_origin`.
+For browser HTTP/1.1, use the [Tower/Hyper recipe](../docs/decisions/http1-grpc-web.md).
 
 ## Installation
 
@@ -134,7 +149,7 @@ impl Greeter for MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    GreeterServer::new(MyGreeter).serve("127.0.0.1:50051").await?;
+    GreeterServer::new(MyGreeter).serve("127.0.0.1:50051".parse()?).await?;
     Ok(())
 }
 ```
@@ -177,7 +192,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Design invariants and comparisons
 
-`pbrs-grpc` focuses on predictable execution, high throughput, and strict bounded memory consumption. For a deeper comparison with Tonic and gRPC-Go, see the [framework comparison guide](../docs/guides/comparison.md).
+`pbrs-grpc` provides explicit resource limits and fail-fast admission controls.
+Connection and RPC counts are uncapped by default; configured transport limits
+do not bound application allocations or total process memory. See the
+[resource model](../docs/resource-budgets.md) and [framework comparison](../docs/guides/comparison.md).
 
 | Domain | `pbrs-grpc` invariant | Difference from common alternatives |
 |---|---|---|
@@ -185,6 +203,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Concurrency | `ServerConfig::max_concurrent_rpcs` enforces a cap | Overflow fails fast with `RESOURCE_EXHAUSTED` instead of unbounded queuing. |
 | Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs are enabled once an interval is set. |
 | Retries | Transparent retry is at most once; service-config retry/hedging is opt-in and bounded | Application retries still use `Code::is_retryable` when no service-config policy applies. |
+
+xDS targets and async OAuth2/JWT credential providers are planned work.
+HTTP CONNECT proxy selection currently uses `HTTPS_PROXY` / `NO_PROXY`
+environment variables on each dial. The [support policy](../docs/support-policy.md)
+records qualification boundaries.
 
 ## More documentation
 

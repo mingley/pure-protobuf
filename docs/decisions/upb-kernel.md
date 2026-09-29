@@ -398,7 +398,7 @@ inputs.
   message_generics, nested_types, package, proto_macro, serialization,
   simple_nested, threading, utf8.
 - `rust/test/shared/extensions_test.rs` — portable once UK-08 + CG-14 land
-  (today an empty stub: proto is Edition 2024, plugin max is 2023).
+  (a license-only stub at the v35.1 pin; no runnable extension cases).
 - Official conformance suites (binary, JSON, text) via the UK-12 testee.
 - `rust/test/upb/*` **behavioral** cases, where they assert through the public
   Rust API rather than FFI (triage per file at UK-11; e.g. text/JSON behavior

@@ -1,9 +1,19 @@
-# Leadership execution plan
+# Foundation execution plan
 
-This page turns the roadmap into dependency-ordered task cards for
-contributors. Bottom line: it records the 2026-09-18 gap assessment and the
-small-executor rules; [`tasks.json`](tasks.json) is authoritative for individual
-card status, dependencies and checks.
+This is the original 2026-09-18 gap assessment and the execution contract for
+its task cards. Many of those gaps are now closed. Start with the
+[current queue](../../TODO.md) and [current audit](../audit-2026-09-29.md);
+use this page for the original scope, official-suite references and
+[worker contract](#small-executor-contract).
+
+[`tasks.json`](tasks.json) retains these cards. The
+[performance program](world-class/README.md) extends them and records how old
+assignments map to newer work. Query both files together:
+
+```sh
+python3 scripts/plan-status.py --ready
+python3 scripts/plan-status.py --card BM-03
+```
 
 **Snapshot:** 2026-09-18. **Source baseline:**
 [`139af0c2559ebc36ecae86c647482a758dff4d64`](https://github.com/mingley/pure-protobuf/tree/139af0c2559ebc36ecae86c647482a758dff4d64).
@@ -22,7 +32,7 @@ trading away Google's protocol semantics. This plan supplements the stable
 [GR work packages](../ROADMAP.md), not a second competing roadmap.
 [`tasks.json`](tasks.json) is the authoritative, dependency-ordered work queue.
 It contains bounded assignments rather than instructions to "make gRPC fast."
-There are 127 initial cards across 14 lanes. This is a staged program, not 127
+There were 127 initial cards across 14 lanes; follow-ups have since been added. This is a staged program, not 127
 simultaneous jobs or a claim that speculative architecture is already settled.
 
 The [large-payload zero-copy proposal](pbrs-zero-copy-large-payloads-plan.md)
@@ -40,11 +50,16 @@ not rerun performance, fuzz, soak, or official upstream campaigns.
 | Reader question | Answer |
 |---|---|
 | What is the source of truth for card scope? | [`tasks.json`](tasks.json), with defaults applied by the small-executor contract. |
-| What is already delivered? | Fresh-directory onboarding, source-bind repair, separate minimum supported Rust version (MSRV) jobs, package consumers and one CI-gated publisher. |
-| What is still missing? | Honest cross-peer evidence, official assertions, retry proof, codegen hardening, Rust-only generation, benchmark quality, documentation cleanup and production/fleet evidence. |
+| What was already delivered at this baseline? | Fresh-directory onboarding, source-bind repair, separate minimum supported Rust version (MSRV) jobs, package consumers and one CI-gated publisher. |
+| Where are current gaps recorded? | The [current audit](../audit-2026-09-29.md), [queue](../../TODO.md), and each card's acceptance evidence. |
 | What is not proved by this page? | Production certification, performance leadership, fuzz/soak completion or complete official upstream coverage. |
 
 ## What is actually missing
+
+The following table is the **historical baseline assessment**, not a current
+inventory. For example, pinned peers, retry boundaries, checked adapter
+descriptors, fuzz targets and shorter guides have since landed. Current gaps
+and acceptance evidence live in the cards and the linked audit.
 
 | Area | Evidence at the baseline | Next work |
 |---|---|---|

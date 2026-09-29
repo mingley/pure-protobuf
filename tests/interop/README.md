@@ -1,6 +1,10 @@
 # Official Interoperability and Conformance Case Registry
 
-This directory is the map of every official Protobuf and gRPC test case tracked by `pure-protobuf` and `pbrs-grpc`. Run the main gRPC interoperability matrix with `./scripts/grpc-interop.sh`; run Protobuf conformance and HTTP/2 probes with the commands listed below. These tests do not yet prove the full profile: original HTTP/2 negatives, original server probes, full-duration soaks, backoff, scaling, cloud auth, Application Layer Transport Security (ALTS), Open Request Cost Aggregation (ORCA), xDS, and performance worker cases keep their recorded statuses below.
+Use this registry to choose an interoperability test and understand what its
+result proves. Run the main gRPC matrix with `./scripts/grpc-interop.sh`;
+the table below points to conformance and HTTP/2 probes. The full profile is
+not qualified: unresolved upstream procedures keep their individual statuses
+in `cases.json`, even when local substitutes pass.
 
 The registry lives in `cases.json`. It records the upstream source, peer direction, transport, profile, owner task, current disposition, and available evidence for each case.
 
@@ -297,7 +301,7 @@ These cases cover official Protobuf v35.1 conformance and Rust application seman
 | `protobuf_json_conformance` | Proto3 and Edition 2023 JSON mapping conformance. | Tracked in the official conformance suite. |
 | `protobuf_text_conformance` | Text format conformance. | 909 tests. |
 | `protobuf_enforce_recommended` | Recommended conformance suite with `--enforce_recommended`. | Passed without `failure_list_rust_upb.txt` skips. |
-| `rust_shared_application_tests` | In-tree port of `rust/test/shared/` accessors, merge, and serialize in `tests/google_shared.rs`. | Standalone external runner scheduled in `PB-02`. |
+| `rust_shared_application_tests` | In-tree behavior ports in `tests/google_shared.rs` and the separate original-consumer runner `scripts/test-rust-out-shared.sh`. | At audited `37683917`, original `test_map_int32_enum` fails; see [compatibility status](../../docs/codegen-compatibility.md). A historical pass does not qualify the current revision. |
 | `upb_kernel_internals` | C upb arena layout internals. | Explicit `not_applicable`; they do not apply to the safe pure-Rust runtime. |
 
 ### 12. Performance Framework (`performance`, 8 cases)

@@ -1,10 +1,10 @@
-# Official Cacheable-Unary Contract & Protocol Resolution
+# Cacheable unary RPC: protocol decision
 
-This page explains why `cacheable_unary` is not part of the standard native
-gRPC over HTTP/2 profile for `pbrs-grpc`. Bottom line: standard gRPC requires
-HTTP/2 `POST`; `cacheable_unary` is an abandoned experimental `GET` procedure
-with security risks, so its recommended disposition is `not_applicable`
-(pending maintainer approval).
+Standard gRPC over HTTP/2 uses `POST`. The historical `cacheable_unary`
+interop case asks for experimental `GET` behavior that the native server does
+not support. This record recommends classifying that case as `not_applicable`
+to the standard profile. The registry decision remains pending maintainer
+approval; the source evidence and unresolved gate are retained below.
 
 **Task:** EX-20 ("Resolve the official cacheable-unary contract")  
 **Pinned Standards:** `grpc/grpc` @ `d1487957db6658bc532b72871775148229836627`, `doc/PROTOCOL-HTTP2.md`, `doc/interop-test-descriptions.md`, RFC 9110 (HTTP Semantics), RFC 9111 (HTTP Caching), RFC 9113 (HTTP/2)  

@@ -1,14 +1,29 @@
 # gRPC and Protobuf Benchmark Contract
 
-This page is the rulebook for anyone running or reading `pbrs` and
-`pbrs-grpc` performance results. Bottom line: only named, statistically
-qualified benchmark matrices can support performance claims; loopback and
-single-run diagnostics are smoke evidence only.
+This contract defines the evidence needed for a performance claim about
+`pbrs` or `pbrs-grpc`. A working harness, a fast local run, or a completed
+implementation task is not a qualified comparative result.
 
 - **Version:** 1.1.0
 - **Status:** Active Contract (Task BM-01)
 - **Revision note:** 1.1.0 closes the BM-01 acceptance gaps: network round-trip time (RTT) and core-scaling dimensions (§3.6), overload rule (§3.7), identical handler work (§5.4), and staged execution, claim scope and anti-gaming rules (§10).
 - **Applies to:** `pure-protobuf` (`pbrs`), `pbrs-grpc`, `rpc-bench`, and comparison suites
+
+## Use this contract
+
+| If you are… | Read first |
+|---|---|
+| Checking what has actually been measured | [Scoreboard](scoreboard.md) and [evidence index](evidence/README.md) |
+| Adding a workload or comparator | §2–§3 for equivalent work and required dimensions |
+| Implementing a load generator or result recorder | §4–§5 for offered-load accounting and endpoint attribution |
+| Preparing a publishable campaign | §6–§8 for repeats, intervals, acceptance margins, and host controls |
+| Writing a headline or choosing a campaign stage | §10 for claim scope and staged execution |
+
+The thresholds below describe the target contract. Existing harnesses implement
+different subsets: read their limitations before scheduling a campaign. In
+particular, [SB-21](evidence/sb21-claims-scenarios.md) records claim-shaped
+scenario definitions with runner integration still outstanding. No current
+scoreboard category has a qualified performance win.
 
 ## 1. Principles and Scope
 
@@ -37,15 +52,11 @@ Separate the work being measured before comparing results. Codec costs,
 transport costs, and cross-language application behavior answer different
 questions.
 
-```
-+-----------------------------------------------------------------------------------+
-| Tier 3: End-to-End Application RPCs (Mixed-Peer, Cross-Language: Rust, Go, C++)  |
-+-----------------------------------------------------------------------------------+
-| Tier 2: Transport-Only Workloads (Identical Codec Held Constant: Native vs Tonic) |
-+-----------------------------------------------------------------------------------+
-| Tier 1: Codec-Only Workloads (In-Memory Serialization: Owned vs View, Mutated)    |
-+-----------------------------------------------------------------------------------+
-```
+| Tier | What changes | What stays equivalent |
+|---|---|---|
+| 1: codec | Serialization implementation | Schema, values, ownership, and lifecycle operation |
+| 2: transport | gRPC/HTTP/2 implementation | The same pbrs codec, handler work, and endpoint settings |
+| 3: application RPC | Complete Rust, Go, or C++ stack | Application behavior, offered load, and resource budget |
 
 ### 2.1 Tier 1: Codec-Only Workloads
 
@@ -56,7 +67,7 @@ network, HTTP/2, and client scheduling overhead.
 
 | Mode | Meaning | Comparison rule |
 |---|---|---|
-| **Owned decoding** | Wire bytes become owned Rust data (`String`, `Vec<T>`, boxed sub-messages). Fields live independently from the input buffer. | Compare only with other owned decoders: `pbrs`, `prost`, `protobuf` v4 upb, and `buffa` owned. |
+| **Owned decoding** | The message owns its fields or retains its own shared backing, so it does not borrow the caller's input lifetime. Eager fields, lazy wire-backed fields, and C arenas have different materialization costs. | Compare owned decoders (`pbrs`, `prost`, `protobuf` v4 upb, `buffa` owned), record those differences, and pair parse-only with parse-and-touch/retained-memory evidence. |
 | **Borrowed / zero-copy view decoding** | Wire bytes become lightweight views into the input slice (`&'a str`, `&'a [u8]`, view structs). Bytes/string payloads avoid heap allocation. | Report in a dedicated view column only: `buffa decode_view` and `pbrs` zero-copy views. |
 
 #### B. Lifecycle and Mutation Dimension
@@ -64,6 +75,7 @@ network, HTTP/2, and client scheduling overhead.
 | Operation | What it measures |
 |---|---|
 | **Fresh / cold encode** | Construct a message from scratch, populate it, then serialize it. |
+| **First encode after parse** | Prepare parsed messages outside the timed interval, then encode each once. Report this separately: lazy wire-backed state can survive parsing, so this does not measure fresh construction. |
 | **Mutated encode** | Modify fields on an existing parsed or constructed message, then serialize it. This exercises dirty tracking, length recomputation, and cache invalidation. |
 | **Cached encode** | Serialize an unchanged message repeatedly. This measures cached wire lengths or pre-encoded packed data. |
 | **Parse-only** | Deserialize wire bytes into memory. |
@@ -255,9 +267,12 @@ messages. Sync/generic server or sync client types, a proto server's
 fail with `INVALID_ARGUMENT` before binding or dialing. Negative simple
 payload sizes fail likewise; sizes above the 4 MiB worker body cap fail with
 `RESOURCE_EXHAUSTED` before allocating a request buffer. This is not
-support for the upstream generic byte-buffer QPS scenarios. Explicit thread
-counts, core affinity, security, channel/session, coalescing and other
-unimplemented control options now fail rather than being silently ignored.
+support for the upstream generic byte-buffer QPS scenarios. Async thread
+counts are supported: zero uses the worker runtime; 1–1024 creates a dedicated
+Tokio runtime with that worker count. Negative counts fail `INVALID_ARGUMENT`
+and larger counts fail `RESOURCE_EXHAUSTED`. Core affinity, security,
+channel/session, coalescing, and other unimplemented control options fail
+rather than being silently ignored. See the [worker guide](../rpc-bench/README.md).
 The worker accepts at most **64 client channels**, **256 configured in-flight
 RPCs** (`client_channels * outstanding_rpcs_per_channel`), and **65,536
 histogram buckets**. This is a conservative local resource policy, not an
@@ -270,7 +285,10 @@ requested. Offered calls rejected at the local cap appear as
 `RESOURCE_EXHAUSTED` in `ClientStats.request_results`; they do **not** get
 a fabricated latency sample. Published benchmark comparisons still need
 independent offered/rejected-call evidence; a `ClientStats` histogram alone
-cannot prove all offered calls completed. A per-channel semaphore enforces
+cannot prove all offered calls completed. The worker's exported latency
+histogram is dispatch-relative; schedule-relative end-to-end latency still
+needs the export work recorded by [SB-21](evidence/sb21-claims-scenarios.md).
+The separate `rpc-bench load` report already carries both. A per-channel semaphore enforces
 the requested outstanding-call limit; a call is assigned to a free channel
 or rejected visibly, not silently queued behind a saturated channel.
 Per-channel scheduling behavior against the original driver is not yet

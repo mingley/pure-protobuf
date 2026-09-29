@@ -1,6 +1,20 @@
-# Building Services with pbrs-grpc
+# Build a gRPC service
 
-This guide is the main entry point for building native gRPC services with `pbrs-grpc`. It is for Rust developers who want generated clients and servers over `pbrs` messages without Tonic. The bottom line: define protobuf services, generate native stubs, then use the focused guides for production TLS, streaming, interceptors, and operations.
+Define a protobuf service, generate Rust messages and stubs, then implement
+the generated service trait. This guide walks through a unary call and points
+to the guides for streaming, TLS, middleware, and operations.
+
+To run a working service first:
+
+```sh
+cargo run -p pbrs-grpc-example-greeter
+cargo test -p pbrs-grpc-example-greeter
+```
+
+Run these from the repository root with `protoc` installed. The
+[greeter example](../examples/greeter/README.md) exercises all four RPC shapes.
+`pbrs-grpc` is preview software; the [status page](status.md) distinguishes
+implemented features from completed production qualification.
 
 `pbrs-grpc` is a standalone, pure-Rust gRPC client and server kernel built over [`pbrs`](../README.md). It has no C compiler requirement and runs directly on prior-knowledge HTTP/2. The gRPC framing, dispatch, transport, TLS, and codec modules forbid unsafe; two Linux-only OS helpers use scoped, documented unsafe for socket/user-timeout and CPU-affinity syscalls.
 
@@ -51,6 +65,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+This application build step requires `protoc` on `PATH`. The
+[checked descriptor-set workflow](guides/codegen.md#generating-from-a-checked-descriptor-set)
+generates the same stubs without invoking `protoc` during the application build.
+
 ### Server implementation
 
 Include the generated code, implement the `Greeter` trait, and start serving:
@@ -77,7 +95,7 @@ impl Greeter for MyGreeter {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    GreeterServer::new(MyGreeter).serve("127.0.0.1:50051").await?;
+    GreeterServer::new(MyGreeter).serve("127.0.0.1:50051".parse()?).await?;
     Ok(())
 }
 ```
@@ -156,9 +174,11 @@ Responses encode trailers in the response body as required by gRPC-Web; native
 browser gRPC-Web calls are rejected with `UNIMPLEMENTED`, matching tonic-web's
 browser-facing limits.
 
-This support is HTTP/2-only. Browser HTTP/1.1 and h2c upgrade deployments still
-need an edge proxy or a future HTTP/1.1 accept layer. CORS preflight defaults
-to deny-all; opt in explicitly:
+The native listener serves HTTP/2. For browser HTTP/1.1, the
+[axum co-host example](../examples/axum-cohost/) wraps the Tower adapter in
+`tonic_web::GrpcWebLayer` and uses Hyper's automatic connection server;
+see the [HTTP/1.1 decision](decisions/http1-grpc-web.md). The native gRPC-Web
+CORS preflight policy defaults to deny-all; opt in explicitly:
 
 ```rust
 let config = pbrs_grpc::ServerConfig::new()
@@ -199,7 +219,7 @@ See the [production service configuration guide](guides/production-service.md).
 - **Name resolution**: `Channel::connect` dials one direct authority (`host:port`). `Channel::connect_uri` opts into resolver targets: `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. DNS refresh requires explicit `DnsConfig` bounds.
 - **Load balancing**: resolver-managed channels default to `pick_first`. Service-config `loadBalancingConfig` can select `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, or `outlier_detection`.
 - **Multi-service routing**: serve multiple services on one TCP/TLS listener with `Router`.
-- **Compression**: negotiate message-level gzip compression.
+- **Compression**: negotiate gzip or deflate; optional `zstd` support requires Rust 1.87.
 
 See the [production service configuration guide](guides/production-service.md).
 

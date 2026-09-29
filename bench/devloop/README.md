@@ -38,11 +38,17 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
-Thresholds follow the scoreboard win rules: instructions or
+Local comparison defaults follow the scoreboard guidance: instructions or
 allocations fall ≥2% on targeted cells; no primary cell regresses
->1% (2% for RPC cells).
+>1% (2% for RPC cells). The CI lane is advisory. SB-20 must calibrate blocking
+thresholds from at least 30 usable measured runs; missing metrics and error
+placeholder reports are not successful measurements.
 
-## Cells (16)
+## Cell families
+
+The matrix has expanded beyond the original 16 cells. Run
+`bench/devloop/target/release/devloop list` after building for the exact
+inventory of the current revision.
 
 Codec cells share one populated `TestAllTypesProto3` specimen: pbrs
 builds it by hand, prost and protobuf v4 parse the same wire bytes
@@ -52,10 +58,16 @@ builds it by hand, prost and protobuf v4 parse the same wire bytes
 - `rpc.{pbrs,tonic}.{unary,server_stream}` — closed-loop loopback
   (concurrency 1) over 127.0.0.1, 1 KiB payloads, 4 replies per
   server-stream RPC.
+- Additional codec rows cover small-message losses, packed/repeated fields,
+  and large-byte ownership/copy costs.
+- RPC rows include native compression and explicit prost-codec variants.
+- `lb.*.pick` rows measure steady-state load-balancer picker cost.
 
-Cross-stack RPC deltas are NOT fair transport comparisons: each
-stack uses its natural codec (pbrs hello vs prost echo) until SB-01
-qualifies the tonic setup. Within-stack repeats are exact.
+The original pbrs/tonic RPC rows use different generated services and codecs
+(pbrs hello versus prost echo), so their cross-stack delta does not isolate
+transport. SB-01 repaired the separate `rpc-bench` comparator; that does not
+automatically qualify these dev-loop cells. Prefer within-stack before/after
+comparisons and inspect the cell's codec and settings before interpreting it.
 
 ## Known measurement limits
 
@@ -70,9 +82,9 @@ qualifies the tonic setup. Within-stack repeats are exact.
   process startup, setup, warmup, and JSON printing by using the differential
   N/2N method above.
 
-## Observed variance (2026-09-27, Apple M4 Pro, rustc 1.98.1)
+## Historical variance (2026-09-27, Apple M4 Pro, rustc 1.98.1)
 
-16 cells × 3 repeats, `--iters 2000` (RPC capped at 200/RPC-run):
+The original 16 cells × 3 repeats, `--iters 2000` (RPC capped at 200/RPC-run):
 
 - Codec allocations: bit-exact across repeats on all 12 cells.
 - Codec wall CV: 0.6–4.1% (secondary metric; instructions are

@@ -1,9 +1,9 @@
 # Production Service Configuration and Lifecycle
 
-Use this guide to run the tested TLS and mutual TLS (mTLS) production-style
-greeter recipe. You need the repository checkout, existing Rust dependencies,
-`protoc`, and the public TLS fixtures already in this repo. Bottom line: this
-is a **bounded, loopback-only teaching recipe**, not a deployment preset.
+Run this loopback recipe to learn TLS, mutual TLS (mTLS), readiness, overload,
+and graceful shutdown. It uses explicit limits and the repository's public
+test certificates. You need a checkout, cached Rust dependencies, and
+`protoc`. Choose your own credentials and capacity limits for deployment.
 
 The executable [greeter TLS service and client](../../examples/greeter/src/production.rs)
 uses generated stubs, `rustls` TLS, health, and a finite drain. Its

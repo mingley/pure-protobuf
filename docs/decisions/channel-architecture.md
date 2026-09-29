@@ -5,15 +5,19 @@ architecture for future resolver-managed `pbrs-grpc` channels. Decision:
 keep today's direct channel as the zero-overhead default, and add the new
 pipeline only behind an explicit opt-in API.
 
-**Status:** Proposed for maintainer review; no resolver or balancer ships
-with this document. **Baseline:** `10b0ba1a` on 2026-09-26.
+**Status:** Approved on 2026-09-26, as recorded in CH-01's task evidence.
+**Original baseline:** `10b0ba1a`. The design prose below records that proposal. Since then,
+resolver-managed channels and several balancing policies have landed; use
+the [resolver contract](../resolver-contract.md),
+[service-config guide](../service-config.md), and current task cards for
+implemented scope. This record alone is not qualification evidence.
 **Supersedes:** the FL-01 scope of [the resolver
 contract](../resolver-contract.md) (kept as the DNS-profile detail:
 timeouts, staleness, deterministic timelines t0–t7).
 
-**Review gate:** the maintainer must approve the registries, the state
-model, the performance rules, and the opt-in API before CH-02 closes or
-unblocks CH-03+. A design note is not production evidence.
+**Review gate:** CH-01 records approval of the registries, state model,
+performance rules, and opt-in API before CH-02+. This design approval does
+not replace implementation or production evidence.
 
 ## Shape
 

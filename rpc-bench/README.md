@@ -1,22 +1,40 @@
 # `rpc-bench`: gRPC benchmark harness and QPS worker
 
-`rpc-bench` measures `pbrs-grpc` throughput, latency, CPU, and memory through
-the official gRPC benchmark worker protocol. For a quick smoke run from the repo
+`rpc-bench` provides a gRPC benchmark worker and separate-process load tools
+for measuring throughput, latency, CPU, and memory. For a quick smoke run from the repo
 root, use `./scripts/grpc-qps-interop.sh --scenario=protobuf_unary_ping_pong_empty --warmup=1 --duration=2`.
 Read `target/qps-logs/<timestamp>_<pid>/summary.json` first, then inspect the
 raw result and process logs when a cell fails or looks noisy.
 
-It follows [`docs/benchmark-contract.md`](../docs/benchmark-contract.md):
+It implements parts of the
+[benchmark contract](../docs/benchmark-contract.md):
 
-- **Prevents coordinated omission.** Open-loop Poisson and constant-paced
-  arrivals track scheduling lag; saturated generators are flagged.
-- **Separates metrics.** Client CPU, server CPU, resident set size (RSS), and
-  queue delay are reported independently.
+- **Tracks offered load.** Open-loop Poisson and constant-paced arrivals track
+  scheduling lag; saturated generators are flagged. `load` reports
+  schedule-relative end-to-end latency. The WorkerService histogram still
+  reports dispatch-relative service time; see the qualification gap below.
+- **Separates endpoint resources.** Runs in separate processes can attribute
+  client/server CPU and resident set size (RSS). The `load` report also carries
+  queue/scheduling delay; not every upstream driver exports every metric.
 - **Keeps histogram fidelity.** HDR latency histograms match upstream
   `grpc/support/histogram.c` exponential buckets.
 - **Uses the real schema.** The harness consumes and emits official
   `grpc.testing` protobuf structures over gRPC. It does not hide unsupported
   fields behind adapters.
+
+## What is ready, and what is still missing
+
+The [SB-10 records](../docs/evidence/qps-sb10.md) show official async scenarios
+running against native, Go, and C++ workers. These are compatibility and local
+performance diagnostics. The native worker rejects synchronous and generic
+byte-buffer modes explicitly.
+
+[SB-21](../docs/evidence/sb21-claims-scenarios.md) adds longer open-loop
+scenario definitions, but a qualified campaign still needs worker export of
+schedule-relative latency, complete offered-call reconciliation, execution of
+the frozen repeat orders, matched peer settings, and controlled hosts. The
+QPS-only C++ driver output cannot establish a latency or CPU claim. See the
+[scoreboard](../docs/scoreboard.md) before using a result as a ranking.
 
 ## 1. Pinned Upstream Specifications and Peers
 
@@ -102,10 +120,15 @@ Run specific peer directions to evaluate client and server efficiency:
 
 ### Full Matrix Execution
 
-Run the entire suite of official scenarios across all three primary directions:
+Run the checked-in scenario suite across all three primary directions:
 ```bash
 ./scripts/grpc-qps-interop.sh
 ```
+
+This includes the two synchronous Go aliases, which the native async worker
+does not support. Their explicit failures make the full request incomplete;
+select the supported async scenarios for a passing smoke check. Do not count
+an unsupported scenario as a peer performance loss.
 
 ### Driving with Upstream C++ `qps_json_driver`
 After `scripts/grpc-interop-cpp.sh` fetches and builds the pinned C++ interop

@@ -14,5 +14,6 @@ BSD-3-Clause, ISC, Unicode-3.0, and Zlib. The existing `webpki-roots` dependency
 the only per-crate exception because its Mozilla root store is distributed as
 `CDLA-Permissive-2.0`.
 
-Private vulnerability reports should be filed through GitHub Security
-Advisories as described in `SECURITY.md`.
+For private vulnerability reporting, use the
+[security policy](../SECURITY.md). For release and maintenance expectations,
+see the [support policy](support-policy.md).

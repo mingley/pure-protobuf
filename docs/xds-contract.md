@@ -1,9 +1,9 @@
 # xDS implementation contract
 
-This contract is for Rust developers implementing proxyless xDS in
-`pbrs-grpc`. Bottom line: the control plane publishes versioned
-snapshots, the data plane keeps serving from the last good snapshot,
-and the two never share identity, credentials, or fate.
+This is the proposed design for proxyless xDS; it is not an available feature.
+The control plane publishes versioned configuration snapshots. Application
+traffic continues from the last good snapshot when the control plane fails,
+using separate connections and credentials.
 
 **Contract version:** 0.1 (draft). **Status:** Draft under
 [xDS build versus reuse](decisions/xds-build-vs-reuse.md) (XD-01,

@@ -1,24 +1,35 @@
-# Plan for a best-in-class protobuf and gRPC stack
+# Roadmap: performance and production readiness
 
-This roadmap explains how `pbrs` moves from current alpha crates to a qualified
-Rust Protocol Buffers and gRPC stack. It is for contributors and evaluators who
-need to know what is done, what blocks promotion, and what evidence is required.
-Bottom line: onboarding and release gates are delivered; production and
-performance claims still need GR-03 and later evidence.
+The goal is a Rust protobuf and gRPC stack with leading client and server
+efficiency, predictable resources and a straightforward developer experience.
+The [current queue](../TODO.md) says what to do next. The
+[2026-09-29 audit](audit-2026-09-29.md) explains why, and the
+[performance program](plan/world-class/README.md) sets the measurable route
+to leadership.
 
-| Area | State | Next step |
-|---|---|---|
-| Product goal | A Rust stack chosen for correct behavior, predictable resources, low tail latency and a straightforward developer experience. | Demonstrate that goal per workload; do not describe the current release as "best." |
-| Current status | GR-01 and GR-02 foundation slices are done. | Preserve them while gathering new evidence for larger claims. |
-| Work queue | [TODO.md](../TODO.md) tracks milestones; [task cards](plan/tasks.json) are authoritative for leaf-task dependencies and status. | Use the card dependencies, not prose order, when assigning work. |
-| Larger program | The [world-class gRPC program](plan/world-class/README.md) adds the category scoreboard and the performance, upb-replacement, tonic and gRFC (gRPC Request for Comments) lanes. | Treat it as an extension, not as proof that those claims are already true. |
+This page defines product scope and promotion requirements. It does not carry
+live task status. Use the two [task plans](plan/README.md) and
+`python3 scripts/plan-status.py --ready` for assignments.
 
-This is an implementation plan, not a production certification or a promise of
-release dates. The [granular execution plan](plan/README.md) contains the
-current gap assessment, official-suite source map and small-executor contract.
-A faster codec does not by itself make a better RPC system.
+| Decision | Source |
+|---|---|
+| What can I use today? | [Implementation status](status.md) and task-oriented guides |
+| What should we fix first? | [Current priorities](../TODO.md#current-priorities) |
+| What counts as a performance win? | [Benchmark contract](benchmark-contract.md) |
+| What is required for a supported release? | GR packages below, then [release policy](RELEASE.md) |
+| What did the audit find? | [Repository audit](audit-2026-09-29.md) |
+
+GR-01/GR-02 foundation slices have landed. Their presence does not imply
+every current check passes: the audit found a rustdoc failure and an upstream
+enum-map regression. Later GR packages remain qualification outcomes, even
+when many of their features already exist. No release date or universal
+performance claim follows from the roadmap.
 
 ## Starting point and evidence
+
+This section records the original 2026-09-18 assessment. Its gaps are
+historical; many were closed by subsequent task cards. Use the current audit
+above before starting work from this table.
 
 Source review baseline: [139af0c2](https://github.com/mingley/pure-protobuf/tree/139af0c2559ebc36ecae86c647482a758dff4d64),
 reviewed 2026-09-18. File links below follow the current checkout; use that

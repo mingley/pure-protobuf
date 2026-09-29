@@ -12,10 +12,10 @@ evidence.
 
 ## Context
 
-Today `FooView<'msg>` is `&Owned` after copy
+Today `FooView<'msg>` borrows an already-parsed owned message
 (`impl_typed_message!` in `src/gen_support.rs`; see `docs/upb.md` §Views):
-it borrows an already-parsed owned message and offers zero-copy access only
-in the trivial sense that reborrowing is free. Field-level laziness exists
+and is not a wire-view root. The owned message can already share a supplied
+`Bytes` backing buffer through `parse_bytes`. Field-level laziness exists
 inside owned messages (`LazyStr`/`LazyBytes` windowing a shared `Wire`,
 `LazyMsg` validating eagerly and materializing `T` on first access), but
 there is no first-class wire-backed view type: something that decodes

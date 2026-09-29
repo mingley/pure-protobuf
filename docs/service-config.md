@@ -1,10 +1,14 @@
 # Service-Config Retry Semantics (Approved Contract)
 
-This page approves the service-config retry semantics for `pbrs-grpc`.
-Bottom line: retries are opt-in per method via a validated JSON service-config
-document; without a policy the kernel performs at most one transparent redial
-and only with proof the server never saw the request. Policy retries may
-re-execute the server handler and never promise exactly-once.
+Use a validated JSON service config to enable retries for selected methods.
+Without a policy, the kernel performs at most one transparent retry and only
+with proof the server did not process the request. A policy may re-execute the
+handler; applications must provide their own idempotency or deduplication.
+
+This is the implementation contract for selection, replay, throttling, and
+pushback. Unary retry and hedging ship, as does server-streaming retry before
+commitment. Client-streaming and bidirectional replay remain application work;
+streaming throttling accounting is approximate (§8).
 
 - **Task:** FL-06 ("Approve explicit service-config retry semantics")
 - **Pinned Standards:** gRFC A6 (client retries) at

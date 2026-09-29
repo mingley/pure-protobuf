@@ -2,6 +2,10 @@ Source: closed [#32](https://github.com/mingley/pure-protobuf/pull/32). Harness:
 
 # Inventory: hello Parse gap (~23 ns vs prost)
 
+Archived measurement at the revision below. The results explain a historical
+loss and do not establish current performance. See the
+[current plan](../plan/world-class/README.md) for active work.
+
 MEASURE ONLY. Not done. No rewrite. Do not merge as a Parse win.
 Do not treat this file, the throwaway harness, or these numbers as codec
 parity. Kernel API, `ProtobufCodec`, README, and `docs/status.md` are

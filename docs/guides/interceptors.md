@@ -1,10 +1,9 @@
 # Interceptors, Metadata, and Request Context
 
-Use this guide to add metadata, authentication, per-call overlays, and
-request-scoped context in `pbrs-grpc`. You need generated client/server stubs
-and a service to wrap. Bottom line: client interceptors mutate outbound calls,
-server interceptors validate inbound calls, and extensions carry Rust-only
-context that should not go on the wire.
+Client interceptors prepare outbound calls; server interceptors validate
+incoming requests. Use metadata for values sent to the peer and extensions
+for Rust values kept within the process. The examples below assume generated
+client/server stubs and a service to wrap.
 
 ---
 
@@ -40,8 +39,8 @@ Use the ASCII and binary helpers instead of encoding binary values yourself.
 ```rust
 // Client: attaching headers
 let mut req = Request::new(payload);
-req.metadata_mut().insert("x-request-id", "req-12345");
-req.metadata_mut().insert_bin("auth-token-bin", &[0x01, 0x02, 0x03]);
+req.metadata_mut().insert("x-request-id", "req-12345")?;
+req.metadata_mut().insert_bin("auth-token-bin", &[0x01, 0x02, 0x03])?;
 
 // Server: reading headers
 let req_id = request.metadata().get("x-request-id");
@@ -62,11 +61,11 @@ use pbrs_grpc::{Channel, ClientInterceptor, Outgoing, Status};
 let channel = Channel::connect("127.0.0.1:50051").await?
     .intercept(|outgoing: &mut Outgoing| {
         // 1. Add authentication header
-        outgoing.metadata_mut().insert("authorization", "Bearer secret-token");
+        outgoing.metadata_mut().insert("authorization", "Bearer secret-token")?;
 
         // 2. Adjust per-call configuration overlays
         if !outgoing.user_agent_is_set() {
-            outgoing.set_user_agent("my-custom-client/1.0");
+            outgoing.set_user_agent("my-custom-client/1.0")?;
         }
 
         // Return Ok(()) to proceed, or Err(Status) to abort the call
@@ -103,7 +102,7 @@ let auth_interceptor = |rpc: &mut Rpc| -> Result<(), Status> {
 
 Server::new(MyService)
     .intercept(auth_interceptor)
-    .serve("0.0.0.0:50051")
+    .serve("0.0.0.0:50051".parse()?)
     .await?;
 ```
 

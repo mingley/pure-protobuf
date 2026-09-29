@@ -1,18 +1,19 @@
 # Migrating to pure-protobuf
 
-Use this guide when moving an existing Rust Protocol Buffers or gRPC codebase
-to `pure-protobuf`. You should know whether your current stack uses `prost`,
-Tonic, or Google's `protobuf` 4.x crate. Bottom line: the main migration work
-is switching message traits and choosing the right generated service stubs.
+Choose which layer to migrate first: protobuf messages, the gRPC transport,
+or both. You can keep Tonic with `pbrs` messages, keep Prost messages on the
+native transport, or generate native `pbrs` messages and services together.
+The examples below cover those paths and the current limits of Google's
+`protobuf` 4.x compatibility.
 
 ---
 
 ## 1. Migrating from Prost
 
-Start with the trait model. `pbrs` message types use the Google Protobuf v4
-application API traits, not `prost::Message`.
-
-> **Important**: `pbrs` message types implement the official Google Protobuf v4 application API traits (`Parse`, `Serialize`, `Clear`, `Message`), **not** `prost::Message`.
+Start with the trait model. `pbrs` provides its own `Parse`, `Serialize`,
+`Clear`, and `Message` traits, shaped after the Google Protobuf v4 application
+API. Generated `pbrs` messages do not implement `prost::Message`; these are
+also distinct Rust traits from those exported by Google's crate.
 
 ### Trait Comparison
 | Feature | Prost (`prost`) | pure-protobuf (`pbrs`) |
@@ -148,18 +149,15 @@ one-to-one.
 | Compression | `src/compression/{server,client}.rs` | gzip with tonic_compat + prost-native; zstd with `--features zstd` | 73 | 62 | +58 / -69 | Zstd is pbrs-grpc-native parity, not a tonic upstream example because tonic has no public zstd example. |
 | Richer error details | `src/richer-error/{server,client}.rs` | `google.rpc` details with tonic_compat + prost-native Greeter services | 123 | 95 | +79 / -107 | No gap: `pbrs-grpc` supports typed `ErrorDetails` (`BadRequest`, `Help`, `LocalizedMessage`) through `Status::from_error_details`. |
 
-The ports deliberately do not cover tonic examples outside TC-07's public
-adoption scope, such as grpc-web, load-balancing control-plane examples,
-custom JSON codecs, tracing, or Tower middleware. Those remain separate gap
-cards if the project wants executable migration examples for them.
-
-TC-22 extends the same crate with the remaining migration examples and a
-standalone tonic cross-stack harness under `tests/interop/tonic`.
+TC-22 extends the same crate with balancing, custom JSON codecs, tracing,
+authentication, cancellation, and Tower examples, listed below. HTTP/1.1
+gRPC-Web is covered by [axum co-host](../../examples/axum-cohost/README.md).
+The standalone cross-stack harness lives under `tests/interop/tonic`.
 
 | Tonic example | Upstream tonic sources | pbrs-grpc port surface | Upstream lines | Port lines | Diff count | Blockers / gaps |
 |---|---|---|---:|---:|---:|---|
 | Load balance | `src/load_balance/client.rs` | `Channel::connect_uri` with DNS provider + `loadBalancingConfig` `round_robin` | 29 | 97 | +85 / -17 | Uses pbrs resolver providers instead of tonic `Channel::balance_list`. |
-| Dynamic load balance | `src/dynamic_load_balance/client.rs` | Rebuilds resolver-managed channels from changed DNS provider state | 80 | 10 | +8 / -78 | No Endpoint-style dynamic `Change` sender is used here; TC-19 owns that facade. |
+| Dynamic load balance | `src/dynamic_load_balance/client.rs` | Rebuilds resolver-managed channels from changed DNS provider state | 80 | 10 | +8 / -78 | This example does not use the newer `Endpoint::balance_channel` facade, which accepts a watched full list rather than tonic's keyed `Change` updates. |
 | JSON codec | `src/json-codec/{server,client,common}.rs` | Custom `CodecMessage` JSON request/response types over native transport | 156 | 97 | +73 / -132 | pbrs-grpc custom codec seam is per message type, not tonic's `Codec` trait/codegen helper shape. |
 | Tracing | `src/tracing/{server,client}.rs` | `LifecycleObserver` server call start/end counters | 89 | 47 | +37 / -79 | Demonstrates observer hooks; exact tonic `trace_fn` span factory is still not a native builder API. |
 | Authentication | `src/authentication/{server,client}.rs` | Server `Interceptor` checks `authorization`; client `Channel::intercept` inserts it | 68 | 45 | +39 / -62 | Native interceptors use `Rpc` / `Outgoing` instead of tonic `Request<()>`. |

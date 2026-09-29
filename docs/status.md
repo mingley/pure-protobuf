@@ -1,17 +1,25 @@
-# Status
+# Implementation status
 
-This page separates what is verified from what remains unfinished. It is for contributors checking whether a behavior is shipped, historical, or still a boundary. The bottom line: many core protobuf and gRPC paths are tested, but this page is not a production certification.
+Use this page to distinguish source features, recorded tests and missing
+qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed
+`37683917`; [the queue](../TODO.md) names the next work.
+
+At that revision, ordinary workspace tests and conformance passed in CI, but
+warning-strict rustdoc and the original shared-consumer suite failed. This
+documentation update repairs the rustdoc links. The enum-map defect remains
+QG-05; do not read the historical passes below as a green current release.
+This page is not a production certification.
 
 ## Recovery classification
 
-Interrupted notes labeled most Distinct kernel behavior as Remaining. The
-committed source classifies those notes this way:
+Older notes mixed implemented features, experiments and qualification gaps.
+Read their status as follows:
 
 | Classification | Meaning |
 |---|---|
-| **Shipped** | The Verified list and the Distinct notes below. This is not a production certification. |
-| **Unfinished** | [TODO.md](../TODO.md) and the [leadership plan](ROADMAP.md). GR-01 and GR-02 are checked off there. No arena views, Edition 2024, xDS client/control plane, CRL/SPIFFE, remaining WKT field-wise JSON/text, GR-03+ production qualification, or full grpc.stats / OpenTelemetry coverage. `name_80` leftover remains. Service-config retry/hedging, channelz, binary logging, ORCA, authz, and optional OTel basics ship in source; that is not production certification. |
-| **Discarded** | [Closed inventory](inventory/README.md). Do not merge those diffs. `#34` already landed; `#39` flatten and `#57` heap-copy did not. |
+| **Implemented** | Source capabilities below, subject to their documented limits. Implementation is not production qualification. |
+| **Unfinished** | Full Edition 2024/typed-extension coverage, generated borrowed views, a complete official upb-compatible kernel, xDS, full telemetry and sustained production/performance qualification. The [queue](../TODO.md) tracks concrete work. |
+| **Archived experiments** | [Closed inventory](inventory/README.md). The `#39` flatten and `#57` heap-copy drafts were not accepted as wins; later related implementations have independent evidence. Do not resurrect a closed diff from an old result. |
 | **Missing evidence** | Recorded CI, conformance, and interop numbers are historical results, not GR-03+ qualification. macOS source-bind is in the required `macos` job; that does not qualify GR-03+. |
 
 The macOS `127.0.0.2` source-bind failure (OS error 49 /
@@ -27,16 +35,18 @@ listen+accept proof. Bind failure is not treated as success.
 
 ### Workspace and CI
 
-- `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
-  and `cargo test --workspace` pass.
+- At audited revision `37683917`, [CI run 36594564013](https://github.com/mingley/pure-protobuf/actions/runs/36594564013)
+  passed formatting, Clippy and workspace tests; its final rustdoc step failed.
+  See the [audit](audit-2026-09-29.md#correctness-and-ci) for the separate
+  compatibility failure and this update's verification scope.
 - CI on `main`, PRs, and the release SHA through `workflow_call` runs fmt,
   clippy, tests, docs `-D warnings`, official conformance, grpc-interop,
   `msrv-core`, `msrv-tonic`, macOS `tcp::tests` + onboarding, isolated
   `package_consumer` unpacks, and generated-output drift.
 - `msrv-core` uses rustc 1.85 `--lib` for `pbrs` and `pbrs-grpc`.
 - `msrv-tonic` uses rustc 1.88 for `protobuf-tonic`.
-- The `test` job still apt-installs `protobuf-compiler` for the plugin and
-  adapter `build.rs`.
+- The `test` job installs `protobuf-compiler` for codegen tests and guide
+  snippet checks. Both adapter builds use checked descriptors.
 
 ### Protobuf compatibility
 
@@ -51,11 +61,14 @@ listen+accept proof. Bind failure is not treated as success.
 - Official `protoc --rust_out` 4.35.1-release (`kernel=upb`) for
   `proto/person.proto` links against this crate as `protobuf` and
   parse -> serialize -> parse roundtrips (`rust_out_person/`).
-- `rust_out_shared` runs official `rust/test/shared` googletest files
-  (19 crates, 0 failed) against `protoc --rust_out kernel=upb`. Skips are only
-  the files listed below.
-- In-tree fuzz covers `tests/fuzz_parse.rs` for empty, truncated, Person, and
-  TestAllTypes (TAT) inputs.
+- `rust_out_shared` targets 19 original `rust/test/shared` consumer crates.
+  An older run passed; at `37683917`, `test_map_int32_enum` fails and the
+  runner stops after the first crate (34 pass, 1 fail). QG-05 restores this
+  gate. The additional suite exclusions are listed below.
+- Fixed-input parser smoke tests coexist with coverage-guided targets in
+  `fuzz/`. The [2026-09-28 campaign](evidence/fuzz-2026-09-28.md) ran five
+  targets for about five minutes each and found defects that were fixed.
+  It does not satisfy the longer qualification campaign.
 - The grpc 0.9 unary remap (`grpc_remap/`) reports
   `ok name=ada message=Hello ada` through `protobuf-shim` -> pbrs, not
   protobuf-tonic.
@@ -104,11 +117,10 @@ listen+accept proof. Bind failure is not treated as success.
 - Generated stubs expose `with_interceptor` and
   `max_decoding_message_size` / `max_encoding_message_size`
   (`tests/interceptor_size.rs`).
-- Codec survey results live in `tonic-bench` and `docs/benchmarks.md`, using
-  `proto/codec_cases.proto` against prost and v4 upb. Typical unary
-  `rpc_mixed` is already about 2x prost and beats v4. `name_4kib` combined
-  beats prost and is gated. `tags_32` decode beats v4 and is gated. This is not
-  kernel `./bench` and is not in CI.
+- The `tonic-bench` codec survey uses `proto/codec_cases.proto` against prost
+  and v4/upb. Its [recorded results](benchmarks.md) include wins and losses;
+  they are historical diagnostics, not current adapter throughput claims.
+  CI runs harness correctness checks separately from performance campaigns.
 
 ### Benchmarks and native gRPC
 
@@ -186,7 +198,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 
 - **xDS protocol**: omitted. xDS target URIs are rejected; xDS-managed routing should terminate at service-mesh ingress or L4/L7 sidecars.
 - **Production qualification**: shipped in source and covered by tests is not the same as fleet- or claim-grade qualification.
-- **Edition 2024**: Edition 2024 is currently untested and unsupported; conformance covers up to Edition 2023.
+- **Edition 2024**: scoped descriptor and generated-consumer support is implemented; repeated/map CLOSED enums fail closed and full typed extensions remain open. The [Edition contract](edition-2024.md) defines the subset. Full conformance is still qualified only through Edition 2023.
 - **Service-config scope**: client-streaming and bidirectional streaming do not replay request bodies under policy retry; they stay call-site retries with no replay buffer.
 
 For a consolidated cross-framework comparison matrix, see
@@ -198,12 +210,13 @@ Tracked in [TODO.md](../TODO.md) and [ROADMAP.md](ROADMAP.md). The notes above
 document shipped behavior and explicit omissions; they are not an open work
 queue.
 
-Still not done: arena views, Edition 2024, `name_80` leftover, xDS
-client/control plane, CRL/SPIFFE, full grpc.stats / OpenTelemetry coverage,
-remaining WKT field-wise JSON/text, and GR-03+. Service-config retries,
-hedging, channelz, binary logging, ORCA, authz, and optional OTel basics ship
-in source and tests. Do not treat a clean checkout as production
-certification.
+Still open: QG-05's upstream enum-map regression; complete Edition 2024 and
+typed extensions; generated borrowed views; the full upb-compatible kernel;
+xDS; remaining format/telemetry coverage; and sustained production and
+comparative performance evidence. CRL and SPIFFE verification, service-config
+retries, hedging, channelz, binary logging, ORCA, authorization and optional
+OpenTelemetry hooks exist in source. Their limits remain documented in the
+[gRFC matrix](grfc.md) and the [audit](audit-2026-09-29.md).
 
 ## Skipped rust/test/shared files
 

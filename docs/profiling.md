@@ -1,8 +1,9 @@
 # Profiling kit (SB-14)
 
-This page shows how to profile any dev-loop cell in `pure-protobuf`. Bottom
-line: run one script, get timing, allocation, sampled-symbol, and metadata
-artifacts in `target/profile/`.
+Use a profile to explain a measured bottleneck before changing the code.
+The script writes timing, allocation, sampled-symbol, and provenance artifacts
+under `target/profile/`. These are local diagnostics; the
+[benchmark contract](benchmark-contract.md) defines comparative claim evidence.
 
 One command profiles any dev-loop cell, codec or RPC, on Linux or macOS with
 whatever sampler is installed:
@@ -10,6 +11,14 @@ whatever sampler is installed:
 ```sh
 ./scripts/profile.sh --cell rpc.pbrs.unary
 ```
+
+After the run, open `meta.json` to check the sampler and completeness,
+`cell.json` for per-operation costs, and `top.txt` to see where samples landed.
+Compare the same cell on the base and changed revisions with matching build
+flags and workload sizes. Keep losses and missing metrics in the report.
+
+The [dev-loop guide](../bench/devloop/README.md) lists the cell families;
+the built harness's `devloop list` command is the current inventory.
 
 ## Linux dev-loop from macOS
 

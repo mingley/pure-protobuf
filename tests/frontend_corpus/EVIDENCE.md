@@ -3,6 +3,11 @@
 Branch: `mingley/gn08-frontend-corpus`, base `1a86bb57`. Card: GN-08
 ("Build the pinned frontend differential corpus and harness").
 
+This records the corpus and baseline harness, not a passing Rust frontend.
+The observed runs used a prepared compiler cache. On a fresh checkout,
+`build-pinned-protoc.sh` can fetch upstream sources and build the reference
+compiler; the offline comparison boundary begins after that setup.
+
 ## Accept verdicts
 
 1. **Corpus pins record upstream commits and licenses; the protoc baseline
@@ -11,8 +16,8 @@ Branch: `mingley/gn08-frontend-corpus`, base `1a86bb57`. Card: GN-08
    in the manifest and verified before every run; the baseline compiler is
    `scripts/build-pinned-protoc.sh` (pinned `v35.1`); two consecutive
    baseline runs produce byte-identical `summary.json`; regen via
-   `fetch-corpus.sh` leaves the tree unchanged; no network access at test
-   time (only pinned fetches at regen time).
+   `fetch-corpus.sh` leaves the tree unchanged; comparison reuses vendored
+   inputs and a prepared pinned compiler.
 2. **The harness runs with no frontend present (baseline only).** PASS.
    `./scripts/frontend-diff.sh --corpus pinned` exits 0 with 202 entries x
    3 modes = 606 checks, 0 failures, and no `--frontend` flag.

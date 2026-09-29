@@ -1,18 +1,25 @@
 # Rust `.proto` frontend review (CG-16)
 
-This review is for Rust developers considering a pure-Rust `.proto` parser for
-`pbrs` code generation. Bottom line: no reviewed candidate currently satisfies
-the full profile, so `compile_descriptor_set` remains the Rust-only path and
-new `.proto` source compilation stays blocked.
+Use `Config::compile_descriptor_set` to generate Rust without running
+`protoc`. Compiling new `.proto` source with `compile_protos` still requires
+`protoc`: the reviewed pure-Rust frontend candidates do not cover the full
+required profile.
 
-**Review date:** 2026-09-23. **Repository source:** `d34334e1`. **Decision
-status:** decided upstream-first in [the frontend route record](decisions/rust-frontend-route.md)
-(GN-05, draft for maintainer review); still not an approved dependency or
-implemented build path.
+**Review date:** 2026-09-23. **Repository source:** `d34334e1`.
+The [frontend route proposal](decisions/rust-frontend-route.md) (GN-05)
+recommends an upstream-first contribution and awaits maintainer review.
+It is not an approved dependency or an implemented build path.
 `Config::compile_descriptor_set` already generates from checked descriptors
 without `protoc`; compiling new `.proto` source does not. The codegen plugin
-still advertises maximum Edition 2023 (`1000`). Edition 2024 (`1001`) descriptor
-resolution does not enable Edition 2024 generated consumers.
+now advertises maximum Edition 2024 (`1001`) for the qualified subset in the
+[Edition 2024 contract](edition-2024.md). Repeated/map closed enums fail
+closed, and typed extension accessors remain separate work. This generator
+support does not supply a Rust parser for `.proto` source.
+
+The candidate review below is a dated source audit, not a current upstream
+support claim. The [pinned frontend corpus](../tests/frontend_corpus/README.md)
+provides the acceptance harness for a future integration; a baseline-only
+pass does not qualify any frontend.
 
 ## Contract for a full-profile frontend
 
@@ -66,7 +73,7 @@ requirements. Then run differential descriptor/output fixtures for nested and
 public imports, same-stem files, custom/extension options, source comments, and
 malformed inputs. A passing `cargo check` alone is not a semantic proof.
 
-**Decision (GN-05):** contribute the missing surface to `protox` upstream
+**Proposed route (GN-05):** contribute the missing surface to `protox` upstream
 as bounded slices; do not build an in-repo compiler. See [the frontend
 route record](decisions/rust-frontend-route.md) for license, MSRV,
 transitive-graph, ownership, acceptance-risk, and schedule terms.

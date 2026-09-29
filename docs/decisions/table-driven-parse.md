@@ -21,7 +21,11 @@ Use a hybrid parser:
    append-only so PK-08/UK convergence can add size/encode handlers without
    regenerating incompatible metadata.
 
-This is a design record only. It does not change generated code yet.
+Implementation status at the 2026-09-29 audit: PK-06 supplies the safe
+runtime engine in `src/table.rs`, and PK-18 uses a cached table for dynamic
+messages. Generated messages still use inline parsing. PK-07 must emit the
+tables and selection controls, prove semantic parity, and meet the budgets
+below before generated services can benefit.
 
 ## Field-table shape
 

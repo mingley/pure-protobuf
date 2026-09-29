@@ -1,6 +1,8 @@
 # Architecture
 
-This page explains how the workspace is split and how the native gRPC kernel moves bytes. It is for Rust developers who want the big picture before reading implementation details. The bottom line: `pbrs`, `protobuf-tonic`, and `pbrs-grpc` are separate crates in `mingley/pure-protobuf`, and only the selected adapter pulls in a gRPC stack.
+The workspace separates protobuf messages from gRPC transport. Use `pbrs`
+for messages, `protobuf-tonic` to keep a Tonic service, or `pbrs-grpc` for the
+native transport. Each transport uses the same protobuf runtime.
 
 `pbrs` is a protobuf kernel for parse, serialize, reflection, JSON, text, and
 plugin codegen. It does not use upb, libprotobuf, or C.
@@ -12,6 +14,12 @@ plugin codegen. It does not use upb, libprotobuf, or C.
 | `pbrs` | Protobuf kernel, `protoc-gen-pbrs`, and conformance child. |
 | `protobuf-tonic` | Tonic 0.14 `Codec` plus generated `FooClient` / `FooServer`. |
 | `pbrs-grpc` | HTTP/2 gRPC kernel over pbrs; it is not Tonic. |
+
+The core runtime requires Rust 1.85; the Tonic adapter requires Rust 1.88.
+`pbrs` keeps codegen, reflection, JSON, text, and conformance helpers enabled
+by default for compatibility. Runtime consumers can reduce their feature
+set; see the [feature split](decisions/runtime-build-split.md) for supported
+profiles. The native transport has optional Prost and Tower adapters.
 
 Dependency boundaries are intentional:
 
@@ -25,10 +33,12 @@ The Cargo package and the library are both named `pbrs`
 
 ## gRPC kernel
 
-`pbrs-grpc` speaks gRPC over prior-knowledge HTTP/2. Hand-written modules
-forbid `unsafe`. Generated messages still use pbrs `unsafe` for zeroed
-construction. There is no C compiler in the build: TLS uses rustls + Graviola,
-and gzip uses `miniz_oxide`.
+`pbrs-grpc` speaks gRPC over prior-knowledge HTTP/2. Protocol-facing modules
+forbid `unsafe`; two Linux OS helpers have scoped syscall exceptions.
+Generated messages use audited pbrs `unsafe` for zeroed construction.
+The shipping transport graph needs no C compiler: TLS uses rustls +
+Graviola, and gzip uses `miniz_oxide`. Reference-peer tests and source
+compilation with `protoc` have separate toolchain requirements.
 
 ### Accept
 
@@ -128,16 +138,17 @@ settings, and metadata.
 | Timeout management | Channel or request timeouts serialize as `grpc-timeout` headers and enforce end-to-end deadlines across hops. |
 | Backpressure and limits | Channel overlays cap message encoding/decoding sizes, buffer depths, and concurrent in-flight streams. |
 
-## Architectural Comparison with Tonic and gRPC-Go
+## Where to change performance
 
-| Architecture domain | `pbrs-grpc` | Tonic | gRPC-Go |
-|---|---|---|---|
-| Core transport | Direct `h2` HTTP/2 driver | Hyper HTTP/2 + Tower | Internal Go HTTP/2 stack |
-| Addressing model | `host:port` string / `Target`, plus opt-in resolver URIs | `http://` or `https://` URIs | Resolver URIs (`dns:///`, `passthrough:///`, `xds:///`) |
-| Concurrency limiting | Strict process-wide RPC cap | Tower `ConcurrencyLimitLayer` | Worker pool / goroutine dispatch |
-| Memory allocation | Bounded buffers with early caps | Configurable Tower buffers | Shared transport write buffers |
-| TLS and security | rustls + Graviola with ALPN `h2` | rustls or native-tls | Go crypto/tls |
-| Service resolution | Immutable `Router` | Tower service multiplexing | Handler registration tables |
+| Cost to investigate | Start here | Evidence needed |
+|---|---|---|
+| Protobuf allocation, parse, and encode | [Runtime design](design.md), `src/lazy.rs`, `src/map.rs`, `src/wire.rs`, `src/table.rs` | Equivalent generated messages, parse-and-touch work, allocations, and retained bytes. |
+| Large payload copies | [Zero-copy paths](zero-copy.md), native wire framing | Copy counts plus CPU per RPC; account for gzip and TLS separately. |
+| Generated code and build cost | `src/codegen/`, [layout contract](codegen-layout.md) | Output parity, generation time, clean and incremental builds, binary size. |
+| Client and server overhead | `pbrs-grpc/src/client/`, `pbrs-grpc/src/server/`, `pbrs-grpc/src/transport/` | Endpoint CPU at matched load, tail latency, connection and stream limits. |
+| Official Google-generated messages | `src/runtime/`, [compatibility scope](codegen-compatibility.md) | Original shared consumers and kernel-specific correctness evidence. |
 
-For full invariant comparisons across transports, middleware, and operational
-controls, see [docs/guides/comparison.md](guides/comparison.md).
+The [execution plan](plan/world-class/README.md) orders this work. The
+[comparison guide](guides/comparison.md) covers application-facing transport
+choices. Neither architecture alone nor a codec benchmark establishes gRPC
+performance leadership; that requires the [benchmark contract](benchmark-contract.md).

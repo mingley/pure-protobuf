@@ -2,6 +2,11 @@
 
 This directory contains deterministic, pinned-reference binary protobuf fixtures (.bin files), proto schema definitions, and a compiled descriptor set (`differential.fds`) used by `tests/differential_binary.rs`.
 
+Run `cargo test --test differential_binary` from the repository root to
+check the binary cases. These fixtures exercise dynamic protobuf behavior;
+they do not by themselves qualify the separate Google `--rust_out` runtime
+or gRPC transport.
+
 ## Fixture Categories
 
 1. **Scalar Presence (Proto2 vs Proto3)**
@@ -95,6 +100,7 @@ This directory contains deterministic, pinned-reference binary protobuf fixtures
 ## Regeneration
 
 Run:
+
 ```bash
 ./scripts/generate-differential-fixtures.sh
 ```

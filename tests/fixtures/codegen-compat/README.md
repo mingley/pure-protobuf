@@ -4,7 +4,13 @@ This directory contains test fixtures and frozen versioned generated code for sc
 forward and backward binary compatibility, presence semantics, and gRPC stub evolution across versions.
 
 These fixtures serve as the authoritative test oracle for:
+
 - **CG-11**: Test generated-code and runtime evolution.
+
+From the repository root, run `cargo test --test codegen_compat`. Keep the
+frozen generated files unchanged when changing the runtime: they test an old
+consumer against new code. Regeneration belongs in a separate fixture update
+with the compiler version and generated diff reviewed.
 
 ---
 

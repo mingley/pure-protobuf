@@ -1,12 +1,11 @@
 # ALTS provider decision and proof boundary (EX-18)
 
-Decision: no ALTS adapter now. There is no reviewed pure-Rust ALTS
-record layer or handshaker client, the pinned official runner has no
-Rust ALTS procedure, and ALTS stays an explicit transport boundary
-(see [the gRFC map](grfc.md): Google-internal transport; JWT/mTLS
-cover portable auth). ALTS must never be labeled or configured as
-ordinary TLS. The `alts_credentials` gate stays `unsupported`, and
-EX-19 stays blocked behind the leaf cards below plus EX-04.
+Application Layer Transport Security (ALTS) is not supported. The project has
+no reviewed pure-Rust ALTS record layer or handshaker client, and the pinned
+official runner has no Rust ALTS procedure. Existing TLS/mTLS and
+application-supplied tokens are separate authentication paths; they do not
+qualify as ALTS. The `alts_credentials` gate stays `unsupported`, and EX-19
+depends on the provider/platform work below plus EX-04.
 
 **Status:** Decided by the coordinator (EX-18, 2026-09-29).
 **Baseline:** `9a82b511`. **Companion:**

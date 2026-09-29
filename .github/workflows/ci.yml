@@ -38,6 +38,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: protoc --version
       - run: cargo fmt --check
+      - name: Validate task dependencies and contributor queue
+        run: |
+          python3 scripts/plan-lint.py
+          python3 -B -m unittest tests.test_plan_status tests.test_plan_lint -q
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Lint native gRPC, tonic adapter, and example libraries
         run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings

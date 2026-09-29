@@ -1,5 +1,11 @@
 # SB-09: codegen comparator matrix
 
+**Status: broad local diagnostic, not a qualified performance campaign.**
+The 2026-09-28 run covers 165 generator/corpus/repeat cells and records broad
+pbrs compile-cost losses. It predates later GN optimizations; repeat the same
+matrix to assess their combined effect. Raw artifact paths below refer to the
+machine that produced the record, not guaranteed files in a fresh clone.
+
 ## What
 
 Extended `bench/codegen/run.py` (~+1900 lines) from the CG-19 pbrs-only
@@ -42,9 +48,10 @@ flow to a generator matrix, all under `cases/<case>/gen/<name>/`:
   server plus a lazy client). `release_smoke` executes each binary and
   requires stdout `1\n`: every roundtrip must run and every default
   message must serialize empty. No nonempty-field behavior is claimed.
-- Five repeats, randomized, uncertainty, losses: done. Seeded
-  global order (seed 190019), median/min/stdev per metric over n=5,
-  pbrs-vs-peer loss list under `summary.json#matrix.losses`.
+- Five randomized repeats and loss reporting: done. Seeded global order
+  (seed 190019), median/min/stdev per metric over n=5, and pbrs-vs-peer loss
+  list under `summary.json#matrix.losses`. Standard deviation describes spread;
+  it is not the paired 95% confidence interval required by the contract.
 - Stubs compared separately: done (svc-small/svc-100 x 3 stub
   generators below; stub cells never mix with message cells).
 

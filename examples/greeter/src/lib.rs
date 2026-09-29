@@ -614,137 +614,44 @@ mod tests {
     }
 
     #[test]
-    fn example_readme_names_from_error_details_on_interceptor_err() {
+    fn example_readme_covers_error_lifecycle() {
         let readme = include_str!("../README.md");
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter interceptor Err; those trailers reach the client without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client interceptor: that runs on the outbound call before the stream opens; this example README greeter interceptor runs on the inbound RPC before the handler."
-        ));
-    }
-
-    #[test]
-    fn example_readme_names_from_error_details_on_handler_err() {
-        let readme = include_str!("../README.md");
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter handler Err; those trailers reach the client."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter handler Err is after the handler ran."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter handler Err is after the handler ran."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter handler Err is after the handler ran."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter handler Err is after the handler ran."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter handler Err is after the handler ran."
-        ));
-    }
-
-    #[test]
-    fn example_readme_names_from_error_details_on_client_interceptor_err() {
-        let readme = include_str!("../README.md");
-        assert!(readme.contains(
-            "`Outgoing::connected` is the live-socket snapshot on this example README greeter client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
-        ));
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter client interceptor Err; a local reject never opens a stream."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(readme.contains(
-            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this example README greeter client interceptor already ran, so a local Err never consumes that budget."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor: that runs on the inbound RPC before the handler; this example README greeter client interceptor runs on the outbound call before the stream opens."
-        ));
-    }
-
-    #[test]
-    fn example_readme_names_from_error_details_on_stream_sender_fail() {
-        let readme = include_str!("../README.md");
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter server on_response Err; a local reject is trailers-only after handler Ok."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(readme.contains(
-            "`Status::from_error_details` is the typed bag after this example README greeter client on_response Err; a local reject fails the Call after a successful receive."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(readme.contains(
-            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter client on_response Err fails the Call after a successful receive."
-        ));
+        // Keep the six lifecycle stages discoverable without pinning prose.
+        // The behavioral tests below exercise the actual RPC outcomes.
+        let rows: Vec<_> = readme
+            .lines()
+            .filter(|line| line.starts_with("| "))
+            .map(|line| {
+                line.split('|')
+                    .skip(1)
+                    .take(3)
+                    .map(str::trim)
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for stage in [
+            "Client interceptor",
+            "Server interceptor",
+            "Handler",
+            "Server response interceptor",
+            "Response stream producer",
+            "Client response interceptor",
+        ] {
+            let row = rows
+                .iter()
+                .find(|row| row.first() == Some(&stage))
+                .unwrap_or_else(|| panic!("missing error lifecycle stage: {stage}"));
+            assert_eq!(row.len(), 3);
+            assert!(!row[1].is_empty(), "{stage} needs a timing explanation");
+            assert!(!row[2].is_empty(), "{stage} needs an outcome explanation");
+        }
+        for api in [
+            "Status::from_error_details",
+            "Outgoing::connected",
+            "StreamSender::fail",
+        ] {
+            assert!(readme.contains(api), "missing error/context API: {api}");
+        }
     }
 
     fn text(reply: &HelloReply) -> String {

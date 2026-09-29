@@ -3,7 +3,7 @@
 
 Checks, across docs/plan/tasks.json and docs/plan/world-class/tasks.json:
   - every depends_on, gate, relates, and reconciliation id exists
-  - no dependency cycles (depends_on plus gate edges, both files)
+  - no effective dependency cycles, including executed_by reconciliation
   - every named check exists in one of the files' checks maps
   - required card fields are present and status values are known
 
@@ -25,6 +25,48 @@ def load(path):
         return json.load(fh)
 
 
+def dependency_cycles(cards, reconciliation):
+    """Find cycles in the dependency graph used to close queue prerequisites.
+
+    A carried legacy card closes through its replacement cards and gates,
+    not its obsolete depends_on list (see plan-status.py dependency_state).
+    Retained cards keep depends_on and gates; their by list is explanatory.
+    """
+    edges = {}
+    for cid, task in cards.items():
+        entry = reconciliation.get(cid, {})
+        dependencies = (
+            entry.get("by", [])
+            if entry.get("disposition") == "executed_by"
+            else task.get("depends_on", [])
+        )
+        edges[cid] = list(dependencies) + entry.get("gate", [])
+
+    errors = []
+    color = {}
+    stack = []
+
+    def visit(node):
+        color[node] = 1
+        stack.append(node)
+        for dep in edges[node]:
+            if dep not in edges:
+                continue  # Missing references are reported by main's validation.
+            state = color.get(dep, 0)
+            if state == 1:
+                cycle = stack[stack.index(dep):] + [dep]
+                errors.append("dependency cycle: " + " -> ".join(cycle))
+            elif state == 0:
+                visit(dep)
+        stack.pop()
+        color[node] = 2
+
+    for cid in edges:
+        if color.get(cid, 0) == 0:
+            visit(cid)
+    return errors
+
+
 def main():
     errors = []
     old = load(OLD)
@@ -40,7 +82,11 @@ def main():
         checks.update(plan.get("checks", {}))
     planned = set(new.get("planned_checks", {}))
 
-    rec = {r["legacy"]: r for r in new.get("reconciliation", [])}
+    rec = {
+        entry["legacy"]: entry
+        for plan in (old, new)
+        for entry in plan.get("reconciliation", [])
+    }
     for legacy, entry in rec.items():
         if legacy not in cards:
             errors.append(f"reconciliation legacy {legacy} does not exist")
@@ -56,7 +102,6 @@ def main():
                 f"{entry.get('disposition')!r}"
             )
 
-    edges = {}
     for cid, task in cards.items():
         for field in REQUIRED:
             if field not in task:
@@ -66,7 +111,6 @@ def main():
             errors.append(f"{cid} has bad status {status!r}")
         deps = list(task.get("depends_on", []))
         deps += rec.get(cid, {}).get("gate", [])
-        edges[cid] = deps
         for dep in deps:
             if dep not in cards:
                 errors.append(f"{cid} depends on missing {dep}")
@@ -77,28 +121,7 @@ def main():
             if check not in checks and check not in planned:
                 errors.append(f"{cid} cites unknown check {check}")
 
-    # Cycle detection over depends_on + gate edges.
-    color = {}
-    stack = []
-
-    def visit(node):
-        color[node] = 1
-        stack.append(node)
-        for dep in edges.get(node, []):
-            if dep not in edges:
-                continue
-            state = color.get(dep, 0)
-            if state == 1:
-                cycle = stack[stack.index(dep):] + [dep]
-                errors.append("dependency cycle: " + " -> ".join(cycle))
-            elif state == 0:
-                visit(dep)
-        stack.pop()
-        color[node] = 2
-
-    for cid in edges:
-        if color.get(cid, 0) == 0:
-            visit(cid)
+    errors.extend(dependency_cycles(cards, rec))
 
     if errors:
         print(f"{len(errors)} plan error(s):")

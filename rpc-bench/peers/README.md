@@ -2,7 +2,7 @@
 
 This directory defines the peers that `rpc-bench` can launch or compare. It is
 for contributors adding a runtime, codec, or cross-language benchmark peer.
-Bottom line: every peer role must be explicit, pinned, and recorded so a partial
+Every peer role must be explicit, pinned, and recorded so a partial
 or mismatched matrix cannot look like a win.
 
 ## Registered Peers
@@ -10,13 +10,17 @@ or mismatched matrix cannot look like a win.
 | Peer ID | Implementation | Language | Runtime | Default Codec | Upstream Pin |
 |---|---|---|---|---|---|
 | `native` | `pbrs-grpc` | Rust | tokio + pbrs-grpc | `pbrs` | in-tree (pure-protobuf) |
-| `tonic` | `tonic` | Rust | tokio + hyper + h2 | `prost` / `protobuf-tonic` | tonic v0.14.0, prost v0.13.0 |
+| `tonic` | `tonic` | Rust | tokio + hyper + h2 | legacy mixed role; see explicit variants below | tonic 0.14; use each manifest/lockfile for the codec pin |
 | `go` | `grpc-go` | Go | go runtime + net/http2 | `google.golang.org/protobuf` | commit `dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef` (v1.85.0-dev) |
 | `cpp` | `grpc-core` | C++ | grpc-core C++ event engine | `google::protobuf` (upb/C++) | commit `d1487957db6658bc532b72871775148229836627` (v1.84.0) |
 
 ## Optional Peers (SB-18)
 
-Optional peers are pinned and scripted like required peers, but a peer
+The seven optional peer manifests are present, but their runnable interop
+server harnesses are still missing in the 2026-09-29 audit. They currently
+report `not_run`; registration is not evidence that a peer has been measured.
+
+Optional peers are pinned and have launch specifications like required peers, but a peer
 that cannot run reports `not_run` with a reason and never blocks the
 required peers. All are server-only: no open-loop client driver exists
 for their transports, so server cells use the native generator. Each
@@ -24,6 +28,10 @@ manifest's `transport_contract` repeats the SB-01 settings (16 MiB
 windows, 1 MiB frames, 256 streams, no adaptive window, TCP_NODELAY)
 its harness must implement; every cell records them in its `fairness`
 block (see `bench/stack-matrix/peers/fairness.py`).
+
+Read that block before comparing results. Existing required peers also have
+reported gaps in matched settings or TLS-suite evidence; the presence of a
+manifest does not prove its requested settings were observed on the wire.
 
 | Peer ID | Implementation | Language | Runtime | Upstream Pin |
 |---|---|---|---|---|
@@ -37,7 +45,8 @@ block (see `bench/stack-matrix/peers/fairness.py`).
 
 ## Matching Configuration (Apples-to-Apples)
 
-All peers must use the same network and payload parameters:
+Comparable cells must use the same network and payload parameters. This table
+states the target contract, not a claim that every launcher already enforces it:
 
 | Setting | Required value |
 |---|---|

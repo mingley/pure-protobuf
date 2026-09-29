@@ -9,6 +9,12 @@ Decided 2026-09-28 from the tonic parity audit in
 [the comparison guide](../guides/comparison.md#7-feature-parity-with-tonic-tc-08)
 and the TC-01 product shape in [better-tonic.md](better-tonic.md).
 
+Since this decision, the optional native `grpc-web` feature has landed.
+HTTP/1.1 browser serving is covered by the tested
+[Tower recipe](http1-grpc-web.md). The sketch below records the original
+design; consult the [migration guide](../guides/migration.md) for current
+application setup.
+
 ## gRPC-Web recommendation
 
 `pbrs-grpc` should support gRPC-Web because it is part of the tonic ecosystem

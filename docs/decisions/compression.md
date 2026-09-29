@@ -3,8 +3,10 @@
 This decision is for Rust developers working on the `pbrs-grpc`
 message-compression registry (`src/compression/`). Decision: keep
 `miniz_oxide` through flate2, define gRPC `deflate` as zlib framing
-(RFC 1950), and defer zstd until peers and an in-MSRV Rust codec make it
-testable.
+(RFC 1950). The original zstd deferral was later superseded by the optional
+`zstd` feature described at the end of this record. That feature uses
+`ruzstd`, requires Rust 1.87, and has separate peer evidence; gzip and deflate
+remain within the base Rust 1.85 profile.
 
 ## Backend: miniz_oxide stays (flate2 1.1.10 + `runtime_detection`)
 

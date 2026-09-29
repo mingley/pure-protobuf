@@ -1,4 +1,21 @@
-# SB-12 connection-scale scenarios
+# Cross-stack benchmark scenarios
+
+These scenarios extend the [cross-stack matrix](../../../docs/evidence/stack-matrix-sb11.md).
+They are local validation tools, with explicit gaps before a claim campaign.
+
+| Goal | Example from the repository root | Read the result as |
+|---|---|---|
+| Check connection-scale plumbing | `./scripts/stack-matrix.sh --scenario conn-scale-idle --smoke --server-peers native` | A small ladder diagnostic; inspect every cell's status |
+| Check overload accounting | `./scripts/stack-matrix.sh --scenario extended-overload --smoke --server-peers native` | Accounting/recovery evidence for the supported peer and shape |
+| Check the runners without launching peers | `python3 bench/stack-matrix/scenarios/conn_scale.py --self-test` and `python3 bench/stack-matrix/scenarios/extended_cells.py --self-test` | Logic checks, not live performance measurements |
+| Run a qualified echo campaign | `grpc-bench-echo.json` describes the intended cells | Runner integration is still missing; see [SB-21](../../../docs/evidence/sb21-claims-scenarios.md) |
+
+Only `fail` makes the scenario runners exit nonzero. A zero exit can therefore
+contain `invalid`, `unsupported`, or `not_run` cells. Read those statuses before
+calling a requested matrix complete. No scenario here is a leadership result
+merely because its smoke command passed.
+
+## SB-12 connection scale
 
 Measures connection scale, memory per connection/stream, and handshake
 rate for `pbrs-grpc` (peer `native`) and the SB-11 peers. Runner:
@@ -63,13 +80,19 @@ fail the run before any cell, matching SB-11.
 
 ## Claim hosts
 
-Linux, server pinned to 1 CPU, `RLIMIT_NOFILE >= 200k` for the 100k
-point (opener + server each hold N fds), `ip_local_port_range` wider
-than N. Non-Linux / unpinned runs record that in `pinning` and stay
-diagnostic. `grpc-bench-echo.json` in this directory is the SB-21
-contract-shaped echo scenario, untouched by SB-12.
+Use Linux with the server pinned to 1 CPU and record per-process/system file
+descriptor limits. The 100k point requires more than larger fd limits: one
+source address connecting to one destination address/port cannot supply
+100,000 distinct TCP source ports. The current single-endpoint opener needs
+a multi-address or multi-endpoint topology extension before that point can be
+qualified. Do not prescribe an impossible `ip_local_port_range` wider than
+100,000, or count an OS-limit row as a server loss.
 
-# SB-19 extended cells
+Non-Linux / unpinned runs record that in `pinning` and stay diagnostic.
+`grpc-bench-echo.json` is the SB-21 claim-shaped echo definition; the current
+`--scenario` wrapper accepts only `conn-scale-*` and `extended-*` kinds.
+
+## SB-19 extended cells
 
 Adds the contract-section-3 axes the SB-11 harness does not cover:
 client-streaming and pipelined-bidi shapes, gzip on/off, emulated 1 ms
@@ -84,9 +107,9 @@ Poisson generator, reusing the SB-11 spawn/pin/preflight machinery.
 | File | Kind | Scoreboard | Cells |
 |---|---|---|---|
 | `extended-shapes.json` | fixed-rate new shapes | C3, D3 | client_stream 1 KiB x 2000 (runs); bidi_pipelined empty x 256 (frozen, unsupported) |
-| `extended-gzip.json` | gzip on/off pairs | D3 | unary + server_stream 64 KiB x identity/gzip (identity runs, gzip frozen, unsupported) |
-| `extended-rtt.json` | RTT holdouts | D7 | unary/client_stream/server_stream x 1 ms + 10 ms, verify-then-measure per repeat |
-| `extended-overload.json` | 2x saturation + recovery | E4, E5 | unary 1 KiB: saturation search, overload phase, recovery probes |
+| `extended-gzip.json` | gzip on/off pairs | E4 | unary + server_stream 64 KiB x identity/gzip (identity runs, gzip frozen, unsupported) |
+| `extended-rtt.json` | RTT holdouts | E5 | unary/client_stream/server_stream x 1 ms + 10 ms, verify-then-measure per repeat |
+| `extended-overload.json` | 2x saturation + recovery | D7 | unary 1 KiB: saturation search, overload phase, recovery probes |
 
 Cell order is frozen: peers in file order x cells in file order. Every
 scenario keeps `repeats: 3`; the runner refuses fewer (accept-style

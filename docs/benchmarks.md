@@ -4,8 +4,49 @@ This page explains the local benchmark records for `pbrs`, `pbrs-grpc`, and
 the tonic adapter. It is for Rust developers who want to understand where the
 project is fast, where it loses, and which numbers are only diagnostic.
 
-Bottom line: the recorded runs show strong workload-specific wins, but they do
+The recorded runs show workload-specific wins and important losses. They do
 not prove universal performance leadership or production readiness.
+
+## Start here
+
+For current evidence status, read the [scoreboard](scoreboard.md). To run a
+specific measurement, choose a harness below. The detailed tables later on
+this page preserve historical captures; they are not a fresh run of HEAD.
+
+| Question | Tool and starting point | What a successful run proves |
+|---|---|---|
+| Did this change reduce local instruction or allocation cost? | [Dev-loop harness](../bench/devloop/README.md) and [profiling guide](profiling.md) | A local before/after diagnostic, subject to metric availability and noise |
+| How do codec peers compare on real schemas? | [Corpora](../bench/corpora/README.md), [C++](../bench/xlang/cpp/README.md), [upb](../bench/xlang/upb/README.md), and [Go](../bench/xlang/go/README.md) peers | Supported operations with recorded semantics; dynamic C++/upb baselines do not establish peak generated-code performance |
+| What does code generation cost users? | [Codegen matrix](../bench/codegen/README.md) | Generation and downstream consumer cost for the selected corpora and features |
+| Does the official worker protocol work? | [QPS worker](../rpc-bench/README.md) | Selected scenario compatibility and result accounting |
+| Which client or server limits throughput? | [Cross-stack matrix](evidence/stack-matrix-sb11.md) | Open-loop probes with separate processes; smoke does not find every ceiling |
+| How does connection count, RTT, or overload affect behavior? | [Scenario guide](../bench/stack-matrix/scenarios/README.md) | The supported diagnostic cells; invalid/unsupported rows remain incomplete |
+| Can we publish a comparative claim? | [Benchmark contract](benchmark-contract.md) | Only a complete controlled campaign meeting its statistical and correctness rules |
+
+### Evidence update: 2026-09-29
+
+Several tools have advanced beyond the historical tables on this page:
+
+- The [SB-09 codegen matrix](evidence/sb09-codegen-matrix.md) includes
+  165 completed cell-runs across seeded, realistic, and service-stub corpora.
+  Its five-repeat diagnostics report pbrs losses on 179 of 240 peer-metric
+  comparisons, mainly downstream compilation and memory. Later GN changes
+  have narrower before/after evidence; they do not replace a full matrix rerun.
+- The [official QPS worker](evidence/qps-sb10.md),
+  [cross-stack smoke](evidence/stack-matrix-sb11.md), and
+  [public grpc_bench entry](evidence/grpc-bench.md) have run. They establish
+  useful compatibility and harness evidence, not performance leadership.
+- [Claim scenario definitions](evidence/sb21-claims-scenarios.md) exist,
+  but the worker's schedule-relative latency export, repeat-order execution,
+  and claim-scenario loader remain integration work. A checked-in scenario
+  does not mean a claim campaign can yet run unattended.
+- The perf CI lane is advisory. Its repair needs a successful measured
+  base/head run; blocking thresholds need SB-20's noise analysis. A green job
+  containing only error placeholders is not performance evidence.
+
+The [evidence index](evidence/README.md) collects the detailed records and
+their limits. The [execution plan](plan/world-class/README.md) owns the next
+tasks.
 
 ## How to read this page
 
@@ -32,8 +73,8 @@ not prove universal performance leadership or production readiness.
 | Core codec `bench` | All twelve gated cases still won encode and owned decode against prost, v4 upb, and buffa owned in the recorded Apple M4 Pro capture. | `tat_populated` and `person` were in a ~3% band behind buffa view and are not process-gated. Large packed-fixed results are only reported, not gated. | No universal codec ranking or view-versus-owned equivalence; retained cells are Rust-heap only (v4 arena excluded). |
 | Large payloads | pbrs, v4 upb, and buffa owned were in the same band for owned bytes encode/decode at 1-5 MiB. | buffa `decode_view` on bytes does not copy. v4 encode was a bit faster for 5 MiB packed fixed32. | No zero-copy claim from these rows: they time the copying `parse(&[u8])` path. The newer shared-buffer path (`parse_bytes`) is covered in [Large payloads / zero-copy](zero-copy.md). |
 | tonic codec survey | Most common-shape cached-encode-plus-parse rows beat prost and v4 in the historical capture. | pbrs loses some small common-shape rows versus prost (`empty`, `id`, `name_80`) and has diagnostic mutation/first-encode caveats. | No claim that historical "fresh" encode cells are direct first-encode timings. |
-| Native gRPC transport | Fair-loopback results show pbrs-grpc ahead on p50 latency, throughput, and most streaming axes. | tonic leads empty-unary p99 under the fair settings; old Xeon tables are superseded by SB-01. | No production tail-latency, network, or multicore leadership claim. |
-| Codegen and downstream compile | pbrs generated fewer Rust bytes and a smaller release executable in the small paired diagnostic. | pbrs was larger/slower on eight measured generation/check/build cost metrics. | No 100/1,000-message ranking, uncertainty bound, or qualified codegen claim. |
+| Native gRPC transport | Fair-loopback results show pbrs-grpc ahead on p50 latency, throughput, server-streaming, and upload. | tonic leads empty-unary p99 and ping-pong in the fair rerun; old Xeon tables are superseded by SB-01. | No production tail-latency, network, or multicore leadership claim. |
+| Codegen and downstream compile | SB-09 records generation-time wins on some corpus/peer pairs; the earlier small pair favored pbrs binary size. | SB-09 records broad generated-size, check/build, and memory losses; subsequent GN improvements need the same full matrix rerun. | No controlled-host qualified codegen claim. |
 
 ## Provenance and scope
 
@@ -206,7 +247,7 @@ owned sit in the same band. prost decode is about 2x. buffa `decode_view` on
 bytes does not copy (~0.12 µs).
 
 packed-fixed is memcpy for pbrs and v4, and a recode for prost / buffa
-owned encode. At 5 MiB v4 encode is a bit faster (60 vs 66 µs). Decode
+owned encode. At 5 MiB v4 encode is a bit faster (60.5 vs 72.7 µs). Decode
 is a few percent either way. packed-fixed view still copies; it is not
 the bytes-view shortcut.
 
@@ -279,6 +320,13 @@ cd bench && cargo build --release && ./target/release/bench
 ```
 
 ## Codegen and downstream compilation (CG-19 diagnostic)
+
+The current broader harness is documented in the
+[codegen guide](../bench/codegen/README.md), with the recorded five-repeat
+matrix in [SB-09 evidence](evidence/sb09-codegen-matrix.md). The section below
+preserves the earlier CG-19 fixed-order, six-message reference diagnostic.
+Its statements about unrun larger reference cases describe that specific
+`--reference-protoc` flow, not the later `--generators` matrix.
 
 This diagnostic measures code generation and downstream Rust compilation. It
 is **unqualified**: useful for finding losses, but not enough for a release or
@@ -853,7 +901,7 @@ endpoint role meets that spec. Host: Apple M4 Pro, macOS; release;
 two consecutive runs (FAIRNESS record from run 1):
 
 | case | kernel p50 (µs; lower better) | tonic p50 (µs; lower better) | kernel p99 (µs; lower better) | tonic p99 (µs; lower better) |
-|---|---|---:|---:|---:|---:|
+|---|---:|---:|---:|---:|
 | empty (run 1) | **70.1 µs** | 94.5 µs | 123.0 µs | **110.3 µs** |
 | empty (run 2) | **69.5 µs** | 94.6 µs | 131.4 µs | **109.4 µs** |
 | large (run 1) | **345.6 µs** | 378.8 µs | **384.7 µs** | 463.4 µs |
@@ -872,10 +920,11 @@ two consecutive runs (FAIRNESS record from run 1):
 | ping-pong round-trips/s | 12.8-13.8k | **13.3-14.5k** | 0.95x |
 | upload msgs/s | **683-755k** | 305-333k | **~2.2x** |
 
-Read: kernel leads p50 latency (~1.3x), throughput (1.2-2.2x), and
-streaming; tonic leads empty-unary p99 (~1.15x, stable — a real
-kernel-tail finding for the perf lane, not noise). The old 30x QPS and
-100x p99 gaps were the settings mismatch, now closed.
+Read: kernel leads p50 latency, unary throughput, server-streaming, and
+upload in these two local runs. Tonic leads empty-unary p99 and ping-pong.
+The p99 loss is a concrete follow-up target; two runs do not establish its
+uncertainty or behavior on other hosts. The old 30x QPS and 100x p99 gaps
+came from mismatched settings and cannot support a transport claim.
 
 ### Re-run
 

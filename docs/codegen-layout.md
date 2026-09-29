@@ -1,6 +1,9 @@
 # Codegen Layout & Path Mapping Contract
 
-This page defines how `pbrs` maps `.proto` files, packages, imports, and external crates into generated Rust files. It is for developers writing `build.rs`, using `protoc-gen-pbrs`, or debugging generated module paths. Bottom line: single-file builds keep working, while multi-file builds use canonical proto paths and a root `mod.rs` to avoid collisions.
+Generated files mirror include-relative `.proto` paths. Multi-file builds
+also emit a root `mod.rs`, which must be included at the Rust crate root.
+This contract explains naming, imports, and external crate mappings; start
+with the [codegen guide](guides/codegen.md) for a working `build.rs`.
 
 This document is the design authority for:
 
@@ -36,7 +39,9 @@ It failed in real multi-file builds:
 | Public import gaps | `DescriptorPool::public_import_files` checked only direct dependencies. Multi-hop public imports duplicated structs. | Walk `import public` transitively and re-export instead of redefining. |
 | Hardcoded dependencies | Generated paths assumed `pbrs::`, `::pbrs_grpc::`, `protobuf_tonic::`, and local Well-Known Types. | Let users remap runtime crates, stub crates, and external protobuf packages. |
 
-This contract resolves all four issues while preserving **100% backwards compatibility** for existing single-file consumers.
+The layout preserves the existing single-file include form. Multi-file
+consumers must follow the crate-root inclusion rule below; compatibility is
+checked by the [layout fixtures](../tests/fixtures/codegen-layout/README.md).
 
 ---
 

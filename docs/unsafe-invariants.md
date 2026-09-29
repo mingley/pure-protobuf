@@ -1,6 +1,15 @@
 # Unsafe and Target-Dependent Invariants in pbrs
 
-This page lists every safety invariant that justifies `unsafe`, target-specific layout assumptions, and low-level runtime behavior in `pbrs`. It is for reviewers and maintainers auditing memory safety. Bottom line: each unsafe site must have a local `SAFETY` proof, and this document records the shared invariants that those proofs rely on.
+Every unsafe operation needs a local `SAFETY` explanation. This reference
+records the shared layout, lifetime, and target assumptions those explanations
+depend on. Read the relevant section when changing a low-level primitive;
+run the corresponding safety checks after changing an invariant.
+
+An invariant written here is a review obligation, not proof that all callers
+satisfy it. In particular, passing plugin-generated conformance does not
+qualify the separate Google `--rust_out` runtime. See
+[compatibility status](codegen-compatibility.md) for known failures and
+[fuzz evidence](evidence/fuzz-2026-09-28.md) for the recorded campaign.
 
 ---
 

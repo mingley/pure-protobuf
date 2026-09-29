@@ -2,9 +2,10 @@
 
 **Status: diagnostic, not claim-grade.** Mostly closed-loop scenarios,
 5 s warmup / 30 s runs on a shared macOS host (Apple Silicon, 14 CPUs),
-driven by the pinned upstream C++ `qps_json_driver`. SB-21 creates the
-contract-compliant variants (dedicated hosts, open-loop, full latency
-accounting). QPS numbers below prove interop and plausibility, not
+driven by the pinned upstream C++ `qps_json_driver`. SB-21 adds
+[claim-shaped definitions](sb21-claims-scenarios.md); worker latency export,
+repeat-order integration, and controlled-host execution remain outstanding.
+QPS numbers below record interop and local diagnostics, not
 leadership.
 
 ## Pins
@@ -58,10 +59,13 @@ the C++ driver the same way.
 | cpp_pb.async_unary_ping_pong | 12790.0 | 11963.1 | 11977.8 | 2268.9 | 2179.9 |
 | cpp_pb.async_streaming_ping_pong | 12832.1 | 10196.2 | 13945.5 | 4525.3 | 2753.3 |
 
-Out-of-line cells (cpp-c2n poisson 522.8, go-c2n streaming_1kb 2979.4,
-go-c2n poisson 11058.2 vs the 5000 offered load) are shared-host noise
-under closed-loop driving, not regressions: per-scenario logs are
-retained alongside the matrices for SB-21 follow-up.
+Out-of-line cells include cpp-c2n Poisson at 522.8 QPS,
+go-c2n streaming_1kb at 2979.4, and go-c2n Poisson at 11058.2 against a
+nominal 5000 offered QPS. Their cause is unresolved. In particular, a
+Poisson offered-load mismatch cannot be dismissed as closed-loop noise.
+Before comparing these cells, reconcile the effective peer load semantics,
+measurement windows, and offered/completed/rejected counts using the retained
+logs. These numbers establish neither a regression nor a performance win.
 
 ## Retained artifacts
 
@@ -80,8 +84,16 @@ reproduce them.
 
 Reproduce (port server first, then one invocation per direction):
 
+In a separate terminal from the repository root, start the C++ helper:
+
 ```sh
-cd third_party/grpc && python3 tools/run_tests/start_port_server.py
+python3 third_party/grpc/tools/run_tests/start_port_server.py
+```
+
+Then run each direction from the repository root (substitute the actual
+retained `qps_json_driver` path if it differs):
+
+```sh
 ./scripts/grpc-qps-interop.sh --driver target/interop-cpp/qps_json_driver --mode native_pair
 ./scripts/grpc-qps-interop.sh --driver target/interop-cpp/qps_json_driver --ref-peer cpp --mode native_client_to_ref_server
 ./scripts/grpc-qps-interop.sh --driver target/interop-cpp/qps_json_driver --ref-peer cpp --mode ref_client_to_native_server

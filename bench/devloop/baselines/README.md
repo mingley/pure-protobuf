@@ -2,7 +2,7 @@
 
 This directory documents baseline policy for the deterministic dev-loop harness
 (`../README.md`, schema `devloop/1`). It is for contributors reading local
-comparison files or the CI perf lane. Bottom line: CI compares base and head in
+comparison files or the CI perf lane. CI compares base and head in
 one job, so committed machine-specific reports are not the source of truth.
 
 If a hand-kept report is added, name it `devloop-<12-hex-sha>.json`.
@@ -14,6 +14,12 @@ committed files here. Each pull request (PR) job builds the base SHA and the
 head SHA in one Linux job, runs the full suite for both, and compares
 base-vs-head. Both sides share one host and one toolchain. Reports are kept as
 run artifacts for 180 days for SB-20 noise analysis across 30+ runs.
+
+The workflow is advisory and can upload error placeholders after a failed
+build. Count only reports with the required measured cells and valid source
+revisions toward noise analysis. SB-23's local repair evidence still needs
+confirmation in an actual CI run; a job badge or artifact name alone is not
+proof that the measurements completed.
 
 ## What lives here
 

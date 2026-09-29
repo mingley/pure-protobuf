@@ -1,16 +1,17 @@
 # OSS-Fuzz integration packet (QG-02)
 
-This page is the ready-to-submit [OSS-Fuzz](https://google.github.io/oss-fuzz/)
-packet for `pure-protobuf`. Bottom line: enrollment needs only the three files
-below copied into `projects/pure-protobuf/` in a fork of `google/oss-fuzz`;
-the repo already contains the cargo-fuzz harnesses.
+This page is a draft [OSS-Fuzz](https://google.github.io/oss-fuzz/)
+integration packet. The three files below belong in
+`projects/pure-protobuf/` in an OSS-Fuzz checkout. Rehearse the build before
+submitting it; this record does not mean the project is enrolled.
 
 No in-tree changes are needed. OSS-Fuzz builds the existing cargo-fuzz targets
 with the same `cargo fuzz build` flow used by the weekly campaign lane
 (`fuzz-campaign` in `.github/workflows/compatibility.yml`).
 
-Current targets are auto-discovered from `fuzz/Cargo.toml`. Keep `build.sh` in
-sync when adding one: `descriptors`, `formats`, `grpc_wire`, `wire`.
+The target list lives in [fuzz/Cargo.toml](../../fuzz/Cargo.toml). Keep the
+staging loop below in sync: `descriptors`, `formats`, `grpc_wire`,
+`varint_diff`, `wire`.
 
 ## `projects/pure-protobuf/project.yaml`
 
@@ -43,7 +44,7 @@ COPY build.sh $SRC/
 # plus seed corpora into $OUT.
 cd "$SRC/pure-protobuf"
 cargo fuzz build -O
-for target in descriptors formats grpc_wire wire; do
+for target in descriptors formats grpc_wire varint_diff wire; do
   bin="fuzz/target/x86_64-unknown-linux-gnu/release/$target"
   cp "$bin" "$OUT/"
   if compgen -G "fuzz/corpus/$target/*" > /dev/null; then
@@ -68,6 +69,6 @@ done
   copy it to `$OUT/<target>.dict` in `build.sh`, and document it here.
 - Local rehearsal of the OSS-Fuzz build (Linux, nightly, cargo-fuzz
   installed):
-  `cd fuzz && cargo +nightly fuzz build -O && ls target/*/release/{descriptors,formats,grpc_wire,wire}`.
+  `cd fuzz && cargo +nightly fuzz build -O && ls target/*/release/{descriptors,formats,grpc_wire,varint_diff,wire}`.
   (On OSS-Fuzz itself the base builder's default toolchain is nightly,
   so `build.sh` above uses plain `cargo fuzz`.)

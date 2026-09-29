@@ -35,8 +35,9 @@ not lockstep and must not be hardcoded as `pbrs/0.1.0`.
 
 Current source crates declare Rust language Edition 2024; their existing
 `rust-version` floors (1.85 for core/native, 1.88 for tonic) still require
-the corresponding MSRV CI jobs. Protobuf Edition 2024 generation is a separate,
-unqualified feature and must not be inferred from the Cargo manifests.
+the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
+[qualified subset](edition-2024.md); full conformance must not be inferred
+from the Cargo manifests.
 
 Current manifests (check the files, not this table, before tagging): `pbrs`
 `0.2.0`; adapters `0.1.0-alpha.2`. A `v1.0.0` tag does not promote the
@@ -64,14 +65,10 @@ subject to the adapter dependency preflight.
 Neither a green historical benchmark nor a bundled feature count overrides
 the applicable safety, interoperability, package-consumer and operator gates.
 
-**Adapter naming is an open decision.** The published tonic adapter is
-`protobuf-tonic`; `pbrs-tonic` was not indexed on crates.io when checked on
-2026-09-25, but availability is not a reservation. Adopting the clearer name
-would create a **new package**, require a consumer migration and publisher
-update, and change the previously requested set of three named new versions.
-Do not silently add a fourth crate or abandon the published alpha. Until the
-maintainer chooses a migration/scope policy, the existing three-crate release
-contract above remains in force.
+The [adapter naming decision](decisions/better-tonic.md) keeps `pbrs`,
+`pbrs-grpc` and `protobuf-tonic`. New adoption paths use optional features in
+those crates. A future rename would need a consumer migration and publisher
+update; it is not part of this release plan.
 
 The publisher checks both runtime and build-time `pbrs` requirements in each
 adapter against the core manifest version and local source path **before**

@@ -1,9 +1,9 @@
 # Framework Comparisons: pbrs-grpc, Tonic, and gRPC-Go
 
-Use this guide to choose where `pbrs-grpc` differs from `tonic` and `grpc-go`.
-You should already know the shape of the service you want to build.
-Bottom line: `pbrs-grpc` favors a small, pure-Rust kernel with explicit limits
-and deliberately leaves xDS/control-plane features outside the runtime.
+Use this guide to compare APIs and migration work. `pbrs-grpc` uses a direct
+HTTP/2 transport with explicit resource limits and optional integrations.
+xDS is planned but does not ship. This is an implementation snapshot, not a
+performance ranking; measured results belong in the [scoreboard](../scoreboard.md).
 
 ---
 
@@ -18,7 +18,7 @@ queuing unbounded work.
 | **Underlying HTTP/2 Stack** | Direct, prior-knowledge `h2` engine | `hyper` + `tower` layers | Internal Go HTTP/2 transport |
 | **C / C++ Compiler Required** | **None** (pure Rust: rustls + Graviola) | None (default features) | None |
 | **Unsafe Code in Kernel** | Protocol modules forbid unsafe; two Linux-only OS helpers use scoped, documented unsafe | Minimal / hyper internal | Standard Go runtime |
-| **Executor Model** | Direct `tokio::spawn` on active runtime | Configurable `SharedExec` | Goroutine per stream / worker pool |
+| **Executor Model** | Tokio through an internal runtime seam; optional thread-per-core mode | Configurable `SharedExec` | Goroutine per stream / worker pool |
 | **Concurrency Limiting** | `ServerConfig::max_concurrent_rpcs` (returns `RESOURCE_EXHAUSTED`) | `tower::limit::ConcurrencyLimitLayer` (queues requests) | Stream semaphore / worker pools |
 | **Load Shedding** | Fast failure at capacity bound | `tower::load_shed::LoadShedLayer` | Handlers manage shed |
 
@@ -35,7 +35,7 @@ HTTP CONNECT tunneling.
 | **Cleartext HTTP/2 (h2c)** | Default (`Channel::connect`) | `Endpoint::from_static("http://...")` | `insecure.NewCredentials()` |
 | **TLS & ALPN** | `ClientTls` / `ServerTls` (ALPN `h2` enforced) | `ClientTlsConfig` / `ServerTlsConfig` | `credentials.NewTLS(...)` |
 | **Skip-Verify Constructor** | **None** (certificate verification is mandatory) | Custom verifier possible | `InsecureSkipVerify` (supported) |
-| **Mutual TLS (mTLS)** | Required client cert via `ServerTls::mtls` | `client_auth_optional` supported | Configurable via TLS ClientAuth |
+| **Mutual TLS (mTLS)** | `ServerTls::mtls` or `optional_mtls` | `client_auth_optional` supported | Configurable via TLS ClientAuth |
 | **Unix Domain Sockets** | Native `connect_unix` / `serve_unix_unlink` | Custom tower connector or `unix://` | `unix:///path` resolver |
 | **In-Process Channels** | `Channel::from_io` / `Server::serve_connection` | Tower service connector | `bufconn.Listen` / custom dialer |
 | **HTTP CONNECT Proxy** | `HTTPS_PROXY` / `NO_PROXY` env tunneling; no per-channel config surface | Hyper HTTP proxy connector | `HTTPS_PROXY` supported by default |
@@ -79,19 +79,18 @@ compression setting, user-agent, or wait-for-ready behavior.
 <a id="omissions"></a>
 ## 5. Resilience, Retries & Explicit Omissions
 
-`pbrs-grpc` keeps resilience behavior explicit. It provides the bounded retry,
-hedging, resolver, and LB behavior shown below and leaves xDS control-plane
-policy to gateways or service-mesh components. The runtime scope remains
-focused on high-throughput, low-latency, and predictable resource utilization.
+Retry policies, hedging, and resolver-managed balancing are explicit options.
+Current support and limits are listed below. Planned xDS work is tracked in
+the [implementation contract](../xds-contract.md).
 
-| Feature Area | `pbrs-grpc` Implementation | Rationale for Omission in Kernel |
+| Feature area | Current support | Boundary |
 |---|---|---|
-| **Transparent Retries** | **At-most-once**: automatic redial if connection dies before stream commitment. | Bound to single transparent retry to avoid duplicate execution. |
+| **Transparent Retries** | At most one automatic retry per attempt, with proof the server did not process the request. | Ambiguous connection loss after transmission is not proof; see the [retry contract](../retry-contract.md). |
 | **Service-Config Retries** | **Opt-in**: `retryPolicy` via `Channel::service_config` or resolver service config, with attempts, backoff, throttling, per-attempt timeout, pushback, and retry stats. | Bounded to configured policies; calls without a policy stay at call sites using `Code::is_retryable`. |
 | **Hedging** | **Opt-in unary**: bounded `hedgingPolicy`; no streaming hedging. | Speculation is explicit and capped by `maxAttempts` plus throttling. |
-| **xDS Protocol** | **Omitted** | Dynamic xDS control planes are best terminated at Envoy / service-mesh sidecars. |
+| **xDS Protocol** | Planned; no native xDS implementation. | Use an external control plane or proxy until the XD qualification work completes. |
 | **Channelz & Binary Logging** | **Shipped, opt-in**: mount `ChannelzService` or attach `BinaryLogger`; optional OTel observers require the `otel` feature. | Observability surfaces stay explicit and bounded. |
-| **Dynamic Config Reload** | **Omitted** | Configuration is immutable per server/channel instance; use graceful restart. |
+| **Dynamic Config Reload** | Resolver endpoints and service config can update; authorization has a reloadable provider. | Listener/TLS builder configuration is replaced by constructing new instances. |
 
 ## 6. Benchmark fairness (SB-01)
 
@@ -171,7 +170,7 @@ This matrix audits tonic 0.14.x's runtime surface from the local
 | Per-call `set_timeout`, wait-for-ready, user-agent, compression | [`Request::set_timeout`, `set_wait_for_ready`, `set_user_agent`, `set_compress`](../../pbrs-grpc/src/request.rs); [`Outgoing`](../../pbrs-grpc/src/request.rs) for client interceptors. | [`tests/resolver.rs`](../../pbrs-grpc/tests/resolver.rs), [`tests/codegen.rs`](../../pbrs-grpc/tests/codegen.rs), [`tests/serving.rs`](../../pbrs-grpc/tests/serving.rs) | **Parity** |
 | `Status`, `Code`, details, source, and transport error mapping | [`Status`](../../pbrs-grpc/src/status.rs) carries code/message/metadata/details/source; HTTP/2 and I/O mappings attach causes and retry evidence. | [`tests/rpc.rs`](../../pbrs-grpc/tests/rpc.rs) status/details; [`tests/retry_safety.rs`](../../pbrs-grpc/tests/retry_safety.rs) transport mapping; [`tests/binlog.rs`](../../pbrs-grpc/tests/binlog.rs) logged status details | **Parity** |
 | `Streaming<T>` | [`Streaming`](../../pbrs-grpc/src/stream.rs), `StreamSender`, `Framed`, `futures_core::Stream`, and fused stream support. | [`tests/rpc.rs`](../../pbrs-grpc/tests/rpc.rs) all four shapes; [`tests/lifecycle.rs`](../../pbrs-grpc/tests/lifecycle.rs) stream cancellation/shutdown | **Parity** |
-| Client and server interceptors | [`Channel::intercept`](../../pbrs-grpc/src/client/channel.rs), server/router/service [`intercept`](../../pbrs-grpc/src/server/accept.rs), and response interceptors. | [`tests/serving.rs`](../../pbrs-grpc/tests/serving.rs), [`tests/codegen.rs`](../../pbrs-grpc/tests/codegen.rs), [`tests/reflection.rs`](../../pbrs-grpc/tests/reflection.rs) | **Parity** for interceptor hooks; tower `Layer` remains missing above. |
+| Client and server interceptors | [`Channel::intercept`](../../pbrs-grpc/src/client/channel.rs), server/router/service [`intercept`](../../pbrs-grpc/src/server/accept.rs), and response interceptors. | [`tests/serving.rs`](../../pbrs-grpc/tests/serving.rs), [`tests/codegen.rs`](../../pbrs-grpc/tests/codegen.rs), [`tests/reflection.rs`](../../pbrs-grpc/tests/reflection.rs) | **Parity** for interceptor hooks; optional Tower adapters support whole-router and unary-client layers as described above. |
 | Compression codings: gzip, deflate, zstd | [`compression::Codec`](../../pbrs-grpc/src/compression/mod.rs) supports gzip and deflate by default, plus optional pure-Rust zstd with the `zstd` feature. | [`tests/tls.rs`](../../pbrs-grpc/tests/tls.rs) gzip all shapes; [`tests/compression.rs`](../../pbrs-grpc/tests/compression.rs) zstd C-peer interop and RPC negotiation; [`tests/hostile.rs`](../../pbrs-grpc/tests/hostile.rs) gzip/deflate/zstd hostile inputs; [`tests/resource_bounds.rs`](../../pbrs-grpc/tests/resource_bounds.rs) compression bounds | **Parity** |
 | `send_compressed`, `accept_compressed`, max decoding/encoding message size | Server/channel/generated setters map to [`ServerConfig`](../../pbrs-grpc/src/config.rs), [`ChannelConfig`](../../pbrs-grpc/src/config.rs), and `Request`/`Response` overlays. | [`tests/message_size.rs`](../../pbrs-grpc/tests/message_size.rs), [`tests/codegen.rs`](../../pbrs-grpc/tests/codegen.rs), [`tests/resource_bounds.rs`](../../pbrs-grpc/tests/resource_bounds.rs) | **Parity** |
 | Generic `Codec`, `Encoder`, and `Decoder` customization | [`CodecMessage`](../../pbrs-grpc/src/codec.rs) is the native message seam. pbrs messages use the fast blanket impl; custom message families can implement it directly, and the optional `prost` feature supplies a prost wrapper. | [`tests/codec_generic.rs`](../../pbrs-grpc/tests/codec_generic.rs), [`tests/prost_codec.rs`](../../pbrs-grpc/tests/prost_codec.rs), [`protobuf-tonic/tests`](../../protobuf-tonic/tests) | **Parity** for native transport customization; API shape differs from tonic's `Codec` trait. |
@@ -198,7 +197,8 @@ This matrix audits tonic 0.14.x's runtime surface from the local
 | TLS and UDS | [`examples/tonic-ports`](../../examples/tonic-ports/) runs TLS with repo test fixtures and Unix sockets on Unix for both adoption paths. | **Parity proof** for verified TLS and UDS. TLS intentionally keeps no skip/custom-verifier equivalent. |
 | Compression | [`examples/tonic-ports`](../../examples/tonic-ports/) proves gzip on both adoption paths and zstd when built with `--features zstd`. | **Parity proof** for gzip; zstd is extra native coverage because tonic has no public zstd example. |
 | Richer error details | [`examples/tonic-ports`](../../examples/tonic-ports/) returns and decodes `google.rpc` `BadRequest`, `Help`, and `LocalizedMessage` via `Status::from_error_details`. | **Parity proof** for tonic-types-style standard error details. |
-| Load-balance and dynamic load-balance examples | [`examples/tonic-ports`](../../examples/tonic-ports/) ports them to `Channel::connect_uri` plus resolver-provided `loadBalancingConfig`; dynamic change is represented by rebuilding from changed resolver state while TC-19 owns an Endpoint-style facade. | **Partial proof**: native resolver/LB policy works, but tonic's dynamic `Change` sender API shape is not present. |
+| Load-balance and dynamic load-balance examples | [`examples/tonic-ports`](../../examples/tonic-ports/) uses resolver-managed balancing. `Endpoint::balance_list` and `balance_channel` also ship; the latter consumes a watched full endpoint list. | **Partial proof**: native resolver/LB policy works, but the update API differs from tonic's keyed `Change` sender. |
 | Custom JSON codec, tracing, authentication, cancellation, h2c, and Tower examples | [`examples/tonic-ports`](../../examples/tonic-ports/) includes executable ports using `CodecMessage`, `LifecycleObserver`, native interceptors, request cancellation, prior-knowledge h2c, and Tower client layers. | **Parity proof** for native equivalents; h2c HTTP/1.1 Upgrade and exact `trace_fn` shape remain intentionally different. |
 | Cross-stack example interop | [`tests/interop/tonic`](../../tests/interop/tonic/) runs original tonic clients against pbrs servers and pbrs clients against original tonic servers for helloworld, routeguide all four shapes, streaming, compression, and richer error details. Compression includes pbrs gzip upload to tonic when the tonic service enables `accept_compressed(Gzip)`, plus the default-tonic rejection path (`UNIMPLEMENTED`) when it does not. | **Interop proof** for the minimum TC-22 example set. |
-| grpc-web, custom tracing span factory, tonic dynamic Endpoint `Change` sender | Outside native pbrs-grpc's current API shape or owned by follow-up cards. | **Gap proposals**: add dedicated APIs/examples if these surfaces become adoption blockers. |
+| gRPC-Web | Native HTTP/2 support ships behind `grpc-web`; [axum co-host](../../examples/axum-cohost/README.md) demonstrates HTTP/1.1 through Tower/Hyper. | **Partial**: no native HTTP/1.1 listener. |
+| Custom tracing span factory, tonic dynamic Endpoint `Change` sender | Native observer and watched-endpoint APIs have different shapes. | **Partial**: exact callback and update signatures remain migration work. |

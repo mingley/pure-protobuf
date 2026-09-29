@@ -107,11 +107,11 @@
  },
  "planned_checks": {
   "devloop": {
-   "command": "./scripts/devloop.sh --suite all --json target/devloop/head.json",
+   "command": "./scripts/devloop.sh --out target/devloop/head.json",
    "introduced_by": "SB-03"
   },
   "devloop-compare": {
-   "command": "./scripts/devloop.sh --suite all --baseline target/devloop/base.json",
+   "command": "./scripts/devloop.sh --baseline target/devloop/base.json --out target/devloop/head.json",
    "introduced_by": "SB-03"
   },
   "xlang-codec": {
@@ -271,12 +271,8 @@
   },
   {
    "legacy": "BM-03",
-   "disposition": "executed_by",
-   "by": [
-    "SB-05",
-    "SB-08",
-    "SB-15"
-   ],
+   "disposition": "retained",
+   "by": [],
    "gate": []
   },
   {
@@ -1900,7 +1896,9 @@
     "SB-06",
     "SB-07",
     "SB-08",
-    "SB-09"
+    "SB-09",
+    "QG-05",
+    "BM-03"
    ],
    "read": [
     "docs/benchmark-contract.md",
@@ -1913,7 +1911,8 @@
    "deliverable": "Operator task: on dedicated Linux x86_64 and arm64 hosts with docs/benchmark-contract.md section 8 controls, run the frozen primary and holdout codec (A) and codegen (B) cells against every pinned comparator with section 6 statistics and the section 7.2 thresholds.",
    "accept": [
     "Raw artifacts, host inventory, sysctls, toolchains and peer versions are retained for every cell.",
-    "Every cell reports a 95% interval; losses are published beside wins."
+    "Every cell reports a 95% interval; losses are published beside wins.",
+    "Generated/typed codec claims require generated C++ and upb comparators; existing DynamicMessage/DefPool comparators support only explicitly dynamic-category claims."
    ],
    "checks": [],
    "scoreboard": [
@@ -2145,7 +2144,7 @@
     "fuzz/fuzz_targets/varint_diff.rs",
     "docs/unsafe-invariants.md"
    ],
-   "deliverable": "Add std::arch-gated SIMD varint/tag decoding (SSE2/AVX2/NEON) at the scalar sites the live engines use. Portable SWAR is EXCLUDED (tried and disproved, reverted in 039c7cd1 \u2014 do not retry). Place the SIMD where both the generated inline path and the PK-06 table engine consume it.",
+   "deliverable": "Add std::arch-gated SIMD varint/tag decoding (SSE2/AVX2/NEON) at the scalar sites the live engines use. Portable SWAR is EXCLUDED (tried and disproved, reverted in 039c7cd1 — do not retry). Place the SIMD where both the generated inline path and the PK-06 table engine consume it.",
    "accept": [
     "Differential fuzzing against the scalar decoder finds no divergence over at least 1e9 inputs.",
     "Dev-loop instructions improve on packed_256, unpacked_256 and tags_32 cells without regressing tiny-message cells by more than 1%.",
@@ -2167,7 +2166,7 @@
    "evidence": [
     "docs/evidence/codec-profiles.md"
    ],
-   "notes": "2026-09-29 coordinator re-scope: portable SWAR excluded after disproof; arch-specific paths only, shared with the table engine. Runs after PK-22 (src/wire.rs hotspot) \u2014 PK-22 landed. 2026-09-29 DONE (cf579c68): 1016843009 differential inputs, no divergence (coordinator re-ran, exact count match); packed_256 owned -33.8% / parse_touch -58.1% (unpacked identical); tags_32 exactly neutral (no contiguous varint runs in tag path; neutral accepted); tiny cells all <1% (all slightly better); Miri strict-provenance 3/3, SSE2 compiles for x86_64-linux, scalar fallback byte-identical to verified test ref; 32-bit/BE execution stays with target-matrix CI (local cross-std download blocked)."
+   "notes": "2026-09-29 coordinator re-scope: portable SWAR excluded after disproof; arch-specific paths only, shared with the table engine. Runs after PK-22 (src/wire.rs hotspot) — PK-22 landed. 2026-09-29 DONE (cf579c68): 1016843009 differential inputs, no divergence (coordinator re-ran, exact count match); packed_256 owned -33.8% / parse_touch -58.1% (unpacked identical); tags_32 exactly neutral (no contiguous varint runs in tag path; neutral accepted); tiny cells all <1% (all slightly better); Miri strict-provenance 3/3, SSE2 compiles for x86_64-linux, scalar fallback byte-identical to verified test ref; 32-bit/BE execution stays with target-matrix CI (local cross-std download blocked)."
   },
   {
    "id": "PK-05",
@@ -2768,7 +2767,7 @@
    "relates": [],
    "status": "in_progress",
    "evidence": [
-    "Partial 2026-09-29 (bbe4563e): lazy per-descriptor pool table cache with ABA fix plus direct map-entry decode without temporary messages; 8 new pk18_* tests (cache identity, mutation visibility, pool-vs-link precedence, table split, map last-wins). Full pbrs suite green, workspace clippy -D warnings clean, fmt clean. Leadership-vs-hyperpb/upb measurement on OTLP/Envoy corpora still open; PK-18 stays pending."
+    "Partial 2026-09-29 (bbe4563e): lazy per-descriptor pool table cache with ABA fix plus direct map-entry decode without temporary messages; 8 new pk18_* tests (cache identity, mutation visibility, pool-vs-link precedence, table split, map last-wins). Full pbrs suite green, workspace clippy -D warnings clean, fmt clean. Leadership-vs-hyperpb/upb measurement on OTLP/Envoy corpora still open; PK-18 remains in progress."
    ]
   },
   {
@@ -3016,8 +3015,8 @@
    "relates": [
     "CG-16"
    ],
-   "status": "done",
-   "notes": "2026-09-29 coordinator: decided upstream-first protox contribution (bounded slices), in-repo compiler rejected. Draft for maintainer review; approval required before GN-06 starts. GN-08 unblocked (route-independent).",
+   "status": "in_progress",
+   "notes": "2026-09-29 coordinator: decided upstream-first protox contribution (bounded slices), in-repo compiler rejected. Draft for maintainer review; approval required before GN-06 starts. GN-08 unblocked (route-independent). Audit 2026-09-29: draft delivery does not meet the recorded approval acceptance item; retain in_progress until the decision is resolved.",
    "evidence": [
     "docs/decisions/rust-frontend-route.md",
     "docs/rust-frontend.md"
@@ -3032,7 +3031,8 @@
    "executor": "small",
    "size": "M",
    "depends_on": [
-    "GN-08"
+    "GN-08",
+    "GN-05"
    ],
    "read": [
     "docs/decisions/rust-frontend-route.md",
@@ -3254,11 +3254,11 @@
     "F1"
    ],
    "relates": [],
-   "status": "done",
+   "status": "in_progress",
    "evidence": [
     "docs/decisions/upb-kernel.md"
    ],
-   "notes": "Closed 2026-09-29: draft landed; maintainer sign-off on the 6 open questions required before UK-03..UK-10 start."
+   "notes": "Closed 2026-09-29: draft landed; maintainer sign-off on the 6 open questions required before UK-03..UK-10 start. Audit 2026-09-29: draft delivery does not meet the recorded approval acceptance item; retain in_progress until the decision is resolved."
   },
   {
    "id": "UK-03",
@@ -3958,7 +3958,8 @@
    "size": "L",
    "depends_on": [
     "H2-03",
-    "QG-01"
+    "QG-01",
+    "H2-16"
    ],
    "read": [
     "docs/decisions/pbrs-h2.md"
@@ -3983,7 +3984,9 @@
     "C5",
     "D4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "blocked",
+   "blocked_reason": "H2-01 concluded NO-GO. H2-03 is a design record, not approval to build. Reopen only after H2-16 records a reviewed GO with >=15% modeled primary-cell gain or a demonstrated correctness/design blocker."
   },
   {
    "id": "H2-05",
@@ -6025,12 +6028,12 @@
    "relates": [
     "EX-07"
    ],
-   "status": "done",
+   "status": "in_progress",
    "evidence": [
     "docs/decisions/xds-build-vs-reuse.md",
     "docs/xds-contract.md"
    ],
-   "notes": "Closed 2026-09-29: draft landed (build in-repo); maintainer sign-off on the 5 open questions required; gates XD-02 review."
+   "notes": "Closed 2026-09-29: draft landed (build in-repo); maintainer sign-off on the 5 open questions required; gates XD-02 review. Audit 2026-09-29: draft delivery does not meet the recorded approval acceptance item; retain in_progress until the decision is resolved."
   },
   {
    "id": "XD-02",
@@ -7057,7 +7060,8 @@
    "executor": "coordinator",
    "size": "S",
    "depends_on": [
-    "SB-04"
+    "SB-04",
+    "SB-23"
    ],
    "read": [
     ".github/workflows/perf.yml",
@@ -7077,7 +7081,7 @@
     "BM-13"
    ],
    "status": "pending",
-   "notes": "Premise check 2026-09-29: only 2 perf-lane runs ever, both failed with 0 artifacts; need >=30 completed runs with devloop-* artifacts. Unblocked by SB-23 (lane repair) + ~30 qualifying PR pushes."
+   "notes": "Collect at least 30 comparable successful base/head measurements after SB-23. Count verified artifacts, not PR pushes or green workflow conclusions; exclude empty reports, errors and unavailable metrics."
   },
   {
    "id": "SB-21",
@@ -7097,12 +7101,17 @@
    ],
    "write": [
     "rpc-bench/scenarios/claims.json",
-    "bench/stack-matrix/scenarios/"
+    "bench/stack-matrix/scenarios/",
+    "rpc-bench/src/worker/",
+    "bench/stack-matrix/run.py",
+    "scripts/grpc-qps-interop.sh",
+    "tests/interop/test_qps_proof.py"
    ],
    "deliverable": "Define open-loop, contract-duration (15 s warmup, 60 s measurement, paired randomized runs) variants of the SB-10 official scenarios and the SB-17 grpc_bench workload, with offered-load and failure accounting, so E1/E2 claims do not rely on closed-loop diagnostic runs.",
    "accept": [
     "Variants are frozen in scenario files before any claim run; the originals remain labeled diagnostic reproductions.",
-    "A short smoke run through both harnesses asserts the configured warmup/measurement durations, randomized pairing, offered versus completed versus rejected counts, and latency measured from the scheduled send time."
+    "A short smoke run through both harnesses asserts the configured warmup/measurement durations, randomized pairing, offered versus completed versus rejected counts, and latency measured from the scheduled send time.",
+    "Reconcile offered, dispatched, completed, rejected, timed-out and unfinished counts over the same measurement window. Reject inconsistent claim runs; investigate the recorded 5,000 offered / 11,058 reported Poisson-QPS discrepancy before reusing that scenario."
    ],
    "checks": [
     "rpc-bench-tests",
@@ -7113,11 +7122,11 @@
     "E2"
    ],
    "relates": [],
-   "status": "done",
+   "status": "in_progress",
    "evidence": [
     "docs/evidence/sb21-claims-scenarios.md"
    ],
-   "notes": "Follow-ups outside this card's write set: worker export of schedule-relative e2e latency (ClientStats is dispatch-relative), a run.py scenario loader for scenarios/*.json, and per-repeat re-shuffling in grpc-qps-interop.sh. See evidence."
+   "notes": "Audit 2026-09-29: scenario definitions landed, but the second acceptance item is not met. Finish scheduled-send-to-completion latency, loading frozen scenario files in run.py, and independent randomized peer order per repeat. Existing evidence explicitly lists these omissions."
   },
   {
    "id": "SB-22",
@@ -7133,11 +7142,14 @@
     "SB-13",
     "SB-19",
     "SB-21",
-    "RT-07"
+    "RT-07",
+    "SB-24",
+    "QG-05",
+    "QG-06"
    ],
    "read": [
     "docs/benchmark-contract.md",
-    "rpc-bench/scenarios/leadership.json"
+    "rpc-bench/scenarios/claims.json"
    ],
    "write": [
     "docs/evidence/claims/transport/"
@@ -7145,7 +7157,8 @@
    "deliverable": "Operator task: on dedicated Linux x86_64 and arm64 host pairs with 10 GbE+, run the frozen client (C), server (D) and end-to-end (E) cells with section 6 statistics and section 7.1/7.3 thresholds, including overload fairness evidence.",
    "accept": [
     "Raw artifacts, host inventory, sysctls, toolchains and peer versions retained for every cell; 95% intervals everywhere; losses published beside wins.",
-    "D7 claims require RT-07 fairness evidence; E1/E2 claims use only SB-21 variants; optional SB-18 peers are included when available but never block required-peer claims."
+    "D7 claims require RT-07 fairness evidence; E1/E2 claims use only SB-21 variants; optional SB-18 peers are included when available but never block required-peer claims.",
+    "Name executed peers, workloads, features, architectures and source revisions. Broad competitor-set leadership also requires SB-25; omitted/not_run peers cannot count as wins."
    ],
    "checks": [],
    "scoreboard": [
@@ -8359,7 +8372,8 @@
    ],
    "deliverable": "Loop-only callgrind dev-loop cells show pbrs-grpc using about half of tonic's allocations but 4% more instructions per unary RPC and 13% more per server-streaming RPC, with 11-12% more heap bytes. Diff the profiles function by function and remove the excess.",
    "accept": [
-    "rpc.pbrs.unary and rpc.pbrs.server_stream beat rpc.tonic.* on instructions, allocations and bytes per RPC in the same dev-loop harness, with all transport gates green."
+    "rpc.pbrs.unary and rpc.pbrs.server_stream beat rpc.tonic.* on instructions, allocations and bytes per RPC in the same dev-loop harness, with all transport gates green.",
+    "Re-profile the merged candidate in separate client/server Linux processes with TLS on/off and mixed unary/streaming traffic. Record endpoint CPU/RPC, p99 at matched offered load, allocations and retained bytes; shared-runtime Tokio instruction share is not production attribution."
    ],
    "checks": [
     "clippy"
@@ -8376,7 +8390,7 @@
    ],
    "status": "in_progress",
    "evidence": [
-    "Partial 2026-09-29 (b158cc99): client fast paths (skip 144B attempt guard unobserved, lazy labels/telemetry), exact header sizing, frame-reader/send trims across 9 transport files. pbrs-grpc lib 432/432, full grpc suite green, CI rpc-bench tests 85+1+1+89 green, fmt clean, clippy 0 errors. Dev-loop callgrind beat-tonic measurement still open; RX-09 stays pending."
+    "Partial 2026-09-29 (b158cc99): client fast paths (skip 144B attempt guard unobserved, lazy labels/telemetry), exact header sizing, frame-reader/send trims across 9 transport files. pbrs-grpc lib 432/432, full grpc suite green, CI rpc-bench tests 85+1+1+89 green, fmt clean, clippy 0 errors. Dev-loop callgrind beat-tonic measurement still open; RX-09 remains in progress."
    ]
   },
   {
@@ -8605,7 +8619,8 @@
    ],
    "deliverable": "Fix the red dev-loop perf lane: offline resolve of the protobuf =4.35.1-release pin during cargo fetch/build, and make the build/compare steps non-fatal per the non-blocking design so base/head JSONs always upload.",
    "accept": [
-    "A dispatched perf-lane run completes and uploads devloop-* base/head artifacts; a bench compile failure is reported, not exit-101-silent."
+    "A real CI base/head comparison uploads nonempty devloop/1 reports with measured cells, source SHAs and tool metadata. Retain the run URL and artifacts; missing counters remain not_run.",
+    "Demonstrate failed builds retain error reports without counting them as qualifying SB-20 runs. Keep thresholds advisory until SB-20 closes."
    ],
    "checks": [],
    "scoreboard": [],
@@ -8613,8 +8628,8 @@
     "SB-04",
     "SB-20"
    ],
-   "notes": "Closed 2026-09-29: no CI dispatch permitted, so CI-side green is inferred; first dispatched run must be watched (cold protoc build + 2x release in 30 min). Re-enables SB-20 after >=30 artifact runs.",
-   "status": "done",
+   "notes": "Audit 2026-09-29: local repair landed, but CI success was inferred without a run. perf.yml is PR-only and has no workflow_dispatch trigger. Use a relevant PR or implement an explicit base/head dispatch. Empty/error placeholders are not qualifying measurements.",
+   "status": "in_progress",
    "evidence": [
     "scripts/devloop.sh + perf.yml: non-fatal lane, pinned protoc",
     "local lane run: exit 0, 88 cells, devloop/1"
@@ -8701,6 +8716,262 @@
     "GN-02"
    ],
    "notes": "Split from PK-22 2026-09-29: exact sites in evidence section 4 (parse.rs:229, encode.rs:380, gen_support.rs:848 floor)."
+  },
+  {
+   "id": "QG-05",
+   "title": "Restore the original upstream enum-map compatibility gate",
+   "lane": "QG",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [],
+   "read": [
+    "docs/audit-2026-09-29.md",
+    "src/runtime/reflect.rs",
+    "src/runtime/map.rs",
+    "src/map.rs",
+    "scripts/test-rust-out-shared.sh"
+   ],
+   "write": [
+    "src/runtime/reflect.rs",
+    "src/runtime/map.rs",
+    "src/map.rs",
+    "tests/runtime.rs",
+    "tests/upb_kernel.rs",
+    "docs/evidence/shared-map-recovery.md"
+   ],
+   "deliverable": "Repair generated enum-map iteration with a sound typed conversion contract; restore original shared consumers without weakening assertions.",
+   "accept": [
+    "Reproduce test_map_int32_enum: length reports one but iteration returns no entries. Cover insertion, iteration, mutation, roundtrip and unknown enum values.",
+    "Do not restore the removed arbitrary four-byte transmute fallback. Review an explicit enum conversion boundary and run applicable Miri checks.",
+    "Run all 19 original shared consumer crates, plus core/runtime regressions. Retain exact-SHA reports; only passing the first crate is insufficient."
+   ],
+   "checks": [
+    "core-lib",
+    "shared",
+    "shared-out"
+   ],
+   "scoreboard": [
+    "F1",
+    "F6"
+   ],
+   "evidence": [
+    "Baseline 37683917: https://github.com/mingley/pure-protobuf/actions/runs/36594563929 failed accessors_map_test (34 pass, 1 fail); only 1/19 crates ran."
+   ]
+  },
+  {
+   "id": "SB-24",
+   "title": "Make required transport claim cells executable and comparable",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "SB-11",
+    "SB-12",
+    "SB-19"
+   ],
+   "read": [
+    "docs/benchmark-contract.md",
+    "docs/evidence/sb21-claims-scenarios.md",
+    "bench/stack-matrix/peers/fairness.py",
+    "bench/stack-matrix/scenarios/"
+   ],
+   "write": [
+    "bench/stack-matrix/",
+    "rpc-bench/src/",
+    "rpc-bench/peers/",
+    "tests/interop/"
+   ],
+   "deliverable": "Complete required pbrs, tonic, grpc-go and grpc-c++ claim cells and fail preflight on unavailable or unequal work.",
+   "accept": [
+    "Smoke all four RPC shapes, gzip on/off, TLS on/off and required client/server directions; implement missing load flags. Unsupported required cells block that claim.",
+    "Verify effective TCP_NODELAY, HTTP/2 windows, message/stream limits, TLS version/cipher and compression from peer output. Defaults and informational fairness warnings cannot certify equality.",
+    "Demonstrate generator/reference-endpoint headroom; separate endpoint CPU/RSS and measurement windows.",
+    "For 100k TCP connections record feasible multi-address/endpoint topology rather than a port range exceeding 65,535. RTT emulation remains diagnostic until real-network cells run.",
+    "Measure the saturation knee first; label a cell overload only when offered load exceeds demonstrated capacity. A fixed 24k rate is not itself overload proof."
+   ],
+   "checks": [
+    "rpc-bench-tests",
+    "stack-matrix"
+   ],
+   "scoreboard": [
+    "C1",
+    "C2",
+    "D1",
+    "D2",
+    "D5",
+    "E3",
+    "E4",
+    "E5"
+   ]
+  },
+  {
+   "id": "SB-25",
+   "title": "Execute broader competitors before broad leadership claims",
+   "lane": "SB",
+   "milestone": "M8",
+   "priority": "P1",
+   "executor": "small",
+   "size": "L",
+   "status": "pending",
+   "depends_on": [
+    "SB-18",
+    "SB-24"
+   ],
+   "read": [
+    "rpc-bench/peers/README.md",
+    "bench/stack-matrix/peers/",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "bench/stack-matrix/peers/",
+    "rpc-bench/peers/",
+    "tests/interop/",
+    "docs/evidence/claims/peers/"
+   ],
+   "deliverable": "Turn optional peer manifests into executable comparisons: grpc-java/Netty and grpc-dotnet/Kestrel first, then Vert.x/Quarkus and Rust peers.",
+   "accept": [
+    "Pin source/build recipes/effective settings and verify equivalent wire semantics before timing.",
+    "Run client/server smoke where supported; publish unsupported/not_run reasons and missing directions. Client-only peers cannot support server claims.",
+    "Retain broad-peer paired x86_64/arm64 results before asserting leadership over that competitor set. Until then publish exact narrower peer lists."
+   ],
+   "checks": [
+    "stack-matrix"
+   ],
+   "scoreboard": [
+    "C2",
+    "D2",
+    "E1"
+   ]
+  },
+  {
+   "id": "QG-06",
+   "title": "Qualify resources and recovery on the shipping h2 backend",
+   "lane": "QG",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "operator",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "QG-05",
+    "RT-07",
+    "SB-24"
+   ],
+   "read": [
+    "docs/resource-budgets.md",
+    "pbrs-grpc/tests/hostile.rs",
+    "pbrs-grpc/tests/lifecycle.rs",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "pbrs-grpc/tests/",
+    "scripts/",
+    "docs/evidence/current-h2-soak.md",
+    "docs/resource-budgets.md"
+   ],
+   "deliverable": "Exercise the current backend under sustained/hostile load; QG-03 remains the separate future-engine soak.",
+   "accept": [
+    "Freeze source, host, concurrency, per-stream send buffers, TLS/compression and finite process limits before a 24-hour soak. Include slow readers, cancellations, deadlines, reconnects and mixed message sizes.",
+    "Record RSS/allocator high-water, tasks, file descriptors, streams and permits through warmup/load/drain. Recover to a predeclared baseline tolerance without leaks/starvation.",
+    "Inject resets, GOAWAY, churn and overload; bound p99/goodput loss and verify cancelled work stops. Preserve seeds, logs and failures.",
+    "Distinguish protocol-buffer estimates from total RSS, including application queues, per-stream buffers, TLS, allocator and sockets. Test builder ordering/default equality around coupled max_send_buffer_size and ByteBudgetTracker knobs; file a compatibility-preserving API follow-up if needed."
+   ],
+   "checks": [
+    "native-hostile",
+    "native-rpc",
+    "native-tls",
+    "native-serving"
+   ],
+   "scoreboard": [
+    "D5",
+    "D7",
+    "F2",
+    "F3"
+   ]
+  },
+  {
+   "id": "H2-16",
+   "title": "Reassess whether a custom HTTP/2 engine is justified",
+   "lane": "H2",
+   "milestone": "M3",
+   "priority": "P1",
+   "executor": "coordinator",
+   "size": "S",
+   "status": "pending",
+   "depends_on": [
+    "RX-09",
+    "SB-21",
+    "SB-24"
+   ],
+   "read": [
+    "docs/evidence/h2-costs.md",
+    "docs/evidence/rx-08.md",
+    "docs/decisions/h2-engine.md",
+    "docs/decisions/pbrs-h2.md"
+   ],
+   "write": [
+    "docs/decisions/h2-engine.md",
+    "docs/evidence/h2-costs.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Update the engine decision from separate-process Linux profiles after current-backend improvements.",
+   "accept": [
+    "Attribute scheduler, h2 locks, headers, copies, allocator, TLS and compression costs on primary C/D cells. Model achievable gain and maintenance cost.",
+    "Keep H2-04 blocked on NO-GO. Only a reviewed GO with >=15% modeled gain or a hard correctness/design block may unblock implementation; completing this decision alone is insufficient.",
+    "Record a useful NO-GO outcome with the next bounded current-backend optimization."
+   ],
+   "checks": [],
+   "scoreboard": [
+    "C5",
+    "D4"
+   ]
+  },
+  {
+   "id": "QG-07",
+   "title": "Compile the public guide recipes against shipped APIs",
+   "lane": "QG",
+   "milestone": "M0",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "status": "pending",
+   "depends_on": [
+    "DX-07"
+   ],
+   "read": [
+    "docs/guides/operations.md",
+    "docs/guides/production-service.md",
+    "tests/documentation.rs",
+    "tests/onboarding.rs"
+   ],
+   "write": [
+    "docs/guides/",
+    "tests/documentation.rs",
+    "tests/onboarding.rs",
+    "examples/"
+   ],
+   "deliverable": "Tie standalone guide recipes to compiled examples/fixtures so API drift cannot pass a syntax-only check.",
+   "accept": [
+    "Compile and exercise health/reflection, ErrorDetails, from_io and resource-limit recipes with their documented feature sets.",
+    "Retain offline links/anchors/caveats and negative syntax tests. Reuse runnable examples or extracted fixtures instead of tests that pin prose.",
+    "A deliberate nonexistent method in a covered recipe fails the check; a prose rewrite leaves it green."
+   ],
+   "checks": [
+    "docs-contract",
+    "codegen"
+   ],
+   "scoreboard": []
   }
- ]
+ ],
+ "last_audit": {
+  "date": "2026-09-29",
+  "source_revision": "37683917c65fd06082a392f07e4d71bd587b18b9",
+  "report": "docs/audit-2026-09-29.md"
+ }
 }

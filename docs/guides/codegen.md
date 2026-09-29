@@ -1,10 +1,9 @@
 # Code Generation and Custom Stubs
 
-Use this guide to generate Rust messages and service stubs with
-`pbrs::codegen` or the `protoc-gen-pbrs` plugin. You need `.proto` files or a
-checked descriptor set. Bottom line: use `build.rs` for normal crates, choose
-native or Tonic stubs explicitly, and use descriptor sets when an earlier stage
-already ran `protoc`.
+Generate Rust messages and service stubs with `pbrs::codegen` in `build.rs`,
+or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
+`.proto` files or a checked descriptor set. Native gRPC stubs are the default;
+Tonic stubs and messages-only output are explicit options.
 
 ---
 
@@ -302,36 +301,32 @@ explicitly enabled.
 <a id="manual-service"></a>
 ## 5. Writing a Service Without Codegen
 
-For dynamic proxies, gateways, or custom routing, implement `Service` directly
-instead of using generated stubs. This gives you raw byte frames, interceptor
-context, and path-based dispatch.
+For custom routing, implement `Service` directly and dispatch through `Rpc`.
+The example reuses bundled protobuf messages but writes the service dispatch
+by hand. Message types must implement `CodecMessage`; a plain `Vec<u8>` is
+not automatically a protobuf message.
 
 ```rust
-use pbrs_grpc::{Incoming, Request, Response, Rpc, Service, Status};
-use std::future::Future;
-use std::pin::Pin;
+use pbrs_grpc::hello::{HelloReply, HelloRequest};
+use pbrs_grpc::{Request, Response, Rpc, Service};
 
 #[derive(Clone)]
 struct RawEchoService;
 
 impl Service for RawEchoService {
-    fn call(
-        &self,
-        rpc: Rpc,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Status>> + Send + 'static>> {
-        Box::pin(async move {
-            match rpc.path() {
-                "/echo.Echo/Echo" => {
-                    rpc.unary(|req: Request<Vec<u8>>| async move {
-                        let payload = req.into_inner();
-                        Ok(Response::new(payload))
-                    }).await
-                }
-                _ => {
-                    rpc.unimplemented().await
-                }
+    const NAME: &'static str = "echo.Echo";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Echo" => {
+                rpc.unary(|req: Request<HelloRequest>| async move {
+                    let mut reply = HelloReply::new();
+                    reply.set_message(req.get_ref().name());
+                    Ok(Response::new(reply))
+                }).await;
             }
-        })
+            _ => rpc.unimplemented(),
+        }
     }
 }
 ```

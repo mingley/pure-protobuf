@@ -2,9 +2,15 @@
 
 This directory contains the pinned schemas and deterministic payload generators
 used by the codec scoreboard (categories A1–A15). It is for benchmark authors
-who need reproducible protobuf inputs. Bottom line: checked-in `tiny` and
+who need reproducible protobuf inputs. Checked-in `tiny` and
 `typical` payloads are stable; `large` and `huge` payloads are regenerated on
 demand and verified by hashes in each manifest.
+
+Corpora are test inputs, not performance evidence. Use the
+[cross-language peer guides](../xlang/cpp/README.md) and
+[benchmark contract](../../docs/benchmark-contract.md) to choose equivalent
+operations and ownership before comparing timings. A generated payload or
+successful round trip does not establish that every comparator ran that cell.
 
 Each corpus vendorizes its `.proto` import closure at a pinned upstream commit.
 `generate.py` builds descriptors with the pinned `protoc` and emits

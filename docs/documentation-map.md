@@ -1,217 +1,112 @@
-# Documentation map (DX-01)
+# Find the right documentation
 
-This page is the navigation contract for contributors and doc reviewers. Bottom
-line: each reader journey has one canonical page, supporting pages should link
-rather than repeat it, and this map must stay valid under `tests/documentation.rs`
-(section 9).
+Start with the task you want to finish. Guides explain how to use the
+libraries; reference pages define exact behavior; evidence records what was
+measured at a particular revision.
 
-Audited at `0d65607c817fa8eecf6fdd75b8dacd76cfebaf82`. The hub-and-spoke
-layout designed by this card has landed: the gRPC hub is concise, the seven
-guides exist, and markdown prose is no longer pinned by multi-thousand-line
-exact-string tests. This file is a maintained navigation record, not a second
-copy of the guides.
+## Build or operate an application
 
-## 1. Seven-domain content map
-
-| Domain | Reader intent | Canonical page | Supporting pages |
-|---|---|---|---|
-| Learn / tutorials | First working build and service | [README.md](../README.md) | [gRPC hub](grpc.md), [pbrs-grpc README](../pbrs-grpc/README.md), [protobuf-tonic README](../protobuf-tonic/README.md) |
-| How-to guides | Solve one production task | [guides/](guides/rpc-shapes.md) | [rpc-shapes](guides/rpc-shapes.md), [production-service](guides/production-service.md), [operations](guides/operations.md), [codegen](guides/codegen.md), [interceptors](guides/interceptors.md), [migration](guides/migration.md), [comparison](guides/comparison.md) |
-| API reference | Signatures, traits, options, errors | rustdoc (`cargo doc --workspace`) | [docs.rs](https://docs.rs/pbrs) for `pbrs`, `pbrs-grpc`, `protobuf-tonic` |
-| Internals | Mental model, layout, parser design | [architecture.md](architecture.md) | [design.md](design.md), [upb.md](upb.md), [unsafe-invariants.md](unsafe-invariants.md) |
-| Compatibility and evidence | What is supported and proven | [status.md](status.md) | [ROADMAP.md](ROADMAP.md), [plan/README.md](plan/README.md), [world-class program](plan/world-class/README.md), [Rust frontend review](rust-frontend.md), [TODO.md](../TODO.md), [RELEASE.md](RELEASE.md) |
-| Performance | Workload-specific measurements | [benchmarks.md](benchmarks.md) | [benchmark-contract.md](benchmark-contract.md), [resource-budgets.md](resource-budgets.md), [zero-copy.md](zero-copy.md) |
-| Operations and troubleshooting | Run, debug, and bound a service | [operations guide](guides/operations.md) | [retry-contract.md](retry-contract.md), [cacheable-rpc.md](cacheable-rpc.md), [codegen-compatibility.md](codegen-compatibility.md), [codegen-layout.md](codegen-layout.md), [edition-2024.md](edition-2024.md) |
-
-Rule: a journey's canonical page owns the narrative; supporting pages
-are linked, not duplicated. New prose goes in exactly one page.
-
-## 2. Canonical page per user journey
-
-Each journey has one canonical page and a link to runnable code.
-
-| Journey | Canonical page | Runnable code |
+| I want to… | Start here | Runnable code |
 |---|---|---|
-| Use protobuf messages in Rust | [README.md](../README.md) quickstart | [examples/greeter](../examples/greeter/src/main.rs), [tests/typed.rs](../tests/typed.rs) |
-| Build a native gRPC service | [gRPC hub](grpc.md) | [examples/greeter](../examples/greeter) (`build.rs`, `proto/`, `src/main.rs`, `src/lib.rs`) |
-| Learn one RPC shape | [rpc-shapes guide](guides/rpc-shapes.md) | [examples/greeter](../examples/greeter/src/lib.rs), [pbrs-grpc rpc tests](../pbrs-grpc/tests/rpc.rs) |
-| Ship TLS, timeouts, drain | [production-service guide](guides/production-service.md) | [pbrs-grpc tls tests](../pbrs-grpc/tests/tls.rs), [lifecycle tests](../pbrs-grpc/tests/lifecycle.rs) |
-| Add auth, metadata, overlays | [interceptors guide](guides/interceptors.md) | [protobuf-tonic interceptor_size tests](../protobuf-tonic/tests/interceptor_size.rs) |
-| Operate: health, reflection, errors | [operations guide](guides/operations.md) | [pbrs-grpc health tests](../pbrs-grpc/tests/health.rs), [reflection tests](../pbrs-grpc/tests/reflection.rs) |
-| Generate code, migrate from prost/tonic | [codegen guide](guides/codegen.md), [migration guide](guides/migration.md) | [onboarding consumer builds](../tests/onboarding.rs), [protobuf-tonic interop tests](../protobuf-tonic/tests/interop.rs) |
-| Compare against tonic / gRPC-Go | [comparison guide](guides/comparison.md) | [bench](../bench), [rpc-bench](../rpc-bench), [tonic-bench](../tonic-bench) |
-| Evaluate performance claims | [benchmarks.md](benchmarks.md) | [bench](../bench), [rpc-bench](../rpc-bench), [tonic-bench](../tonic-bench) |
-| Send or receive large binary payloads | [zero-copy.md](zero-copy.md) | [tests/runtime.rs](../tests/runtime.rs), [rpc-bench](../rpc-bench) |
-| Check support boundaries | [status.md](status.md) | [conformance script](../scripts/conformance.sh), [interop script](../scripts/grpc-interop.sh) |
+| Generate and use protobuf messages | [Main quickstart](../README.md#quick-start-install-generate-use) | [Onboarding consumers](../tests/onboarding.rs) |
+| Build a native gRPC service | [gRPC guide](grpc.md) | [Greeter](../examples/greeter/README.md) |
+| Choose an RPC shape | [Unary and streaming guide](guides/rpc-shapes.md) | [Greeter service](../examples/greeter/src/lib.rs) |
+| Configure TLS, limits and shutdown | [Production service guide](guides/production-service.md) | [TLS tests](../pbrs-grpc/tests/tls.rs), [lifecycle tests](../pbrs-grpc/tests/lifecycle.rs) |
+| Add authentication or metadata | [Interceptors guide](guides/interceptors.md) | [Greeter](../examples/greeter/src/lib.rs) |
+| Add health, reflection and useful errors | [Operations guide](guides/operations.md) | [Health tests](../pbrs-grpc/tests/health.rs), [reflection tests](../pbrs-grpc/tests/reflection.rs) |
+| Configure code generation | [Codegen guide](guides/codegen.md) | [Build integration tests](../tests/pbrs_build.rs) |
+| Adopt pbrs from tonic/prost | [Migration guide](guides/migration.md) | [Tonic ports](../examples/tonic-ports/README.md) |
+| Share a server with axum | [Co-hosting example](../examples/axum-cohost/README.md) | [Example source](../examples/axum-cohost/src/main.rs) |
+| Keep tonic and use pbrs messages | [Adapter README](../protobuf-tonic/README.md) | [Adapter tests](../protobuf-tonic/tests/interop.rs) |
+| Choose between stacks | [Comparison guide](guides/comparison.md) | [Benchmark guide](benchmarks.md) |
+| Handle large payloads | [Ownership and copies](zero-copy.md) | [RPC benchmark](../rpc-bench/README.md) |
 
-## 3. Historical evidence versus current support claims
+For API signatures and trait implementations, run
+`cargo doc --workspace --no-deps --open`. Published APIs are also on
+[docs.rs/pbrs](https://docs.rs/pbrs),
+[docs.rs/pbrs-grpc](https://docs.rs/pbrs-grpc) and
+[docs.rs/protobuf-tonic](https://docs.rs/protobuf-tonic).
+Match published documentation to the version you use; unreleased source can
+have additional features.
 
-Current support claims live in [status.md](status.md)
-(`Shipped Capabilities and Boundaries`, `Unfinished`) and the
-[ROADMAP scorecard](ROADMAP.md). Historical evidence is kept
-separate and is never presented as qualification:
+## Check support and exact behavior
 
-- [inventory/](inventory/README.md): closed experiments (heap-copy,
-  flatten drafts). Do not merge; do not cite as current behavior.
-- [status.md](status.md) `Verified` section: recorded CI /
-  conformance / interop numbers at a pinned revision. Historical
-  results, not production certification.
-- [benchmarks.md](benchmarks.md): local historical tables with explicit
-  missing provenance and raw-artifact caveats, not qualified comparative
-  performance claims. A new claim needs a dated source and linked results.
-- [plan/](plan/README.md): execution cards and dependency order, not
-  shipped behavior.
-- [vendor/google/](../vendor/google): pinned upstream descriptors
-  (conformance FileDescriptorSet), not documentation.
+[Implementation status](status.md) distinguishes source features from
+qualification. The [support matrix](../README.md#support-matrix) lists tested
+toolchains; [release policy](RELEASE.md), [support policy](support-policy.md)
+and [security policy](../SECURITY.md) cover maintenance and publishing.
 
-Writer rule: a support claim cites shipped source or a recorded,
-pinned run. A historical number cites its revision and stays out of
-the guides.
+| Topic | Behavior reference |
+|---|---|
+| Retry and hedging | [Retry contract](retry-contract.md), [service config](service-config.md) |
+| Discovery and traffic policy | [Resolver contract](resolver-contract.md), [xDS boundary](xds-contract.md) |
+| Credentials | [Credentials contract](credentials-contract.md), [ALTS boundary](alts-contract.md) |
+| Limits and retained memory | [Resource budgets](resource-budgets.md) |
+| Generation and upgrades | [Output layout](codegen-layout.md), [compatibility](codegen-compatibility.md), [Edition 2024 subset](edition-2024.md) |
+| Protocol inventory | [gRFC matrix](grfc.md), [cacheable RPC behavior](cacheable-rpc.md) |
+| Parser safety | [Unsafe invariants](unsafe-invariants.md), [dependency checks](security.md) |
 
-## 4. Existing anchor inventory
+## Understand or improve the implementation
 
-[grpc.md](grpc.md) carries 26 explicit HTML anchors that external
-and cross-document links may target. They must be preserved or
-redirected before any hub rewrite:
+| Question | Read |
+|---|---|
+| How do the pieces fit? | [Architecture](architecture.md), [runtime design](design.md) |
+| How does this differ from upb? | [API and kernel comparison](upb.md) |
+| Why was a design chosen? | [Decision index](decisions/README.md) |
+| What should I work on next? | [Current queue](../TODO.md), [repository audit](audit-2026-09-29.md) |
+| What is the performance strategy? | [World-class gRPC program](plan/world-class/README.md) |
+| What are the task and review rules? | [Foundation execution contract](plan/README.md#small-executor-contract) |
+| How are product profiles promoted? | [Roadmap](ROADMAP.md) |
+| What happened to earlier experiments? | [Closed inventory](inventory/README.md) |
 
-```text
-quickstart
-the-four-call-shapes, reading-a-stream, writing-a-stream, client-streaming
-tls, unix-domain-sockets, in-process-connections
-deadlines-and-cancellation, connect-timeout, wait-for-ready-and-lazy-connect
-graceful-shutdown, connection-age-and-idle, serving-several-services, compression
-metadata, interceptors-and-middleware
-health-checks, reflection, keepalive, tuning, errors-and-status-codes, testing
-writing-a-service-without-codegen
-limits-and-the-threat-model
-what-is-not-here
+Run `python3 scripts/plan-status.py --ready` for current unclaimed work and
+`python3 scripts/plan-status.py --card RX-09` for one task's full contract.
+The JSON cards own live dependencies and status; Markdown explains priorities.
+
+## Read or reproduce measurements
+
+Start with the [benchmark guide](benchmarks.md), then use the
+[scoreboard](scoreboard.md) and [evidence index](evidence/README.md).
+The [benchmark contract](benchmark-contract.md) defines valid comparisons.
+The [profiling guide](profiling.md) explains how to identify a limiting path.
+
+A dated evidence note describes its recorded revision and host. It is not an
+automatic claim about current source. Closed-loop smoke tests, contended-host
+wall time and partial peer matrices must keep their limitations visible.
+
+For protocol evidence, the executable entry points are
+[conformance](../scripts/conformance.sh) and
+[cross-peer gRPC interop](../scripts/grpc-interop.sh). Their reports and
+exclusions support the [implementation status](status.md).
+
+## Keeping documentation useful
+
+Give each page one job: tutorial, task guide, behavior reference, decision,
+plan or evidence. Link to the page that owns a fact instead of copying long
+inventories. Start with the reader's task, use concrete API names and runnable
+commands, and define abbreviations on first use.
+
+Preserve useful inbound anchors when renaming headings. The gRPC guide keeps
+explicit anchors for older links. Preserve raw historical measurements and
+source pins; explain a newer result rather than silently rewriting an old one.
+Leave fixture provenance and protocol contracts precise even when simplifying
+their introductory prose.
+
+The documentation checks cover local links, anchors, support caveats, versions,
+claim language and snippet syntax. The greeter keeps one structural check for
+its error-lifecycle table alongside runtime behavior tests. Syntax checks do
+not type-check every recipe; QG-07 closes that gap with compiled examples.
+
+Run these before landing documentation or task changes:
+
+```sh
+python3 scripts/plan-lint.py
+python3 -B -m unittest tests.test_plan_status tests.test_plan_lint -q
+cargo test --locked --test documentation
+cargo test --locked -p pbrs-grpc-example-greeter
+RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 ```
 
-Heading-slug anchors (for example `support-matrix` in the root
-README) are derived from headings; renaming a heading breaks
-inbound links the same way. The repo-wide link test in section 9
-catches breakage after the fact; this list exists so rewrites
-preserve anchors by design.
-
-## 5. Markdown-coupled tests
-
-### 5.1 Exact-prose tests that block text moves
-
-One suite still pins exact markdown prose and must be migrated
-before its target text is moved or rewritten:
-
-- [examples/greeter/src/lib.rs](../examples/greeter/src/lib.rs),
-  4 test functions, 38 `readme.contains(...)` assertions against
-  [examples/greeter/README.md](../examples/greeter/README.md):
-  - `example_readme_names_from_error_details_on_interceptor_err`
-  - `example_readme_names_from_error_details_on_handler_err`
-  - `example_readme_names_from_error_details_on_client_interceptor_err`
-  - `example_readme_names_from_error_details_on_stream_sender_fail`
-
-Migration protocol (DX-02 follow-up, outside this card): convert
-each pinned sentence into either a Rust behavior assertion against
-the greeter service or one structural presence check (key type or
-warning present), then delete the exact-string assertions. Do not
-edit the greeter README's pinned sentences until that lands.
-
-### 5.2 Structural contracts to preserve
-
-These tests couple to markdown deliberately and cheaply; keep
-their shape when editing the listed files:
-
-- [tests/onboarding.rs](../tests/onboarding.rs)
-  `tonic_readme_selects_stubs_explicitly`: 2 presence checks on
-  the tonic README (`emit_tonic_stubs(true)`, `prost::Message`).
-- [tests/documentation.rs](../tests/documentation.rs): 23 tests —
-  24 critical-caveat presence contracts (including claim-provenance,
-  evidence-link, and rustdoc-navigation rows), repo-wide markdown
-  link/anchor validation (offline; external URLs are never fetched),
-  this map's `docs/` reference validation, negative checks for
-  missing examples/stale generated references/repository escape,
-  version-freshness checks against the Cargo manifests (`pbrs`
-  requirements, adapter pre-releases, tonic support boundary), an
-  unqualified-superlative ban over published prose, rustdoc
-  landing-doc presence, and rust/`protoc` syntax checks for guide
-  snippets. The separate CI workspace, compiled-examples, and
-  packaged-consumer checks compile the example and generated code;
-  snippet parsing alone does not type-check a recipe.
-
-### 5.3 Already migrated
-
-- [pbrs-grpc/tests/serving.rs](../pbrs-grpc/tests/serving.rs):
-  zero markdown reads. Its `contains(...)` assertions target Rust
-  source (`src/client.rs`, `src/stream.rs`, `src/request.rs`,
-  `src/interceptor.rs`, `src/hello.rs`) and TLS fixtures, so the
-  main guides can be edited without touching that suite.
-
-## 6. Publication and source boundaries
-
-The stale git-dependency claim in the earlier audit is fixed.
-[protobuf-tonic/README.md](../protobuf-tonic/README.md) now shows the
-`0.1.0-alpha.2` preview alongside `pbrs = "0.2"`.
-From `0.1.0-alpha.2` on, the adapters build from checked descriptor sets
-without `protoc`; the older `0.1.0-alpha.1` archives still require it. Keep
-source-only instructions distinct from published crate behavior.
-
-## 7. Duplicated prose
-
-- `Distinct from...` permutations: 0 occurrences in
-  [grpc.md](grpc.md), [status.md](status.md),
-  [architecture.md](architecture.md), [pbrs-grpc
-  README](../pbrs-grpc/README.md), [benchmarks.md](benchmarks.md),
-  the root README, and the tonic README. The 32 remaining
-  occurrences in [examples/greeter/README.md](../examples/greeter/README.md)
-  are pinned by the section 5.1 tests; remove prose and tests
-  together.
-- Install and quickstart blocks are intentionally repeated once
-  per crate entry point (root README, gRPC hub, `pbrs-grpc`
-  README, tonic README). That is the accepted cost of one
-  canonical page per journey; do not factor them into a shared
-  include, and do not let a fourth copy grow inside a guide.
-- Framework comparisons live only in the [comparison
-  guide](guides/comparison.md) plus the summary tables in
-  [architecture.md](architecture.md) and the `pbrs-grpc` README.
-  New comparisons go in the comparison guide.
-
-## 8. Landing-page specification
-
-The concise landing page this card proposes is landed; this
-section records the shape to preserve:
-
-- [grpc.md](grpc.md): what `pbrs-grpc` is,
-  crates.io quickstart, four-shape summary, five production
-  signpost cards linking into `guides/`, the threat-model
-  section, the retry policy, and explicit omissions. Budget:
-  stay under ~250 lines; new detail goes in a guide.
-- [pbrs-grpc README](../pbrs-grpc/README.md):
-  badges, pre-release scope box, install, quickstart, feature
-  list, invariant table, documentation links. Budget: stay under
-  ~200 lines.
-- [status.md](status.md): compatibility matrix and
-  recorded evidence. It is not a second tutorial layer; do not
-  regrow guides inside it.
-
-## 9. Maintenance contract
-
-Any edit to this map or to a page it references must keep green:
-
-```text
-CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target cargo test --locked --offline --test documentation
-```
-
-That suite enforces the map's own validity: repository-local Markdown links
-resolve to existing files and anchors **inside the canonical repository
-root**, including when a path contains parent components or symlinks.
-Unreadable Markdown anchor targets fail explicitly; external HTTP links
-are not fetched during the offline check. Every backticked `docs/` path
-in this file resolves inside the repository, and every guide snippet
-parses. Markdown discovery refuses out-of-repository file or directory
-symlinks rather than traversing external material. The suite requires
-`protoc` to validate Protobuf snippets. Published prose must avoid
-unqualified superlatives (`fastest`, `best in class`, `world-class`,
-`blazing`, `orders of magnitude`) outside code spans and the
-world-class program title; version citations must match the Cargo
-manifests (older releases only when labeled older/unsupported); and
-every published crate root keeps `//!` landing docs for rustdoc.
-When adding a page, add its journey row in section 2 and its domain
-row in section 1 in the same change.
+The documentation suite needs a working `protoc` for Protobuf snippets.
+External URLs are not fetched by its offline link check. Rust example builds,
+package consumers and CI provide separate checks beyond snippet parsing.

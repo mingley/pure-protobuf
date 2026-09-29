@@ -1,6 +1,14 @@
 # Protocol Buffers Edition 2024 Semantic Contract & Feature Specification
 
-This page defines what Protocol Buffers Edition 2024 means for `pbrs`. It is for Rust developers checking descriptor behavior, generated-code readiness, or feature support. Bottom line: `pbrs` understands the approved Edition 2024 descriptor semantics, and `protoc-gen-pbrs` advertises Edition 2024 as its maximum generated-code edition for the CG-14 qualified subset. Repeated/map closed enums stay fail-closed and typed extension accessors remain `CG-14b`, so these exclusions block a full Edition 2024 claim.
+`protoc-gen-pbrs` accepts a qualified subset of Protocol Buffers Edition
+2024 and advertises maximum edition `1001`. Repeated and map fields with
+closed enums are rejected; typed extension accessors remain CG-14b work.
+These limits prevent a full Edition 2024 support claim.
+
+This is the semantic reference for contributors implementing descriptors,
+generation, or a source frontend. For application setup, use the
+[codegen guide](guides/codegen.md). For runnable examples and rejection
+oracles, use the [Edition fixtures](../tests/fixtures/edition2024/README.md).
 
 ---
 

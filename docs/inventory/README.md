@@ -1,10 +1,14 @@
-# Closed inventory (do not merge the diffs)
+# Archived experiments
 
-Classification vs committed source: this directory is the **discarded**
-bucket, not unfinished work on main. `#34` already landed. The rest
-(#27 superseded by #42, #32/#36/#41 measurements, #39 flatten, #57
-heap-copy) are not shipped and must not be merged. Unfinished work lives
-in `TODO.md` / `docs/ROADMAP.md`.
+These records preserve closed experiments and their original measurements.
+They are useful for avoiding repeated failed experiments, but they do not
+describe today's implementation or performance. `#34` landed, `#27` was
+superseded by `#42`, and the remaining draft diffs were closed. Current work
+lives in the [execution plan](../plan/world-class/README.md).
+
+Later work can adopt a related technique with new evidence. In particular,
+current `src/lazy.rs` does copy qualifying medium strings into owned storage;
+that does not turn the discarded `#57` result into a measured win.
 
 Cursor drafts [#27](https://github.com/mingley/pure-protobuf/pull/27),
 [#32](https://github.com/mingley/pure-protobuf/pull/32),
@@ -23,10 +27,11 @@ The throwaway harnesses are excluded crates under `parse-leftover/`.
 | #36 | After #34, leftover is `merge_inner` wrapper (Default 48 B vs 24 B, `CachedSize::dirty`). Do not sum isolated proxies. Do not mix hosts with #31. | `cd parse-leftover/parse-hello-delta && cargo run --release` |
 | #39 | Flatten `merge_from_bytes` → `merge_inner` made hello Parse worse (~24.5 → ~32 ns). Do not retry that flatten. | see `flatten-merge-inner.md` |
 | #41 | 4 KiB still `Wire::ensure`s the 4099-byte parent frame. Leftover ~21–23 ns vs prost (reconstruct already slower than prost). | `cd parse-leftover/parse-4kib-delta && cargo run --release` |
-| #57 | Draft heap-copy try (almost-whole `24..=256` into `ProtoString`). Stayed draft / closed, not merged as a win. Same-host leftover shrank; leftover is `merge_inner` plus a small encode Δ. Still a loss. The cut is not on main. | see `name80-heap-copy.md` |
+| #57 | Draft heap-copy try (almost-whole `24..=256` into `ProtoString`). Closed without a demonstrated win; same-host combined encode/parse still lost. Later related implementations need their own evidence. | see `name80-heap-copy.md` |
 
-Verified codec line of record remains **#31: 52.2 vs 25.8 ns** hello combined.
-Do not write other VM numbers into `docs/status.md`.
+The historical comparison used **#31: 52.2 vs 25.8 ns** for hello combined.
+Keep measurements from different hosts and revisions separate; this archive
+does not set the current scoreboard baseline.
 
 Needs rustc ≥ 1.88 and `protoc`. Same timer as `tonic-bench` (40000 × 15,
 median, release thin-LTO). Not in CI. Not `cargo test --workspace`.

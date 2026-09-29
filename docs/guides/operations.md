@@ -1,9 +1,9 @@
 # Operations, Health Checking, and Diagnostics
 
-Use this guide to operate, monitor, and debug a `pbrs-grpc` service. You need a
-generated service and a server or router you can configure. Bottom line: expose
-health deliberately, bound metric labels, keep diagnostics redacted by default,
-and replace TLS material by constructing new server/client objects.
+Use this guide to add readiness checks, reflection, keepalive, error details,
+and telemetry to a generated service. Start with health and resource limits;
+enable other diagnostics as your deployment needs them. Replace TLS material
+by constructing new server/client objects.
 
 ---
 
@@ -14,21 +14,22 @@ Mount the built-in official gRPC Health Checking protocol
 (`grpc.health.v1`) when clients or load balancers need readiness state.
 
 ### Mounting the Health Service
+
 ```rust
-use pbrs_grpc::health::{HealthReporter, HealthServer, ServingStatus};
+use pbrs_grpc::health;
 use pbrs_grpc::Router;
 
-let (health_reporter, health_service) = HealthReporter::new();
+let (health_service, health_reporter) = health::service();
 
 // Set initial serving status
-health_reporter.set_serving_status("", ServingStatus::Serving);
-health_reporter.set_serving_status("hello.Greeter", ServingStatus::Serving);
+health_reporter.set_serving("");
+health_reporter.set_serving("hello.Greeter");
 
 let router = Router::new()
     .add_service(GreeterServer::new(MyGreeter))
     .add_service(health_service);
 
-router.serve("0.0.0.0:50051").await?;
+router.serve("0.0.0.0:50051".parse()?).await?;
 ```
 
 ### Dynamic Status Updates
@@ -37,7 +38,7 @@ Update status during startup, shutdown, or health probes:
 
 ```rust
 // Mark a specific service unhealthy
-health_reporter.set_serving_status("hello.Greeter", ServingStatus::NotServing);
+health_reporter.set_not_serving("hello.Greeter");
 
 // Mark the entire process not serving during graceful drain
 health_reporter.shutdown();
@@ -56,15 +57,16 @@ Enable server reflection when developer tools such as `grpcurl` or Postman may
 inspect and call services without local `.proto` files:
 
 ```rust
-use pbrs_grpc::reflection::ServerReflectionServer;
+use pbrs_grpc::{reflection, Router};
 
-let reflection_service = ServerReflectionServer::new();
+// FILE_DESCRIPTOR_SET is emitted alongside the generated service code.
+let reflection_service = reflection::service([FILE_DESCRIPTOR_SET])?;
 
 let router = Router::new()
     .add_service(GreeterServer::new(MyGreeter))
     .add_service(reflection_service);
 
-router.serve("0.0.0.0:50051").await?;
+router.serve("0.0.0.0:50051".parse()?).await?;
 ```
 
 ### Inspecting with `grpcurl`
@@ -102,7 +104,9 @@ Configure protocol PINGs with `keep_alive_interval` and
 `keep_alive_timeout`:
 
 - Sends HTTP/2 `PING` frames on idle connections.
-- If the peer does not acknowledge within `keep_alive_timeout`, the connection is torn down and redialed.
+- If the peer does not acknowledge within `keep_alive_timeout`, the connection
+  is closed. A later eligible call can redial; replay still follows the
+  [retry safety contract](../retry-contract.md).
 
 ```rust
 use pbrs_grpc::ChannelConfig;
@@ -150,17 +154,17 @@ Use `ErrorDetails` when a server needs to return structured
 `google.rpc.Status` payloads in the `grpc-status-details-bin` trailer:
 
 ```rust
-use pbrs_grpc::status::{BadRequest, ErrorDetails, ErrorInfo, FieldViolation, RetryInfo};
+use pbrs_grpc::pb::{BadRequest, ErrorDetails, ErrorInfo, RetryInfo};
+use pbrs_grpc::{Code, Status};
 use std::time::Duration;
 
 // Constructing rich error details on the server:
-let mut details = ErrorDetails::new();
-details.add_error_info(ErrorInfo::with_reason("RATE_LIMITED", "api.example.com"));
-details.add_retry_info(RetryInfo::with_retry_delay(Duration::from_secs(5)));
-details.add_bad_request(BadRequest::with_field("user_id", "must be positive"));
+let details = ErrorDetails::new()
+    .with_error_info(ErrorInfo::with_reason("RATE_LIMITED", "api.example.com"))
+    .with_retry_info(RetryInfo::with_retry_delay(Duration::from_secs(5)))
+    .with_bad_request(BadRequest::with_field("user_id", "must be positive"));
 
-let status = Status::resource_exhausted("quota exceeded")
-    .with_error_details(details);
+let status = Status::from_error_details(Code::ResourceExhausted, "quota exceeded", &details)?;
 ```
 
 On the client, inspect the unpacked details from the returned `Status`:
@@ -169,11 +173,9 @@ On the client, inspect the unpacked details from the returned `Status`:
 match client.say_hello(req).await {
     Ok(resp) => { /* ... */ }
     Err(status) => {
-        if let Some(details) = status.error_details() {
-            for bad_req in details.bad_request() {
-                for violation in bad_req.field_violations() {
-                    println!("Invalid field '{}': {}", violation.field(), violation.description());
-                }
+        if let Some(bad_req) = status.bad_request() {
+            for violation in bad_req.field_violations() {
+                println!("Invalid field '{}': {}", violation.field(), violation.description());
             }
         }
     }
@@ -241,8 +243,9 @@ Enabled observers may still copy identity across async lifecycles.
 
 Server queue wait measures post-admission scheduling until the dispatch task
 starts. It does **not** measure full listener or transport queue delay.
-Pre-admission rejections have their own event. OpenTelemetry export is not
-built in.
+Pre-admission rejections have their own event. The optional `otel` feature
+provides OpenTelemetry observers; the application supplies its SDK/exporter
+configuration and installs those observers explicitly.
 
 ### Safe Diagnostic Formatting
 
@@ -365,6 +368,8 @@ Use `Channel::from_io` for deterministic service tests that should not open TCP
 sockets or manage ports:
 
 ```rust
+use pbrs_grpc::{Channel, Request, Server};
+
 #[tokio::test]
 async fn test_greeter_in_process() {
     let (client_io, server_io) = tokio::io::duplex(64 * 1024);
@@ -378,7 +383,7 @@ async fn test_greeter_in_process() {
     });
 
     // Connect client directly to the in-memory duplex stream
-    let channel = Channel::from_io(client_io);
+    let channel = Channel::from_io(client_io, "in-process").await.unwrap();
     let client = GreeterClient::new(channel);
 
     let mut req = HelloRequest::new();

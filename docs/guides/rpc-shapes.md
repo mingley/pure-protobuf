@@ -1,10 +1,9 @@
 # Implementing the Four gRPC Call Shapes
 
-Use this guide to implement and test all four gRPC call shapes in
-`pbrs-grpc`. You need a generated service from `pbrs::codegen` and the
-`examples/greeter` crate available. Bottom line: each recipe asserts response
-content, final status, and clean shutdown instead of treating a started server
-as success.
+Use these recipes to implement unary and streaming methods with generated
+`pbrs-grpc` stubs. Each recipe has a runnable test in
+[`examples/greeter`](../../examples/greeter/README.md) that checks the response,
+final status, and server shutdown.
 
 The four supported shapes are:
 
@@ -13,10 +12,7 @@ The four supported shapes are:
 3. **Client-Streaming RPC**: Stream of requests, single response.
 4. **Bidirectional (Bidi) Streaming RPC**: Concurrent streams of requests and responses.
 
-All patterns match the runnable reference implementation in `examples/greeter/`.
-Each recipe below ends with the exact command that runs it. Every recipe
-asserts reply content, the final status, and clean shutdown instead of
-printing optimistic success.
+Each recipe ends with the command that runs its test.
 
 Run every recipe and the full binary path with:
 

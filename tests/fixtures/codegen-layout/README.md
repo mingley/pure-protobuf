@@ -4,6 +4,7 @@ This directory contains test fixtures and contract definitions for multi-file co
 namespace collision avoidance, transitive public re-exports, and external crate path mapping.
 
 These fixtures serve as the authoritative test oracle for:
+
 - **CG-04**: Canonical proto input identity, collision-safe output layout, and public import chaining.
 - **CG-05**: External type and runtime crate mappings (`extern_path`, crate renaming).
 
@@ -47,6 +48,7 @@ $OUT_DIR/
 ```
 
 **Anti-Collision Invariant**:
+
 - `$OUT_DIR/common.rs` MUST NOT be emitted as a single file overwriting one of the packages.
 - If `$OUT_DIR/common.rs` is requested or expected by a consumer, the compiler must fail with an explicit diagnostic naming both `pkg_a/common.proto` and `pkg_b/common.proto`.
 
@@ -56,9 +58,10 @@ $OUT_DIR/
 compile. Single-file `stem.rs` outputs with no cross-target references remain
 includable anywhere.
 
-### 2.2 Package-Centric Layout (Alternative / Flat Package Mode)
+### 2.2 Package-Centric Layout (future alternative)
 
-When configured for package-file output:
+This sketch is not an available `Config` mode. The shipping contract is the
+file-mirroring layout above; a future package-file layout could look like:
 
 ```text
 $OUT_DIR/

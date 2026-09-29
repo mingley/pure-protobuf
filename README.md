@@ -10,9 +10,12 @@ runtime. This workspace also contains `pbrs-grpc` for native gRPC over HTTP/2
 and `protobuf-tonic` for tonic 0.14+ users.
 
 **Current status:** published versions are available for evaluation, with
-recorded conformance through Protocol Buffers Edition 2023; production
-qualification and stronger performance claims still require the evidence in
-the [roadmap](docs/ROADMAP.md).
+recorded conformance through Protocol Buffers Edition 2023. Current source
+also has scoped Edition 2024 generation support; see its
+[remaining boundaries](docs/edition-2024.md). Production qualification and
+stronger performance claims still require the [roadmap](docs/ROADMAP.md).
+For contributors, start with [what to work on next](TODO.md) and the
+[2026-09-29 repository audit](docs/audit-2026-09-29.md).
 
 ## Why use pbrs?
 
@@ -238,8 +241,9 @@ of **Protocol Buffers Edition 2024**.
 **Untested / unsupported** (not a support commitment):
 
 - tonic 0.12 and 0.13 are **unsupported**.
-- Protocol Buffers Edition 2024 descriptor fixtures are tested, but generated
-  consumers and conformance beyond Edition 2023 are **not qualified**.
+- Protocol Buffers Edition 2024 has descriptor and generated-consumer coverage
+  for a [defined subset](docs/edition-2024.md); complete conformance beyond
+  Edition 2023 is **not qualified**.
 - Windows CI is **untested**.
 
 ## Performance and stack selection
@@ -265,7 +269,9 @@ For large payloads and copy behavior, also see
 | Recommended tests (`--enforce_recommended`) | Passed with 0 unexpected failures | Does not imply every upstream suite |
 
 The separate [`rust/test/shared` coverage](docs/status.md#skipped-rusttestshared-files)
-has documented exclusions.
+has documented exclusions. The audited source revision also has an open
+[enum-map regression](docs/audit-2026-09-29.md#correctness-and-ci); historical
+passes do not establish that the current compatibility suite is green.
 
 Run the conformance suite locally:
 
@@ -275,6 +281,11 @@ Run the conformance suite locally:
 ```
 
 ## Documentation
+
+The [documentation map](docs/documentation-map.md) helps you choose a guide.
+For task status, use `python3 scripts/plan-status.py --ready`; for API details,
+run `cargo doc --workspace --no-deps --open`.
+
 
 | Topic | Start here |
 |---|---|
@@ -290,7 +301,7 @@ Run the conformance suite locally:
 | Toolchain and `protoc` requirements | [Support matrix](#support-matrix) |
 | Publishing policy | [Release policy](docs/RELEASE.md) |
 | Roadmap and stronger-claim evidence | [Implementation plan and scorecard](docs/ROADMAP.md) |
-| Current execution planning | [Granular execution plan](docs/plan/README.md), [task cards](docs/plan/tasks.json), [execution queue](TODO.md) |
+| Next contribution and audit findings | [Execution queue](TODO.md), [repository audit](docs/audit-2026-09-29.md), [task contracts](docs/plan/README.md) |
 | gRPC performance program | [World-class gRPC program](docs/plan/world-class/README.md) and [worker cards](docs/plan/world-class/tasks.json) |
 
 ## License

@@ -4,9 +4,24 @@ This harness measures generator time, generated output size, downstream
 `cargo check`, release build, binary size, and resident set size (RSS) for
 generated Rust consumers. From the repository root, run
 `./scripts/codegen-bench.sh --case small` for a smoke cell, or omit `--case`
-for the seeded 6-, 100-, and 1,000-message multi-file matrix. Bottom line:
-these runs are **unqualified** local diagnostics, not compile-time leadership
+for the seeded 6-, 100-, and 1,000-message multi-file matrix. These runs are
+**unqualified** local diagnostics, not compile-time leadership
 claims.
+
+Use Python 3.11+ for the full matrix and its test suite (`tomllib` verifies
+runtime lockfiles), along with Cargo, Rust, and the required pinned compiler.
+If `python3` selects an older macOS interpreter, run the tests with an installed
+3.11+ executable and put that interpreter first on `PATH` for the shell wrapper.
+
+Use [the current generator matrix](#sb-09-codegen-comparator-matrix) to compare
+pbrs, prost, buffa, and v4 across seeded and realistic corpora. The older
+`--reference-protoc` flow below preserves a stricter single-reference
+diagnostic. Their provenance rules and recorded runs differ.
+
+The [SB-09 evidence](../../docs/evidence/sb09-codegen-matrix.md) includes
+100/1,000-message consumer builds and broad pbrs compile-cost losses. Statements
+below about unrun large reference cases apply only to the legacy
+`--reference-protoc` flow. No controlled-host comparative campaign is complete.
 
 Each run writes corpus inputs, `summary.json`, and raw per-phase logs to a new
 `target/codegen-bench/` directory. No existing evidence is deleted. See

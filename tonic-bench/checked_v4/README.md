@@ -1,10 +1,8 @@
 # Checked v4 Codec Survey Bindings
 
-This directory holds checked-in protobuf v4 Rust bindings for the tonic codec
-survey. It is for developers who need reproducible tests when CI lacks the
-experimental Rust generator. Bottom line: do not regenerate casually; use the
-reviewed pinned compiler and update `manifest.json` only after inspecting the
-generated diff.
+These checked-in protobuf v4 Rust bindings let the tonic codec survey run
+when CI lacks the experimental Rust generator. Regenerate with the pinned
+compiler below, review the generated diff, then update `manifest.json`.
 
 `generated.rs` and `codec_cases.u.pb.rs` are test-only output from
 `proto/codec_cases.proto` using the repository's pinned upstream protobuf

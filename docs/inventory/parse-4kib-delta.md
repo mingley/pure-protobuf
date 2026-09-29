@@ -2,6 +2,10 @@ Source: closed [#41](https://github.com/mingley/pure-protobuf/pull/41). Harness:
 
 # Inventory: leftover 4 KiB Parse Δ vs prost (after #34)
 
+Archived measurement at the revision below. References to `main`, layout,
+and performance describe that experiment; use the [current plan](../plan/world-class/README.md)
+and [runtime design](../design.md) for today's implementation.
+
 MEASURE ONLY. Still a loss. Do not merge as done. No rewrite. No API change.
 
 This is the leftover **4 KiB hello** Parse gap after #34

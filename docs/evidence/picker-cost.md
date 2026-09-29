@@ -3,8 +3,11 @@
 Every shipped LB policy has a dev-loop cell measuring steady-state pick
 cost, and every cell passes the absolute budget in
 [`picker.json`](../../bench/devloop/baselines/picker.json): 0 allocations
-and 0 blocking lock waits per pick. The perf lane (`perf.yml`) runs the
-full suite and fails on any budget breach (`devloop compare --budget`).
+and 0 blocking lock waits per pick where measured. The local
+`devloop compare --budget` command fails on a budget breach. The perf workflow
+invokes that comparison but remains advisory: it records the failure without
+blocking the PR. SB-20 owns the decision to enable blocking gates after noise
+analysis. A skipped `locks` metric does not prove zero blocking waits.
 
 ## Cells
 

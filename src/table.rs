@@ -17,9 +17,9 @@
 //!   not emit table users yet (PK-07); the unit tests below drive
 //!   representative typed messages through the loop.
 //! * The dynamic driver (with the `reflect` feature) for
-//!   [`DynamicMessage`](crate::dynamic::DynamicMessage): PK-18 compiles one
-//!   [`DynamicTable`] per descriptor at runtime (cached in the owning pool)
-//!   and parses through [`merge_dynamic_loop`], the single binary-parse
+//!   `DynamicMessage`: PK-18 compiles one private `DynamicTable` per
+//!   descriptor at runtime (cached in the owning pool) and parses through
+//!   `merge_dynamic_loop`, the single binary-parse
 //!   engine for dynamic messages. `parse_dynamic_table` keeps the PK-06
 //!   split-unknown contract for differential testing.
 //!

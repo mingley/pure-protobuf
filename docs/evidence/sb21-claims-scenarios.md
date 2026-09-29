@@ -1,5 +1,9 @@
 # SB-21: contract-compliant scenario variants for E1/E2 claims
 
+**Status: scenario definitions delivered; claim-runner integration incomplete.**
+The smokes below verify selected workload paths. They do not qualify an E1/E2
+claim or complete the campaign. This distinction was rechecked on 2026-09-29.
+
 ## What
 
 Two frozen variant sets so E1/E2 claims never rely on closed-loop
@@ -22,9 +26,9 @@ diagnostic runs:
   CPUs, matched-rate client cells), with frozen params (15 s /
   60 s, seed 210021, SLO search bounds) and per-repeat orders. All
   19 cell ids verified present in the `primary` expansion.
-  `run.py` has no scenario loader yet (follow-up): a claim run
-  executes `--stage primary` and filters `report.json` to the
-  frozen ids.
+  `run.py` has no scenario loader yet (follow-up). Running `--stage primary`
+  and filtering `report.json` can locate the matching diagnostic cells, but
+  does not execute the frozen per-repeat orders or constitute this claim run.
 
 Originals stay labeled diagnostic: `official.json` (closed-loop,
 5 s / 30 s) and `docs/evidence/grpc-bench.md` Run A/B (closed-loop
@@ -93,6 +97,24 @@ overrides (2026-09-28 runs under `target/qps-logs/`):
 - Per-repeat re-shuffling needs runner support in
   `grpc-qps-interop.sh`; reps 2-5 orders above are the frozen
   procedure for the claim-run operator.
+
+## Before SB-22 can use these definitions
+
+The campaign preflight must verify the gaps above are closed, reject missing
+required peers/settings, and retain evidence that the generator has spare
+capacity. Reconcile offered, admitted, rejected, completed, failed, and
+unfinished calls over the same measurement/drain windows. Retain both service
+and schedule-relative latency; one cannot substitute for the other.
+
+The listed rates are initial pilot values derived from a shared-host
+diagnostic. Re-freeze them on the campaign hosts before measuring. In
+particular, the `overload_2x` name does not prove overload: the recorded smoke
+did not reach saturation. A campaign must establish its saturation knee and
+show actual overload/recovery under the declared budget.
+
+Five repeats, 60-second windows, or a scenario filename alone do not qualify
+the results. Apply the full [benchmark contract](../benchmark-contract.md),
+including paired 95% intervals and correctness checks at the measured revision.
 
 ## Gates
 

@@ -2,6 +2,10 @@ Source: closed [#36](https://github.com/mingley/pure-protobuf/pull/36). Harness:
 
 # Inventory: leftover hello Parse Δ (merge_inner / CachedSize / Default)
 
+Archived measurement at the revision below. Statements about this branch
+and its generated code refer to that experiment; see the
+[runtime design](../design.md) for today's implementation.
+
 MEASURE ONLY. Not a win. Do not merge as done. No rewrite. No API change.
 
 This is the leftover after #34 (`LazyStr::from_parse_span`: strings

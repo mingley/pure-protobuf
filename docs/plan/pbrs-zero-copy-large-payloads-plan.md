@@ -1,8 +1,8 @@
 # pbrs: fewer copies for large `bytes` payloads (plan)
 
-This page is a historical design record for large `bytes` payloads. Bottom
-line: the proposal was executed; [zero-copy.md](../zero-copy.md) summarizes the
-accepted and rejected outcomes. The text after this header is the original
+This page preserves the original large-`bytes` design proposal.
+[zero-copy.md](../zero-copy.md) summarizes the accepted and rejected outcomes.
+The text after this header is the original
 proposal, kept so future contributors can see the gates and measurements that
 were required.
 

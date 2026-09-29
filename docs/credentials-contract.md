@@ -1,5 +1,10 @@
 # Call-credential integration contract (EX-03)
 
+Async OAuth2, JWT, and cloud credential providers are planned work. This
+contract describes how they must acquire and refresh tokens without blocking
+the RPC runtime or sending credentials to the wrong authority. Existing
+interceptors can attach tokens already obtained by the application.
+
 **Status:** Proposed decision contract. No implementation. Base SHA
 `fd4500c61421b052ab16e2c5d4abd666ba041634`.
 

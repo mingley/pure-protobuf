@@ -1,8 +1,12 @@
 # Discarded: `name_80` heap-copy try ([#57](https://github.com/mingley/pure-protobuf/pull/57))
 
-Draft. Closed. Not merged as a win. Do not land the heap-copy kernel
-cut. The almost-whole `24..=256` → heap `ProtoString` arm is **not**
-on main.
+This is the historical record of a closed draft, not a description of
+current `main`. The statements below about the unshipped cut refer to that
+draft's baseline. Later `src/lazy.rs` work does use owned copies for qualifying
+medium strings; assess that implementation using its own evidence.
+
+The original experiment did not establish a win and its draft diff should
+not be revived on the strength of these measurements.
 
 Integrity passed at `dbdbd0d` / follow-up `56e31aa` as inventory only.
 Still a loss vs prost. Rebased onto `cb5f92b` (#56: QPS reported, not

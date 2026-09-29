@@ -1,14 +1,17 @@
 # Resolver and subchannel lifecycle contract (DNS-profile detail)
 
-This contract is for Rust developers adding resolver-managed channels,
-subchannels, and load balancing to `pbrs-grpc`. Bottom line: DNS refresh can
-change only future picks; it must never change authority, TLS identity, or an
-already open RPC.
+DNS refresh changes future connection picks. It must not change the HTTP
+authority, TLS identity, or an already open RPC. This contract explains the
+snapshot and lifecycle rules that preserve those guarantees.
+
+Resolver-managed channels now ship through `Channel::connect_uri` and related
+constructors. The baseline and FL task references below record the original
+design; current implementation lives in `pbrs-grpc/src/resolver/` and
+`pbrs-grpc/src/lb/`. See the [gRPC guide](grpc.md) for supported schemes.
 
 **Status:** Coordinator-approved (FL-01, 2026-09-29); detail under the
 [channel architecture](decisions/channel-architecture.md) (CH-01, whose
-maintainer review gate below is unchanged). No resolver or
-client-managed balancer is shipped by this document. **Baseline:**
+maintainer review gate below is unchanged). **Historical baseline:**
 `c19a17d8` on 2026-09-29: `Target` still rejects `dns:///` /
 `passthrough:///` / `xds:///` for the `host:port` pool, the opt-in
 resolver path (`balance_list` / `balance_channel` / `connect_tls_uri`)
@@ -29,7 +32,7 @@ rejects `dns:///`, `xds:///`, `https://`, and other URI-shaped strings.
 
 DNS-at-connect is **not** endpoint refresh. It is not a resolver API, and it is
 not multi-endpoint balancing. Resolver-managed channels require an explicit
-opt-in constructor or configuration; FL-03 owns its public signature.
+opt-in constructor, such as `Channel::connect_uri`.
 
 Three identifiers must never be conflated:
 

@@ -1,9 +1,9 @@
 # gRFC Coverage
 
-This page is the support matrix for `pbrs-grpc` against gRPC Request for
-Comments (gRFCs). Bottom line: each `A` or `G` proposal is marked with the
-current implementation status, while language-specific (`L`) and process (`P`)
-proposals are out of scope.
+This matrix tracks implementation coverage for gRPC Request for Comments
+(gRFCs). It is a feature inventory, not a claim that every upstream
+qualification suite has passed. See [project status](status.md) for those
+gates. Language-specific (`L`) and process (`P`) proposals are out of scope.
 
 The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 [grpc/proposal](https://github.com/grpc/proposal). Status values:
@@ -18,7 +18,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 | Client retries | partial | Transparent retry ships ([retry contract](retry-contract.md)). Unary service-config `retryPolicy`, `retryThrottling`, `hedgingPolicy`, per-attempt timeouts, and server pushback ship (`Channel::service_config`, `tests/policy_retry.rs`). Server-streaming policy retry is next; client-streaming/bidi stay call-site retries (no replay buffer). |
+| A6 | Client retries | partial | Transparent retry, unary policy retry/hedging, pushback, and pre-commit server-streaming policy retry ship. Client-streaming/bidi require call-site retries; streaming throttling accounting is approximate. See the [retry contract](retry-contract.md) and `tests/policy_retry.rs`. |
 | A8 | Client-side keepalive | shipped | `keep_alive_interval` / `keep_alive_timeout`, idle PINGs. |
 | A9 | Server-side connection management | shipped | `max_connection_age`/`idle`, GOAWAY drain, `serve_with_shutdown`. |
 | A15 | Promote reflection | shipped | `grpc.reflection.v1` server. |
@@ -26,7 +26,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A90 | Health `List` method | shipped | `Health::list`. |
 | A18 | TCP user timeout | shipped | `PBRS_TCP_USER_TIMEOUT_MS` applied on every dial via Linux-only raw `TCP_USER_TIMEOUT` setsockopt (`proxy::set_user_timeout`; socket2 exposes no API); round-trip unit test runs on Linux, no-op elsewhere (CH-09). `ChannelConfig` surface is a follow-up. |
 | A61 | IPv4/IPv6 dualstack backends | shipped | Hostname resolution plus Happy-Eyeballs racing: 250ms-staggered full dials, fast-failure advance, first READY wins, family interleave after shuffle (CH-04). No RFC-6724 sort in the DNS resolver; no channel-arg delay knob. |
-| A101 | SNI setting and SNI/SAN validation | partial → in progress | rustls sends SNI from the name; explicit server-name override in progress. |
+| A101 | SNI setting and SNI/SAN validation | partial | `ClientTls` constructors take an explicit server name for SNI and certificate verification, independent of the dial address. xDS-driven name handling is not implemented. |
 | A105 | `max_concurrent_streams` connection scaling | planned | Grow the pool when the server lowers the stream cap. |
 | G1 | True binary metadata | shipped | `-bin` values base64 on the wire, padded/unpadded accepted; official `custom_metadata` passes both directions against grpc-go and pinned C++ (`grpc/grpc@d1487957`, CH-09). |
 
@@ -40,7 +40,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A24 | LB policy config | shipped | First-registered-wins `loadBalancingConfig` selection via `LbPolicyRegistry`; `pick_first` (FL-03), `round_robin` (FL-04), `weighted_round_robin` (CH-06) registered. |
 | A62 | pick_first | shipped | Sticky first-ready selection, in-order TF failover, shuffleAddressList, 1s×1.6^r±20%/120s-cap backoff (`lb/pick_first.rs`, FL-03). |
 | A113 | pick_first weighted shuffling | shipped | Efraimidis–Spirakis `u^(1/weight)` sort under `shuffleAddressList` with per-endpoint weights defaulting to 1 (CH-04). CDS-side normalized weight computation arrives with xDS. |
-| round_robin | (core policy, no gRFC number) | shipped | Strict rotation over ready endpoints, per-address backoff, graceful drain on removal (`lb/round_robin.rs` + pool `RrTable`, FL-04). Health-gated readiness arrives with CH-05. |
+| round_robin | (core policy, no gRFC number) | shipped | Strict rotation over ready endpoints, per-address backoff, graceful drain on removal, and optional client-side health gating (`lb/round_robin.rs`, CH-05). |
 | A58 | Client-side weighted round robin | shipped | EDF scheduler over ORCA weights (`lb/wrr.rs`, CH-06): UpdateWeight/GetWeight with blackout/expiration, lazy rebuilds (period/ready-set/weight-move), <2 weighted degrades to RR, error penalty, health gating; per-call ingestion in unary/hedged loops, OOB pump per subchannel (UNIMPLEMENTED stops silently). WRR config snapshots at channel build; streaming per-call ingestion deferred to OOB. |
 | A114 | WRR metric names for computing utilization | shipped | `metricNamesForComputingUtilization` parsed + max-over-hits selection with A58 app-then-cpu fallback (`orca::utilization`, CH-06). |
 | A42/A76 | Ring hash LB policy | shipped | `lb/ring_hash.rs` (CH-07): vendored seeded XXH64 (Go-verified vectors), grpc-go-identical ring build (`key_idx` entries, normalized scale, sorted), hash walk with failover locality, `requestHashHeader` (validated, `-bin` rejected) with random-hash fallback, fail-fast without a hash source, health gating + backoff. `ring_hash_experimental` alias normalized at parse. Endpoint weights all 1 (xDS attributes lane). |

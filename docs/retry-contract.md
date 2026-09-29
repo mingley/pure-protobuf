@@ -1,9 +1,13 @@
 # gRPC Retry Safety & Commitment Boundaries Contract
 
-This contract is for Rust developers changing `pbrs-grpc` retry behavior.
-Bottom line: transparent retry is allowed only when the client has proof the
-server application never saw the request. Once request bytes reach
-`BodyStarted`, ambiguous failure is **MUST NOT RETRY (Committed)**.
+Transparent retry requires proof that the server application never processed
+the request. Once request bytes reach `BodyStarted`, an ambiguous connection
+failure cannot be retried transparently. An explicit service-config policy
+may allow re-execution; the application must make that safe.
+
+This contract defines the implementation states and evidence needed to enforce
+that distinction. For application setup, start with the
+[gRPC guide](grpc.md) and [service-config contract](service-config.md).
 
 **Task:** RT-01 ("Specify and reproduce retry commitment boundaries")  
 **Pinned Standards:** gRFC A6 (Client-side retry support in gRPC) at `grpc/proposal@6342be729b96478a2897ceb208a8cddcd832a17b` (per [plan pins](plan/README.md)), RFC 7540 / RFC 9113 (HTTP/2)  

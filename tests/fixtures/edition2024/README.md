@@ -4,6 +4,7 @@ This directory contains versioned test fixtures, compiled descriptor sets, wire-
 and expected semantic oracles for Protocol Buffers **Edition 2024** (`edition = "2024";`, enum `1001`).
 
 These fixtures serve as the authoritative test oracle for:
+
 - **CG-12**: Freeze the Edition 2024 semantic contract
 - **CG-13**: Implement approved Edition 2024 descriptor semantics (`src/dynamic.rs`)
 - **CG-14**: Qualify Edition 2024 generated consumers (`src/codegen.rs`)
@@ -104,7 +105,7 @@ that supports Edition 2024. Source-only rejection or regeneration requires
 `edition2024_preview_descriptor_matches_pinned_source_compiler` tests in
 `tests/plugin.rs`.
 
-### Repeated CLOSED-enum reference (CG-14 remains pending)
+### Repeated CLOSED-enum reference (outside the qualified subset)
 
 `proto/closed_enum.proto`, `fds/closed_enum.fds`, and `reference/observed.txt`
 are checked to the SHA-256 values in `expectations.json`. The observations
@@ -141,16 +142,17 @@ cmp tests/fixtures/edition2024/reference/observed.txt \
 ```
 
 The offline default CI runs `test_reference.py` and refuses changed descriptor
-or observation bytes without matching checked hashes. It does **not** compile
-this optional C++ reference or enable Edition 2024 codegen. Generated and
+or observation bytes without matching checked hashes. That integrity check
+does not compile this optional C++ reference or qualify new codegen support. Generated and
 dynamic C++ use the same library, not independent runtimes: packed negative
 unknown `-1` re-encodes as a ten-byte unknown varint, while an earlier unpinned
 Python 6.33.1 probe produced five bytes. Unknown packed values also move after
 the known packed field, and unknown CLOSED map entries are retained as entire
 unknown entry bytes. C++ wire output is not established as universal upb/Rust
-behavior; pbrs repeated/map CLOSED codegen and plugin
-`maximum_edition=1000` remain fail-closed pending a reviewed cross-runtime
-contract and original shared/conformance proof.
+behavior. pbrs rejects repeated/map CLOSED codegen pending a reviewed
+cross-runtime contract and original shared/conformance proof. The plugin
+advertises `maximum_edition=1001` for the other qualified Edition 2024
+features; see the [semantic contract](../../../docs/edition-2024.md).
 
 ---
 

@@ -27,7 +27,7 @@ tests/frontend_corpus/
     └── pgv/             # 1 support file: validate/validate.proto (envoy dep)
 ```
 
-Edition 2024 fixtures (9 valid + 9 rejected) are referenced in place at
+Edition 2024 fixtures (9 valid plus 8 rejected and 1 support file) are referenced in place at
 `tests/fixtures/edition2024/` and hashed into `corpus.json` like the rest;
 they are not copied. Total: **202 entries (194 expect-ok, 8 expect-fail)**.
 
@@ -66,8 +66,10 @@ Baseline output lands in `target/frontend-diff/baseline/<mode>/` (per-entry
 `.status`, plus `.fds` for link/full) with a machine-readable
 `summary.json`. Compare mode adds `target/frontend-diff/frontend/` and
 reports verdict/byte mismatches. Exit codes: 0 clean, 1 mismatch, 2 usage or
-environment error. No network access at test time: the only build step is
-`scripts/build-pinned-protoc.sh` (pinned `v35.1`, stamp-reused).
+environment error. The corpus is vendored, so comparison needs no network
+fetch. Compiler setup is separate: `scripts/build-pinned-protoc.sh` can fetch
+pinned sources and needs CMake plus a C++ compiler on the first run. Prepare
+that cache before expecting an offline run.
 
 ## Modes
 

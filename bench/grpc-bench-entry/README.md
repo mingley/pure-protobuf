@@ -3,8 +3,14 @@
 This directory adds `pbrs-grpc` server entries to the public `grpc_bench`
 harness. It is for maintainers running the external plaintext unary benchmark
 matrix; from this directory, run `./run.sh` after `./sync.sh [checkout]`.
-Bottom line: failures from peer entries are recorded and skipped, but a `pbrs`
-cell failure exits nonzero.
+Peer entry failures are recorded and skipped; a `pbrs` cell failure exits
+nonzero. A successful exit therefore does not establish a complete peer matrix.
+
+This reproduces an external, closed-loop benchmark method. Read the
+[recorded results and client-ceiling limits](../../docs/evidence/grpc-bench.md)
+before interpreting its rankings. Qualified claims require the longer,
+open-loop campaign described in the
+[benchmark contract](../../docs/benchmark-contract.md).
 
 The two server entries mirror tonic: `rust_pbrs_mt_bench` is multi-threaded
 with workers from `GRPC_SERVER_CPUS`, and `rust_pbrs_st_bench` is
@@ -34,4 +40,5 @@ failure exits nonzero. No upstream PR is opened (operator action).
 
 If the pinned (amd64) ghz client caps throughput on an arm64 host,
 raise `GRPC_CLIENT_CPUS` until the client stops being the ceiling
-and record the deviation; see `docs/evidence/grpc-bench.md`.
+and record the deviation. Extra client CPUs do not by themselves prove the
+generator has headroom; retain client resource and saturation evidence.

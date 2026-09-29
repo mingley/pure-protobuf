@@ -4,9 +4,17 @@ This directory contains negative test fixtures demonstrating protobuf constructs
 disallowed, removed, or rejected by upstream `protoc` and the Edition 2024 semantic specification.
 
 These serve as authoritative negative oracles for:
+
 - **CG-12**: Freeze the Edition 2024 semantic contract
 - **CG-13**: Implement approved Edition 2024 descriptor semantics
 - **CG-16**: Select a reviewed Rust proto frontend
+
+There are eight rejected inputs and one support file,
+`visibility_defs.proto`, which must compile successfully on its own.
+`visibility_import_local.proto` must fail because the symbol is local, not
+because its import cannot be found. The
+[frontend corpus harness](../../../frontend_corpus/README.md) records those
+verdicts independently.
 
 ---
 

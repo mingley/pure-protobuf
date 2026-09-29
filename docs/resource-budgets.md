@@ -1,10 +1,9 @@
-# gRPC Resource Budget Model & Memory Bounds Specification
+# gRPC resource budgets
 
-This page explains how `pbrs-grpc` bounds memory, tasks, and overload behavior.
-It is for service owners choosing limits and for contributors changing resource
-handling. Bottom line: the defaults are intentionally high-throughput but
-unbounded for connection and RPC counts, so production deployments must set
-explicit ceilings.
+Set explicit connection, RPC, message, and transport-byte limits before
+deploying a service. This page explains what each limit controls, what remains
+application-owned, and how to validate overload and cleanup. Transport limits
+do not establish an exact process-memory ceiling.
 
 - **Task:** RT-05 ("Define a complete resource-budget model")
 - **Pinned Standards:** RFC 9113 (HTTP/2), RFC 7541 (HPACK header compression), gRPC over HTTP/2 Wire Specification, gRFC A6 (Client Retries)
@@ -24,13 +23,13 @@ In `pbrs-grpc`, three facts drive the model:
 
 | Fact | Why it matters |
 |---|---|
-| Message size and per-connection stream defaults are bounded. | `ServerConfig` and `ChannelConfig` cap individual messages at 4 MiB and streams at 256 per connection. |
+| Inbound message size and per-connection stream defaults are bounded. | The default decoding cap is 4 MiB and the stream cap is 256 per connection. Outbound encoding has no finite default cap. |
 | Global connection and active-RPC counts are unbounded by default. | `max_concurrent_connections` and `max_concurrent_rpcs` default to `None`, so operators must choose production ceilings. |
 | High-throughput buffers multiply under overload. | 16 MiB connection and stream windows, 1 MiB frames, and 1 MiB send buffers can become gigabytes without explicit connection and call limits. |
 
 This specification provides:
 
-- formulas for client and server memory ceilings;
+- a memory-accounting model for clients and servers;
 - a split between transport-owned buffers and application-owned data;
 - the backing-buffer retention hazard for zero-copy handlers;
 - overload analysis showing why explicit limits are required;
@@ -45,7 +44,7 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────┐
-│                           Total Process Memory (RSS)                              │
+│                   Service memory (process plus kernel buffers)                    │
 ├─────────────────────────────────────────┬─────────────────────────────────────────┤
 │          Transport-Owned Memory         │         Application-Owned Memory        │
 ├─────────────────────────────────────────┼─────────────────────────────────────────┤
@@ -68,7 +67,7 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 | **TLS Session Context** | Transport (`rustls`) | 4 KiB – 32 KiB per socket | `ServerTls` / `ClientTls`, cipher suite state | Connection termination |
 | **HTTP/2 Connection Driver** | Transport (`h2::server::Connection` / client driver) | 8 KiB – 32 KiB per conn | Tokio task allocation, stream table trees | Connection termination |
 | **HPACK Dynamic Tables** | Transport (`h2`) | $2 \times 4096$ octets default | `ServerConfig::header_table_size` (`DEFAULT_HEADER_TABLE_SIZE`) | Connection termination |
-| **Connection Send Buffer** | Transport (`h2`) | Up to 1 MiB per conn | `ServerConfig::max_send_buffer_size` (`DEFAULT_MAX_SEND_BUFFER_SIZE`) | Drained on write ACK |
+| **Stream Send Buffer** | Transport (`h2`) | 1 MiB capacity threshold per stream | `ServerConfig::max_send_buffer_size` (`DEFAULT_MAX_SEND_BUFFER_SIZE`) | Capacity returns as bytes are written to the connection |
 | **Small-DATA Framing Budget** | Transport (`h2`) | 25,600 bytes per conn | `ServerConfig::data_frame_budget` (`DEFAULT_DATA_FRAME_BUDGET`) | Drained on write ACK |
 | **Reset Stream Tracking** | Transport (`h2`) | ~1 KiB – 10 KiB per conn | `max_concurrent_reset_streams`, `max_local_error_reset_streams` | Purged after `reset_stream_duration` (1s) |
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
@@ -137,157 +136,97 @@ A critical architectural hazard in zero-copy networking engines is **backing buf
 - In `pbrs-grpc`, network payloads arrive as reference-counted `bytes::Bytes` chunks sliced from larger I/O buffers.
 - When `FrameReader` extracts a frame that fits inside a single incoming chunk, it calls `chunk.split_to(frame_len)`, which performs an $O(1)$ reference-count increment sharing the underlying buffer allocation.
 - If application handler logic parses a string or byte slice into a long-lived cache by shallow-copying or retaining a `Bytes` handle (or if custom zero-copy deserialization is employed), **the entire physical allocation (often 16 KiB to 64 KiB) remains anchored in heap memory**, even if the application only references a 16-byte field.
-- **Rule for Handlers:** Generated code and user interceptors must clone or copy owned data (`Vec<u8>`, `String`) out of transient request envelopes if the data is stored in caches or transferred across thread boundaries, allowing the underlying transport `Bytes` block to return immediately to the transport allocator.
+- **For handlers:** Copy a small retained field into independent storage when
+  keeping the larger backing allocation would exceed the cache's budget.
+  Sharing `Bytes` across threads is supported; crossing a thread boundary does
+  not itself require a copy. Choose ownership from lifetime and retained size.
 
 ---
 
-## 3. Mathematical Memory Consumption Models
+## 3. A practical memory model
 
-Let:
-- $N_{\text{conn}}$: Total number of active concurrent transport connections.
-- $N_{\text{rpc}}$: Total number of active concurrent RPCs currently in flight across all connections.
-- $N_{\text{stream\_per\_conn}}$: Max active HTTP/2 streams per connection (bounded by `max_concurrent_streams`, default 256).
-- $W_{\text{conn}}$: HTTP/2 connection flow-control window (`initial_connection_window_size`, default 16 MiB).
-- $W_{\text{stream}}$: HTTP/2 stream flow-control window (`initial_stream_window_size`, default 16 MiB).
-- $S_{\text{send\_buf}}$: HTTP/2 connection send buffer ceiling (`max_send_buffer_size`, default 1 MiB).
-- $H_{\text{table}}$: HPACK dynamic header table size (`header_table_size`, default 4,096 bytes).
-- $H_{\text{list}}$: Maximum uncompressed header list size (`max_header_list_size`, default 16,384 bytes).
-- $M_{\text{decode\_cap}}$: Maximum inbound message decoding size (`max_decoding`, default 4 MiB).
-- $M_{\text{encode\_cap}}$: Maximum outbound message encoding size (`max_encoding`, default $\infty$ / application bounded).
-- $B_{\text{stream\_queue}}$: Streaming queue depth in messages (`stream_buffer`, default 16).
+Treat memory as several separate budgets. A limit on one category does not
+bound the others, and a flow-control window is credit rather than an allocation
+made when a connection opens.
 
----
+| Budget | What to count | How to bound or measure it |
+|---|---|---|
+| Connections | TLS state, HTTP/2 state, HPACK tables, timers, reset tracking, and connection tasks | Set `max_concurrent_connections`; measure memory per connection with the shipping TLS and allocator profile. |
+| HTTP/2 streams | Header maps, stream state, queued outbound DATA, and reset/cancellation state | Set `max_concurrent_streams`; multiply per-stream costs by admitted streams across all connections. |
+| Active RPCs | Handler/client futures, decoded messages, encoded frames, replay buffers, and stream queues | Set `max_concurrent_rpcs`, finite message limits, and bounded application queues. |
+| Accounted transport bytes | Frame carry, serialization, decompression, and other permit-backed allocations | Share a `ByteBudgetTracker`; inspect current and peak allocations after acquisitions settle. |
+| Application and allocator memory | Retained messages, shared backing allocations, handler work, caches, task locals, fragmentation | Application budgets plus measured process RSS under sustained mixed traffic. |
+| Kernel socket memory | TCP receive/send buffers and connection bookkeeping | Measure separately with platform tools; do not equate it with process RSS. |
 
-### 3.1 Server Upper-Bound Memory Model
+### Connection and stream accounting
 
-The worst-case theoretical server memory $\text{Memory}_{\text{server}}$ committed to networking, connection state, stream processing, and in-flight RPCs is governed by:
+The current `h2` backend's `max_send_buffer_size` controls send capacity
+**per HTTP/2 stream**, not per connection. A connection with many active streams
+can therefore queue more than this value in total. It is a backpressure
+threshold, not an exact allocation ceiling: a complete serialized message can
+remain alive outside the queued chunks, and shared `Bytes` slices can retain
+larger allocations. Count serialization and retained backing storage separately.
 
-$$\text{Memory}_{\text{server}} = M_{\text{base}} + \sum_{i=1}^{N_{\text{conn}}} M_{\text{conn\_overhead}}^{(i)} + \sum_{j=1}^{N_{\text{rpc}}} M_{\text{rpc\_overhead}}^{(j)} + M_{\text{app\_state}}$$
+For an initial estimate, keep these terms distinct:
 
-Where the per-connection and per-RPC terms expand as follows:
+```text
+process memory ≈ base runtime and allocator overhead
+               + connection count × measured connection state
+               + open stream count × measured stream state
+               + live transport buffers and replay buffers
+               + application messages, queues, caches, and handler state
+               + allocator retention and safety margin
+```
 
-#### 1. Per-Connection Overhead ($M_{\text{conn\_overhead}}$)
-Every admitted connection commits fixed transport overhead, kernel socket buffers, and connection-level flow control windows:
+Do not count the same shared backing allocation twice merely because two
+`Bytes` handles reference it. Conversely, a small slice can retain an entire
+backing allocation. The byte-permit gauge measures what the transport accounts
+for; it is not an RSS meter.
 
-$$M_{\text{conn\_overhead}} = M_{\text{socket\_tcp}} + M_{\text{tls\_state}} + M_{\text{h2\_conn\_state}} + M_{\text{hpack\_tables}} + M_{\text{send\_buffer}} + M_{\text{data\_frame\_budget}} + M_{\text{reset\_tracking}} + W_{\text{conn\_effective}}$$
+The connection receive window limits outstanding, unconsumed HTTP/2 DATA
+credit across streams. Once the transport releases that credit, decoded or
+application-retained data can still occupy memory while the peer sends more.
+Adding one connection window per connection is therefore not a proof of the
+total memory bound.
 
-- **$M_{\text{socket\_tcp}}$:** Kernel TCP send and receive buffers ($\approx 128 \text{ KiB} \text{ to } 512 \text{ KiB}$).
-- **$M_{\text{tls\_state}}$:** Rustls connection state, crypto contexts, and session keys ($\approx 16 \text{ KiB}$).
-- **$M_{\text{h2\_conn\_state}}$:** Tokio connection driver task state, ping-pong keepalive timer, stream prioritization trees ($\approx 16 \text{ KiB}$).
-- **$M_{\text{hpack\_tables}}$:** HPACK encoder and decoder dynamic tables: $2 \times H_{\text{table}} = 2 \times 4,096 \text{ B} = 8 \text{ KiB}$.
-- **$M_{\text{send\_buffer}}$:** Connection-level outbound buffer waiting on peer flow control: $S_{\text{send\_buf}} = 1 \text{ MiB}$.
-- **$M_{\text{data\_frame\_budget}}$:** Small DATA framing allocation: $25,600 \text{ B} \approx 25 \text{ KiB}$.
-- **$M_{\text{reset\_tracking}}$:** Tracking reset streams: $(N_{\text{reset\_accept}} + N_{\text{reset\_local}} + N_{\text{reset\_concurrent}}) \times 16 \text{ B} \approx 18 \text{ KiB}$.
-- **$W_{\text{conn\_effective}}$:** Unconsumed inbound DATA frames buffered across all streams on this connection. Crucially, the HTTP/2 connection window bounds the aggregate unacknowledged DATA frames received across all streams on that connection:
-  $$W_{\text{conn\_effective}} \le W_{\text{conn}} = 16 \text{ MiB}$$
+### Message and queue accounting
 
-Combining static connection components ($M_{\text{conn\_static}}$):
-$$M_{\text{conn\_static}} \approx 300 \text{ KiB} + 8 \text{ KiB} + 1,024 \text{ KiB} + 25 \text{ KiB} + 18 \text{ KiB} \approx 1.375 \text{ MiB}$$
-Adding connection window:
-$$M_{\text{conn\_overhead}} \le 1.375 \text{ MiB} + W_{\text{conn}}$$
+For each simultaneously active RPC, allow for the following lifetimes:
 
-#### 2. Per-RPC Overhead ($M_{\text{rpc\_overhead}}$)
-For each admitted and actively processing RPC:
+- A message split across DATA chunks can require a carry buffer up to the
+  decoding limit.
+- Compressed input can keep encoded bytes alive while allocating decompressed
+  bytes up to the inflate limit.
+- Outbound encoding can keep a whole message frame alive while flow control
+  permits only smaller chunks to be queued.
+- Unary and server-streaming retries can retain the encoded request across
+  attempts. Retry and hedging limits determine how many attempt states coexist.
+- A queue bounded to 16 items is not bounded to 16 bytes: count the retained
+  size of every item, including any shared backing allocation.
+- Handler futures and decoded messages belong to the application budget even
+  when the transport has released its permits.
 
-$$M_{\text{rpc\_overhead}} = M_{\text{task\_stack}} + M_{\text{header\_decoded}} + M_{\text{inbound\_carry}} + M_{\text{decompression}} + M_{\text{outbound\_encode}} + M_{\text{stream\_channel}}$$
+The default inbound decoding cap is 4 MiB. Outbound encoding has no finite
+default cap; set `MessageLimits::with_max_encoding` when a deployment needs one.
+An encoded protobuf message also includes field tags and lengths, and the gRPC
+frame adds five bytes. Budget for the actual encoded size, not only the largest
+`bytes` field.
 
-- **$M_{\text{task\_stack}}$:** Tokio async task allocation (`tokio::spawn`), state machine frame, context map, cancel watch receiver, and semaphore permit ($\approx 4 \text{ KiB}$).
-- **$M_{\text{header\_decoded}}$:** Decoded request `Metadata` map: bounded by $H_{\text{list}} = 16 \text{ KiB}$.
-- **$M_{\text{inbound\_carry}}$:** `wire::FrameReader` carry buffer when a frame straddles multiple chunks: bounded by $M_{\text{decode\_cap}} = 4 \text{ MiB}$.
-- **$M_{\text{decompression}}$:** Memory allocated during gzip inflation in `gzip::decode_limited`: bounded by $M_{\text{decode\_cap}} + 1 \text{ B} = 4 \text{ MiB} + 1 \text{ B}$.
-- **$M_{\text{outbound\_encode}}$:** Serialized response frame in `frame_from_msg` / `append_frame`: bounded by $M_{\text{encode\_cap}}$ (or actual message size, typically $\le 4 \text{ MiB}$).
-- **$M_{\text{stream\_channel}}$:** For server-streaming or bidi calls using `Streaming::channel(buffer)`: $B_{\text{stream\_queue}} \times S_{\text{item}} \approx 16 \times S_{\text{msg}}$.
+### Adaptive receive windows
 
-#### 3. Full Server Upper-Bound Formula
-Combining connection and RPC terms, and accounting for the invariant that unconsumed inbound wire bytes across a connection are capped by $\min(W_{\text{conn}}, \sum_{\text{stream}} W_{\text{stream}})$:
+`ServerConfig::adaptive_window(true)` and
+`ChannelConfig::adaptive_window(true)` are opt-in. They start at the configured
+adaptive initial window and grow stream and connection windows up to
+`adaptive_window_max_size` (16 MiB by default). Use that cap when modeling
+outstanding receive credit. Fixed 16 MiB windows remain the default.
 
-$$\boxed{\text{Memory}_{\text{server}} \le N_{\text{conn}} \times \left( M_{\text{conn\_static}} + S_{\text{send\_buf}} + W_{\text{conn}} \right) + N_{\text{rpc}} \times \left( M_{\text{task}} + H_{\text{list}} + M_{\text{decode\_cap}} + M_{\text{inflate\_cap}} + M_{\text{encode}} \right) + M_{\text{app}}}$$
+## 4. Choose and validate deployment limits
 
-Plugging in `pbrs-grpc` default parameters:
-$$\text{Memory}_{\text{server\_default}} \le N_{\text{conn}} \times \left( 1.375 \text{ MiB} + 16 \text{ MiB} \right) + N_{\text{rpc}} \times \left( 20 \text{ KiB} + 4 \text{ MiB} + 4 \text{ MiB} + M_{\text{encode}} \right) + M_{\text{app}}$$
-$$\text{Memory}_{\text{server\_default}} \approx N_{\text{conn}} \times 17.38 \text{ MiB} + N_{\text{rpc}} \times (8.02 \text{ MiB} + M_{\text{encode}}) + M_{\text{app}}$$
+The defaults cap HTTP/2 streams at 256 per connection and decoded messages at
+4 MiB, but leave total connection and RPC counts uncapped. They are starting
+settings, not a production capacity guarantee.
 
-#### Adaptive receive windows
-
-`ServerConfig::adaptive_window(true)` and `ChannelConfig::adaptive_window(true)`
-are opt-in only. When enabled, a connection starts from the configured adaptive
-initial window, samples inbound DATA with BDP PINGs, and grows the stream and
-connection receive windows only up to `adaptive_window_max_size` (16 MiB by
-default). For resource budgeting, use the configured adaptive cap as
-$W_{\text{conn}}$ and $W_{\text{stream}}$ in the formulas above; the 16 MiB
-fixed defaults and all default behavior are unchanged.
-
----
-
-### 3.2 Client Upper-Bound Memory Model
-
-The client memory consumption model accounts for pooled channel connections, active outgoing calls, call queueing, and the **transparent retry replay buffer**.
-
-$$\text{Memory}_{\text{client}} = M_{\text{client\_base}} + \sum_{k=1}^{N_{\text{channel\_conns}}} M_{\text{conn\_overhead}}^{(k)} + \sum_{m=1}^{N_{\text{client\_rpc}}} M_{\text{call\_overhead}}^{(m)} + M_{\text{client\_app}}$$
-
-#### 1. Per-Connection Component ($N_{\text{channel\_conns}}$)
-In `ChannelConfig`, `connections` specifies the active HTTP/2 connection pool size (default 1):
-$$M_{\text{client\_conn}} = M_{\text{socket\_tcp}} + M_{\text{tls\_client}} + M_{\text{h2\_driver}} + 2 \times H_{\text{table}} + S_{\text{send\_buf}} + W_{\text{conn}} \approx 1.375 \text{ MiB} + W_{\text{conn}}$$
-
-#### 2. Per-RPC Component ($M_{\text{call\_overhead}}$)
-For each in-flight client RPC:
-$$M_{\text{call\_overhead}} = M_{\text{call\_future}} + M_{\text{replay\_buffer}} + M_{\text{client\_stream\_queue}} + M_{\text{inbound\_response\_decode}}$$
-
-- **$M_{\text{call\_future}}$:** Pinned async state machine of `Call` future ($\approx 2 \text{ KiB} \text{ to } 8 \text{ KiB}$).
-- **$M_{\text{replay\_buffer}}$ (Transparent Retry Buffer):**
-  - In `pbrs-grpc/src/client.rs` (`unary` and `server_streaming`), the request is serialized and framed **before** acquiring a stream slot:
-    ```rust
-    let frame = encode_msg(&msg, compress, wire.limits, wire.gzip_level)?;
-    ```
-  - This `frame` (`Bytes`) is held in the async task state across the attempt so that if a transparent retry occurs (e.g. on `REFUSED_STREAM` or GOAWAY before data transmission), `frame.clone()` re-sends the payload without re-serialization.
-  - Memory committed: $S_{\text{request\_frame}} \le M_{\text{encode\_cap}}$ (up to 4 MiB or configured request size).
-  - Held until the attempt receives response headers (committing the call) or fails permanently.
-- **$M_{\text{client\_stream\_queue}}$:**
-  - For client-streaming and bidi calls: outbound messages are queued into `mpsc::channel(stream_buffer)` (default 16 messages).
-  - Memory committed: $B_{\text{stream\_queue}} \times S_{\text{request\_msg}} = 16 \times S_{\text{msg}}$.
-- **$M_{\text{inbound\_response\_decode}}$:**
-  - Response frame decoding and decompression: bounded by $M_{\text{decode\_cap}} + M_{\text{inflate\_cap}} \le 4 \text{ MiB} + 4 \text{ MiB} = 8 \text{ MiB}$.
-
-#### 3. Full Client Upper-Bound Formula
-$$\boxed{\text{Memory}_{\text{client}} \le N_{\text{conn}} \times \left( 1.375 \text{ MiB} + W_{\text{conn}} \right) + N_{\text{rpc}} \times \left( M_{\text{future}} + S_{\text{replay\_buf}} + B_{\text{queue}} \times S_{\text{msg}} + M_{\text{decode\_cap}} + M_{\text{inflate\_cap}} \right)}$$
-
----
-
-## 4. Default Configuration Vulnerability & Overload Analysis
-
-### 4.1 Audit of Defaults (`ServerConfig` & `ChannelConfig`)
-
-Inspecting `pbrs-grpc/src/config.rs`:
-- `max_concurrent_connections`: **`None` (unbounded)**
-- `max_concurrent_rpcs`: **`None` (unbounded)**
-- `initial_connection_window_size`: **16 MiB** (`DEFAULT_WINDOW_SIZE`)
-- `initial_stream_window_size`: **16 MiB** (`DEFAULT_WINDOW_SIZE`)
-- `max_concurrent_streams`: **256** per connection (`DEFAULT_MAX_CONCURRENT_STREAMS`)
-- `max_send_buffer_size`: **1 MiB** (`DEFAULT_MAX_SEND_BUFFER_SIZE`)
-- `max_decoding`: **4 MiB** (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`)
-
-### 4.2 The Combinatorial Explosion Hazard Under Default Settings
-
-Under default settings, the server relies entirely on the OS file descriptor limit and TCP memory caps to halt incoming connection growth, and relies entirely on client cooperativeness to bound RPC concurrency.
-
-Consider an internal microservice or edge ingress facing a connection spike or slow client attack:
-1. **Connection Flooding ($N_{\text{conn}} = 1,000$):**
-   - Fixed connection state alone: $1,000 \times 1.375 \text{ MiB} \approx 1.375 \text{ GiB}$.
-   - If peers write into their connection windows ($W_{\text{conn}} = 16 \text{ MiB}$):
-     $$1,000 \times 16 \text{ MiB} = 16.0 \text{ GiB}$$
-2. **Concurrent Stream Overload ($N_{\text{rpc}}$ with 1,000 connections):**
-   - Each connection permits up to 256 concurrent streams by HTTP/2 `SETTINGS`.
-   - Max concurrent RPCs across the server: $N_{\text{rpc}} = 1,000 \times 256 = 256,000 \text{ RPCs}$.
-   - If each RPC transmits an average 64 KiB message:
-     $$256,000 \times 64 \text{ KiB} \approx 16.38 \text{ GiB}$$
-   - If each RPC inflates a 4 MiB compressed payload:
-     $$256,000 \times 8 \text{ MiB} \approx 2.0 \text{ TiB}$$
-
-**Conclusion:** Default settings are optimized for high-throughput single-stream microbenchmarks, but **cannot survive unbounded concurrent load**. Without explicit ceilings on $N_{\text{conn}}$ and $N_{\text{rpc}}$, a traffic spike triggers non-linear memory growth, latency collapse, and unrecoverable process termination.
-
-### 4.3 Deterministic Protection via Explicit Bounds
-
-Setting explicit values for `max_concurrent_connections` and `max_concurrent_rpcs` transforms the unbounded memory equation into a **provable, fixed ceiling**:
+For example:
 
 ```rust
 let config = ServerConfig::new()
@@ -295,24 +234,40 @@ let config = ServerConfig::new()
     .max_concurrent_rpcs(1000);
 ```
 
-Under this configuration:
-- Connections are strictly bounded at $N_{\text{conn}} \le 500$.
-- In-flight RPC handler tasks are strictly bounded at $N_{\text{rpc}} \le 1,000$, **regardless of how many streams are opened across the 500 connections**.
-- Total transport-committed memory is bounded by:
-  $$\text{Memory}_{\text{server\_max}} \le 500 \times (1.375 \text{ MiB} + W_{\text{conn}}) + 1,000 \times (8.02 \text{ MiB}) + M_{\text{app}}$$
-- System administrators can calculate the exact maximum resident set size (RSS) needed for container memory limits (`cgroups` limits), ensuring zero risk of unexpected OOM kills.
+Those settings cap connections admitted by that server's accept loop and the
+concurrent handlers sharing its admission state. They do not cap unrelated
+servers in the same process, messages retained by application code, or allocator
+memory. The values above illustrate the API; select actual values from your
+service's memory and latency budget.
+
+To size a deployment:
+
+1. Set connection, RPC, message, transport-byte, and application-queue limits.
+2. Measure peak RSS and accounted bytes under representative TLS, compression,
+   streaming, retries, and slow-reader traffic.
+3. Exercise overload, cancellation, connection churn, and shutdown. Verify
+   explicit rejection and recovery after load falls.
+4. Add headroom for allocator retention and application growth before setting
+   the container memory limit. Repeat when dependencies or workload shape change.
+
+The [resource-bound tests](../pbrs-grpc/tests/resource_bounds.rs) enforce the
+specific fairness and cleanup requirements in §7.2. They do not prove a universal
+RSS ceiling. Sustained current-backend soak evidence is still required by the
+[roadmap](ROADMAP.md).
 
 ---
 
 ## 5. Admission Control & Error Semantics (Contract for RT-06)
 
-To enforce the approved resource budget model, **RT-06** must implement admission checks at distinct lifecycle boundaries. Every rejection must occur **before** the guarded memory is allocated.
+The RT-06 admission contract requires checks at distinct lifecycle boundaries.
+Reject before allocating the memory guarded by a limit. The implementation
+and tests below are the current reference for those checks.
 
 ```
 Incoming Connection (TCP Accept)
        │
        ▼
-[ Connection Semaphore? ] ───(Over Limit)───► Immediate TCP Drop OR HTTP/2 GOAWAY
+[ Connection Semaphore? ] ───(Over Limit)───► Close the newly accepted socket
        │                                       (Zero TLS/h2 memory allocated)
        ▼ (Permit Acquired)
 Handshake & HTTP/2 Session Established
@@ -324,7 +279,7 @@ Incoming Stream (poll_accept / HEADERS)
 [ RPC Concurrency Semaphore? ] ───(Over Limit)───► Immediate Trailers-Only Response
        │                                            - Status: RESOURCE_EXHAUSTED
        │                                            - end_stream: true
-       │                                            - ZERO body bytes read/buffered
+       │                                            - Handler does not read the body
        ▼ (Permit Acquired)
 Frame Header (5-byte prefix)
        │
@@ -415,145 +370,110 @@ Payload Data Received
 
 ---
 
-## 6. Recommended Bounded Production Profiles
+## 6. Example tuning profiles
 
-To assist operators in configuring deterministic memory bounds, this section defines four standardized production profiles.
+These are starting points for load testing, not measured deployment presets.
+None implies a container RAM recommendation. All snippets assume
+`use pbrs_grpc::ServerConfig;` and `use std::time::Duration;`.
 
-```
-       [ Edge Ingress / Proxy ]       [ Internal Microservice ]     [ High-Throughput Bulk ]
-       • 5,000 connections            • 200 connections             • 20 connections
-       • 32 streams / conn            • 256 streams / conn          • 64 streams / conn
-       • 256 KiB conn window          • 4 MiB conn window           • 16 MiB conn window
-       • 64 KiB stream window         • 1 MiB stream window         • 16 MiB stream window
-       • 1 MiB max msg                • 4 MiB max msg               • 32 MiB max msg
-       ────────────────────────       ─────────────────────────     ─────────────────────────
-       Max Transport RAM: ~1.4 GiB    Max Transport RAM: ~1.8 GiB   Max Transport RAM: ~3.5 GiB
-```
+| Limit | Edge ingress | Internal service | Bulk transfer | Small footprint |
+|---|---:|---:|---:|---:|
+| Connections | 5,000 | 200 | 20 | 10 |
+| Active RPCs | 10,000 | 2,000 | 100 | 50 |
+| HTTP/2 streams per connection | 32 | 256 | 64 | 16 |
+| Connection receive window | 256 KiB | 4 MiB | 16 MiB | 64 KiB |
+| Stream receive window | 64 KiB | 1 MiB | 16 MiB | 32 KiB |
+| Send capacity per stream | 128 KiB | 1 MiB | 4 MiB | 32 KiB |
+| Inbound and outbound message cap | 1 MiB | 4 MiB | 32 MiB | 256 KiB |
+| Header-list cap | 8 KiB | 16 KiB | 16 KiB | 4 KiB |
 
-### 6.1 Profile 1: Edge Ingress / Reverse Proxy Profile
+### 6.1 Edge ingress
 
-**Operational Context:** Public-facing ingress gateways, mobile/web clients, untrusted networks, high connection churn, Slowloris threats.
+Smaller messages and windows limit each peer's immediate transport demand.
+Validate connection churn, handshake timeouts, slow readers, and overload.
 
 ```rust
 let config = ServerConfig::new()
     .max_concurrent_connections(5_000)
     .max_concurrent_rpcs(10_000)
     .max_concurrent_streams(32)
-    .initial_connection_window_size(256 * 1024)       // 256 KiB
-    .initial_stream_window_size(64 * 1024)            // 64 KiB
-    .max_send_buffer_size(128 * 1024)                 // 128 KiB
-    .max_header_list_size(8 * 1024)                   // 8 KiB
-    .max_decoding_message_size(1024 * 1024)           // 1 MiB
-    .max_encoding_message_size(1024 * 1024)           // 1 MiB
+    .initial_connection_window_size(256 * 1024)
+    .initial_stream_window_size(64 * 1024)
+    .max_send_buffer_size(128 * 1024)
+    .max_header_list_size(8 * 1024)
+    .max_decoding_message_size(1024 * 1024)
+    .max_encoding_message_size(1024 * 1024)
     .connect_timeout(Duration::from_secs(5))
     .max_connection_idle(Duration::from_secs(60))
     .max_connection_age(Duration::from_secs(600));
 ```
 
-- **Per-Connection Static Overhead:** $\approx 300 \text{ KiB} + 8 \text{ KiB} + 128 \text{ KiB} + 256 \text{ KiB} \approx 692 \text{ KiB}$.
-- **Max Connection Memory ($N_{\text{conn}} = 5,000$):** $5,000 \times 692 \text{ KiB} \approx 3.30 \text{ GiB}$ (unloaded) / $\approx 600 \text{ MiB}$ (idle TCP).
-- **Per-RPC Overhead ($M_{\text{rpc}}$ at 1 MiB cap):** $\approx 10 \text{ KiB} + 1 \text{ MiB} \text{ (decode)} + 1 \text{ MiB} \text{ (inflate)} \approx 2.01 \text{ MiB}$.
-- **Max Active RPC Memory ($N_{\text{rpc}} = 10,000$ concurrent limit):**
-  - If average payload is 16 KiB: $10,000 \times 32 \text{ KiB} \approx 320 \text{ MiB}$.
-  - Absolute theoretical upper bound (all 10,000 RPCs inflight at max 1 MiB message simultaneously): $\approx 1.5 \text{ GiB} \text{ to } 3.0 \text{ GiB}$.
-- **Recommended Container Memory Limit:** 4 GiB.
+### 6.2 Internal service
 
----
-
-### 6.2 Profile 2: Internal Microservice Profile (Standard Production)
-
-**Operational Context:** Service-to-service internal RPC mesh, trusted Kubernetes pods, low-latency requirements, pooled connections.
+Tune pool size and concurrency against the latency budget. Coordinate keepalive
+with peers and load balancers to avoid needless connection churn.
 
 ```rust
 let config = ServerConfig::new()
     .max_concurrent_connections(200)
     .max_concurrent_rpcs(2_000)
     .max_concurrent_streams(256)
-    .initial_connection_window_size(4 * 1024 * 1024)  // 4 MiB
-    .initial_stream_window_size(1024 * 1024)          // 1 MiB
-    .max_send_buffer_size(1024 * 1024)                // 1 MiB
-    .max_header_list_size(16 * 1024)                  // 16 KiB
-    .max_decoding_message_size(4 * 1024 * 1024)       // 4 MiB
-    .max_encoding_message_size(4 * 1024 * 1024)       // 4 MiB
+    .initial_connection_window_size(4 * 1024 * 1024)
+    .initial_stream_window_size(1024 * 1024)
+    .max_send_buffer_size(1024 * 1024)
+    .max_header_list_size(16 * 1024)
+    .max_decoding_message_size(4 * 1024 * 1024)
+    .max_encoding_message_size(4 * 1024 * 1024)
     .keep_alive_interval(Duration::from_secs(30))
     .keep_alive_timeout(Duration::from_secs(10));
 ```
 
-- **Per-Connection Static Overhead:** $\approx 300 \text{ KiB} + 8 \text{ KiB} + 1 \text{ MiB} + 4 \text{ MiB} \approx 5.3 \text{ MiB}$.
-- **Max Connection Memory ($N_{\text{conn}} = 200$):** $200 \times 5.3 \text{ MiB} \approx 1.06 \text{ GiB}$.
-- **Max Active RPC Memory ($N_{\text{rpc}} = 2,000$):**
-  - Typical internal RPC payload (32 KiB): $2,000 \times 64 \text{ KiB} \approx 128 \text{ MiB}$.
-  - Peak burst capacity: $2,000 \times \text{in-flight buffers} \approx 1.2 \text{ GiB}$.
-- **Recommended Container Memory Limit:** 2 GiB to 3 GiB.
+### 6.3 Bulk transfer
 
----
-
-### 6.3 Profile 3: High-Throughput Bulk / Analytics Profile
-
-**Operational Context:** Big data pipelines, log streaming, distributed dataset replication, batch transfers with large messages.
+Larger messages need a smaller concurrency budget. Test mixed small and large
+RPCs so throughput tuning does not starve latency-sensitive calls.
 
 ```rust
 let config = ServerConfig::new()
     .max_concurrent_connections(20)
     .max_concurrent_rpcs(100)
     .max_concurrent_streams(64)
-    .initial_connection_window_size(16 * 1024 * 1024) // 16 MiB
-    .initial_stream_window_size(16 * 1024 * 1024)     // 16 MiB
-    .max_send_buffer_size(4 * 1024 * 1024)            // 4 MiB
-    .max_decoding_message_size(32 * 1024 * 1024)      // 32 MiB
-    .max_encoding_message_size(32 * 1024 * 1024)      // 32 MiB
-    .stream_buffer_size(32);
+    .initial_connection_window_size(16 * 1024 * 1024)
+    .initial_stream_window_size(16 * 1024 * 1024)
+    .max_send_buffer_size(4 * 1024 * 1024)
+    .max_decoding_message_size(32 * 1024 * 1024)
+    .max_encoding_message_size(32 * 1024 * 1024);
 ```
 
-- **Per-Connection Static Overhead:** $\approx 300 \text{ KiB} + 4 \text{ MiB} + 16 \text{ MiB} \approx 20.3 \text{ MiB}$.
-- **Max Connection Memory ($N_{\text{conn}} = 20$):** $20 \times 20.3 \text{ MiB} \approx 406 \text{ MiB}$.
-- **Max Active RPC Memory ($N_{\text{rpc}} = 100$ at 32 MiB message cap):**
-  - $100 \times (32 \text{ MiB} \text{ decode} + 32 \text{ MiB} \text{ inflate}) \approx 6.4 \text{ GiB}$ peak worst-case.
-- **Recommended Container Memory Limit:** 8 GiB.
+Bound response queues with `Streaming::channel(capacity)`; choose capacity
+from message size and retained memory. Client request queues use
+`ChannelConfig::stream_buffer(capacity)`.
 
----
+### 6.4 Small footprint
 
-### 6.4 Profile 4: Resource-Constrained / Sidecar Profile
-
-**Operational Context:** Service mesh sidecars, IoT/edge embedded compute, constrained memory environments (<128 MiB RAM budget).
+Small windows and low concurrency reduce transport demand. Measure allocator
+retention and application memory before choosing a process memory limit.
 
 ```rust
 let config = ServerConfig::new()
     .max_concurrent_connections(10)
     .max_concurrent_rpcs(50)
     .max_concurrent_streams(16)
-    .initial_connection_window_size(64 * 1024)        // 64 KiB
-    .initial_stream_window_size(32 * 1024)            // 32 KiB
-    .max_send_buffer_size(32 * 1024)                  // 32 KiB
-    .max_header_list_size(4 * 1024)                   // 4 KiB
-    .header_table_size(1024)                          // 1 KiB
-    .max_decoding_message_size(256 * 1024)            // 256 KiB
-    .max_encoding_message_size(256 * 1024)            // 256 KiB
-    .stream_buffer_size(4);
+    .initial_connection_window_size(64 * 1024)
+    .initial_stream_window_size(32 * 1024)
+    .max_send_buffer_size(32 * 1024)
+    .max_header_list_size(4 * 1024)
+    .header_table_size(1024)
+    .max_decoding_message_size(256 * 1024)
+    .max_encoding_message_size(256 * 1024);
 ```
 
-- **Per-Connection Static Overhead:** $\approx 100 \text{ KiB} + 32 \text{ KiB} + 64 \text{ KiB} \approx 196 \text{ KiB}$.
-- **Max Connection Memory ($N_{\text{conn}} = 10$):** $10 \times 196 \text{ KiB} \approx 2 \text{ MiB}$.
-- **Max Active RPC Memory ($N_{\text{rpc}} = 50$ at 256 KiB message cap):** $50 \times 512 \text{ KiB} \approx 25.6 \text{ MiB}$.
-- **Total Peak Footprint:** $\le 35 \text{ MiB}$.
-- **Recommended Container Memory Limit:** 64 MiB.
-
----
-
-### 6.5 Comparative Profile Summary
-
-| Metric / Parameter | Default (Unbounded) | Edge Ingress Profile | Internal Microservice | Bulk / Analytics | Sidecar Profile |
-|---|---|---|---|---|---|
-| **Max Concurrent Connections ($N_{\text{conn}}$)** | $\infty$ (`None`) | 5,000 | 200 | 20 | 10 |
-| **Max Concurrent RPCs ($N_{\text{rpc}}$)** | $\infty$ (`None`) | 10,000 | 2,000 | 100 | 50 |
-| **Max Streams / Conn** | 256 | 32 | 256 | 64 | 16 |
-| **Connection Window ($W_{\text{conn}}$)** | 16 MiB | 256 KiB | 4 MiB | 16 MiB | 64 KiB |
-| **Stream Window ($W_{\text{stream}}$)** | 16 MiB | 64 KiB | 1 MiB | 16 MiB | 32 KiB |
-| **Send Buffer ($S_{\text{send\_buf}}$)** | 1 MiB | 128 KiB | 1 MiB | 4 MiB | 32 KiB |
-| **Max Inbound Message Cap** | 4 MiB | 1 MiB | 4 MiB | 32 MiB | 256 KiB |
-| **Max Header List** | 16 KiB | 8 KiB | 16 KiB | 16 KiB | 4 KiB |
-| **Peak Transport Bound (Formula)** | $\mathbf{\infty \text{ (Unbounded OOM)}}$ | **$\approx 3.3 \text{ GiB}$** | **$\approx 1.8 \text{ GiB}$** | **$\approx 6.8 \text{ GiB}$** | **$\approx 35 \text{ MiB}$** |
-| **Recommended Container RAM** | Unknown / Crash-prone | 4 GiB | 2 GiB – 3 GiB | 8 GiB | 64 MiB |
+After applying any profile with `Server::config`, set the intended shared
+transport byte budget explicitly with `Server::byte_budget` or
+`with_byte_budget_tracker`. The current builder also derives a tracker from a
+non-default send-buffer value; a small per-stream send threshold may therefore
+need a larger explicit shared budget to admit whole encoded messages.
+Order matters: set the shared byte budget after transport configuration.
 
 ---
 
@@ -716,7 +636,7 @@ This specification directly guides implementation and verification in the Reliab
 | $N_{\text{rpc}}$ | Number of concurrent active RPCs | Integer | Unbounded (`None`) |
 | $W_{\text{conn}}$ | HTTP/2 connection-level flow control window | Bytes | 16 MiB ($16,777,216$) |
 | $W_{\text{stream}}$ | HTTP/2 stream-level flow control window | Bytes | 16 MiB ($16,777,216$) |
-| $S_{\text{send\_buf}}$ | Connection send buffer cap | Bytes | 1 MiB ($1,048,576$) |
+| $S_{\text{send\_buf}}$ | Send-capacity threshold per HTTP/2 stream | Bytes | 1 MiB ($1,048,576$) |
 | $H_{\text{table}}$ | HPACK dynamic table size | Octets | 4,096 |
 | $H_{\text{list}}$ | Maximum uncompressed header list size | Octets | 16,384 |
 | $M_{\text{decode\_cap}}$ | Maximum inbound message decoding size | Bytes | 4 MiB ($4,194,304$) |
