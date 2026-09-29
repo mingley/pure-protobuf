@@ -8549,7 +8549,8 @@
     "SB-04",
     "SB-20"
    ],
-   "notes": "Split from SB-20 premise check 2026-09-29: runs 36488933446/36456626203 fail in devloop.sh cargo build --offline (no matching protobuf package). Gates SB-20 re-dispatch."
+   "notes": "Split from SB-20 premise check 2026-09-29: runs 36488933446/36456626203 fail in devloop.sh cargo build --offline (no matching protobuf package). Gates SB-20 re-dispatch.",
+   "status": "in_progress"
   }
  ]
 }
