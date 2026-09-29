@@ -168,6 +168,11 @@ fn deflate(payload: &[u8]) -> Vec<u8> {
     enc.finish().expect("finish")
 }
 
+#[cfg(feature = "zstd")]
+fn zstd(payload: &[u8]) -> Vec<u8> {
+    pbrs_grpc::Codec::Zstd.encode(payload).expect("zstd")
+}
+
 /// A valid `HelloRequest { name: "ada" }`.
 fn hello_request() -> Vec<u8> {
     vec![0x0a, 0x03, b'a', b'd', b'a']
@@ -211,6 +216,29 @@ async fn a_gzip_bomb_cannot_outgrow_the_cap() {
     let mut peer = RawPeer::connect(addr).await;
     let body = frame_with_declared_len(1, bomb.len() as u32, &bomb);
     peer.call(SAY_HELLO, body)
+        .await
+        .expect_code(Code::ResourceExhausted);
+}
+
+#[cfg(feature = "zstd")]
+#[tokio::test]
+async fn a_zstd_bomb_cannot_outgrow_the_cap() {
+    const CAP: usize = 256 * 1024;
+    let (addr, _guard) =
+        spawn_greeter_server(ServerConfig::new().max_decoding_message_size(CAP)).await;
+    let bomb = zstd(&vec![0u8; 64 * 1024 * 1024]);
+    assert!(
+        bomb.len() < CAP,
+        "the bomb must pass the frame-length check: {} bytes vs {CAP}",
+        bomb.len()
+    );
+    let mut peer = RawPeer::connect(addr).await;
+    let body = frame_with_declared_len(1, bomb.len() as u32, &bomb);
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("zstd"));
+    peer.call_with(request, body)
         .await
         .expect_code(Code::ResourceExhausted);
 }
@@ -402,7 +430,11 @@ async fn an_unsupported_encoding_is_unimplemented_and_advertises_what_works() {
             .headers()
             .get("grpc-accept-encoding")
             .and_then(|v| v.to_str().ok()),
-        Some("identity,gzip,deflate"),
+        if cfg!(feature = "zstd") {
+            Some("identity,gzip,deflate,zstd")
+        } else {
+            Some("identity,gzip,deflate")
+        },
         "the spec requires telling the client what to retry with"
     );
 }

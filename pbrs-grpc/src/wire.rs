@@ -138,6 +138,10 @@ mod tests {
         assert!(!super::grpc_encoding_admitted("gzip", false));
         assert!(!super::grpc_encoding_admitted("GZIP", false));
         assert!(!super::grpc_encoding_admitted("deflate", false));
+        #[cfg(feature = "zstd")]
+        assert!(super::grpc_encoding_admitted("zstd", true));
+        #[cfg(not(feature = "zstd"))]
+        assert!(!super::grpc_encoding_admitted("zstd", true));
     }
 
     #[test]
@@ -154,11 +158,15 @@ mod tests {
             false,
         )
         .expect("gzip accept");
+        #[cfg(feature = "zstd")]
+        let expected_accept_encoding = "identity,gzip,deflate,zstd";
+        #[cfg(not(feature = "zstd"))]
+        let expected_accept_encoding = "identity,gzip,deflate";
         assert_eq!(
             gzip.headers()
                 .get("grpc-accept-encoding")
                 .and_then(|v| v.to_str().ok()),
-            Some("identity,gzip,deflate")
+            Some(expected_accept_encoding)
         );
         let identity = grpc_request(
             &authority,
@@ -227,16 +235,57 @@ mod tests {
         assert_eq!(select_stream_codec(true, Some(false), true, gzip), gzip);
         assert_eq!(select_stream_codec(true, Some(true), true, None), None);
         // Negotiation prefers the configured coding and falls back.
-        assert_eq!(preferred_codec(Codec::Gzip, true, true), Some(Codec::Gzip));
         assert_eq!(
-            preferred_codec(Codec::Deflate, true, true),
+            preferred_codec(
+                Codec::Gzip,
+                true,
+                true,
+                #[cfg(feature = "zstd")]
+                true,
+            ),
+            Some(Codec::Gzip)
+        );
+        assert_eq!(
+            preferred_codec(
+                Codec::Deflate,
+                true,
+                true,
+                #[cfg(feature = "zstd")]
+                true,
+            ),
             Some(Codec::Deflate)
         );
         assert_eq!(
-            preferred_codec(Codec::Deflate, true, false),
+            preferred_codec(
+                Codec::Deflate,
+                true,
+                false,
+                #[cfg(feature = "zstd")]
+                false,
+            ),
             Some(Codec::Gzip)
         );
-        assert_eq!(preferred_codec(Codec::Gzip, false, false), None);
+        assert_eq!(
+            preferred_codec(
+                Codec::Gzip,
+                false,
+                false,
+                #[cfg(feature = "zstd")]
+                false,
+            ),
+            None
+        );
+        #[cfg(feature = "zstd")]
+        {
+            assert_eq!(
+                preferred_codec(Codec::Zstd, false, false, true),
+                Some(Codec::Zstd)
+            );
+            assert_eq!(
+                preferred_codec(Codec::Gzip, false, false, true),
+                Some(Codec::Zstd)
+            );
+        }
     }
 
     #[test]

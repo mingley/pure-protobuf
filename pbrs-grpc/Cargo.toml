@@ -44,11 +44,15 @@ socket2 = { version = "0.6", features = ["all"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 webpki-roots = "1"
+zstd_rs = { package = "zstd-rs", version = "0.1", optional = true }
 
 [features]
 # OpenTelemetry metrics bridge (GF-01). Off by default; enabling the
 # feature without installing an observer costs nothing (Option checks).
 otel = ["dep:opentelemetry"]
+# Pure-Rust Zstandard message compression. Off by default so the shipping
+# dependency graph stays unchanged unless callers opt in.
+zstd = ["dep:zstd_rs"]
 # Bench-only user-space copy counters (SB-13). Off by default; every
 # note call compiles to nothing without it. Bench binaries only.
 # Enables the pbrs runtime counters too so one feature gives full-path
@@ -64,6 +68,7 @@ bytes = "1"
 flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = "0.4.18"
 http = "1"
+zstd_c = { package = "zstd", version = "0.14", default-features = false }
 # test-util is dev-only: paused-clock resolver timelines. Production keeps
 # the minimal feature set above.
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "test-util"] }

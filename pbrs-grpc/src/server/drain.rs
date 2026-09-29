@@ -123,6 +123,8 @@ pub(crate) struct Prepared<T> {
     pub(crate) prefer_gzip: bool,
     pub(crate) peer_accepts_gzip: bool,
     pub(crate) peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")]
+    pub(crate) peer_accepts_zstd: bool,
     pub(crate) cancel: CancelOnDrop,
     /// Kernel-stamped onto the handler [`Response`] before `on_response`.
     pub(crate) path: Option<String>,
@@ -151,6 +153,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
     peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
@@ -158,7 +161,13 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     channelz_socket: Option<crate::channelz::SocketId>,
 ) {
     let (msg, headers, trailers, compress) = response.split();
-    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
     let frame = match encode_msg(&msg, codec, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
@@ -221,6 +230,7 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
     peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
@@ -230,7 +240,13 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
     // initial metadata is not blocked behind handler work.
-    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
         return Status::unavailable("failed to send response headers");
@@ -253,6 +269,8 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 prefer_gzip,
                 peer_accepts_gzip,
                 peer_accepts_deflate,
+                #[cfg(feature = "zstd")]
+                peer_accepts_zstd,
                 budget,
                 observer,
                 call_labels,
@@ -271,6 +289,8 @@ pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
                 prefer_gzip,
                 peer_accepts_gzip,
                 peer_accepts_deflate,
+                #[cfg(feature = "zstd")]
+                peer_accepts_zstd,
                 budget,
                 observer,
                 call_labels,
@@ -340,6 +360,7 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
     peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
     budget: &ByteBudgetTracker,
     observer: Option<&dyn LifecycleObserver>,
     call_labels: &CallLabels<'_>,
@@ -349,7 +370,13 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
     // Negotiated once per response: every frame shares the `grpc-encoding`
     // the headers advertised, so per-message selection only decides the
     // Compressed-Flag.
-    let negotiated = preferred_codec(wire.send_codec, peer_accepts_gzip, peer_accepts_deflate);
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
     wire.send_codec = negotiated.unwrap_or_default();
     let mut batch = OutBatch::new(wire);
     if let Some(tap) = tap {

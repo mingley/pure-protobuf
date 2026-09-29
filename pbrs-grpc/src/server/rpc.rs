@@ -606,6 +606,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel,
             path,
             gzip_level,
@@ -662,6 +664,8 @@ impl Rpc {
                         prefer_gzip,
                         peer_accepts_gzip,
                         peer_accepts_deflate,
+                        #[cfg(feature = "zstd")]
+                        peer_accepts_zstd,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -710,6 +714,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel,
             path,
             gzip_level,
@@ -766,6 +772,8 @@ impl Rpc {
                         prefer_gzip,
                         peer_accepts_gzip,
                         peer_accepts_deflate,
+                        #[cfg(feature = "zstd")]
+                        peer_accepts_zstd,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -822,6 +830,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel,
             path,
             gzip_level,
@@ -878,6 +888,8 @@ impl Rpc {
                         prefer_gzip,
                         peer_accepts_gzip,
                         peer_accepts_deflate,
+                        #[cfg(feature = "zstd")]
+                        peer_accepts_zstd,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -934,6 +946,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel,
             path,
             gzip_level,
@@ -990,6 +1004,8 @@ impl Rpc {
                         prefer_gzip,
                         peer_accepts_gzip,
                         peer_accepts_deflate,
+                        #[cfg(feature = "zstd")]
+                        peer_accepts_zstd,
                         &budget,
                         observer.as_deref(),
                         &call_labels,
@@ -1024,6 +1040,8 @@ impl Rpc {
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        #[cfg(feature = "zstd")]
+        let peer_accepts_zstd = accepts_codec(self.request.headers(), Codec::Zstd);
         let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
@@ -1143,6 +1161,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),
@@ -1175,6 +1195,8 @@ impl Rpc {
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        #[cfg(feature = "zstd")]
+        let peer_accepts_zstd = accepts_codec(self.request.headers(), Codec::Zstd);
         let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
@@ -1285,6 +1307,8 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),

@@ -1,8 +1,9 @@
 //! Wire message compression: the `grpc-encoding` registry (RX-06).
 //!
 //! gRPC compresses each message independently and names the coding once per
-//! RPC in `grpc-encoding`. This kernel speaks the two codings every peer
-//! implements: `gzip` (RFC 1952) and `deflate` (zlib, RFC 1950).
+//! RPC in `grpc-encoding`. This kernel always speaks the two codings every
+//! peer implements: `gzip` (RFC 1952) and `deflate` (zlib, RFC 1950).
+//! Enabling the `zstd` feature adds pure-Rust `zstd` (RFC 8878).
 //! `identity` is the absence of a coding, not a [`Codec`].
 //!
 //! Backend: `miniz_oxide` through `flate2` (`rust_backend` +
@@ -18,6 +19,8 @@
 
 mod deflate;
 mod gzip;
+#[cfg(feature = "zstd")]
+mod zstd;
 
 pub use gzip::{decode, decode_limited, encode, encode_level};
 
@@ -32,6 +35,9 @@ pub enum Codec {
     Gzip,
     /// `deflate`: zlib wrapper (RFC 1950) around a DEFLATE stream.
     Deflate,
+    /// `zstd`: Zstandard frame (RFC 8878). Requires the `zstd` feature.
+    #[cfg(feature = "zstd")]
+    Zstd,
 }
 
 impl Codec {
@@ -48,6 +54,15 @@ impl Codec {
             Some(Self::Gzip)
         } else if coding.eq_ignore_ascii_case("deflate") {
             Some(Self::Deflate)
+        } else if cfg!(feature = "zstd") && coding.eq_ignore_ascii_case("zstd") {
+            #[cfg(feature = "zstd")]
+            {
+                Some(Self::Zstd)
+            }
+            #[cfg(not(feature = "zstd"))]
+            {
+                None
+            }
         } else {
             None
         }
@@ -59,6 +74,8 @@ impl Codec {
         match self {
             Self::Gzip => "gzip",
             Self::Deflate => "deflate",
+            #[cfg(feature = "zstd")]
+            Self::Zstd => "zstd",
         }
     }
 
@@ -67,6 +84,8 @@ impl Codec {
         match self {
             Self::Gzip => gzip::encode(payload),
             Self::Deflate => deflate::encode(payload),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => zstd::encode(payload),
         }
     }
 
@@ -77,6 +96,8 @@ impl Codec {
         match self {
             Self::Gzip => gzip::encode_level(payload, level),
             Self::Deflate => deflate::encode_level(payload, level),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => zstd::encode_level(payload, level),
         }
     }
 
@@ -93,6 +114,8 @@ impl Codec {
         match self {
             Self::Gzip => gzip::encode_into(payload, level, out),
             Self::Deflate => deflate::encode_into(payload, level, out),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => zstd::encode_into(payload, level, out),
         }
     }
 
@@ -104,6 +127,8 @@ impl Codec {
         match self {
             Self::Gzip => gzip::decode(payload),
             Self::Deflate => deflate::decode(payload),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => zstd::decode(payload),
         }
     }
 
@@ -112,6 +137,8 @@ impl Codec {
         match self {
             Self::Gzip => gzip::decode_limited(payload, limits),
             Self::Deflate => deflate::decode_limited(payload, limits),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => zstd::decode_limited(payload, limits),
         }
     }
 }
@@ -120,23 +147,40 @@ impl Codec {
 mod tests {
     use super::Codec;
 
+    fn codecs() -> Vec<Codec> {
+        #[cfg(feature = "zstd")]
+        {
+            vec![Codec::Gzip, Codec::Deflate, Codec::Zstd]
+        }
+        #[cfg(not(feature = "zstd"))]
+        {
+            vec![Codec::Gzip, Codec::Deflate]
+        }
+    }
+
     #[test]
     fn parse_tokens() {
         assert_eq!(Codec::parse("gzip"), Some(Codec::Gzip));
         assert_eq!(Codec::parse("GZIP"), Some(Codec::Gzip));
         assert_eq!(Codec::parse("  deflate;q=0.5 "), Some(Codec::Deflate));
+        #[cfg(feature = "zstd")]
+        assert_eq!(Codec::parse(" ZSTD;q=0.5 "), Some(Codec::Zstd));
+        #[cfg(not(feature = "zstd"))]
+        assert_eq!(Codec::parse("zstd"), None);
         assert_eq!(Codec::parse("identity"), None);
         assert_eq!(Codec::parse(""), None);
         assert_eq!(Codec::parse("snappy"), None);
         assert_eq!(Codec::Gzip.name(), "gzip");
         assert_eq!(Codec::Deflate.name(), "deflate");
+        #[cfg(feature = "zstd")]
+        assert_eq!(Codec::Zstd.name(), "zstd");
         assert_eq!(Codec::default(), Codec::Gzip);
     }
 
     #[test]
     fn both_codecs_round_trip() {
         let payload = b"the quick brown fox jumps over the lazy dog".repeat(16);
-        for codec in [Codec::Gzip, Codec::Deflate] {
+        for codec in codecs() {
             let enc = codec.encode(&payload).expect("encode");
             let dec = codec
                 .decode_limited(&enc, crate::limits::MessageLimits::unlimited())
@@ -148,7 +192,7 @@ mod tests {
     #[test]
     fn encode_into_matches_encode() {
         let payload = b"the quick brown fox jumps over the lazy dog".repeat(16);
-        for codec in [Codec::Gzip, Codec::Deflate] {
+        for codec in codecs() {
             let mut into = Vec::new();
             codec
                 .encode_into(&payload, 1, &mut into)
@@ -167,5 +211,13 @@ mod tests {
         let limits = crate::limits::MessageLimits::unlimited();
         assert!(Codec::Deflate.decode_limited(&gz, limits).is_err());
         assert!(Codec::Gzip.decode_limited(&df, limits).is_err());
+        #[cfg(feature = "zstd")]
+        {
+            let zst = Codec::Zstd.encode(&payload).expect("zstd");
+            assert!(Codec::Gzip.decode_limited(&zst, limits).is_err());
+            assert!(Codec::Deflate.decode_limited(&zst, limits).is_err());
+            assert!(Codec::Zstd.decode_limited(&gz, limits).is_err());
+            assert!(Codec::Zstd.decode_limited(&df, limits).is_err());
+        }
     }
 }

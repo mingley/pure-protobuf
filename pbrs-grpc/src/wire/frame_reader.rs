@@ -430,8 +430,12 @@ pub(crate) fn refuse_encoding_reply(headers: &HeaderMap, accept_gzip: bool) -> R
         return Ok(());
     };
     if Codec::parse(token).is_none() {
+        #[cfg(feature = "zstd")]
+        let accepted = "identity, gzip, deflate, and zstd";
+        #[cfg(not(feature = "zstd"))]
+        let accepted = "identity, gzip, and deflate";
         return Err(Status::unimplemented(format!(
-            "grpc-encoding {token} not supported; this client accepts identity, gzip, and deflate"
+            "grpc-encoding {token} not supported; this client accepts {accepted}"
         )));
     }
     if !accept_gzip {

@@ -118,7 +118,7 @@ def tree_set(args):
 def main():
     meta = json.loads(
         subprocess.run(
-            ["cargo", "metadata", "--format-version", "1"],
+            ["cargo", "metadata", "--format-version", "1", "--all-features"],
             capture_output=True, text=True, check=True,
         ).stdout
     )

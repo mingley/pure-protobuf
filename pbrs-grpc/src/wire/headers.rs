@@ -20,11 +20,17 @@ pub(crate) const GRPC_ACCEPT_ENCODING: HeaderName = HeaderName::from_static("grp
 pub(crate) const USER_AGENT: HeaderName = HeaderName::from_static("user-agent");
 pub(crate) const APPLICATION_GRPC: HeaderValue = HeaderValue::from_static("application/grpc");
 pub(crate) const TRAILERS: HeaderValue = HeaderValue::from_static("trailers");
+#[cfg(not(feature = "zstd"))]
 pub(crate) const IDENTITY_GZIP_DEFLATE: HeaderValue =
     HeaderValue::from_static("identity,gzip,deflate");
+#[cfg(feature = "zstd")]
+pub(crate) const IDENTITY_GZIP_DEFLATE: HeaderValue =
+    HeaderValue::from_static("identity,gzip,deflate,zstd");
 pub(crate) const IDENTITY: HeaderValue = HeaderValue::from_static("identity");
 pub(crate) const GZIP: HeaderValue = HeaderValue::from_static("gzip");
 pub(crate) const DEFLATE: HeaderValue = HeaderValue::from_static("deflate");
+#[cfg(feature = "zstd")]
+pub(crate) const ZSTD: HeaderValue = HeaderValue::from_static("zstd");
 pub(crate) const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
 
 /// Kernel identity stamped on every outbound RPC. Prefixed by
@@ -56,6 +62,8 @@ pub(crate) fn encoding_value(codec: Codec) -> HeaderValue {
     match codec {
         Codec::Gzip => GZIP,
         Codec::Deflate => DEFLATE,
+        #[cfg(feature = "zstd")]
+        Codec::Zstd => ZSTD,
     }
 }
 
@@ -178,19 +186,25 @@ pub(crate) fn preferred_codec(
     configured: Codec,
     peer_gzip: bool,
     peer_deflate: bool,
+    #[cfg(feature = "zstd")] peer_zstd: bool,
 ) -> Option<Codec> {
     let accepts = |codec| match codec {
         Codec::Gzip => peer_gzip,
         Codec::Deflate => peer_deflate,
+        #[cfg(feature = "zstd")]
+        Codec::Zstd => peer_zstd,
     };
     if accepts(configured) {
         return Some(configured);
     }
-    let other = match configured {
-        Codec::Gzip => Codec::Deflate,
-        Codec::Deflate => Codec::Gzip,
-    };
-    accepts(other).then_some(other)
+    [
+        Codec::Gzip,
+        Codec::Deflate,
+        #[cfg(feature = "zstd")]
+        Codec::Zstd,
+    ]
+    .into_iter()
+    .find(|&fallback| fallback != configured && accepts(fallback))
 }
 
 /// Compress this payload only if the handler (or config, when the handler
@@ -283,7 +297,14 @@ pub(crate) fn grpc_encoding_admitted(value: &str, gzip: bool) -> bool {
 /// Trailers-only status for an encoding this process will not inflate.
 pub(crate) fn encoding_not_supported(gzip: bool) -> Status {
     Status::unimplemented(if gzip {
-        "grpc-encoding not supported; this server accepts identity, gzip, and deflate"
+        #[cfg(feature = "zstd")]
+        {
+            "grpc-encoding not supported; this server accepts identity, gzip, deflate, and zstd"
+        }
+        #[cfg(not(feature = "zstd"))]
+        {
+            "grpc-encoding not supported; this server accepts identity, gzip, and deflate"
+        }
     } else {
         "grpc-encoding not supported; this server accepts identity"
     })
