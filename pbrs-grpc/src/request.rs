@@ -2171,7 +2171,7 @@ pub struct Response<T> {
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
-    path: Option<String>,
+    path: Option<Cow<'static, str>>,
     gzip_level: u32,
     compresses_outbound: bool,
     accepts_gzip: bool,
@@ -2505,7 +2505,12 @@ impl<T> Response<T> {
     }
 
     pub(crate) fn with_path(mut self, path: Option<String>) -> Self {
-        self.path = path;
+        self.path = path.map(Cow::Owned);
+        self
+    }
+
+    pub(crate) fn with_static_path(mut self, path: &'static str) -> Self {
+        self.path = Some(Cow::Borrowed(path));
         self
     }
 
@@ -2837,7 +2842,7 @@ pub struct ResponseParts {
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
-    path: Option<String>,
+    path: Option<Cow<'static, str>>,
     gzip_level: u32,
     compresses_outbound: bool,
     accepts_gzip: bool,
