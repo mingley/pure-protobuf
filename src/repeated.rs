@@ -40,6 +40,7 @@ impl<T> Repeated<T> {
         RepeatedView {
             inner: self.as_slice(),
             raw: None,
+            enum_codec: None,
         }
     }
 
@@ -47,6 +48,7 @@ impl<T> Repeated<T> {
         RepeatedMut {
             inner: Some(self.ensure()),
             raw: None,
+            enum_codec: None,
             arena: None,
         }
     }
@@ -150,6 +152,7 @@ impl<T> FromIterator<T> for Repeated<T> {
 pub struct RepeatedView<'msg, T> {
     inner: &'msg [T],
     raw: Option<*const crate::runtime::RawArrayInner>,
+    enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
 }
 
 impl<T> Clone for RepeatedView<'_, T> {
@@ -161,22 +164,42 @@ impl<T> Copy for RepeatedView<'_, T> {}
 
 impl<'msg, T> RepeatedView<'msg, T> {
     pub fn from_slice(inner: &'msg [T]) -> Self {
-        Self { inner, raw: None }
-    }
-
-    #[doc(hidden)]
-    pub unsafe fn from_raw_ptr(raw: *const crate::runtime::RawArrayInner) -> Self {
         Self {
-            inner: &[],
-            raw: Some(raw),
+            inner,
+            raw: None,
+            enum_codec: None,
         }
     }
 
     #[doc(hidden)]
+    /// # Safety
+    /// `raw` must contain values of `T` in an arena that outlives `'msg`.
+    /// No mutation may invalidate data borrowed by this view or its derived views.
+    pub unsafe fn from_raw_ptr(raw: *const crate::runtime::RawArrayInner) -> Self
+    where
+        T: crate::internal::EntityType,
+        T::Tag: crate::runtime::KernelCollectionValue<T>,
+    {
+        Self {
+            inner: &[],
+            raw: Some(raw),
+            enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
+        }
+    }
+
+    #[doc(hidden)]
+    /// # Safety
+    /// The same typed storage and lifetime requirements as [`Self::from_raw_ptr`]
+    /// apply.
     pub unsafe fn from_raw(
         _private: crate::internal::Private,
         raw: crate::runtime::RawRepeatedField,
-    ) -> Self {
+    ) -> Self
+    where
+        T: crate::internal::EntityType,
+        T::Tag: crate::runtime::KernelCollectionValue<T>,
+    {
+        // SAFETY: caller provides exactly the from_raw_ptr contract.
         unsafe { Self::from_raw_ptr(raw) }
     }
 
@@ -197,7 +220,9 @@ impl<'msg, T> RepeatedView<'msg, T> {
         T: crate::proxied::Proxied + 'static,
     {
         if let Some(raw) = self.raw {
-            return unsafe { crate::runtime::kernel_repeated_get::<T>(raw, index) };
+            return unsafe {
+                crate::runtime::kernel_repeated_get::<T>(raw, index, self.enum_codec)
+            };
         }
         self.inner.get(index).map(crate::proxied::AsView::as_view)
     }
@@ -206,6 +231,7 @@ impl<'msg, T> RepeatedView<'msg, T> {
         RepeatedIter {
             inner: self.inner.iter(),
             raw: self.raw,
+            enum_codec: self.enum_codec,
             raw_i: 0,
         }
     }
@@ -221,6 +247,7 @@ impl<T: fmt::Debug> fmt::Debug for RepeatedView<'_, T> {
 pub struct RepeatedMut<'msg, T> {
     inner: Option<&'msg mut Vec<T>>,
     raw: Option<*const crate::runtime::RawArrayInner>,
+    enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
     arena: Option<&'msg crate::runtime::Arena>,
 }
 
@@ -229,27 +256,44 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         Self {
             inner: Some(inner),
             raw: None,
+            enum_codec: None,
             arena: None,
         }
     }
 
     #[doc(hidden)]
-    pub fn from_raw_inner(raw: *const crate::runtime::RawArrayInner) -> Self {
+    /// # Safety
+    /// `raw` must contain `T` values in an arena that outlives `'msg` and be
+    /// exclusively borrowed by this mutator, just as for [`Self::from_inner`].
+    pub unsafe fn from_raw_inner(raw: *const crate::runtime::RawArrayInner) -> Self
+    where
+        T: crate::internal::EntityType,
+        T::Tag: crate::runtime::KernelCollectionValue<T>,
+    {
         Self {
             inner: None,
             raw: Some(raw),
+            enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
             arena: None,
         }
     }
 
     #[doc(hidden)]
+    /// # Safety
+    /// `inner.raw` must contain `T` values owned by `inner.arena` for `'msg` and
+    /// be exclusively borrowed by this mutator.
     pub unsafe fn from_inner(
         _private: crate::internal::Private,
         inner: crate::runtime::InnerRepeatedMut<'msg>,
-    ) -> Self {
+    ) -> Self
+    where
+        T: crate::internal::EntityType,
+        T::Tag: crate::runtime::KernelCollectionValue<T>,
+    {
         Self {
             inner: None,
             raw: Some(inner.raw),
+            enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
             arena: Some(inner.arena),
         }
     }
@@ -262,7 +306,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         if let Some(v) = self.inner.as_mut() {
             v.push(value);
         } else if let Some(raw) = self.raw {
-            crate::runtime::kernel_array_push(raw, value, self.arena);
+            crate::runtime::kernel_array_push(raw, value, self.arena, self.enum_codec);
         }
     }
 
@@ -317,7 +361,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         if let Some(v) = self.inner.as_mut() {
             v[index] = value;
         } else if let Some(raw) = self.raw {
-            unsafe { crate::runtime::kernel_repeated_set(raw, index, value) };
+            unsafe { crate::runtime::kernel_repeated_set(raw, index, value, self.enum_codec) };
         }
     }
 
@@ -362,6 +406,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -381,6 +426,7 @@ impl<T: fmt::Debug> fmt::Debug for RepeatedMut<'_, T> {
 pub struct RepeatedIter<'msg, T> {
     inner: std::slice::Iter<'msg, T>,
     raw: Option<*const crate::runtime::RawArrayInner>,
+    enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
     raw_i: usize,
 }
 
@@ -388,7 +434,9 @@ impl<'msg, T: crate::proxied::Proxied + 'static> Iterator for RepeatedIter<'msg,
     type Item = crate::proxied::View<'msg, T>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(raw) = self.raw {
-            let v = unsafe { crate::runtime::kernel_repeated_get::<T>(raw, self.raw_i) };
+            let v = unsafe {
+                crate::runtime::kernel_repeated_get::<T>(raw, self.raw_i, self.enum_codec)
+            };
             if v.is_some() {
                 self.raw_i += 1;
             }
@@ -436,6 +484,7 @@ impl<'a, T: crate::proxied::Proxied + 'static> IntoIterator for RepeatedMut<'a, 
         RepeatedIter {
             inner,
             raw: self.raw,
+            enum_codec: self.enum_codec,
             raw_i: 0,
         }
     }
@@ -451,6 +500,7 @@ where
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
         .iter()
     }
@@ -491,6 +541,7 @@ impl<'msg, T: 'static> IntoView<'msg> for RepeatedView<'msg, T> {
         RepeatedView {
             inner: self.inner,
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -502,6 +553,7 @@ impl<T: 'static> AsView for RepeatedMut<'_, T> {
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -511,6 +563,7 @@ impl<T: 'static> AsMut for RepeatedMut<'_, T> {
         RepeatedMut {
             inner: self.inner.as_deref_mut(),
             raw: self.raw,
+            enum_codec: self.enum_codec,
             arena: self.arena,
         }
     }
@@ -523,6 +576,7 @@ impl<'msg, T: 'static> IntoView<'msg> for RepeatedMut<'msg, T> {
         RepeatedView {
             inner: self.inner.map(|v| v.as_slice()).unwrap_or(&[]),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -534,6 +588,7 @@ impl<'msg, T: 'static> IntoMut<'msg> for RepeatedMut<'msg, T> {
         RepeatedMut {
             inner: self.inner,
             raw: self.raw,
+            enum_codec: self.enum_codec,
             arena: self.arena,
         }
     }
@@ -648,8 +703,10 @@ mod tests {
     fn arena_backed_repeated_strings_are_reclaimed() {
         let arena = crate::runtime::Arena::new();
         let raw = arena.alloc_array();
+        // SAFETY: raw is owned by arena and exclusively borrowed by values,
+        // whose lifetime ends before its arena is dropped.
         let mut values: RepeatedMut<'_, crate::string::ProtoString> =
-            RepeatedMut::from_raw_inner(raw);
+            unsafe { RepeatedMut::from_raw_inner(raw) };
         values.push("alpha");
         values.push("beta");
         values.set(0, "gamma");
@@ -666,7 +723,9 @@ mod tests {
     fn arena_backed_set_rejects_an_invalid_index() {
         let arena = crate::runtime::Arena::new();
         let raw = arena.alloc_array();
-        let mut values: RepeatedMut<'_, i32> = RepeatedMut::from_raw_inner(raw);
+        // SAFETY: raw is owned by arena and exclusively borrowed by values,
+        // whose lifetime ends before its arena is dropped.
+        let mut values: RepeatedMut<'_, i32> = unsafe { RepeatedMut::from_raw_inner(raw) };
         values.set(0, 7);
     }
 }

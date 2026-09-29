@@ -17,3 +17,6 @@ mod gencode {
 }
 
 pub use gencode::*;
+
+#[cfg(test)]
+mod enum_map_regression;

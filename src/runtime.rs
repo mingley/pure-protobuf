@@ -32,6 +32,7 @@ pub use layout::RawRepeatedField;
 pub use layout::StringView;
 pub use map::InnerMapMut;
 pub use map::empty_map;
+pub use map::{KernelCollectionValue, KernelEnumCodec};
 pub use mini_table::__unstable;
 pub use mini_table::FieldType;
 pub use mini_table::MiniField;

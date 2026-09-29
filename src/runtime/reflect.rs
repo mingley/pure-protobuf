@@ -175,6 +175,23 @@ impl ProtoBytes {
     }
 }
 
+// SAFETY: callers must keep the typed collection's backing arena alive for 'msg
+// and retain its enum codec from construction. Non-enum values inherit the
+// storage/lifetime requirements of kernel_fieldkind_to_view.
+pub(crate) unsafe fn kernel_collection_value_to_view<'msg, T: crate::proxied::Proxied + 'static>(
+    fk: FieldKind,
+    enum_codec: Option<super::KernelEnumCodec<T>>,
+) -> Option<crate::proxied::View<'msg, T>> {
+    if let Some(codec) = enum_codec {
+        return match fk {
+            FieldKind::I32(value) => codec.view(value),
+            _ => None,
+        };
+    }
+    // SAFETY: the caller keeps the collection's arena-owned storage alive for 'msg.
+    unsafe { kernel_fieldkind_to_view::<'msg, T>(fk) }
+}
+
 pub(crate) unsafe fn kernel_fieldkind_to_view<'msg, T: crate::proxied::Proxied + 'static>(
     fk: FieldKind,
 ) -> Option<crate::proxied::View<'msg, T>> {
@@ -258,10 +275,8 @@ pub(crate) unsafe fn kernel_fieldkind_to_view<'msg, T: crate::proxied::Proxied +
             }
             return kernel_msg_ptr_to_view::<'msg, T>(p);
         }
-        // PB07-F3: no 4-byte view without a named arm above exists, so the
-        // former size-based transmute fallback was unreachable; it is
-        // removed rather than fixed, since transmuting into an unknown
-        // view type cannot be proven sound.
+        // Unknown types never gain enum conversion from their size. The raw
+        // collection constructor captures an explicit typed enum codec separately.
         let _ = fk;
         None
     }
@@ -389,16 +404,19 @@ pub unsafe fn message_set_sub_message<
 pub unsafe fn message_set_repeated_field<
     'msg,
     P: Message + AssociatedMiniTable,
-    T: Clone + 'static,
+    T: Clone + crate::internal::EntityType + 'static,
 >(
     parent: MessageMutInner<'msg, P>,
     index: u32,
     val: impl IntoProxied<crate::repeated::Repeated<T>>,
-) {
+) where
+    T::Tag: super::KernelCollectionValue<T>,
+{
     let child = val.into_proxied(Private);
     let arr = parent.arena.alloc_array();
+    let enum_codec = <T::Tag as super::KernelCollectionValue<T>>::enum_codec();
     for item in child.as_slice() {
-        kernel_array_push(arr, item.clone(), Some(parent.arena));
+        kernel_array_push(arr, item.clone(), Some(parent.arena), enum_codec);
     }
     unsafe {
         parent.ptr.set_array_at_index(index, arr);
@@ -409,16 +427,19 @@ pub unsafe fn message_set_map_field<
     'msg,
     P: Message + AssociatedMiniTable,
     K: crate::map::MapKey,
-    V: crate::map::MapValue,
+    V: crate::map::MapValue + crate::internal::EntityType,
 >(
     parent: MessageMutInner<'msg, P>,
     index: u32,
     val: impl IntoProxied<crate::map::Map<K, V>>,
-) {
+) where
+    V::Tag: super::KernelCollectionValue<V>,
+{
     let child = val.into_proxied(Private);
     let m = parent.arena.alloc_map();
+    let enum_codec = <V::Tag as super::KernelCollectionValue<V>>::enum_codec();
     for (k, v) in child.iter() {
-        kernel_map_insert(m, k.clone(), v.clone(), Some(parent.arena));
+        kernel_map_insert(m, k.clone(), v.clone(), Some(parent.arena), enum_codec);
     }
     unsafe {
         parent.ptr.set_map_at_index(index, m);

@@ -763,7 +763,7 @@ mod tests {
     fn cloned_repeated_strings_are_owned_by_the_new_arena() {
         let original = Arena::new();
         let raw = original.alloc_array();
-        kernel_array_push(raw, ProtoString::from("beta"), Some(&original));
+        kernel_array_push(raw, ProtoString::from("beta"), Some(&original), None);
         let clone = Arena::new();
         let kind = clone_field_kind(FieldKind::Repeated(raw), &clone);
         drop(original);

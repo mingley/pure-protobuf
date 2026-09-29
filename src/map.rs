@@ -327,6 +327,7 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
                 inner: Some(inner.entries.as_slice()),
                 index: Some(&inner.index),
                 raw: None,
+                enum_codec: None,
             },
             None => MapView::empty(),
         }
@@ -338,6 +339,7 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
             inner: Some(&mut inner.entries),
             index: Some(&mut inner.index),
             raw: None,
+            enum_codec: None,
             arena: None,
         }
     }
@@ -503,6 +505,7 @@ pub struct MapView<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg [(K, V)]>,
     index: Option<&'msg LastWins<K>>,
     raw: Option<crate::runtime::RawMap>,
+    enum_codec: Option<crate::runtime::KernelEnumCodec<V>>,
 }
 
 impl<K: MapKey, V: MapValue> Clone for MapView<'_, K, V> {
@@ -519,6 +522,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
             inner: None,
             index: None,
             raw: None,
+            enum_codec: None,
         }
     }
 
@@ -531,29 +535,41 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
                 inner: Some(items),
                 index: None,
                 raw: None,
+                enum_codec: None,
             }
         }
     }
 
     #[doc(hidden)]
-    pub unsafe fn from_raw(
-        _private: crate::internal::Private,
-        raw: crate::runtime::RawMap,
-    ) -> Self {
+    /// # Safety
+    /// `raw` must point to a live map with keys `K` and values `V`, owned by an
+    /// arena that outlives `'msg`. No mutation may invalidate its borrowed data
+    /// while this view or any view derived from it is live.
+    pub unsafe fn from_raw(_private: crate::internal::Private, raw: crate::runtime::RawMap) -> Self
+    where
+        V: crate::internal::EntityType,
+        V::Tag: crate::runtime::KernelCollectionValue<V>,
+    {
         Self {
             inner: None,
             index: None,
             raw: Some(raw),
+            enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
         }
     }
 
     #[doc(hidden)]
-    pub unsafe fn from_raw_ptr(raw: crate::runtime::RawMap) -> Self {
-        Self {
-            inner: None,
-            index: None,
-            raw: Some(raw),
-        }
+    /// # Safety
+    /// The same typed storage and lifetime requirements as [`Self::from_raw`]
+    /// apply.
+    pub unsafe fn from_raw_ptr(raw: crate::runtime::RawMap) -> Self
+    where
+        V: crate::internal::EntityType,
+        V::Tag: crate::runtime::KernelCollectionValue<V>,
+    {
+        // SAFETY: the caller supplies the same typed map/lifetime contract as
+        // from_raw; this alias only supplies its internal marker.
+        unsafe { Self::from_raw(crate::internal::Private, raw) }
     }
 
     pub fn get(self, key: impl MapQuery<K>) -> Option<crate::proxied::View<'msg, V>>
@@ -562,7 +578,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     {
         if let Some(raw) = self.raw {
             let kb = key.key_bytes();
-            return unsafe { crate::runtime::kernel_map_get_bytes::<V>(raw, &kb) };
+            return unsafe { crate::runtime::kernel_map_get_bytes::<V>(raw, &kb, self.enum_codec) };
         }
         let entries = self.inner?;
         if self.index.is_some() {
@@ -625,6 +641,7 @@ pub struct MapMut<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg mut Vec<(K, V)>>,
     index: Option<&'msg mut LastWins<K>>,
     raw: Option<crate::runtime::RawMap>,
+    enum_codec: Option<crate::runtime::KernelEnumCodec<V>>,
     arena: Option<&'msg crate::runtime::Arena>,
 }
 
@@ -634,29 +651,47 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
             inner: Some(inner),
             index: None,
             raw: None,
+            enum_codec: None,
             arena: None,
         }
     }
 
     #[doc(hidden)]
+    /// # Safety
+    /// `inner.raw` must be a live map with keys `K` and values `V`, owned by
+    /// `inner.arena` for `'msg` and exclusively borrowed by this mutator.
     pub unsafe fn from_inner(
         _private: crate::internal::Private,
         inner: crate::runtime::InnerMapMut<'msg>,
-    ) -> Self {
+    ) -> Self
+    where
+        V: crate::internal::EntityType,
+        V::Tag: crate::runtime::KernelCollectionValue<V>,
+    {
         Self {
             inner: None,
             index: None,
             raw: Some(inner.raw),
+            enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
             arena: Some(inner.arena),
         }
     }
 
     #[doc(hidden)]
-    pub fn from_raw_inner(raw: crate::runtime::RawMap) -> Self {
+    /// # Safety
+    /// `raw` must be a live arena-owned map with keys `K` and values `V`.
+    /// Its arena must outlive `'msg`; the map must be exclusively borrowed by
+    /// this mutator, just as for [`Self::from_inner`].
+    pub unsafe fn from_raw_inner(raw: crate::runtime::RawMap) -> Self
+    where
+        V: crate::internal::EntityType,
+        V::Tag: crate::runtime::KernelCollectionValue<V>,
+    {
         Self {
             inner: None,
             index: None,
             raw: Some(raw),
+            enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
             arena: None,
         }
     }
@@ -706,7 +741,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
             v.push((key, value));
             true
         } else if let Some(raw) = self.raw {
-            crate::runtime::kernel_map_insert(raw, key, value, self.arena)
+            crate::runtime::kernel_map_insert(raw, key, value, self.arena, self.enum_codec)
         } else {
             false
         }
@@ -886,6 +921,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapView<'msg, K, V> {
             inner: self.inner,
             index: self.index,
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -898,6 +934,7 @@ impl<K: MapKey, V: MapValue> AsView for MapMut<'_, K, V> {
             inner: self.inner.as_ref().map(|v| v.as_slice()),
             index: self.index.as_deref(),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -908,6 +945,7 @@ impl<K: MapKey, V: MapValue> AsMut for MapMut<'_, K, V> {
             inner: self.inner.as_deref_mut(),
             index: self.index.as_deref_mut(),
             raw: self.raw,
+            enum_codec: self.enum_codec,
             arena: self.arena,
         }
     }
@@ -921,6 +959,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapMut<'msg, K, V> {
             inner: self.inner.map(|v| v.as_slice()),
             index: self.index.map(|i| &*i),
             raw: self.raw,
+            enum_codec: self.enum_codec,
         }
     }
 }
@@ -933,6 +972,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoMut<'msg> for MapMut<'msg, K, V> {
             inner: self.inner,
             index: self.index,
             raw: self.raw,
+            enum_codec: self.enum_codec,
             arena: self.arena,
         }
     }
@@ -984,7 +1024,10 @@ impl<
                     let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(key_bytes) else {
                         continue;
                     };
-                    let Some(v) = crate::runtime::kernel_fieldkind_to_view::<'msg, V>(*fk) else {
+                    let Some(v) = crate::runtime::kernel_collection_value_to_view::<'msg, V>(
+                        *fk,
+                        view.enum_codec,
+                    ) else {
                         continue;
                     };
                     items.push(Some((k, v)));
@@ -1284,7 +1327,9 @@ mod tests {
     fn arena_backed_map_values_are_reclaimed() {
         let arena = crate::runtime::Arena::new();
         let raw = arena.alloc_map();
-        let mut map: MapMut<'_, ProtoString, ProtoString> = MapMut::from_raw_inner(raw);
+        // SAFETY: raw is owned by arena and exclusively borrowed by map until
+        // map is dropped before its backing arena.
+        let mut map: MapMut<'_, ProtoString, ProtoString> = unsafe { MapMut::from_raw_inner(raw) };
         assert!(map.insert("alpha", "one"));
         assert!(!map.insert("alpha", "two"));
         assert_eq!(

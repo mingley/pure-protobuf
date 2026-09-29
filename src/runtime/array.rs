@@ -9,7 +9,7 @@ use crate::string::{ProtoBytes, ProtoString};
 use std::fmt::Debug;
 
 use super::{
-    Arena, FieldKind, RawRepeatedField, adopt_owned_msg, kernel_fieldkind_to_view,
+    Arena, FieldKind, RawRepeatedField, adopt_owned_msg, kernel_collection_value_to_view,
     kernel_msg_ptr_to_mut, release_bytes, retain_bytes,
 };
 
@@ -33,11 +33,16 @@ pub(crate) fn kernel_array_push<T: 'static>(
     raw: RawRepeatedField,
     value: T,
     arena: Option<&Arena>,
+    enum_codec: Option<super::KernelEnumCodec<T>>,
 ) {
     use std::any::TypeId;
     unsafe {
         let arr = &*raw;
-        if TypeId::of::<T>() == TypeId::of::<ProtoString>() {
+        if let Some(codec) = enum_codec {
+            arr.items
+                .borrow_mut()
+                .push(FieldKind::I32(codec.into_i32(value)));
+        } else if TypeId::of::<T>() == TypeId::of::<ProtoString>() {
             let s = std::ptr::read(&value as *const T as *const ProtoString);
             std::mem::forget(value);
             arr.items.borrow_mut().push(FieldKind::Bytes(retain_bytes(
@@ -79,10 +84,6 @@ pub(crate) fn kernel_array_push<T: 'static>(
             let v = std::ptr::read(&value as *const T as *const f64);
             std::mem::forget(value);
             arr.items.borrow_mut().push(FieldKind::F64(v));
-        } else if std::mem::size_of::<T>() == 4 && std::mem::align_of::<T>() == 4 {
-            let v = std::ptr::read(&value as *const T as *const i32);
-            std::mem::forget(value);
-            arr.items.borrow_mut().push(FieldKind::I32(v));
         } else {
             arr.items
                 .borrow_mut()
@@ -94,21 +95,23 @@ pub(crate) fn kernel_array_push<T: 'static>(
 pub(crate) unsafe fn kernel_repeated_get<'msg, T: crate::proxied::Proxied + 'static>(
     raw: RawRepeatedField,
     index: usize,
+    enum_codec: Option<super::KernelEnumCodec<T>>,
 ) -> Option<crate::proxied::View<'msg, T>> {
     let items = unsafe { (*raw).items.borrow() };
     let fk = *items.get(index)?;
-    unsafe { kernel_fieldkind_to_view::<'msg, T>(fk) }
+    unsafe { kernel_collection_value_to_view::<'msg, T>(fk, enum_codec) }
 }
 
 pub(crate) unsafe fn kernel_repeated_set<T: 'static>(
     raw: RawRepeatedField,
     index: usize,
     value: T,
+    enum_codec: Option<super::KernelEnumCodec<T>>,
 ) {
     let arr = unsafe { &*raw };
     let old = arr.items.borrow_mut().remove(index);
     release_bytes(&arr.strs, old);
-    kernel_array_push(raw, value, None);
+    kernel_array_push(raw, value, None, enum_codec);
     let mut items = arr.items.borrow_mut();
     let last = items.pop().unwrap();
     items.insert(index, last);
