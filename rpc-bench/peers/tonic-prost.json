@@ -1,0 +1,67 @@
+{
+  "$schema": "./peer.schema.json",
+  "id": "tonic-prost",
+  "name": "tonic-prost",
+  "description": "End-to-end reference: tonic 0.14 transport with the prost codec (tonic-interop binary); server-only because no prost load generator exists",
+  "role": ["server"],
+  "comparison": "end_to_end",
+  "language": "rust",
+  "runtime": "tokio + hyper + h2",
+  "codec": "prost",
+  "upstream_pin": {
+    "repository": "hyperium/tonic",
+    "version": "v0.14.6",
+    "prost_version": "v0.14.4",
+    "notes": "Exact versions resolved in tests/interop/tonic/Cargo.lock; build with --locked"
+  },
+  "server": {
+    "description": "Tonic interop reference server (from tests/interop/tonic)",
+    "binary_name": "tonic-interop",
+    "candidates": [
+      "target/release/tonic-interop",
+      "target/debug/tonic-interop",
+      "tests/interop/tonic/target/release/tonic-interop",
+      "tests/interop/tonic/target/debug/tonic-interop"
+    ],
+    "build_command": "cargo build --locked --release --manifest-path tests/interop/tonic/Cargo.toml --target-dir target",
+    "args_template": [
+      "{binary}",
+      "server",
+      "--port={port}"
+    ],
+    "transport_contract": {
+      "tcp_nodelay": "peer default, not getsockopt-verified",
+      "mechanism": "tonic-interop server defaults; unlike tonic-pbrs this server is not passed through the rpc-bench native-matched transport settings, so nodelay/window/frame terms are peer defaults recorded per run"
+    },
+    "readiness": {
+      "type": "socket_connect"
+    }
+  },
+  "client": {
+    "supported": false,
+    "reason": "No prost load generator exists (tonic-interop only runs named interop cases, not the rpc-bench workload). The matrix fails tonic-prost client cells explicitly instead of substituting the pbrs codec."
+  },
+  "matching_configuration": {
+    "tcp_nodelay": true,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1,
+    "compression": "none",
+    "cores": "matched pinned cores; effective quota recorded per run",
+    "http2_windows": "tonic-interop server defaults (not passed through the native-matched transport contract; recorded per run)",
+    "message_limits": "tonic-interop server defaults; 4 MiB native-side worker body cap",
+    "deadlines": "interop server defaults; 5 s native-side worker deadline",
+    "handler_work": "same TestService procedures and payloads as native; prost decode/encode in place of pbrs",
+    "payload_sizes": {
+      "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
+      "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },
+      "stream": { "message_bytes": 1024 },
+      "ping_pong": { "message_bytes": 0, "round_trips": 256 },
+      "upload": { "message_bytes": 1024 }
+    }
+  },
+  "tls": {
+    "supported": false,
+    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-prost are unsupported with this reason, never silently plaintext."
+  }
+}

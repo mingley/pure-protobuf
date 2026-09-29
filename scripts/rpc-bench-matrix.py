@@ -446,28 +446,15 @@ MATCHING_CONFIGURATION = {
     "tls_cipher": "TLS_AES_128_GCM_SHA256",
     "connections": 1,
     "concurrency": 1,
-    "payload_sizes": {
-        "empty_unary": {"request_bytes": 0, "response_bytes": 0},
-        "large_unary": {"request_bytes": 271828, "response_bytes": 314159},
-        "stream": {"message_bytes": 1024},
-        "ping_pong": {"message_bytes": 0, "round_trips": 256},
-        "upload": {"message_bytes": 1024},
-    },
-}
-
-
-def find_free_port() -> int:
-    """Find an available ephemeral TCP port."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
-
-
-MATCHING_CONFIGURATION = {
-    "tcp_nodelay": True,
-    "tls_cipher": "TLS_AES_128_GCM_SHA256",
-    "connections": 1,
-    "concurrency": 1,
+    # BM-07: full matched-dimension set per contract accept (2). Dimensions
+    # the harness cannot pin on official peers stay explicit peer defaults
+    # (see rpc-bench/peers/*.json); they are recorded, never assumed equal.
+    "compression": "none",
+    "cores": "matched pinned cores per stage; effective quota recorded in cpu_constraints",
+    "http2_windows": "16 MiB stream/connection windows on native and tonic-pbrs; go/cpp peer defaults",
+    "message_limits": "4 MiB worker body cap; receiving-peer protobuf overhead counted",
+    "deadlines": "5 s worker call deadline; soak per-iteration ceiling 5000 ms",
+    "handler_work": "identical TestService/BenchmarkService procedures and validation on every peer",
     "payload_sizes": {
         "empty_unary": {"request_bytes": 0, "response_bytes": 0},
         "large_unary": {"request_bytes": 271828, "response_bytes": 314159},
@@ -1217,6 +1204,16 @@ def run_single_benchmark(
                 run["client_workload"] = client_workload
                 run["client_binary"] = client_binary
                 run["server_binary"] = server_binary
+                # BM-07: every crossed direction records its comparison
+                # class and endpoint configuration differences, so
+                # same-codec transport cells are never averaged with or
+                # ranked against end-to-end reference cells.
+                run["comparison_type"] = classify_comparison(
+                    client_peer, server_peer, client_codec, server_codec, client_workload
+                )
+                run["configuration_gaps"] = configuration_gaps(
+                    client_codec, server_codec, client_workload
+                )
                 metrics = run.setdefault("metrics", {})
                 successful = metrics.get("successful_rpcs", 0)
 
@@ -1321,6 +1318,11 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
     """Generate isolation comparison tables:
     1. Server Efficiency (Fixed Load Generator)
     2. Client Efficiency (Fixed Server)
+
+    Each axis splits into same-codec-transport and end-to-end tables.
+    A numeric vs-native delta is emitted only when the row shares the
+    baseline's load-generator workload; otherwise the row is listed as
+    not comparable with its reason, never ranked as a win or loss.
     """
     records = []
     for run in all_runs:
@@ -1360,6 +1362,9 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
             "client_peer": c_peer,
             "shape_id": shape_id,
             "shape_name": shape_name,
+            "comparison_type": run.get("comparison_type") or END_TO_END,
+            "client_workload": run.get("client_workload") or "unknown",
+            "configuration_gaps": run.get("configuration_gaps") or [],
             "qps": qps,
             "p50_us": p50_us,
             "p99_us": p99_us,
@@ -1380,9 +1385,11 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
     output_text_parts = []
 
     # 1. Server Efficiency Table (Fixed Load Generator / Client)
-    server_groups: Dict[Tuple[str, str], List[Dict]] = {}
+    # BM-07: groups split by comparison type so same-codec transport
+    # cells never share a table with end-to-end reference cells.
+    server_groups: Dict[Tuple[str, str, str], List[Dict]] = {}
     for r in records:
-        key = (r["client_peer"], r["shape_id"])
+        key = (r["client_peer"], r["shape_id"], r["comparison_type"])
         server_groups.setdefault(key, []).append(r)
 
     srv_headers = [
@@ -1390,23 +1397,56 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
         "Server CPU", "CPU/RPC", "Peak RSS", "Server Eff", "vs Native Delta"
     ]
 
-    for (c_peer, shape_id), group in server_groups.items():
+    for (c_peer, shape_id, comparison), group in server_groups.items():
         shape_disp = group[0]["shape_name"]
-        title = f"SERVER EFFICIENCY COMPARISON (Fixed Load Generator: client={c_peer}, shape={shape_disp})"
+        title = (
+            f"SERVER EFFICIENCY COMPARISON [{comparison}] "
+            f"(Fixed Load Generator: client={c_peer}, shape={shape_disp})"
+        )
         base = next((r for r in group if r["server_peer"] == "native"), None)
+        if base is None:
+            # End-to-end groups exclude the native pair (classified
+            # same-codec); pull it in as the fixed-generator baseline so
+            # reference servers still compare against native, not each other.
+            base = next(
+                (
+                    r
+                    for r in records
+                    if r["client_peer"] == c_peer
+                    and r["server_peer"] == "native"
+                    and r["shape_id"] == shape_id
+                ),
+                None,
+            )
+        display_group = list(group)
+        if base is not None and all(
+            r["server_peer"] != base["server_peer"] or r["client_peer"] != base["client_peer"]
+            for r in display_group
+        ):
+            display_group.insert(0, base)
 
         rows = []
         group_results = []
-        for r in group:
+        for r in display_group:
             s_peer = r["server_peer"]
-            if s_peer == "native":
+            comparable = base is not None and _workloads_match(
+                r["client_workload"], base["client_workload"]
+            )
+            incomparable_reason = ""
+            if r is base or (s_peer == "native" and r["client_peer"] == c_peer):
                 delta_str = "Baseline"
-            elif base:
+                comparable = True
+            elif base is None:
+                delta_str = "N/A (no native baseline: incomplete matrix)"
+            elif not comparable:
+                incomparable_reason = (
+                    f"load generator differs: {r['client_workload']} vs {base['client_workload']}"
+                )
+                delta_str = f"not comparable ({incomparable_reason})"
+            else:
                 p50_diff = ((r["p50_us"] - base["p50_us"]) / base["p50_us"] * 100.0) if base["p50_us"] > 0 else 0.0
                 cpu_diff = ((r["server_cpu_per_rpc_us"] - base["server_cpu_per_rpc_us"]) / base["server_cpu_per_rpc_us"] * 100.0) if base["server_cpu_per_rpc_us"] > 0 else 0.0
                 delta_str = f"{'+' if p50_diff >= 0 else ''}{p50_diff:.1f}% p50, {'+' if cpu_diff >= 0 else ''}{cpu_diff:.1f}% CPU"
-            else:
-                delta_str = "N/A"
 
             row = [
                 s_peer,
@@ -1424,6 +1464,9 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
             group_results.append({
                 "server_peer": s_peer,
                 "shape": shape_id,
+                "comparison_type": r["comparison_type"],
+                "client_workload": r["client_workload"],
+                "configuration_gaps": r["configuration_gaps"],
                 "throughput_qps": r["qps"],
                 "p50_us": r["p50_us"],
                 "p99_us": r["p99_us"],
@@ -1431,6 +1474,8 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
                 "server_cpu_per_rpc_us": r["server_cpu_per_rpc_us"],
                 "server_peak_rss_mib": r["server_rss_mib"],
                 "server_efficiency_rpc_per_cpu_sec": r["server_eff"],
+                "comparable": comparable,
+                "incomparability_reason": incomparable_reason,
                 "delta_vs_native": delta_str,
             })
 
@@ -1438,13 +1483,22 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
         tables_json["server_efficiency"].append({
             "fixed_client": c_peer,
             "shape": shape_id,
+            "comparison_type": comparison,
+            "baseline_pair": (
+                {"client_peer": base["client_peer"], "server_peer": base["server_peer"]}
+                if base is not None
+                else None
+            ),
             "results": group_results,
         })
 
     # 2. Client Efficiency Table (Fixed Server)
-    client_groups: Dict[Tuple[str, str], List[Dict]] = {}
+    # BM-07: same comparison-type split as the server tables. Reference
+    # soak clients drive a different workload than the rpc-bench load
+    # generator, so they are listed but never ranked against it.
+    client_groups: Dict[Tuple[str, str, str], List[Dict]] = {}
     for r in records:
-        key = (r["server_peer"], r["shape_id"])
+        key = (r["server_peer"], r["shape_id"], r["comparison_type"])
         client_groups.setdefault(key, []).append(r)
 
     cli_headers = [
@@ -1452,23 +1506,56 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
         "Client CPU", "CPU/RPC", "Peak RSS", "Client Eff", "vs Native Delta"
     ]
 
-    for (s_peer, shape_id), group in client_groups.items():
+    for (s_peer, shape_id, comparison), group in client_groups.items():
         shape_disp = group[0]["shape_name"]
-        title = f"CLIENT EFFICIENCY COMPARISON (Fixed Server: server={s_peer}, shape={shape_disp})"
+        title = (
+            f"CLIENT EFFICIENCY COMPARISON [{comparison}] "
+            f"(Fixed Server: server={s_peer}, shape={shape_disp})"
+        )
         base = next((r for r in group if r["client_peer"] == "native"), None)
+        if base is None:
+            # End-to-end groups exclude the native pair (classified
+            # same-codec); pull it in as the fixed-server baseline so the
+            # table names what reference clients are held against.
+            base = next(
+                (
+                    r
+                    for r in records
+                    if r["server_peer"] == s_peer
+                    and r["client_peer"] == "native"
+                    and r["shape_id"] == shape_id
+                ),
+                None,
+            )
+        display_group = list(group)
+        if base is not None and all(
+            r["client_peer"] != base["client_peer"] or r["server_peer"] != base["server_peer"]
+            for r in display_group
+        ):
+            display_group.insert(0, base)
 
         rows = []
         group_results = []
-        for r in group:
+        for r in display_group:
             c_peer = r["client_peer"]
-            if c_peer == "native":
+            comparable = base is not None and _workloads_match(
+                r["client_workload"], base["client_workload"]
+            )
+            incomparable_reason = ""
+            if r is base or (c_peer == "native" and r["server_peer"] == s_peer):
                 delta_str = "Baseline"
-            elif base:
+                comparable = True
+            elif base is None:
+                delta_str = "N/A (no native baseline: incomplete matrix)"
+            elif not comparable:
+                incomparable_reason = (
+                    f"load generator differs: {r['client_workload']} vs {base['client_workload']}"
+                )
+                delta_str = f"not comparable ({incomparable_reason})"
+            else:
                 p50_diff = ((r["p50_us"] - base["p50_us"]) / base["p50_us"] * 100.0) if base["p50_us"] > 0 else 0.0
                 cpu_diff = ((r["client_cpu_per_rpc_us"] - base["client_cpu_per_rpc_us"]) / base["client_cpu_per_rpc_us"] * 100.0) if base["client_cpu_per_rpc_us"] > 0 else 0.0
                 delta_str = f"{'+' if p50_diff >= 0 else ''}{p50_diff:.1f}% p50, {'+' if cpu_diff >= 0 else ''}{cpu_diff:.1f}% CPU"
-            else:
-                delta_str = "N/A"
 
             row = [
                 c_peer,
@@ -1486,6 +1573,9 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
             group_results.append({
                 "client_peer": c_peer,
                 "shape": shape_id,
+                "comparison_type": r["comparison_type"],
+                "client_workload": r["client_workload"],
+                "configuration_gaps": r["configuration_gaps"],
                 "throughput_qps": r["qps"],
                 "p50_us": r["p50_us"],
                 "p99_us": r["p99_us"],
@@ -1493,6 +1583,8 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
                 "client_cpu_per_rpc_us": r["client_cpu_per_rpc_us"],
                 "client_peak_rss_mib": r["client_rss_mib"],
                 "client_efficiency_rpc_per_cpu_sec": r["client_eff"],
+                "comparable": comparable,
+                "incomparability_reason": incomparable_reason,
                 "delta_vs_native": delta_str,
             })
 
@@ -1500,6 +1592,12 @@ def generate_comparison_tables(all_runs: List[Dict]) -> Tuple[Dict[str, Any], st
         tables_json["client_efficiency"].append({
             "fixed_server": s_peer,
             "shape": shape_id,
+            "comparison_type": comparison,
+            "baseline_pair": (
+                {"client_peer": base["client_peer"], "server_peer": base["server_peer"]}
+                if base is not None
+                else None
+            ),
             "results": group_results,
         })
 
@@ -1520,6 +1618,64 @@ PEER_CODECS: Dict[str, str] = {
     "go": "google.golang.org/protobuf",
     "cpp": "google::protobuf (upb/C++)",
 }
+
+SAME_CODEC_TRANSPORT = "same-codec-transport"
+END_TO_END = "end-to-end"
+
+# Peer roles that execute the pbrs codec under the rpc-bench load
+# generator. Only cells with both endpoints in this set isolate the
+# transport; every other crossed direction is an end-to-end comparison.
+SAME_CODEC_PEERS = frozenset({"native", TONIC_PBRS})
+
+
+def classify_comparison(
+    client_peer: str,
+    server_peer: str,
+    client_codec: str,
+    server_codec: str,
+    client_workload: str,
+) -> str:
+    """Classify a crossed cell as transport-only or end-to-end.
+
+    A same-codec transport cell needs the pbrs codec on both endpoints AND
+    the shared rpc-bench load generator. Anything else (prost/go/cpp codec,
+    interop-soak workload, legacy alias) is an end-to-end comparison.
+    """
+    if (
+        client_workload == "rpc-bench"
+        and client_peer in SAME_CODEC_PEERS
+        and server_peer in SAME_CODEC_PEERS
+        and client_codec == "pbrs"
+        and server_codec == "pbrs"
+    ):
+        return SAME_CODEC_TRANSPORT
+    return END_TO_END
+
+
+def configuration_gaps(
+    client_codec: str, server_codec: str, client_workload: str
+) -> List[str]:
+    """Name the configuration differences between the two endpoints.
+
+    An empty list means both endpoints ran the identical codec under the
+    identical load generator. A non-empty list is recorded on the run and
+    disqualifies numeric cross-cell deltas against a different workload.
+    """
+    gaps = []
+    if client_codec != server_codec:
+        gaps.append(f"codec differs: client={client_codec} server={server_codec}")
+    if client_workload != "rpc-bench":
+        gaps.append(f"load generator differs: {client_workload} vs rpc-bench open-loop")
+    return gaps
+
+
+def _workloads_match(row_workload: str, base_workload: str) -> bool:
+    """Two cells share a load generator only when both workloads are known equal."""
+    return (
+        bool(row_workload)
+        and row_workload != "unknown"
+        and row_workload == base_workload
+    )
 
 
 def normalize_peer(name: str) -> str:
@@ -1668,6 +1824,12 @@ def main() -> int:
     print(f"  TLS Cipher:          {MATCHING_CONFIGURATION['tls_cipher']}")
     print(f"  Connections:         {MATCHING_CONFIGURATION['connections']}")
     print(f"  Concurrency:         {MATCHING_CONFIGURATION['concurrency']}")
+    print(f"  Compression:         {MATCHING_CONFIGURATION['compression']}")
+    print(f"  Cores:               {MATCHING_CONFIGURATION['cores']}")
+    print(f"  HTTP/2 Windows:      {MATCHING_CONFIGURATION['http2_windows']}")
+    print(f"  Message Limits:      {MATCHING_CONFIGURATION['message_limits']}")
+    print(f"  Deadlines:           {MATCHING_CONFIGURATION['deadlines']}")
+    print(f"  Handler Work:        {MATCHING_CONFIGURATION['handler_work']}")
     print(f"  Empty Unary Payload: {MATCHING_CONFIGURATION['payload_sizes']['empty_unary']['request_bytes']}B req / {MATCHING_CONFIGURATION['payload_sizes']['empty_unary']['response_bytes']}B resp")
     print(f"  Large Unary Payload: {MATCHING_CONFIGURATION['payload_sizes']['large_unary']['request_bytes']}B req / {MATCHING_CONFIGURATION['payload_sizes']['large_unary']['response_bytes']}B resp")
     print(f"  Streaming Payload:   {MATCHING_CONFIGURATION['payload_sizes']['stream']['message_bytes']}B / message")

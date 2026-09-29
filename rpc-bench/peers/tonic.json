@@ -16,12 +16,14 @@
   "codec_variants": {
     "tonic-prost": {
       "description": "End-to-end reference: tonic 0.14 transport with prost codec (tonic-interop binary)",
+      "manifest": "rpc-bench/peers/tonic-prost.json",
       "roles": ["server"],
       "client_support": false,
       "client_support_notes": "No prost load generator exists; the matrix fails tonic-prost client cells explicitly instead of substituting the pbrs codec."
     },
     "tonic-pbrs": {
       "description": "Same-codec transport reference: tonic 0.14 transport with pbrs codec (rpc-bench --transport=tonic); isolates transport deltas from serialization",
+      "manifest": "rpc-bench/peers/tonic-pbrs.json",
       "roles": ["client", "server"]
     },
     "tonic": {
@@ -96,6 +98,12 @@
     "tls_cipher": "TLS_AES_128_GCM_SHA256",
     "connections": 1,
     "concurrency": 1,
+    "compression": "none",
+    "cores": "matched pinned cores; effective quota recorded per run",
+    "http2_windows": "16 MiB native-matched windows on tonic-pbrs; tonic-interop server defaults on tonic-prost (see rpc-bench/peers/tonic-pbrs.json and tonic-prost.json)",
+    "message_limits": "4 MiB worker body cap on tonic-pbrs; tonic-prost server defaults",
+    "deadlines": "5 s worker deadline on tonic-pbrs; interop server defaults on tonic-prost",
+    "handler_work": "same TestService procedures and payloads as native on both flavors; codec is pbrs (tonic-pbrs) or prost (tonic-prost)",
     "payload_sizes": {
       "empty_unary": { "request_bytes": 0, "response_bytes": 0 },
       "large_unary": { "request_bytes": 271828, "response_bytes": 314159 },

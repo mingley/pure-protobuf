@@ -1,20 +1,21 @@
 {
   "$schema": "./peer.schema.json",
-  "id": "native",
-  "name": "pbrs-grpc",
-  "description": "Pure-Rust native gRPC transport and pure-protobuf codec implementation",
+  "id": "tonic-pbrs",
+  "name": "tonic-pbrs",
+  "description": "Same-codec transport reference: tonic 0.14 transport with the pbrs codec (rpc-bench --transport=tonic); isolates transport deltas from serialization",
   "role": ["client", "server"],
+  "comparison": "same_codec_transport",
   "language": "rust",
-  "runtime": "tokio + pbrs-grpc",
+  "runtime": "tokio + hyper + h2",
   "codec": "pbrs",
   "upstream_pin": {
-    "repository": "mingley/pure-protobuf",
-    "version": "in-tree",
-    "commit": "HEAD",
-    "notes": "Native pbrs-grpc transport and pure-protobuf codec engine"
+    "repository": "hyperium/tonic",
+    "version": "v0.14.6",
+    "prost_version": "v0.14.4",
+    "notes": "Exact versions resolved in tests/interop/tonic/Cargo.lock; build with --locked. Transport only; the codec is the in-tree pbrs engine."
   },
   "server": {
-    "description": "pbrs-grpc native benchmark server (from rpc-bench)",
+    "description": "Tonic benchmark server with native-matched transport settings (from rpc-bench fair_tonic_server)",
     "binary_name": "rpc-bench",
     "candidates": [
       "target/release/rpc-bench",
@@ -26,18 +27,28 @@
     "args_template": [
       "{binary}",
       "server",
-      "--transport=native",
+      "--transport=tonic",
       "--host={host}",
       "--port={port}",
       "--timeout-secs={timeout_secs}"
     ],
+    "transport_contract": {
+      "tcp_nodelay": true,
+      "stream_window": 16777216,
+      "conn_window": 16777216,
+      "frame_size": 1048576,
+      "max_streams": 256,
+      "adaptive_window": false,
+      "header_list": 16384,
+      "mechanism": "rpc-bench fair_tonic_server: 16 MiB windows, 1 MiB frames, 256 streams, TCP_NODELAY on with getsockopt verification (NodelayIncoming); identical contract to the native peer"
+    },
     "readiness": {
       "type": "stdout_or_socket",
       "stdout_pattern": "^READY\\s+port=(\\d+)\\s+addr=([^\\s]+)"
     }
   },
   "client": {
-    "description": "pbrs-grpc native benchmark client (from rpc-bench)",
+    "description": "Tonic benchmark client with native-matched transport settings (from rpc-bench fair_tonic_endpoint)",
     "binary_name": "rpc-bench",
     "candidates": [
       "target/release/rpc-bench",
@@ -50,7 +61,7 @@
       "{binary}",
       "client",
       "--server_addr={server_addr}",
-      "--transport=native",
+      "--transport=tonic",
       "--shape={shape}",
       "--output={output_file}"
     ],
@@ -63,7 +74,7 @@
     "concurrency": 1,
     "compression": "none",
     "cores": "matched pinned cores; effective quota recorded per run",
-    "http2_windows": "16 MiB stream/connection windows, 1 MiB frames, 256 max streams, 16 KiB header list, adaptive window off (pbrs_grpc tcp::tune, NODELAY always)",
+    "http2_windows": "16 MiB stream/connection windows, 1 MiB frames, 256 max streams, 16 KiB header list, adaptive window off (native-matched)",
     "message_limits": "4 MiB worker body cap; receiving-peer protobuf overhead counted",
     "deadlines": "5 s worker call deadline",
     "handler_work": "identical TestService/BenchmarkService procedures and validation on every peer",
@@ -76,13 +87,7 @@
     }
   },
   "tls": {
-    "supported": true,
-    "server_args_template": ["--tls-cert={tls_cert}", "--tls-key={tls_key}"],
-    "client_args_template": ["--tls-ca={tls_ca}", "--tls-server-name={tls_server_name}"],
-    "default_cert": "pbrs-grpc/tests/tls_data/server.crt",
-    "default_key": "pbrs-grpc/tests/tls_data/server.key",
-    "default_ca": "pbrs-grpc/tests/tls_data/ca.crt",
-    "default_server_name": "localhost",
-    "notes": "Test-only PKI for loopback cells; dedicated-host stages mount their own certs. Resolved by bench/stack-matrix/peertls.py."
+    "supported": false,
+    "reason": "rpc-bench has no TLS for the tonic transport: tonic 0.14 TLS pulls a C crypto provider, conflicting with the pure-Rust dependency policy (QG-04). TLS cells touching tonic-pbrs are unsupported with this reason, never silently plaintext."
   }
 }
