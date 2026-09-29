@@ -60,6 +60,15 @@ API was changed. Finish these gaps, RX-09's equivalent-work profiles and
 SB-20's calibration. The
 [benchmark contract](docs/benchmark-contract.md) owns numeric thresholds.
 
+## Dominance program
+
+Goal: pbrs-grpc beats tonic with prost in every cell, with prost or pbrs
+messages and on client and server alike, in CPU, allocations and wall time.
+The [dominance program](docs/plan/dominance/README.md) defines the matrix and
+the bar, and seeds a loss ledger in which every loss has an owning card.
+Start with SB-27 (after SB-26) and RX-10, then flip the known losses: SV-09,
+CL-08, CL-07, CL-09, PK-26, PK-27 and PK-29.
+
 ## Adoption program
 
 Goal: teams on prost and tonic adopt pbrs one layer at a time, without

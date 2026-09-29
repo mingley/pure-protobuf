@@ -2899,7 +2899,7 @@
     "CG-20"
    ],
    "status": "in_progress",
-   "notes": "2026-09-29 coordinator: on landing, re-run the GN-04 SB-09 generation cells — residual prost gaps (Envoy core ~55ms, googleapis ~noise) should close via output-volume shrink; record the re-measure in gn04-codegen-speed.md."
+   "notes": "2026-09-29 coordinator: on landing, re-run the GN-04 SB-09 generation cells — residual prost gaps (Envoy core ~55ms, googleapis ~noise) should close via output-volume shrink; record the re-measure in gn04-codegen-speed.md. Dominance ledger owner: generated source and build-time cells (B3/B4/B6) still show broad losses to prost; see docs/plan/dominance/README.md."
   },
   {
    "id": "GN-03",
@@ -9922,6 +9922,469 @@
    ],
    "scoreboard": [],
    "relates": []
+  },
+  {
+   "id": "SB-27",
+   "title": "Build the dominance matrix and loss ledger",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "L",
+   "depends_on": [
+    "SB-26"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/benchmark-contract.md",
+    "bench/devloop/src/main.rs",
+    "rpc-bench/src/main.rs",
+    "scripts/rpc-bench-matrix.py"
+   ],
+   "write": [
+    "bench/devloop/",
+    "rpc-bench/",
+    "scripts/dominance-ledger.py",
+    "docs/evidence/dominance-ledger.md",
+    "tests/"
+   ],
+   "deliverable": "Measure every cell in the dominance program. Compare prost messages and pbrs messages on pbrs-grpc against tonic 0.14 with prost 0.14, plus tonic with pbrs messages for codec attribution. Cover all call shapes, payloads (empty, 1 KiB, 64 KiB, 1 MiB and the SB-26 corpora), h2c and TLS 1.3, identity and gzip, and concurrency (1 call in flight; 16 streams on 1 connection; 64 connections with 16 streams). Client and server run in separate processes. Report per-side instructions, allocations, allocated bytes, task wakeups, context switches and syscalls per RPC. A generator writes docs/evidence/dominance-ledger.md with each cell's win, tie or loss.",
+   "accept": [
+    "Settings match the SB-01 fairness rules, and every compared pair passes equal-checksum and equal-bytes checks before timing.",
+    "Instructions use the (2N-N)/N method per process, and allocations are exact per process.",
+    "The ledger generator exits nonzero when a loss has no owning card ID, and it seeds the known losses listed in the dominance program.",
+    "A baseline ledger is committed with its source revision, host and limits."
+   ],
+   "checks": [
+    "rpc-bench-tests",
+    "codec-bench"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4",
+    "A5",
+    "A13"
+   ],
+   "relates": [
+    "SB-24",
+    "RX-09"
+   ],
+   "notes": "Phase 0 of the dominance program. SB-28 adds wall-time rows from dedicated hosts; SB-29 turns won cells into gates."
+  },
+  {
+   "id": "SB-28",
+   "title": "Measure dominance wall time on dedicated hosts",
+   "lane": "SB",
+   "milestone": "M8",
+   "priority": "P1",
+   "executor": "operator",
+   "size": "M",
+   "depends_on": [
+    "SB-27",
+    "SB-21"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/benchmark-contract.md",
+    "docs/evidence/dominance-ledger.md"
+   ],
+   "write": [
+    "docs/evidence/",
+    "scripts/dominance-ledger.py"
+   ],
+   "deliverable": "For every ledger cell, measure on dedicated x86_64 and arm64 hosts: p50 and p99 latency at fixed offered load, sustainable QPS per core within the SLO, streaming messages per second per core, time to first RPC (cold and with TLS), and RSS per connection and per stream. Use contract §6 statistics, and feed the results into the ledger.",
+   "accept": [
+    "Raw artifacts, host inventory, sysctls, toolchains and peer versions are retained, with 95% intervals.",
+    "The ledger marks each wall-time metric as win, tie or loss using those intervals, and every loss gets an owning card."
+   ],
+   "checks": [
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "C1",
+    "C2",
+    "C3",
+    "C7",
+    "D1",
+    "D2",
+    "D3",
+    "D5"
+   ],
+   "relates": [
+    "SB-22"
+   ]
+  },
+  {
+   "id": "SB-29",
+   "title": "Gate every won dominance cell",
+   "lane": "SB",
+   "milestone": "M8",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "SB-27",
+    "SB-20"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/dominance-ledger.md",
+    ".github/workflows/"
+   ],
+   "write": [
+    ".github/workflows/",
+    "scripts/dominance-ledger.py",
+    "docs/benchmarks.md"
+   ],
+   "deliverable": "Once SB-20 has calibrated noise thresholds, every ledger cell that wins becomes a blocking check in the performance workflow. A change that turns a win into a tie or loss fails unless it links a maintainer-approved card.",
+   "accept": [
+    "A deliberate regression in a won cell fails the workflow.",
+    "Performance-affecting pull requests show their ledger delta.",
+    "The threshold decision is recorded and approved by the maintainer."
+   ],
+   "checks": [
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "SB-20",
+    "SB-23"
+   ]
+  },
+  {
+   "id": "RX-10",
+   "title": "Budget scheduler work per RPC on both sides",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/h2-costs.md",
+    "docs/evidence/rx-08.md",
+    "docs/decisions/server-dispatch.md",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/rt/"
+   ],
+   "write": [
+    "pbrs-grpc/src/copy_counts.rs",
+    "bench/devloop/",
+    "docs/decisions/",
+    "docs/evidence/"
+   ],
+   "deliverable": "Tokio scheduling is 54-59% of self instructions in RPC cells, and the server-streaming wakeup proxy is 14.8 involuntary context switches per RPC. Count task spawns, wakeups, channel sends, cross-thread handoffs and context switches per RPC on the client and server for each call shape. Set a budget for each, and choose designs on the current h2 backend to reach it, such as a single-owner connection driver, fewer channel hops, or batched wakes.",
+   "accept": [
+    "Counters sit behind the existing bench-only feature and add no cost when disabled.",
+    "An attribution table per side and call shape sums to the measured instruction totals within 5%.",
+    "The decision record sets per-shape budgets (for example, at most one spawn and two cross-task wakeups per unary RPC per side), gives the expected ledger deltas, and files implementation cards. SV-08 and CL-08 consume it."
+   ],
+   "checks": [
+    "native-rpc",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "RX-08",
+    "SV-03",
+    "H2-16",
+    "AD-04"
+   ]
+  },
+  {
+   "id": "SV-08",
+   "title": "Dispatch short handlers inline with a fairness budget",
+   "lane": "SV",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "RX-10"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/decisions/server-dispatch.md",
+    "pbrs-grpc/src/server/dispatch.rs",
+    "pbrs-grpc/src/server/connection.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/tests/",
+    "docs/decisions/server-dispatch.md"
+   ],
+   "deliverable": "Poll handler futures on the connection task within a cooperative budget, and fall back to spawning when the budget runs out or the handler blocks. This removes the per-RPC spawn and wakeups for short handlers. It must meet the four preconditions in docs/decisions/server-dispatch.md.",
+   "accept": [
+    "A deterministic fairness test shows a slow unary handler cannot stall unrelated streams beyond the documented budget.",
+    "Budget and fallback behavior, lifecycle, cancellation and resource-bound tests all pass.",
+    "Dev-loop server allocations and instructions per RPC fall on the ledger's unary and streaming cells, with no primary p99 regression beyond noise."
+   ],
+   "checks": [
+    "native-serving",
+    "native-hostile",
+    "native-rpc"
+   ],
+   "scoreboard": [
+    "D2",
+    "D4"
+   ],
+   "relates": [
+    "SV-03"
+   ]
+  },
+  {
+   "id": "SV-09",
+   "title": "Close the server-streaming instruction gap to tonic",
+   "lane": "SV",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/tc-03-prost.md",
+    "docs/evidence/rx-08.md",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/stream.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/stream.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "bench/devloop/"
+   ],
+   "deliverable": "With prost messages, server streaming costs 170,930 instructions per RPC against tonic's 150,409 (TC-03 cells). Attribute the difference to producer yield and batching, per-message frame writes, channel hops and codec buffer reuse, then remove it.",
+   "accept": [
+    "rpc.prost.server_stream is at or below rpc.tonic_prost.server_stream on instructions, allocations and bytes per RPC, and the pbrs-message streaming cells improve too.",
+    "Unary cells do not regress.",
+    "The before and after attribution is retained."
+   ],
+   "checks": [
+    "native-rpc",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "C3",
+    "D3",
+    "D4"
+   ],
+   "relates": [
+    "RX-08",
+    "RX-09"
+   ]
+  },
+  {
+   "id": "CL-08",
+   "title": "Match or beat tonic bytes per RPC on the prost path",
+   "lane": "CL",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/tc-03-prost.md",
+    "pbrs-grpc/src/codec.rs",
+    "pbrs-grpc/src/codec/",
+    "pbrs-grpc/src/client/"
+   ],
+   "write": [
+    "pbrs-grpc/src/codec.rs",
+    "pbrs-grpc/src/codec/",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/server/",
+    "bench/devloop/"
+   ],
+   "deliverable": "With prost messages, pbrs-grpc allocates more bytes per RPC than tonic: 52,021 against 49,177 on unary, and 75,173 against 58,058 on server streaming (TC-03). Pre-size encode buffers from encoded_len, encode directly into the frame buffer, reuse per-stream buffers and remove double buffering on both client and server.",
+   "accept": [
+    "Bytes per RPC are at or below tonic's on both TC-03 cells and on every prost row of the ledger, with no allocation-count regression.",
+    "Any buffer pool involved is bounded and covered by the resource-budget tests."
+   ],
+   "checks": [
+    "native-rpc",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4",
+    "A13"
+   ],
+   "relates": [
+    "RX-07",
+    "TC-03"
+   ]
+  },
+  {
+   "id": "CL-09",
+   "title": "Beat tonic on tail latency and ping-pong",
+   "lane": "CL",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "RX-10"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/scoreboard.md",
+    "docs/evidence/h2-costs.md",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/transport/"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/transport/",
+    "rpc-bench/"
+   ],
+   "deliverable": "In the SB-01 fair rerun, tonic wins empty-unary p99 latency and bidirectional ping-pong throughput. Find the wake and flush latency behind this (yields on single messages, deferred flushes, cross-thread handoffs) and remove it on both sides.",
+   "accept": [
+    "In the fair harness with at least 5 paired repeats, empty-unary p99 and ping-pong throughput are no worse than tonic's, and p50 does not regress.",
+    "Server-streaming and upload throughput cells do not regress."
+   ],
+   "checks": [
+    "rpc-bench-tests",
+    "native-rpc"
+   ],
+   "scoreboard": [
+    "C1",
+    "C3",
+    "D1"
+   ],
+   "relates": [
+    "SB-01"
+   ]
+  },
+  {
+   "id": "RX-11",
+   "title": "Make compressed calls cheaper than tonic's",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/decisions/compression.md",
+    "docs/evidence/h2-costs.md",
+    "pbrs-grpc/src/compression/"
+   ],
+   "write": [
+    "pbrs-grpc/src/compression/",
+    "pbrs-grpc/Cargo.toml",
+    "docs/decisions/compression.md",
+    "bench/devloop/"
+   ],
+   "deliverable": "Gzip is 49.8% of instructions in compressed unary cells. Reuse compressor and decompressor state per stream or connection, compress directly into frame buffers, and evaluate a faster pure-Rust deflate backend. A new backend is a dependency decision and needs maintainer approval.",
+   "accept": [
+    "Gzip ledger cells are at or below tonic with gzip on instructions, allocations and bytes, on both client and server.",
+    "Interop with Go, C++ and tonic gzip peers still passes, and the pure-Rust dependency audit passes for every profile."
+   ],
+   "checks": [
+    "interop",
+    "native-rpc"
+   ],
+   "scoreboard": [
+    "E4"
+   ],
+   "relates": [
+    "RX-06"
+   ]
+  },
+  {
+   "id": "RX-12",
+   "title": "Make TLS cost no more than tonic's",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-25"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/",
+    "pbrs-grpc/src/tls.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tls.rs",
+    "bench/devloop/",
+    "docs/guides/production-service.md"
+   ],
+   "deliverable": "Measure CPU per RPC and handshake rate with each available crypto provider (graviola, ring, aws-lc-rs) after TC-25, and tune record sizes, buffer reuse and session resumption.",
+   "accept": [
+    "TLS ledger cells are at or below tonic with tls-ring on instructions and allocations per RPC, with the same cipher suite.",
+    "The handshake rate is at or above tonic's.",
+    "Provider guidance lists the measured deltas."
+   ],
+   "checks": [
+    "native-tls",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "D6",
+    "E3"
+   ],
+   "relates": [
+    "RX-04"
+   ]
+  },
+  {
+   "id": "PK-29",
+   "title": "Choose eager or lazy decode per message",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "PK-26"
+   ],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "src/codegen/parse.rs",
+    "src/codegen/messages.rs",
+    "src/lazy.rs",
+    "docs/decisions/table-driven-parse.md"
+   ],
+   "write": [
+    "src/codegen/",
+    "src/lazy.rs",
+    "src/rt.rs",
+    "tests/",
+    "docs/guides/codegen.md"
+   ],
+   "deliverable": "Lazy decode wins only when fields go unread. Add a generated eager owned-decode path and a per-message or per-package option (eager, lazy or auto). Auto picks eager for recursive, deep or Any-bearing messages and lazy for wide messages that are usually read sparsely, so workloads that read every field never pay lazy overhead.",
+   "accept": [
+    "Conformance and the generated-type tests pass in every mode.",
+    "On all SB-26 corpora, auto mode's parse_touch uses at most 0.8× prost's instructions and 0.5× its allocations, and decode-only cells keep their lazy wins where lazy is chosen.",
+    "The option is documented, and the default is decided in a recorded maintainer decision."
+   ],
+   "checks": [
+    "codegen",
+    "conformance",
+    "codec-bench"
+   ],
+   "scoreboard": [
+    "A3",
+    "A5",
+    "A13"
+   ],
+   "relates": [
+    "PK-27",
+    "PK-07"
+   ]
   }
  ],
  "last_audit": {

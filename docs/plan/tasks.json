@@ -2546,7 +2546,8 @@
         "codegen",
         "shape-bench",
         "conformance"
-      ]
+      ],
+      "notes": "Dominance ledger owner: encoding an 80-byte string field costs pbrs 219.6 instructions against prost's 203.9 (docs/evidence/codec-profiles.md); see docs/plan/dominance/README.md."
     },
     {
       "id": "OP-03",

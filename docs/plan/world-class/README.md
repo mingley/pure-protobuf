@@ -9,6 +9,8 @@ Published results must name the workload and competitors and show losses.
 [`37683917`](https://github.com/mingley/pure-protobuf/tree/37683917c65fd06082a392f07e4d71bd587b18b9).
 **Coordinator:** Michael Ingley.
 **Start work:** [current priorities](../../../TODO.md).
+**Every-cell bar:** the [dominance program](../dominance/README.md) tracks
+each workload cell that still loses to tonic and prost.
 **Task records:** [performance and expansion](tasks.json), plus
 [foundation work](../tasks.json).
 

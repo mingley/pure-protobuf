@@ -9,6 +9,8 @@ cost on their real workloads. That is a program target, not a current claim.
 **Cards:** the `AD` lane plus adoption cards in other lanes, in
 [`../world-class/tasks.json`](../world-class/tasks.json).
 **Start work:** [current priorities](../../../TODO.md).
+**Every-cell bar:** the [dominance program](../dominance/README.md) extends
+these targets to every workload cell and both message layers.
 **Worker rules:** [worker protocol](../world-class/README.md#worker-protocol),
 plus the program rules below.
 
