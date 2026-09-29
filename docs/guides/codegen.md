@@ -203,6 +203,26 @@ Config::new()
 
 Alternatively, set `PURE_PROTOBUF_EMIT_DEPS=1` in the environment.
 
+### Descriptor sharing and lazy loading
+
+Every generated file embeds the same `FILE_DESCRIPTOR_SET` bytes, so any
+single file keeps compiling standalone via `include!`. Sharing happens at
+runtime instead of in the emitted source:
+
+- Each file's `generated_pool()` initializes on first reflection use, so
+  binaries that never touch descriptors never parse them.
+- `DescriptorPool::from_file_descriptor_set` parses identical bytes once per
+  process and shares the parsed pool across all generated files that embed
+  them. Repeat loads are cache hits, not re-parses.
+- Sharing is invisible to callers: `register_message` and `register_enum`
+  copy on write, malformed bytes still fail eagerly, and the `Debug` shape is
+  unchanged.
+
+No configuration is needed. The accessor-only profile
+(`emit_reflection=false,emit_json=false,emit_text=false`) skips embedding
+descriptor bytes entirely; see
+[GN-03 evidence](../evidence/gn-03-descriptor-sharing.md) for measurements.
+
 ---
 
 ## 4. Standalone CLI Plugin (`protoc-gen-pbrs`)

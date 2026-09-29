@@ -16,7 +16,7 @@ use crate::wire::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 /// Maximum nesting depth for binary, JSON, and text parse.
 /// A payload nested more than this many messages returns [`ParseError`].
@@ -621,8 +621,10 @@ struct SymbolMetadata {
     effective_visibility: u32,
 }
 
+/// Resolved descriptor data shared by every [`DescriptorPool`] parsed from
+/// identical `FileDescriptorSet` bytes (see the pool cache below).
 #[derive(Clone, Debug, Default)]
-pub struct DescriptorPool {
+struct PoolInner {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
     extensions_by_name: BTreeMap<String, (String, u32, String)>,
@@ -634,6 +636,76 @@ pub struct DescriptorPool {
     symbol_metadata: BTreeMap<String, SymbolMetadata>,
 }
 
+/// Process-wide cache of parsed descriptor pools keyed by the exact
+/// `FileDescriptorSet` bytes they were built from.
+///
+/// Every generated file embeds the same descriptor bytes so that standalone
+/// `include!` consumers keep working; without this cache each file's
+/// `generated_pool()` would re-parse those identical bytes. The cache is a
+/// fixed set of lock-free [`OnceLock`] slots sharded by a hash of the bytes:
+/// a slot holds the first pool stored there for the life of the process, and
+/// a shard collision (or a lost insert race) simply falls back to the
+/// freshly parsed pool, so sharing is best-effort and never incorrect.
+struct PoolCacheSlot {
+    bytes: Vec<u8>,
+    inner: Arc<PoolInner>,
+}
+
+const POOL_CACHE_SLOTS: usize = 64;
+
+static POOL_CACHE: [OnceLock<PoolCacheSlot>; POOL_CACHE_SLOTS] =
+    [const { OnceLock::new() }; POOL_CACHE_SLOTS];
+
+fn fds_slot(bytes: &[u8]) -> usize {
+    let mut hash = 0_usize;
+    for &b in bytes {
+        hash = hash.wrapping_mul(31).wrapping_add(usize::from(b));
+    }
+    hash % POOL_CACHE_SLOTS
+}
+
+fn cached_pool_inner(bytes: &[u8]) -> Option<Arc<PoolInner>> {
+    let entry = POOL_CACHE.get(fds_slot(bytes))?.get()?;
+    (entry.bytes.as_slice() == bytes).then(|| entry.inner.clone())
+}
+
+fn cache_pool_inner(bytes: &[u8], inner: Arc<PoolInner>) -> Arc<PoolInner> {
+    let Some(slot) = POOL_CACHE.get(fds_slot(bytes)) else {
+        return inner;
+    };
+    let entry = slot.get_or_init(|| PoolCacheSlot {
+        bytes: bytes.to_vec(),
+        inner: inner.clone(),
+    });
+    if entry.bytes.as_slice() == bytes {
+        entry.inner.clone()
+    } else {
+        inner
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct DescriptorPool {
+    inner: Arc<PoolInner>,
+}
+
+impl fmt::Debug for DescriptorPool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Same shape as the pre-sharing derived `Debug` so existing
+        // diagnostics and log snapshots are unaffected.
+        f.debug_struct("DescriptorPool")
+            .field("messages", &self.inner.messages)
+            .field("enums", &self.inner.enums)
+            .field("extensions_by_name", &self.inner.extensions_by_name)
+            .field("services", &self.inner.services)
+            .field("files", &self.inner.files)
+            .field("public_imports", &self.inner.public_imports)
+            .field("file_metadata", &self.inner.file_metadata)
+            .field("symbol_metadata", &self.inner.symbol_metadata)
+            .finish()
+    }
+}
+
 impl DescriptorPool {
     pub fn new() -> Self {
         Self::default()
@@ -641,22 +713,26 @@ impl DescriptorPool {
 
     /// Fully-qualified names of every message in the pool.
     pub fn collect_names(&self) -> Vec<String> {
-        self.messages.keys().cloned().collect()
+        self.inner.messages.keys().cloned().collect()
     }
 
     pub fn get_message(&self, full_name: &str) -> Option<Arc<MessageDescriptor>> {
-        self.messages
+        self.inner
+            .messages
             .get(full_name.trim_start_matches('.'))
             .cloned()
     }
 
     pub fn get_enum(&self, full_name: &str) -> Option<Arc<EnumDescriptor>> {
-        self.enums.get(full_name.trim_start_matches('.')).cloned()
+        self.inner
+            .enums
+            .get(full_name.trim_start_matches('.'))
+            .cloned()
     }
 
     fn lookup_file_metadata(&self, file_name: &str) -> Option<&FileMetadata> {
         let file = self.get_file(file_name)?;
-        self.file_metadata.get(&file.name)
+        self.inner.file_metadata.get(&file.name)
     }
 
     /// Edition number for a file loaded from a descriptor set.
@@ -684,42 +760,46 @@ impl DescriptorPool {
 
     /// Resolved JSON format of a message or enum loaded from a descriptor set.
     pub fn symbol_json_format(&self, full_name: &str) -> Option<u32> {
-        self.symbol_metadata
+        self.inner
+            .symbol_metadata
             .get(full_name.trim_start_matches('.'))
             .map(|m| m.features.json_format)
     }
 
     /// Resolved naming style of a message or enum loaded from a descriptor set.
     pub fn symbol_naming_style(&self, full_name: &str) -> Option<u32> {
-        self.symbol_metadata
+        self.inner
+            .symbol_metadata
             .get(full_name.trim_start_matches('.'))
             .map(|m| m.features.naming_style)
     }
 
     /// Declared visibility (`UNSET = 0`, `LOCAL = 1`, `EXPORT = 2`) of a message or enum.
     pub fn declared_symbol_visibility(&self, full_name: &str) -> Option<u32> {
-        self.symbol_metadata
+        self.inner
+            .symbol_metadata
             .get(full_name.trim_start_matches('.'))
             .map(|m| m.declared_visibility)
     }
 
     /// Effective visibility (`LOCAL = 1`, `EXPORT = 2`) of a message or enum.
     pub fn effective_symbol_visibility(&self, full_name: &str) -> Option<u32> {
-        self.symbol_metadata
+        self.inner
+            .symbol_metadata
             .get(full_name.trim_start_matches('.'))
             .map(|m| m.effective_visibility)
     }
 
     /// Fully-qualified names of every enum in the pool.
     pub fn collect_enum_names(&self) -> Vec<String> {
-        self.enums.keys().cloned().collect()
+        self.inner.enums.keys().cloned().collect()
     }
 
     #[cfg(feature = "codegen")]
     pub(crate) fn public_import_files(&self, targets: &[String]) -> Vec<String> {
         let mut out = Vec::new();
         for t in targets {
-            for (file, pubs) in &self.public_imports {
+            for (file, pubs) in &self.inner.public_imports {
                 if file_name_matches(t, file) {
                     for p in pubs {
                         if !out.contains(p) {
@@ -738,7 +818,7 @@ impl DescriptorPool {
         full_name: &str,
     ) -> Option<(Arc<MessageDescriptor>, FieldDescriptor)> {
         let key = full_name.trim_start_matches('.');
-        let (extendee, number, _) = self.extensions_by_name.get(key)?;
+        let (extendee, number, _) = self.inner.extensions_by_name.get(key)?;
         let desc = self.get_message(extendee)?;
         let field = desc.field(*number)?.clone();
         Some((desc, field))
@@ -747,7 +827,8 @@ impl DescriptorPool {
     /// File that declares the extension of `containing_type` numbered `number`.
     pub fn file_for_extension(&self, containing_type: &str, number: u32) -> Option<&str> {
         let ty = containing_type.trim_start_matches('.');
-        self.extensions_by_name
+        self.inner
+            .extensions_by_name
             .values()
             .find(|(extendee, n, _)| extendee == ty && *n == number)
             .map(|(_, _, file)| file.as_str())
@@ -758,6 +839,7 @@ impl DescriptorPool {
     pub fn extension_numbers_of(&self, containing_type: &str) -> Vec<u32> {
         let ty = containing_type.trim_start_matches('.');
         let mut nums: Vec<u32> = self
+            .inner
             .extensions_by_name
             .values()
             .filter(|(extendee, _, _)| extendee == ty)
@@ -769,22 +851,27 @@ impl DescriptorPool {
     }
 
     pub fn register_message(&mut self, desc: MessageDescriptor) -> Arc<MessageDescriptor> {
+        // Copy-on-write: pools parsed from identical bytes share one `Arc`,
+        // so a mutation must not disturb the cached entry or its siblings.
+        let inner = Arc::make_mut(&mut self.inner);
         let key = desc.full_name.clone();
-        let _ = self.symbol_metadata.remove(&key);
+        let _ = inner.symbol_metadata.remove(&key);
         let arc = Arc::new(desc);
-        self.messages.insert(key, arc.clone());
+        inner.messages.insert(key, arc.clone());
         arc
     }
 
     pub fn get_service(&self, full_name: &str) -> Option<Arc<ServiceDescriptor>> {
-        self.services
+        self.inner
+            .services
             .get(full_name.trim_start_matches('.'))
             .cloned()
     }
 
     pub fn get_file(&self, name: &str) -> Option<Arc<FileDescriptor>> {
-        self.files.get(name).cloned().or_else(|| {
-            self.files
+        self.inner.files.get(name).cloned().or_else(|| {
+            self.inner
+                .files
                 .values()
                 .find(|f| file_name_matches(name, &f.name))
                 .cloned()
@@ -792,87 +879,108 @@ impl DescriptorPool {
     }
 
     pub fn collect_services(&self) -> Vec<Arc<ServiceDescriptor>> {
-        self.services.values().cloned().collect()
+        self.inner.services.values().cloned().collect()
     }
 
     pub fn register_enum(&mut self, desc: EnumDescriptor) -> Arc<EnumDescriptor> {
+        // Copy-on-write: see `register_message`.
+        let inner = Arc::make_mut(&mut self.inner);
         let key = desc.full_name.clone();
-        let _ = self.symbol_metadata.remove(&key);
+        let _ = inner.symbol_metadata.remove(&key);
         let arc = Arc::new(desc);
-        self.enums.insert(key, arc.clone());
+        inner.enums.insert(key, arc.clone());
         arc
     }
 
     /// Parse a serialized `google.protobuf.FileDescriptorSet`.
+    ///
+    /// The first call for a given byte string parses eagerly and reports
+    /// malformed input here, exactly as before. Repeat calls with identical
+    /// bytes — the normal case for generated files, which all embed the same
+    /// descriptor set — reuse the already-parsed pool instead of parsing
+    /// again, so descriptors are effectively loaded once per process per
+    /// unique descriptor set, on first reflection use. Pools that share
+    /// parsed data still behave as independent values: [`register_message`](Self::register_message)
+    /// and [`register_enum`](Self::register_enum) copy on write.
     pub fn from_file_descriptor_set(bytes: &[u8]) -> Result<Self, ParseError> {
-        let files = parse_file_descriptor_set(bytes)?;
-        let mut raw: BTreeMap<String, RawMessage> = BTreeMap::new();
-        let mut raw_enums: BTreeMap<String, RawEnum> = BTreeMap::new();
-        let mut extensions = Vec::new();
-        for file in &files {
-            collect_raw(file, &mut raw, &mut raw_enums, &mut extensions);
+        if let Some(inner) = cached_pool_inner(bytes) {
+            return Ok(Self { inner });
         }
-        let edition2024_files: BTreeSet<String> = files
+        let inner = Arc::new(parse_pool_inner(bytes)?);
+        Ok(Self {
+            inner: cache_pool_inner(bytes, inner),
+        })
+    }
+}
+
+fn parse_pool_inner(bytes: &[u8]) -> Result<PoolInner, ParseError> {
+    let files = parse_file_descriptor_set(bytes)?;
+    let mut raw: BTreeMap<String, RawMessage> = BTreeMap::new();
+    let mut raw_enums: BTreeMap<String, RawEnum> = BTreeMap::new();
+    let mut extensions = Vec::new();
+    for file in &files {
+        collect_raw(file, &mut raw, &mut raw_enums, &mut extensions);
+    }
+    let edition2024_files: BTreeSet<String> = files
+        .iter()
+        .filter(|file| file.edition == 1001)
+        .map(|file| file.name.clone())
+        .collect();
+    let mut pool = resolve_pool(raw, raw_enums, extensions, &edition2024_files)?;
+    for file in &files {
+        pool.file_metadata.insert(
+            file.name.clone(),
+            FileMetadata {
+                edition: file.edition,
+                features: file.features,
+            },
+        );
+        pool.files.insert(
+            file.name.clone(),
+            Arc::new(FileDescriptor {
+                name: file.name.clone(),
+                package: file.package.clone(),
+                options: file.options.clone(),
+                source_code_info: file.source_code_info.clone(),
+                comments: file.comments.clone(),
+                deprecated: file.deprecated,
+            }),
+        );
+        let pubs: Vec<String> = file
+            .public_dependency
             .iter()
-            .filter(|file| file.edition == 1001)
-            .map(|file| file.name.clone())
+            .filter_map(|&i| file.dependencies.get(i as usize).cloned())
             .collect();
-        let mut pool = resolve_pool(raw, raw_enums, extensions, &edition2024_files)?;
-        for file in &files {
-            pool.file_metadata.insert(
-                file.name.clone(),
-                FileMetadata {
-                    edition: file.edition,
-                    features: file.features,
-                },
-            );
-            pool.files.insert(
-                file.name.clone(),
-                Arc::new(FileDescriptor {
-                    name: file.name.clone(),
-                    package: file.package.clone(),
-                    options: file.options.clone(),
-                    source_code_info: file.source_code_info.clone(),
-                    comments: file.comments.clone(),
-                    deprecated: file.deprecated,
-                }),
-            );
-            let pubs: Vec<String> = file
-                .public_dependency
-                .iter()
-                .filter_map(|&i| file.dependencies.get(i as usize).cloned())
-                .collect();
-            if !pubs.is_empty() {
-                pool.public_imports.insert(file.name.clone(), pubs);
-            }
-            for svc in &file.services {
-                for method in &svc.methods {
-                    for name in [&method.input_type, &method.output_type] {
-                        if let Some(target) = pool.get_message(name.trim_start_matches('.')) {
-                            check_symbol_visible_from_file(
-                                &file.name,
-                                &target.file_name,
-                                name.trim_start_matches('.'),
-                                &pool.symbol_metadata,
-                            )?;
-                        }
+        if !pubs.is_empty() {
+            pool.public_imports.insert(file.name.clone(), pubs);
+        }
+        for svc in &file.services {
+            for method in &svc.methods {
+                for name in [&method.input_type, &method.output_type] {
+                    if let Some(target) = pool.messages.get(name.trim_start_matches('.')).cloned() {
+                        check_symbol_visible_from_file(
+                            &file.name,
+                            &target.file_name,
+                            name.trim_start_matches('.'),
+                            &pool.symbol_metadata,
+                        )?;
                     }
                 }
-                let desc = Arc::new(ServiceDescriptor {
-                    name: svc.name.clone(),
-                    full_name: svc.full_name.clone(),
-                    file_name: file.name.clone(),
-                    methods: svc.methods.clone(),
-                    comments: svc.comments.clone(),
-                    deprecated: svc.deprecated,
-                    options: svc.options.clone(),
-                });
-                pool.services.insert(desc.full_name.clone(), desc);
             }
+            let desc = Arc::new(ServiceDescriptor {
+                name: svc.name.clone(),
+                full_name: svc.full_name.clone(),
+                file_name: file.name.clone(),
+                methods: svc.methods.clone(),
+                comments: svc.comments.clone(),
+                deprecated: svc.deprecated,
+                options: svc.options.clone(),
+            });
+            pool.services.insert(desc.full_name.clone(), desc);
         }
-        validate_edition2024_references(&files, &pool)?;
-        Ok(pool)
     }
+    validate_edition2024_references(&files, &pool)?;
+    Ok(pool)
 }
 
 #[derive(Clone, Debug)]
@@ -3558,7 +3666,7 @@ fn check_symbol_visible_from_file(
 }
 
 fn check_edition2024_reference(
-    pool: &DescriptorPool,
+    pool: &PoolInner,
     source_file: &str,
     imports: &BTreeSet<String>,
     name: &str,
@@ -3584,7 +3692,7 @@ fn check_edition2024_field_references(
     field: &RawField,
     source_file: &str,
     imports: &BTreeSet<String>,
-    pool: &DescriptorPool,
+    pool: &PoolInner,
 ) -> Result<(), ParseError> {
     match FieldType::from_i32(field.ty) {
         Some(ty @ (FieldType::Message | FieldType::Enum)) => {
@@ -3609,7 +3717,7 @@ fn check_edition2024_message_references(
     msg: &RawMessage,
     source_file: &str,
     imports: &BTreeSet<String>,
-    pool: &DescriptorPool,
+    pool: &PoolInner,
 ) -> Result<(), ParseError> {
     for field in msg.fields.iter().chain(&msg.extensions) {
         check_edition2024_field_references(field, source_file, imports, pool)?;
@@ -3620,10 +3728,7 @@ fn check_edition2024_message_references(
     Ok(())
 }
 
-fn validate_edition2024_references(
-    files: &[RawFile],
-    pool: &DescriptorPool,
-) -> Result<(), ParseError> {
+fn validate_edition2024_references(files: &[RawFile], pool: &PoolInner) -> Result<(), ParseError> {
     let by_name: BTreeMap<&str, &RawFile> = files
         .iter()
         .map(|file| (file.name.as_str(), file))
@@ -3674,7 +3779,7 @@ fn resolve_pool(
     raw_enums: BTreeMap<String, RawEnum>,
     extensions: Vec<(RawFeatures, RawField)>,
     edition2024_files: &BTreeSet<String>,
-) -> Result<DescriptorPool, ParseError> {
+) -> Result<PoolInner, ParseError> {
     // First pass: skeleton descriptors (no nested message arcs).
     let mut skeletons: BTreeMap<String, MessageDescriptor> = BTreeMap::new();
     let mut symbol_metadata = BTreeMap::new();
@@ -3872,7 +3977,7 @@ fn resolve_pool(
         }
         resolved.insert(name, Arc::new(d));
     }
-    Ok(DescriptorPool {
+    Ok(PoolInner {
         messages: resolved,
         enums: enum_arcs,
         extensions_by_name: ext_index,
@@ -3952,5 +4057,148 @@ fn raw_field_to_desc(f: &RawField, parent: RawFeatures, edition2024: bool) -> Fi
         options: f.options.clone(),
         comments: f.comments.clone(),
         deprecated: f.deprecated,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::expect_used,
+        reason = "unit tests assert success paths directly"
+    )]
+
+    use super::*;
+
+    fn str_field(out: &mut Vec<u8>, number: u32, value: &str) {
+        encode_len_field(out, number, value.as_bytes());
+    }
+
+    fn var_field(out: &mut Vec<u8>, number: u32, value: u64) {
+        encode_tag(out, number, WIRE_VARINT);
+        encode_varint(out, value);
+    }
+
+    fn msg_field(out: &mut Vec<u8>, number: u32, blob: &[u8]) {
+        encode_len_field(out, number, blob);
+    }
+
+    /// Minimal `FileDescriptorSet` with one file, one message, one enum, and
+    /// one service, wire-encoded by hand.
+    fn sharing_fds(message_name: &str) -> Vec<u8> {
+        let mut field = Vec::new();
+        str_field(&mut field, 1, "id");
+        var_field(&mut field, 3, 1);
+        var_field(&mut field, 4, 1);
+        var_field(&mut field, 5, 5);
+        let mut message = Vec::new();
+        str_field(&mut message, 1, message_name);
+        msg_field(&mut message, 2, &field);
+        let mut value = Vec::new();
+        str_field(&mut value, 1, "RED");
+        var_field(&mut value, 2, 0);
+        let mut enum_ty = Vec::new();
+        str_field(&mut enum_ty, 1, "Color");
+        msg_field(&mut enum_ty, 2, &value);
+        let mut method = Vec::new();
+        str_field(&mut method, 1, "Call");
+        str_field(&mut method, 2, ".Shared");
+        str_field(&mut method, 3, ".Shared");
+        let mut service = Vec::new();
+        str_field(&mut service, 1, "Svc");
+        msg_field(&mut service, 2, &method);
+        let mut file = Vec::new();
+        str_field(&mut file, 1, "share.proto");
+        msg_field(&mut file, 4, &message);
+        msg_field(&mut file, 5, &enum_ty);
+        msg_field(&mut file, 6, &service);
+        let mut fds = Vec::new();
+        msg_field(&mut fds, 1, &file);
+        fds
+    }
+
+    #[test]
+    fn identical_bytes_share_one_parsed_pool() {
+        // Every generated file embeds the same descriptor bytes; the second
+        // and later loads must not re-parse. Shared `Arc`s prove no second
+        // parse happened, since a fresh parse would allocate new descriptors.
+        let bytes = sharing_fds("Shared");
+        let first = DescriptorPool::from_file_descriptor_set(&bytes).expect("parse");
+        let second = DescriptorPool::from_file_descriptor_set(&bytes).expect("parse");
+        let a_msg = first.get_message("Shared").expect("message");
+        let b_msg = second.get_message("Shared").expect("message");
+        assert!(Arc::ptr_eq(&a_msg, &b_msg));
+        let a_enum = first.get_enum("Color").expect("enum");
+        let b_enum = second.get_enum("Color").expect("enum");
+        assert!(Arc::ptr_eq(&a_enum, &b_enum));
+        let a_svc = first.get_service("Svc").expect("service");
+        let b_svc = second.get_service("Svc").expect("service");
+        assert!(Arc::ptr_eq(&a_svc, &b_svc));
+        let a_file = first.get_file("share.proto").expect("file");
+        let b_file = second.get_file("share.proto").expect("file");
+        assert!(Arc::ptr_eq(&a_file, &b_file));
+    }
+
+    #[test]
+    fn distinct_bytes_do_not_share_pools() {
+        let one = sharing_fds("One");
+        let two = sharing_fds("Two");
+        let pool_one = DescriptorPool::from_file_descriptor_set(&one).expect("parse");
+        let pool_two = DescriptorPool::from_file_descriptor_set(&two).expect("parse");
+        assert!(pool_one.get_message("One").is_some());
+        assert!(pool_one.get_message("Two").is_none());
+        assert!(pool_two.get_message("Two").is_some());
+        assert!(pool_two.get_message("One").is_none());
+    }
+
+    #[test]
+    fn shared_pool_mutation_is_copy_on_write() {
+        let bytes = sharing_fds("Shared");
+        let mut first = DescriptorPool::from_file_descriptor_set(&bytes).expect("parse");
+        let second = DescriptorPool::from_file_descriptor_set(&bytes).expect("parse");
+        assert!(Arc::ptr_eq(
+            &first.get_message("Shared").expect("message"),
+            &second.get_message("Shared").expect("message"),
+        ));
+        let extra = MessageDescriptor::builder("Extra").build();
+        first.register_message(extra);
+        assert!(first.get_message("Extra").is_some());
+        // Neither the sibling pool nor the cached entry observes the mutation.
+        assert!(second.get_message("Extra").is_none());
+        let third = DescriptorPool::from_file_descriptor_set(&bytes).expect("parse");
+        assert!(third.get_message("Extra").is_none());
+        assert!(Arc::ptr_eq(
+            &second.get_message("Shared").expect("message"),
+            &third.get_message("Shared").expect("message"),
+        ));
+    }
+
+    #[test]
+    fn malformed_bytes_still_fail_eagerly() {
+        assert!(DescriptorPool::from_file_descriptor_set(&[0xff, 0xff, 0xff]).is_err());
+        // Empty input stays valid (an empty pool), exactly as before.
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&[])
+                .expect("empty pool")
+                .collect_names()
+                .is_empty()
+        );
+        // A failed parse never poisons the cache for later valid input.
+        let bytes = sharing_fds("Shared");
+        assert!(
+            DescriptorPool::from_file_descriptor_set(&bytes)
+                .expect("parse")
+                .get_message("Shared")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn debug_shape_is_stable() {
+        let pool = DescriptorPool::new();
+        let rendered = format!("{pool:?}");
+        assert!(
+            rendered.starts_with("DescriptorPool { messages: "),
+            "{rendered}"
+        );
     }
 }

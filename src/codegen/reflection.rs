@@ -50,8 +50,17 @@ pub(crate) fn extract_fds_file_names(bytes: &[u8]) -> Vec<String> {
     names
 }
 
-/// Render the `FILE_DESCRIPTOR_SET` block once; every target file embeds
-/// the identical bytes, so callers share one rendering.
+/// Render the `FILE_DESCRIPTOR_SET` block; every target file embeds the
+/// identical bytes, so callers share one rendering.
+///
+/// Per-file embedding is intentional: any single generated file must compile
+/// standalone via `include!`, so the bytes cannot live in a shared sibling
+/// module. Cross-file sharing happens at runtime instead — generated
+/// `generated_pool()` constructors defer to first reflection use, and
+/// [`DescriptorPool::from_file_descriptor_set`](crate::DescriptorPool::from_file_descriptor_set)
+/// parses identical bytes once per process and shares the parsed pool.
+/// Keep this rendering byte-stable: consumers and determinism tests rely on
+/// identical output for identical inputs (see the roundtrip test below).
 pub(crate) fn fds_hex_block(fds: &[u8]) -> String {
     // 5 chars per byte ("0x..,"), plus indent/newlines. Table push is
     // byte-identical to the old per-byte write!("0x{b:02x},").
@@ -84,4 +93,47 @@ pub(crate) fn encode_varint_field(out: &mut Vec<u8>, n: u32, v: u64) {
 
 pub(crate) fn encode_string_field(out: &mut Vec<u8>, n: u32, s: &str) {
     encode_len_field(out, n, s.as_bytes());
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::expect_used,
+        reason = "unit tests assert success paths directly"
+    )]
+
+    use super::*;
+
+    /// Parse the `0x..,` array body back out of a rendered block.
+    fn parse_hex_block(block: &str) -> Vec<u8> {
+        let body = block.rsplit("&[").next().expect("array body");
+        let mut out = Vec::new();
+        for chunk in body.split(',') {
+            let Some(hex) = chunk.trim().strip_prefix("0x") else {
+                continue;
+            };
+            out.push(u8::from_str_radix(hex, 16).expect("hex byte"));
+        }
+        out
+    }
+
+    #[test]
+    fn fds_hex_block_roundtrips_bytes() {
+        // Empty, single-byte, exact-wrap (16), wrap-plus-one, and every byte
+        // value: the runtime cache keys on these exact bytes, so the emission
+        // must reproduce them faithfully for standalone `include!` files.
+        let mut cases: Vec<Vec<u8>> = vec![vec![], vec![0x00], vec![0xff]];
+        cases.push((0..16).collect());
+        cases.push((0..17).collect());
+        cases.push((0..=255).collect());
+        for fds in &cases {
+            let block = fds_hex_block(fds);
+            assert!(block.starts_with(
+                "/// FileDescriptorSet bytes for reflection and dynamic schema inspection.\n"
+            ));
+            assert!(block.contains("pub const FILE_DESCRIPTOR_SET: &[u8] = &[\n"));
+            assert!(block.ends_with("];\n\n"));
+            assert_eq!(parse_hex_block(&block), *fds);
+        }
+    }
 }
