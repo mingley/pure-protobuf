@@ -16,7 +16,7 @@ Raw captures live in [large-payload-baseline/](large-payload-baseline/)
 | Source | `39cf33ca` (SB-13a/b/c + emit counters; `pbrs-grpc` + `pbrs` `copy-counts` on in devloop) |
 | rustc | 1.98.1 (opt, devloop + rpc-bench release) |
 | grpc-go server | google.golang.org/grpc@dd51b1c90aaf (v1.85.0-dev), stock interop server, fixed 4 MiB cap |
-| tonic | in-tree `rpc-bench --transport=tonic` (prost codec) |
+| tonic | in-tree `rpc-bench --transport=tonic` (pbrs codec via the protobuf-tonic adapter; no prost arm exists in rpc-bench — corrected 2026-09-29, see [TC-10 evidence](tc10-adapter.md)) |
 
 ## Copy attribution map
 
