@@ -10,7 +10,14 @@ documentation repair landed in `deea5e3f`. The enum-map and repeated-enum
 repair landed in `c89608bd`; its [Linux compatibility run](https://github.com/mingley/pure-protobuf/actions/runs/36615248310)
 passes all 19 original consumer crates. See the
 [recovery evidence](evidence/shared-map-recovery.md) for the conversion contract
-and Miri coverage. These repairs are not a production certification.
+and exact-source ordinary/Miri runs: 233 original tests plus three regressions.
+QG-05 and the compiled public-guide work (QG-07, `80013bfc`) are delivered.
+The [closed-enum follow-up](evidence/closed-enum-recovery.md) at `3a7aa128`
+also validates wire numbers before populating typed fields, lists and maps.
+Its clean-source ordinary/Miri runs pass 233 original tests plus six
+regressions, with 96 core library tests. Unknown values survive serialization
+without creating list holes or replacing valid map entries.
+These repairs are not a production certification.
 
 ## Recovery classification
 
@@ -37,6 +44,14 @@ listen+accept proof. Bind failure is not treated as success.
 
 ### Workspace and CI
 
+- Final local execution check on `3a7aa128` source plus the documentation and
+  evidence updates: `PATH=/opt/homebrew/bin:$PATH CARGO_BUILD_JOBS=2 cargo test
+  --locked --workspace --quiet` passed, including documentation and compiled
+  consumer recipes. Existing compiler-version and documentation ignores remain;
+  none were added to make the run pass. The separate
+  [full source CI checkpoint](https://github.com/mingley/pure-protobuf/actions/runs/36622116837)
+  was still running when this record was prepared; local success is not its
+  completion verdict.
 - At audited revision `37683917`, [CI run 36594564013](https://github.com/mingley/pure-protobuf/actions/runs/36594564013)
   passed formatting, Clippy and workspace tests; its final rustdoc step failed.
   See the [audit](audit-2026-09-29.md#correctness-and-ci) for the separate
@@ -49,6 +64,25 @@ listen+accept proof. Bind failure is not treated as success.
 - `msrv-tonic` uses rustc 1.88 for `protobuf-tonic`.
 - The `test` job installs `protobuf-compiler` for codegen tests and guide
   snippet checks. Both adapter builds use checked descriptors.
+
+### Public guide recipes (QG-07)
+
+- Six named recipes in the [operations guide](guides/operations.md) are
+  extracted into a fresh consumer with the documented features, compiled,
+  and exercised over bounded in-memory HTTP/2. They cover health Check/Watch,
+  reflection, rich `ErrorDetails` trailers and the actual `from_io` greeting.
+- The [production-service guide](guides/production-service.md) reuses the
+  compiled TLS/mTLS demo for admission/stream limits, overload recovery and
+  drain. Its fresh-consumer test remains part of onboarding.
+- API mutation to a nonexistent method fails compilation; surrounding prose
+  changes do not affect the extracted program. Offline links, anchors,
+  caveats and negative syntax tests remain checked; prose-equality pins in
+  the greeter example were replaced by a shorter error-lifecycle overview.
+- Local 2026-09-29 validation: documentation 24 passed; onboarding 15,
+  pbrs-build 30 and plugin 44 passed, with three existing compiler-version
+  tests ignored; greeter 16 passed and warning-strict rustdoc passed. The
+  [task card](plan/world-class/tasks.json) records exact commands. This
+  bounded recipe validation does not replace QG-06's sustained soak.
 
 ### Protobuf compatibility
 
@@ -68,6 +102,13 @@ listen+accept proof. Bind failure is not treated as success.
   first crate. At `c89608bd`, all 19 crates pass (233 original tests), with
   three additional generated-API regressions. The original assertions are
   unchanged. The additional suite exclusions are listed below.
+- The separate `3a7aa128` closed-enum follow-up passes the same 233 original
+  tests plus six regressions in ordinary execution and Miri; core
+  library/native shared/runtime/kernel tests pass 96/38/26/18, with Miri
+  covering library/runtime/kernel 96/26/18. Its
+  [Linux compatibility run](https://github.com/mingley/pure-protobuf/actions/runs/36622048393)
+  and [Linux kernel Miri run](https://github.com/mingley/pure-protobuf/actions/runs/36622048523)
+  also passed. This is scoped kernel recovery, not full upb compatibility.
 - Fixed-input parser smoke tests coexist with coverage-guided targets in
   `fuzz/`. The [2026-09-28 campaign](evidence/fuzz-2026-09-28.md) ran five
   targets for about five minutes each and found defects that were fixed.
@@ -156,6 +197,27 @@ listen+accept proof. Bind failure is not treated as success.
   (`pbrs-grpc/tests/message_size.rs`).
 - These results are not a latency or QPS win claim. `protobuf-tonic` remains
   the Tonic adapter.
+- [SB-21](evidence/sb21-claims-scenarios.md) now exports scheduled-send
+  histograms and conserved measurement-window accounting, with randomized
+  repeats and frozen scenario execution. Reference aggregate arrival-rate
+  normalization/independent accounting and a valid two-harness headroom
+  smoke remain open; nominal Go offered load is per outstanding slot.
+- [SB-24](evidence/sb24-matrix.md) passes 144 local transport wiring cells,
+  not a throughput campaign. Native/native TLS sessions used AES-256;
+  native/tonic used AES-128; tonic/tonic is configured for AES-128 but lacks
+  actual load-session telemetry. Cipher equality, full peer settings,
+  Go/C++ parity and dedicated-host resource/headroom evidence remain open.
+  This slice did not change the core cipher-policy API.
+- [RX-09](evidence/rx-09.md) retains 48 Callgrind captures comparing the
+  pre-change source with `9a04f82b`. Within the native workloads, unary/streaming
+  instructions fell 9.33%/8.58% and allocated bytes fell 19.07%/15.93%;
+  allocation counts were essentially unchanged. Response bytes/counts and
+  codec/handler work must be equalized before any beat-tonic claim.
+  [SB-23](evidence/sb23-perf-ci.md) retains real failed-build evidence and
+  two successful corrected-parser pairs with 88 cells per revision. SB-23 is
+  complete; unavailable instructions are excluded. SB-20 thresholds remain
+  advisory until 30 comparable artifact runs exist in a compatible host cohort;
+  the retained Intel and AMD pairs cannot be pooled.
 
 ## Shipped Capabilities and Boundaries
 
@@ -213,10 +275,11 @@ Tracked in [TODO.md](../TODO.md) and [ROADMAP.md](ROADMAP.md). The notes above
 document shipped behavior and explicit omissions; they are not an open work
 queue.
 
-Still open: QG-05's upstream enum-map regression; complete Edition 2024 and
-typed extensions; generated borrowed views; the full upb-compatible kernel;
-xDS; remaining format/telemetry coverage; and sustained production and
-comparative performance evidence. CRL and SPIFFE verification, service-config
+Still open: complete Edition 2024 and typed extensions; generated borrowed
+views; the full upb-compatible kernel; xDS; remaining format/telemetry
+coverage; and sustained production and comparative performance evidence.
+The completed QG-05 compatibility recovery and QG-07 guide checks do not
+close those qualification gates. CRL and SPIFFE verification, service-config
 retries, hedging, channelz, binary logging, ORCA, authorization and optional
 OpenTelemetry hooks exist in source. Their limits remain documented in the
 [gRFC matrix](grfc.md) and the [audit](audit-2026-09-29.md).

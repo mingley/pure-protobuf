@@ -185,6 +185,25 @@ On fusion, moved collections' weak links are updated to the new owner without cr
 - **Typed collection enum codec (QG-05).** The unsafe raw map/repeated constructors dispatch on the original generator's `EntityType::Tag`. `EnumTag` requires `__internal::Enum`, `TryFrom<i32>`, and `for<'a> Proxied<View<'a> = Self>`. A private `KernelEnumCodec<V>` constructor captures typed `TryFrom` and `Into<i32>` callbacks. Open enums preserve unknown numbers; closed enums reject them before constructing a value. Its sole representation copy moves a successfully constructed `V` into `View<'a, V>`: the constructor proves these are exactly the same `Copy` type for every lifetime. It does not reinterpret integer bytes, infer enum membership from size, or depend on the enum's representation. The callbacks capture no references, `V` is `'static`, and every view/reborrow carries the codec unchanged; the existing arena lifetime remains attached to the collection view. Both former four-byte insertion heuristics and the removed four-byte view fallback are absent. The raw mutable constructors require `unsafe` because callers must prove typed arena ownership, lifetime, and exclusive access. See [recovery evidence](evidence/shared-map-recovery.md).
 - **Lifetime contract.** All three helpers are `pub(crate) unsafe fn`; callers must ensure the arena (or `bytes` slice) outlives `'msg`. Exclusive `Mut` casts additionally require no outstanding view borrows of the same message.
 
+### 2.4.2 Closed-enum wire validation
+
+Generated closed-enum fields carry a linked `MiniTableEnum` containing their
+known wire numbers. The enum table must be built for the correct generated
+type, linked exclusively before publication, and remain immutable and alive
+for every message using its parent MiniTable. Generated `OnceLock` tables live
+for the process lifetime; test-owned tables must be reclaimed only after their
+messages and views are gone. Open enums have no closed-enum table.
+
+The decoder checks membership before changing a typed singular field or
+repeated collection. Unknown numbers remain unknown wire fields, so typed
+length, indexed reads and iteration agree without read-time filtering. Packed
+and expanded encodings follow the same rule. An enum-map entry with an unknown
+closed-enum value or a wrong-wire enum value is preserved as a whole unknown entry;
+it does not replace an existing typed entry. The typed conversion codec remains
+a second boundary against constructing invalid Rust enum values. See the
+[closed-enum follow-up](evidence/closed-enum-recovery.md) for exact-source proof
+and the remaining kernel compatibility limits.
+
 ### 2.5 Unsafe Traits
 
 Each unsafe trait has one required invariant:
@@ -509,6 +528,13 @@ per-suite results, and hashed transcripts are retained in the
 [recovery report](evidence/shared-map-recovery.md). This proof does not qualify
 Linux sanitizers, 32-bit/big-endian targets, or sustained fuzzing.
 
+The separate closed-enum decoding follow-up at `3a7aa128` passed clean-source
+ordinary and Miri runs: 233 original shared tests plus six regressions, 96 core
+library tests, 26 runtime tests and 18 kernel tests. Ordinary native shared
+tests also passed (38). Its [report](evidence/closed-enum-recovery.md) retains
+the commands and hashed transcripts; it does not extend the architecture or
+campaign scope of the earlier proof.
+
 ## 7. New Kernels and Engines Policy (QG-01)
 
 The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04), and SIMD/table parse kernels (PK-04/PK-06) land under stricter rules than the historical code above because their `unsafe` has no production track record yet:
@@ -519,7 +545,10 @@ The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04
 4. **Linux sanitizers stay scheduled.** The `compatibility.yml` `miri-sanitizers` lane runs weekly and on manual dispatch. It covers the new crates when they exist and remains the ASan/LSan proof. PRs are not gated on it because `-Zbuild-std` sanitizer builds are too slow for the PR path.
 5. **New `unsafe` needs a second pair of eyes.** At least one reviewer other than the author must approve the `SAFETY` argument. This relates to PB-07, which qualifies the invariants on additional targets.
 
-Until `pbrs-h2` exists, the PR-time job exercises in-crate kernel paths (`pbrs --lib`). The `pbrs-h2` steps activate automatically once the crate lands, using directory guards rather than hardcoded package lists.
+Until `pbrs-h2` exists, the job exercises in-crate kernel paths (`pbrs --lib`,
+`runtime` and `upb_kernel` tests). It runs on relevant direct pushes to `main`
+as well as PRs. The `pbrs-h2` steps activate automatically once the crate lands,
+using directory guards rather than hardcoded package lists.
 
 ---
 

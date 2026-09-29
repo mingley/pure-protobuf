@@ -2,6 +2,10 @@
 
 Date: 2026-09-29. Host: macOS `aarch64-apple-darwin`.
 
+This record describes `c89608bd`, not later revisions. The separate
+[closed-enum decoding follow-up](closed-enum-recovery.md) records the storage
+and unknown-wire repair at `3a7aa128`, with a new exact-source qualification.
+
 ## Reproduction and scope
 
 At base `deea5e3f91f9271dd7c2926375369c1e367d1287`, the original

@@ -1,0 +1,33 @@
+devloop: harness build failed (offline release build of bench/devloop/Cargo.toml)
+[1m[92m   Compiling[0m matchit v0.8.4
+[1m[92m   Compiling[0m percent-encoding v2.3.2
+[1m[92m   Compiling[0m simd-adler32 v0.3.10
+[1m[92m   Compiling[0m miniz_oxide v0.9.1
+[1m[92m   Compiling[0m axum v0.8.9
+[1m[92m   Compiling[0m pin-project v1.1.13
+[1m[92m   Compiling[0m tonic-prost-build v0.14.6
+[1m[92m   Compiling[0m hyper-timeout v0.5.2
+[1m[92m   Compiling[0m graviola v0.2.1
+[1m[92m   Compiling[0m prost_tat v0.0.1 (/home/runner/work/_temp/devloop-base/prost_tat)
+[1m[92m   Compiling[0m pbrs-grpc v0.1.0-alpha.2 (/home/runner/work/_temp/devloop-base/pbrs-grpc)
+[1m[92m   Compiling[0m tokio-stream v0.1.19
+[1m[92m   Compiling[0m protobuf-macros v4.35.1-release
+[1m[92m   Compiling[0m async-trait v0.1.92
+[1m[92m   Compiling[0m v4_tat v0.0.1 (/home/runner/work/_temp/devloop-base/v4_tat)
+[1m[91merror[0m: failed to run custom build command for `v4_tat v0.0.1 (/home/runner/work/_temp/devloop-base/v4_tat)`
+
+Caused by:
+  process didn't exit successfully: `/home/runner/work/pure-protobuf/pure-protobuf/bench/devloop/target/release/build/v4_tat-231e785b18c4f783/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/home/runner/work/_temp/devloop-base/v4_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto
+
+  --- stderr
+  /home/runner/work/_temp/devloop-base/v4_tat/../third_party/protobuf/src: warning: directory does not exist.
+  Could not make proto path relative: /home/runner/work/_temp/devloop-base/v4_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto: No such file or directory
+
+  thread 'main' (8749) panicked at /home/runner/work/_temp/devloop-base/v4_tat/build.rs:30:9:
+  protoc --rust_out TAT failed: exit status: 1
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+devloop: wrote error report to /home/runner/work/pure-protobuf/pure-protobuf/perf-artifacts/base.json
+devloop: reported build failure; not running cells

@@ -1,0 +1,15 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "Linux",
+    "arch": "x86_64",
+    "cpu": "unknown",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": true,
+    "strace": true,
+    "valgrind": false
+  },
+  "devloop_commit": "deea5e3f91f9271dd7c2926375369c1e367d1287",
+  "cells": [],
+  "error": "build: see build log /tmp/devloop-build.iuOwxg.log"
+}

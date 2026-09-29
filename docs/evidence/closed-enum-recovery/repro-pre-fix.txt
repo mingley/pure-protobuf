@@ -1,0 +1,23 @@
+   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-audit-20260929)
+   Compiling rust_out_shared v0.1.0 (/Users/mingley/dev/pure-protobuf-audit-20260929/rust_out_shared)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.61s
+     Running unittests src/lib.rs (rust_out_shared/target/debug/deps/rust_out_shared-0c2ade2d7ce6bd47)
+
+running 1 test
+
+thread 'enum_map_regression::closed_repeated_enum_parse_preserves_unknowns_without_holes' (1870015) panicked at src/enum_map_regression.rs:123:9:
+assertion `left == right` failed
+  left: 3
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test enum_map_regression::closed_repeated_enum_parse_preserves_unknowns_without_holes ... FAILED
+
+failures:
+
+failures:
+    enum_map_regression::closed_repeated_enum_parse_preserves_unknowns_without_holes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

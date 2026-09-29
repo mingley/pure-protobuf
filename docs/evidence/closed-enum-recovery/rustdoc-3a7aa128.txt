@@ -1,0 +1,5 @@
+    Blocking waiting for file lock on build directory
+warning: pbrs@0.2.0: wrote conformance descriptor set
+ Documenting pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-qg05-closed-qualification-20260929)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.99s
+   Generated /Users/mingley/dev/pure-protobuf-audit-20260929/target/qg05-exact/doc/pbrs/index.html

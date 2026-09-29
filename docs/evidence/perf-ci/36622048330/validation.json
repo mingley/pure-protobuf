@@ -1,0 +1,717 @@
+{
+  "schema": "devloop-ci/1",
+  "base_sha": "d9c34c067d9b8115651904fd5778298e6cd5fdfe",
+  "head_sha": "3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e",
+  "qualified_for_noise": true,
+  "errors": [],
+  "common_cells": [
+    "codec.pbrs.blob_encode_1mib",
+    "codec.pbrs.blob_encode_4mib",
+    "codec.pbrs.blob_encode_64kib",
+    "codec.pbrs.blob_encode_8mib",
+    "codec.pbrs.blob_encode_mixed",
+    "codec.pbrs.blob_encode_shared_1mib",
+    "codec.pbrs.blob_encode_shared_4mib",
+    "codec.pbrs.blob_encode_shared_64kib",
+    "codec.pbrs.blob_encode_shared_8mib",
+    "codec.pbrs.blob_encode_shared_mixed",
+    "codec.pbrs.blob_parse_1mib",
+    "codec.pbrs.blob_parse_4mib",
+    "codec.pbrs.blob_parse_64kib",
+    "codec.pbrs.blob_parse_8mib",
+    "codec.pbrs.blob_parse_mixed",
+    "codec.pbrs.blob_parse_shared_1mib",
+    "codec.pbrs.blob_parse_shared_4mib",
+    "codec.pbrs.blob_parse_shared_64kib",
+    "codec.pbrs.blob_parse_shared_8mib",
+    "codec.pbrs.blob_parse_shared_mixed",
+    "codec.pbrs.blob_touch_1mib",
+    "codec.pbrs.blob_touch_4mib",
+    "codec.pbrs.blob_touch_64kib",
+    "codec.pbrs.blob_touch_8mib",
+    "codec.pbrs.blob_touch_mixed",
+    "codec.pbrs.cached_encode",
+    "codec.pbrs.fresh_encode",
+    "codec.pbrs.owned_decode",
+    "codec.pbrs.packed_256_owned_decode",
+    "codec.pbrs.packed_256_parse_touch",
+    "codec.pbrs.parse_touch",
+    "codec.pbrs.small_empty_decode",
+    "codec.pbrs.small_empty_encode",
+    "codec.pbrs.small_id_decode",
+    "codec.pbrs.small_id_encode",
+    "codec.pbrs.small_name80_decode",
+    "codec.pbrs.small_name80_encode",
+    "codec.pbrs.tags_32_owned_decode",
+    "codec.pbrs.tags_32_parse_touch",
+    "codec.pbrs.unpacked_256_owned_decode",
+    "codec.pbrs.unpacked_256_parse_touch",
+    "codec.prost.blob_encode_1mib",
+    "codec.prost.blob_encode_4mib",
+    "codec.prost.blob_encode_64kib",
+    "codec.prost.blob_encode_8mib",
+    "codec.prost.blob_encode_mixed",
+    "codec.prost.blob_parse_1mib",
+    "codec.prost.blob_parse_4mib",
+    "codec.prost.blob_parse_64kib",
+    "codec.prost.blob_parse_8mib",
+    "codec.prost.blob_parse_mixed",
+    "codec.prost.blob_touch_1mib",
+    "codec.prost.blob_touch_4mib",
+    "codec.prost.blob_touch_64kib",
+    "codec.prost.blob_touch_8mib",
+    "codec.prost.blob_touch_mixed",
+    "codec.prost.cached_encode",
+    "codec.prost.fresh_encode",
+    "codec.prost.owned_decode",
+    "codec.prost.parse_touch",
+    "codec.prost.small_empty_decode",
+    "codec.prost.small_empty_encode",
+    "codec.prost.small_id_decode",
+    "codec.prost.small_id_encode",
+    "codec.prost.small_name80_decode",
+    "codec.prost.small_name80_encode",
+    "codec.v4.cached_encode",
+    "codec.v4.fresh_encode",
+    "codec.v4.owned_decode",
+    "codec.v4.parse_touch",
+    "lb.least_request.pick",
+    "lb.outlier_detection.pick",
+    "lb.pick_first.pick",
+    "lb.priority.pick",
+    "lb.random_subsetting_experimental.pick",
+    "lb.ring_hash.pick",
+    "lb.round_robin.pick",
+    "lb.weighted_round_robin.pick",
+    "rpc.pbrs.server_stream",
+    "rpc.pbrs.server_stream_compressed",
+    "rpc.pbrs.unary",
+    "rpc.pbrs.unary_compressed",
+    "rpc.prost.server_stream",
+    "rpc.prost.unary",
+    "rpc.tonic.server_stream",
+    "rpc.tonic.unary",
+    "rpc.tonic_prost.server_stream",
+    "rpc.tonic_prost.unary"
+  ],
+  "new_cells": [],
+  "removed_cells": [],
+  "eligible_metrics": {
+    "codec.pbrs.blob_encode_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_shared_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_shared_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_shared_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_shared_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_encode_shared_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_shared_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_shared_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_shared_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_shared_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_parse_shared_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_touch_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_touch_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_touch_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_touch_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.blob_touch_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.cached_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.fresh_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.packed_256_owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.packed_256_parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_empty_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_empty_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_id_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_id_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_name80_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.small_name80_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.tags_32_owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.tags_32_parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.unpacked_256_owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.pbrs.unpacked_256_parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_encode_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_encode_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_encode_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_encode_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_encode_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_parse_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_parse_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_parse_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_parse_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_parse_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_touch_1mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_touch_4mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_touch_64kib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_touch_8mib": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.blob_touch_mixed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.cached_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.fresh_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_empty_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_empty_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_id_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_id_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_name80_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.prost.small_name80_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.v4.cached_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.v4.fresh_encode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.v4.owned_decode": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "codec.v4.parse_touch": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.least_request.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.outlier_detection.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.pick_first.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.priority.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.random_subsetting_experimental.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.ring_hash.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.round_robin.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "lb.weighted_round_robin.pick": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.pbrs.server_stream": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.pbrs.server_stream_compressed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.pbrs.unary": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.pbrs.unary_compressed": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.prost.server_stream": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.prost.unary": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.tonic.server_stream": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.tonic.unary": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.tonic_prost.server_stream": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ],
+    "rpc.tonic_prost.unary": [
+      "allocs",
+      "alloc_bytes",
+      "syscalls",
+      "locks",
+      "wall_ns"
+    ]
+  }
+}

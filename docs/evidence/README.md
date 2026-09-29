@@ -16,18 +16,24 @@ comparative claim. No category currently has a qualified performance win.
 | Record | What it contributes | How to read it |
 |---|---|---|
 | [Codegen matrix (SB-09)](sb09-codegen-matrix.md) | Five-repeat seeded, realistic-schema, and service-stub comparisons | Broad local evidence with many compile-cost losses; later GN changes need a matched rerun |
-| [Official worker scenarios (SB-10)](qps-sb10.md) | Native/Go/C++ async worker runs | Compatibility and QPS diagnostics; accounting anomalies remain unresolved |
+| [Official worker scenarios (SB-10)](qps-sb10.md) | Native/Go/C++ async worker runs | Compatibility/QPS diagnostics; SB-21 identifies a per-slot versus aggregate arrival-rate mismatch, not a reconstruction of the old measurement window |
 | [Cross-stack matrix (SB-11)](stack-matrix-sb11.md) | Separate-process open-loop client/server harness | Smoke proves wiring, not the server ceiling or claim readiness |
 | [Connection scale (SB-12)](sb-12.md) | Local memory, cold-start, and native TLS measurements | Earlier same-process diagnostic; the [newer scenario runner](../../bench/stack-matrix/scenarios/README.md) has separate limits |
 | [Large payload baseline (SB-13)](large-payload-baseline.md) | Ownership/copy costs and payload sizes | Diagnostic baseline for subsequent zero-copy work |
 | [Public grpc_bench entry (SB-17)](grpc-bench.md) | External-method reproduction and peer comparisons | Shared Docker host and emulated client limit interpretation |
-| [Claim scenario definitions (SB-21)](sb21-claims-scenarios.md) | Frozen cells and intended repeat orders | Definitions delivered; latency export, runner integration, and controlled campaigns remain open |
+| [Claim scenario execution (SB-21)](sb21-claims-scenarios.md) | Scheduled-send latency, conserved window accounting, frozen cells and randomized repeats | Native accounting smoke passes; reference rate normalization/independent accounting and a headroom-valid two-harness smoke remain open |
+| [Transport matrix (SB-24)](sb24-matrix.md) | 144 TLS/compression wiring cells passed, with actual native handshake observations | Not throughput evidence: native/native uses AES-256, native/tonic uses AES-128, and tonic/tonic lacks actual session telemetry; no core cipher-policy API changed |
+| [Performance CI (SB-23)](sb23-perf-ci.md) | Two corrected-parser CI pairs have 88 cells per revision; failed-build evidence is retained and rejected | SB-23 done; instructions excluded; Intel/AMD are separate cohorts, each still short of 30 compatible noise-study pairs |
+| [RPC instruction study (RX-09)](rx-09.md) | 48 retained before/after captures; native instructions and allocated bytes fell in both shapes | Within-stack diagnostic improvement; cross-stack workloads differ and separate-process qualification remains open |
 
-The [plan](../plan/world-class/README.md) tracks completion. SB-21 and SB-23
-remain in progress until claim-runner integration and actual perf-CI artifacts
-are verified. SB-24 owns executable/fair required transport cells; SB-25 owns
-optional competitor harnesses. SB-15/SB-22 then produce controlled campaigns,
-and SB-16 publishes a reproducible scoreboard.
+The [plan](../plan/world-class/README.md) tracks completion. SB-21 remains in
+progress pending reference-peer arrival/accounting equivalence. SB-23's real
+CI artifact review is complete; SB-20's calibration is open. SB-24 still needs cipher
+equality, full observed peer settings, Go/C++ parity and dedicated-host
+headroom/resource/topology evidence. SB-25 owns optional competitor
+harnesses. SB-15/SB-22 then produce controlled campaigns, and SB-16 publishes
+a reproducible scoreboard. RX-09's existing cells need equivalent response
+bytes/counts and codec/handler work before any beat-tonic interpretation.
 
 ## Finding the cost before changing code
 
@@ -56,6 +62,19 @@ Use the [profiling guide](../profiling.md) to collect a new base/after pair.
 
 ## Correctness and implementation records
 
+- [QG-05 shared-map recovery](shared-map-recovery.md) records exact-source
+  `c89608bd` ordinary/Miri runs of all 19 original consumer crates (233 tests
+  plus three regressions), with the restored Linux compatibility CI gate.
+- [Closed-enum follow-up](closed-enum-recovery.md) records the separate
+  `3a7aa128` wire-decoding repair and clean-source ordinary/Miri runs (233
+  original tests plus six regressions). Unknown values stay out of typed
+  storage while surviving serialization; full upb qualification remains open.
+- QG-07 (`80013bfc`): the [operations](../guides/operations.md) and
+  [production-service](../guides/production-service.md) recipes are compiled
+  and exercised by [onboarding tests](../../tests/onboarding.rs), including
+  negative API mutation and unchanged behavior under prose edits. The
+  [status page](../status.md#public-guide-recipes-qg-07) records validation;
+  this is bounded recipe coverage, not production qualification.
 - [Fuzz campaign, 2026-09-28](fuzz-2026-09-28.md) records findings from that
   campaign; it is not proof of unlimited or continuing fuzz coverage.
 - [Upstream HTTP/2 probe triage](io09-upstream-triage.md) records outstanding

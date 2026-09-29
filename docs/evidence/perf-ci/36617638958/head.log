@@ -1,0 +1,4 @@
+note: cell rpc.tonic_prost.unary allocs vary across repeats, using median
+note: cell rpc.tonic_prost.server_stream allocs vary across repeats, using median
+note: cell rpc.tonic.unary allocs vary across repeats, using median
+note: cell rpc.tonic.server_stream allocs vary across repeats, using median

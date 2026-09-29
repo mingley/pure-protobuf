@@ -1,0 +1,3 @@
+# Downloaded evidence must retain identical bytes across checkout platforms.
+* -text
+*.txt whitespace=-blank-at-eof

@@ -21,10 +21,11 @@ current proof of correctness and performance across comparable peers.
 
 | Area | Current source and evidence | What to do next |
 |---|---|---|
-| Correctness | The audit's rustdoc links are repaired. The enum-collection fix at `c89608bd` passes all 19 original consumer crates in Linux CI; [recovery evidence](../../evidence/shared-map-recovery.md) records Miri and regression coverage. | Preserve these gates and finish current-backend qualification; passing compatibility is not production certification. |
-| RPC efficiency | RX-09 landed allocation/header/telemetry changes. The earlier shared-runtime profiles are diagnostic and cannot attribute production CPU cost. | Measure the merged candidate and separate client/server Linux profiles before choosing the next optimization. |
-| Benchmark machinery | Fair tonic setup, worker thread controls, separate-process runners, codec peers and codegen matrices exist. | SB-21 closes scheduled-latency/accounting gaps; SB-24 makes required TLS/compression/shape cells comparable. |
-| Performance CI | The lane is advisory; local repair does not prove a successful CI comparison. | SB-23 retains real base/head artifacts; SB-20 selects thresholds after 30 comparable runs. |
+| Correctness | QG-05 is done: [original recovery](../../evidence/shared-map-recovery.md) at `c89608bd` passes 233 original tests plus three regressions. The [closed-enum follow-up](../../evidence/closed-enum-recovery.md) at `3a7aa128` passes the same originals plus six regressions in clean-source ordinary/Miri runs and Linux compatibility CI. | Preserve these gates and finish current-backend qualification; passing compatibility is not production certification. |
+| Public guides | QG-07 is done: extracted operations recipes compile and run; the production TLS/mTLS resource-limit demo runs from a fresh consumer. API mutation fails while prose changes remain green. [Status](../../status.md#public-guide-recipes-qg-07) records the tests. | Keep these compiled checks with the documented features; they do not replace the QG-06 soak. |
+| RPC efficiency | [RX-09's 48 captures](../../evidence/rx-09.md) show native unary/streaming instructions down 9.33%/8.58% and allocated bytes down 19.07%/15.93% against the pre-change source. Existing cross-stack cells differ in response work. | Match response bytes/counts and codec/handler work before any beat-tonic claim, then measure separate client/server Linux profiles. |
+| Benchmark machinery | SB-21 exports scheduled latency/window accounting and executes frozen randomized repeats. SB-24 passed 144 TLS/compression wiring cells, not throughput qualification. | Normalize reference arrival rates and independent accounting; resolve TLS cipher/session-evidence gaps, complete Go/C++ parity and prove dedicated-host headroom. |
+| Performance CI | SB-23 is done: two verified corrected-parser pairs have 88 cells per revision; error reports are retained and rejected. Instructions remain unavailable. | Keep Intel/AMD cohorts separate. SB-20 calibrates thresholds after 30 compatible runs, using only available metrics; the lane remains advisory. |
 | Codegen | Feature separation and generated-code reductions exist. The broader recorded build-cost matrix still has many losses. | Finish GN-02/GN-03 and rerun downstream build/RSS cells. |
 | Codec | Shared-buffer parsing, scalar fast paths, dynamic tables and hybrid maps exist. Generated table emission and borrowed views remain separate work. | Finish BM-03/PK-18 measurements, then prioritize the losing cells that matter to applications. |
 | HTTP/2 | The current backend remains upstream `h2`; transport/runtime seams and adaptive windows exist. | H2-04 is blocked. H2-16 revisits the recorded no-go only with new evidence. |
@@ -60,10 +61,10 @@ Evidence comes in two tiers. They are never mixed.
 
 ## Strategy
 
-1. **Restore trustworthy gates.** Repair QG-05 and preserve conformance,
-   interop, hostile-input and pure-Rust checks. No speedup earns a pass by
-   dropping validation or changing semantics.
-2. **Complete comparable measurements.** Finish SB-21, SB-23 and SB-24.
+1. **Preserve trustworthy gates.** Retain the QG-05 compatibility recovery,
+   QG-07 compiled recipes, conformance, interop, hostile-input and pure-Rust
+   checks. No speedup earns a pass by dropping validation or changing semantics.
+2. **Complete comparable measurements.** Finish SB-21 and SB-24, then calibrate SB-20.
    Freeze workloads and effective settings; verify offered/completed counts
    and generator headroom. Retain raw paired observations.
 3. **Improve the measured limiting path.** Finish RX-09 on the current
@@ -128,8 +129,9 @@ M4 (upb) and M5 (tonic) can start during M0.
 
 Use the ordered [current queue](../../../TODO.md#current-priorities). The
 initial 2026-09-26 assignments have largely landed and are no longer the
-starting wave. Current ownership should prioritize QG-05; SB-21/SB-24;
-SB-23; RX-09; and the unfinished codec/codegen measurements.
+starting wave. QG-05 and QG-07 are delivered. Current ownership should
+prioritize SB-21/SB-24; SB-20's noise study after SB-23; equivalent-work RX-09
+measurements; and the unfinished codec/codegen measurements.
 
 Hardware-backed campaigns are operator tasks. Prepare commands, pins and
 artifact schemas before booking hosts. This plan does not authorize spending

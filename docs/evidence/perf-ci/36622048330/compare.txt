@@ -1,0 +1,13 @@
+rpc.pbrs.unary syscalls: improved 21.3 -> 20.3 (-4.39%)
+rpc.pbrs.unary locks: improved 9.2 -> 8.5 (-7.82%)
+rpc.pbrs.unary_compressed locks: REGRESSED 11.5 -> 12.7 (+10.04%, limit 2%)
+rpc.pbrs.server_stream_compressed syscalls: improved 148.1 -> 131.6 (-11.09%)
+rpc.prost.unary locks: improved 8.9 -> 8.6 (-3.47%)
+lb.pick_first.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.round_robin.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.weighted_round_robin.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.ring_hash.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.least_request.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.priority.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.outlier_detection.pick locks: BUDGET EXCEEDED 0.0 > 0.0
+lb.random_subsetting_experimental.pick locks: BUDGET EXCEEDED 0.0 > 0.0

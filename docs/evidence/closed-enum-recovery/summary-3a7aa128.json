@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "task": "QG-05",
+  "scope": "closed-enum decode follow-up",
+  "outcome": "local qualification passed",
+  "date_utc": "2026-09-29",
+  "source_sha": "3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e",
+  "source_tree": "c634a14f22e0a41867a3e234e7f750e4c49f7d4b",
+  "source_worktree": "/Users/mingley/dev/pure-protobuf-qg05-closed-qualification-20260929",
+  "source_clean_before": true,
+  "source_clean_after": true,
+  "platform": "aarch64-apple-darwin",
+  "rustc": "1.98.1 (48a229cea 2026-09-01)",
+  "rustc_commit": "48a229ceaefd4985c50990b14116b6d856af0985",
+  "llvm": "22.1.8",
+  "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+  "nightly_rustc": "1.100.0-nightly (e7769602a 2026-08-24)",
+  "nightly_rustc_commit": "e7769602aca3770e8d8ea55716becb22e839a579",
+  "nightly_llvm": "23.1.0",
+  "nightly_cargo": "1.100.0-nightly (e8cb624d5 2026-08-22)",
+  "miri": "0.1.0 (e7769602ac 2026-08-24)",
+  "environment": {
+    "PATH_prefix": "/opt/homebrew/bin",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TERM_COLOR": "never",
+    "CARGO_TARGET_DIR_normal": "/Users/mingley/dev/pure-protobuf-audit-20260929/target/qg05-exact",
+    "CARGO_TARGET_DIR_miri": "/Users/mingley/dev/pure-protobuf-audit-20260929/target/qg05-miri",
+    "MIRIFLAGS": "-Zmiri-disable-isolation -Zmiri-strict-provenance",
+    "RUSTDOCFLAGS_for_rustdoc": "-D warnings"
+  },
+  "upstream": {
+    "pin": "v35.1",
+    "sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+    "source": "/Users/mingley/dev/pure-protobuf/third_party/protobuf",
+    "source_clean_before": true,
+    "source_clean_after": true,
+    "protoc": "/Users/mingley/dev/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "protoc_version": "libprotoc 35.1",
+    "protoc_sha256": "e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940",
+    "generator_flags": "--rust_out --rust_opt=experimental-codegen=enabled,kernel=upb",
+    "closed_fixture": "rust/test/unittest.proto: edition 2023, enum_type CLOSED, repeated_field_encoding EXPANDED (proto2-compatible semantics)"
+  },
+  "original_consumer_crates": 19,
+  "original_consumer_tests": 233,
+  "additional_generated_regressions": 6,
+  "total_generated_consumer_tests": 239,
+  "new_generated_regression_functions": [
+    "closed_repeated_enum_parse_preserves_unknowns_without_holes",
+    "closed_singular_enum_unknown_has_no_presence_and_survives_roundtrip",
+    "closed_sparse_enum_descriptor_accepts_all_named_signed_numbers"
+  ],
+  "regression_coverage": [
+    "Unmodified generated closed-enum packed and unpacked valid/unknown/valid inputs; coherent len/get/iteration/exact size/mutation.",
+    "Known negative enum values and sparse signed/unsigned descriptor skip/mask boundaries.",
+    "Unknown singular enum default/no presence, known then unknown retains presence/value, full-u64 unknown retention.",
+    "Required closed unknown fails; required open unknown succeeds and roundtrips.",
+    "Real linked closed-enum map fixture: unknown duplicate key preserves prior valid; invalid then valid within one entry stays rejected; wrong-wire enum rejected; whole entry retained; omitted enum value defaults to zero.",
+    "Open enum unknown preservation and prior typed map/repeated safety regressions remain intact."
+  ],
+  "checks": [
+    {
+      "name": "shared",
+      "log": "shared-3a7aa128.txt",
+      "test_suites": {
+        "lib": {
+          "passed": 6,
+          "failed": 0
+        },
+        "accessors_map_test": {
+          "passed": 35,
+          "failed": 0
+        },
+        "accessors_proto3_test": {
+          "passed": 16,
+          "failed": 0
+        },
+        "accessors_repeated_test": {
+          "passed": 29,
+          "failed": 0
+        },
+        "accessors_test": {
+          "passed": 50,
+          "failed": 0
+        },
+        "bad_names_test": {
+          "passed": 5,
+          "failed": 0
+        },
+        "child_parent_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "edition2023_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "enum_test": {
+          "passed": 17,
+          "failed": 0
+        },
+        "fields_with_imported_types_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "import_public_test": {
+          "passed": 1,
+          "failed": 0
+        },
+        "message_copy_merge_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "message_generics_test": {
+          "passed": 7,
+          "failed": 0
+        },
+        "nested_types_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "package_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "proto_macro_test": {
+          "passed": 9,
+          "failed": 0
+        },
+        "serialization_test": {
+          "passed": 30,
+          "failed": 0
+        },
+        "simple_nested_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "threading_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "utf8_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "doctests": {
+          "passed": 0,
+          "failed": 0
+        }
+      },
+      "command": "bash scripts/test-rust-out-shared.sh",
+      "environment_kind": "normal",
+      "exit_code": 0,
+      "sha256": "fa20b2deb161368e5f90f9f8d2bca3a1771ff0bf6eb1e919b41ce97c1357b720"
+    },
+    {
+      "name": "core",
+      "log": "core-3a7aa128.txt",
+      "test_suites": {
+        "lib": {
+          "passed": 96,
+          "failed": 0
+        },
+        "google_shared": {
+          "passed": 38,
+          "failed": 0
+        },
+        "runtime": {
+          "passed": 26,
+          "failed": 0
+        },
+        "upb_kernel": {
+          "passed": 18,
+          "failed": 0
+        }
+      },
+      "command": "cargo test -p pbrs --lib --test runtime --test upb_kernel --test google_shared",
+      "environment_kind": "normal",
+      "exit_code": 0,
+      "sha256": "8e32df3a13fe904627c1304a977f5ebb5f6cfc24875b8b0f4f553827c3b428d1"
+    },
+    {
+      "name": "miri-shared",
+      "log": "miri-shared-3a7aa128.txt",
+      "test_suites": {
+        "lib": {
+          "passed": 6,
+          "failed": 0
+        },
+        "accessors_map_test": {
+          "passed": 35,
+          "failed": 0
+        },
+        "accessors_proto3_test": {
+          "passed": 16,
+          "failed": 0
+        },
+        "accessors_repeated_test": {
+          "passed": 29,
+          "failed": 0
+        },
+        "accessors_test": {
+          "passed": 50,
+          "failed": 0
+        },
+        "bad_names_test": {
+          "passed": 5,
+          "failed": 0
+        },
+        "child_parent_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "edition2023_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "enum_test": {
+          "passed": 17,
+          "failed": 0
+        },
+        "fields_with_imported_types_test": {
+          "passed": 3,
+          "failed": 0
+        },
+        "import_public_test": {
+          "passed": 1,
+          "failed": 0
+        },
+        "message_copy_merge_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "message_generics_test": {
+          "passed": 7,
+          "failed": 0
+        },
+        "nested_types_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "package_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "proto_macro_test": {
+          "passed": 9,
+          "failed": 0
+        },
+        "serialization_test": {
+          "passed": 30,
+          "failed": 0
+        },
+        "simple_nested_test": {
+          "passed": 8,
+          "failed": 0
+        },
+        "threading_test": {
+          "passed": 2,
+          "failed": 0
+        },
+        "utf8_test": {
+          "passed": 3,
+          "failed": 0
+        }
+      },
+      "command": "cargo +nightly miri test --manifest-path rust_out_shared/Cargo.toml --lib --tests",
+      "environment_kind": "miri",
+      "exit_code": 0,
+      "sha256": "946633a146a43b34a6b3a59edaea873a69637cc0d0fcbdeec1c464c015f98ee5"
+    },
+    {
+      "name": "clippy",
+      "log": "clippy-3a7aa128.txt",
+      "test_suites": {},
+      "command": "cargo clippy -p pbrs --lib --test runtime --test upb_kernel --test google_shared -- -D warnings",
+      "environment_kind": "normal",
+      "exit_code": 0,
+      "sha256": "6b3696ccbe5a24db93a37994d09f2dd5dde183ba525d4d860a347953d81033fb"
+    },
+    {
+      "name": "rustdoc",
+      "log": "rustdoc-3a7aa128.txt",
+      "test_suites": {},
+      "command": "cargo doc -p pbrs --no-deps --lib",
+      "environment_kind": "normal",
+      "exit_code": 0,
+      "sha256": "6e980792e8f5c96d4ace0d5c624b78e3428d602794bfdebf63b851d8dbda90f2"
+    },
+    {
+      "name": "miri-core",
+      "log": "miri-core-3a7aa128.txt",
+      "test_suites": {
+        "lib": {
+          "passed": 96,
+          "failed": 0
+        },
+        "runtime": {
+          "passed": 26,
+          "failed": 0
+        },
+        "upb_kernel": {
+          "passed": 18,
+          "failed": 0
+        }
+      },
+      "command": "cargo +nightly miri test -p pbrs --lib --test runtime --test upb_kernel",
+      "environment_kind": "miri",
+      "exit_code": 0,
+      "sha256": "141f1824befbed1d09f815b620741e5a9ccf4f1df9e633bdbc46d9944deadcfc"
+    }
+  ],
+  "format_check": {
+    "command": "rustfmt --edition 2024 --config skip_children=true --check src/runtime.rs src/runtime/mini_table.rs src/runtime/decode.rs src/runtime/encode.rs src/runtime/layout.rs tests/upb_kernel/mini_table.rs rust_out_shared/src/enum_map_regression.rs",
+    "exit_code": 0
+  },
+  "whitespace_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  },
+  "pre_fix_reproduction": {
+    "base_sha": "f8eec452733774effcf2e8f2d79811e0e95e971c",
+    "exact_clean_source": false,
+    "modification": "Added the repeated closed-enum regression before implementing decoder repair.",
+    "command": "PATH=/opt/homebrew/bin:$PATH CARGO_BUILD_JOBS=2 cargo test --manifest-path rust_out_shared/Cargo.toml --lib closed_repeated_enum_parse_preserves_unknowns_without_holes -- --nocapture",
+    "expected_exit_code": 101,
+    "observed": "len 3 versus expected 2; one failed test, three filtered out",
+    "log": "repro-pre-fix.txt",
+    "sha256": "d3761765cde49762af3fb6f0249d6faad288326bcd5693c940522033aecbd788"
+  },
+  "independent_review": "Read-only review approved the frozen source before the source commit; no blocking findings.",
+  "ci": [
+    {
+      "url": "https://github.com/mingley/pure-protobuf/actions/runs/36622048393",
+      "kind": "compatibility",
+      "source_sha": "3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e",
+      "status_at_report": "success"
+    },
+    {
+      "url": "https://github.com/mingley/pure-protobuf/actions/runs/36622048523",
+      "kind": "miri-kernels",
+      "source_sha": "3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e",
+      "status_at_report": "success",
+      "scope": "Linux: 96 library + 26 runtime + 18 kernel tests; not the shared-consumer Miri suite",
+      "nightly_rustc": "1.101.0-nightly (c1070d693 2026-09-28)",
+      "strict_provenance": true,
+      "skipped": "Unavailable h2 step; no coverage claimed"
+    },
+    {
+      "url": "https://github.com/mingley/pure-protobuf/actions/runs/36622116837",
+      "kind": "checkpoint",
+      "source_sha": "3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e",
+      "status_at_report": "in progress; no success claimed"
+    }
+  ],
+  "limits": [
+    "Historical c89608bd evidence remains historical 233+3; it did not cover this closed-enum decode hole.",
+    "Original 19 upstream assertion files and generated sources were not edited.",
+    "Repeated iterator is unchanged and O(1) per next/size_hint; decoder restores its valid typed-storage invariant.",
+    "General unknown-field handling and non-enum map-entry unknown routing are unchanged; this is not full unknown-field/kernel conformance recovery.",
+    "Local macOS arm64 Miri is not a big-endian, 32-bit, or Linux CI result."
+  ]
+}

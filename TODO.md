@@ -20,7 +20,7 @@ Run these from the repository root:
 python3 scripts/plan-lint.py
 python3 scripts/plan-status.py --summary
 python3 scripts/plan-status.py --ready
-python3 scripts/plan-status.py --card QG-05
+python3 scripts/plan-status.py --card SB-21
 ```
 
 The ready list is generated from both card files, including their dependency
@@ -29,20 +29,35 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+QG-05 is delivered: `c89608bd` passes all 19 original consumer crates
+(233 tests plus three regressions), including exact-source Miri and Linux
+compatibility CI. QG-07 now compiles and exercises the operations/production
+guide recipes and rejects API drift without pinning prose. See
+[status](docs/status.md) for their validation and limits.
+The [closed-enum follow-up](docs/evidence/closed-enum-recovery.md) at `3a7aa128`
+keeps unknown wire values out of typed storage and passes a new clean-source
+ordinary/Miri qualification (233 original tests plus six regressions).
+SB-23 has also completed a real corrected-parser CI comparison: 88 cells per
+revision with retained artifacts and unavailable instructions excluded.
+
 | Order | Work | First concrete result | Finished when |
 |---|---|---|---|
-| 1 | **QG-05: restore upstream enum-map compatibility** | Reproduce `test_map_int32_enum`, then design a sound enum conversion hook. | All 19 original shared consumer crates run successfully; the fix has regression and applicable Miri evidence. |
-| 2, in parallel | **SB-21: finish claim scenario execution** | Load frozen scenarios, report latency from scheduled send, randomize each paired repeat, reconcile counts. | Both harnesses pass the scenario smoke with consistent offered/completed/rejected/timed-out accounting. |
-| 2, in parallel | **SB-24: complete required transport comparisons** | Run every required shape/TLS/compression cell with verified effective peer settings. | No required row is silently unsupported; generator headroom, topology and endpoint CPU are recorded. |
-| 2, separate workflow owner | **SB-23, then SB-20: make performance CI useful** | Retain a real CI base/head result with nonempty measured cells. | At least 30 comparable artifact runs support reviewed regression thresholds. |
-| 3 | **RX-09: measure the landed RPC changes** | Compare current code with its pre-change base using deterministic counters and separate-process Linux profiles. | Instructions, bytes and allocations improve on target cells without correctness or tail-latency regressions. |
-| 3, codec/codegen lane | **BM-03, PK-18, GN-02/GN-03** | Finish paired codec measurements, dynamic-parse competitor runs and downstream build-cost reruns. | Their existing acceptance criteria pass with raw evidence; merged code alone is insufficient. |
-| 4 | **QG-06: qualify current-backend resources and recovery** | Freeze finite limits and the slow-reader/cancellation/overload matrix. | A 24-hour exact-candidate soak demonstrates bounded resources and recovery. |
-| 5 | **SB-15, SB-22, then SB-16: run and publish comparisons** | Freeze peer versions, workloads, hosts and thresholds before timing. | Independent x86_64 and arm64 runs meet the benchmark contract; losses and missing rows remain visible. |
+| 1, in parallel | **SB-21: finish claim scenario execution** | Normalize reference-peer aggregate arrival rates and add independent accounting; the pinned Go worker applies its rate per outstanding slot. | Both harnesses pass the frozen scenario smoke with reconciled window counts, scheduled-send latency and generator headroom. |
+| 1, in parallel | **SB-24: complete required transport comparisons** | Close the observed TLS cipher mismatch and missing session/settings exports; run equivalent Go/C++ cells. | Required directions, generator/reference headroom, aligned endpoint CPU windows and feasible topology are verified on the campaign hosts. |
+| 1, separate workflow owner | **SB-20: calibrate performance CI** | Build on the two verified corrected-parser pairs in separate Intel/AMD cohorts; collect comparable runs by host and available metrics. | At least 30 comparable artifact runs support reviewed thresholds; thresholds stay advisory meanwhile. |
+| 2 | **RX-09: measure the landed RPC changes** | First match response bytes/counts and codec/handler work in the differing dev-loop cells, then compare the candidate with its pre-change base and tonic. | Audited equivalent-work counters and separate-process Linux profiles show improvements without correctness or tail-latency regressions. |
+| 2, codec/codegen lane | **BM-03, PK-18, GN-02/GN-03** | Finish paired codec measurements, dynamic-parse competitor runs and downstream build-cost reruns. | Their existing acceptance criteria pass with raw evidence; merged code alone is insufficient. |
+| 3 | **QG-06: qualify current-backend resources and recovery** | Freeze finite limits and the slow-reader/cancellation/overload matrix. | A 24-hour exact-candidate soak demonstrates bounded resources and recovery. |
+| 4 | **SB-15, SB-22, then SB-16: run and publish comparisons** | Freeze peer versions, workloads, hosts and thresholds before timing. | Independent x86_64 and arm64 runs meet the benchmark contract; losses and missing rows remain visible. |
 | Broader claim scope | **SB-25: execute more competitors** | Turn Java/.NET and other optional peer manifests into runnable, equivalent comparisons. | Published claims name only peers and directions actually executed. |
 
-SB-21, SB-23 and RX-09 already contain delivered slices; finish their
-measurements and harness gaps rather than restarting them. The
+SB-21 already exports scheduled latency and conserved window counts and runs
+frozen, randomized repeats; its first matrix smoke correctly failed the
+generator-lag gate. SB-24's 144-cell TLS/compression smoke proves wiring, not
+throughput: native/native negotiated AES-256, while native/tonic negotiated
+AES-128 and tonic/tonic lacks actual session telemetry. No core cipher-policy
+API was changed. Finish these gaps, RX-09's equivalent-work profiles and
+SB-20's calibration. The
 [benchmark contract](docs/benchmark-contract.md) owns numeric thresholds.
 
 ## Work that should wait

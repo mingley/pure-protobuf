@@ -1,0 +1,2 @@
+# Preserve raw transcript bytes and their terminal blank lines for hash checks.
+*.txt -text whitespace=-blank-at-eof

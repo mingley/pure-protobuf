@@ -7081,7 +7081,7 @@
     "BM-13"
    ],
    "status": "pending",
-   "notes": "Collect at least 30 comparable successful base/head measurements after SB-23. Count verified artifacts, not PR pushes or green workflow conclusions; exclude empty reports, errors and unavailable metrics."
+   "notes": "Collect at least 30 comparable successful base/head measurements after SB-23, grouped by compatible host, metric and method. Corrected-parser runs 36617638958 (Intel8370C) and 36622048330 (AMD7763) are two verified pairs in separate cohorts, one retained pair per cohort, for allocations/bytes/syscalls/futex/wall only; instructions are not_run. Do not combine older parser/unit series or different CPU cohorts, or treat zero blocking-wait budgets as zero total futex calls. Count verified artifacts, not pushes or green conclusions; exclude errors and unavailable metrics."
   },
   {
    "id": "SB-21",
@@ -7135,7 +7135,7 @@
    "evidence": [
     "docs/evidence/sb21-claims-scenarios.md"
    ],
-   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate. Keep open for equivalent reference arrival schedules/independent accounting and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag.",
+   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate; the old QPS-only window cannot be reconstructed from that fact. Keep open for reference aggregate arrival-rate normalization, equivalent arrival schedules/independent accounting, and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag.",
    "implementer": "sb21_claim_accounting",
    "reviewer": "coordinator"
   },
@@ -8366,7 +8366,9 @@
    "read": [
     "docs/evidence/rx-08.md",
     "docs/evidence/h2-costs.md",
-    "docs/evidence/tc-03-prost.md"
+    "docs/evidence/tc-03-prost.md",
+    "bench/devloop/README.md",
+    "docs/evidence/rx-09.md"
    ],
    "write": [
     "pbrs-grpc/src/client/call.rs",
@@ -8379,10 +8381,12 @@
     "pbrs-grpc/src/codec.rs",
     "pbrs-grpc/src/metadata.rs",
     "pbrs-grpc/src/status.rs",
+    "bench/devloop/src/main.rs",
     "docs/evidence/rx-09.md"
    ],
-   "deliverable": "Loop-only callgrind dev-loop cells show pbrs-grpc using about half of tonic's allocations but 4% more instructions per unary RPC and 13% more per server-streaming RPC, with 11-12% more heap bytes. Diff the profiles function by function and remove the excess.",
+   "deliverable": "Build equivalent RPC counter comparisons, retain before/after profiles, and remove the remaining native instruction/byte overhead. The original Greeter/echo cells differ in codec, handler work and streaming response bytes; their earlier 4%/13% instruction gaps are historical diagnostics, not a fair acceptance baseline.",
    "accept": [
+    "Before any beat-tonic claim, audit the raw cells for equal request/response bytes and message counts, with explicitly recorded codecs and equivalent encoding/decoding and handler validation work. Current response work differs; those cells are diagnostics, not evidence of a transport win.",
     "rpc.pbrs.unary and rpc.pbrs.server_stream beat rpc.tonic.* on instructions, allocations and bytes per RPC in the same dev-loop harness, with all transport gates green.",
     "Re-profile the merged candidate in separate client/server Linux processes with TLS on/off and mixed unary/streaming traffic. Record endpoint CPU/RPC, p99 at matched offered load, allocations and retained bytes; shared-runtime Tokio instruction share is not production attribution."
    ],
@@ -8401,7 +8405,8 @@
    ],
    "status": "in_progress",
    "evidence": [
-    "Partial 2026-09-29 (b158cc99): client fast paths (skip 144B attempt guard unobserved, lazy labels/telemetry), exact header sizing, frame-reader/send trims across 9 transport files. pbrs-grpc lib 432/432, full grpc suite green, CI rpc-bench tests 85+1+1+89 green, fmt clean, clippy 0 errors. Dev-loop callgrind beat-tonic measurement still open; RX-09 remains in progress."
+    "Partial 2026-09-29 (b158cc99): client fast paths (skip 144B attempt guard unobserved, lazy labels/telemetry), exact header sizing, frame-reader/send trims across 9 transport files. pbrs-grpc lib 432/432, full grpc suite green, CI rpc-bench tests 85+1+1+89 green, fmt clean, clippy 0 errors.",
+    "docs/evidence/rx-09.md: 48 retained Linux arm64 Callgrind captures compare exact sources 6cbf19e9 and 9a04f82b. Within native workloads, median instructions fall 9.33% unary / 8.58% streaming; allocated bytes fall 19.07% / 15.93%; allocation counts are essentially unchanged. Native streaming remains 3.38% above tonic's instructions despite returning one quarter of its payload. RX-09 stays open for equivalent-work comparisons and separate-process TLS/CPU/p99/retained-byte qualification."
    ]
   },
   {
@@ -8632,9 +8637,11 @@
     "tests/test_devloop_wrapper.py",
     "bench/devloop/README.md",
     "bench/devloop/src/main.rs",
-    "bench/devloop/src/counters.rs"
+    "bench/devloop/src/counters.rs",
+    "docs/evidence/sb23-perf-ci.md",
+    "docs/evidence/perf-ci/"
    ],
-   "deliverable": "Fix the red dev-loop perf lane: offline resolve of the protobuf =4.35.1-release pin during cargo fetch/build, and make the build/compare steps non-fatal per the non-blocking design so base/head JSONs always upload.",
+   "deliverable": "Make the dev-loop lane reliably build both exact revisions with the pinned compiler, retain measured or error reports, and validate the evidence before comparison. Keep performance thresholds advisory while measurement infrastructure errors fail visibly.",
    "accept": [
     "A real CI base/head comparison uploads nonempty devloop/1 reports with measured cells, source SHAs and tool metadata. Retain the run URL and artifacts; missing counters remain not_run.",
     "Demonstrate failed builds retain error reports without counting them as qualifying SB-20 runs. Keep thresholds advisory until SB-20 closes."
@@ -8645,11 +8652,14 @@
     "SB-04",
     "SB-20"
    ],
-   "notes": "Execution 2026-09-29: direct-main-push and explicit base/head dispatch support implemented, fail-closed evidence validator plus build/regression-report preservation tests pass locally. Await actual CI artifacts before closing; performance thresholds remain advisory.",
-   "status": "in_progress",
+   "notes": "DONE 2026-09-29: docs/evidence/sb23-perf-ci.md retains failed-build run 36614240614 (rejected), successful old-parser run 36615248270, and corrected-parser runs 36617638958 and 36622048330. Each corrected pair has 88 cells per revision, matching source/host/compiler metadata and no validation errors; allocations/bytes/syscalls/futex/wall measured, instructions not_run and excluded. Downloaded reports revalidate byte-identically. Intel/AMD cohorts remain separate, one retained pair each. Thresholds remain advisory; SB-20 needs 30 compatible pairs before gating.",
+   "status": "done",
    "evidence": [
-    "scripts/devloop.sh + perf.yml: non-fatal lane, pinned protoc",
-    "local lane run: exit 0, 88 cells, devloop/1"
+    "scripts/devloop.sh + perf.yml: advisory thresholds, pinned protoc, failed measurements retained and rejected",
+    "docs/evidence/sb23-perf-ci.md",
+    "docs/evidence/perf-ci/36617638958/validation.json: qualified_for_noise=true, 88 common cells; instruction metrics excluded",
+    "docs/evidence/perf-ci/36622048330/validation.json: exact head3a7aa128, qualified_for_noise=true, 88 common cells; instructions excluded; separate AMD cohort",
+    "docs/evidence/perf-ci/36614240614/validation.json: failed baseline retained and qualified_for_noise=false"
    ],
    "implementer": "coordinator",
    "reviewer": "coordinator"
@@ -8750,6 +8760,8 @@
     "docs/audit-2026-09-29.md",
     "src/runtime/reflect.rs",
     "src/runtime/map.rs",
+    "src/runtime/mini_table.rs",
+    "src/runtime/decode.rs",
     "src/map.rs",
     "scripts/test-rust-out-shared.sh"
    ],
@@ -8761,6 +8773,9 @@
     "src/runtime.rs",
     "src/runtime/array.rs",
     "src/runtime/layout.rs",
+    "src/runtime/mini_table.rs",
+    "src/runtime/decode.rs",
+    "src/runtime/encode.rs",
     "tests/runtime.rs",
     "tests/upb_kernel.rs",
     "tests/upb_kernel/map.rs",
@@ -8769,12 +8784,16 @@
     "rust_out_shared/src/enum_map_regression.rs",
     "docs/unsafe-invariants.md",
     "docs/evidence/shared-map-recovery.md",
-    "docs/evidence/shared-map-recovery/"
+    "docs/evidence/shared-map-recovery/",
+    "docs/evidence/closed-enum-recovery.md",
+    "docs/evidence/closed-enum-recovery/",
+    ".github/workflows/miri-kernels.yml"
    ],
-   "deliverable": "Repair generated enum-map and repeated-enum access with a sound typed conversion contract; restore original shared consumers without weakening assertions.",
+   "deliverable": "Repair generated enum-map and repeated-enum access with a sound typed conversion contract; validate closed enum wire values before populating typed fields/collections, preserving unknowns; restore original shared consumers without weakening assertions.",
    "accept": [
     "Reproduce test_map_int32_enum: length reports one but iteration returns no entries. Cover insertion, iteration, mutation, roundtrip and unknown enum values.",
     "Do not restore the removed arbitrary four-byte transmute fallback. Review an explicit enum conversion boundary and run applicable Miri checks.",
+    "Validate closed enums using their generated linked metadata. Unknown singular/packed/expanded values remain unknown wire fields; map entries with unknown closed-enum or wrong-wire enum values remain wholly unknown and do not replace typed entries. Typed length/indexed reads/iteration agree; open enums retain unknown typed values.",
     "Run all 19 original shared consumer crates, plus core/runtime regressions. Retain exact-SHA reports; only passing the first crate is insufficient."
    ],
    "checks": [
@@ -8789,7 +8808,8 @@
    "evidence": [
     "Baseline 37683917: https://github.com/mingley/pure-protobuf/actions/runs/36594563929 failed accessors_map_test (34 pass, 1 fail); only 1/19 crates ran.",
     "c89608bd2073f2fa7e7d30d7299b1fd08466904c: clean exact-source ordinary/Miri runs pass 19 original crates (233 tests) plus 3 added regressions; core 93/shared38/runtime26/kernel18 pass, Miri core93/runtime26/kernel18 pass, strict Clippy and rustdoc pass. docs/evidence/shared-map-recovery/summary-c89608bd.json retains commands, hashes and transcripts.",
-    "Exact Linux compatibility CI passes: https://github.com/mingley/pure-protobuf/actions/runs/36615248310. No original assertions or exclusions changed."
+    "Exact Linux compatibility CI passes: https://github.com/mingley/pure-protobuf/actions/runs/36615248310. No original assertions or exclusions changed.",
+    "Separate closed-enum follow-up 3a7aa12857e8d9f7b3569ec3847ccd9b8963ef1e: clean-source ordinary/Miri runs pass 233 original shared tests plus 6 regressions; core ordinary96/native_shared38/runtime26/kernel18, Miri96/26/18; strict Clippy/rustdoc pass. docs/evidence/closed-enum-recovery.md retains the exact commands and hashed transcripts. Linux compatibility CI36622048393 and kernel Miri CI36622048523 passed; original fixture assertions/exclusions remain unchanged. This is scoped recovery, not complete upb qualification."
    ],
    "implementer": "qg05_enum_maps",
    "reviewer": "coordinator"
@@ -8842,6 +8862,11 @@
     "E4",
     "E5"
    ],
+   "evidence": [
+    "docs/evidence/sb24-matrix.md",
+    "docs/evidence/sb24-tls-smoke.json"
+   ],
+   "notes": "Execution 2026-09-29: d9c34c06 TLS follow-up passes 144 wiring cells (1296 successful calls, zero failures/rejections/timeouts) and wrong-CA/wrong-name checks. This is not throughput evidence. Native/native sessions negotiate AES-256 rather than the contract's AES-128; native/tonic sessions show AES-128, while tonic/tonic has a configured single AES-128 suite but no actual load-session telemetry. No core cipher-policy API changed. Keep open for cipher equality, full observed runtime settings, equivalent Go/C++ cells, dedicated-host generator/reference headroom and aligned resource windows, feasible 100k topology, and measured saturation-knee/overload evidence.",
    "implementer": "sb24_matrix",
    "reviewer": "coordinator"
   },
@@ -8975,7 +9000,7 @@
    "priority": "P1",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "depends_on": [
     "DX-07"
    ],
@@ -9002,6 +9027,11 @@
     "codegen"
    ],
    "scoreboard": [],
+   "evidence": [
+    "80013bfc, 2026-09-29: six named docs/guides/operations.md recipes are extracted by tests/onboarding.rs into a fresh consumer using the documented features and exercised with bounded HTTP/2 health Check/Watch, reflection, rich ErrorDetails trailers and from_io greeting checks. The existing production TLS/mTLS fresh-consumer fixture exercises admission/stream limits, overload recovery and drain. Nonexistent-method mutation fails cargo check; surrounding prose edits preserve the extracted source and passing runtime checks.",
+    "PATH=/opt/homebrew/bin:$PATH CARGO_BUILD_JOBS=2 cargo test -p pbrs --test plugin --test pbrs_build --test onboarding: 89 passed (plugin 44, pbrs_build 30, onboarding 15); 3 existing compiler-version tests ignored (protoc 35.1 descriptor comparison and two protoc 36.1 Edition 2024 tests).",
+    "cargo test --test documentation -- --nocapture: 24 passed, including offline links/anchors/caveats and negative syntax checks for named recipe fences. cargo test -p pbrs-grpc-example-greeter -- --nocapture: 16 passed. RUSTDOCFLAGS='-D warnings' cargo doc -p pbrs-grpc-example-greeter --no-deps and git diff --check passed."
+   ],
    "implementer": "sb21_claim_accounting (guide follow-up)",
    "reviewer": "coordinator"
   }
