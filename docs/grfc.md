@@ -80,11 +80,11 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A72 | OpenTelemetry tracing | partial | W3C propagation both directions (`ClientTracing` inject / `ServerTracing` extract) + server spans with safe-by-default RPC attributes (GF-02, `tests/otel_trace.rs`). Automatic client spans need a per-call client completion hook; error-path spans end without a status code (GF-02b). |
 | A78 | gRPC metrics for WRR/PF/xDS | partial | WRR hooks ship: `weights_snapshot` + `WrrStats` (accepted/ignored/rebuilds) for polling (CH-06). OTel instrument mapping rides the OTel bridge (A66); pick_first/xDS instruments with their lanes. |
 | A79 | Non-per-call metrics architecture | planned | With the OTel bridge. |
-| A80 | TCP telemetry | planned | TCP_INFO-based per-connection stats where available. |
+| A80 | TCP telemetry | partial | Per-connection socket addrs + handshake timing ride the TLS handshake observer (`TcpStats` in `tls.rs`, GF-06). Kernel TCP_INFO (RTT/cwnd/retransmits) is a boundary: no safe API in `socket2` 0.6 and `tls.rs` is `forbid(unsafe_code)`. |
 | A94 | Subchannel OTel metrics | partial | Connection-attempt counters ride `on_reconnect`, which fires for redials only; initial dials stay invisible until the pool gains dial hooks (GF-01b). |
 | A96 | Retry OTel stats | planned | With retry stats. |
 | A108 | OTel custom per-call labels | partial | Static channel-level attributes via `with_custom_attributes`; dynamic per-RPC values need a tags channel (GF-01b). |
-| A118 | TLS telemetry | planned | Handshake/session telemetry hooks. |
+| A118 | TLS telemetry | shipped | `ServerTls`/`ClientTls::with_handshake_observer` delivers `TlsHandshakeInfo` (version, suite, resumed, ALPN, peer cert count, duration) after every successful handshake; failures are not reported (GF-06, in-`tls.rs` tests). |
 
 ## Security
 
@@ -94,13 +94,13 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A41 | xDS RBAC | planned | RBAC filter from xDS route config. |
 | A43 | gRPC authorization API | shipped | `authz::{Policy, StaticDataProvider, FileWatcherProvider, AuthzInterceptor}`; `Server`/`Router::authorization_policy`; deny-first/default-deny, SAN/subject principals, header matching; denied calls are `PERMISSION_DENIED` without handler execution. |
 | A65 | xDS mTLS creds in bootstrap | planned | With xDS bootstrap. |
-| A69 | CRL enhancements | planned | CRL revocation checking in the TLS verifier. |
+| A69 | CRL enhancements | shipped | Fail-closed CRL checking on pinned-CA constructors (`mtls_with_crl`, `ca_with_crl`, `ca_mtls_with_crl`): full-chain status required, unknown status and expired CRLs reject; fixtures cross-checked with `openssl verify -crl_check` (GF-06, in-`tls.rs` tests). |
 | A82 | xDS system root certs | planned | With xDS bootstrap. |
 | A83 | xDS GCP authn filter | boundary | GCP-only; not in the portable kernel. |
-| A87 | mTLS SPIFFE support | planned | SPIFFE ID constraint verification. |
+| A87 | mTLS SPIFFE support | shipped | Exact-match SPIFFE ID constraint on the leaf URI SAN, checked after WebPKI verification (`mtls_spiffe`, `ca_spiffe`, `ca_mtls_spiffe`); can only reject more, never a skip-verify path (GF-06, in-`tls.rs` tests). |
 | A97 | xDS JWT call creds | planned | JWT call credentials (also usable without xDS). |
 | A107 | TLS private-key offloading | boundary | Requires HSM/key-provider integration; not portable. |
-| A120 | Post-quantum cryptography | boundary | Blocked on a pure-Rust PQ TLS provider; re-evaluate when rustls/Graviola ships one. |
+| A120 | Post-quantum cryptography | boundary | Pinned `rustls-graviola` 0.2.1 negotiates classical KX only (X25519/P-256/P-384); tracked in code by `post_quantum_key_exchange_available` with a provider-change tripwire test. Re-evaluate at `rustls-graviola` 0.4 (pure-Rust `X25519MLKEM768`, needs rustc 1.89 > MSRV 1.85). |
 | ALTS | (no single gRFC; L126/L18x touch it) | boundary | Google-internal transport; JWT/mTLS cover portable auth. |
 
 ## Fault tolerance and traffic policy

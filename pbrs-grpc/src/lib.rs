@@ -1211,7 +1211,10 @@ pub use telemetry::{
     MetricSink, OTHER_METRIC_LABEL, ObserverChain, OwnedCallLabels, ReconnectEvent, RejectionEvent,
     RejectionReason,
 };
-pub use tls::{ClientTls, Identity, PeerIdentity, ServerTls};
+pub use tls::{
+    ClientTls, Identity, PeerIdentity, ServerTls, TcpStats, TlsHandshakeInfo,
+    post_quantum_key_exchange_available,
+};
 
 pub use hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 pub use interop_cases::run_case;
