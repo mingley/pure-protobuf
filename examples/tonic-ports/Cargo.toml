@@ -57,10 +57,14 @@ path = "src/bin/error_details.rs"
 
 [dependencies]
 futures-core = { version = "0.3", default-features = false }
+bytes = "1"
 pbrs = { path = "../.." }
-pbrs-grpc = { path = "../../pbrs-grpc", features = ["prost"] }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["prost", "tower"] }
 prost = "0.14"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "fs"] }
+tower = { version = "0.5", default-features = false, features = ["limit", "load-shed", "timeout", "util"] }
 
 [build-dependencies]
 pbrs = { path = "../.." }

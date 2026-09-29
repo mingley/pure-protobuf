@@ -153,6 +153,31 @@ adoption scope, such as grpc-web, load-balancing control-plane examples,
 custom JSON codecs, tracing, or Tower middleware. Those remain separate gap
 cards if the project wants executable migration examples for them.
 
+TC-22 extends the same crate with the remaining migration examples and a
+standalone tonic cross-stack harness under `tests/interop/tonic`.
+
+| Tonic example | Upstream tonic sources | pbrs-grpc port surface | Upstream lines | Port lines | Diff count | Blockers / gaps |
+|---|---|---|---:|---:|---:|---|
+| Load balance | `src/load_balance/client.rs` | `Channel::connect_uri` with DNS provider + `loadBalancingConfig` `round_robin` | 29 | 97 | +85 / -17 | Uses pbrs resolver providers instead of tonic `Channel::balance_list`. |
+| Dynamic load balance | `src/dynamic_load_balance/client.rs` | Rebuilds resolver-managed channels from changed DNS provider state | 80 | 10 | +8 / -78 | No Endpoint-style dynamic `Change` sender is used here; TC-19 owns that facade. |
+| JSON codec | `src/json-codec/{server,client,common}.rs` | Custom `CodecMessage` JSON request/response types over native transport | 156 | 97 | +73 / -132 | pbrs-grpc custom codec seam is per message type, not tonic's `Codec` trait/codegen helper shape. |
+| Tracing | `src/tracing/{server,client}.rs` | `LifecycleObserver` server call start/end counters | 89 | 47 | +37 / -79 | Demonstrates observer hooks; exact tonic `trace_fn` span factory is still not a native builder API. |
+| Authentication | `src/authentication/{server,client}.rs` | Server `Interceptor` checks `authorization`; client `Channel::intercept` inserts it | 68 | 45 | +39 / -62 | Native interceptors use `Rpc` / `Outgoing` instead of tonic `Request<()>`. |
+| Cancellation | `src/cancellation/{server,client}.rs` | Handler selects on `Request::cancelled`; client drops via timeout | 115 | 35 | +26 / -106 | Uses native cancellation token from request, not `tokio_util::CancellationToken`. |
+| h2c | `src/h2c/{server,client}.rs` | Native prior-knowledge h2c (`Channel::connect` / `Server::serve_listener`) | 218 | 7 | +5 / -216 | Tonic example's HTTP/1.1 Upgrade path remains outside pbrs-grpc, which speaks prior-knowledge HTTP/2. |
+| Tower middleware | `src/tower/{server,client}.rs` | `Channel::tower_unary` wrapped in Tower layers | 192 | 18 | +15 / -189 | Server Tower middleware around `Router::into_tower_service` remains documented separately; this runner proves client-side layers. |
+
+Cross-stack executable coverage in `tests/interop/tonic --test example_ports`
+now verifies pbrs servers against original tonic clients and pbrs clients
+against original tonic servers for:
+
+- helloworld unary;
+- routeguide unary, server-streaming, client-streaming, and bidi;
+- streaming echo unary, server-streaming, and bidi;
+- compression (tonic gzip client ↔ pbrs gzip server and pbrs client ↔ tonic gzip server);
+- richer error details (tonic client receives packed `grpc-status-details-bin`
+  from the pbrs error-details server).
+
 ### Tower middleware parity
 
 Enable `pbrs-grpc`'s optional `tower` feature when you want Tonic-style

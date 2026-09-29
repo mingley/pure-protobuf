@@ -16,14 +16,19 @@ http = "1"
 http-body = "1"
 pbrs = { path = "../../../" }
 pbrs-grpc = { path = "../../../pbrs-grpc", features = ["zstd"] }
+pbrs-grpc-example-tonic-ports = { path = "../../../examples/tonic-ports" }
 pin-project-lite = "0.2"
 prost = "0.14"
 protobuf-tonic = { path = "../../../protobuf-tonic" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router", "gzip"] }
+tonic-prost = "0.14"
 tower-service = "0.3"
 zstd = { version = "0.14", default-features = false }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
 
 [[bin]]
 name = "tonic-interop"

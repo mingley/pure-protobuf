@@ -18,15 +18,22 @@
 // `proto/` keep the upstream gRPC Apache-2.0 headers.
 
 use pbrs_grpc::compat;
+use pbrs_grpc::resolver::{DnsConfig, DnsLookup, ResolverConfig, TxtLookup};
 use pbrs_grpc::{
-    Channel, ClientTls, Code, Identity, Request, Response, Router, Server, ServerTls, Status,
+    Channel, ClientTls, Code, CodecMessage, Identity, Request, Response, Router, Server, ServerTls,
+    Status,
 };
+use serde::{Deserialize, Serialize};
+use std::future::Future;
+use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
+use tower::ServiceExt;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 pub type ExampleResult<T = ()> = Result<T, BoxError>;
@@ -72,7 +79,7 @@ pub mod prost_gen {
     }
 }
 
-struct ServerGuard {
+pub struct ServerGuard {
     handle: tokio::task::JoinHandle<()>,
     unix_path: Option<PathBuf>,
 }
@@ -253,6 +260,10 @@ async fn serve_prost_greeter() -> Result<(SocketAddr, ServerGuard), Status> {
     Ok((addr, ServerGuard::new(handle)))
 }
 
+pub async fn spawn_pbrs_helloworld_server() -> Result<(SocketAddr, ServerGuard), Status> {
+    serve_prost_greeter().await
+}
+
 pub async fn run_helloworld() -> ExampleResult {
     let (addr, _guard) = serve_compat_greeter().await?;
     let mut client = compat_gen::helloworld::GreeterClient::connect(addr).await?;
@@ -427,6 +438,10 @@ async fn serve_prost_echo() -> Result<(SocketAddr, ServerGuard), Status> {
             .ok();
     });
     Ok((addr, ServerGuard::new(handle)))
+}
+
+pub async fn spawn_pbrs_streaming_server() -> Result<(SocketAddr, ServerGuard), Status> {
+    serve_prost_echo().await
 }
 
 pub async fn run_streaming() -> ExampleResult {
@@ -803,6 +818,10 @@ async fn serve_prost_routeguide() -> Result<(SocketAddr, ServerGuard), Status> {
             .ok();
     });
     Ok((addr, ServerGuard::new(handle)))
+}
+
+pub async fn spawn_pbrs_routeguide_server() -> Result<(SocketAddr, ServerGuard), Status> {
+    serve_prost_routeguide().await
 }
 
 pub async fn run_routeguide() -> ExampleResult {
@@ -1195,6 +1214,18 @@ pub async fn run_compression() -> ExampleResult {
     Ok(())
 }
 
+pub async fn spawn_pbrs_compression_server() -> Result<(SocketAddr, ServerGuard), Status> {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Server::new(prost_gen::helloworld::GreeterServer::new(ProstGreeter))
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    Ok((addr, ServerGuard::new(handle)))
+}
+
 struct CompatErrorGreeter;
 
 impl compat_gen::helloworld::Greeter for CompatErrorGreeter {
@@ -1288,5 +1319,373 @@ pub async fn run_error_details() -> ExampleResult {
         .expect_err("prost invalid argument");
     assert_error_details(&err)?;
     drop(ServerGuard::new(handle));
+    Ok(())
+}
+
+pub async fn spawn_pbrs_error_details_server() -> Result<(SocketAddr, ServerGuard), Status> {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Server::new(prost_gen::helloworld::GreeterServer::new(ProstErrorGreeter))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    Ok((addr, ServerGuard::new(handle)))
+}
+
+struct TaggedUnaryEcho {
+    tag: &'static str,
+}
+
+impl prost_gen::unary_echo::Echo for TaggedUnaryEcho {
+    async fn unary_echo(
+        &self,
+        request: Request<prost_gen::unary_echo::EchoRequest>,
+    ) -> Result<Response<prost_gen::unary_echo::EchoResponse>, Status> {
+        Ok(Response::new(prost_gen::unary_echo::EchoResponse {
+            message: format!("{}:{}", self.tag, request.into_inner().message),
+        }))
+    }
+}
+
+async fn serve_tagged_unary(tag: &'static str) -> Result<(SocketAddr, ServerGuard), Status> {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .add_service(prost_gen::unary_echo::EchoServer::new(TaggedUnaryEcho {
+                tag,
+            }))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    Ok((addr, ServerGuard::new(handle)))
+}
+
+struct FixedAddrs(Vec<SocketAddr>);
+
+impl DnsLookup for FixedAddrs {
+    fn lookup(
+        &self,
+        _host: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
+        let addrs = self.0.clone();
+        Box::pin(async move { Ok(addrs) })
+    }
+}
+
+struct FixedTxt(&'static str);
+
+impl TxtLookup for FixedTxt {
+    fn fetch_txt(
+        &self,
+        _name: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, io::Error>> + Send + '_>> {
+        let doc = self.0.to_owned();
+        Box::pin(async move { Ok(vec![doc]) })
+    }
+}
+
+fn dns_bounds() -> DnsConfig {
+    DnsConfig::new(
+        Duration::from_millis(100),
+        Duration::from_secs(30),
+        Duration::from_secs(5),
+        Duration::from_millis(25),
+        Duration::from_secs(5),
+        Duration::from_secs(60),
+    )
+    .expect("dns bounds")
+}
+
+async fn lb_channel(addrs: Vec<SocketAddr>) -> Result<Channel, Status> {
+    let doc = r#"{"loadBalancingConfig":[{"round_robin":{}}]}"#;
+    let config = ResolverConfig::with_dns_provider(dns_bounds(), Arc::new(FixedAddrs(addrs)))
+        .with_txt_provider(Arc::new(FixedTxt(doc)));
+    Channel::connect_uri("dns:///tonic-ports.invalid:443", config).await
+}
+
+async fn run_lb_rounds(addrs: Vec<SocketAddr>) -> Result<Vec<String>, Status> {
+    let channel = lb_channel(addrs).await?;
+    let client = prost_gen::unary_echo::EchoClient::new(channel);
+    let mut seen = Vec::new();
+    for _ in 0..6 {
+        let reply = client
+            .unary_echo(Request::new(prost_gen::unary_echo::EchoRequest {
+                message: "hello".to_owned(),
+            }))
+            .await?
+            .into_inner();
+        seen.push(reply.message);
+    }
+    Ok(seen)
+}
+
+pub async fn run_load_balance() -> ExampleResult {
+    let (a1, _g1) = serve_tagged_unary("one").await?;
+    let (a2, _g2) = serve_tagged_unary("two").await?;
+    let seen = run_lb_rounds(vec![a1, a2]).await?;
+    assert!(seen.iter().any(|s| s.starts_with("one:")));
+    assert!(seen.iter().any(|s| s.starts_with("two:")));
+    Ok(())
+}
+
+pub async fn run_dynamic_load_balance() -> ExampleResult {
+    let (a1, _g1) = serve_tagged_unary("first").await?;
+    let first = run_lb_rounds(vec![a1]).await?;
+    assert!(first.iter().all(|s| s.starts_with("first:")));
+    let (a2, _g2) = serve_tagged_unary("second").await?;
+    let second = run_lb_rounds(vec![a2]).await?;
+    assert!(second.iter().all(|s| s.starts_with("second:")));
+    Ok(())
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct JsonHelloRequest {
+    name: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct JsonHelloResponse {
+    message: String,
+}
+
+impl CodecMessage for JsonHelloRequest {
+    fn encoded_len(&self) -> usize {
+        self.encode_to_vec().map_or(0, |bytes| bytes.len())
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+        out.put_slice(&self.encode_to_vec()?);
+        Ok(())
+    }
+
+    fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+        serde_json::to_vec(self).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn decode_payload(payload: bytes::Bytes) -> Result<Self, Status> {
+        serde_json::from_slice(&payload).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn empty() -> Self {
+        Self::default()
+    }
+}
+
+impl CodecMessage for JsonHelloResponse {
+    fn encoded_len(&self) -> usize {
+        self.encode_to_vec().map_or(0, |bytes| bytes.len())
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+        out.put_slice(&self.encode_to_vec()?);
+        Ok(())
+    }
+
+    fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+        serde_json::to_vec(self).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn decode_payload(payload: bytes::Bytes) -> Result<Self, Status> {
+        serde_json::from_slice(&payload).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn empty() -> Self {
+        Self::default()
+    }
+}
+
+struct JsonGreeter;
+
+impl pbrs_grpc::Service for JsonGreeter {
+    const NAME: &'static str = "json.helloworld.Greeter";
+
+    async fn call(&self, rpc: pbrs_grpc::Rpc) {
+        match rpc.method() {
+            "SayHello" => {
+                rpc.unary(|request: Request<JsonHelloRequest>| async move {
+                    Ok::<_, Status>(Response::new(JsonHelloResponse {
+                        message: format!("Hello {}!", request.into_inner().name),
+                    }))
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
+pub async fn run_json_codec() -> ExampleResult {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Server::new(JsonGreeter).serve_listener(listener).await.ok();
+    });
+    let response = connect(addr)
+        .await?
+        .unary::<JsonHelloRequest, JsonHelloResponse>(
+            "/json.helloworld.Greeter/SayHello",
+            Request::new(JsonHelloRequest {
+                name: "Tonic".to_owned(),
+            }),
+        )
+        .await?
+        .into_inner();
+    assert_eq!(response.message, "Hello Tonic!");
+    drop(ServerGuard::new(handle));
+    Ok(())
+}
+
+#[derive(Default, Clone)]
+struct CountingObserver {
+    starts: Arc<AtomicUsize>,
+    ends: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::LifecycleObserver for CountingObserver {
+    fn on_server_call_start(&self, _call: &pbrs_grpc::CallLabels<'_>) {
+        self.starts.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn on_server_call_end(
+        &self,
+        _call: &pbrs_grpc::CallLabels<'_>,
+        _status: &Status,
+        _latency: Duration,
+    ) {
+        self.ends.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+pub async fn run_tracing() -> ExampleResult {
+    let observer = CountingObserver::default();
+    let starts = Arc::clone(&observer.starts);
+    let ends = Arc::clone(&observer.ends);
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .observer(observer)
+            .add_service(compat_gen::helloworld::GreeterServer::new(CompatGreeter))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mut client = compat_gen::helloworld::GreeterClient::connect(addr).await?;
+    client.say_hello(compat_hello_request("trace")).await?;
+    for _ in 0..20 {
+        if starts.load(Ordering::SeqCst) == 1 && ends.load(Ordering::SeqCst) == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(starts.load(Ordering::SeqCst), 1);
+    assert_eq!(ends.load(Ordering::SeqCst), 1);
+    drop(ServerGuard::new(handle));
+    Ok(())
+}
+
+fn auth_interceptor(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    match rpc.metadata().get("authorization") {
+        Some("******") => Ok(()),
+        _ => Err(Status::unauthenticated("No valid auth token")),
+    }
+}
+
+pub async fn run_authentication() -> ExampleResult {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .intercept(auth_interceptor)
+            .add_service(prost_gen::unary_echo::EchoServer::new(TaggedUnaryEcho {
+                tag: "auth",
+            }))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = prost_gen::unary_echo::EchoClient::new(connect(addr).await?);
+    let err = client
+        .unary_echo(Request::new(prost_gen::unary_echo::EchoRequest {
+            message: "hello".to_owned(),
+        }))
+        .await
+        .expect_err("unauthenticated");
+    assert_eq!(err.code(), Code::Unauthenticated);
+    let channel = connect(addr)
+        .await?
+        .intercept(|out: &mut pbrs_grpc::Outgoing<'_>| {
+            out.metadata_mut().insert("authorization", "******")?;
+            Ok(())
+        });
+    let client = prost_gen::unary_echo::EchoClient::new(channel);
+    let reply = client
+        .unary_echo(Request::new(prost_gen::unary_echo::EchoRequest {
+            message: "hello".to_owned(),
+        }))
+        .await?
+        .into_inner();
+    assert_eq!(reply.message, "auth:hello");
+    drop(ServerGuard::new(handle));
+    Ok(())
+}
+
+struct SlowGreeter;
+
+impl compat_gen::helloworld::Greeter for SlowGreeter {
+    async fn say_hello(
+        &self,
+        request: compat::Request<compat_gen::helloworld::HelloRequest>,
+    ) -> Result<compat::Response<compat_gen::helloworld::HelloReply>, compat::Status> {
+        tokio::select! {
+            () = tokio::time::sleep(Duration::from_secs(10)) => {
+                Ok(compat::Response::new(compat_hello_reply(format!("Hello {}!", compat_name(request.get_ref())))))
+            }
+            () = request.cancelled() => Err(Status::cancelled()),
+        }
+    }
+}
+
+pub async fn run_cancellation() -> ExampleResult {
+    let (listener, addr) = bind_loopback().await?;
+    let handle = tokio::spawn(async move {
+        compat_gen::helloworld::GreeterServer::new(SlowGreeter)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mut client = compat_gen::helloworld::GreeterClient::connect(addr).await?;
+    let result = tokio::time::timeout(
+        Duration::from_millis(50),
+        client.say_hello(compat_hello_request("Tonic")),
+    )
+    .await;
+    assert!(result.is_err(), "request should be cancelled by timeout");
+    drop(ServerGuard::new(handle));
+    Ok(())
+}
+
+pub async fn run_h2c() -> ExampleResult {
+    // pbrs-grpc's default TCP transport is prior-knowledge h2c. Tonic's public
+    // example demonstrates HTTP/1.1 Upgrade; that is intentionally outside the
+    // native pbrs-grpc server, so this port proves the native h2c path.
+    run_helloworld().await
+}
+
+pub async fn run_tower() -> ExampleResult {
+    let (addr, _guard) = serve_compat_greeter().await?;
+    let service = connect(addr)
+        .await?
+        .tower_unary::<compat_gen::helloworld::HelloRequest, compat_gen::helloworld::HelloReply>(
+            "/helloworld.Greeter/SayHello",
+        );
+    let response = tower::ServiceBuilder::new()
+        .timeout(Duration::from_secs(5))
+        .concurrency_limit(1)
+        .load_shed()
+        .service(service)
+        .oneshot(Request::new(compat_hello_request("tower")))
+        .await?
+        .into_inner();
+    assert_eq!(compat_reply_message(&response), "Hello tower!");
     Ok(())
 }
