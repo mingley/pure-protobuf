@@ -1,6 +1,6 @@
 //! Channel type: dialing, overlays, and connection metadata.
 
-use super::pool::{self, ChannelInner, Endpoint};
+use super::pool::{self, ChannelInner, Endpoint as PoolEndpoint};
 use super::retry::{RetryStats, RetryStatsRecorder};
 use crate::config::ChannelConfig;
 use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
@@ -17,14 +17,19 @@ use crate::stream::Streaming;
 use crate::telemetry::{LifecycleObserver, ObserverChain, diagnostic_identity};
 use crate::tls::ClientTls;
 use http::HeaderValue;
+use http::Uri;
 use http::uri::Authority;
 use std::fmt;
+use std::future::Future;
+use std::io;
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
+use tokio::sync::watch;
 
 /// Where a [`Channel`] should dial.
 ///
@@ -216,6 +221,264 @@ impl From<&String> for Target {
             authority: authority.clone(),
         }
     }
+}
+
+/// Tonic-style endpoint facade over [`Channel`].
+///
+/// This is an additive migration helper for code that starts from
+/// `http://` or `https://` endpoint URIs. The default native constructors
+/// remain [`Channel::connect`] / [`Channel::connect_tls`].
+#[derive(Clone, Debug)]
+pub struct Endpoint {
+    uri: Uri,
+    config: ChannelConfig,
+}
+
+impl Endpoint {
+    /// Parse a shared `http://` or `https://` endpoint URI.
+    ///
+    /// `http` maps to plaintext [`Channel::connect_with`]; `https` maps to
+    /// [`Channel::connect_tls_with`] with [`ClientTls::webpki`] using the URI
+    /// host as the server name. Missing ports default to 80/443.
+    pub fn from_shared(uri: impl Into<String>) -> Result<Self, Status> {
+        let raw = uri.into();
+        let uri: Uri = raw
+            .parse()
+            .map_err(|e| Status::invalid_argument(format!("invalid endpoint URI {raw:?}: {e}")))?;
+        Self::from_uri(uri)
+    }
+
+    /// Parse a static `http://` or `https://` endpoint URI.
+    pub fn from_static(uri: &'static str) -> Result<Self, Status> {
+        Self::from_shared(uri)
+    }
+
+    fn from_uri(uri: Uri) -> Result<Self, Status> {
+        match uri.scheme_str() {
+            Some("http" | "https") => {}
+            Some(scheme) => {
+                return Err(Status::invalid_argument(format!(
+                    "endpoint URI scheme {scheme:?} is not http or https"
+                )));
+            }
+            None => return Err(Status::invalid_argument("endpoint URI needs a scheme")),
+        }
+        if uri.host().is_none() {
+            return Err(Status::invalid_argument(
+                "endpoint URI needs a host authority",
+            ));
+        }
+        Ok(Self {
+            uri,
+            config: ChannelConfig::default(),
+        })
+    }
+
+    /// Set the channel configuration used by subsequent connects.
+    #[must_use]
+    pub fn with_config(mut self, config: ChannelConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// The parsed endpoint URI.
+    #[must_use]
+    pub fn uri(&self) -> &Uri {
+        &self.uri
+    }
+
+    /// Connect using the endpoint's scheme.
+    pub async fn connect(&self) -> Result<Channel, Status> {
+        let target = self.target()?;
+        if self.is_https() {
+            Channel::connect_tls_with(target, self.config, self.client_tls()?).await
+        } else {
+            Channel::connect_with(target, self.config).await
+        }
+    }
+
+    /// Build a lazy channel using the endpoint's scheme.
+    pub fn connect_lazy(&self) -> Result<Channel, Status> {
+        let target = self.target()?;
+        if self.is_https() {
+            Channel::connect_tls_lazy_with(target, self.config, self.client_tls()?)
+        } else {
+            Channel::connect_lazy_with(target, self.config)
+        }
+    }
+
+    /// Connect through a custom connector that returns an already-open IO.
+    ///
+    /// The connector receives the endpoint URI and owns dialing. The returned
+    /// stream is handed to [`Channel::from_io_with`]; `https` only stamps
+    /// `:scheme https` because TLS has already been handled by the connector.
+    pub async fn connect_with_connector<IO, F, Fut>(&self, connector: F) -> Result<Channel, Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+        F: FnOnce(Uri) -> Fut,
+        Fut: Future<Output = Result<IO, Status>>,
+    {
+        let io = connector(self.uri.clone()).await?;
+        let channel = Channel::from_io_with(io, self.target()?, self.config).await?;
+        Ok(if self.is_https() {
+            channel.https_scheme()
+        } else {
+            channel
+        })
+    }
+
+    /// Static round-robin balance over endpoint URI authorities.
+    ///
+    /// This facade supports TCP `http://host:port` endpoints that resolve to
+    /// socket addresses. `https` lists are rejected because one native channel
+    /// carries one TLS server name.
+    pub async fn balance_list(
+        endpoints: impl IntoIterator<Item = Endpoint>,
+        config: ChannelConfig,
+    ) -> Result<Channel, Status> {
+        let endpoints: Vec<_> = endpoints.into_iter().collect();
+        let addrs = endpoint_socket_addrs(&endpoints)?;
+        let resolver = ResolverConfig::with_dns_provider(
+            endpoint_dns_bounds()?,
+            Arc::new(EndpointListDns(addrs)),
+        )
+        .with_txt_provider(Arc::new(EndpointListTxt));
+        Channel::connect_uri_with("dns:///pbrs-endpoint-list.invalid:443", config, resolver).await
+    }
+
+    /// Dynamic round-robin balance over a watch channel of endpoint lists.
+    ///
+    /// Updates are observed by the existing DNS resolver refresh loop; use
+    /// [`ResolverConfig`] / [`Channel::connect_uri`] directly for custom
+    /// resolver timing.
+    pub async fn balance_channel(
+        endpoints: watch::Receiver<Vec<Endpoint>>,
+        config: ChannelConfig,
+    ) -> Result<Channel, Status> {
+        let addrs = endpoint_socket_addrs(endpoints.borrow().as_slice())?;
+        let resolver = ResolverConfig::with_dns_provider(
+            endpoint_dns_bounds()?,
+            Arc::new(EndpointWatchDns { endpoints }),
+        )
+        .with_txt_provider(Arc::new(EndpointListTxt));
+        let channel =
+            Channel::connect_uri_with("dns:///pbrs-endpoint-channel.invalid:443", config, resolver)
+                .await?;
+        drop(addrs);
+        Ok(channel)
+    }
+
+    fn is_https(&self) -> bool {
+        self.uri.scheme_str() == Some("https")
+    }
+
+    fn target(&self) -> Result<Target, Status> {
+        Ok(Target::from(self.authority_with_default_port()?))
+    }
+
+    fn client_tls(&self) -> Result<ClientTls, Status> {
+        ClientTls::webpki(
+            self.uri
+                .host()
+                .ok_or_else(|| Status::invalid_argument("https endpoint URI needs a host"))?
+                .to_owned(),
+        )
+    }
+
+    fn authority_with_default_port(&self) -> Result<String, Status> {
+        let host = self
+            .uri
+            .host()
+            .ok_or_else(|| Status::invalid_argument("endpoint URI needs a host authority"))?;
+        let port = self
+            .uri
+            .port_u16()
+            .unwrap_or(if self.is_https() { 443 } else { 80 });
+        if host.contains(':') && !host.starts_with('[') {
+            Ok(format!("[{host}]:{port}"))
+        } else {
+            Ok(format!("{host}:{port}"))
+        }
+    }
+}
+
+#[derive(Debug)]
+struct EndpointListDns(Vec<SocketAddr>);
+
+impl crate::resolver::DnsLookup for EndpointListDns {
+    fn lookup(
+        &self,
+        _host: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
+        let addrs = self.0.clone();
+        Box::pin(async move { Ok(addrs) })
+    }
+}
+
+#[derive(Debug)]
+struct EndpointWatchDns {
+    endpoints: watch::Receiver<Vec<Endpoint>>,
+}
+
+impl crate::resolver::DnsLookup for EndpointWatchDns {
+    fn lookup(
+        &self,
+        _host: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
+        let endpoints = self.endpoints.borrow().clone();
+        Box::pin(async move {
+            endpoint_socket_addrs(&endpoints)
+                .map_err(|status| io::Error::new(io::ErrorKind::InvalidInput, status.message()))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct EndpointListTxt;
+
+impl crate::resolver::TxtLookup for EndpointListTxt {
+    fn fetch_txt(
+        &self,
+        _name: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, io::Error>> + Send + '_>> {
+        Box::pin(async move {
+            Ok(vec![
+                r#"{"loadBalancingConfig": [{"round_robin": {}}]}"#.to_owned(),
+            ])
+        })
+    }
+}
+
+fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Status> {
+    if endpoints.is_empty() {
+        return Err(Status::invalid_argument(
+            "balance_list needs at least one endpoint",
+        ));
+    }
+    let mut out = Vec::with_capacity(endpoints.len());
+    for endpoint in endpoints {
+        if endpoint.is_https() {
+            return Err(Status::invalid_argument(
+                "balance_list/balance_channel currently support plaintext http endpoints; use Channel::connect_tls_uri for resolver-managed TLS",
+            ));
+        }
+        let authority = endpoint.authority_with_default_port()?;
+        out.push(authority.parse().map_err(|e| {
+            Status::invalid_argument(format!("endpoint {authority:?} is not an IP:port: {e}"))
+        })?);
+    }
+    Ok(out)
+}
+
+fn endpoint_dns_bounds() -> Result<crate::resolver::DnsConfig, Status> {
+    crate::resolver::DnsConfig::new(
+        Duration::from_secs(60),
+        Duration::from_secs(60),
+        Duration::from_secs(60),
+        Duration::from_secs(1),
+        Duration::from_secs(1),
+        Duration::ZERO,
+    )
 }
 
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
@@ -885,7 +1148,7 @@ impl super::Channel {
         path: impl AsRef<Path>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        let endpoint = Endpoint::Unix(path.as_ref().to_owned());
+        let endpoint = PoolEndpoint::Unix(path.as_ref().to_owned());
         let channelz = pool::register_channel_for(&endpoint);
         Ok(pool::finish_channel(
             endpoint,
@@ -995,7 +1258,7 @@ impl super::Channel {
     /// [`Self::scheme`]. Applies to every call shape on this clone.
     #[must_use]
     pub fn https_scheme(mut self) -> Self {
-        if matches!(self.inner.endpoint, Endpoint::Once) {
+        if matches!(self.inner.endpoint, PoolEndpoint::Once) {
             self.https = true;
         }
         self
@@ -1063,7 +1326,7 @@ impl super::Channel {
                 )));
             }
         };
-        let endpoint = Endpoint::Once;
+        let endpoint = PoolEndpoint::Once;
         let channelz = pool::register_channel_for(&endpoint);
         let channel_id = channelz.id();
         Ok(pool::finish_channel(

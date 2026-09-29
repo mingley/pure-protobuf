@@ -173,6 +173,18 @@ pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
 | `Endpoint::rate_limit(...)` | Wrap `Channel::tower_unary()` with `tower::limit::RateLimitLayer`. | Native transport has no built-in token bucket. |
 | `Endpoint::buffer_size(n)` | Wrap `Channel::tower_unary()` with `tower::buffer::BufferLayer`. | Buffering is explicit at the tower adapter; the default `Channel` path has no queue. |
 
+### Endpoint-style dialing
+
+Use `pbrs_grpc::Endpoint` when porting code that already builds tonic
+`Endpoint` values:
+
+| Tonic client API | Native migration path | Notes |
+|---|---|---|
+| `Endpoint::from_shared("http://127.0.0.1:50051")?.connect()` | `pbrs_grpc::Endpoint::from_shared("http://127.0.0.1:50051")?.connect().await?` | `http` maps to plaintext `Channel`; `https` maps to WebPKI TLS using the URI host as server name. |
+| `Endpoint::connect_with_connector(connector)` | `endpoint.connect_with_connector(|uri| async move { /* return AsyncRead + AsyncWrite */ })` | The connector owns dialing/TLS. `https` stamps `:scheme https`; reconnect semantics still belong in a resolver. |
+| `Endpoint::balance_list(endpoints)` | `Endpoint::balance_list(endpoints, ChannelConfig::new()).await?` | Static plaintext TCP endpoint lists feed the existing `round_robin` resolver/LB path. |
+| `Endpoint::balance_channel(rx)` | `Endpoint::balance_channel(rx, ChannelConfig::new()).await?` | `rx` is a `watch::Receiver<Vec<Endpoint>>`; updates are observed by the resolver refresh loop. |
+
 ---
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)

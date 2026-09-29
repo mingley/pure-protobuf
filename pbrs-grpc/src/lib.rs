@@ -1156,7 +1156,7 @@ pub mod codegen_support {
     pub use tokio::net::UnixListener;
 }
 
-pub use client::{Channel, RetryStats, Target};
+pub use client::{Channel, Endpoint, RetryStats, Target};
 pub use codec::CodecMessage;
 pub use compression::Codec;
 pub use config::{

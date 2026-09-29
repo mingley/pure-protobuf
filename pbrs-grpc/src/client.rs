@@ -8,7 +8,7 @@ pub(crate) mod retry;
 pub(crate) mod streaming;
 pub(crate) mod unary;
 
-pub use channel::{Channel, Target};
+pub use channel::{Channel, Endpoint, Target};
 pub use retry::RetryStats;
 
 #[allow(dead_code, reason = "silence dead code")]

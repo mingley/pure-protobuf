@@ -25,7 +25,10 @@ use pbrs_grpc::resolver::{
     BuiltResolver, DnsConfig, DnsLookup, Resolution, ResolvedAddress, ResolverConfig, TxtLookup,
     parse_target_uri, resolver_for,
 };
-use pbrs_grpc::{Channel, ClientTls, Code, Request, Response, ServerTls, Status, Streaming};
+use pbrs_grpc::{
+    Channel, ChannelConfig, ClientTls, Code, Endpoint, Request, Response, ServerTls, Status,
+    Streaming,
+};
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
@@ -33,7 +36,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 
 const CA: &str = include_str!("tls_data/ca.crt");
 const SERVER_CERT: &str = include_str!("tls_data/server.crt");
@@ -960,6 +963,54 @@ async fn ipv4_only_fixture_connects() {
     .await
     .expect("channel");
     unary_tag_is(&GreeterClient::new(channel), "V4:ada").await;
+}
+
+#[tokio::test]
+async fn endpoint_from_shared_http_connects() {
+    let (addr, _unaries, _guard) = serve_named("EP").await;
+    let endpoint = Endpoint::from_shared(format!("http://{addr}")).expect("endpoint");
+    let channel = endpoint.connect().await.expect("connect");
+    unary_tag_is(&GreeterClient::new(channel), "EP:ada").await;
+}
+
+#[tokio::test]
+async fn endpoint_connect_with_connector_uses_custom_io() {
+    let (addr, _unaries, _guard) = serve_named("CONN").await;
+    let endpoint = Endpoint::from_shared(format!("http://{addr}")).expect("endpoint");
+    let channel = endpoint
+        .connect_with_connector(move |_uri| async move {
+            TcpStream::connect(addr)
+                .await
+                .map_err(|e| Status::unavailable(format!("connect: {e}")))
+        })
+        .await
+        .expect("connector");
+    unary_tag_is(&GreeterClient::new(channel), "CONN:ada").await;
+}
+
+#[tokio::test]
+async fn endpoint_balance_list_uses_round_robin() {
+    let (addr_a, unaries_a, _guard_a) = serve_named("EA").await;
+    let (addr_b, unaries_b, _guard_b) = serve_named("EB").await;
+    let channel = Endpoint::balance_list(
+        [
+            Endpoint::from_shared(format!("http://{addr_a}")).expect("a"),
+            Endpoint::from_shared(format!("http://{addr_b}")).expect("b"),
+        ],
+        ChannelConfig::new(),
+    )
+    .await
+    .expect("balance_list");
+    let client = GreeterClient::new(channel);
+    let tags = [
+        unary_tag(&client).await,
+        unary_tag(&client).await,
+        unary_tag(&client).await,
+        unary_tag(&client).await,
+    ];
+    assert_eq!(tags, ["EA:ada", "EB:ada", "EA:ada", "EB:ada"]);
+    assert_eq!(unaries_a.load(Ordering::SeqCst), 2);
+    assert_eq!(unaries_b.load(Ordering::SeqCst), 2);
 }
 
 async fn serve_named_v6(tag: &'static str) -> Option<(SocketAddr, Arc<AtomicUsize>, ServerGuard)> {
