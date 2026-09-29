@@ -3281,6 +3281,12 @@
       ],
       "checks": [
         "native-lib"
+      ],
+      "status": "done",
+      "implementer": "worker-fl07",
+      "reviewer": "coordinator",
+      "evidence": [
+        "done: verified at ef75e73f; service_config 29/29 (section 13 vectors 1-23 present), lib 423 green, clippy --all-targets clean. Specificity-rank precedence exact>service>global; every InvalidArgument names entry/field; RetryThrottler crate-internal with test-only tokens()."
       ]
     },
     {
