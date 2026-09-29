@@ -13,15 +13,18 @@ description = "Loopback empty_unary/large_unary/stream/ping_pong/upload: pbrs-gr
 http = "1"
 pbrs = { path = ".." }
 pbrs-grpc = { path = "../pbrs-grpc" }
+prost = "0.14"
 protobuf-tonic = { path = "../protobuf-tonic" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "process", "io-util", "io-std"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+tonic-prost = "0.14"
 
 [build-dependencies]
 pbrs = { path = ".." }
+tonic-prost-build = "0.14"
 
 [[bin]]
 name = "rpc-bench"

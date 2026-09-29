@@ -19,6 +19,14 @@ fn main() {
         .compile_protos(&[&testing], &[&proto_dir])
         .expect("tonic TestService codegen");
 
+    // TC-24: prost messages + tonic client/server stubs for the same
+    // TestService, so `load --transport=tonic --codec=prost` compares the
+    // codec with the transport held fixed. Bench-only (publish=false);
+    // prost must never enter a shipping manifest (QG-04).
+    tonic_prost_build::configure()
+        .compile_protos(&[&testing], &[&proto_dir])
+        .expect("prost TestService codegen");
+
     let bench_proto_dir = manifest.join("proto");
     let benchmark = bench_proto_dir.join("grpc/testing/benchmark_service.proto");
     let control = bench_proto_dir.join("grpc/testing/control.proto");
