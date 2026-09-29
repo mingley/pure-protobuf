@@ -1,0 +1,29 @@
+{
+  "scenario": "conn-scale-tls-handshake",
+  "kind": "tls-handshake",
+  "label": "SB-12 TLS handshake rate: full verifying handshakes per second per core",
+  "contract": "docs/benchmark-contract.md",
+  "resource_model": "docs/resource-budgets.md",
+  "scoreboard": ["D6", "C7"],
+  "methodology": "one server per peer pinned to 1 CPU; per repeat, N worker threads each open TCP + full TLS handshake (verifying client: peer test CA + documented server name, session resumption disabled by fresh contexts) and close; rate = completed/wall, per-core = rate/pinned_cpus. Reports p50/p99 handshake latency alongside the rate (cold-connect component of C7).",
+  "tls_material": "native: pbrs-grpc/tests/tls_data (localhost); go: grpc-go module testdata CA, foo.test.google.fr; cpp: grpc test_creds CA, foo.test.google.fr. Same provenance as SB-11 peertls; there is no skip-verify path.",
+  "peers": ["native", "go", "cpp"],
+  "tls": true,
+  "cpus": 1,
+  "repeats": 3,
+  "params": {
+    "handshakes_per_rep": 2000,
+    "workers": 16
+  },
+  "smoke_params": {
+    "handshakes_per_rep": 48,
+    "workers": 4
+  },
+  "unsupported": "tonic-pbrs/tonic-prost are unsupported on TLS (rpc-bench tonic transport is plaintext-only per the pure-Rust policy); their cells report unsupported with reason, matching SB-11.",
+  "claim_host_requirements": "Linux, server pinned to 1 CPU (the per-core figure is rate/1; multi-core scaling stays a follow-up), ephemeral ports >> handshakes_per_rep (connect-side TIME_WAIT churn); the report embeds the live values.",
+  "os_limit_policy": "port/fd exhaustion during churn marks the cell invalid, never fail; only fail exits nonzero.",
+  "run": [
+    "./scripts/stack-matrix.sh --scenario conn-scale-tls-handshake --out-dir target/stack-matrix/sb12-tlshs"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario conn-scale-tls-handshake --smoke --server-peers native --out-dir target/stack-matrix/sb12-tlshs-smoke"
+}

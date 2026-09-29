@@ -1,0 +1,38 @@
+{
+  "scenario": "conn-scale-active-streams",
+  "kind": "active-stream",
+  "label": "SB-12 active-stream memory: RSS per held-open bidi stream at 1k/10k/100k streams",
+  "contract": "docs/benchmark-contract.md",
+  "resource_model": "docs/resource-budgets.md",
+  "scoreboard": ["D5", "C6"],
+  "methodology": "one fresh server per ladder point; per repeat: baseline RSS, open C idle connections, idle RSS, then open S held-open FullDuplexCall bidi streams (HEADERS without END_STREAM, no DATA) spread at streams_per_conn per connection, settle, streams RSS; bytes/stream = (streams-idle)/held. The idle delta is kept as a cross-check against the conn-scale-idle ladder. Cell order is frozen: peers in file order x ladder ascending.",
+  "stream_cap_guard": "streams_per_conn tops at 50, below every known peer default (pbrs/tonic 256, go/cpp >= 100); the runner drains each connection for RST_STREAM after settle and marks the cell invalid (not a loss) when >1% of streams were refused.",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "params": {
+    "ladder_conns_streams": [[100, 10], [500, 20], [2000, 50]],
+    "settle_s": 3.0,
+    "rss_samples": 5,
+    "rss_interval_s": 0.2,
+    "open_timeout_s": 10.0,
+    "open_workers": 32,
+    "warmup_settle_s": 1.0
+  },
+  "smoke_params": {
+    "ladder_conns_streams": [[8, 2], [16, 4]],
+    "settle_s": 0.5,
+    "rss_samples": 3,
+    "rss_interval_s": 0.1,
+    "open_timeout_s": 5.0,
+    "open_workers": 16,
+    "warmup_settle_s": 0.3
+  },
+  "claim_host_requirements": "Linux, pinned 1 CPU for the server, RLIMIT_NOFILE >= 16k, loopback port range wider than the widest base (2000 conns); the report embeds the live values.",
+  "os_limit_policy": "same as conn-scale-idle: any OS ceiling hit marks the cell invalid, never fail; only fail exits nonzero.",
+  "run": [
+    "./scripts/stack-matrix.sh --scenario conn-scale-active-streams --out-dir target/stack-matrix/sb12-streams"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario conn-scale-active-streams --smoke --server-peers native --out-dir target/stack-matrix/sb12-streams-smoke"
+}

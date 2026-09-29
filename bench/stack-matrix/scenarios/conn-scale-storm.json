@@ -1,0 +1,27 @@
+{
+  "scenario": "conn-scale-storm",
+  "kind": "storm",
+  "label": "SB-12 connection-storm accept rate: established preface-roundtrips per second",
+  "contract": "docs/benchmark-contract.md",
+  "resource_model": "docs/resource-budgets.md",
+  "scoreboard": ["D6"],
+  "methodology": "one server per peer; per repeat, W worker threads loop TCP connect + HTTP/2 preface + server-SETTINGS roundtrip for duration_s, holding a bounded rotating pool (64/worker, oldest closed on evict; plain close, no RST storm); rate = established/wall. 'Established' requires the full preface roundtrip, so the figure is the server accept+handshake-processing rate, not bare TCP SYN acceptance. Cell order is frozen: peers in file order.",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "params": {
+    "duration_s": 10.0,
+    "workers": 32
+  },
+  "smoke_params": {
+    "duration_s": 2.0,
+    "workers": 8
+  },
+  "claim_host_requirements": "Linux; somaxconn / tcp_max_syn_backlog at distro defaults is fine (established-only counting absorbs backlog queueing), RLIMIT_NOFILE comfortably above workers x burst depth; the report embeds the live values and the refused/timeout counters.",
+  "os_limit_policy": "backlog-full refuses against a live server, or fd/port exhaustion, marks the cell invalid, never fail; only fail exits nonzero.",
+  "run": [
+    "./scripts/stack-matrix.sh --scenario conn-scale-storm --out-dir target/stack-matrix/sb12-storm"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario conn-scale-storm --smoke --server-peers native --out-dir target/stack-matrix/sb12-storm-smoke"
+}

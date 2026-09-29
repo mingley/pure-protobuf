@@ -1,0 +1,38 @@
+{
+  "scenario": "conn-scale-idle",
+  "kind": "idle-conn",
+  "label": "SB-12 idle-connection scale: RSS per connection at 1k/10k/100k",
+  "contract": "docs/benchmark-contract.md",
+  "resource_model": "docs/resource-budgets.md",
+  "scoreboard": ["D5"],
+  "methodology": "one fresh server per ladder point; one discarded full-N warmup open/close round, then 3 measured repeats: settle, baseline RSS (median of samples), open N TCP+HTTP/2 connections (client preface + server SETTINGS ACK, held idle, no RPCs), settle, loaded RSS; bytes/conn = (loaded-baseline)/established. Claim figure is the slope across ladder points. Cell order is frozen: peers in file order x ladder ascending.",
+  "idle_definition": "TCP established + (plaintext) HTTP/2 preface complete + server SETTINGS received; the opener holds the socket with no PING ACKs, so the settle+measure window must stay below any peer keepalive enforcement (default >= 20 s everywhere; window is ~10 s).",
+  "peers": ["native", "tonic-pbrs", "tonic-prost", "go", "cpp"],
+  "tls": false,
+  "cpus": 1,
+  "repeats": 3,
+  "params": {
+    "ladder_conns": [1000, 10000, 100000],
+    "settle_s": 3.0,
+    "rss_samples": 5,
+    "rss_interval_s": 0.2,
+    "open_timeout_s": 10.0,
+    "open_workers": 32,
+    "warmup_settle_s": 1.0
+  },
+  "smoke_params": {
+    "ladder_conns": [64, 256],
+    "settle_s": 0.5,
+    "rss_samples": 3,
+    "rss_interval_s": 0.1,
+    "open_timeout_s": 5.0,
+    "open_workers": 16,
+    "warmup_settle_s": 0.3
+  },
+  "claim_host_requirements": "Linux, pinned 1 CPU for the server, RLIMIT_NOFILE >= 200k (opener + server each hold N fds), ip_local_port_range wider than N (single-source ladder), fs.file-max headroom; the report embeds the live values.",
+  "os_limit_policy": "fd/port/backlog exhaustion (preflight budget, EMFILE/ENFILE/ENOBUFS/ENOMEM, refused-with-live-server, server-stderr fd notes, <99% established) marks the cell invalid, never fail; only fail exits nonzero.",
+  "run": [
+    "./scripts/stack-matrix.sh --scenario conn-scale-idle --out-dir target/stack-matrix/sb12-idle"
+  ],
+  "smoke": "./scripts/stack-matrix.sh --scenario conn-scale-idle --smoke --server-peers native --out-dir target/stack-matrix/sb12-idle-smoke"
+}
