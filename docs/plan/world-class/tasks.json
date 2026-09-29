@@ -2049,7 +2049,10 @@
     "B8"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/runtime-build-split.md"
+   ]
   },
   {
    "id": "PK-03",
@@ -2092,7 +2095,12 @@
     "B6",
     "B8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "docs/evidence/compile-cost.md",
+    "docs/guides/codegen.md"
+   ]
   },
   {
    "id": "PK-04",
@@ -2782,7 +2790,10 @@
     "CG-19",
     "CG-20"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/compile-cost.md"
+   ]
   },
   {
    "id": "GN-02",
@@ -2828,7 +2839,8 @@
    ],
    "relates": [
     "CG-20"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "GN-03",
@@ -2866,7 +2878,8 @@
     "B6",
     "B8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "GN-04",
