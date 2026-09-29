@@ -114,6 +114,26 @@ attribution.
 | `examples/src/helloworld/{server,client}.rs` | `helloworld_compat.rs` | 62 | 57 | +31 / -31 |
 | `examples/src/routeguide/{server,client}.rs` | `routeguide_compat.rs` | 315 | 246 | +135 / -173 |
 
+### Tower middleware parity
+
+Enable `pbrs-grpc`'s optional `tower` feature when you want Tonic-style
+middleware composition without moving back to Tonic's transport:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+```
+
+| Tonic middleware | Native migration path | Delta |
+|---|---|---|
+| `Server::builder().layer(layer)` | Wrap `Router::into_tower_service()` with `tower::ServiceBuilder` and mount that service in axum/hyper. | The layer sees HTTP requests around the whole router, not a generated per-method service. Native `Interceptor` / `ResponseInterceptor` remain the lighter in-kernel hooks. |
+| `Server::builder().trace_fn(...)` | Use `Server::observer`, optional `otel` tracing, or a Tower tracing layer around `Router::into_tower_service()`. | There is no exact in-kernel span factory callback with tonic's `trace_fn` signature. |
+| `concurrency_limit_per_connection(n)` | Prefer `ServerConfig::max_concurrent_streams(n)` for per-connection HTTP/2 stream pressure, or a Tower `concurrency_limit` around `RouterService` for service-level pressure. | Native `max_concurrent_rpcs` is process-wide fail-fast; Tower `concurrency_limit` queues unless combined with `load_shed`. |
+| `load_shed()` | `ServiceBuilder::new().load_shed().service(router.into_tower_service())`, or native RPC caps returning `RESOURCE_EXHAUSTED`. | Tower load-shed returns a service error before native gRPC trailers; native caps return gRPC status. |
+| `timeout(duration)` | `ServerConfig::timeout(duration)` for gRPC deadline semantics, or `tower::timeout` around `RouterService` for outer future timeout semantics. | Native timeout writes/enforces `grpc-timeout`; Tower timeout aborts the service future. |
+| `Endpoint::concurrency_limit(n)` | `ChannelConfig::max_concurrent_rpcs(n)` for native fail-fast slots, or wrap `Channel::tower_unary()` in `tower::limit::ConcurrencyLimitLayer`. | `tower_unary` is per unary method and opt-in; default `Channel` remains unbuffered. |
+| `Endpoint::rate_limit(...)` | Wrap `Channel::tower_unary()` with `tower::limit::RateLimitLayer`. | Native transport has no built-in token bucket. |
+| `Endpoint::buffer_size(n)` | Wrap `Channel::tower_unary()` with `tower::buffer::BufferLayer`. | Buffering is explicit at the tower adapter; the default `Channel` path has no queue. |
+
 ---
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)

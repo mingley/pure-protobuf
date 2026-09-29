@@ -33,6 +33,7 @@ mod messages;
 mod naming;
 mod native_stubs;
 mod parse;
+pub mod prost_stubs;
 mod reflection;
 mod text;
 mod tonic_stubs;

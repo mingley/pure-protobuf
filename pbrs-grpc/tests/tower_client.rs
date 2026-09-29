@@ -25,6 +25,8 @@ async fn tower_layers_wrap_unary_channel_without_buffering_default_path() {
     let layered = ServiceBuilder::new()
         .timeout(Duration::from_secs(5))
         .concurrency_limit(1)
+        .rate_limit(10, Duration::from_secs(1))
+        .buffer(1)
         .load_shed()
         .service(service);
 

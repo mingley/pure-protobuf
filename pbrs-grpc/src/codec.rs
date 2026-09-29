@@ -18,6 +18,9 @@ use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
 use pbrs::{Parse, Serialize};
 
+#[cfg(feature = "prost")]
+pub mod prost;
+
 /// Size of the gRPC length-prefix header.
 pub const HEADER_LEN: usize = 5;
 
