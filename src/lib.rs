@@ -89,6 +89,7 @@ pub mod rt;
 #[doc(hidden)]
 pub mod runtime;
 mod string;
+pub mod table;
 pub mod testdata;
 #[cfg(feature = "text")]
 pub mod text;

@@ -67,6 +67,11 @@ pub const WIRE_SGROUP: u32 = 3;
 pub const WIRE_EGROUP: u32 = 4;
 pub const WIRE_I32: u32 = 5;
 
+/// Largest legal protobuf field number (2^29 - 1).
+///
+/// Shared by tag decode and table validation so the bound lives in one place.
+pub const MAX_FIELD_NUMBER: u32 = 536_870_911;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum UnknownField {
     Varint { number: u32, value: u64 },
@@ -332,7 +337,7 @@ pub fn decode_tag(buf: &[u8], pos: &mut usize) -> Result<(u32, u32), ParseError>
     }
     let wire = (tag & 7) as u32;
     let number = (tag >> 3) as u32;
-    if number == 0 || number > 536_870_911 {
+    if number == 0 || number > MAX_FIELD_NUMBER {
         return Err(ParseError::new("illegal field number"));
     }
     Ok((number, wire))
@@ -539,6 +544,23 @@ mod tests {
     /// Minimized fuzzer crash: the length varint exceeds the remaining
     /// buffer by far (`fuzz/corpus/wire/len_overflow_min.bin`).
     const LEN_OVERFLOW: &[u8] = &[0x0a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
+
+    #[test]
+    fn max_field_number_matches_spec_bound() {
+        assert_eq!(MAX_FIELD_NUMBER, (1u32 << 29) - 1);
+        let mut buf = Vec::new();
+        encode_tag(&mut buf, MAX_FIELD_NUMBER, WIRE_VARINT);
+        buf.push(0);
+        let mut pos = 0;
+        assert_eq!(
+            decode_tag(&buf, &mut pos),
+            Ok((MAX_FIELD_NUMBER, WIRE_VARINT))
+        );
+        let mut over = Vec::new();
+        encode_varint(&mut over, u64::from(MAX_FIELD_NUMBER + 1) << 3);
+        let mut pos = 0;
+        assert!(decode_tag(&over, &mut pos).is_err());
+    }
 
     #[test]
     fn huge_length_span_is_error_not_panic() {
