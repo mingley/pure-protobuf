@@ -5955,7 +5955,12 @@
    "relates": [
     "EX-07"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/xds-build-vs-reuse.md",
+    "docs/xds-contract.md"
+   ],
+   "notes": "Closed 2026-09-29: draft landed (build in-repo); maintainer sign-off on the 5 open questions required; gates XD-02 review."
   },
   {
    "id": "XD-02",
