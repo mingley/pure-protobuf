@@ -824,8 +824,9 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
 // cross-stack deltas are NOT fair transport comparisons until SB-01
 // qualifies the tonic setup; within-stack repeats are exact.
 
+use pbrs_grpc::codec::prost::Message as ProstGrpcMessage;
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, ChannelConfig, Request, Streaming};
+use pbrs_grpc::{Channel, ChannelConfig, Request, Router, Rpc, Service, Streaming};
 
 struct Echod;
 
@@ -943,12 +944,64 @@ impl TonicEcho for TonicEchod {
     }
 }
 
+struct ProstNativeEchod;
+
+impl Service for ProstNativeEchod {
+    const NAME: &'static str = "devloop.Echo";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Unary" => {
+                rpc.unary(
+                    |request: Request<ProstGrpcMessage<TonicRequest>>| async move {
+                        let request = request.into_inner().0;
+                        Ok::<_, pbrs_grpc::Status>(pbrs_grpc::Response::new(ProstGrpcMessage(
+                            TonicReply {
+                                payload: request.payload,
+                            },
+                        )))
+                    },
+                )
+                .await;
+            }
+            "ServerStream" => {
+                rpc.server_streaming(
+                    |request: Request<ProstGrpcMessage<TonicRequest>>| async move {
+                        let request = request.into_inner().0;
+                        let (tx, stream) = Streaming::channel(8);
+                        drop(tokio::spawn(async move {
+                            for _ in 0..request.replies.max(1) {
+                                if tx
+                                    .send(ProstGrpcMessage(TonicReply {
+                                        payload: request.payload.clone(),
+                                    }))
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                        }));
+                        Ok::<_, pbrs_grpc::Status>(pbrs_grpc::Response::new(stream))
+                    },
+                )
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
 fn rpc_cells() -> Vec<(&'static str, &'static str)> {
     vec![
         ("rpc.pbrs.unary", "pbrs-grpc"),
         ("rpc.pbrs.server_stream", "pbrs-grpc"),
         ("rpc.pbrs.unary_compressed", "pbrs-grpc"),
         ("rpc.pbrs.server_stream_compressed", "pbrs-grpc"),
+        ("rpc.prost.unary", "pbrs-grpc-prost"),
+        ("rpc.prost.server_stream", "pbrs-grpc-prost"),
+        ("rpc.tonic_prost.unary", "tonic-prost"),
+        ("rpc.tonic_prost.server_stream", "tonic-prost"),
         ("rpc.tonic.unary", "tonic"),
         ("rpc.tonic.server_stream", "tonic"),
     ]
@@ -1377,6 +1430,109 @@ async fn lb_random_subsetting_pick(iters: u64) -> u64 {
         iters,
         policy.pick().await
     )
+}
+
+async fn rpc_prost_unary(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        Router::new()
+            .add_service(ProstNativeEchod)
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let client = Channel::connect(addr).await.expect("connect");
+    client
+        .unary::<ProstGrpcMessage<TonicRequest>, ProstGrpcMessage<TonicReply>>(
+            "/devloop.Echo/Unary",
+            Request::new(ProstGrpcMessage(TonicRequest {
+                payload: payload.to_vec(),
+                replies: 0,
+            })),
+        )
+        .await
+        .expect("warmup");
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let resp = client
+            .unary::<ProstGrpcMessage<TonicRequest>, ProstGrpcMessage<TonicReply>>(
+                "/devloop.Echo/Unary",
+                Request::new(ProstGrpcMessage(TonicRequest {
+                    payload: payload.to_vec(),
+                    replies: 0,
+                })),
+            )
+            .await
+            .expect("unary");
+        sink = sink.wrapping_add(resp.into_inner().0.payload.len() as u64);
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.prost.unary", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
+}
+
+async fn rpc_prost_server_stream(iters: u64, payload: &[u8]) -> u64 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    drop(tokio::spawn(async move {
+        Router::new()
+            .add_service(ProstNativeEchod)
+            .serve_listener(listener)
+            .await
+            .ok();
+    }));
+    let client = Channel::connect(addr).await.expect("connect");
+    let mut warmup = client
+        .server_streaming::<ProstGrpcMessage<TonicRequest>, ProstGrpcMessage<TonicReply>>(
+            "/devloop.Echo/ServerStream",
+            Request::new(ProstGrpcMessage(TonicRequest {
+                payload: payload.to_vec(),
+                replies: 4,
+            })),
+        )
+        .await
+        .expect("warmup headers")
+        .into_inner();
+    while warmup.message().await.expect("warmup msg").is_some() {}
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        let mut stream = client
+            .server_streaming::<ProstGrpcMessage<TonicRequest>, ProstGrpcMessage<TonicReply>>(
+                "/devloop.Echo/ServerStream",
+                Request::new(ProstGrpcMessage(TonicRequest {
+                    payload: payload.to_vec(),
+                    replies: 4,
+                })),
+            )
+            .await
+            .expect("headers")
+            .into_inner();
+        while let Some(msg) = stream.message().await.expect("msg") {
+            sink = sink.wrapping_add(msg.0.payload.len() as u64);
+        }
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json("rpc.prost.server_stream", iters, allocs, bytes, wall)
+    );
+    black_box(sink)
 }
 
 async fn rpc_tonic_unary(iters: u64, payload: &[u8]) -> u64 {
@@ -2036,6 +2192,12 @@ fn cmd_run_cell(args: &[String]) {
                 "rpc.pbrs.unary_compressed" => rpc_pbrs_unary_compressed(iters).await,
                 "rpc.pbrs.server_stream_compressed" => {
                     rpc_pbrs_server_stream_compressed(iters).await
+                }
+                "rpc.prost.unary" => rpc_prost_unary(iters, &payload).await,
+                "rpc.prost.server_stream" => rpc_prost_server_stream(iters, &payload).await,
+                "rpc.tonic_prost.unary" => rpc_tonic_unary(iters, &payload).await,
+                "rpc.tonic_prost.server_stream" => {
+                    rpc_tonic_server_stream(iters, &payload).await
                 }
                 "rpc.tonic.unary" => rpc_tonic_unary(iters, &payload).await,
                 "rpc.tonic.server_stream" => rpc_tonic_server_stream(iters, &payload).await,

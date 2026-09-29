@@ -15,7 +15,17 @@ path = "src/main.rs"
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "http2", "tokio"] }
 pbrs-grpc = { path = "../../pbrs-grpc", features = ["tower"] }
+tonic-web = "0.14"
+tower = { version = "0.5", default-features = false, features = ["util"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+
+[dev-dependencies]
+bytes = "1"
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "server-auto", "service", "tokio"] }
+pbrs = { path = "../.." }
 
 [lints]
 workspace = true

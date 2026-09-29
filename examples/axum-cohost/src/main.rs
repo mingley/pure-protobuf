@@ -12,6 +12,7 @@ use axum::Router as AxumRouter;
 use axum::routing::get;
 use pbrs_grpc::hello::{FILE_DESCRIPTOR_SET, Greeter, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{Request, Response, Router, Status};
+use tower::ServiceBuilder;
 
 struct GreeterSvc;
 
@@ -38,10 +39,13 @@ async fn main() -> Result<(), Status> {
         .add_service(health)
         .add_service(reflection)
         .into_tower_service();
+    let grpc_web = ServiceBuilder::new()
+        .layer(tonic_web::GrpcWebLayer::new())
+        .service(grpc);
 
     let app = AxumRouter::new()
         .route("/ready", get(|| async { "ok" }))
-        .fallback_service(grpc);
+        .fallback_service(grpc_web);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:50051")
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;

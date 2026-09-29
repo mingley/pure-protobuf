@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
-pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts"] }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts", "prost"] }
 prost = "0.14"
 prost013 = { package = "prost", version = "0.13" }
 prost_tat = { path = "../../prost_tat" }

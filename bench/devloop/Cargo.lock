@@ -582,6 +582,7 @@ dependencies = [
  "http",
  "libc",
  "pbrs",
+ "prost 0.14.4",
  "rustls",
  "rustls-graviola",
  "rustls-pemfile",
