@@ -4538,7 +4538,10 @@
    "relates": [
     "CP-01"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/client-profiles.md"
+   ]
   },
   {
    "id": "CL-02",
@@ -4771,7 +4774,10 @@
    "relates": [
     "SP-01"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/server-profiles.md"
+   ]
   },
   {
    "id": "SV-02",
@@ -4811,7 +4817,11 @@
    "relates": [
     "SP-03"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/sv-02.md",
+    "docs/evidence/server-profiles.md"
+   ]
   },
   {
    "id": "SV-03",
@@ -4852,6 +4862,10 @@
    ],
    "relates": [
     "SP-03"
+   ],
+   "status": "done",
+   "evidence": [
+    "docs/decisions/server-dispatch.md"
    ]
   },
   {
@@ -7849,7 +7863,10 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/tls.rs"
+   ]
   },
   {
    "id": "TC-18",
