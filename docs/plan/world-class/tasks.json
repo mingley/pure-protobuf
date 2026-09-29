@@ -2603,7 +2603,12 @@
    "relates": [
     "OP-02"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/pk15-thresholds.md",
+    "src/lazy.rs: sparse-copy rule + 4 retained-memory tests"
+   ],
+   "notes": "Closed 2026-09-29: thresholds chosen and implemented; decode ties/beats prost+v4; encode-side remainder (wire.rs) split to PK-22."
   },
   {
    "id": "PK-16",
@@ -8350,6 +8355,45 @@
     "TC-10"
    ],
    "notes": "Split from TC-10 2026-09-29: SB-13 never measured tonic+prost (its tonic rows are tonic+pbrs). Keep the prost arm bench-only; shipping profiles stay prost-free per QG-04."
+  },
+  {
+   "id": "PK-22",
+   "title": "Close the small-string encode instruction gap",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "PK-15",
+    "PK-06"
+   ],
+   "read": [
+    "src/wire.rs",
+    "docs/evidence/pk15-thresholds.md"
+   ],
+   "write": [
+    "src/wire.rs",
+    "docs/evidence/pk22-string-encode.md"
+   ],
+   "deliverable": "Close the name_80/small_id encode gap to prost: fair copy-counts-aware measurement plus encode_len_header/dispatch tuning on the wire encode path. Runs after PK-06 (src/wire.rs hotspot).",
+   "accept": [
+    "name_80 and small_id encode cells tie or beat prost on dev-loop evidence with no primary-cell regression."
+   ],
+   "checks": [
+    "core-lib",
+    "parser",
+    "conformance",
+    "devloop-compare"
+   ],
+   "scoreboard": [
+    "A1",
+    "A2"
+   ],
+   "relates": [
+    "PK-15"
+   ],
+   "notes": "Split from PK-15 2026-09-29: ~10 Ir of the 16.6 Ir gap is copy-counts atomics (bench-only), ~4-5 Ir encode dispatch in wire.rs + gencode."
   }
  ]
 }
