@@ -3000,7 +3000,12 @@
    "relates": [
     "CG-16"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 coordinator: decided upstream-first protox contribution (bounded slices), in-repo compiler rejected. Draft for maintainer review; approval required before GN-06 starts. GN-08 unblocked (route-independent).",
+   "evidence": [
+    "docs/decisions/rust-frontend-route.md",
+    "docs/rust-frontend.md"
+   ]
   },
   {
    "id": "GN-06",
