@@ -3878,7 +3878,11 @@
     "D8"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/pbrs-h2.md"
+   ],
+   "notes": "Closed 2026-09-29: draft landed; maintainer sign-off on the 7 open questions required; H2-04 stays blocked until gate path A/B evidence lands."
   },
   {
    "id": "H2-04",
