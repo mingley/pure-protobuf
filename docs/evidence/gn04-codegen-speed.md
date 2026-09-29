@@ -94,10 +94,17 @@ reflection/JSON/text helpers; those changes touch `messages.rs`, `parse.rs`,
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed.
 - `cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic
   -p pbrs-grpc-example-greeter -- -D warnings`: passed.
-- `CARGO_TARGET_DIR=target/msrv cargo +1.85.0 check -p pbrs -p pbrs-grpc
-  --lib --tests`: passed with pre-existing warnings in `pbrs-grpc` tests.
+- `CARGO_TARGET_DIR=target/msrv-ci cargo +1.85.0 test -p pbrs --lib`:
+  46 passed.
+- `CARGO_TARGET_DIR=target/msrv-grpc-lib cargo +1.85.0 check -p pbrs-grpc
+  --lib`: passed. The older fleet-protocol `pbrs-grpc --lib --tests` 1.85
+  command is blocked on rebased `origin/main` by `pbrs-grpc` dev-dependencies
+  `tonic`/`tonic-prost` 0.14.6 requiring Rust 1.88; that is outside this
+  worker's write scope and the current CI MSRV job uses `--lib`.
 - `cargo test --workspace`: passed.
 - `cargo test --test package_consumer`: 2 passed.
+- `cargo package -p pbrs -p protobuf-tonic -p pbrs-grpc --registry crates-io`:
+  passed.
 
 `regen-check` remains red pre-existing (the GN-04 speedup previously proved
 identical drift before/after); no generated output was changed in this step.
