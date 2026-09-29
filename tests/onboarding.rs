@@ -987,7 +987,12 @@ fn stage_offline_workspace(core_archive: &Path) -> PackWorkspace {
         .expect("stage workspace manifest");
     std::fs::copy(root.join("Cargo.lock"), staged.root.join("Cargo.lock"))
         .expect("stage workspace lockfile");
-    for package in ["pbrs-grpc", "protobuf-tonic", "examples/greeter"] {
+    for package in [
+        "pbrs-grpc",
+        "protobuf-tonic",
+        "examples/greeter",
+        "examples/axum-cohost",
+    ] {
         copy_package_tree(&root.join(package), &staged.root.join(package));
     }
     staged
