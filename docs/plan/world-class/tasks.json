@@ -2498,7 +2498,8 @@
     "A3",
     "A13"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "PK-13",
@@ -6543,7 +6544,6 @@
    ],
    "write": [
     "pbrs-grpc/src/tls.rs",
-    "pbrs-grpc/tests/tls.rs",
     "docs/grfc.md"
    ],
    "deliverable": "Implement A69 CRL checking, A87 SPIFFE ID verification, A118 TLS and A80 TCP telemetry hooks, and track A120 post-quantum key exchange availability in the pure-Rust provider.",
@@ -6556,7 +6556,9 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress",
+   "notes": "2026-09-29 coordinator re-scope: tests go in src/tls.rs mod tests (pbrs-grpc/tests/ is owned by in-flight TC-23); fixtures inline or under existing tls_data/."
   },
   {
    "id": "GF-07",
@@ -7017,7 +7019,8 @@
    "scoreboard": [],
    "relates": [
     "BM-13"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "SB-21",
