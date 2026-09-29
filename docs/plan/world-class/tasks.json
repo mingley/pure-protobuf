@@ -2505,7 +2505,12 @@
     "A13"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/owned-arena.md: REJECT with dev-loop evidence",
+    "bench/devloop/cells/arena.rs: prototype, Miri 10/10"
+   ],
+   "notes": "Closed 2026-09-29: REJECT is the valid outcome (accept 1). Numbers are input to RX-07 allocator guidance. Prototype unregistered; mimalloc opt-in suggestion folded into RX-07, no new card."
   },
   {
    "id": "PK-13",
