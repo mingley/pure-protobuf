@@ -8449,7 +8449,8 @@
    "relates": [
     "PK-15"
    ],
-   "notes": "Split from PK-15 2026-09-29: ~10 Ir of the 16.6 Ir gap is copy-counts atomics (bench-only), ~4-5 Ir encode dispatch in wire.rs + gencode."
+   "notes": "Split from PK-15 2026-09-29: ~10 Ir of the 16.6 Ir gap is copy-counts atomics (bench-only), ~4-5 Ir encode dispatch in wire.rs + gencode.",
+   "status": "in_progress"
   },
   {
    "id": "PK-23",
