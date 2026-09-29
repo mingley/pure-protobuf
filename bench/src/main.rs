@@ -1,17 +1,71 @@
-//! Same-schema encode/decode vs prost, protobuf v4 (upb), and buffa.
+//! Same-schema encode/decode: pbrs vs prost 0.13/0.14, google-protobuf 0.36
+//! (upb kernel), buffa 0.9.2 (owned plus eager-view and lazy-view columns),
+//! and quick-protobuf 0.8.1 (person-shaped cells only).
+//!
+//! SB-08: every scoreboard cell uses generated (not handwritten) pbrs types.
+//! The handwritten-`Person` case stays only as an explicitly labeled
+//! diagnostic (`"role": "diagnostic"`). Peer versions and their Cargo.lock
+//! checksums print in the top-level `"peers"` section, and cross-codec
+//! equivalence pre-checks (byte-identical wire on byte-stable cases,
+//! cross-parse for every decoder, identical touch checksums, mutated-state
+//! wire equality) run before any timing.
+//!
+//! Scoreboard runs use the default iteration count. `PBRS_BENCH_ITERS`
+//! overrides it for fast local smoke runs (equivalence checks still run,
+//! gates are meaningless there); any overridden run is diagnostic only.
 
-use buffa::{Message as BuffaMessage, MessageView};
-use buffa_tat::protobuf_test_messages::proto3::{
-    __buffa::oneof::test_all_types_proto3::OneofField as BuffaOneof,
-    __buffa::view::oneof::test_all_types_proto3::OneofField as BuffaOneofView,
-    TestAllTypesProto3 as BuffaTat, TestAllTypesProto3View as BuffaTatView,
-    test_all_types_proto3::NestedMessage as BuffaNested,
-};
+mod peer_gen;
+mod peers;
+
+use buffa092::{LazyMessageView as _, Message as B092Message, MessageView as _};
 use pbrs::gencode::{NestedMessage, TestAllTypesProto3};
 use pbrs::prelude::*;
 use pbrs::testdata::{Address, Person};
-use prost::Message;
-use protobuf_v4::{Parse as V4Parse, Serialize as V4Serialize};
+use peer_gen::buffa092_person::example::Person as B092Person;
+use peer_gen::buffa092_person::example::PersonLazyView as B092PersonLazy;
+use peer_gen::buffa092_person::example::PersonView as B092PersonView;
+use peer_gen::buffa092_tat::protobuf_test_messages::proto3::TestAllTypesProto3 as B092Tat;
+use peer_gen::buffa092_tat::protobuf_test_messages::proto3::TestAllTypesProto3LazyView as B092TatLazy;
+use peer_gen::buffa092_tat::protobuf_test_messages::proto3::TestAllTypesProto3View as B092TatView;
+use peer_gen::gpb36_person::Person as G36Person;
+use peer_gen::gpb36_tat::TestAllTypesProto3 as G36Tat;
+use peer_gen::prost13_person::Person as P13Person;
+use peer_gen::prost14_person::Person as P14Person;
+use peer_gen::prost14_tat::TestAllTypesProto3 as P14Tat;
+use peer_gen::qp_person::Person as QpPerson;
+use peers::HISTORICAL_CHECKSUMS;
+use peers::PEER_PINS;
+use peers::PersonFixture;
+use peers::buffa092_of;
+use peers::buffa092_person_of;
+use peers::g36_of;
+use peers::g36_person_of;
+use peers::lock_checksum;
+use peers::prost_of;
+use peers::prost13_person_of;
+use peers::prost14_of;
+use peers::prost14_person_of;
+use peers::qp_decode;
+use peers::qp_encode;
+use peers::qp_person_of;
+use peers::touch_b092_person;
+use peers::touch_b092_person_lazy;
+use peers::touch_b092_person_view;
+use peers::touch_b092_tat;
+use peers::touch_b092_tat_lazy;
+use peers::touch_b092_tat_view;
+use peers::touch_g36_person;
+use peers::touch_g36_tat;
+use peers::touch_generated_person;
+use peers::touch_ours_person;
+use peers::touch_ours_tat;
+use peers::touch_prost_tat;
+use peers::touch_prost13_person;
+use peers::touch_prost14_person;
+use peers::touch_prost14_tat;
+use peers::touch_qp_person;
+use prost_tat::TestAllTypesProto3 as P13Tat;
+use protobuf::{Parse as G36Parse, Serialize as G36Serialize};
 use std::time::Instant;
 
 /// Generated Person schema layout from `proto/person.proto` via protoc-gen-pbrs.
@@ -1383,567 +1437,61 @@ where
     t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
 }
 
-fn median_fresh_encode_ns<M, F>(
-    samples: usize,
-    iters: u32,
-    payload_bytes: usize,
-    mut prepare: F,
-) -> (f64, u32)
-where
-    M: pbrs::Serialize,
-    F: FnMut() -> M,
-{
+/// Fresh-encode iteration budget. Factored out so every codec in a case times
+/// the SAME iteration count: equivalent work, one shared `fresh_encode_iters`.
+fn fresh_encode_iters<M>(iters: u32, payload_bytes: usize) -> u32 {
     assert!(iters > 0);
     let estimated_bytes = std::mem::size_of::<M>()
         .saturating_add(payload_bytes)
         .max(1);
-    let fresh_iters = iters
+    iters
         .min(10_000)
-        .min((32 * 1024 * 1024 / estimated_bytes).max(2) as u32);
+        .min((32 * 1024 * 1024 / estimated_bytes).max(2) as u32)
+}
+
+/// First encode after parse: each iteration encodes a freshly parsed message.
+/// Generic over the message type and the encode closure so every owned codec
+/// reports this column, not just pbrs.
+fn median_fresh_encode_ns<M, F, E>(
+    samples: usize,
+    fresh_iters: u32,
+    mut prepare: F,
+    mut encode: E,
+) -> f64
+where
+    F: FnMut() -> M,
+    E: FnMut(&M) -> Vec<u8>,
+{
     let mut times = Vec::with_capacity(samples);
     for _ in 0..samples {
         for _ in 0..fresh_iters / 10 {
             let message = prepare();
-            std::hint::black_box(pbrs::Serialize::serialize(&message).expect("fresh encode"));
+            std::hint::black_box(encode(&message));
         }
         let messages: Vec<M> = (0..fresh_iters).map(|_| prepare()).collect();
         let start = Instant::now();
         for message in &messages {
-            std::hint::black_box(pbrs::Serialize::serialize(message).expect("fresh encode"));
+            std::hint::black_box(encode(message));
         }
         times.push(start.elapsed().as_secs_f64() * 1e9 / f64::from(fresh_iters));
     }
     times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    (times[samples / 2], fresh_iters)
+    times[samples / 2]
 }
 
-// ---- BM-03 equivalence instrumentation ----
-//
-// Every timed closure returns its output through `black_box`: encoded lengths
-// for encode, the parsed message for parse-only, and a field checksum for
-// parse-and-touch. Nothing timed is dropped unseen.
-//
-// Each decoder implements the same logical touch formula (wrapping sum over
-// every populated scalar, string/bytes length, collection element and nested
-// message). Equal checksums across decoders prove equivalent observable
-// content; timing the walk exposes deferred materialization (lazy strings,
-// wire-backed views) that parse-and-drop hides.
-
-fn touch_ours_tat(m: &TestAllTypesProto3) -> u64 {
-    let mut acc = m.optional_int32() as u64;
-    acc = acc.wrapping_add(m.optional_int64() as u64);
-    acc = acc.wrapping_add(m.optional_uint32() as u64);
-    acc = acc.wrapping_add(m.optional_string().as_bytes().len() as u64);
-    acc = acc.wrapping_add(m.optional_bytes().len() as u64);
-    if let Some(n) = m.optional_nested_message_opt() {
-        acc = acc.wrapping_add(n.a() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_string_piece().as_bytes().len() as u64);
-    acc = acc.wrapping_add(m.optional_cord().as_bytes().len() as u64);
-    if let Some(r) = m.recursive_message_opt() {
-        acc = acc.wrapping_add(touch_ours_tat(r));
-    }
-    for i in m.repeated_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for (k, v) in m.map_int32_int32().iter() {
-        acc = acc.wrapping_add(k as u64).wrapping_add(v as u64);
-    }
-    for i in m.packed_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for s in m.repeated_string().iter() {
-        acc = acc.wrapping_add(s.as_view().as_bytes().len() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_bool() as u64);
-    acc = acc.wrapping_add(m.optional_float() as u64);
-    acc = acc.wrapping_add(i32::from(m.optional_nested_enum()) as u64);
-    for b in m.repeated_bytes().iter() {
-        acc = acc.wrapping_add(b.as_bytes().len() as u64);
-    }
-    for i in m.packed_fixed32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for i in m.packed_fixed64().iter() {
-        acc = acc.wrapping_add(i);
-    }
-    for f in m.packed_float().iter() {
-        acc = acc.wrapping_add(f as u64);
-    }
-    for b in m.packed_bool().iter() {
-        acc = acc.wrapping_add(b as u64);
-    }
-    for i in m.unpacked_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for i in m.unpacked_fixed32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for n in m.repeated_nested_message().iter() {
-        acc = acc.wrapping_add(n.a() as u64);
-    }
-    if let Some(x) = m.oneof_uint32_opt() {
-        acc = acc.wrapping_add(x as u64);
-    }
-    if let Some(s) = m.oneof_string_opt() {
-        acc = acc.wrapping_add(s.as_bytes().len() as u64);
-    }
-    acc
-}
-
-fn touch_prost_tat(m: &prost_tat::TestAllTypesProto3) -> u64 {
-    let mut acc = m.optional_int32 as u64;
-    acc = acc.wrapping_add(m.optional_int64 as u64);
-    acc = acc.wrapping_add(m.optional_uint32 as u64);
-    acc = acc.wrapping_add(m.optional_string.len() as u64);
-    acc = acc.wrapping_add(m.optional_bytes.len() as u64);
-    if let Some(n) = &m.optional_nested_message {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    acc = acc.wrapping_add(m.optional_string_piece.len() as u64);
-    acc = acc.wrapping_add(m.optional_cord.len() as u64);
-    if let Some(r) = m.recursive_message.as_deref() {
-        acc = acc.wrapping_add(touch_prost_tat(r));
-    }
-    for i in &m.repeated_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for (k, v) in &m.map_int32_int32 {
-        acc = acc.wrapping_add(*k as u64).wrapping_add(*v as u64);
-    }
-    for i in &m.packed_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for s in &m.repeated_string {
-        acc = acc.wrapping_add(s.len() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_bool as u64);
-    acc = acc.wrapping_add(m.optional_float as u64);
-    acc = acc.wrapping_add(m.optional_nested_enum as u64);
-    for b in &m.repeated_bytes {
-        acc = acc.wrapping_add(b.len() as u64);
-    }
-    for i in &m.packed_fixed32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in &m.packed_fixed64 {
-        acc = acc.wrapping_add(*i);
-    }
-    for f in &m.packed_float {
-        acc = acc.wrapping_add(*f as u64);
-    }
-    for b in &m.packed_bool {
-        acc = acc.wrapping_add(*b as u64);
-    }
-    for i in &m.unpacked_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in &m.unpacked_fixed32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for n in &m.repeated_nested_message {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    match &m.oneof_field {
-        None => {}
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofUint32(x)) => {
-            acc = acc.wrapping_add(*x as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofNestedMessage(n)) => {
-            acc = acc.wrapping_add(n.a as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofString(s)) => {
-            acc = acc.wrapping_add(s.len() as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofBytes(b)) => {
-            acc = acc.wrapping_add(b.len() as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofBool(b)) => {
-            acc = acc.wrapping_add(*b as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofUint64(x)) => {
-            acc = acc.wrapping_add(*x);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofFloat(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofDouble(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofEnum(x)) => {
-            acc = acc.wrapping_add(*x as u64);
-        }
-        Some(prost_tat::test_all_types_proto3::OneofField::OneofNullValue(x)) => {
-            acc = acc.wrapping_add(*x as u64);
-        }
-    }
-    acc
-}
-
-fn touch_v4_tat(m: &v4_tat::TestAllTypesProto3) -> u64 {
-    touch_v4_tat_view(m.as_view())
-}
-
-fn touch_v4_tat_view(m: v4_tat::TestAllTypesProto3View<'_>) -> u64 {
-    let mut acc = m.optional_int32() as u64;
-    acc = acc.wrapping_add(m.optional_int64() as u64);
-    acc = acc.wrapping_add(m.optional_uint32() as u64);
-    acc = acc.wrapping_add(m.optional_string().len() as u64);
-    acc = acc.wrapping_add(m.optional_bytes().len() as u64);
-    if m.has_optional_nested_message() {
-        acc = acc.wrapping_add(m.optional_nested_message().a() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_string_piece().len() as u64);
-    acc = acc.wrapping_add(m.optional_cord().len() as u64);
-    if m.has_recursive_message() {
-        acc = acc.wrapping_add(touch_v4_tat_view(m.recursive_message()));
-    }
-    for i in m.repeated_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for (k, v) in m.map_int32_int32().iter() {
-        acc = acc.wrapping_add(k as u64).wrapping_add(v as u64);
-    }
-    for i in m.packed_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for s in m.repeated_string().iter() {
-        acc = acc.wrapping_add(s.len() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_bool() as u64);
-    acc = acc.wrapping_add(m.optional_float() as u64);
-    acc = acc.wrapping_add(i32::from(m.optional_nested_enum()) as u64);
-    for b in m.repeated_bytes().iter() {
-        acc = acc.wrapping_add(b.len() as u64);
-    }
-    for i in m.packed_fixed32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for i in m.packed_fixed64().iter() {
-        acc = acc.wrapping_add(i);
-    }
-    for f in m.packed_float().iter() {
-        acc = acc.wrapping_add(f as u64);
-    }
-    for b in m.packed_bool().iter() {
-        acc = acc.wrapping_add(b as u64);
-    }
-    for i in m.unpacked_int32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for i in m.unpacked_fixed32().iter() {
-        acc = acc.wrapping_add(i as u64);
-    }
-    for n in m.repeated_nested_message().iter() {
-        acc = acc.wrapping_add(n.a() as u64);
-    }
-    if m.has_oneof_uint32() {
-        acc = acc.wrapping_add(m.oneof_uint32() as u64);
-    }
-    if m.has_oneof_string() {
-        acc = acc.wrapping_add(m.oneof_string().len() as u64);
-    }
-    acc
-}
-
-fn touch_buffa_tat(m: &BuffaTat) -> u64 {
-    let mut acc = m.optional_int32 as u64;
-    acc = acc.wrapping_add(m.optional_int64 as u64);
-    acc = acc.wrapping_add(m.optional_uint32 as u64);
-    acc = acc.wrapping_add(m.optional_string.len() as u64);
-    acc = acc.wrapping_add(m.optional_bytes.len() as u64);
-    if let Some(n) = m.optional_nested_message.as_option() {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    acc = acc.wrapping_add(m.optional_string_piece.len() as u64);
-    acc = acc.wrapping_add(m.optional_cord.len() as u64);
-    if let Some(r) = m.recursive_message.as_option() {
-        acc = acc.wrapping_add(touch_buffa_tat(r));
-    }
-    for i in &m.repeated_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for (k, v) in &m.map_int32_int32 {
-        acc = acc.wrapping_add(*k as u64).wrapping_add(*v as u64);
-    }
-    for i in &m.packed_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for s in &m.repeated_string {
-        acc = acc.wrapping_add(s.len() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_bool as u64);
-    acc = acc.wrapping_add(m.optional_float as u64);
-    acc = acc.wrapping_add(m.optional_nested_enum.to_i32() as u64);
-    for b in &m.repeated_bytes {
-        acc = acc.wrapping_add(b.len() as u64);
-    }
-    for i in &m.packed_fixed32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in &m.packed_fixed64 {
-        acc = acc.wrapping_add(*i);
-    }
-    for f in &m.packed_float {
-        acc = acc.wrapping_add(*f as u64);
-    }
-    for b in &m.packed_bool {
-        acc = acc.wrapping_add(*b as u64);
-    }
-    for i in &m.unpacked_int32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in &m.unpacked_fixed32 {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for n in &m.repeated_nested_message {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    match &m.oneof_field {
-        None => {}
-        Some(BuffaOneof::OneofUint32(x)) => {
-            acc = acc.wrapping_add(*x as u64);
-        }
-        Some(BuffaOneof::OneofNestedMessage(n)) => {
-            acc = acc.wrapping_add(n.a as u64);
-        }
-        Some(BuffaOneof::OneofString(s)) => {
-            acc = acc.wrapping_add(s.len() as u64);
-        }
-        Some(BuffaOneof::OneofBytes(b)) => {
-            acc = acc.wrapping_add(b.len() as u64);
-        }
-        Some(BuffaOneof::OneofBool(b)) => {
-            acc = acc.wrapping_add(*b as u64);
-        }
-        Some(BuffaOneof::OneofUint64(x)) => {
-            acc = acc.wrapping_add(*x);
-        }
-        Some(BuffaOneof::OneofFloat(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(BuffaOneof::OneofDouble(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(BuffaOneof::OneofEnum(e)) => {
-            acc = acc.wrapping_add(e.to_i32() as u64);
-        }
-        Some(BuffaOneof::OneofNullValue(e)) => {
-            acc = acc.wrapping_add(e.to_i32() as u64);
-        }
-    }
-    acc
-}
-
-fn touch_buffa_tat_view(m: &BuffaTatView<'_>) -> u64 {
-    let mut acc = m.optional_int32 as u64;
-    acc = acc.wrapping_add(m.optional_int64 as u64);
-    acc = acc.wrapping_add(m.optional_uint32 as u64);
-    acc = acc.wrapping_add(m.optional_string.len() as u64);
-    acc = acc.wrapping_add(m.optional_bytes.len() as u64);
-    if let Some(n) = m.optional_nested_message.as_option() {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    acc = acc.wrapping_add(m.optional_string_piece.len() as u64);
-    acc = acc.wrapping_add(m.optional_cord.len() as u64);
-    if let Some(r) = m.recursive_message.as_option() {
-        acc = acc.wrapping_add(touch_buffa_tat_view(r));
-    }
-    for i in m.repeated_int32.iter() {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for &(k, v) in m.map_int32_int32.iter() {
-        acc = acc.wrapping_add(k as u64).wrapping_add(v as u64);
-    }
-    for i in m.packed_int32.iter() {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for s in m.repeated_string.iter() {
-        acc = acc.wrapping_add(s.len() as u64);
-    }
-    acc = acc.wrapping_add(m.optional_bool as u64);
-    acc = acc.wrapping_add(m.optional_float as u64);
-    acc = acc.wrapping_add(m.optional_nested_enum.to_i32() as u64);
-    for b in m.repeated_bytes.iter() {
-        acc = acc.wrapping_add(b.len() as u64);
-    }
-    for i in m.packed_fixed32.iter() {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in m.packed_fixed64.iter() {
-        acc = acc.wrapping_add(*i);
-    }
-    for f in m.packed_float.iter() {
-        acc = acc.wrapping_add(*f as u64);
-    }
-    for b in m.packed_bool.iter() {
-        acc = acc.wrapping_add(*b as u64);
-    }
-    for i in m.unpacked_int32.iter() {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for i in m.unpacked_fixed32.iter() {
-        acc = acc.wrapping_add(*i as u64);
-    }
-    for n in m.repeated_nested_message.iter() {
-        acc = acc.wrapping_add(n.a as u64);
-    }
-    match &m.oneof_field {
-        None => {}
-        Some(BuffaOneofView::OneofUint32(x)) => {
-            acc = acc.wrapping_add(*x as u64);
-        }
-        Some(BuffaOneofView::OneofNestedMessage(n)) => {
-            acc = acc.wrapping_add(n.a as u64);
-        }
-        Some(BuffaOneofView::OneofString(s)) => {
-            acc = acc.wrapping_add(s.len() as u64);
-        }
-        Some(BuffaOneofView::OneofBytes(b)) => {
-            acc = acc.wrapping_add(b.len() as u64);
-        }
-        Some(BuffaOneofView::OneofBool(b)) => {
-            acc = acc.wrapping_add(*b as u64);
-        }
-        Some(BuffaOneofView::OneofUint64(x)) => {
-            acc = acc.wrapping_add(*x);
-        }
-        Some(BuffaOneofView::OneofFloat(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(BuffaOneofView::OneofDouble(f)) => {
-            acc = acc.wrapping_add(*f as u64);
-        }
-        Some(BuffaOneofView::OneofEnum(e)) => {
-            acc = acc.wrapping_add(e.to_i32() as u64);
-        }
-        Some(BuffaOneofView::OneofNullValue(e)) => {
-            acc = acc.wrapping_add(e.to_i32() as u64);
-        }
-    }
-    acc
-}
-
-fn touch_ours_person(m: &Person) -> u64 {
-    let mut acc = m.id() as u64;
-    acc = acc.wrapping_add(m.name().as_bytes().len() as u64);
-    if let Some(e) = m.email_opt() {
-        acc = acc.wrapping_add(e.as_bytes().len() as u64);
-    }
-    for t in m.tags().iter() {
-        acc = acc.wrapping_add(t.as_view().as_bytes().len() as u64);
-    }
-    for (k, v) in m.scores().iter() {
-        acc = acc
-            .wrapping_add(k.as_view().as_bytes().len() as u64)
-            .wrapping_add(v as u64);
-    }
-    acc = acc.wrapping_add(m.address().city().as_bytes().len() as u64);
-    acc
-}
-
-fn touch_generated_person(m: &person_generated::Person) -> u64 {
-    let mut acc = m.id() as u64;
-    acc = acc.wrapping_add(m.name().as_bytes().len() as u64);
-    if let Some(e) = m.email_opt() {
-        acc = acc.wrapping_add(e.as_bytes().len() as u64);
-    }
-    for t in m.tags().iter() {
-        acc = acc.wrapping_add(t.as_view().as_bytes().len() as u64);
-    }
-    for (k, v) in m.scores().iter() {
-        acc = acc
-            .wrapping_add(k.as_view().as_bytes().len() as u64)
-            .wrapping_add(v as u64);
-    }
-    acc = acc.wrapping_add(m.address().city().as_bytes().len() as u64);
-    for (k, v) in m.extras().iter() {
-        acc = acc
-            .wrapping_add(k.as_view().as_bytes().len() as u64)
-            .wrapping_add(v as u64);
-    }
-    acc
-}
-
-fn touch_prost_person(m: &ProstPerson) -> u64 {
-    let mut acc = m.id as u64;
-    acc = acc.wrapping_add(m.name.len() as u64);
-    if let Some(e) = &m.email {
-        acc = acc.wrapping_add(e.len() as u64);
-    }
-    for t in &m.tags {
-        acc = acc.wrapping_add(t.len() as u64);
-    }
-    for (k, v) in &m.scores {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(*v as u64);
-    }
-    if let Some(a) = &m.address {
-        acc = acc.wrapping_add(a.city.len() as u64);
-    }
-    acc
-}
-
-fn touch_v4_person(m: &v4_person::Person) -> u64 {
-    let mut acc = m.id() as u64;
-    acc = acc.wrapping_add(m.name().len() as u64);
-    if m.has_email() {
-        acc = acc.wrapping_add(m.email().len() as u64);
-    }
-    for t in m.tags().iter() {
-        acc = acc.wrapping_add(t.len() as u64);
-    }
-    for (k, v) in m.scores().iter() {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(v as u64);
-    }
-    if m.has_address() {
-        acc = acc.wrapping_add(m.address().city().len() as u64);
-    }
-    for (k, v) in m.extras().iter() {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(v as u64);
-    }
-    acc
-}
-
-fn touch_buffa_person(m: &buffa_person::example::Person) -> u64 {
-    let mut acc = m.id as u64;
-    acc = acc.wrapping_add(m.name.len() as u64);
-    if let Some(e) = &m.email {
-        acc = acc.wrapping_add(e.len() as u64);
-    }
-    for t in &m.tags {
-        acc = acc.wrapping_add(t.len() as u64);
-    }
-    for (k, v) in &m.scores {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(*v as u64);
-    }
-    if let Some(a) = m.address.as_option() {
-        acc = acc.wrapping_add(a.city.len() as u64);
-    }
-    for (k, v) in &m.extras {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(*v as u64);
-    }
-    acc
-}
-
-fn touch_buffa_person_view(m: &buffa_person::example::PersonView<'_>) -> u64 {
-    let mut acc = m.id as u64;
-    acc = acc.wrapping_add(m.name.len() as u64);
-    if let Some(e) = m.email {
-        acc = acc.wrapping_add(e.len() as u64);
-    }
-    for t in m.tags.iter() {
-        acc = acc.wrapping_add(t.len() as u64);
-    }
-    for (k, v) in m.scores.iter() {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(*v as u64);
-    }
-    if let Some(a) = m.address.as_option() {
-        acc = acc.wrapping_add(a.city.len() as u64);
-    }
-    for (k, v) in m.extras.iter() {
-        acc = acc.wrapping_add(k.len() as u64).wrapping_add(*v as u64);
-    }
-    acc
+/// Mutation-before-encode: alternate one scalar between 42/43 on the same
+/// message and encode. Same toggle, same iterations for every owned codec.
+fn median_mutated_encode_ns<M>(
+    samples: usize,
+    iters: u32,
+    mutated: &mut M,
+    mut step: impl FnMut(&mut M, i32) -> Vec<u8>,
+) -> f64 {
+    let mut last_value = 43;
+    median_ns(samples, iters, || {
+        last_value = if last_value == 42 { 43 } else { 42 };
+        step(mutated, last_value)
+    })
 }
 
 /// Cases whose wire bytes are byte-stable across encoders. Multi-entry maps
@@ -2122,203 +1670,6 @@ fn tat_scalars() -> TestAllTypesProto3 {
     m
 }
 
-fn prost_of(m: &TestAllTypesProto3) -> prost_tat::TestAllTypesProto3 {
-    let nested = m.optional_nested_message_opt().map(|n| {
-        Box::new(prost_tat::test_all_types_proto3::NestedMessage {
-            a: n.a(),
-            ..Default::default()
-        })
-    });
-    let rec = m.recursive_message_opt().map(|r| Box::new(prost_of(r)));
-    prost_tat::TestAllTypesProto3 {
-        optional_int32: m.optional_int32(),
-        optional_int64: m.optional_int64(),
-        optional_uint32: m.optional_uint32(),
-        optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
-        optional_bytes: m.optional_bytes().to_vec(),
-        optional_nested_message: nested,
-        optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
-        optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
-        recursive_message: rec,
-        repeated_int32: m.repeated_int32().iter().collect(),
-        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (k, v)).collect(),
-        packed_int32: m.packed_int32().iter().collect(),
-        repeated_string: m
-            .repeated_string()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        optional_bool: m.optional_bool(),
-        optional_float: m.optional_float(),
-        optional_nested_enum: i32::from(m.optional_nested_enum()),
-        repeated_bytes: m
-            .repeated_bytes()
-            .iter()
-            .map(|b| b.as_bytes().to_vec())
-            .collect(),
-        packed_fixed32: m.packed_fixed32().iter().collect(),
-        packed_fixed64: m.packed_fixed64().iter().collect(),
-        packed_float: m.packed_float().iter().collect(),
-        packed_bool: m.packed_bool().iter().collect(),
-        unpacked_int32: m.unpacked_int32().iter().collect(),
-        unpacked_fixed32: m.unpacked_fixed32().iter().collect(),
-        repeated_nested_message: m
-            .repeated_nested_message()
-            .iter()
-            .map(|n| prost_tat::test_all_types_proto3::NestedMessage {
-                a: n.a(),
-                ..Default::default()
-            })
-            .collect(),
-        oneof_field: m
-            .oneof_uint32_opt()
-            .map(prost_tat::test_all_types_proto3::OneofField::OneofUint32)
-            .or_else(|| {
-                m.oneof_string_opt().map(|s| {
-                    prost_tat::test_all_types_proto3::OneofField::OneofString(
-                        s.to_str().unwrap_or("").to_string(),
-                    )
-                })
-            }),
-        ..Default::default()
-    }
-}
-
-fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
-    let mut v = v4_tat::TestAllTypesProto3::new();
-    v.set_optional_int32(m.optional_int32());
-    v.set_optional_int64(m.optional_int64());
-    v.set_optional_uint32(m.optional_uint32());
-    v.set_optional_string(m.optional_string().to_str().unwrap_or(""));
-    v.set_optional_bytes(m.optional_bytes());
-    if let Some(n) = m.optional_nested_message_opt() {
-        v.optional_nested_message_mut().set_a(n.a());
-    }
-    if let Some(s) = m
-        .optional_string_piece()
-        .to_str()
-        .ok()
-        .filter(|s| !s.is_empty())
-    {
-        v.set_optional_string_piece(s);
-    }
-    if let Some(s) = m.optional_cord().to_str().ok().filter(|s| !s.is_empty()) {
-        v.set_optional_cord(s);
-    }
-    if let Some(r) = m.recursive_message_opt() {
-        v.set_recursive_message(v4_of(r));
-    }
-    for i in m.repeated_int32().iter() {
-        v.repeated_int32_mut().push(i);
-    }
-    for (k, val) in m.map_int32_int32().iter() {
-        v.map_int32_int32_mut().insert(k, val);
-    }
-    for i in m.packed_int32().iter() {
-        v.packed_int32_mut().push(i);
-    }
-    for s in m.repeated_string().iter() {
-        v.repeated_string_mut()
-            .push(s.as_view().to_str().unwrap_or(""));
-    }
-    v.set_optional_bool(m.optional_bool());
-    v.set_optional_float(m.optional_float());
-    v.set_optional_nested_enum(v4_tat::test_all_types_proto3::NestedEnum::from(i32::from(
-        m.optional_nested_enum(),
-    )));
-    for b in m.repeated_bytes().iter() {
-        v.repeated_bytes_mut().push(b.as_bytes());
-    }
-    for i in m.packed_fixed32().iter() {
-        v.packed_fixed32_mut().push(i);
-    }
-    for i in m.packed_fixed64().iter() {
-        v.packed_fixed64_mut().push(i);
-    }
-    for i in m.packed_float().iter() {
-        v.packed_float_mut().push(i);
-    }
-    for i in m.packed_bool().iter() {
-        v.packed_bool_mut().push(i);
-    }
-    for i in m.unpacked_int32().iter() {
-        v.unpacked_int32_mut().push(i);
-    }
-    for i in m.unpacked_fixed32().iter() {
-        v.unpacked_fixed32_mut().push(i);
-    }
-    for n in m.repeated_nested_message().iter() {
-        let mut inner = v4_tat::test_all_types_proto3::NestedMessage::new();
-        inner.set_a(n.a());
-        v.repeated_nested_message_mut().push(inner);
-    }
-    if let Some(x) = m.oneof_uint32_opt() {
-        v.set_oneof_uint32(x);
-    } else if let Some(s) = m.oneof_string_opt() {
-        v.set_oneof_string(s.to_str().unwrap_or(""));
-    }
-    v
-}
-
-fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
-    let nested = m.optional_nested_message_opt().map(|n| BuffaNested {
-        a: n.a(),
-        ..Default::default()
-    });
-    BuffaTat {
-        optional_int32: m.optional_int32(),
-        optional_int64: m.optional_int64(),
-        optional_uint32: m.optional_uint32(),
-        optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
-        optional_bytes: m.optional_bytes().to_vec(),
-        optional_nested_message: nested.into(),
-        optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
-        optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
-        recursive_message: m.recursive_message_opt().map(buffa_of).into(),
-        repeated_int32: m.repeated_int32().iter().collect(),
-        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (k, v)).collect(),
-        packed_int32: m.packed_int32().iter().collect(),
-        repeated_string: m
-            .repeated_string()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        optional_bool: m.optional_bool(),
-        optional_float: m.optional_float(),
-        optional_nested_enum: i32::from(m.optional_nested_enum()).into(),
-        repeated_bytes: m
-            .repeated_bytes()
-            .iter()
-            .map(|b| b.as_bytes().to_vec())
-            .collect(),
-        packed_fixed32: m.packed_fixed32().iter().collect(),
-        packed_fixed64: m.packed_fixed64().iter().collect(),
-        packed_float: m.packed_float().iter().collect(),
-        packed_bool: m.packed_bool().iter().collect(),
-        unpacked_int32: m.unpacked_int32().iter().collect(),
-        unpacked_fixed32: m.unpacked_fixed32().iter().collect(),
-        repeated_nested_message: m
-            .repeated_nested_message()
-            .iter()
-            .map(|n| BuffaNested {
-                a: n.a(),
-                ..Default::default()
-            })
-            .collect(),
-        oneof_field: m
-            .oneof_uint32_opt()
-            .map(buffa_tat::protobuf_test_messages::proto3::__buffa::oneof::test_all_types_proto3::OneofField::OneofUint32)
-            .or_else(|| {
-                m.oneof_string_opt().map(|s| {
-                    buffa_tat::protobuf_test_messages::proto3::__buffa::oneof::test_all_types_proto3::OneofField::OneofString(
-                        s.to_str().unwrap_or("").to_string(),
-                    )
-                })
-            }),
-        ..Default::default()
-    }
-}
-
 fn person_ours() -> Person {
     let mut addr = Address::new();
     addr.set_city("nyc");
@@ -2333,47 +1684,61 @@ fn person_ours() -> Person {
     p
 }
 
-#[derive(Clone, PartialEq, Message)]
-struct ProstAddress {
-    #[prost(string, tag = "1")]
-    city: String,
-}
-
-#[derive(Clone, PartialEq, Message)]
-struct ProstPerson {
-    #[prost(int32, tag = "1")]
-    id: i32,
-    #[prost(string, tag = "2")]
-    name: String,
-    #[prost(string, optional, tag = "3")]
-    email: Option<String>,
-    #[prost(string, repeated, tag = "4")]
-    tags: Vec<String>,
-    #[prost(map = "string, int32", tag = "5")]
-    scores: std::collections::HashMap<String, i32>,
-    #[prost(message, optional, tag = "6")]
-    address: Option<ProstAddress>,
+fn person_generated_ours() -> person_generated::Person {
+    let mut addr = person_generated::Address::new();
+    addr.set_city("nyc");
+    let mut p = person_generated::Person::new();
+    p.set_id(7);
+    p.set_name("ada lovelace");
+    p.set_email("ada@example.com");
+    p.tags_mut().push("math");
+    p.tags_mut().push("eng");
+    p.scores_mut().insert("notes", 12);
+    p.set_address(addr);
+    p
 }
 
 struct Case {
     name: &'static str,
     layout: &'static str,
+    /// `"scoreboard"` for generated-layout cells, `"diagnostic"` for the
+    /// handwritten-`Person` layout comparison. Gates are unchanged historical
+    /// smoke (BM-03); the role only labels scoreboard membership.
+    role: &'static str,
     ours_enc: f64,
     ours_fresh_enc: Option<f64>,
     ours_mutated_enc: Option<f64>,
     prost_enc: f64,
-    v4_enc: f64,
+    prost_fresh_enc: f64,
+    prost_mutated_enc: f64,
+    prost14_enc: f64,
+    prost14_fresh_enc: f64,
+    prost14_mutated_enc: f64,
+    g36_enc: f64,
+    g36_fresh_enc: f64,
+    g36_mutated_enc: f64,
     buffa_enc: f64,
+    buffa_fresh_enc: f64,
+    buffa_mutated_enc: f64,
+    qp_enc: Option<f64>,
+    qp_fresh_enc: Option<f64>,
+    qp_mutated_enc: Option<f64>,
     ours_dec: f64,
     prost_dec: f64,
-    v4_dec: f64,
+    prost14_dec: f64,
+    g36_dec: f64,
     buffa_dec: f64,
     buffa_view: Option<f64>,
+    buffa_lazy: Option<f64>,
+    qp_dec: Option<f64>,
     ours_touch: f64,
     prost_touch: f64,
-    v4_touch: f64,
+    prost14_touch: f64,
+    g36_touch: f64,
     buffa_touch: f64,
     buffa_view_touch: Option<f64>,
+    buffa_lazy_touch: Option<f64>,
+    qp_touch: Option<f64>,
     fresh_iters: u32,
     payload: usize,
     ours_def: Option<f64>,
@@ -2393,98 +1758,235 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
         bytes.len()
     );
     let prost_msg = prost_of(&msg);
-    let v4_msg = v4_of(&msg);
-    let buffa_msg = buffa_of(&msg);
+    let prost14_msg = prost14_of(&msg);
+    let g36_msg = g36_of(&msg);
+    let buffa_msg = buffa092_of(&msg);
     // Equivalence pre-checks (not timed): byte-identical wire for
-    // byte-stable cases, cross-parse for every decoder, and identical touch
-    // checksums proving equivalent observable content.
+    // byte-stable cases, cross-parse for every decoder, identical touch
+    // checksums proving equivalent observable content, and mutated-state
+    // wire equality so the timed mutation columns compare equal work.
     if byte_stable(name) {
         assert_eq!(
             bytes,
-            prost_msg.encode_to_vec(),
-            "{name}: pbrs vs prost wire"
+            prost::Message::encode_to_vec(&prost_msg),
+            "{name}: pbrs vs prost13 wire"
         );
         assert_eq!(
             bytes,
-            V4Serialize::serialize(&v4_msg).expect("v4 wire"),
-            "{name}: pbrs vs v4 wire"
+            prost14::Message::encode_to_vec(&prost14_msg),
+            "{name}: pbrs vs prost14 wire"
         );
         assert_eq!(
             bytes,
-            BuffaMessage::encode_to_vec(&buffa_msg),
-            "{name}: pbrs vs buffa wire"
+            G36Serialize::serialize(&g36_msg).expect("g36 wire"),
+            "{name}: pbrs vs g36 wire"
         );
+        assert_eq!(
+            bytes,
+            B092Message::encode_to_vec(&buffa_msg),
+            "{name}: pbrs vs buffa092 wire"
+        );
+        for probe in [42, 43] {
+            let mut mo = msg.clone();
+            mo.set_optional_int32(probe);
+            let expect = pbrs::Serialize::serialize(&mo).expect("mutated ours wire");
+            let mut m13 = prost_msg.clone();
+            m13.optional_int32 = probe;
+            assert_eq!(
+                expect,
+                prost::Message::encode_to_vec(&m13),
+                "{name}: mutated {probe} pbrs vs prost13"
+            );
+            let mut m14 = prost14_msg.clone();
+            m14.optional_int32 = probe;
+            assert_eq!(
+                expect,
+                prost14::Message::encode_to_vec(&m14),
+                "{name}: mutated {probe} pbrs vs prost14"
+            );
+            let mut mg = g36_msg.clone();
+            mg.set_optional_int32(probe);
+            assert_eq!(
+                expect,
+                G36Serialize::serialize(&mg).expect("mutated g36 wire"),
+                "{name}: mutated {probe} pbrs vs g36"
+            );
+            let mut mb = buffa_msg.clone();
+            mb.optional_int32 = probe;
+            assert_eq!(
+                expect,
+                B092Message::encode_to_vec(&mb),
+                "{name}: mutated {probe} pbrs vs buffa092"
+            );
+        }
     }
     let t_ours = touch_ours_tat(&TestAllTypesProto3::parse(&bytes).expect("ours cross-parse"));
-    let t_prost = touch_prost_tat(
-        &prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).expect("prost cross-parse"),
-    );
-    let t_v4 = touch_v4_tat(&v4_tat::TestAllTypesProto3::parse(&bytes).expect("v4 cross-parse"));
-    let t_buffa = touch_buffa_tat(&BuffaTat::decode_from_slice(&bytes).expect("buffa cross-parse"));
+    let p13: P13Tat = prost::Message::decode(bytes.as_slice()).expect("prost13 cross-parse");
+    let t_prost = touch_prost_tat(&p13);
+    let p14: P14Tat = prost14::Message::decode(bytes.as_slice()).expect("prost14 cross-parse");
+    let t_prost14 = touch_prost14_tat(&p14);
+    let t_g36 = touch_g36_tat(&G36Tat::parse(&bytes).expect("g36 cross-parse"));
+    let t_buffa =
+        touch_b092_tat(&B092Tat::decode_from_slice(&bytes).expect("buffa092 cross-parse"));
     let t_view =
-        touch_buffa_tat_view(&BuffaTatView::decode_view(&bytes).expect("buffa view cross-parse"));
-    assert_eq!(t_ours, t_prost, "{name}: ours vs prost touch");
-    assert_eq!(t_ours, t_v4, "{name}: ours vs v4 touch");
-    assert_eq!(t_ours, t_buffa, "{name}: ours vs buffa touch");
-    assert_eq!(t_ours, t_view, "{name}: ours vs buffa view touch");
+        touch_b092_tat_view(&B092TatView::decode_view(&bytes).expect("buffa092 view cross-parse"));
+    let t_lazy =
+        touch_b092_tat_lazy(&B092TatLazy::decode_lazy(&bytes).expect("buffa092 lazy cross-parse"));
+    assert_eq!(t_ours, t_prost, "{name}: ours vs prost13 touch");
+    assert_eq!(t_ours, t_prost14, "{name}: ours vs prost14 touch");
+    assert_eq!(t_ours, t_g36, "{name}: ours vs g36 touch");
+    assert_eq!(t_ours, t_buffa, "{name}: ours vs buffa092 touch");
+    assert_eq!(t_ours, t_view, "{name}: ours vs buffa092 view touch");
+    assert_eq!(t_ours, t_lazy, "{name}: ours vs buffa092 lazy touch");
     let ours_def = if name == "tat_populated" {
-        Some(median_ns(samples, iters, || TestAllTypesProto3::new()))
+        Some(median_ns(samples, iters, TestAllTypesProto3::new))
     } else {
         None
     };
+    let fresh_iters = fresh_encode_iters::<TestAllTypesProto3>(iters, bytes.len());
     let ours_dec = median_ns(samples, iters, || {
         TestAllTypesProto3::parse(&bytes).unwrap()
     });
     let ours_enc = median_ns(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
-    let (fresh_enc, fresh_iters) = median_fresh_encode_ns(samples, iters, bytes.len(), || {
-        TestAllTypesProto3::parse(&bytes).unwrap()
-    });
-    let ours_fresh_enc = Some(fresh_enc);
+    let ours_fresh_enc = Some(median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || TestAllTypesProto3::parse(&bytes).unwrap(),
+        |m| pbrs::Serialize::serialize(m).unwrap(),
+    ));
     let mut mutated = msg.clone();
-    let mut last_value = 43;
-    let ours_mutated_enc = Some(median_ns(samples, iters, || {
-        last_value = if last_value == 42 { 43 } else { 42 };
-        mutated.set_optional_int32(last_value);
-        pbrs::Serialize::serialize(&mutated).unwrap()
-    }));
+    let ours_mutated_enc = Some(median_mutated_encode_ns(
+        samples,
+        iters,
+        &mut mutated,
+        |m: &mut TestAllTypesProto3, v| {
+            m.set_optional_int32(v);
+            pbrs::Serialize::serialize(m).unwrap()
+        },
+    ));
+    let prost_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || {
+            let m: P13Tat = prost::Message::decode(bytes.as_slice()).unwrap();
+            m
+        },
+        prost::Message::encode_to_vec,
+    );
+    let mut mutated13 = prost_msg.clone();
+    let prost_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated13, |m: &mut P13Tat, v| {
+            m.optional_int32 = v;
+            prost::Message::encode_to_vec(m)
+        });
+    let prost14_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || {
+            let m: P14Tat = prost14::Message::decode(bytes.as_slice()).unwrap();
+            m
+        },
+        prost14::Message::encode_to_vec,
+    );
+    let mut mutated14 = prost14_msg.clone();
+    let prost14_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated14, |m: &mut P14Tat, v| {
+            m.optional_int32 = v;
+            prost14::Message::encode_to_vec(m)
+        });
+    let g36_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || G36Tat::parse(&bytes).unwrap(),
+        |m| G36Serialize::serialize(m).unwrap(),
+    );
+    let mut mutated_g36 = g36_msg.clone();
+    let g36_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated_g36, |m: &mut G36Tat, v| {
+            m.set_optional_int32(v);
+            G36Serialize::serialize(m).unwrap()
+        });
+    let buffa_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || B092Tat::decode_from_slice(&bytes).unwrap(),
+        B092Message::encode_to_vec,
+    );
+    let mut mutated_b092 = buffa_msg.clone();
+    let buffa_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated_b092, |m: &mut B092Tat, v| {
+            m.optional_int32 = v;
+            B092Message::encode_to_vec(m)
+        });
     Case {
         name,
         layout: "generated",
+        role: "scoreboard",
         payload: bytes.len(),
         ours_enc,
         ours_fresh_enc,
         ours_mutated_enc,
-        prost_enc: median_ns(samples, iters, || prost_msg.encode_to_vec()),
-        v4_enc: median_ns(samples, iters, || V4Serialize::serialize(&v4_msg).unwrap()),
-        buffa_enc: median_ns(samples, iters, || BuffaMessage::encode_to_vec(&buffa_msg)),
+        prost_enc: median_ns(samples, iters, || prost::Message::encode_to_vec(&prost_msg)),
+        prost_fresh_enc,
+        prost_mutated_enc,
+        prost14_enc: median_ns(samples, iters, || {
+            prost14::Message::encode_to_vec(&prost14_msg)
+        }),
+        prost14_fresh_enc,
+        prost14_mutated_enc,
+        g36_enc: median_ns(samples, iters, || {
+            G36Serialize::serialize(&g36_msg).unwrap()
+        }),
+        g36_fresh_enc,
+        g36_mutated_enc,
+        buffa_enc: median_ns(samples, iters, || B092Message::encode_to_vec(&buffa_msg)),
+        buffa_fresh_enc,
+        buffa_mutated_enc,
+        qp_enc: None,
+        qp_fresh_enc: None,
+        qp_mutated_enc: None,
         ours_dec,
         prost_dec: median_ns(samples, iters, || {
-            prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).unwrap()
+            let m: P13Tat = prost::Message::decode(bytes.as_slice()).unwrap();
+            m
         }),
-        v4_dec: median_ns(samples, iters, || {
-            v4_tat::TestAllTypesProto3::parse(&bytes).unwrap()
+        prost14_dec: median_ns(samples, iters, || {
+            let m: P14Tat = prost14::Message::decode(bytes.as_slice()).unwrap();
+            m
         }),
+        g36_dec: median_ns(samples, iters, || G36Tat::parse(&bytes).unwrap()),
         buffa_dec: median_ns(samples, iters, || {
-            BuffaTat::decode_from_slice(&bytes).unwrap()
+            B092Tat::decode_from_slice(&bytes).unwrap()
         }),
         buffa_view: Some(median_ns(samples, iters, || {
-            BuffaTatView::decode_view(&bytes).unwrap()
+            B092TatView::decode_view(&bytes).unwrap()
         })),
+        buffa_lazy: Some(median_ns(samples, iters, || {
+            B092TatLazy::decode_lazy(&bytes).unwrap()
+        })),
+        qp_dec: None,
         ours_touch: median_ns(samples, iters, || {
             touch_ours_tat(&TestAllTypesProto3::parse(&bytes).unwrap())
         }),
         prost_touch: median_ns(samples, iters, || {
-            touch_prost_tat(&prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).unwrap())
+            touch_prost_tat(&prost::Message::decode(bytes.as_slice()).unwrap())
         }),
-        v4_touch: median_ns(samples, iters, || {
-            touch_v4_tat(&v4_tat::TestAllTypesProto3::parse(&bytes).unwrap())
+        prost14_touch: median_ns(samples, iters, || {
+            touch_prost14_tat(&prost14::Message::decode(bytes.as_slice()).unwrap())
+        }),
+        g36_touch: median_ns(samples, iters, || {
+            touch_g36_tat(&G36Tat::parse(&bytes).unwrap())
         }),
         buffa_touch: median_ns(samples, iters, || {
-            touch_buffa_tat(&BuffaTat::decode_from_slice(&bytes).unwrap())
+            touch_b092_tat(&B092Tat::decode_from_slice(&bytes).unwrap())
         }),
         buffa_view_touch: Some(median_ns(samples, iters, || {
-            touch_buffa_tat_view(&BuffaTatView::decode_view(&bytes).unwrap())
+            touch_b092_tat_view(&B092TatView::decode_view(&bytes).unwrap())
         })),
+        buffa_lazy_touch: Some(median_ns(samples, iters, || {
+            touch_b092_tat_lazy(&B092TatLazy::decode_lazy(&bytes).unwrap())
+        })),
+        qp_touch: None,
         fresh_iters,
         ours_def,
         iters,
@@ -2492,322 +1994,337 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     }
 }
 
-fn run_person(iters: u32) -> Case {
-    let msg = person_ours();
+/// Identifies one person case: its JSON name, pbrs layout, and scoreboard role.
+struct PersonCaseMeta {
+    name: &'static str,
+    layout: &'static str,
+    role: &'static str,
+}
+
+/// Person case shared by both pbrs layouts. `msg` is the reference message;
+/// `fixture` feeds every peer builder; `touch`/`parse`/`set_id` specialize
+/// the pbrs side. All peer columns (including quick-protobuf) use generated
+/// types in both the diagnostic and the scoreboard person case.
+fn run_person_case<M>(
+    meta: PersonCaseMeta,
+    iters: u32,
+    msg: M,
+    fixture: &PersonFixture,
+    touch: impl Fn(&M) -> u64,
+    parse: impl Fn(&[u8]) -> M,
+    set_id: impl Fn(&mut M, i32),
+) -> Case
+where
+    M: Clone + pbrs::Serialize,
+{
+    let name = meta.name;
     let bytes = pbrs::Serialize::serialize(&msg).expect("person encode");
-    let prost_msg = ProstPerson {
-        id: msg.id(),
-        name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg
-            .email_opt()
-            .map(|s| s.to_str().unwrap_or("").to_string()),
-        tags: msg
-            .tags()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        scores: msg
-            .scores()
-            .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
-            .collect(),
-        address: Some(ProstAddress {
-            city: msg.address().city().to_str().unwrap_or("").to_string(),
-        }),
-    };
-    let mut v4_msg = v4_person::Person::new();
-    v4_msg.set_id(msg.id());
-    v4_msg.set_name(msg.name().to_str().unwrap_or(""));
-    v4_msg.set_email(msg.email().to_str().unwrap_or(""));
-    for t in msg.tags().iter() {
-        v4_msg.tags_mut().push(t.as_view().to_str().unwrap_or(""));
+    let (iters, samples) = (iters, 15);
+    eprintln!(
+        "bench {name}: payload={} iters={iters} samples={samples}",
+        bytes.len()
+    );
+    let prost_msg = prost13_person_of(fixture);
+    let prost14_msg = prost14_person_of(fixture);
+    let g36_msg = g36_person_of(fixture);
+    let buffa_msg = buffa092_person_of(fixture);
+    let qp_msg = qp_person_of(fixture);
+    // Equivalence pre-checks (not timed): byte-identical wire (single-entry
+    // maps serialize deterministically), cross-parse for every decoder,
+    // identical touch checksums, and mutated-state wire equality.
+    assert_eq!(
+        bytes,
+        prost::Message::encode_to_vec(&prost_msg),
+        "{name}: pbrs vs prost13 wire"
+    );
+    assert_eq!(
+        bytes,
+        prost14::Message::encode_to_vec(&prost14_msg),
+        "{name}: pbrs vs prost14 wire"
+    );
+    assert_eq!(
+        bytes,
+        G36Serialize::serialize(&g36_msg).expect("g36 wire"),
+        "{name}: pbrs vs g36 wire"
+    );
+    assert_eq!(
+        bytes,
+        B092Message::encode_to_vec(&buffa_msg),
+        "{name}: pbrs vs buffa092 wire"
+    );
+    assert_eq!(bytes, qp_encode(&qp_msg), "{name}: pbrs vs qp wire");
+    for probe in [42, 43] {
+        let mut mo = msg.clone();
+        set_id(&mut mo, probe);
+        let expect = pbrs::Serialize::serialize(&mo).expect("mutated ours wire");
+        let mut m13 = prost_msg.clone();
+        m13.id = probe;
+        assert_eq!(
+            expect,
+            prost::Message::encode_to_vec(&m13),
+            "{name}: mutated {probe} pbrs vs prost13"
+        );
+        let mut m14 = prost14_msg.clone();
+        m14.id = probe;
+        assert_eq!(
+            expect,
+            prost14::Message::encode_to_vec(&m14),
+            "{name}: mutated {probe} pbrs vs prost14"
+        );
+        let mut mg = g36_msg.clone();
+        mg.set_id(probe);
+        assert_eq!(
+            expect,
+            G36Serialize::serialize(&mg).expect("mutated g36 wire"),
+            "{name}: mutated {probe} pbrs vs g36"
+        );
+        let mut mb = buffa_msg.clone();
+        mb.id = probe;
+        assert_eq!(
+            expect,
+            B092Message::encode_to_vec(&mb),
+            "{name}: mutated {probe} pbrs vs buffa092"
+        );
+        let mut mq = qp_msg.clone();
+        mq.id = probe;
+        assert_eq!(expect, qp_encode(&mq), "{name}: mutated {probe} pbrs vs qp");
     }
-    for (k, v) in msg.scores().iter() {
-        v4_msg
-            .scores_mut()
-            .insert(k.as_view().to_str().unwrap_or(""), v);
-    }
-    v4_msg
-        .address_mut()
-        .set_city(msg.address().city().to_str().unwrap_or(""));
-    let buffa_msg = buffa_person::example::Person {
-        id: msg.id(),
-        name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg
-            .email_opt()
-            .map(|s| s.to_str().unwrap_or("").to_string()),
-        tags: msg
-            .tags()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        scores: msg
-            .scores()
-            .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
-            .collect(),
-        address: Some(buffa_person::example::Address {
-            city: msg.address().city().to_str().unwrap_or("").to_string(),
-            ..Default::default()
-        })
-        .into(),
-        ..Default::default()
-    };
-    // Equivalence pre-checks (not timed): byte-identical wire (the single
-    // scores entry serializes deterministically), cross-parse for every
-    // decoder, and identical touch checksums.
-    assert_eq!(
-        bytes,
-        prost_msg.encode_to_vec(),
-        "person: pbrs vs prost wire"
+    let t_ours = touch(&parse(&bytes));
+    let p13: P13Person = prost::Message::decode(bytes.as_slice()).expect("prost13 cross-parse");
+    let t_prost = touch_prost13_person(&p13);
+    let p14: P14Person = prost14::Message::decode(bytes.as_slice()).expect("prost14 cross-parse");
+    let t_prost14 = touch_prost14_person(&p14);
+    let t_g36 = touch_g36_person(&G36Person::parse(&bytes).expect("g36 cross-parse"));
+    let t_buffa =
+        touch_b092_person(&B092Person::decode_from_slice(&bytes).expect("buffa092 cross-parse"));
+    let t_view = touch_b092_person_view(
+        &B092PersonView::decode_view(&bytes).expect("buffa092 view cross-parse"),
     );
-    assert_eq!(
-        bytes,
-        V4Serialize::serialize(&v4_msg).expect("v4 wire"),
-        "person: pbrs vs v4 wire"
+    let t_lazy = touch_b092_person_lazy(
+        &B092PersonLazy::decode_lazy(&bytes).expect("buffa092 lazy cross-parse"),
     );
-    assert_eq!(
-        bytes,
-        BuffaMessage::encode_to_vec(&buffa_msg),
-        "person: pbrs vs buffa wire"
-    );
-    let t_ours = touch_ours_person(&Person::parse(&bytes).expect("ours cross-parse"));
-    let t_prost =
-        touch_prost_person(&ProstPerson::decode(bytes.as_slice()).expect("prost cross-parse"));
-    let t_v4 = touch_v4_person(&v4_person::Person::parse(&bytes).expect("v4 cross-parse"));
-    let t_buffa = touch_buffa_person(
-        &buffa_person::example::Person::decode_from_slice(&bytes).expect("buffa cross-parse"),
-    );
-    let t_view = touch_buffa_person_view(
-        &buffa_person::example::PersonView::decode_view(&bytes).expect("buffa view cross-parse"),
-    );
-    assert_eq!(t_ours, t_prost, "person: ours vs prost touch");
-    assert_eq!(t_ours, t_v4, "person: ours vs v4 touch");
-    assert_eq!(t_ours, t_buffa, "person: ours vs buffa touch");
-    assert_eq!(t_ours, t_view, "person: ours vs buffa view touch");
-    let ours_dec = median_ns(15, iters, || Person::parse(&bytes).unwrap());
-    let ours_enc = median_ns(15, iters, || pbrs::Serialize::serialize(&msg).unwrap());
-    let (fresh_enc, fresh_iters) =
-        median_fresh_encode_ns(15, iters, bytes.len(), || Person::parse(&bytes).unwrap());
-    let ours_fresh_enc = Some(fresh_enc);
+    let qp_parsed: QpPerson<'_> = qp_decode(&bytes).expect("qp cross-parse");
+    let t_qp = touch_qp_person(&qp_parsed);
+    assert_eq!(t_ours, t_prost, "{name}: ours vs prost13 touch");
+    assert_eq!(t_ours, t_prost14, "{name}: ours vs prost14 touch");
+    assert_eq!(t_ours, t_g36, "{name}: ours vs g36 touch");
+    assert_eq!(t_ours, t_buffa, "{name}: ours vs buffa092 touch");
+    assert_eq!(t_ours, t_view, "{name}: ours vs buffa092 view touch");
+    assert_eq!(t_ours, t_lazy, "{name}: ours vs buffa092 lazy touch");
+    assert_eq!(t_ours, t_qp, "{name}: ours vs qp touch");
+    let fresh_iters = fresh_encode_iters::<M>(iters, bytes.len());
+    let ours_dec = median_ns(samples, iters, || parse(&bytes));
+    let ours_enc = median_ns(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
+    let ours_fresh_enc = Some(median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || parse(&bytes),
+        |m| pbrs::Serialize::serialize(m).unwrap(),
+    ));
     let mut mutated = msg.clone();
-    let mut last_id = 43;
-    let ours_mutated_enc = Some(median_ns(15, iters, || {
-        last_id = if last_id == 42 { 43 } else { 42 };
-        mutated.set_id(last_id);
-        pbrs::Serialize::serialize(&mutated).unwrap()
-    }));
+    let ours_mutated_enc = Some(median_mutated_encode_ns(
+        samples,
+        iters,
+        &mut mutated,
+        |m: &mut M, v| {
+            set_id(m, v);
+            pbrs::Serialize::serialize(m).unwrap()
+        },
+    ));
+    let prost_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || {
+            let m: P13Person = prost::Message::decode(bytes.as_slice()).unwrap();
+            m
+        },
+        prost::Message::encode_to_vec,
+    );
+    let mut mutated13 = prost_msg.clone();
+    let prost_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated13, |m: &mut P13Person, v| {
+            m.id = v;
+            prost::Message::encode_to_vec(m)
+        });
+    let prost14_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || {
+            let m: P14Person = prost14::Message::decode(bytes.as_slice()).unwrap();
+            m
+        },
+        prost14::Message::encode_to_vec,
+    );
+    let mut mutated14 = prost14_msg.clone();
+    let prost14_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated14, |m: &mut P14Person, v| {
+            m.id = v;
+            prost14::Message::encode_to_vec(m)
+        });
+    let g36_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || G36Person::parse(&bytes).unwrap(),
+        |m| G36Serialize::serialize(m).unwrap(),
+    );
+    let mut mutated_g36 = g36_msg.clone();
+    let g36_mutated_enc =
+        median_mutated_encode_ns(samples, iters, &mut mutated_g36, |m: &mut G36Person, v| {
+            m.set_id(v);
+            G36Serialize::serialize(m).unwrap()
+        });
+    let buffa_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || B092Person::decode_from_slice(&bytes).unwrap(),
+        B092Message::encode_to_vec,
+    );
+    let mut mutated_b092 = buffa_msg.clone();
+    let buffa_mutated_enc = median_mutated_encode_ns(
+        samples,
+        iters,
+        &mut mutated_b092,
+        |m: &mut B092Person, v| {
+            m.id = v;
+            B092Message::encode_to_vec(m)
+        },
+    );
+    let qp_fresh_enc = median_fresh_encode_ns(
+        samples,
+        fresh_iters,
+        || {
+            let m: QpPerson<'_> = qp_decode(&bytes).unwrap();
+            m
+        },
+        qp_encode,
+    );
+    let mut mutated_qp = qp_msg.clone();
+    let qp_mutated_enc = median_mutated_encode_ns(
+        samples,
+        iters,
+        &mut mutated_qp,
+        |m: &mut QpPerson<'static>, v| {
+            m.id = v;
+            qp_encode(m)
+        },
+    );
     Case {
-        name: "person",
-        layout: "handwritten",
+        name,
+        layout: meta.layout,
+        role: meta.role,
         payload: bytes.len(),
         ours_enc,
         ours_fresh_enc,
         ours_mutated_enc,
-        prost_enc: median_ns(15, iters, || prost_msg.encode_to_vec()),
-        v4_enc: median_ns(15, iters, || V4Serialize::serialize(&v4_msg).unwrap()),
-        buffa_enc: median_ns(15, iters, || BuffaMessage::encode_to_vec(&buffa_msg)),
+        prost_enc: median_ns(samples, iters, || prost::Message::encode_to_vec(&prost_msg)),
+        prost_fresh_enc,
+        prost_mutated_enc,
+        prost14_enc: median_ns(samples, iters, || {
+            prost14::Message::encode_to_vec(&prost14_msg)
+        }),
+        prost14_fresh_enc,
+        prost14_mutated_enc,
+        g36_enc: median_ns(samples, iters, || {
+            G36Serialize::serialize(&g36_msg).unwrap()
+        }),
+        g36_fresh_enc,
+        g36_mutated_enc,
+        buffa_enc: median_ns(samples, iters, || B092Message::encode_to_vec(&buffa_msg)),
+        buffa_fresh_enc,
+        buffa_mutated_enc,
+        qp_enc: Some(median_ns(samples, iters, || qp_encode(&qp_msg))),
+        qp_fresh_enc: Some(qp_fresh_enc),
+        qp_mutated_enc: Some(qp_mutated_enc),
         ours_dec,
-        prost_dec: median_ns(15, iters, || ProstPerson::decode(bytes.as_slice()).unwrap()),
-        v4_dec: median_ns(15, iters, || v4_person::Person::parse(&bytes).unwrap()),
-        buffa_dec: median_ns(15, iters, || {
-            buffa_person::example::Person::decode_from_slice(&bytes).unwrap()
+        prost_dec: median_ns(samples, iters, || {
+            let m: P13Person = prost::Message::decode(bytes.as_slice()).unwrap();
+            m
         }),
-        buffa_view: Some(median_ns(15, iters, || {
-            buffa_person::example::PersonView::decode_view(&bytes).unwrap()
+        prost14_dec: median_ns(samples, iters, || {
+            let m: P14Person = prost14::Message::decode(bytes.as_slice()).unwrap();
+            m
+        }),
+        g36_dec: median_ns(samples, iters, || G36Person::parse(&bytes).unwrap()),
+        buffa_dec: median_ns(samples, iters, || {
+            B092Person::decode_from_slice(&bytes).unwrap()
+        }),
+        buffa_view: Some(median_ns(samples, iters, || {
+            B092PersonView::decode_view(&bytes).unwrap()
         })),
-        ours_touch: median_ns(15, iters, || {
-            touch_ours_person(&Person::parse(&bytes).unwrap())
+        buffa_lazy: Some(median_ns(samples, iters, || {
+            B092PersonLazy::decode_lazy(&bytes).unwrap()
+        })),
+        qp_dec: Some(median_ns(samples, iters, || {
+            let m: QpPerson<'_> = qp_decode(&bytes).unwrap();
+            m
+        })),
+        ours_touch: median_ns(samples, iters, || touch(&parse(&bytes))),
+        prost_touch: median_ns(samples, iters, || {
+            touch_prost13_person(&prost::Message::decode(bytes.as_slice()).unwrap())
         }),
-        prost_touch: median_ns(15, iters, || {
-            touch_prost_person(&ProstPerson::decode(bytes.as_slice()).unwrap())
+        prost14_touch: median_ns(samples, iters, || {
+            touch_prost14_person(&prost14::Message::decode(bytes.as_slice()).unwrap())
         }),
-        v4_touch: median_ns(15, iters, || {
-            touch_v4_person(&v4_person::Person::parse(&bytes).unwrap())
+        g36_touch: median_ns(samples, iters, || {
+            touch_g36_person(&G36Person::parse(&bytes).unwrap())
         }),
-        buffa_touch: median_ns(15, iters, || {
-            touch_buffa_person(&buffa_person::example::Person::decode_from_slice(&bytes).unwrap())
+        buffa_touch: median_ns(samples, iters, || {
+            touch_b092_person(&B092Person::decode_from_slice(&bytes).unwrap())
         }),
-        buffa_view_touch: Some(median_ns(15, iters, || {
-            touch_buffa_person_view(
-                &buffa_person::example::PersonView::decode_view(&bytes).unwrap(),
-            )
+        buffa_view_touch: Some(median_ns(samples, iters, || {
+            touch_b092_person_view(&B092PersonView::decode_view(&bytes).unwrap())
+        })),
+        buffa_lazy_touch: Some(median_ns(samples, iters, || {
+            touch_b092_person_lazy(&B092PersonLazy::decode_lazy(&bytes).unwrap())
+        })),
+        qp_touch: Some(median_ns(samples, iters, || {
+            touch_qp_person(&qp_decode(&bytes).unwrap())
         })),
         fresh_iters,
         ours_def: None,
         iters,
-        samples: 15,
+        samples,
     }
 }
 
-fn person_generated_ours() -> person_generated::Person {
-    let mut addr = person_generated::Address::new();
-    addr.set_city("nyc");
-    let mut p = person_generated::Person::new();
-    p.set_id(7);
-    p.set_name("ada lovelace");
-    p.set_email("ada@example.com");
-    p.tags_mut().push("math");
-    p.tags_mut().push("eng");
-    p.scores_mut().insert("notes", 12);
-    p.set_address(addr);
-    p
+/// Handwritten-layout `Person` case. Kept only as a labeled diagnostic that
+/// isolates the layout difference between handwritten and compiler-generated
+/// messages; it is not a scoreboard cell.
+fn run_person(iters: u32) -> Case {
+    let msg = person_ours();
+    let fixture = PersonFixture::from_handwritten(&msg);
+    run_person_case(
+        PersonCaseMeta {
+            name: "person",
+            layout: "handwritten",
+            role: "diagnostic",
+        },
+        iters,
+        msg,
+        &fixture,
+        touch_ours_person,
+        |b: &[u8]| Person::parse(b).unwrap(),
+        |m: &mut Person, v| m.set_id(v),
+    )
 }
 
 /// Benchmark case using compiler-generated `Person` (from `proto/person.proto`).
-///
-/// This isolates and measures the exact difference between compiler-generated
-/// schema layout (`Repeated<LazyStr>`, `Map<LazyStr, i32>`) and the handwritten
-/// `pbrs::testdata::Person` with inline small repeats (`InlineVec`).
 fn run_person_generated(iters: u32) -> Case {
     let msg = person_generated_ours();
-    let bytes = pbrs::Serialize::serialize(&msg).expect("person_generated encode");
-    let prost_msg = ProstPerson {
-        id: msg.id(),
-        name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg
-            .email_opt()
-            .map(|s| s.to_str().unwrap_or("").to_string()),
-        tags: msg
-            .tags()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        scores: msg
-            .scores()
-            .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
-            .collect(),
-        address: Some(ProstAddress {
-            city: msg.address().city().to_str().unwrap_or("").to_string(),
-        }),
-    };
-    let mut v4_msg = v4_person::Person::new();
-    v4_msg.set_id(msg.id());
-    v4_msg.set_name(msg.name().to_str().unwrap_or(""));
-    v4_msg.set_email(msg.email().to_str().unwrap_or(""));
-    for t in msg.tags().iter() {
-        v4_msg.tags_mut().push(t.as_view().to_str().unwrap_or(""));
-    }
-    for (k, v) in msg.scores().iter() {
-        v4_msg
-            .scores_mut()
-            .insert(k.as_view().to_str().unwrap_or(""), v);
-    }
-    v4_msg
-        .address_mut()
-        .set_city(msg.address().city().to_str().unwrap_or(""));
-    let buffa_msg = buffa_person::example::Person {
-        id: msg.id(),
-        name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg
-            .email_opt()
-            .map(|s| s.to_str().unwrap_or("").to_string()),
-        tags: msg
-            .tags()
-            .iter()
-            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
-            .collect(),
-        scores: msg
-            .scores()
-            .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
-            .collect(),
-        address: Some(buffa_person::example::Address {
-            city: msg.address().city().to_str().unwrap_or("").to_string(),
-            ..Default::default()
-        })
-        .into(),
-        ..Default::default()
-    };
-    // Equivalence pre-checks (not timed): byte-identical wire, cross-parse
-    // for every decoder, and identical touch checksums.
-    assert_eq!(
-        bytes,
-        prost_msg.encode_to_vec(),
-        "person_generated: pbrs vs prost wire"
-    );
-    assert_eq!(
-        bytes,
-        V4Serialize::serialize(&v4_msg).expect("v4 wire"),
-        "person_generated: pbrs vs v4 wire"
-    );
-    assert_eq!(
-        bytes,
-        BuffaMessage::encode_to_vec(&buffa_msg),
-        "person_generated: pbrs vs buffa wire"
-    );
-    let t_ours =
-        touch_generated_person(&person_generated::Person::parse(&bytes).expect("ours cross-parse"));
-    let t_prost =
-        touch_prost_person(&ProstPerson::decode(bytes.as_slice()).expect("prost cross-parse"));
-    let t_v4 = touch_v4_person(&v4_person::Person::parse(&bytes).expect("v4 cross-parse"));
-    let t_buffa = touch_buffa_person(
-        &buffa_person::example::Person::decode_from_slice(&bytes).expect("buffa cross-parse"),
-    );
-    let t_view = touch_buffa_person_view(
-        &buffa_person::example::PersonView::decode_view(&bytes).expect("buffa view cross-parse"),
-    );
-    assert_eq!(t_ours, t_prost, "person_generated: ours vs prost touch");
-    assert_eq!(t_ours, t_v4, "person_generated: ours vs v4 touch");
-    assert_eq!(t_ours, t_buffa, "person_generated: ours vs buffa touch");
-    assert_eq!(t_ours, t_view, "person_generated: ours vs buffa view touch");
-    let ours_dec = median_ns(15, iters, || {
-        person_generated::Person::parse(&bytes).unwrap()
-    });
-    let ours_enc = median_ns(15, iters, || pbrs::Serialize::serialize(&msg).unwrap());
-    let (fresh_enc, fresh_iters) = median_fresh_encode_ns(15, iters, bytes.len(), || {
-        person_generated::Person::parse(&bytes).unwrap()
-    });
-    let ours_fresh_enc = Some(fresh_enc);
-    let mut mutated = msg.clone();
-    let mut last_id = 43;
-    let ours_mutated_enc = Some(median_ns(15, iters, || {
-        last_id = if last_id == 42 { 43 } else { 42 };
-        mutated.set_id(last_id);
-        pbrs::Serialize::serialize(&mutated).unwrap()
-    }));
-    Case {
-        name: "person_generated",
-        layout: "generated",
-        payload: bytes.len(),
-        ours_enc,
-        ours_fresh_enc,
-        ours_mutated_enc,
-        prost_enc: median_ns(15, iters, || prost_msg.encode_to_vec()),
-        v4_enc: median_ns(15, iters, || V4Serialize::serialize(&v4_msg).unwrap()),
-        buffa_enc: median_ns(15, iters, || BuffaMessage::encode_to_vec(&buffa_msg)),
-        ours_dec,
-        prost_dec: median_ns(15, iters, || ProstPerson::decode(bytes.as_slice()).unwrap()),
-        v4_dec: median_ns(15, iters, || v4_person::Person::parse(&bytes).unwrap()),
-        buffa_dec: median_ns(15, iters, || {
-            buffa_person::example::Person::decode_from_slice(&bytes).unwrap()
-        }),
-        buffa_view: Some(median_ns(15, iters, || {
-            buffa_person::example::PersonView::decode_view(&bytes).unwrap()
-        })),
-        ours_touch: median_ns(15, iters, || {
-            touch_generated_person(&person_generated::Person::parse(&bytes).unwrap())
-        }),
-        prost_touch: median_ns(15, iters, || {
-            touch_prost_person(&ProstPerson::decode(bytes.as_slice()).unwrap())
-        }),
-        v4_touch: median_ns(15, iters, || {
-            touch_v4_person(&v4_person::Person::parse(&bytes).unwrap())
-        }),
-        buffa_touch: median_ns(15, iters, || {
-            touch_buffa_person(&buffa_person::example::Person::decode_from_slice(&bytes).unwrap())
-        }),
-        buffa_view_touch: Some(median_ns(15, iters, || {
-            touch_buffa_person_view(
-                &buffa_person::example::PersonView::decode_view(&bytes).unwrap(),
-            )
-        })),
-        fresh_iters,
-        ours_def: None,
+    let fixture = PersonFixture::from_generated(&msg);
+    run_person_case(
+        PersonCaseMeta {
+            name: "person_generated",
+            layout: "generated",
+            role: "scoreboard",
+        },
         iters,
-        samples: 15,
-    }
+        msg,
+        &fixture,
+        touch_generated_person,
+        |b: &[u8]| person_generated::Person::parse(b).unwrap(),
+        |m: &mut person_generated::Person, v| m.set_id(v),
+    )
 }
 
 fn gated(name: &str) -> bool {
@@ -2837,8 +2354,48 @@ fn view_gated(name: &str) -> bool {
     )
 }
 
+/// Print the `peers` section: every scoreboard peer with its exact pinned
+/// version and Cargo.lock checksum. Fails closed when a current pin does not
+/// resolve in the embedded lockfile.
+fn print_peers() {
+    println!("  \"peers_schema\": \"bench-peers/1\",");
+    println!("  \"peers\": [");
+    for (i, pin) in PEER_PINS.iter().enumerate() {
+        let comma = if i + 1 == PEER_PINS.len() { "" } else { "," };
+        let checksum = if pin.role == "current" {
+            lock_checksum(pin.package, pin.version).unwrap_or_else(|| {
+                panic!(
+                    "SB-08 pin {} {} {} missing from bench/Cargo.lock",
+                    pin.id, pin.package, pin.version
+                )
+            })
+        } else {
+            HISTORICAL_CHECKSUMS
+                .iter()
+                .find(|(v, _)| *v == pin.version)
+                .map(|(_, s)| (*s).to_owned())
+                .unwrap_or_else(|| panic!("historical checksum missing for {}", pin.version))
+        };
+        println!(
+            "    {{\"id\": \"{}\", \"package\": \"{}\", \"version\": \"{}\", \"role\": \"{}\", \"checksum\": \"{}\", \"note\": \"{}\"}}{comma}",
+            pin.id, pin.package, pin.version, pin.role, checksum, pin.note
+        );
+    }
+    println!("  ],");
+}
+
 fn main() {
-    let iters = 40_000u32;
+    let iters = match std::env::var("PBRS_BENCH_ITERS") {
+        Ok(v) => {
+            let n: u32 = v
+                .parse()
+                .expect("PBRS_BENCH_ITERS must be a positive integer");
+            assert!(n > 0, "PBRS_BENCH_ITERS must be a positive integer");
+            eprintln!("PBRS_BENCH_ITERS override: {n} (diagnostic only, not scoreboard)");
+            n
+        }
+        Err(_) => 40_000u32,
+    };
     let cases = [
         run_tat("empty", TestAllTypesProto3::new(), iters),
         run_person(iters),
@@ -2869,12 +2426,14 @@ fn main() {
         std::mem::size_of::<TestAllTypesProto3>()
     );
     println!("  \"iters\": {iters},");
+    print_peers();
     println!("  \"cases\": [");
     for (i, c) in cases.iter().enumerate() {
         let comma = if i + 1 == cases.len() { "" } else { "," };
         println!("    {{");
         println!("      \"name\": \"{}\",", c.name);
         println!("      \"layout\": \"{}\",", c.layout);
+        println!("      \"role\": \"{}\",", c.role);
         println!("      \"topology\": \"{}\",", topology(c.name));
         println!("      \"payload_bytes\": {},", c.payload);
         println!("      \"iters\": {},", c.iters);
@@ -2891,14 +2450,49 @@ fn main() {
             None => println!("      \"ours_mutated_encode_ns\": null,"),
         }
         println!("      \"prost_encode_ns\": {:.3},", c.prost_enc);
-        println!("      \"v4_encode_ns\": {:.3},", c.v4_enc);
+        println!("      \"prost_fresh_encode_ns\": {:.3},", c.prost_fresh_enc);
+        println!(
+            "      \"prost_mutated_encode_ns\": {:.3},",
+            c.prost_mutated_enc
+        );
+        println!("      \"prost14_encode_ns\": {:.3},", c.prost14_enc);
+        println!(
+            "      \"prost14_fresh_encode_ns\": {:.3},",
+            c.prost14_fresh_enc
+        );
+        println!(
+            "      \"prost14_mutated_encode_ns\": {:.3},",
+            c.prost14_mutated_enc
+        );
+        println!("      \"g36_encode_ns\": {:.3},", c.g36_enc);
+        println!("      \"g36_fresh_encode_ns\": {:.3},", c.g36_fresh_enc);
+        println!("      \"g36_mutated_encode_ns\": {:.3},", c.g36_mutated_enc);
         println!("      \"buffa_encode_ns\": {:.3},", c.buffa_enc);
+        println!("      \"buffa_fresh_encode_ns\": {:.3},", c.buffa_fresh_enc);
+        println!(
+            "      \"buffa_mutated_encode_ns\": {:.3},",
+            c.buffa_mutated_enc
+        );
+        match c.qp_enc {
+            Some(v) => println!("      \"qp_encode_ns\": {v:.3},"),
+            None => println!("      \"qp_encode_ns\": null,"),
+        }
+        match c.qp_fresh_enc {
+            Some(v) => println!("      \"qp_fresh_encode_ns\": {v:.3},"),
+            None => println!("      \"qp_fresh_encode_ns\": null,"),
+        }
+        match c.qp_mutated_enc {
+            Some(v) => println!("      \"qp_mutated_encode_ns\": {v:.3},"),
+            None => println!("      \"qp_mutated_encode_ns\": null,"),
+        }
         println!("      \"ours_decode_ns\": {:.3},", c.ours_dec);
         println!("      \"ours_decode_owned_ns\": {:.3},", c.ours_dec);
         println!("      \"prost_decode_ns\": {:.3},", c.prost_dec);
         println!("      \"prost_decode_owned_ns\": {:.3},", c.prost_dec);
-        println!("      \"v4_decode_ns\": {:.3},", c.v4_dec);
-        println!("      \"v4_decode_owned_ns\": {:.3},", c.v4_dec);
+        println!("      \"prost14_decode_ns\": {:.3},", c.prost14_dec);
+        println!("      \"prost14_decode_owned_ns\": {:.3},", c.prost14_dec);
+        println!("      \"g36_decode_ns\": {:.3},", c.g36_dec);
+        println!("      \"g36_decode_owned_ns\": {:.3},", c.g36_dec);
         println!("      \"buffa_decode_ns\": {:.3},", c.buffa_dec);
         println!("      \"buffa_decode_owned_ns\": {:.3},", c.buffa_dec);
         match c.buffa_view {
@@ -2911,12 +2505,24 @@ fn main() {
                 println!("      \"buffa_decode_view_ns\": null,");
             }
         }
+        match c.buffa_lazy {
+            Some(v) => println!("      \"buffa_lazy_decode_ns\": {v:.3},"),
+            None => println!("      \"buffa_lazy_decode_ns\": null,"),
+        }
+        // No qp_decode_owned_ns: quick-protobuf parses borrow the input, so
+        // its decode column is borrow-mode, never owned.
+        match c.qp_dec {
+            Some(v) => println!("      \"qp_decode_ns\": {v:.3},"),
+            None => println!("      \"qp_decode_ns\": null,"),
+        }
         println!("      \"ours_touch_ns\": {:.3},", c.ours_touch);
         println!("      \"ours_touch_owned_ns\": {:.3},", c.ours_touch);
         println!("      \"prost_touch_ns\": {:.3},", c.prost_touch);
         println!("      \"prost_touch_owned_ns\": {:.3},", c.prost_touch);
-        println!("      \"v4_touch_ns\": {:.3},", c.v4_touch);
-        println!("      \"v4_touch_owned_ns\": {:.3},", c.v4_touch);
+        println!("      \"prost14_touch_ns\": {:.3},", c.prost14_touch);
+        println!("      \"prost14_touch_owned_ns\": {:.3},", c.prost14_touch);
+        println!("      \"g36_touch_ns\": {:.3},", c.g36_touch);
+        println!("      \"g36_touch_owned_ns\": {:.3},", c.g36_touch);
         println!("      \"buffa_touch_ns\": {:.3},", c.buffa_touch);
         println!("      \"buffa_touch_owned_ns\": {:.3},", c.buffa_touch);
         match c.buffa_view_touch {
@@ -2929,17 +2535,25 @@ fn main() {
                 println!("      \"buffa_touch_view_ns\": null,");
             }
         }
+        match c.buffa_lazy_touch {
+            Some(v) => println!("      \"buffa_lazy_touch_ns\": {v:.3},"),
+            None => println!("      \"buffa_lazy_touch_ns\": null,"),
+        }
+        match c.qp_touch {
+            Some(v) => println!("      \"qp_touch_ns\": {v:.3},"),
+            None => println!("      \"qp_touch_ns\": null,"),
+        }
         match c.ours_def {
             Some(v) => println!("      \"ours_default_ns\": {v:.3},"),
             None => println!("      \"ours_default_ns\": null,"),
         }
         println!(
-            "      \"ours_faster_v4_encode\": {},",
-            c.ours_enc < c.v4_enc
+            "      \"ours_faster_g36_encode\": {},",
+            c.ours_enc < c.g36_enc
         );
         println!(
-            "      \"ours_faster_v4_decode\": {},",
-            c.ours_dec < c.v4_dec
+            "      \"ours_faster_g36_decode\": {},",
+            c.ours_dec < c.g36_dec
         );
         println!(
             "      \"ours_faster_buffa_encode\": {},",
@@ -2957,12 +2571,27 @@ fn main() {
             "      \"ours_faster_prost_decode\": {},",
             c.ours_dec < c.prost_dec
         );
+        println!(
+            "      \"ours_faster_prost14_encode\": {},",
+            c.ours_enc < c.prost14_enc
+        );
+        println!(
+            "      \"ours_faster_prost14_decode\": {},",
+            c.ours_dec < c.prost14_dec
+        );
         match c.buffa_view {
             Some(v) => println!(
                 "      \"ours_faster_buffa_view_decode\": {},",
                 c.ours_dec < v
             ),
             None => println!("      \"ours_faster_buffa_view_decode\": null,"),
+        }
+        match c.buffa_lazy {
+            Some(v) => println!(
+                "      \"ours_faster_buffa_lazy_decode\": {},",
+                c.ours_dec < v
+            ),
+            None => println!("      \"ours_faster_buffa_lazy_decode\": null,"),
         }
         println!("      \"gated\": {}", gated(c.name));
         println!("    }}{comma}");
@@ -2979,21 +2608,20 @@ fn main() {
             eprintln!("perf gate failed: {} vs prost", c.name);
             failed = true;
         }
-        if c.ours_enc >= c.v4_enc || c.ours_dec >= c.v4_dec {
-            eprintln!("perf gate failed: {} vs v4", c.name);
+        if c.ours_enc >= c.g36_enc || c.ours_dec >= c.g36_dec {
+            eprintln!("perf gate failed: {} vs google-protobuf 0.36", c.name);
             failed = true;
         }
         if c.ours_enc >= c.buffa_enc || c.ours_dec >= c.buffa_dec {
             eprintln!("perf gate failed: {} vs buffa owned", c.name);
             failed = true;
         }
-        if view_gated(c.name) {
-            if let Some(v) = c.buffa_view {
-                if c.ours_dec >= v {
-                    eprintln!("perf gate failed: {} vs buffa view", c.name);
-                    failed = true;
-                }
-            }
+        if view_gated(c.name)
+            && let Some(v) = c.buffa_view
+            && c.ours_dec >= v
+        {
+            eprintln!("perf gate failed: {} vs buffa view", c.name);
+            failed = true;
         }
     }
     if failed {

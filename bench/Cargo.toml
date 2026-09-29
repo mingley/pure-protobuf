@@ -8,15 +8,25 @@ license = "MIT OR Apache-2.0"
 [workspace]
 
 [dependencies]
+# SB-08 peer pins. Every peer is an exact (=) pin; the harness records each
+# version plus its Cargo.lock checksum in the "peers" section of its JSON
+# output (accept criterion SB-08/2). See src/peer_gen/SB08_PROVENANCE.md for
+# why each pin is what it is -- notably why buffa 0.9.1 and protobuf 4.35.1
+# cannot stay linked beside their successors (same-track unification and
+# links=upb, respectively) and where they remain measured instead.
 pbrs = { path = ".." }
-prost = { version = "0.13", features = ["derive"] }
-v4_tat = { path = "../v4_tat" }
-v4_person = { path = "../v4_person" }
-protobuf_v4 = { package = "protobuf", version = "=4.35.1-release" }
-buffa = "0.9.1"
-buffa_tat = { path = "../buffa_tat" }
-buffa_person = { path = "../buffa_person" }
+# Historical prost column, kept for the prost_tat path crate interop.
+prost = { version = "=0.13.5", features = ["derive"] }
+prost14 = { package = "prost", version = "=0.14.4", features = ["derive"] }
+prost-types14 = { package = "prost-types", version = "=0.14.4" }
 prost_tat = { path = "../prost_tat" }
+# Google's runtime, refreshed: the package rename (protobuf -> google-protobuf
+# at 0.36) keeps the `protobuf` lib path, so the dependency is renamed back to
+# `protobuf` and the 0.36 gencode's `::protobuf::` paths resolve unmodified.
+protobuf = { package = "google-protobuf", version = "=0.36.2-release" }
+buffa092 = { package = "buffa", version = "=0.9.2" }
+buffa-types092 = { package = "buffa-types", version = "=0.9.2" }
+quick-protobuf = "=0.8.1"
 
 [[bin]]
 name = "bench"

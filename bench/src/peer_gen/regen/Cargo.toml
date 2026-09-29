@@ -1,0 +1,17 @@
+[package]
+name = "sb08-peer-gen"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+# Exact generator pins matching SB08_PROVENANCE.md. This crate is standalone
+# and inert: nothing depends on it, it is not a workspace member of bench,
+# and it exists only to regenerate bench/src/peer_gen/.
+buffa-build = "=0.9.2"
+prost-build = "=0.14.4"
+prost-build-013 = { package = "prost-build", version = "=0.13.5" }
+pb-rs = "=0.10.0"
