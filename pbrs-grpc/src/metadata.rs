@@ -217,8 +217,7 @@ impl Metadata {
             ));
         }
         let name = header_name(key)?;
-        let value = HeaderValue::from_str(value.as_ref())
-            .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+        let value = ascii_header_value(value.as_ref())?;
         self.map.append(name, value);
         Ok(())
     }
@@ -242,8 +241,7 @@ impl Metadata {
             ));
         }
         let name = header_name(key)?;
-        let value = HeaderValue::from_str(value.as_ref())
-            .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+        let value = ascii_header_value(value.as_ref())?;
         drop(self.map.insert(name, value));
         Ok(())
     }
@@ -549,6 +547,15 @@ impl Metadata {
 fn header_name(key: &str) -> Result<HeaderName, Status> {
     HeaderName::from_bytes(key.as_bytes())
         .map_err(|_| Status::invalid_argument(format!("invalid metadata key {key:?}")))
+}
+
+fn ascii_header_value(value: &str) -> Result<HeaderValue, Status> {
+    let value = HeaderValue::from_str(value)
+        .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+    value
+        .to_str()
+        .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+    Ok(value)
 }
 
 /// Keys the gRPC wire protocol owns, plus HTTP/2 hop-by-hop headers.

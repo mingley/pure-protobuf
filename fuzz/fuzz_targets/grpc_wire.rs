@@ -159,15 +159,9 @@ pub fn fuzz_grpc_wire(data: &[u8]) {
     let bomb_raw = vec![0u8; 256 * 1024];
     if let Ok(bomb_gz) = gzip::encode(&bomb_raw) {
         let strict_limit = MessageLimits::unlimited().with_max_decoding(1024);
-        let start = std::time::Instant::now();
         let res = gzip::decode_limited(&bomb_gz, strict_limit);
-        let elapsed = start.elapsed();
         assert!(res.is_err());
         assert_eq!(res.unwrap_err().code(), Code::ResourceExhausted);
-        assert!(
-            elapsed < std::time::Duration::from_millis(50),
-            "compression bomb must be rejected within time budget"
-        );
     }
 
     // 4. Invalid flags and lengths

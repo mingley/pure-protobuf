@@ -107,16 +107,16 @@ pub fn encode_timeout(d: Duration) -> String {
 /// ```
 #[must_use]
 pub fn parse_timeout(s: &str) -> Option<Duration> {
-    let split = s.len().checked_sub(1)?;
-    let (digits, unit) = s.split_at(split);
+    let (&unit, digits) = s.as_bytes().split_last()?;
+    let digits = std::str::from_utf8(digits).ok()?;
     let n: u64 = digits.parse().ok()?;
     match unit {
-        "n" => Some(Duration::from_nanos(n)),
-        "u" => Some(Duration::from_micros(n)),
-        "m" => Some(Duration::from_millis(n)),
-        "S" => Some(Duration::from_secs(n)),
-        "M" => Some(Duration::from_secs(n.checked_mul(60)?)),
-        "H" => Some(Duration::from_secs(n.checked_mul(3_600)?)),
+        b'n' => Some(Duration::from_nanos(n)),
+        b'u' => Some(Duration::from_micros(n)),
+        b'm' => Some(Duration::from_millis(n)),
+        b'S' => Some(Duration::from_secs(n)),
+        b'M' => Some(Duration::from_secs(n.checked_mul(60)?)),
+        b'H' => Some(Duration::from_secs(n.checked_mul(3_600)?)),
         _ => None,
     }
 }
