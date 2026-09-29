@@ -5182,7 +5182,11 @@
     "D2"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/tc-03-prost.md",
+    "pbrs-grpc/tests/prost_codec.rs"
+   ]
   },
   {
    "id": "TC-04",
@@ -7791,7 +7795,11 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/http1-grpc-web.md",
+    "examples/axum-cohost/"
+   ]
   },
   {
    "id": "TC-14",
