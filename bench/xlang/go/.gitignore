@@ -1,0 +1,3 @@
+# Generated protobuf-go + vtprotobuf code (bench/xlang/go/codegen.sh).
+# Regenerated from the pinned protoc and pinned Go modules; never committed.
+gen/

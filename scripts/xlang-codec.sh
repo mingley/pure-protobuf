@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
-# Cross-language codec peers (SB-06).
+# Cross-language codec peers (SB-06, SB-07).
 #
-# Builds the pinned C++ protobuf harness (heap and arena modes) and the upb C
-# harness from SHA-verified sources, drives them with the SB-05 corpora
-# payloads, and emits devloop/1 JSON (the dev-loop/claim report schema, so
-# `devloop compare` can threshold these cells like any other).
+# Builds the pinned C++ protobuf harness (heap and arena modes), the upb C
+# harness, and the pinned Go harnesses (protobuf generated code, vtprotobuf
+# fast paths, hyperpb dynamic parser) from SHA-verified sources, drives them
+# with the SB-05 corpora payloads, and emits devloop/1 JSON (the dev-loop/
+# claim report schema, so `devloop compare` can threshold these cells like
+# any other).
 #
 # Accept-item mapping:
 #   (1) Every cell runs --verify-only first (wire bytes, else deterministic
 #       wire bytes, else semantic equality). A cell is timed only if its
 #       verification passed; the verify method is recorded per cell.
+#       Harness exit code 3 means structurally unsupported (hyperpb encode,
+#       a message without vt fast paths): recorded as not_run without
+#       failing the run; any other nonzero verify exit fails the run.
 #   (2) Peers that fail to build are reported as not_run with a recorded
 #       reason, never omitted. All build steps are scripted below and pinned
 #       (protobuf PIN/SHA from vendor/google, abseil pin from protobuf's own
-#       cmake/dependencies.cmake via FetchContent).
-#   (3) Test tools only: the harnesses are standalone C++/C binaries built
+#       cmake/dependencies.cmake via FetchContent, Go module pins in
+#       bench/xlang/go/go.mod with go.sum hashes). Go peers degrade per
+#       corpus: one corpus's codegen or compile failure becomes that
+#       corpus's not_run cells (reason in target/xlang-codec/work/
+#       go-build.tsv) while the rest of the peer still measures.
+#   (3) Test tools only: the harnesses are standalone C++/C/Go binaries built
 #       under target/; no Cargo manifest references them and they never enter
 #       a shipping dependency graph.
 #
@@ -22,7 +31,7 @@
 #   scripts/xlang-codec.sh [--out report.json] [options]
 #
 # Options:
-#   --peers LIST     subset of cpp,cpp_arena,upb (default: all)
+#   --peers LIST     subset of cpp,cpp_arena,upb,go,go_vt,go_hyperpb (default: all)
 #   --ops LIST       subset of encode,decode (default: all)
 #   --tiers LIST     subset of tiny,typical,large,huge (default: all)
 #   --corpus ID      only this corpus (repeatable)
@@ -46,13 +55,13 @@
 # Results are dev-loop grade on any host; on Linux with `perf`, retired
 # instructions are collected with the devloop N/2N differential method and the
 # report is claim-capable. Allocation/syscall metrics are not_run: the C/C++
-# heaps are not instrumented (see bench/xlang/*/README.md).
+# heaps and the Go heap are not instrumented (see bench/xlang/*/README.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PEERS="cpp,cpp_arena,upb"
+PEERS="cpp,cpp_arena,upb,go,go_vt,go_hyperpb"
 OPS="encode,decode"
 TIERS="tiny,typical,large,huge"
 CORPUS_FILTERS=()
@@ -85,7 +94,7 @@ while [ $# -gt 0 ]; do
 done
 
 for p in ${PEERS//,/ }; do
-  case "$p" in cpp|cpp_arena|upb) ;; *) echo "xlang-codec: unknown peer: $p" >&2; exit 2;; esac
+  case "$p" in cpp|cpp_arena|upb|go|go_vt|go_hyperpb) ;; *) echo "xlang-codec: unknown peer: $p" >&2; exit 2;; esac
 done
 for o in ${OPS//,/ }; do
   case "$o" in encode|decode) ;; *) echo "xlang-codec: unknown op: $o" >&2; exit 2;; esac
@@ -123,6 +132,12 @@ PEER_STATUS_cpp_arena="pending"
 PEER_REASON_cpp_arena=""
 PEER_STATUS_upb="pending"
 PEER_REASON_upb=""
+PEER_STATUS_go="pending"
+PEER_REASON_go=""
+PEER_STATUS_go_vt="pending"
+PEER_REASON_go_vt=""
+PEER_STATUS_go_hyperpb="pending"
+PEER_REASON_go_hyperpb=""
 
 peer_fail() { # peer reason...
   local peer="$1"; shift
@@ -132,6 +147,9 @@ peer_fail() { # peer reason...
     cpp) PEER_STATUS_cpp="fail"; PEER_REASON_cpp="$reason";;
     cpp_arena) PEER_STATUS_cpp_arena="fail"; PEER_REASON_cpp_arena="$reason";;
     upb) PEER_STATUS_upb="fail"; PEER_REASON_upb="$reason";;
+    go) PEER_STATUS_go="fail"; PEER_REASON_go="$reason";;
+    go_vt) PEER_STATUS_go_vt="fail"; PEER_REASON_go_vt="$reason";;
+    go_hyperpb) PEER_STATUS_go_hyperpb="fail"; PEER_REASON_go_hyperpb="$reason";;
   esac
 }
 
@@ -140,6 +158,9 @@ peer_ok() {
     cpp) PEER_STATUS_cpp="ok";;
     cpp_arena) PEER_STATUS_cpp_arena="ok";;
     upb) PEER_STATUS_upb="ok";;
+    go) PEER_STATUS_go="ok";;
+    go_vt) PEER_STATUS_go_vt="ok";;
+    go_hyperpb) PEER_STATUS_go_hyperpb="ok";;
   esac
 }
 
@@ -148,6 +169,9 @@ peer_status() {
     cpp) echo "$PEER_STATUS_cpp";;
     cpp_arena) echo "$PEER_STATUS_cpp_arena";;
     upb) echo "$PEER_STATUS_upb";;
+    go) echo "$PEER_STATUS_go";;
+    go_vt) echo "$PEER_STATUS_go_vt";;
+    go_hyperpb) echo "$PEER_STATUS_go_hyperpb";;
   esac
 }
 
@@ -156,10 +180,23 @@ peer_reason() {
     cpp) echo "$PEER_REASON_cpp";;
     cpp_arena) echo "$PEER_REASON_cpp_arena";;
     upb) echo "$PEER_REASON_upb";;
+    go) echo "$PEER_REASON_go";;
+    go_vt) echo "$PEER_REASON_go_vt";;
+    go_hyperpb) echo "$PEER_REASON_go_hyperpb";;
   esac
 }
 
 want_peer() { case ",$PEERS," in *",$1,"*) return 0;; *) return 1;; esac; }
+
+fail_go_peers() { # reason... (fails all wanted Go peers with one reason)
+  local reason="$*"
+  want_peer go && peer_fail go "$reason"
+  want_peer go_vt && peer_fail go_vt "$reason"
+  want_peer go_hyperpb && peer_fail go_hyperpb "$reason"
+}
+
+want_go_peer() { want_peer go || want_peer go_vt || want_peer go_hyperpb; }
+want_cmake_peer() { want_peer cpp || want_peer cpp_arena || want_peer upb; }
 
 # ---------------------------------------------------------------------------
 # Phase 0: pinned sources + peer libraries + harnesses.
@@ -167,8 +204,9 @@ want_peer() { case ",$PEERS," in *",$1,"*) return 0;; *) return 1;; esac; }
 phase_build() {
   mkdir -p "$BIN_DIR" "$DESC_DIR" "$REGEN_DIR" "$WORK" "$LOG_DIR"
   if [ "$FORCE_REBUILD" = 1 ]; then
-    log "--force-rebuild: dropping $PEER_BUILD $DESC_DIR $REGEN_DIR harness binaries"
-    rm -rf "$PEER_BUILD" "$DESC_DIR" "$REGEN_DIR" "$BIN_DIR"
+    log "--force-rebuild: dropping $PEER_BUILD $DESC_DIR $REGEN_DIR harness binaries, Go codegen"
+    rm -rf "$PEER_BUILD" "$DESC_DIR" "$REGEN_DIR" "$BIN_DIR" \
+      bench/xlang/go/gen "$XLANG_OUT/go-codegen.stamp"
     mkdir -p "$BIN_DIR" "$DESC_DIR" "$REGEN_DIR"
   fi
 
@@ -178,6 +216,7 @@ phase_build() {
     want_peer cpp && peer_fail cpp "$r"
     want_peer cpp_arena && peer_fail cpp_arena "$r"
     want_peer upb && peer_fail upb "$r"
+    fail_go_peers "$r"
     return 0
   fi
   local actual_sha
@@ -187,42 +226,49 @@ phase_build() {
     want_peer cpp && peer_fail cpp "$r"
     want_peer cpp_arena && peer_fail cpp_arena "$r"
     want_peer upb && peer_fail upb "$r"
+    fail_go_peers "$r"
     return 0
   fi
 
-  # Pinned protoc for descriptor generation.
+  # Pinned protoc for descriptor generation (and Go codegen).
   if ! PBRS_PROTOC_JOBS="$JOBS" ./scripts/build-pinned-protoc.sh >&2; then
     local r="pinned protoc build failed"
     want_peer cpp && peer_fail cpp "$r"
     want_peer cpp_arena && peer_fail cpp_arena "$r"
     want_peer upb && peer_fail upb "$r"
+    fail_go_peers "$r"
     return 0
   fi
 
   # Release peer libraries in a dedicated build dir (the shared pinned-protoc
   # dir has no CMAKE_BUILD_TYPE and may link a system abseil; benchmarks need
   # -O3 and the pinned FetchContent abseil from dependencies.cmake).
-  local stamp="$PEER_BUILD/.xlang-pin"
-  if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$PIN $SHA" ]; then
-    log "configuring $PEER_BUILD ($PIN $SHA, Release, pinned abseil)"
-    rm -rf "$PEER_BUILD"
-    if ! cmake -S third_party/protobuf -B "$PEER_BUILD" \
-        -Dprotobuf_BUILD_TESTS=OFF \
-        -Dprotobuf_BUILD_CONFORMANCE=OFF \
-        -Dprotobuf_INSTALL=OFF \
-        -Dprotobuf_FORCE_FETCH_DEPENDENCIES=ON \
-        -DCMAKE_BUILD_TYPE=Release >"$LOG_DIR/cmake-configure.log" 2>&1; then
-      local r="peer cmake configure failed; see $LOG_DIR/cmake-configure.log"
-      want_peer cpp && peer_fail cpp "$r"
-      want_peer cpp_arena && peer_fail cpp_arena "$r"
-      want_peer upb && peer_fail upb "$r"
-      return 0
+  # Skipped entirely when only Go peers are wanted (they need no cmake).
+  local cmake_ok=1
+  if want_cmake_peer; then
+    local stamp="$PEER_BUILD/.xlang-pin"
+    if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$PIN $SHA" ]; then
+      log "configuring $PEER_BUILD ($PIN $SHA, Release, pinned abseil)"
+      rm -rf "$PEER_BUILD"
+      if ! cmake -S third_party/protobuf -B "$PEER_BUILD" \
+          -Dprotobuf_BUILD_TESTS=OFF \
+          -Dprotobuf_BUILD_CONFORMANCE=OFF \
+          -Dprotobuf_INSTALL=OFF \
+          -Dprotobuf_FORCE_FETCH_DEPENDENCIES=ON \
+          -DCMAKE_BUILD_TYPE=Release >"$LOG_DIR/cmake-configure.log" 2>&1; then
+        local r="peer cmake configure failed; see $LOG_DIR/cmake-configure.log"
+        want_peer cpp && peer_fail cpp "$r"
+        want_peer cpp_arena && peer_fail cpp_arena "$r"
+        want_peer upb && peer_fail upb "$r"
+        cmake_ok=0
+      else
+        printf '%s %s\n' "$PIN" "$SHA" >"$stamp"
+      fi
     fi
-    printf '%s %s\n' "$PIN" "$SHA" >"$stamp"
   fi
 
   local have_libprotobuf=0 have_libupb=0
-  if want_peer cpp || want_peer cpp_arena; then
+  if [ "$cmake_ok" = 1 ] && { want_peer cpp || want_peer cpp_arena; }; then
     if cmake --build "$PEER_BUILD" --parallel "$JOBS" --target libprotobuf \
         >"$LOG_DIR/libprotobuf.log" 2>&1; then
       have_libprotobuf=1
@@ -232,7 +278,7 @@ phase_build() {
       want_peer cpp_arena && peer_fail cpp_arena "$r"
     fi
   fi
-  if want_peer upb; then
+  if [ "$cmake_ok" = 1 ] && want_peer upb; then
     if cmake --build "$PEER_BUILD" --parallel "$JOBS" \
         --target libupb utf8_range utf8_validity \
         >"$LOG_DIR/libupb.log" 2>&1; then
@@ -259,6 +305,52 @@ phase_build() {
       peer_fail upb "harness-upb build failed; see $LOG_DIR/harness-upb.log"
     fi
   fi
+
+  # Go peers (SB-07): independent of the cmake build above.
+  if want_go_peer; then
+    phase_build_go
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Go peer build (SB-07). The Makefile fetches the pinned modules, builds the
+# pinned plugins, runs codegen, and compiles the per-corpus binaries,
+# recording per-(peer,corpus) status in $WORK/go-build.tsv. A peer is ok if
+# at least one of its binaries built; finer-grained failures degrade to
+# not_run cells via go_build_status, never to a failed run.
+# ---------------------------------------------------------------------------
+phase_build_go() {
+  if ! command -v go >/dev/null 2>&1; then
+    fail_go_peers "go toolchain not found in PATH"
+    return 0
+  fi
+  if ! make -C bench/xlang/go >"$LOG_DIR/go-make.log" 2>&1; then
+    fail_go_peers "go peer build failed; see $LOG_DIR/go-make.log"
+    return 0
+  fi
+  local tsv="$WORK/go-build.tsv"
+  for peer in go go_vt go_hyperpb; do
+    want_peer "$peer" || continue
+    if [ -f "$tsv" ] && grep -q "^$peer"$'\t''.*'$'\t''ok$' "$tsv"; then
+      peer_ok "$peer"
+    else
+      local reason="no binaries built (see $LOG_DIR/go-make.log)"
+      if [ -f "$tsv" ]; then
+        reason="$(awk -F'\t' -v p="$peer" '$1==p && $3!="ok" {print $2": "$3}' "$tsv" | head -3 | tr '\n' ';' | sed 's/;  */; /g')"
+        [ -n "$reason" ] || reason="no $peer rows in $tsv"
+      fi
+      peer_fail "$peer" "$reason"
+    fi
+  done
+}
+
+# Per-(peer,corpus) Go build status: prints "ok" or the recorded reason.
+go_build_status() { # peer corpus
+  local tsv="$WORK/go-build.tsv"
+  [ -f "$tsv" ] || { echo "go-build.tsv missing"; return 0; }
+  local st
+  st="$(awk -F'\t' -v p="$1" -v c="$2" '$1==p && $2==c {print $3}' "$tsv" | head -1)"
+  [ -n "$st" ] && echo "$st" || echo "no build row for $1/$2"
 }
 
 # ---------------------------------------------------------------------------
@@ -440,12 +532,22 @@ EOF
 # ---------------------------------------------------------------------------
 VERIFY_FAILED=0
 
-harness_for() { # peer -> "binary mode"
+harness_for() { # peer corpus -> "binary mode"
   case "$1" in
     cpp) echo "$BIN_DIR/harness-cpp heap";;
     cpp_arena) echo "$BIN_DIR/harness-cpp arena";;
     upb) echo "$BIN_DIR/harness-upb arena";;
+    go) echo "$BIN_DIR/harness-go-$2 generated";;
+    go_vt) echo "$BIN_DIR/harness-go-vt-$2 vt";;
+    go_hyperpb) echo "$BIN_DIR/harness-hyperpb dynamic";;
   esac
+}
+
+# Peers whose harness reads the --desc FileDescriptorSet at runtime. The
+# generated-code Go peers link their types in and ignore --desc, so a failed
+# descriptor build must not block their cells.
+peer_uses_desc() {
+  case "$1" in go|go_vt) return 1;; *) return 0;; esac
 }
 
 cell_iters() { # size -> iters
@@ -515,6 +617,24 @@ run_cell() { # id peer op corpus short tier message sha size path use_perf
     record_not_run "$out" "$id" "peer build failed: $(peer_reason "$peer")"
     return 0
   fi
+  # hyperpb is decode-only (dynamic-parse category A12); its encode cells
+  # exist in the matrix but are never attempted.
+  if [ "$peer" = "go_hyperpb" ] && [ "$op" = "encode" ]; then
+    record_not_run "$out" "$id" \
+      "hyperpb is decode-only; compared only in A12 (dynamic/reflection decode)"
+    return 0
+  fi
+  # Go peers degrade per corpus (codegen/compile status in go-build.tsv).
+  case "$peer" in
+    go|go_vt)
+      local go_st
+      go_st="$(go_build_status "$peer" "$corpus")"
+      if [ "$go_st" != "ok" ]; then
+        record_not_run "$out" "$id" "go peer build failed for corpus $corpus: $go_st"
+        return 0
+      fi
+      ;;
+  esac
   case "$path" in
     MISSING:*)
       record_not_run "$out" "$id" "${path#MISSING:}"
@@ -523,24 +643,36 @@ run_cell() { # id peer op corpus short tier message sha size path use_perf
   esac
   local mode
   mode="$(desc_mode "$corpus")"
-  if [ "$mode" = "FAILED" ] || [ -z "$mode" ]; then
-    record_not_run "$out" "$id" \
-      "descriptor build failed for corpus $corpus; see $LOG_DIR/protoc-$corpus.log"
-    return 0
+  if peer_uses_desc "$peer"; then
+    if [ "$mode" = "FAILED" ] || [ -z "$mode" ]; then
+      record_not_run "$out" "$id" \
+        "descriptor build failed for corpus $corpus; see $LOG_DIR/protoc-$corpus.log"
+      return 0
+    fi
+  else
+    # Generated-code peers link their types in and never read the set.
+    mode="compiled-in"
   fi
 
   local bin hmode
-  read -r bin hmode <<<"$(harness_for "$peer")"
+  read -r bin hmode <<<"$(harness_for "$peer" "$corpus")"
   local desc="$DESC_DIR/$corpus.desc"
   local iters
   iters="$(cell_iters "$size")"
 
   # (1) Verify first. Exit code 2 from the harness means the codec did NOT
-  # round-trip this payload: record, flag the run, never time.
+  # round-trip this payload: record, flag the run, never time. Exit code 3
+  # means structurally unsupported (a message without vt fast paths, a
+  # schema hyperpb cannot compile): record as not_run without failing.
   local vout verr vcode=0
   vout="$("$bin" --desc "$desc" --message "$message" --payload "$path" \
     --op "$op" --mode "$hmode" --verify-only 2>"$WORK/verify.err")" || vcode=$?
   verr="$(head -c 400 "$WORK/verify.err" | tr '\n' ' ')"
+  if [ "$vcode" -eq 3 ]; then
+    log "UNSUPPORTED: $id: ${verr:-exit 3}"
+    record_not_run "$out" "$id" "unsupported: $(echo "$verr" | head -c 300)"
+    return 0
+  fi
   if [ "$vcode" -ne 0 ]; then
     VERIFY_FAILED=1
     log "VERIFY FAILED: $id: ${verr:-exit $vcode}"
@@ -631,14 +763,22 @@ phase_emit() {
   have_perf && have_perf_s="true"
   command -v strace >/dev/null 2>&1 && have_strace="true"
   command -v valgrind >/dev/null 2>&1 && have_valgrind="true"
+  go_ver="$(go version 2>/dev/null || echo missing)"
+  go_pb="$(awk '$1=="google.golang.org/protobuf"{print $2}' bench/xlang/go/go.mod 2>/dev/null || true)"; [ -n "$go_pb" ] || go_pb="unknown"
+  go_vt="$(awk '$1=="github.com/planetscale/vtprotobuf"{print $2}' bench/xlang/go/go.mod 2>/dev/null || true)"; [ -n "$go_vt" ] || go_vt="unknown"
+  go_hyperpb="$(awk '$1=="buf.build/go/hyperpb"{print $2}' bench/xlang/go/go.mod 2>/dev/null || true)"; [ -n "$go_hyperpb" ] || go_hyperpb="unknown"
 
   PIN="$PIN" SHA="$SHA" ABSL_PIN="$absl_pin" CXX_VER="$cxx_ver" CC_VER="$cc_ver" \
   PROTOC_VER="$protoc_ver" OS="$os" ARCH="$arch" CPU="$cpu" COMMIT="$commit" \
   HAVE_PERF="$have_perf_s" HAVE_STRACE="$have_strace" HAVE_VALGRIND="$have_valgrind" \
+  GO_VER="$go_ver" GO_PB_PIN="$go_pb" GO_VT_PIN="$go_vt" GO_HYPERPB_PIN="$go_hyperpb" \
   RESULTS_DIR="$WORK/results" \
   PEER_CPP="$(peer_status cpp)" PEER_CPP_R="$(peer_reason cpp)" \
   PEER_ARENA="$(peer_status cpp_arena)" PEER_ARENA_R="$(peer_reason cpp_arena)" \
   PEER_UPB="$(peer_status upb)" PEER_UPB_R="$(peer_reason upb)" \
+  PEER_GO="$(peer_status go)" PEER_GO_R="$(peer_reason go)" \
+  PEER_GOVT="$(peer_status go_vt)" PEER_GOVT_R="$(peer_reason go_vt)" \
+  PEER_HYPERPB="$(peer_status go_hyperpb)" PEER_HYPERPB_R="$(peer_reason go_hyperpb)" \
   OUT="${OUT:-}" python3 - <<'EOF'
 import glob, json, os, statistics
 
@@ -678,15 +818,19 @@ for path in sorted(glob.glob(os.path.join(os.environ["RESULTS_DIR"], "*.json")))
     cv = (statistics.pstdev(per_op) / mean) if mean > 0 else 0.0
     instr = (measured(r["instr_per_op"], "instructions")
              if r["instr_per_op"] is not None else not_run(r["instr_method"]))
+    is_go = r["peer"] in ("go", "go_vt", "go_hyperpb")
+    alloc_reason = "Go heap not instrumented" if is_go else "C/C++ heap not instrumented"
+    lock_reason = ("single-goroutine harness (runtime threads not counted)"
+                   if is_go else "single-threaded harness")
     cells.append({
         "id": r["id"], "kind": kind_of(r["op"]), "codec": r["peer"],
         "iters": r["iters"], "repeats": r["repeats"],
         "instructions": instr,
         "instruction_method": r["instr_method"],
-        "allocs": not_run("C/C++ heap not instrumented"),
-        "alloc_bytes": not_run("C/C++ heap not instrumented"),
+        "allocs": not_run(alloc_reason),
+        "alloc_bytes": not_run(alloc_reason),
         "syscalls": not_run("strace wrap not implemented for xlang peers"),
-        "locks": not_run("single-threaded harness"),
+        "locks": not_run(lock_reason),
         "wall_ns": measured(med, "ns"),
         "wall_cv": cv, "copy_counts": None,
         "xlang": {
@@ -702,7 +846,7 @@ report = {
     "schema": "devloop/1",
     "host": {
         "os": os.environ["OS"], "arch": os.environ["ARCH"], "cpu": os.environ["CPU"],
-        "rustc": "n/a (xlang c++/c)",
+        "rustc": "n/a (xlang c++/c/go)",
         "perf": os.environ["HAVE_PERF"] == "true",
         "strace": os.environ["HAVE_STRACE"] == "true",
         "valgrind": os.environ["HAVE_VALGRIND"] == "true",
@@ -713,10 +857,19 @@ report = {
         "protobuf_pin": os.environ["PIN"], "protobuf_sha": os.environ["SHA"],
         "absl_pin": os.environ["ABSL_PIN"], "protoc": os.environ["PROTOC_VER"],
         "cxx": os.environ["CXX_VER"], "cc": os.environ["CC_VER"],
+        "go": {
+            "version": os.environ["GO_VER"],
+            "protobuf": os.environ["GO_PB_PIN"],
+            "vtprotobuf": os.environ["GO_VT_PIN"],
+            "hyperpb": os.environ["GO_HYPERPB_PIN"],
+        },
         "peers": {
             "cpp": {"status": os.environ["PEER_CPP"], "reason": os.environ["PEER_CPP_R"]},
             "cpp_arena": {"status": os.environ["PEER_ARENA"], "reason": os.environ["PEER_ARENA_R"]},
             "upb": {"status": os.environ["PEER_UPB"], "reason": os.environ["PEER_UPB_R"]},
+            "go": {"status": os.environ["PEER_GO"], "reason": os.environ["PEER_GO_R"]},
+            "go_vt": {"status": os.environ["PEER_GOVT"], "reason": os.environ["PEER_GOVT_R"]},
+            "go_hyperpb": {"status": os.environ["PEER_HYPERPB"], "reason": os.environ["PEER_HYPERPB_R"]},
         },
     },
 }
@@ -732,7 +885,7 @@ def status_line(peer):
     mine = [c for c in cells if c["id"].split(".")[1] == peer]
     m = sum(1 for c in mine if c["wall_ns"]["status"] == "measured")
     print(f"xlang-codec: peer {peer}: {m}/{len(mine)} cells measured", file=sys.stderr)
-for p in ("cpp", "cpp_arena", "upb"):
+for p in ("cpp", "cpp_arena", "upb", "go", "go_vt", "go_hyperpb"):
     if any(c["id"].split(".")[1] == p for c in cells):
         status_line(p)
 print(f"xlang-codec: total {measured_cells}/{len(cells)} cells measured", file=sys.stderr)
