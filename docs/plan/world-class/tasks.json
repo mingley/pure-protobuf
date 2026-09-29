@@ -4434,7 +4434,12 @@
    "relates": [
     "SP-04"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/tls-providers.md",
+    "pbrs-grpc/src/tls.rs: ticketer + session store, Full/Resumed tests"
+   ],
+   "notes": "Closed 2026-09-29: Graviola stays the shipping provider; resumption implemented with per-config keys. Security-default flag reviewed: handshake behavior full->resumed where possible, verification/PFS unchanged, within card mandate."
   },
   {
    "id": "RX-05",
