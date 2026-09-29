@@ -489,7 +489,8 @@
         "Blocker: grpc/grpc@d1487957 test/http2_test/http2_test_server.py imports Twisted and uses Python 2 dict.has_key. No reviewed original-runner toolchain is available; coordinator must review and pin one before a full-profile pass.",
         "2026-09-24: tests/interop/cases.json distinguishes the original eight not_run procedures from passing local-peer coverage. An explicit spec-derived adapter report passed 8/8 with qualification.qualified=false, retained logs, and full native-profile validation rejected its actual results."
       ],
-      "status": "in_progress"
+      "status": "in_progress",
+      "notes": "2026-09-29: local increment landed (real SETTINGS-update max_streams, 8/8 local peer pass, retained records). REMAINDER: official-peer run blocked \u2014 needs reviewed py2+Twisted toolchain + pinned third_party/grpc; repro: ./scripts/grpc-http2-interop.sh --server-host=<official-py2-server> --server-port=<port>."
     },
     {
       "id": "IO-09",
