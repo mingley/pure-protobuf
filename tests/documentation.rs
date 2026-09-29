@@ -486,6 +486,8 @@ fn discover_markdown_files_in(root: &Path) -> Result<Vec<PathBuf>, Vec<String>> 
                     && file_name != ".git"
                     && file_name != "third_party"
                     && file_name != "vendor"
+                    && file_name != ".muse"
+                    && file_name != "pure-protobuf.worktrees"
                 {
                     stack.push(path);
                 }

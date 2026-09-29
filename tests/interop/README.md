@@ -164,6 +164,8 @@ The pinned upstream `grpc/grpc@d1487957` HTTP/2 server imports Twisted and still
 
 ### 4. Server Probes (`server_probe`, 2 cases)
 
+<a id="4-server-probes"></a>
+
 These official server transport probes come from `tools/run_tests/run_interop_tests.py`.
 
 | Probe | What it checks | Current status |
