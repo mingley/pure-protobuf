@@ -1800,7 +1800,12 @@
     "D6"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 coordinator: integrated c32cf72a (conn-scale-* scenarios + runner; EOF whitespace fix). Verified: self-test 0 failures; idle smoke invalid-on-limit with exit 0 at RLIMIT_NOFILE=256, both cells pass at ulimit -n 4096 (256-conn median 256B/conn, 3 repeats, limits embedded). CL-06 unblocked.",
+   "evidence": [
+    "bench/stack-matrix/scenarios/conn_scale.py",
+    "bench/stack-matrix/scenarios/README.md"
+   ]
   },
   {
    "id": "SB-13",
