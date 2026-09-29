@@ -201,10 +201,44 @@ Added dev-loop cells for generated `codec_cases.proto` small shapes:
 
 Baseline artifact: `target/devloop/small-linux-baseline.json`.
 
-The Linux/callgrind baseline showed the `name_80` decode gap was not an
-instruction gap; it was an allocation-size gap. pbrs used one allocation of
-96 bytes/op for a near-whole 80-byte string because `LazyStr` stored it as an
-`Arc<[u8]>` wire window. Prost used one 80-byte allocation/op.
+The original Linux/callgrind baseline counted the whole child process and then
+divided by iterations. Those numbers were useful for broad cells, but not for
+small cells: every small row had about 25.9k Ir/op of mostly fixed
+startup/setup/harness cost. Keep those rows only as **overhead-inclusive
+legacy** evidence:
+
+| cell | overhead-inclusive instr | allocs | bytes |
+|---|---:|---:|---:|
+| `codec.pbrs.small_empty_decode` | 25917.012 | 0.0 | 0.0 |
+| `codec.pbrs.small_id_encode` | 25953.644 | 0.0 | 0.0 |
+| `codec.pbrs.small_id_decode` | 25951.550 | 0.0 | 0.0 |
+| `codec.pbrs.small_name80_encode` | 26092.854 | 0.0 | 0.0 |
+| `codec.pbrs.small_name80_decode` | 26502.994 | 1.0 | 80.0 |
+| `codec.prost.small_name80_encode` | 26051.588 | 0.0 | 0.0 |
+| `codec.prost.small_name80_decode` | 26496.598 | 1.0 | 80.0 |
+
+Task 1 fixed the harness to report loop-only instruction counts. The parent
+runs N and 2N measured-loop iterations under `perf`/callgrind with identical
+preparation and reports `(Ir(2N) - Ir(N)) / N`. The JSON field
+`instruction_method` records the method; the schema stays `devloop/1` so old
+readers remain compatible. Corrected artifact:
+`target/devloop/loop-instr-after.json` (`instruction_method:
+differential_callgrind_2n_minus_n`, 500 iters, 3 repeats, Docker arm64 Linux).
+
+| cell | corrected instr | allocs | bytes | verdict |
+|---|---:|---:|---:|---|
+| `codec.pbrs.small_empty_decode` | 92.712 | 0.0 | 0.0 | fixed overhead removed |
+| `codec.pbrs.small_id_encode` | 122.996 | 0.0 | 0.0 | realistic tiny encode cost |
+| `codec.pbrs.small_id_decode` | 121.938 | 0.0 | 0.0 | realistic tiny decode cost |
+| `codec.pbrs.small_name80_encode` | 237.858 | 0.0 | 0.0 | pbrs trails prost |
+| `codec.pbrs.small_name80_decode` | 584.414 | 1.0 | 80.0 | pbrs roughly ties prost |
+| `codec.prost.small_name80_encode` | 203.940 | 0.0 | 0.0 | comparator |
+| `codec.prost.small_name80_decode` | 579.116 | 1.0 | 80.0 | comparator |
+
+With corrected counts, the `name_80` decode gap is not an instruction or
+allocation-size gap. pbrs and prost both allocate once and copy 80 bytes/op.
+The remaining small `name_80` loss is encode overhead: pbrs is 237.858 Ir/op
+versus prost at 203.940 Ir/op on this dev-loop run.
 
 Change: `LazyStr::from_parse_span` now stores near-whole medium strings
 (`len <= 256`, payload nearly the whole message) as owned `ProtoString` data
@@ -225,3 +259,9 @@ Verdict: keep the medium-string ownership threshold as a measured allocation
 win for `name_80` decode (same allocation count, 16 fewer bytes/op) with no
 instruction regression over the 1% codec guard. The remaining `name_80` encode
 loss is still open; no safe encode-path change in this pass met the win rule.
+
+PK-04 SWAR remains rejected. This pass did not re-run a cheap
+implementation because the previous corrected target-cell comparison already
+showed a large absolute regression on the same Linux/callgrind path (about
++2k Ir/op on packed/unpacked target cells), and the final code restored scalar
+validation.

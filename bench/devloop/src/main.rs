@@ -7,9 +7,12 @@
 //! wall time as JSON. The parent optionally wraps the child in
 //! `perf stat` (instructions, syscalls), `strace -c` (syscalls), or
 //! valgrind/callgrind (instructions), and aggregates repeats into
-//! versioned JSON. Missing tools yield `not_run` for that metric,
-//! never a pass. `--baseline` compares two reports with the win-rule
-//! thresholds from the scoreboard.
+//! versioned JSON. Instruction counts are differential: the parent runs
+//! the same child at N and 2N measured-loop iterations with identical
+//! preparation and reports `(count_2n - count_n) / N`, removing process
+//! startup and setup from the per-op value. Missing tools yield
+//! `not_run` for that metric, never a pass. `--baseline` compares two
+//! reports with the win-rule thresholds from the scoreboard.
 #![allow(
     clippy::disallowed_methods,
     reason = "devloop is a synchronous CLI harness, not async runtime code"
@@ -125,6 +128,10 @@ struct CellResult {
     repeats: u32,
     /// Per-operation medians across repeats.
     instructions: Metric,
+    /// How the instruction metric was collected. Added without changing
+    /// the schema version so older devloop/1 readers can ignore it.
+    #[serde(default = "default_instruction_method")]
+    instruction_method: String,
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
@@ -190,6 +197,10 @@ fn copy_medians(counts: &[CopyCountsJson], iters: u64) -> CopyCountsMed {
 
 fn metric_predates_locks() -> Metric {
     Metric::not_run("report predates the locks metric")
+}
+
+fn default_instruction_method() -> String {
+    "whole_process_legacy".to_owned()
 }
 
 /// Whole-run report.
@@ -371,7 +382,7 @@ fn wall_cv(samples: &[f64]) -> Option<f64> {
 fn usage() -> String {
     "usage:\n\
      \x20 devloop list\n\
-     \x20 devloop run-cell <id> --iters N [--warmup N]\n\
+     \x20 devloop run-cell <id> --iters N [--warmup N] [--prepare-iters N]\n\
      \x20 devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]\n\
      \x20 devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]\n\
      \x20 devloop sizes\n"
@@ -1479,8 +1490,8 @@ fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -
     .expect("child json")
 }
 
-fn run_codec_cell(cell: &str, iters: u64, warmup: u64) {
-    let case = CodecCase::prepare(cell, iters);
+fn run_codec_cell(cell: &str, iters: u64, warmup: u64, prepare_iters: u64) {
+    let case = CodecCase::prepare(cell, prepare_iters.max(iters));
     let n = iters as usize;
     for i in 0..warmup as usize {
         black_box(codec_work(cell, &case, i % n.max(1)));
@@ -1545,6 +1556,16 @@ struct Tools {
     valgrind: bool,
 }
 
+struct InstructionTool {
+    wrapper: Vec<String>,
+    method: &'static str,
+}
+
+struct InstructionTotal {
+    total: f64,
+    method: &'static str,
+}
+
 fn probe_tools() -> Tools {
     Tools {
         perf: tool_exists("perf"),
@@ -1553,34 +1574,41 @@ fn probe_tools() -> Tools {
     }
 }
 
-/// Run the child for one repeat, optionally under a wrapper. Returns
-/// the child output plus optional (instructions, syscalls).
-fn run_child(
+fn instruction_tool(tools: &Tools) -> Option<InstructionTool> {
+    if tools.perf {
+        Some(InstructionTool {
+            wrapper: vec![
+                "perf".to_owned(),
+                "stat".to_owned(),
+                "-x,".to_owned(),
+                "-e".to_owned(),
+                "instructions".to_owned(),
+                "--".to_owned(),
+            ],
+            method: "differential_perf_2n_minus_n",
+        })
+    } else if tools.valgrind {
+        Some(InstructionTool {
+            wrapper: vec![
+                "valgrind".to_owned(),
+                "--tool=callgrind".to_owned(),
+                "--cache-sim=no".to_owned(),
+                "--callgrind-out-file=/tmp/devloop-callgrind.%p".to_owned(),
+            ],
+            method: "differential_callgrind_2n_minus_n",
+        })
+    } else {
+        None
+    }
+}
+
+fn run_cell_process(
     exe: &std::path::Path,
     cell: &str,
     iters: u64,
-    tools: &Tools,
-) -> (ChildOutput, Option<f64>, Option<f64>, Option<f64>) {
-    // Instructions wrapper preference: perf > valgrind > none.
-    let wrapper: Vec<String> = if tools.perf {
-        vec![
-            "perf".to_owned(),
-            "stat".to_owned(),
-            "-x,".to_owned(),
-            "-e".to_owned(),
-            "instructions".to_owned(),
-            "--".to_owned(),
-        ]
-    } else if tools.valgrind {
-        vec![
-            "valgrind".to_owned(),
-            "--tool=callgrind".to_owned(),
-            "--cache-sim=no".to_owned(),
-            "--callgrind-out-file=/tmp/devloop-callgrind.%p".to_owned(),
-        ]
-    } else {
-        Vec::new()
-    };
+    prepare_iters: u64,
+    wrapper: &[String],
+) -> (ChildOutput, String) {
     let mut cmd = std::process::Command::new(if wrapper.is_empty() {
         exe.as_os_str().to_owned()
     } else {
@@ -1593,7 +1621,9 @@ fn run_child(
     cmd.arg("run-cell")
         .arg(cell)
         .arg("--iters")
-        .arg(iters.to_string());
+        .arg(iters.to_string())
+        .arg("--prepare-iters")
+        .arg(prepare_iters.to_string());
     let out = cmd.output().expect("spawn child");
     assert!(
         out.status.success(),
@@ -1603,14 +1633,60 @@ fn run_child(
             .take(500)
             .collect::<String>()
     );
-    let stderr = String::from_utf8_lossy(&out.stderr);
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
     let child_line = stderr
         .lines()
         .find_map(|line| line.strip_prefix("__CHILD__ "))
         .unwrap_or_else(|| panic!("cell {cell} printed no __CHILD__ line"));
     let child: ChildOutput = serde_json::from_str(child_line).expect("child json parses");
-    let instructions =
-        parse_perf_instructions(&stderr).or_else(|| parse_callgrind_instructions(&stderr));
+    (child, stderr)
+}
+
+/// Run the child for one repeat, optionally under a wrapper. Returns
+/// the child output plus optional (instructions, syscalls).
+fn run_child(
+    exe: &std::path::Path,
+    cell: &str,
+    iters: u64,
+    tools: &Tools,
+) -> (
+    ChildOutput,
+    Option<InstructionTotal>,
+    Option<f64>,
+    Option<f64>,
+) {
+    let tool = instruction_tool(tools);
+    let prepare_iters = if tool.is_some() {
+        iters.checked_mul(2).expect("differential iters overflow")
+    } else {
+        iters
+    };
+    let wrapper: &[String] = tool.as_ref().map_or(&[], |t| t.wrapper.as_slice());
+    let (child, stderr) = run_cell_process(exe, cell, iters, prepare_iters, wrapper);
+    let first = parse_perf_instructions(&stderr).or_else(|| parse_callgrind_instructions(&stderr));
+    let instructions = if let (Some(tool), Some(first)) = (tool.as_ref(), first) {
+        let double_iters = iters.checked_mul(2).expect("differential iters overflow");
+        let (double_child, double_stderr) =
+            run_cell_process(exe, cell, double_iters, prepare_iters, &tool.wrapper);
+        assert_eq!(double_child.iters, double_iters);
+        parse_perf_instructions(&double_stderr)
+            .or_else(|| parse_callgrind_instructions(&double_stderr))
+            .map(|second| {
+                assert!(
+                    second >= first,
+                    "cell {cell} differential instructions underflow: first={first} second={second}"
+                );
+                InstructionTotal {
+                    total: second - first,
+                    method: tool.method,
+                }
+            })
+    } else {
+        first.map(|total| InstructionTotal {
+            total,
+            method: "whole_process_legacy",
+        })
+    };
     // Syscalls need a second run under strace (perf stat -e syscalls
     // counts entry+exit pairs inconsistently across kernels). The locks
     // metric is parsed from the same output: no extra run.
@@ -1730,6 +1806,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut syscalls = Vec::new();
         let mut locks = Vec::new();
         let mut copies = Vec::new();
+        let mut instruction_method: Option<&'static str> = None;
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
@@ -1740,7 +1817,8 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                 copies.push(c);
             }
             if let Some(v) = instr {
-                instrs.push(v / cell_iters as f64);
+                instruction_method = Some(v.method);
+                instrs.push(v.total / cell_iters as f64);
             }
             if let Some(v) = sys {
                 syscalls.push(v / cell_iters as f64);
@@ -1786,6 +1864,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             } else {
                 Metric::measured(median(instrs), "retired/callgrind-ir per op")
             },
+            instruction_method: instruction_method.unwrap_or("not_run").to_owned(),
             allocs: alloc_metric,
             alloc_bytes: bytes_metric,
             syscalls: if syscalls.is_empty() {
@@ -1896,6 +1975,7 @@ fn cmd_list() {
 fn cmd_run_cell(args: &[String]) {
     let mut id: Option<String> = None;
     let mut iters = 1000u64;
+    let mut prepare_iters: Option<u64> = None;
     let mut warmup = 100u64;
     let mut i = 0;
     while i < args.len() {
@@ -1906,6 +1986,10 @@ fn cmd_run_cell(args: &[String]) {
             }
             "--warmup" => {
                 warmup = args[i + 1].parse().expect("--warmup N");
+                i += 2;
+            }
+            "--prepare-iters" => {
+                prepare_iters = Some(args[i + 1].parse().expect("--prepare-iters N"));
                 i += 2;
             }
             other if id.is_none() => {
@@ -1919,7 +2003,7 @@ fn cmd_run_cell(args: &[String]) {
     if blob::is_blob_cell(&id) {
         run_blob_cell(&id, iters, warmup);
     } else if id.starts_with("codec.") {
-        run_codec_cell(&id, iters, warmup);
+        run_codec_cell(&id, iters, warmup, prepare_iters.unwrap_or(iters));
     } else if id.starts_with("lb.") {
         // Single-threaded: worker parking would pollute the locks metric.
         let rt = tokio::runtime::Builder::new_current_thread()

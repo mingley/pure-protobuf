@@ -10,7 +10,7 @@ Metrics:
 
 | Metric | Source | Role |
 |---|---|---|
-| Retired instructions | Linux `perf`, else valgrind/callgrind, else `not_run` | Primary when available |
+| Retired instructions | Linux `perf`, else valgrind/callgrind, else `not_run`; reported as `(2N - N) / N` | Primary when available |
 | Heap allocations and bytes | Counting `GlobalAlloc` | Exact allocation signal |
 | Syscalls per RPC | `strace -c`, else `not_run` | Linux diagnostic |
 | Wall time | Built-in timing | Secondary signal |
@@ -31,7 +31,12 @@ scripts/devloop.sh --baseline /tmp/before.json --out /tmp/now.json
 Each cell runs in a child process (`devloop run-cell <id>`), which reports
 exact allocations plus wall time. The parent wraps repeats in the available
 tools and aggregates medians into versioned JSON (`schema: "devloop/1"`).
-`not_run` never passes or fails a comparison; it skips.
+Instruction counts are loop-only differential counts: the parent runs the
+same cell at N and 2N measured-loop iterations with identical preparation and
+reports `(instructions_2N - instructions_N) / N`. The JSON
+`instruction_method` field records the collection method; older reports that
+lack it are legacy whole-process counts. `not_run` never passes or fails a
+comparison; it skips.
 
 Thresholds follow the scoreboard win rules: instructions or
 allocations fall ≥2% on targeted cells; no primary cell regresses
@@ -61,7 +66,9 @@ qualifies the tonic setup. Within-stack repeats are exact.
   port digits, hash seeds); RPC cells report medians while codec
   cells assert bit-exact totals.
 - Instructions and syscalls need Linux `perf`/`strace` (or
-  valgrind); macOS reports `not_run` for both.
+  valgrind); macOS reports `not_run` for both. Instruction counts exclude
+  process startup, setup, warmup, and JSON printing by using the differential
+  N/2N method above.
 
 ## Observed variance (2026-09-27, Apple M4 Pro, rustc 1.98.1)
 

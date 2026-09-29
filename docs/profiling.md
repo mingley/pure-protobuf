@@ -21,6 +21,14 @@ dev-loop inside an arm64 Linux container:
 ./scripts/devloop-linux.sh --cells codec.pbrs.owned_decode --out target/devloop/linux.json
 ```
 
+The `instructions` metric is the measured-loop instruction count per
+operation, not whole-process startup cost. On Linux the parent runs each cell
+under `perf` or callgrind at N and 2N measured-loop iterations with identical
+preparation, then reports `(instructions_2N - instructions_N) / N`. The
+`instruction_method` field in the JSON records the method, such as
+`differential_callgrind_2n_minus_n`. Older JSON without that field should be
+treated as legacy overhead-inclusive data.
+
 The wrapper builds a small image from pinned `rust:1.98-bookworm` with
 `valgrind`, `cmake`, `git`, `g++`, and `protoc`. It mounts the checkout at
 `/work`, caches Cargo registry/git data in the `pbrs-devloop-linux-cargo`
