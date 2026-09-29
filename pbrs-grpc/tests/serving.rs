@@ -6428,7 +6428,7 @@ fn client_tls_webpki_documents_tls_config_with_verifier() {
     let src = include_str!("../src/tls.rs");
     assert!(
         src.contains(
-            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]\n    /// (pin a CA, still verifies). Distinct from a skip-verify constructor\n    /// (there is none)."
+            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from\n    /// `ClientTls::native_roots` (operating-system roots, when the\n    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).\n    /// Distinct from a skip-verify constructor (there is none)."
         ),
         "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
     );
@@ -6733,12 +6733,12 @@ fn server_tls_mtls_documents_client_auth_optional() {
     let src = include_str!("../src/tls.rs");
     assert!(
         src.contains(
-            "There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a\n    /// client certificate but does not require one. This constructor always\n    /// requires a client certificate issued by that CA. Distinct from\n    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify\n    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /\n    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require)."
+            "Use [`Self::optional_mtls`] for tonic-style optional client auth. This\n    /// constructor always requires a client certificate issued by that CA.\n    /// Distinct from [`Self::new`] (clients are not asked). Distinct from a\n    /// skip-verify constructor (there is none). Distinct from\n    /// [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents;\n    /// this is the server require)."
         ),
         "ServerTls::mtls rustdoc must Distinct required client cert from tonic client_auth_optional"
     );
     assert_eq!(
-        src.matches("There is no tonic `ServerTlsConfig::client_auth_optional`")
+        src.matches("Use [`Self::optional_mtls`] for tonic-style optional client auth.")
             .count(),
         1,
         "ServerTls::new must not copy the client_auth_optional Distinct"
@@ -6767,12 +6767,12 @@ fn server_tls_new_documents_use_key_log() {
     let src = include_str!("../src/tls.rs");
     assert!(
         src.contains(
-            "There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls\n    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls\n    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client\n    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key\n    /// log). Distinct from a skip-verify constructor (there is none)."
+            "This constructor does not enable rustls key logging; call\n    /// [`Self::key_log_file`] to opt into `SSLKEYLOGFILE` for local debugging.\n    /// Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake).\n    /// Distinct from [`Self::mtls`] (client cert require) and\n    /// [`Self::optional_mtls`] (client cert requested but optional). Distinct\n    /// from a skip-verify constructor (there is none)."
         ),
         "ServerTls::new rustdoc must Distinct no key log from tonic ServerTlsConfig::use_key_log"
     );
     assert_eq!(
-        src.matches("There is no tonic `ServerTlsConfig::use_key_log`")
+        src.matches("to opt into `SSLKEYLOGFILE` for local debugging.")
             .count(),
         1,
         "ServerTls::mtls must not copy the use_key_log Distinct"
@@ -7043,7 +7043,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         tls.contains(
-            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from [`Self::ca`]\n    /// (pin a CA, still verifies). Distinct from a skip-verify constructor\n    /// (there is none)."
+            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from\n    /// `ClientTls::native_roots` (operating-system roots, when the\n    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).\n    /// Distinct from a skip-verify constructor (there is none)."
         ),
         "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
     );
@@ -7081,12 +7081,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         tls.contains(
-            "There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a\n    /// client certificate but does not require one. This constructor always\n    /// requires a client certificate issued by that CA. Distinct from\n    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify\n    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /\n    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require)."
+            "Use [`Self::optional_mtls`] for tonic-style optional client auth. This\n    /// constructor always requires a client certificate issued by that CA.\n    /// Distinct from [`Self::new`] (clients are not asked). Distinct from a\n    /// skip-verify constructor (there is none). Distinct from\n    /// [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents;\n    /// this is the server require)."
         ),
         "ServerTls::mtls rustdoc must Distinct required client cert from tonic client_auth_optional"
     );
     assert_eq!(
-        tls.matches("There is no tonic `ServerTlsConfig::client_auth_optional`")
+        tls.matches("Use [`Self::optional_mtls`] for tonic-style optional client auth.")
             .count(),
         1,
         "ServerTls::new must not copy the client_auth_optional Distinct"
@@ -7125,12 +7125,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         tls.contains(
-            "There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls\n    /// `KeyLogFile` (`SSLKEYLOGFILE`). This constructor does not enable rustls\n    /// key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client\n    /// handshake). Distinct from [`Self::mtls`] (client cert require, not key\n    /// log). Distinct from a skip-verify constructor (there is none)."
+            "This constructor does not enable rustls key logging; call\n    /// [`Self::key_log_file`] to opt into `SSLKEYLOGFILE` for local debugging.\n    /// Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake).\n    /// Distinct from [`Self::mtls`] (client cert require) and\n    /// [`Self::optional_mtls`] (client cert requested but optional). Distinct\n    /// from a skip-verify constructor (there is none)."
         ),
         "ServerTls::new rustdoc must Distinct no key log from tonic ServerTlsConfig::use_key_log"
     );
     assert_eq!(
-        tls.matches("There is no tonic `ServerTlsConfig::use_key_log`")
+        tls.matches("to opt into `SSLKEYLOGFILE` for local debugging.")
             .count(),
         1,
         "ServerTls::mtls must not copy the use_key_log Distinct"
@@ -8491,7 +8491,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
     );
     assert!(
-        crate_src.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. This crate-map [`ServerTls::mtls`] always requires a client certificate issued by that CA. Distinct from [`ServerTls::new`] (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents; this is the server require)."),
+        crate_src.contains("tonic `ServerTlsConfig::client_auth_optional` requests a client certificate but does not require one; the crate-map equivalent is [`ServerTls::optional_mtls`]. [`ServerTls::mtls`] always requires a client certificate issued by that CA. Distinct from [`ServerTls::new`] (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents; this is the server require)."),
         "crate-map must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
     );
     assert!(
@@ -8499,7 +8499,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct ServerTls sequential handshake caps from tonic ServerTlsConfig::timeout TLS-only"
     );
     assert!(
-        crate_src.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). This crate-map [`ServerTls::new`] does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from [`ServerTls::mtls`] (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
+        crate_src.contains("tonic `ServerTlsConfig::use_key_log` enables rustls `KeyLogFile` (`SSLKEYLOGFILE`); the crate-map equivalent is [`ServerTls::key_log_file`], and [`ClientTls::key_log_file`] for the client handshake. [`ServerTls::new`] alone does not enable key logging. Distinct from [`ServerTls::mtls`] (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
         "crate-map must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
     );
     assert!(
