@@ -1,0 +1,34 @@
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+unmaintained = "all"
+ignore = [
+    { id = "RUSTSEC-2024-0436", reason = "paste has no semver-compatible maintained release; replacing the exported proto! token-pasting helper needs a reviewed public API-compatible migration." },
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile has no semver-compatible maintained release in the configured registry; tracked as a non-vulnerability replacement follow-up." },
+]
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+confidence-threshold = 0.8
+exceptions = [
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
