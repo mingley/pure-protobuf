@@ -2526,7 +2526,11 @@
    "relates": [
     "OP-06"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/borrowed-views.md"
+   ],
+   "notes": "Closed 2026-09-29: draft landed; maintainer sign-off on O1-O5 required before PK-20 starts."
   },
   {
    "id": "PK-14",
