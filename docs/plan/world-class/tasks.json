@@ -7126,7 +7126,9 @@
    "evidence": [
     "docs/evidence/sb21-claims-scenarios.md"
    ],
-   "notes": "Audit 2026-09-29: scenario definitions landed, but the second acceptance item is not met. Finish scheduled-send-to-completion latency, loading frozen scenario files in run.py, and independent randomized peer order per repeat. Existing evidence explicitly lists these omissions."
+   "notes": "Audit 2026-09-29: scenario definitions landed, but the second acceptance item is not met. Finish scheduled-send-to-completion latency, loading frozen scenario files in run.py, and independent randomized peer order per repeat. Existing evidence explicitly lists these omissions.",
+   "implementer": "sb21_claim_accounting",
+   "reviewer": "coordinator"
   },
   {
    "id": "SB-22",
@@ -8615,7 +8617,11 @@
     ".github/workflows/perf.yml",
     "scripts/devloop.sh",
     "bench/devloop/Cargo.toml",
-    "bench/devloop/Cargo.lock"
+    "bench/devloop/Cargo.lock",
+    "scripts/perf-report.py",
+    "tests/test_perf_report.py",
+    "tests/test_devloop_wrapper.py",
+    "bench/devloop/README.md"
    ],
    "deliverable": "Fix the red dev-loop perf lane: offline resolve of the protobuf =4.35.1-release pin during cargo fetch/build, and make the build/compare steps non-fatal per the non-blocking design so base/head JSONs always upload.",
    "accept": [
@@ -8628,12 +8634,14 @@
     "SB-04",
     "SB-20"
    ],
-   "notes": "Audit 2026-09-29: local repair landed, but CI success was inferred without a run. perf.yml is PR-only and has no workflow_dispatch trigger. Use a relevant PR or implement an explicit base/head dispatch. Empty/error placeholders are not qualifying measurements.",
+   "notes": "Execution 2026-09-29: direct-main-push and explicit base/head dispatch support implemented, fail-closed evidence validator plus build/regression-report preservation tests pass locally. Await actual CI artifacts before closing; performance thresholds remain advisory.",
    "status": "in_progress",
    "evidence": [
     "scripts/devloop.sh + perf.yml: non-fatal lane, pinned protoc",
     "local lane run: exit 0, 88 cells, devloop/1"
-   ]
+   ],
+   "implementer": "coordinator",
+   "reviewer": "coordinator"
   },
   {
    "id": "GF-11",
@@ -8725,7 +8733,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [],
    "read": [
     "docs/audit-2026-09-29.md",
@@ -8759,7 +8767,9 @@
    ],
    "evidence": [
     "Baseline 37683917: https://github.com/mingley/pure-protobuf/actions/runs/36594563929 failed accessors_map_test (34 pass, 1 fail); only 1/19 crates ran."
-   ]
+   ],
+   "implementer": "qg05_enum_maps",
+   "reviewer": "coordinator"
   },
   {
    "id": "SB-24",
@@ -8769,7 +8779,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "SB-11",
     "SB-12",
@@ -8808,7 +8818,9 @@
     "E3",
     "E4",
     "E5"
-   ]
+   ],
+   "implementer": "sb24_matrix",
+   "reviewer": "coordinator"
   },
   {
    "id": "SB-25",

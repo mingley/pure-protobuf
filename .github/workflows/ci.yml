@@ -42,6 +42,8 @@ jobs:
         run: |
           python3 scripts/plan-lint.py
           python3 -B -m unittest tests.test_plan_status tests.test_plan_lint -q
+      - name: Verify performance artifact and failure handling
+        run: python3 -B -m unittest tests.test_perf_report tests.test_devloop_wrapper -q
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Lint native gRPC, tonic adapter, and example libraries
         run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings

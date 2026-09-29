@@ -44,6 +44,28 @@ allocations fall ≥2% on targeted cells; no primary cell regresses
 thresholds from at least 30 usable measured runs; missing metrics and error
 placeholder reports are not successful measurements.
 
+## CI comparisons and retained evidence
+
+The performance workflow runs on relevant pushes to `main`, relevant pull
+requests, or an explicit dispatch with full `base_sha` and `head_sha`
+commit IDs. Base and head build in isolated source directories on the same
+runner with the same compiler. Regression thresholds remain advisory;
+broken measurement infrastructure fails visibly.
+
+Each `devloop-<run-id>` artifact contains base/head JSON, their logs,
+`validation.json`, the readable summary and the comparison output when
+available. Only `validation.json` with `qualified_for_noise: true` is a
+candidate input for SB-20. Its `eligible_metrics` names the comparable
+measurements; missing instruction/syscall counters are excluded, and added
+or removed cells are reported separately. Do not count an uploaded error
+report, empty cell list, mismatched source SHA, or green upload step as a
+successful measurement.
+
+The wrapper preserves an output report even when compilation or comparison
+fails. Local regression comparisons still exit nonzero. CI uses
+`scripts/perf-report.py` to validate provenance, host/tool metadata, sample
+counts, metric units and finite values before interpreting a comparison.
+
 ## Cell families
 
 The matrix has expanded beyond the original 16 cells. Run

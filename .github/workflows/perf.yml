@@ -1,17 +1,18 @@
-# SB-04: non-blocking dev-loop performance lane.
-#
-# On PRs touching Rust sources or the harness, builds base and head in
-# one job, runs the deterministic dev-loop suite for both, uploads the
-# JSON reports, and writes a per-cell delta summary. Never fails the PR:
-# SB-20 decides gating thresholds from the retained runs.
-#
-# SB-23: every lane step after checkout is non-fatal (continue-on-error)
-# and compare/upload run under if: always(), so a bench compile failure
-# is reported in the logs, summary, and uploaded JSONs instead of
-# exiting silent before artifacts upload.
+# Performance thresholds stay advisory until SB-20. Broken measurement
+# infrastructure fails visibly, and invalid artifacts never count as noise data.
 name: dev-loop perf
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pbrs-grpc/src/**"
+      - "protobuf-tonic/src/**"
+      - "bench/devloop/**"
+      - "scripts/devloop.sh"
+      - "scripts/perf-report.py"
+      - ".github/workflows/perf.yml"
   pull_request:
     paths:
       - "src/**"
@@ -19,202 +20,152 @@ on:
       - "protobuf-tonic/src/**"
       - "bench/devloop/**"
       - "scripts/devloop.sh"
+      - "scripts/perf-report.py"
+      - ".github/workflows/perf.yml"
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Full 40-character base commit SHA
+        required: true
+        type: string
+      head_sha:
+        description: Full head SHA (empty means the selected workflow revision)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  PBRS_PROTOC_JOBS: "2"
 
 jobs:
   devloop-compare:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
-      # SB-23: v4_tat needs `protoc --rust_out` with gencode in
-      # [4.34, 4.35.1] to match the `protobuf` runtime pin, but apt's
-      # protoc is 3.21.12 with no Rust codegen at all, so the lane
-      # could never compile in CI. Build the pinned v35.1 protoc from
-      # the vendored sources instead (same pattern as
-      # compatibility.yml) and put it first on PATH: v4_tat invokes
-      # plain `protoc`, and prost/tonic builders fall back to PATH.
-      - name: Install C++ compiler and cmake
+
+      - name: Resolve immutable comparison revisions
+        id: revisions
+        run: |
+          python3 scripts/perf-report.py revisions \
+            --event-name "$GITHUB_EVENT_NAME" --event "$GITHUB_EVENT_PATH" \
+            --default-head "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Prepare isolated base worktree
+        env:
+          BASE_SHA: ${{ steps.revisions.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.revisions.outputs.head_sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git cat-file -e "$BASE_SHA^{commit}"
+          git worktree add --detach "$RUNNER_TEMP/devloop-base" "$BASE_SHA"
+          mkdir -p perf-artifacts
+      - name: Install pinned-compiler build tools
         run: sudo apt-get update && sudo apt-get install -y cmake g++
-      - name: Cache protobuf pin source
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: third_party/protobuf
           key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
-      - name: Cache pinned protoc with built-in Rust output
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: target/pinned-protoc-build
-          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
-      - name: Fetch dependencies and protobuf sources
-        run: |
-          cargo fetch
-          # bench/devloop is its own workspace (excluded from the root
-          # one), so the root fetch above does not cover its closure.
-          # Without this, the cold-cache offline build in devloop.sh
-          # fails resolution with "no matching package named `protobuf`".
-          cargo fetch --manifest-path bench/devloop/Cargo.toml
-          scripts/fetch-protobuf.sh
-      - name: Build pinned protoc and put it on PATH
+          key: pinned-protoc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - uses: actions/cache@v4
+        with:
+          path: bench/devloop/target
+          key: devloop-target-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bench/devloop/Cargo.lock', 'Cargo.lock') }}
+      - name: Build compiler with pinned Rust code generation
         run: |
           scripts/build-pinned-protoc.sh
           echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
 
-      # devloop prefers `perf stat` when present but asserts on wrapper
-      # failure, so a present-but-unusable perf would crash the suite.
-      # Try to enable counters; otherwise hide a broken perf binary.
-      - name: Enable or hide perf counters
+      - name: Use instruction counters only when available
         run: |
-          set -euo pipefail
           sudo sysctl -w kernel.perf_event_paranoid=-1 || true
           if command -v perf >/dev/null 2>&1; then
             if perf stat -e instructions -- true >/dev/null 2>&1; then
               echo "perf: usable"
             else
-              echo "perf: present but unusable; hiding"
               sudo mv "$(command -v perf)" "$(command -v perf).hidden-by-perf-yml"
+              echo "perf: unavailable; reports will say not_run"
             fi
-          else
-            echo "perf: absent (instructions will be not_run)"
           fi
-          command -v strace >/dev/null 2>&1 && echo "strace: present" || echo "strace: absent (syscalls will be not_run)"
-          command -v valgrind >/dev/null 2>&1 && echo "valgrind: present" || echo "valgrind: absent"
 
-      - name: Run dev-loop suite on head
-        if: always()
+      - name: Measure base
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
         continue-on-error: true
-        run: scripts/devloop.sh --out head.json
-
-      - name: Run dev-loop suite on base
-        if: always()
-        continue-on-error: true
+        env:
+          BASE_SHA: ${{ steps.revisions.outputs.base_sha }}
         run: |
-          set -euo pipefail
-          if [ -f head.json ]; then
-            mv head.json /tmp/devloop-head.json
-          else
-            echo "no head report to stash; compare will use a placeholder"
-          fi
-          git checkout '${{ github.event.pull_request.base.sha }}'
-          # Base may pin different deps than head; re-fetch its closure
-          # so its offline build resolves from a warm cache.
-          cargo fetch --manifest-path bench/devloop/Cargo.toml || \
-            echo "base fetch failed; devloop.sh will try cached deps"
-          # Always restore head.json, even when the base suite fails, so
-          # both reports reach the compare/upload steps.
+          set -o pipefail
+          cd "$RUNNER_TEMP/devloop-base"
+          # Use the candidate's reporting wrapper for both revisions, while
+          # each build still reads that revision's own source and lockfile.
+          PBRS_DEVLOOP_ROOT="$PWD" PBRS_DEVLOOP_COMMIT="$BASE_SHA" \
+            CARGO_TARGET_DIR="$GITHUB_WORKSPACE/bench/devloop/target" \
+            bash "$GITHUB_WORKSPACE/scripts/devloop.sh" \
+            --out "$GITHUB_WORKSPACE/perf-artifacts/base.json" \
+            2>&1 | tee "$GITHUB_WORKSPACE/perf-artifacts/base.log"
+      - name: Measure head
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ steps.revisions.outputs.head_sha }}
+        run: |
+          set -o pipefail
+          PBRS_DEVLOOP_COMMIT="$HEAD_SHA" \
+            CARGO_TARGET_DIR="$GITHUB_WORKSPACE/bench/devloop/target" \
+            bash scripts/devloop.sh --out perf-artifacts/head.json \
+            2>&1 | tee perf-artifacts/head.log
+
+      - name: Verify measurement evidence
+        id: evidence
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
+        env:
+          BASE_SHA: ${{ steps.revisions.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.revisions.outputs.head_sha }}
+        run: |
+          mkdir -p perf-artifacts
+          python3 scripts/perf-report.py verify \
+            --base perf-artifacts/base.json --head perf-artifacts/head.json \
+            --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" \
+            --out perf-artifacts/validation.json --summary perf-artifacts/summary.md
+      - name: Compare performance (advisory)
+        if: ${{ !cancelled() && steps.evidence.outcome == 'success' }}
+        run: |
           set +e
-          scripts/devloop.sh --out /tmp/devloop-base.json
-          BASE_EXIT=$?
+          bench/devloop/target/release/devloop compare \
+            --baseline perf-artifacts/base.json --current perf-artifacts/head.json \
+            --budget bench/devloop/baselines/picker.json \
+            > perf-artifacts/compare.txt 2>&1
+          comparison_status=$?
           set -e
-          echo "base suite exit: $BASE_EXIT (non-blocking)"
-          if [ -f /tmp/devloop-base.json ]; then
-            mv /tmp/devloop-base.json base.json
-          else
-            echo "no base report produced; compare will use a placeholder"
-          fi
-          if [ -f /tmp/devloop-head.json ]; then
-            mv /tmp/devloop-head.json head.json
-          fi
-          exit "$BASE_EXIT"
-
-      - name: Compare and summarize
+          cat perf-artifacts/compare.txt
+          printf '\nComparison exit: %s (advisory; SB-20 sets gates).\n' \
+            "$comparison_status" >> perf-artifacts/summary.md
+      - name: Publish evidence summary
         if: always()
-        continue-on-error: true
         run: |
-          set -euo pipefail
-          BIN="bench/devloop/target/release/devloop"
-          for f in base.json head.json; do
-            if [ ! -f "$f" ]; then
-              echo "warning: $f missing; writing placeholder so the artifact always uploads" >&2
-              printf '%s\n' '{"schema":"devloop/1","host":{"os":"unknown","arch":"unknown","cpu":"unknown","rustc":"unknown","perf":false,"strace":false,"valgrind":false},"devloop_commit":"unknown","cells":[],"error":"suite step produced no report"}' > "$f"
-            fi
-          done
-          COMPARE_EXIT=0
-          if grep -l '"error"' base.json head.json >/dev/null 2>&1; then
-            echo "compare skipped: one or both reports carry a suite error (non-blocking)" > compare.txt
-          elif [ ! -x "$BIN" ]; then
-            echo "compare skipped: harness binary missing (non-blocking)" > compare.txt
+          if [ -f perf-artifacts/summary.md ]; then
+            cat perf-artifacts/summary.md >> "$GITHUB_STEP_SUMMARY"
           else
-            set +e
-            "$BIN" compare --baseline base.json --current head.json --budget bench/devloop/baselines/picker.json > compare.txt 2>&1
-            COMPARE_EXIT=$?
-            set -e
+            echo "Measurement setup did not complete; no qualifying evidence." >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "compare exit: $COMPARE_EXIT (non-blocking)"
-          cat compare.txt
-          python3 - base.json head.json compare.txt "$COMPARE_EXIT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
-          import json, sys
-
-          base_path, head_path, compare_path, compare_exit = sys.argv[1:5]
-
-          def load(path):
-              try:
-                  rep = json.load(open(path))
-              except Exception as e:
-                  return {"schema": "devloop/1", "devloop_commit": "?",
-                          "cells": [], "error": "unreadable report: %s" % e}
-              rep.setdefault("cells", [])
-              return rep
-
-          base = load(base_path)
-          head = load(head_path)
-          verdict = open(compare_path).read().strip()
-
-          def value(cell, metric):
-              m = cell.get(metric, {})
-              if m.get("status") != "measured":
-                  return None
-              return m.get("data", {}).get("value")
-
-          def fmt(v):
-              if v is None:
-                  return "not_run"
-              return f"{v:.1f}" if v >= 100 else f"{v:.3f}"
-
-          def delta(o, n):
-              if o is None or n is None or o == 0:
-                  return "—"
-              return f"{(n - o) / o * 100:+.2f}%"
-
-          old = {c["id"]: c for c in base["cells"]}
-          print("## dev-loop perf: base vs head (non-blocking)")
-          print()
-          print(f"base `{base.get('devloop_commit', '?')}` vs head `{head.get('devloop_commit', '?')}`.")
-          for label, rep in (("base", base), ("head", head)):
-              if rep.get("error"):
-                  print()
-                  print(f"**{label} suite error:** {rep['error']}")
-          print()
-          print("| cell | instructions base → head | Δ | allocs/RPC base → head | Δ |")
-          print("|---|---|---|---|---|")
-          for cell in head["cells"]:
-              o = old.get(cell["id"])
-              if o is None:
-                  print(f"| {cell['id']} | new cell | | new cell | |")
-                  continue
-              oi, ni = value(o, "instructions"), value(cell, "instructions")
-              oa, na = value(o, "allocs"), value(cell, "allocs")
-              print(f"| {cell['id']} | {fmt(oi)} → {fmt(ni)} | {delta(oi, ni)} | {fmt(oa)} → {fmt(na)} | {delta(oa, na)} |")
-          print()
-          if verdict:
-              print("```")
-              print(verdict)
-              print("```")
-          else:
-              print("compare: no regressions or ≥2% improvements.")
-          print()
-          print(f"compare exit: {compare_exit} (advisory only; SB-20 sets gates).")
-          PY
-
-      - name: Retain reports for noise analysis
+      - name: Retain reports and failures
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: devloop-${{ github.run_id }}
           retention-days: 180
           if-no-files-found: warn
-          path: |
-            base.json
-            head.json
+          path: perf-artifacts/

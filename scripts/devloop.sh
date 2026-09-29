@@ -21,7 +21,8 @@
 # instead of exiting silent before compare/upload.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+# CI may use this reporting wrapper with an isolated baseline source tree.
+cd "${PBRS_DEVLOOP_ROOT:-$(dirname "$0")/..}"
 
 CELLS=""
 ITERS="2000"
@@ -84,6 +85,7 @@ report = {
     "error": "%s: %s" % (os.environ["PBRS_ERR_STAGE"],
                          os.environ["PBRS_ERR_DETAIL"]),
 }
+os.makedirs(os.path.dirname(os.path.abspath(os.environ["PBRS_ERR_OUT"])), exist_ok=True)
 with open(os.environ["PBRS_ERR_OUT"], "w") as f:
     f.write(json.dumps(report, indent=2) + "\n")
 print("devloop: wrote error report to %s" % os.environ["PBRS_ERR_OUT"])
@@ -91,7 +93,7 @@ PY
 }
 
 FETCH_LOG="$(mktemp -t devloop-fetch.XXXXXX.log)"
-if cargo fetch --manifest-path "$MANIFEST" >"$FETCH_LOG" 2>&1; then
+if cargo fetch --locked --manifest-path "$MANIFEST" >"$FETCH_LOG" 2>&1; then
   rm -f "$FETCH_LOG"
 else
   echo "devloop: warning: cargo fetch failed (offline?); trying offline build with cached deps" >&2
@@ -100,7 +102,7 @@ else
 fi
 
 BUILD_LOG="$(mktemp -t devloop-build.XXXXXX.log)"
-if ! cargo build --manifest-path "$MANIFEST" --release --offline >"$BUILD_LOG" 2>&1; then
+if ! cargo build --locked --manifest-path "$MANIFEST" --release --offline >"$BUILD_LOG" 2>&1; then
   echo "devloop: harness build failed (offline release build of $MANIFEST)" >&2
   tail -n 30 "$BUILD_LOG" >&2
   DETAIL="$(grep -m1 '^error' "$BUILD_LOG" || echo "see build log $BUILD_LOG")"
@@ -111,7 +113,7 @@ if ! cargo build --manifest-path "$MANIFEST" --release --offline >"$BUILD_LOG" 2
   exit 1
 fi
 rm -f "$BUILD_LOG"
-BIN="bench/devloop/target/release/devloop"
+BIN="${CARGO_TARGET_DIR:-bench/devloop/target}/release/devloop"
 
 ARGS=(run --iters "$ITERS" --repeats "$REPEATS")
 if [ -n "$CELLS" ]; then ARGS+=(--cells "$CELLS"); fi
@@ -125,12 +127,15 @@ if [ -n "$BASELINE" ]; then
     if [ -n "$OUT" ]; then cp "$TMP" "$OUT"; fi
     exit 1
   fi
-  BUDGET_ARGS=()
+  COMPARE_EXIT=0
   if [ -f bench/devloop/baselines/picker.json ]; then
-    BUDGET_ARGS=(--budget bench/devloop/baselines/picker.json)
+    "$BIN" compare --baseline "$BASELINE" --current "$TMP" \
+      --budget bench/devloop/baselines/picker.json || COMPARE_EXIT=$?
+  else
+    "$BIN" compare --baseline "$BASELINE" --current "$TMP" || COMPARE_EXIT=$?
   fi
-  "$BIN" compare --baseline "$BASELINE" --current "$TMP" "${BUDGET_ARGS[@]}"
   if [ -n "$OUT" ]; then cp "$TMP" "$OUT"; fi
+  exit "$COMPARE_EXIT"
 else
   if [ -n "$OUT" ]; then ARGS+=(--out "$OUT"); fi
   if ! "$BIN" "${ARGS[@]}"; then
