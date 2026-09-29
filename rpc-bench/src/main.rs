@@ -546,12 +546,18 @@ pub fn extended_usage() -> String {
            --window-mode <MODE>     Native flow control: default, small, or adaptive (default: default)\n  \
            --small-window-size <N>  Small fixed-window bytes; also adaptive initial override (default: 65535)\n  \
            --latency-rtt-ms <MS>    Bench-only loopback TCP proxy RTT injection before the client connects\n\
+         SB-12 scale options:\n  \
+           scale --transport <native|tonic> --connections <N> --streams <N> [--repeats <N>]\n  \
+           --tls-cert <PATH> --tls-key <PATH> --tls-ca <PATH> --tls-server-name <NAME> (native only)\n  \
+           --json --output <FILE>\n  \
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
            --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
          RT-07 diagnostic:\n  \
            fairness --scenario rpc-bench/scenarios/fairness.json [--smoke] [--output <PATH>] [--require-qualified]\n  \
                                     Separate-process native/native bulk + scheduled unary; never a qualification pass\n",
+        // Keep SB-12 on the same binary but separate from load/SLO semantics.
+        // See the `scale` subcommand parser below for the full flag list.
         process::usage()
     )
 }
@@ -1277,6 +1283,288 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct ScaleCliArgs {
+    transport: LoadTransport,
+    connections: usize,
+    streams: usize,
+    repeats: usize,
+    output_file: Option<String>,
+    print_json: bool,
+    tls_cert: Option<String>,
+    tls_key: Option<String>,
+    tls_ca: Option<String>,
+    tls_server_name: Option<String>,
+}
+
+fn parse_scale_cli_args(args: &[String]) -> Result<ScaleCliArgs, String> {
+    let transport = get_arg_val(args, "--transport")
+        .as_deref()
+        .unwrap_or("native")
+        .parse::<LoadTransport>()?;
+    let parse_usize = |flag: &str, default: usize, max: usize| -> Result<usize, String> {
+        let Some(raw) = get_arg_val(args, flag) else {
+            return Ok(default);
+        };
+        let value = raw
+            .parse::<usize>()
+            .map_err(|e| format!("invalid {flag} '{raw}': {e}"))?;
+        if value == 0 || value > max {
+            return Err(format!("invalid {flag}: want 1..={max}"));
+        }
+        Ok(value)
+    };
+    let tls_cert = get_arg_val(args, "--tls-cert").or_else(|| get_arg_val(args, "--tls_cert"));
+    let tls_key = get_arg_val(args, "--tls-key").or_else(|| get_arg_val(args, "--tls_key"));
+    let tls_ca = get_arg_val(args, "--tls-ca").or_else(|| get_arg_val(args, "--tls_ca"));
+    let tls_server_name =
+        get_arg_val(args, "--tls-server-name").or_else(|| get_arg_val(args, "--tls_server_name"));
+    let tls_fields = [
+        tls_cert.is_some(),
+        tls_key.is_some(),
+        tls_ca.is_some(),
+        tls_server_name.is_some(),
+    ];
+    if tls_fields.iter().any(|v| *v) && !tls_fields.iter().all(|v| *v) {
+        return Err("TLS scale needs --tls-cert, --tls-key, --tls-ca and --tls-server-name".into());
+    }
+    if transport == LoadTransport::Tonic && tls_cert.is_some() {
+        return Err("tonic TLS scale is unsupported in rpc-bench (pure-Rust policy)".into());
+    }
+    Ok(ScaleCliArgs {
+        transport,
+        connections: parse_usize("--connections", 100, 20_000)?,
+        streams: parse_usize("--streams", 100, 20_000)?,
+        repeats: parse_usize("--repeats", 3, 100)?,
+        output_file: get_arg_val(args, "--output").or_else(|| get_arg_val(args, "-o")),
+        print_json: has_flag(args, "--json"),
+        tls_cert,
+        tls_key,
+        tls_ca,
+        tls_server_name,
+    })
+}
+
+async fn start_scale_server(
+    opts: &ScaleCliArgs,
+) -> Result<(SocketAddr, tokio::task::JoinHandle<()>), String> {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(|e| format!("bind scale server: {e}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|e| format!("scale server local_addr: {e}"))?;
+    let handle = match opts.transport {
+        LoadTransport::Native => {
+            let router = create_dual_server(None);
+            match (&opts.tls_cert, &opts.tls_key) {
+                (Some(cert), Some(key)) => {
+                    let cert = std::fs::read(cert)
+                        .map_err(|e| format!("read --tls-cert '{cert}': {e}"))?;
+                    let key = std::fs::read(key)
+                        .map_err(|e| format!("read --tls-key '{key}': {e}"))?;
+                    let identity = pbrs_grpc::Identity::from_pem(&cert, &key)
+                        .map_err(|e| format!("server identity: {e}"))?;
+                    let tls = pbrs_grpc::ServerTls::new(identity)
+                        .map_err(|e| format!("server tls: {e}"))?;
+                    tokio::spawn(async move {
+                        router
+                            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                            .await
+                            .ok();
+                    })
+                }
+                _ => tokio::spawn(async move {
+                    router.serve_listener(listener).await.ok();
+                }),
+            }
+        }
+        LoadTransport::Tonic => {
+            let (incoming, _stats) = process::NodelayIncoming::new(listener);
+            tokio::spawn(async move {
+                process::fair_tonic_server()
+                    .add_service(tonic_gen::TestServiceServer::new(process::TonicInterop))
+                    .serve_with_incoming(incoming)
+                    .await
+                    .ok();
+            })
+        }
+    };
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    Ok((addr, handle))
+}
+
+async fn run_scale_benchmark(opts: ScaleCliArgs) -> Result<(), String> {
+    let (addr, server) = start_scale_server(&opts).await?;
+    let platform = resources::ResourceSnapshot::platform_backend();
+    let baseline = resources::ResourceSnapshot::capture()
+        .map_err(|e| format!("resource capture baseline failed: {e}"))?;
+
+    let first_rpc_nanos = match opts.transport {
+        LoadTransport::Native => {
+            let start = TokioInstant::now();
+            let channel = match (&opts.tls_ca, &opts.tls_server_name) {
+                (Some(ca), Some(name)) => {
+                    let ca = std::fs::read(ca).map_err(|e| format!("read --tls-ca: {e}"))?;
+                    let tls = pbrs_grpc::ClientTls::ca(name, &ca)
+                        .map_err(|e| format!("client tls: {e}"))?;
+                    pbrs_grpc::Channel::connect_tls(addr, tls)
+                        .await
+                        .map_err(|e| e.to_string())?
+                }
+                _ => pbrs_grpc::Channel::connect(addr)
+                    .await
+                    .map_err(|e| e.to_string())?,
+            };
+            let client = pbrs_grpc::TestServiceClient::new(channel);
+            client
+                .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+                .await
+                .map_err(|e| format!("native first RPC: {e}"))?;
+            start.elapsed().as_nanos() as u64
+        }
+        LoadTransport::Tonic => {
+            let start = TokioInstant::now();
+            let mut client = tonic_gen::TestServiceClient::new(process::tonic_channel(addr).await?);
+            client
+                .empty_call(tonic::Request::new(tonic_gen::Empty::new()))
+                .await
+                .map_err(|e| format!("tonic first RPC: {e}"))?;
+            start.elapsed().as_nanos() as u64
+        }
+    };
+
+    let mut native_channel = None;
+    let mut tonic_clients = Vec::new();
+    match opts.transport {
+        LoadTransport::Native => {
+            let channel = match (&opts.tls_ca, &opts.tls_server_name) {
+                (Some(ca), Some(name)) => {
+                    let ca = std::fs::read(ca).map_err(|e| format!("read --tls-ca: {e}"))?;
+                    let tls = pbrs_grpc::ClientTls::ca(name, &ca)
+                        .map_err(|e| format!("client tls: {e}"))?;
+                    pbrs_grpc::Channel::connect_tls_with(
+                        addr,
+                        pbrs_grpc::ChannelConfig::new().connections(opts.connections),
+                        tls,
+                    )
+                    .await
+                    .map_err(|e| e.to_string())?
+                }
+                _ => pbrs_grpc::Channel::connect_pool(addr, opts.connections)
+                    .await
+                    .map_err(|e| e.to_string())?,
+            };
+            native_channel = Some(channel);
+        }
+        LoadTransport::Tonic => {
+            for _ in 0..opts.connections {
+                tonic_clients.push(tonic_gen::TestServiceClient::new(
+                    process::tonic_channel(addr).await?,
+                ));
+            }
+        }
+    }
+    let idle = resources::ResourceSnapshot::capture()
+        .map_err(|e| format!("resource capture idle failed: {e}"))?;
+
+    let mut native_streams = Vec::new();
+    let mut tonic_streams = Vec::new();
+    match opts.transport {
+        LoadTransport::Native => {
+            let client =
+                pbrs_grpc::TestServiceClient::new(native_channel.clone().expect("native channel"));
+            let req = process::stream_kernel_req(1, 0);
+            for _ in 0..opts.streams {
+                native_streams.push(
+                    client
+                        .streaming_output_call(pbrs_grpc::Request::new(req.clone()))
+                        .await
+                        .map_err(|e| format!("open native stream: {e}"))?
+                        .into_inner(),
+                );
+            }
+        }
+        LoadTransport::Tonic => {
+            let req = process::stream_tonic_req(1, 0);
+            for i in 0..opts.streams {
+                let mut client = tonic_clients[i % tonic_clients.len()].clone();
+                tonic_streams.push(
+                    client
+                        .streaming_output_call(tonic::Request::new(req.clone()))
+                        .await
+                        .map_err(|e| format!("open tonic stream: {e}"))?
+                        .into_inner(),
+                );
+            }
+        }
+    }
+    let streams = resources::ResourceSnapshot::capture()
+        .map_err(|e| format!("resource capture streams failed: {e}"))?;
+
+    let tls_handshakes_per_second =
+        if opts.tls_cert.is_some() && opts.transport == LoadTransport::Native {
+            let ca = std::fs::read(opts.tls_ca.as_ref().expect("tls ca"))
+                .map_err(|e| format!("read --tls-ca: {e}"))?;
+            let name = opts.tls_server_name.as_ref().expect("tls name").clone();
+            let start = TokioInstant::now();
+            for _ in 0..opts.repeats {
+                let tls =
+                    pbrs_grpc::ClientTls::ca(&name, &ca).map_err(|e| format!("client tls: {e}"))?;
+                let _channel = pbrs_grpc::Channel::connect_tls(addr, tls)
+                    .await
+                    .map_err(|e| format!("tls handshake: {e}"))?;
+            }
+            Some(opts.repeats as f64 / start.elapsed().as_secs_f64())
+        } else {
+            None
+        };
+
+    let idle_delta = idle.current_rss_bytes.saturating_sub(baseline.current_rss_bytes);
+    let stream_delta = streams.current_rss_bytes.saturating_sub(idle.current_rss_bytes);
+    let report = serde_json::json!({
+        "schema": "sb12-scale/1",
+        "transport": opts.transport.to_string(),
+        "connections": opts.connections,
+        "open_streams": opts.streams,
+        "resource_backend": platform,
+        "baseline_rss_bytes": baseline.current_rss_bytes,
+        "idle_rss_bytes": idle.current_rss_bytes,
+        "streams_rss_bytes": streams.current_rss_bytes,
+        "idle_delta_bytes": idle_delta,
+        "idle_bytes_per_connection": idle_delta as f64 / opts.connections as f64,
+        "stream_delta_bytes": stream_delta,
+        "bytes_per_open_stream": stream_delta as f64 / opts.streams as f64,
+        "first_rpc_nanos": first_rpc_nanos,
+        "tls_handshakes_per_second": tls_handshakes_per_second,
+        "limits": {
+            "same_process_rss_delta": true,
+            "tonic_tls": "not_run: tonic TLS pulls a C crypto provider in this harness"
+        }
+    });
+
+    if opts.print_json {
+        println!("{}", serde_json::to_string_pretty(&report).unwrap());
+    }
+    if let Some(path) = &opts.output_file {
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("create output dir {}: {e}", parent.display()))?;
+            }
+        }
+        std::fs::write(path, serde_json::to_string_pretty(&report).unwrap())
+            .map_err(|e| format!("write {path}: {e}"))?;
+        println!("saved scale report to {path}");
+    }
+    drop(native_streams);
+    drop(tonic_streams);
+    drop(native_channel);
+    drop(tonic_clients);
+    server.abort();
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -1307,6 +1595,23 @@ async fn main() {
         if let Err(err) = result {
             eprintln!("fairness diagnostic failed: {err}");
             std::process::exit(1);
+        }
+        return;
+    }
+
+    if args.get(1).map(String::as_str) == Some("scale") {
+        match parse_scale_cli_args(&args) {
+            Ok(opts) => {
+                if let Err(e) = run_scale_benchmark(opts).await {
+                    eprintln!("Scale benchmark failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+            Err(err) => {
+                eprintln!("Error: {err}");
+                eprintln!("{}", extended_usage());
+                std::process::exit(2);
+            }
         }
         return;
     }
@@ -1641,6 +1946,38 @@ mod tests {
             let opts = parse_load_cli_args(&args).unwrap();
             assert_eq!(opts.shape, None);
         }
+    }
+
+    #[test]
+    fn test_parse_scale_cli_args() {
+        let args = vec![
+            "rpc-bench".to_string(),
+            "scale".to_string(),
+            "--transport=tonic".to_string(),
+            "--connections=1000".to_string(),
+            "--streams=500".to_string(),
+            "--repeats=5".to_string(),
+            "--json".to_string(),
+        ];
+        let opts = parse_scale_cli_args(&args).expect("scale args");
+        assert_eq!(opts.transport, LoadTransport::Tonic);
+        assert_eq!(opts.connections, 1000);
+        assert_eq!(opts.streams, 500);
+        assert_eq!(opts.repeats, 5);
+        assert!(opts.print_json);
+        assert!(parse_scale_cli_args(&["rpc-bench".into(), "scale".into(), "--connections=0".into()]).is_err());
+        assert!(
+            parse_scale_cli_args(&[
+                "rpc-bench".into(),
+                "scale".into(),
+                "--transport=tonic".into(),
+                "--tls-cert=x".into(),
+                "--tls-key=x".into(),
+                "--tls-ca=x".into(),
+                "--tls-server-name=localhost".into(),
+            ])
+            .is_err()
+        );
     }
 
     #[tokio::test]
