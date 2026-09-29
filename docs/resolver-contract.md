@@ -5,9 +5,15 @@ subchannels, and load balancing to `pbrs-grpc`. Bottom line: DNS refresh can
 change only future picks; it must never change authority, TLS identity, or an
 already open RPC.
 
-**Status:** Detail under the [channel architecture](decisions/channel-architecture.md)
-(CH-01, proposed for maintainer review); no resolver or client-managed
-balancer is shipped by this document. **Baseline:** `10b0ba1a` on 2026-09-26.
+**Status:** Coordinator-approved (FL-01, 2026-09-29); detail under the
+[channel architecture](decisions/channel-architecture.md) (CH-01, whose
+maintainer review gate below is unchanged). No resolver or
+client-managed balancer is shipped by this document. **Baseline:**
+`c19a17d8` on 2026-09-29: `Target` still rejects `dns:///` /
+`passthrough:///` / `xds:///` for the `host:port` pool, the opt-in
+resolver path (`balance_list` / `balance_channel` / `connect_tls_uri`)
+is additive, and `cargo test -p pbrs-grpc --test resolver` is 33/33
+green including the t0-t7 timelines.
 **Depends on:** RT-03's absolute call deadline and RT-08's bounded drain.
 Implementation is split across CH-02 (resolution), CH-04 (`pick_first`) and
 CH-03 (`round_robin` selection) in [the task register](plan/world-class/tasks.json);
