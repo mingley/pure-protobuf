@@ -3756,7 +3756,11 @@
     "D8"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/h2-costs.md",
+    "docs/decisions/h2-engine.md"
+   ]
   },
   {
    "id": "H2-02",
@@ -8051,6 +8055,54 @@
    "evidence": [
     "pbrs-grpc/tests/reflection.rs"
    ]
+  },
+  {
+   "id": "RX-08",
+   "title": "Cut Tokio scheduling and wakeups per RPC",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "H2-01"
+   ],
+   "read": [
+    "docs/evidence/h2-costs.md",
+    "docs/evidence/client-profiles.md",
+    "docs/evidence/server-profiles.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/server/dispatch.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/stream.rs",
+    "pbrs-grpc/src/wire/send.rs",
+    "pbrs-grpc/src/wire/out_batch.rs",
+    "docs/evidence/rx-08.md"
+   ],
+   "deliverable": "H2-01 attributes 54-59% of per-RPC instructions to Tokio and about 8 involuntary context switches per unary RPC. Attribute that cost to pbrs-grpc call sites (spawns, oneshot/mpsc/watch hops, Notify, wakers) and remove avoidable tasks, channel hops and wakeups on client and server without changing cancellation, deadline, drain or fairness semantics.",
+   "accept": [
+    "Instructions and allocations per unary and streaming RPC fall on dev-loop evidence (>=2% rule) with no regression; cancellation, deadline, drain, retry-safety and overload tests pass unchanged."
+   ],
+   "checks": [
+    "clippy"
+   ],
+   "scoreboard": [
+    "C1",
+    "C2",
+    "C5",
+    "D2",
+    "D4"
+   ],
+   "relates": [
+    "SV-03",
+    "CL-02",
+    "CL-05"
+   ],
+   "status": "in_progress"
   }
  ]
 }
