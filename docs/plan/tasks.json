@@ -3836,6 +3836,54 @@
         "Record peer identity, cryptographic/provider review, external handshaker trust and platform/access requirements; ALTS is not mislabeled ordinary TLS.",
         "Define a narrow EX-19 adapter only if an approved Rust record layer exists. Otherwise add reviewed record-layer/handshake leaf cards and keep the full-profile gate blocked."
       ],
+      "checks": [],
+      "status": "done",
+      "notes": "2026-09-29 coordinator: decided boundary (no Rust provider; pinned runner has no Rust ALTS procedure). Leaf cards EX-18a/EX-18b added; alts_credentials stays unsupported; EX-19 gated on the leaf cards.",
+      "evidence": [
+        "docs/alts-contract.md"
+      ]
+    },
+    {
+      "id": "EX-18a",
+      "title": "Review and select a Rust ALTS record layer",
+      "wave": 4,
+      "executor": "small",
+      "depends_on": [
+        "EX-18"
+      ],
+      "read": [
+        "docs/alts-contract.md",
+        "third_party/grpc/src/core/tsi/alts"
+      ],
+      "write": [
+        "docs/evidence/alts-record-review.md"
+      ],
+      "deliverable": "Survey maintained pure-Rust ALTS record/handshake options (reuse or bounded new implementation); full cryptographic and supply-chain review of the selected option.",
+      "accept": [
+        "Selected option has reviewed record framing, nonce/key discipline, handshake state machine, memory safety, MSRV, license and transitive graph; review recorded.",
+        "No dependency added before approval; if no option qualifies, record the blocker instead of commissioning an unbounded rewrite."
+      ],
+      "checks": []
+    },
+    {
+      "id": "EX-18b",
+      "title": "Prove the ALTS handshaker client and platform",
+      "wave": 4,
+      "executor": "small",
+      "depends_on": [
+        "EX-18a"
+      ],
+      "read": [
+        "docs/alts-contract.md"
+      ],
+      "write": [
+        "docs/evidence/alts-platform.md"
+      ],
+      "deliverable": "Document the approved handshaker endpoint, isolation proof, failure semantics, and the operator-approved GCE-class environment for ALTS qualification.",
+      "accept": [
+        "Endpoint, reachable identities, isolation and failure semantics (unreachable/slow/unknown-identity fail loudly, no plaintext fallback) recorded.",
+        "Fake local handshakers labeled mechanics-only, never interop evidence; real runs gated on operator approval."
+      ],
       "checks": []
     },
     {
@@ -3845,6 +3893,8 @@
       "executor": "coordinator",
       "depends_on": [
         "EX-18",
+        "EX-18a",
+        "EX-18b",
         "EX-04"
       ],
       "read": [
