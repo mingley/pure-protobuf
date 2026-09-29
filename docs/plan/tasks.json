@@ -1109,8 +1109,11 @@
       ],
       "checks": [],
       "evidence": [
-        "Partial 2026-09-23: docs/rust-frontend.md reviews protox 0.9.1, protobuf-parse 3.7.2 and protofish 0.5.3 from dated source; none covers the full Edition 2023/2024 and import-option contract. No dependency was added. Maintainer approval of any reduced profile and a transitive license/MSRV/FFI review remain necessary before CG-17."
-      ]
+        "Partial 2026-09-23: docs/rust-frontend.md reviews protox 0.9.1, protobuf-parse 3.7.2 and protofish 0.5.3 from dated source; none covers the full Edition 2023/2024 and import-option contract. No dependency was added. Maintainer approval of any reduced profile and a transitive license/MSRV/FFI review remain necessary before CG-17.",
+        "Closed 2026-09-29 by GN-05 route decision (upstream-first protox contribution, bounded slices) + GN-08 differential fixtures (202 entries, 606/606 baseline green): docs/decisions/rust-frontend-route.md, tests/frontend_corpus/corpus.json. No dependency installed."
+      ],
+      "status": "done",
+      "notes": "2026-09-29 coordinator: satisfied by GN-05 (selection + bounded adapter contract) and GN-08 (differential fixtures). Transitive audit + maintainer approval still gate CG-17."
     },
     {
       "id": "CG-17",

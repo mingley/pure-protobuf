@@ -3114,7 +3114,12 @@
     "F1"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 coordinator: integrated 38cabe1b (184 vendored protos + pins/licenses + harness). Verified: 202x3 baseline reproduces at 606/606 with reused pinned protoc, no network; reruns byte-identical. CG-16 closer: differential fixtures now exist.",
+   "evidence": [
+    "tests/frontend_corpus/EVIDENCE.md",
+    "tests/frontend_corpus/corpus.json"
+   ]
   },
   {
    "id": "GN-09",
