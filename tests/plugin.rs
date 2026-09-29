@@ -3180,6 +3180,75 @@ fn edition2024_extension_fields_remain_unknown_until_typed_api() {
 }
 
 #[test]
+fn edition2024_original_shared_extension_suite_is_empty_at_pin() {
+    // CG-14 original shared-test evidence. The pinned upstream shared suite
+    // has no runnable Edition 2024 extension cases: at v35.1
+    // rust/test/shared/extensions_test.rs is a license-only stub (the vendored
+    // copy below is byte-identical to third_party/protobuf at the pinned SHA).
+    // The applicable original evidence is therefore the Edition 2024
+    // rust/test/extensions.proto schema itself: every declared extension must
+    // resolve in the checked preview descriptor set.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let stub =
+        std::fs::read_to_string(root.join("vendor/google/rust-tests/shared/extensions_test.rs"))
+            .expect("vendored original extensions_test.rs");
+    assert!(
+        !stub.contains("#[test]")
+            && !stub.contains("fn ")
+            && !stub.contains("gtest")
+            && !stub.contains("test_"),
+        "pinned original extensions_test.rs gained runnable cases: {stub}"
+    );
+    let preview = std::fs::read(root.join("tests/fixtures/edition2024/fds/cg14_preview.fds"))
+        .expect("checked Edition 2024 supplemental descriptor set");
+    let pool = pbrs::DescriptorPool::from_file_descriptor_set(&preview)
+        .expect("checked preview descriptor resolves");
+    assert_eq!(
+        pool.file_edition("rust/test/extensions.proto"),
+        Some(1001),
+        "original extension schema must be Edition 2024"
+    );
+    let host = "third_party_protobuf_rust_test.TestExtensions";
+    assert!(
+        pool.get_message(host).is_some(),
+        "missing original extension host {host}"
+    );
+    assert_eq!(
+        pool.extension_numbers_of(host),
+        vec![
+            1, 2, 11, 12, 13, 14, 15, 16, 20, 30, 31, 100, 500, 801, 802, 803, 811, 812, 813, 814,
+            815, 816, 830
+        ],
+        "every original extension number must resolve"
+    );
+    for (full, number) in [
+        ("third_party_protobuf_rust_test.i32_extension", 1),
+        ("third_party_protobuf_rust_test.str_extension", 2),
+        ("third_party_protobuf_rust_test.submessage_extension", 20),
+        (
+            "third_party_protobuf_rust_test.repeated_enum_extension",
+            830,
+        ),
+        ("third_party_protobuf_rust_test.closed_enum_extension", 31),
+        (
+            "third_party_protobuf_rust_test.TestExtensions.nested_extension",
+            500,
+        ),
+    ] {
+        let (desc, field) = pool
+            .get_extension(full)
+            .unwrap_or_else(|| panic!("missing original extension {full}"));
+        assert_eq!(desc.full_name, host);
+        assert_eq!(field.number, number, "wrong number for {full}");
+        assert_eq!(
+            pool.file_for_extension(host, number),
+            Some("rust/test/extensions.proto"),
+            "wrong declaring file for {full}"
+        );
+    }
+}
+
+#[test]
 #[ignore = "requires protoc 36.1 for Edition 2024 source syntax; run explicitly with the pinned source compiler"]
 fn edition2024_rejected_source_fixtures_fail_in_protoc() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -3321,16 +3390,16 @@ fn response_maximum_edition(response: &[u8]) -> Option<u64> {
 }
 
 #[test]
-fn edition2024_plugin_cap_remains_2023() {
+fn edition2024_plugin_cap_is_2024() {
     assert_eq!(
         response_maximum_edition(&pbrs::codegen::encode_code_generator_response(&[])),
-        Some(1000)
+        Some(1001)
     );
     assert_eq!(
         response_maximum_edition(&pbrs::codegen::encode_code_generator_response_error(
             "unsupported"
         )),
-        Some(1000)
+        Some(1001)
     );
 }
 
@@ -3575,6 +3644,238 @@ mod checks {
         assert_eq!(sub.i32_field(), 123);
         Ok(())
     }
+
+    fn typed_serialize<T>(wire: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+    where
+        T: pbrs::Parse + pbrs::Serialize,
+    {
+        let parsed = <T as pbrs::Parse>::parse(wire)?;
+        Ok(pbrs::Serialize::serialize(&parsed)?)
+    }
+
+    fn dynamic_serialize(
+        fds: &[u8],
+        message: &str,
+        wire: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let pool = std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(fds)?);
+        let desc = pool.get_message(message).ok_or("missing differential message")?;
+        let parsed = pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), wire)?;
+        Ok(pbrs::Serialize::serialize(&parsed)?)
+    }
+
+    #[test]
+    fn pinned_vectors_agree_between_typed_and_dynamic() -> Result<(), Box<dyn std::error::Error>> {
+        // Overrides vectors need the required-field prefix in canonical
+        // field-number order before they parse.
+        let implicit = [
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/overrides_implicit_set.bin")
+                .as_slice(),
+            &[0x10, 0x01][..],
+        ]
+        .concat();
+        let expanded = [
+            &[0x10, 0x01][..],
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/overrides_expanded_repeated.bin")
+                .as_slice(),
+        ]
+        .concat();
+        let delimited = [
+            &[0x10, 0x01][..],
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/overrides_delimited_message.bin")
+                .as_slice(),
+        ]
+        .concat();
+        let ext_wire: &[u8] =
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/extensions_populated.bin");
+
+        // Every pinned vector must survive a typed parse/serialize and a
+        // dynamic parse/serialize byte-identically.
+        let zero: &[u8] =
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/defaults_zero_set.bin");
+        assert_eq!(typed_serialize::<edition2024::defaults::DefaultMessage>(zero)?.as_slice(), zero);
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::defaults::FILE_DESCRIPTOR_SET,
+                "edition2024.defaults.DefaultMessage",
+                zero
+            )?.as_slice(),
+            zero
+        );
+        let full: &[u8] =
+            include_bytes!("@ROOT@/tests/fixtures/edition2024/bin/defaults_populated.bin");
+        assert_eq!(typed_serialize::<edition2024::defaults::DefaultMessage>(full)?.as_slice(), full);
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::defaults::FILE_DESCRIPTOR_SET,
+                "edition2024.defaults.DefaultMessage",
+                full
+            )?.as_slice(),
+            full
+        );
+        assert_eq!(
+            typed_serialize::<edition2024::overrides::OverridesMessage>(&implicit)?.as_slice(),
+            implicit.as_slice()
+        );
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::overrides::FILE_DESCRIPTOR_SET,
+                "edition2024.overrides.OverridesMessage",
+                &implicit
+            )?.as_slice(),
+            implicit.as_slice()
+        );
+        assert_eq!(
+            typed_serialize::<edition2024::overrides::OverridesMessage>(&expanded)?.as_slice(),
+            expanded.as_slice()
+        );
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::overrides::FILE_DESCRIPTOR_SET,
+                "edition2024.overrides.OverridesMessage",
+                &expanded
+            )?.as_slice(),
+            expanded.as_slice()
+        );
+        assert_eq!(
+            typed_serialize::<edition2024::overrides::OverridesMessage>(&delimited)?.as_slice(),
+            delimited.as_slice()
+        );
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::overrides::FILE_DESCRIPTOR_SET,
+                "edition2024.overrides.OverridesMessage",
+                &delimited
+            )?.as_slice(),
+            delimited.as_slice()
+        );
+        assert_eq!(
+            typed_serialize::<edition2024::extensions::ExtendableMessage>(ext_wire)?.as_slice(),
+            ext_wire
+        );
+        assert_eq!(
+            dynamic_serialize(
+                edition2024::extensions::FILE_DESCRIPTOR_SET,
+                "edition2024.extensions.ExtendableMessage",
+                ext_wire
+            )?.as_slice(),
+            ext_wire
+        );
+
+        // Typed and dynamic views of the populated extensions agree field by field.
+        let pool = std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(
+            edition2024::extensions::FILE_DESCRIPTOR_SET,
+        )?);
+        let desc = pool
+            .get_message("edition2024.extensions.ExtendableMessage")
+            .ok_or("missing extension host")?;
+        let dynamic = pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), ext_wire)?;
+        assert_eq!(dynamic.get_singular(1), Some(&pbrs::Value::Int32(1)));
+        assert_eq!(dynamic.get_extension(101), Some(&pbrs::Value::Int32(101)));
+        assert_eq!(
+            dynamic.get_extension(102),
+            Some(&pbrs::Value::String("ext".into()))
+        );
+        assert_eq!(
+            dynamic.get_repeated(103),
+            Some([pbrs::Value::Int32(7), pbrs::Value::Int32(8)].as_slice())
+        );
+        assert!(
+            matches!(dynamic.get_extension(104), Some(pbrs::Value::Message(_))),
+            "missing ext_submessage"
+        );
+        assert_eq!(dynamic.get_extension(105), Some(&pbrs::Value::Enum(1)));
+        assert_eq!(dynamic.get_extension(106), Some(&pbrs::Value::Int32(99)));
+        Ok(())
+    }
+
+    #[test]
+    fn original_extensions_preserve_all_wire_types() -> Result<(), Box<dyn std::error::Error>> {
+        // One field of every original extension kind in canonical order:
+        // singular scalars, strings, submessage, defaults, packed repeated
+        // scalars, open and closed enums, and the nested-scoped extension.
+        let wire: &[u8] = &[
+            0x08, 0xAC, 0x02, // 1: i32_extension = 300
+            0x12, 0x03, b'f', b'o', b'o', // 2: str_extension = "foo"
+            0x58, 0xAC, 0x02, // 11: i64_extension = 300
+            0x60, 0xAC, 0x02, // 12: u32_extension = 300
+            0x68, 0xAC, 0x02, // 13: u64_extension = 300
+            0x75, 0x00, 0x00, 0xC0, 0x3F, // 14: f32_extension = 1.5
+            0x79, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x3F, // 15: f64 = 1.5
+            0x80, 0x01, 0x01, // 16: bool_extension = true
+            0xA2, 0x01, 0x02, 0x08, 0x7B, // 20: submessage_extension { i32_field: 123 }
+            0xF0, 0x01, 0x01, // 30: enum_extension = BAR
+            0xF8, 0x01, 0x01, // 31: closed_enum_extension = CLOSED_ONE
+            0xA0, 0x06, 0x2A, // 100: i32_extension_with_default = 42
+            0xA0, 0x1F, 0x07, // 500: nested_extension = 7
+            0x8A, 0x32, 0x03, 0x07, 0xAC, 0x02, // 801: packed [7, 300]
+            0xDA, 0x32, 0x03, 0x01, 0xAC, 0x02, // 811: packed [1, 300]
+            0xF2, 0x33, 0x02, 0x00, 0x01, // 830: packed [FOO, BAR]
+        ];
+        let typed = <third_party_protobuf_rust_test::TestExtensions as pbrs::Parse>::parse(wire)?;
+        assert_eq!(pbrs::Serialize::serialize(&typed)?.as_slice(), wire);
+        let pool = std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(
+            third_party_protobuf_rust_test::FILE_DESCRIPTOR_SET,
+        )?);
+        let desc = pool
+            .get_message("third_party_protobuf_rust_test.TestExtensions")
+            .ok_or("missing original extension host")?;
+        let dynamic = pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), wire)?;
+        assert_eq!(dynamic.get_extension(1), Some(&pbrs::Value::Int32(300)));
+        assert_eq!(
+            dynamic.get_extension(2),
+            Some(&pbrs::Value::String("foo".into()))
+        );
+        assert_eq!(dynamic.get_extension(11), Some(&pbrs::Value::Int64(300)));
+        assert_eq!(dynamic.get_extension(12), Some(&pbrs::Value::Uint32(300)));
+        assert_eq!(dynamic.get_extension(13), Some(&pbrs::Value::Uint64(300)));
+        assert_eq!(dynamic.get_extension(14), Some(&pbrs::Value::Float(1.5)));
+        assert_eq!(dynamic.get_extension(15), Some(&pbrs::Value::Double(1.5)));
+        assert_eq!(dynamic.get_extension(16), Some(&pbrs::Value::Bool(true)));
+        assert!(
+            matches!(dynamic.get_extension(20), Some(pbrs::Value::Message(_))),
+            "missing submessage_extension"
+        );
+        assert_eq!(dynamic.get_extension(30), Some(&pbrs::Value::Enum(1)));
+        assert_eq!(dynamic.get_extension(31), Some(&pbrs::Value::Enum(1)));
+        assert_eq!(dynamic.get_extension(100), Some(&pbrs::Value::Int32(42)));
+        assert_eq!(dynamic.get_extension(500), Some(&pbrs::Value::Int32(7)));
+        assert_eq!(
+            dynamic.get_repeated(801),
+            Some([pbrs::Value::Int32(7), pbrs::Value::Int32(300)].as_slice())
+        );
+        assert_eq!(
+            dynamic.get_repeated(811),
+            Some([pbrs::Value::Int64(1), pbrs::Value::Int64(300)].as_slice())
+        );
+        assert_eq!(
+            dynamic.get_repeated(830),
+            Some([pbrs::Value::Enum(0), pbrs::Value::Enum(1)].as_slice())
+        );
+        assert_eq!(pbrs::Serialize::serialize(&dynamic)?.as_slice(), wire);
+
+        // Unpacked repeated extensions still parse; dynamic re-emits packed.
+        let unpacked: &[u8] = &[0xD8, 0x32, 0x01, 0xD8, 0x32, 0xAC, 0x02];
+        let typed =
+            <third_party_protobuf_rust_test::TestExtensions as pbrs::Parse>::parse(unpacked)?;
+        assert_eq!(pbrs::Serialize::serialize(&typed)?.as_slice(), unpacked);
+        let pool = std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(
+            third_party_protobuf_rust_test::FILE_DESCRIPTOR_SET,
+        )?);
+        let desc = pool
+            .get_message("third_party_protobuf_rust_test.TestExtensions")
+            .ok_or("missing original extension host")?;
+        let dynamic = pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), unpacked)?;
+        assert_eq!(
+            dynamic.get_repeated(811),
+            Some([pbrs::Value::Int64(1), pbrs::Value::Int64(300)].as_slice())
+        );
+        assert_eq!(
+            pbrs::Serialize::serialize(&dynamic)?.as_slice(),
+            &[0xDA, 0x32, 0x03, 0x01, 0xAC, 0x02]
+        );
+        Ok(())
+    }
 }
 "###
     .replace("@ROOT@", root.to_str().expect("UTF-8 repository path"));
@@ -3601,7 +3902,7 @@ mod checks {
         );
         if subcommand == "test" {
             assert!(
-                String::from_utf8_lossy(&result.stdout).contains("7 passed; 0 failed"),
+                String::from_utf8_lossy(&result.stdout).contains("9 passed; 0 failed"),
                 "Edition 2024 consumer cases did not all run: {}",
                 String::from_utf8_lossy(&result.stdout)
             );
@@ -3655,14 +3956,11 @@ fn edition2024_direct_generation_enforces_imported_visibility() {
     }
 }
 
-#[test]
-fn edition2024_plugin_binary_keeps_advertised_cap() {
-    use std::io::Write;
-    use std::process::Stdio;
-
-    let fds = include_bytes!("fixtures/edition2024/fds/defaults.fds");
+fn edition2024_plugin_request(targets: &[&str], fds: &[u8]) -> Vec<u8> {
     let mut request = Vec::new();
-    pbrs::rt::encode_len_field(&mut request, 1, b"defaults.proto");
+    for target in targets {
+        pbrs::rt::encode_len_field(&mut request, 1, target.as_bytes());
+    }
     let mut pos = 0;
     while pos < fds.len() {
         let (number, wire) = pbrs::rt::decode_tag(fds, &mut pos).unwrap();
@@ -3673,6 +3971,13 @@ fn edition2024_plugin_binary_keeps_advertised_cap() {
             pbrs::rt::read_len_bytes(fds, &mut pos).unwrap(),
         );
     }
+    request
+}
+
+fn run_plugin_bin(request: &[u8]) -> std::process::Output {
+    use std::io::Write;
+    use std::process::Stdio;
+
     let mut child = Command::new(plugin_bin())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -3683,33 +3988,197 @@ fn edition2024_plugin_binary_keeps_advertised_cap() {
         .stdin
         .take()
         .expect("plugin stdin")
-        .write_all(&request)
+        .write_all(request)
         .expect("send checked CodeGeneratorRequest");
-    let result = child
+    child
         .wait_with_output()
-        .expect("read CodeGeneratorResponse");
+        .expect("read CodeGeneratorResponse")
+}
+
+fn plugin_response_files_and_error(response: &[u8]) -> (usize, Option<Vec<u8>>) {
+    let mut pos = 0;
+    let mut files = 0;
+    let mut error = None;
+    while pos < response.len() {
+        let (number, wire) = pbrs::rt::decode_tag(response, &mut pos).unwrap();
+        if number == 1 && wire == pbrs::rt::WIRE_LEN {
+            error = Some(
+                pbrs::rt::read_len_bytes(response, &mut pos)
+                    .unwrap()
+                    .to_vec(),
+            );
+        } else if number == 15 && wire == pbrs::rt::WIRE_LEN {
+            files += 1;
+            let _ = pbrs::rt::read_len_bytes(response, &mut pos).unwrap();
+        } else {
+            pbrs::rt::skip_field(response, &mut pos, wire).unwrap();
+        }
+    }
+    (files, error)
+}
+
+#[test]
+fn edition2024_plugin_binary_advertises_2024_for_qualified_consumers() {
+    let preview: &[u8] = include_bytes!("fixtures/edition2024/fds/cg14_preview.fds");
+    for (targets, fds) in [
+        (
+            &["defaults.proto"] as &[&str],
+            include_bytes!("fixtures/edition2024/fds/defaults.fds").as_slice(),
+        ),
+        (
+            &["overrides.proto"],
+            include_bytes!("fixtures/edition2024/fds/overrides.fds").as_slice(),
+        ),
+        (
+            &["inheritance.proto"],
+            include_bytes!("fixtures/edition2024/fds/inheritance.fds").as_slice(),
+        ),
+        (
+            &["visibility.proto"],
+            include_bytes!("fixtures/edition2024/fds/visibility.fds").as_slice(),
+        ),
+        (
+            &["extensions.proto"],
+            include_bytes!("fixtures/edition2024/fds/extensions.fds").as_slice(),
+        ),
+        (
+            &[
+                "legacy_style.proto",
+                "maps.proto",
+                "maps_none.proto",
+                "rust/test/extensions.proto",
+            ] as &[&str],
+            preview,
+        ),
+    ] {
+        let request = edition2024_plugin_request(targets, fds);
+        let result = run_plugin_bin(&request);
+        assert!(
+            result.status.success(),
+            "plugin process failed for {targets:?}: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(
+            response_maximum_edition(&result.stdout),
+            Some(1001),
+            "advertised cap for {targets:?}"
+        );
+        let (files, error) = plugin_response_files_and_error(&result.stdout);
+        assert!(
+            error.is_none(),
+            "plugin returned an error for {targets:?}: {error:?}"
+        );
+        assert!(
+            files > 0,
+            "qualified Edition 2024 request generated no files for {targets:?}"
+        );
+    }
+}
+
+#[test]
+fn edition2024_plugin_binary_rejects_closed_collections_cleanly() {
+    let fds: &[u8] = include_bytes!("fixtures/edition2024/fds/closed_enum.fds");
+    let request = edition2024_plugin_request(&["closed_enum.proto"], fds);
+    let result = run_plugin_bin(&request);
     assert!(
         result.status.success(),
         "plugin process failed: {}",
         String::from_utf8_lossy(&result.stderr)
     );
-    assert_eq!(response_maximum_edition(&result.stdout), Some(1000));
-    let mut pos = 0;
-    let mut files = 0;
-    let mut error = None;
-    while pos < result.stdout.len() {
-        let (number, wire) = pbrs::rt::decode_tag(&result.stdout, &mut pos).unwrap();
-        if number == 1 && wire == pbrs::rt::WIRE_LEN {
-            error = Some(pbrs::rt::read_len_bytes(&result.stdout, &mut pos).unwrap());
-        } else if number == 15 && wire == pbrs::rt::WIRE_LEN {
-            files += 1;
-            let _ = pbrs::rt::read_len_bytes(&result.stdout, &mut pos).unwrap();
-        } else {
-            pbrs::rt::skip_field(&result.stdout, &mut pos, wire).unwrap();
-        }
+    assert_eq!(response_maximum_edition(&result.stdout), Some(1001));
+    let (files, error) = plugin_response_files_and_error(&result.stdout);
+    assert_eq!(files, 0, "closed collections must not generate files");
+    let raw = error.expect("closed collections must fail with an error");
+    let error = String::from_utf8_lossy(&raw);
+    assert!(
+        error.contains("closed enum in repeated/map field"),
+        "unexpected closed-collection error: {error}"
+    );
+}
+
+#[test]
+fn edition2024_protoc_negotiates_2024_plugin_support() {
+    // End-to-end proof that a 2024-capable protoc sends Edition 2024 files to
+    // protoc-gen-pbrs now that the plugin advertises maximum_edition = 1001.
+    // Capability-gated: environments whose protoc cannot compile Edition 2024
+    // source skip; the checked-FDS tests cover the semantics hermetically.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let proto_dir = root.join("tests/fixtures/edition2024/proto");
+    let probe = root.join(format!(
+        "target/plugin-edition2024-probe-{}.fds",
+        std::process::id()
+    ));
+    let probe_result = Command::new("protoc")
+        .arg("-I")
+        .arg(&proto_dir)
+        .arg(format!("--descriptor_set_out={}", probe.display()))
+        .arg("defaults.proto")
+        .output()
+        .expect("probe installed protoc for Edition 2024 source support");
+    if !probe_result.status.success() {
+        eprintln!(
+            "skipping Edition 2024 plugin negotiation: installed protoc cannot compile Edition 2024 source: {}",
+            String::from_utf8_lossy(&probe_result.stderr)
+        );
+        let _ = std::fs::remove_file(&probe);
+        return;
     }
-    assert!(error.is_none(), "plugin returned an error: {error:?}");
-    assert!(files > 0, "preview generated no descriptor-set files");
+    let _ = std::fs::remove_file(&probe);
+
+    let tmp = root.join(format!(
+        "target/plugin-edition2024-negotiate-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).expect("negotiation scratch");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("-I")
+        .arg(&proto_dir)
+        .arg("defaults.proto")
+        .status()
+        .expect("run protoc with pbrs plugin on Edition 2024 source");
+    assert!(
+        status.success(),
+        "protoc refused the Edition 2024 plugin request"
+    );
+    let generated =
+        std::fs::read_to_string(tmp.join("defaults.rs")).expect("generated defaults.rs");
+    assert!(
+        generated.contains("pub struct DefaultMessage"),
+        "missing DefaultMessage:\n{generated}"
+    );
+    assert!(
+        generated.contains("pub struct DefaultEnum(pub i32);"),
+        "missing DefaultEnum:\n{generated}"
+    );
+
+    // The fail-closed subset still fails loudly through real negotiation.
+    let output = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("-I")
+        .arg(&proto_dir)
+        .arg("closed_enum.proto")
+        .output()
+        .expect("run protoc with pbrs plugin on closed_enum source");
+    assert!(
+        !output.status.success(),
+        "closed_enum unexpectedly generated"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("closed enum in repeated/map field"),
+        "closed_enum did not fail for its approved reason: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
 }
 
 #[test]

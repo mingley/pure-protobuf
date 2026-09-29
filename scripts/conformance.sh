@@ -35,6 +35,16 @@ if [[ "$(command -v protoc)" != "$PROTOC" ]]; then
   exit 1
 fi
 echo "using cmake protoc: $PROTOC ($("$PROTOC" --version))"
+# CG-14: the qualification ceiling at this pin is max-2023. The pinned
+# conformance runner has no Edition 2024 cases at all, so a 2024 run would be
+# case-identical to the 2023 baseline and cannot serve as 2024 evidence.
+# Fail loudly if a future pin introduces 2024 cases instead of silently
+# under-claiming coverage; see docs/edition-2024.md section 8.
+if grep -rni "edition[_]*2024" "$ROOT/third_party/protobuf/conformance/" 2>/dev/null | grep -q .; then
+  echo "pinned conformance runner gained Edition 2024 cases; revisit CG-14 2024 qualification" >&2
+  exit 1
+fi
+echo "pinned conformance runner has no Edition 2024 cases; max-2023 remains the qualification ceiling"
 OUT="${CONFORMANCE_OUTPUT_DIR:-$ROOT/target/conformance-out}"
 OUT_REQ1="$OUT/required_1"
 OUT_REQ2="$OUT/required_2"

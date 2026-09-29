@@ -913,7 +913,7 @@ pub fn encode_code_generator_response(files: &[(String, String)]) -> Vec<u8> {
     // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
     encode_varint_field(&mut out, 2, 3);
     encode_varint_field(&mut out, 3, 998); // EDITION_PROTO2
-    encode_varint_field(&mut out, 4, 1000); // EDITION_2023
+    encode_varint_field(&mut out, 4, 1001); // EDITION_2024 (CG-14 qualified subset)
     for (name, content) in files {
         let mut file = Vec::new();
         encode_string_field(&mut file, 1, name);
@@ -929,7 +929,7 @@ pub fn encode_code_generator_response_error(error: &str) -> Vec<u8> {
     // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
     encode_varint_field(&mut out, 2, 3);
     encode_varint_field(&mut out, 3, 998); // EDITION_PROTO2
-    encode_varint_field(&mut out, 4, 1000); // EDITION_2023
+    encode_varint_field(&mut out, 4, 1001); // EDITION_2024 (CG-14 qualified subset)
     out
 }
 

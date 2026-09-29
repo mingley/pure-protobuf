@@ -1,6 +1,6 @@
 # Protocol Buffers Edition 2024 Semantic Contract & Feature Specification
 
-This page defines what Protocol Buffers Edition 2024 means for `pbrs`. It is for Rust developers checking descriptor behavior, generated-code readiness, or feature support. Bottom line: `pbrs` understands the approved Edition 2024 descriptor semantics, but `protoc-gen-pbrs` still advertises Edition 2023 as its maximum generated-code edition.
+This page defines what Protocol Buffers Edition 2024 means for `pbrs`. It is for Rust developers checking descriptor behavior, generated-code readiness, or feature support. Bottom line: `pbrs` understands the approved Edition 2024 descriptor semantics, and `protoc-gen-pbrs` advertises Edition 2024 as its maximum generated-code edition for the CG-14 qualified subset. Repeated/map closed enums stay fail-closed and typed extension accessors remain `CG-14b`, so these exclusions block a full Edition 2024 claim.
 
 ---
 
@@ -13,7 +13,7 @@ Protocol Buffers Edition 2024 uses:
 
 This document is the semantic contract for Edition 2024 in `pure-protobuf` (`pbrs`). It covers defaults, inheritance, visibility, naming, extensions, and language-specific options needed for conformance with upstream Protocol Buffers (`protocolbuffers/protobuf@v35.1` / `v36.1`) without relying on the C++ / upb kernel.
 
-This is **not** Rust language Edition 2024 in `Cargo.toml`. Switching a crate's Rust edition does not enable Protobuf Edition 2024 generation. The plugin's advertised maximum remains Edition 2023.
+This is **not** Rust language Edition 2024 in `Cargo.toml`. Switching a crate's Rust edition does not enable Protobuf Edition 2024 generation. The plugin's advertised maximum is Edition 2024 (`1001`) for the qualified subset; inputs outside it fail loudly instead of generating code.
 
 ### Deliverables & Contract Boundary
 
@@ -25,7 +25,7 @@ This is **not** Rust language Edition 2024 in `Cargo.toml`. Switching a crate's 
 6. **Implementation Mapping & Task Decomposition.** Every upstream feature mapped to existing code, bounded implementation slices (`CG-13`, `CG-14`), or explicit blockers.
 7. **Approved Fixtures & Oracles.** Test schemas, compiled descriptor sets (`.fds`), wire-format vectors (`.bin`), and negative rejection suites in `tests/fixtures/edition2024/`.
 
-> **Constraint invariant:** `maximum_edition` in `src/codegen.rs` remains frozen at `1000` (`EDITION_2023`) through `CG-13`. Raising it to `1001` is reserved for `CG-14`, only after descriptor resolution semantics and differential test evidence are complete.
+> **Constraint invariant (satisfied by `CG-14`):** `maximum_edition` in `src/codegen.rs` stayed frozen at `1000` (`EDITION_2023`) through `CG-13`. It was raised to `1001` (`EDITION_2024`) only after descriptor resolution semantics plus the differential and original shared-test evidence in §8 were complete. Any future exclusion added to the qualified subset must re-freeze or re-qualify the cap; a numeric bump alone never qualifies.
 
 ---
 
@@ -251,7 +251,7 @@ Under `enforce_naming_style = STYLE2024`, the required casing is:
 - RPC Methods: `TitleCase`.
 - Enum Values: `SCREAMING_SNAKE_CASE`.
 
-`DescriptorPool` validates inherited naming options in Edition 2024 descriptors. The generator still advertises Edition 2023 as its maximum, so generated Edition 2024 consumers remain a separate `CG-14` qualification.
+`DescriptorPool` validates inherited naming options in Edition 2024 descriptors. Generated Edition 2024 consumers are qualified under `CG-14` (§8): the generator advertises Edition 2024 and compiles the approved naming, visibility, and extension consumers, while nonconforming names and unqualified subsets still fail before generation.
 
 The RPC method rule was verified with `libprotoc 36.1` on 2026-09-23: `bad_method` is rejected with a `TitleCase` diagnostic, while `GoodMethod` is accepted. The independently runnable Edition 2023 conformance baseline remains pinned to v35.1.
 
@@ -305,8 +305,8 @@ Google's official `rust_upb` implementation has an empty typed extension test st
 In `pure-protobuf`:
 
 - `src/codegen.rs` does not currently emit typed extension constants or extension accessors on generated structs.
-- Extension fields parsed on typed messages are retained in the `UnknownFields` bag and can be inspected through dynamic reflection.
-- Typed extension accessors, such as `msg.get(&ext_int32)`, are a separate codegen enhancement scoped as `CG-14b`.
+- Extension fields parsed on typed messages are retained in the `UnknownFields` bag and can be inspected through dynamic reflection. `CG-14` qualifies this wire-preserving behavior for the approved fixture extensions and every extension kind in the original `rust/test/extensions.proto` schema (see §8).
+- Typed extension accessors, such as `msg.get(&ext_int32)`, are a separate codegen enhancement scoped as `CG-14b` and block a full Edition 2024 claim until delivered.
 
 ---
 
@@ -349,13 +349,13 @@ Policy for pure-protobuf:
 | `message_encoding = LENGTH_PREFIXED` | `src/dynamic.rs` | Supported (`message_encoding = 1`) | Existing | Standard length-delimited wire encoding |
 | `message_encoding = DELIMITED` | `src/dynamic.rs` | Supported (`message_encoding = 2`, `delimited = true`) | Existing | Verified by `tests/fixtures/edition2024/bin/overrides_delimited_message.bin` |
 | `json_format` | `src/dynamic.rs` | Resolved from File/Message/Enum feature options | **CG-13** | Inheritance and fixture oracles in `tests/dynamic.rs` |
-| `enforce_naming_style = STYLE2024` | `src/dynamic.rs` | Descriptor names validated with inherited overrides; generated consumers pending | **CG-13**, **CG-14** | The plugin still advertises maximum Edition 2023 |
+| `enforce_naming_style = STYLE2024` | `src/dynamic.rs` | Descriptor names validated with inherited overrides; generated consumers qualified | **CG-13**, **CG-14** | The plugin advertises maximum Edition 2024 for the qualified subset |
 | `default_symbol_visibility` | `src/dynamic.rs` | Resolved from file features | **CG-13** | Nested defaults and file overrides checked in `tests/dynamic.rs` |
 | `export` / `local` keywords | `src/dynamic.rs` | Parsed on Message/Enum and enforced for cross-file references | **CG-13** | Local imports rejected by fixture tests |
 | Extension Ranges & Declarations | `src/dynamic.rs` | Supported (`parse_extension_range`, `collect_raw`) | Existing | Fully parsed into `MessageDescriptor.extension_ranges` |
 | Dynamic Extension Access | `src/dynamic.rs` | Supported (`get_extension`, `set_extension`) | Existing | Verified by `tests/json_text_ext.rs` |
 | Typed Extension Codegen | `src/codegen.rs` | Not implemented; matches upstream `rust_upb` stub | **CG-14b** | Split task card for typed extension accessors |
-| Plugin Supported Edition Range | `src/codegen.rs` | Pinned to `EDITION_2023` (`1000`) | **CG-14** | Bump `maximum_edition = 1001` upon qualification |
+| Plugin Supported Edition Range | `src/codegen.rs` | Advertises `EDITION_2024` (`1001`) for the qualified subset | **CG-14** | Raised after differential + original shared evidence; closed collections and `CG-14b` block a full claim |
 
 ### 7.2 Task Card Decomposition
 
@@ -378,11 +378,11 @@ Full Edition 2024 coverage spans descriptor resolution, symbol visibility, gener
                                    │
                                    ▼
        ┌────────────────────────────────────────────────────────┐
-       │ CG-14: Qualify Edition 2024 Generated Consumers         │
-       │ - Raise maximum_edition to 1001 in CodeGeneratorResponse│
-       │ - Compile tests/fixtures/edition2024/proto/ via plugin  │
-       │ - Verify typed message accessors & visibility          │
-       │ - Run full conformance & shared test gates              │
+       │ CG-14: Qualify Edition 2024 Generated Consumers (Done)  │
+       │ - Raised maximum_edition to 1001 in CodeGeneratorResponse│
+       │ - Compiled naming/visibility/extension consumers via plugin│
+       │ - Verified typed accessors, visibility & wire preservation│
+       │ - Differential + original shared evidence; 2023 baseline kept│
        └───────────────────────────┬────────────────────────────┘
                                    │
                                    ▼
@@ -415,19 +415,36 @@ All fixtures in `tests/fixtures/edition2024/` are approved and serve as the immu
 
 All `.fds` and `.bin` artifacts are cryptographically registered in `tests/fixtures/edition2024/expectations.json`. Descriptor parsing or wire encoding regressions fail immediately against these golden oracles.
 
-### 8.3 Bounded Generated-Consumer Preview (CG-14 Pending)
+### 8.3 CG-14 Qualification Evidence (2026-09-29)
 
 The direct descriptor-set generator compiles the five checked Edition 2024 fixtures plus the checked supplemental `fds/cg14_preview.fds` into a strict Rust-language Edition 2024 consumer.
 
-The preview set contains:
+The supplemental set contains:
 
 - retained `STYLE_LEGACY` naming options;
 - verified and unverified string maps;
 - the already-vendored original extension schema.
 
-The focused `tests/plugin.rs` consumer checks presence, inherited overrides, singular closed enums, delimited framing, visibility, checked wire vectors, and both verified and unverified map string entries.
+The `tests/plugin.rs` consumer runs nine cases: presence, inherited overrides, singular closed enums, delimited framing, visibility, checked wire vectors, verified and unverified map string entries, pinned-vector typed/dynamic agreement, and all-wire-type original extension preservation.
 
 Generated map decoders use the resolved key and value features of the map entry. The outer 2024 map field's `utf8_validate` flag is false.
+
+#### Qualified subset
+
+`CG-14` raised `maximum_edition` to `1001` for this qualified subset, evidenced by `tests/plugin.rs`:
+
+- **Naming consumers.** `legacy_style.proto` compiles with inherited `STYLE_LEGACY`; nonconforming names without the opt-out fail before generation (`edition2024_direct_generation_rejects_unknown_feature_and_bad_name`).
+- **Visibility consumers.** Exported and local symbols resolve per `EXPORT_TOP_LEVEL`; cross-file references to local symbols fail (`edition2024_direct_generation_enforces_imported_visibility`).
+- **Extension consumers.** Fixture and original `rust/test/extensions.proto` schemas compile; extension wire bytes round-trip through unknown fields on typed messages and resolve field-by-field through dynamic reflection (`pinned_vectors_agree_between_typed_and_dynamic`, `original_extensions_preserve_all_wire_types`).
+- **Differential agreement.** Every pinned `.bin` vector survives a typed parse/serialize and a dynamic parse/serialize byte-identically, including packed, expanded, delimited, and extension payloads.
+- **Plugin wire contract.** Direct binary `CodeGeneratorRequest` tests prove `protoc-gen-pbrs` reports `maximum_edition = 1001` and emits files for every qualified fixture while returning a descriptive error (no files, no crash) for the fail-closed subset.
+- **Live negotiation.** `edition2024_protoc_negotiates_2024_plugin_support` proves a 2024-capable `protoc` sends Edition 2024 files to the plugin end to end (capability-gated; checked-FDS tests cover the semantics hermetically).
+
+#### Original shared-test evidence
+
+The upstream `rust/test/shared/extensions_test.rs` is a license-only stub at the pinned `v35.1` (`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`); the vendored copy is byte-identical to `third_party/protobuf` at that SHA. There are no runnable original Edition 2024 extension cases, so the applicable original evidence is the Edition 2024 `rust/test/extensions.proto` schema itself: `edition2024_original_shared_extension_suite_is_empty_at_pin` asserts the stub gained no cases and that all 23 declared extension numbers resolve in the checked preview descriptor set. Compiling that schema and checking unknown-extension wire preservation does not qualify typed extension access; that remains `CG-14b`.
+
+#### Exclusions blocking a full 2024 claim
 
 Repeated and map fields with closed enum values are explicitly rejected until their unknown-value semantics are implemented. Extension fields are not emitted as ordinary typed fields; their wire bytes round-trip through unknown fields until `CG-14b` adds typed accessors.
 
@@ -442,11 +459,15 @@ The local C++ reference observations are exact but narrow:
 - unknown packed values move after the known packed field;
 - invalid enum map entries become whole unknown entries.
 
-These are exact **C++ reference** observations. They are not a universal Rust/upb re-encoding contract and do not prove that `pbrs` handles either collection shape.
+These are exact **C++ reference** observations. They are not a universal Rust/upb re-encoding contract and do not prove that `pbrs` handles either collection shape. A reviewed cross-runtime policy and generated Rust tests against the checked vectors must precede removing the guards.
 
-A reviewed cross-runtime policy, generated Rust tests against the checked vectors, and original shared/conformance qualification must precede removing the guards or raising `maximum_edition` above `1000`.
+#### Conformance baseline
 
-The preview FDS was produced once with `libprotoc 36.1` and `--retain_options`. Mandatory Cargo tests consume only its checked bytes. `protoc 36.1` strips source-retention features such as `enforce_naming_style = STYLE_LEGACY` from ordinary descriptor sets. Without retained options, the resolver rejects nonconforming names instead of silently assuming Edition 2023 semantics.
+The pinned `v35.1` conformance runner contains no Edition 2024 cases (its suites top out at `EDITION_2023`), so a 2024 run would be case-identical to the 2023 baseline and cannot serve as 2024 evidence. `scripts/conformance.sh` therefore keeps the `v35.1`/max-2023 baseline as the independently runnable qualification gate and fails loudly if a future pin introduces 2024 cases. 2024-specific conformance qualification is blocked until the runner and the conformance message set grow 2024 coverage.
+
+#### Retained-options note
+
+The supplemental FDS was produced once with `libprotoc 36.1` and `--retain_options`. Mandatory Cargo tests consume only its checked bytes. `protoc 36.1` strips source-retention features such as `enforce_naming_style = STYLE_LEGACY` from ordinary descriptor sets. Without retained options, the resolver rejects nonconforming names instead of silently assuming Edition 2023 semantics.
 
 `Config::compile_protos` does not request `--retain_options` by default.
 
@@ -458,9 +479,3 @@ cargo test --test plugin edition2024_preview_descriptor_matches_pinned_source_co
 ```
 
 The default Rust 2024 consumer, closed-enum, and plugin-cap tests do not invoke `protoc`.
-
-These are descriptor-set consumer proofs, **not** advertised Edition 2024 plugin support. A direct binary `CodeGeneratorRequest` test verifies that `protoc-gen-pbrs` still reports `maximum_edition = 1000`; a compatible `protoc` refuses its Edition 2024 output when run with a compatible compiler.
-
-The upstream `rust/test/shared/extensions_test.rs` is empty. Compiling its Edition 2024 schema and checking unknown-extension wire preservation does not qualify typed extension access.
-
-Full original shared-consumer and pinned differential/conformance evidence, including the independent v35.1/max-2023 baseline, remain required before `CG-14` can raise the cap. The local warm target does not contain the pinned v35.1 compiler or conformance runner. The original shared and full conformance suites were not run in this bounded preview.
