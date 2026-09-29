@@ -103,6 +103,17 @@ Mechanical rewrite table:
 | `client.client_stream(tokio_stream::iter(items)).await?` | `client.client_stream(pbrs_grpc::compat::iter(items)).await?` or pass any `futures_core::Stream<Item = T> + Send + 'static` |
 | `Response::new(stream)` where `stream: Stream<Item = Result<T, Status>>` | unchanged; generated server stubs convert that stream to native `Streaming<T>` |
 
+The repository keeps self-contained ports of Tonic 0.14's examples in
+`pbrs-grpc/tests/compat_fixtures.rs`, with copied protos under
+`pbrs-grpc/tests/fixtures/compat/`. The copied proto files retain the upstream
+gRPC Apache-2.0 headers, and the adapted Rust fixtures retain the Tonic MIT
+attribution.
+
+| Upstream Tonic example sources | Compat fixture | Upstream lines | Fixture lines | Diff count |
+|---|---|---:|---:|---:|
+| `examples/src/helloworld/{server,client}.rs` | `helloworld_compat.rs` | 62 | 57 | +31 / -31 |
+| `examples/src/routeguide/{server,client}.rs` | `routeguide_compat.rs` | 315 | 246 | +135 / -173 |
+
 ---
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)
