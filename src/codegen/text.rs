@@ -72,8 +72,8 @@ pub(crate) fn text_write_value(f: &FieldDescriptor, expr: &str, view: bool) -> S
         | FieldType::Uint32
         | FieldType::Fixed32
         | FieldType::Uint64
-        | FieldType::Fixed64 => format!("out.push_str(&{expr}.to_string())"),
-        _ => format!("out.push_str(&{expr}.to_string())"),
+        | FieldType::Fixed64 => format!("pbrs::text::write_int_lit(out, {expr})"),
+        _ => format!("pbrs::text::write_int_lit(out, {expr})"),
     }
 }
 
@@ -99,7 +99,7 @@ pub(crate) fn text_map_key_write(ty: FieldType, k: &str) -> String {
     match ty {
         FieldType::String => format!("pbrs::text::write_bytes_lit({k}.as_bytes(), out)"),
         FieldType::Bool => format!("out.push_str(if {k} {{ \"true\" }} else {{ \"false\" }})"),
-        _ => format!("out.push_str(&{k}.to_string())"),
+        _ => format!("pbrs::text::write_int_lit(out, {k})"),
     }
 }
 
@@ -126,6 +126,44 @@ pub(crate) fn text_map_val_default(f: &FieldDescriptor) -> String {
         FieldType::Uint64 | FieldType::Fixed64 => "0u64".into(),
         FieldType::Message | FieldType::Group => format!("{}::new()", scalar_type(f)),
         _ => "0i32".into(),
+    }
+}
+
+/// Streaming read expression for one scalar value (`reader` is in scope).
+pub(crate) fn text_read_scalar(f: &FieldDescriptor) -> String {
+    match f.field_type {
+        FieldType::Bool => "reader.read_bool()?".into(),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => "reader.read_i32()?".into(),
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => "reader.read_i64()?".into(),
+        FieldType::Uint32 | FieldType::Fixed32 => "reader.read_u32()?".into(),
+        FieldType::Uint64 | FieldType::Fixed64 => "reader.read_u64()?".into(),
+        FieldType::Float => "reader.read_f32()?".into(),
+        FieldType::Double => "reader.read_f64()?".into(),
+        FieldType::String => "reader.read_string()?".into(),
+        FieldType::Bytes => "reader.read_bytes()?".into(),
+        FieldType::Enum => format!("reader.read_enum({})?", enum_lookup_closure(f)),
+        FieldType::Message | FieldType::Group => {
+            format!(
+                "{{ let close = reader.enter_message()?; let sub = {}::from_text_reader(reader)?; reader.exit_message(close)?; sub }}",
+                scalar_type(f)
+            )
+        }
+    }
+}
+
+/// Owned default for a streaming map key (strings own; scalars copy).
+fn text_stream_map_key_default(ty: FieldType) -> &'static str {
+    match ty {
+        FieldType::String => "String::new()",
+        _ => text_map_key_default(ty),
+    }
+}
+
+/// Owned default for a streaming map value (strings own; the rest match [`text_map_val_default`]).
+fn text_stream_map_val_default(f: &FieldDescriptor) -> String {
+    match f.field_type {
+        FieldType::String => "String::new()".into(),
+        _ => text_map_val_default(f),
     }
 }
 
@@ -156,10 +194,17 @@ pub(crate) fn emit_typed_text(src: &mut String, desc: &MessageDescriptor) {
     );
     let _ = writeln!(
         src,
-        "        Self::from_text_value(&pbrs::text::parse(text)?)"
+        "        let mut reader = pbrs::text::TextReader::new(text);"
     );
+    let _ = writeln!(
+        src,
+        "        let msg = Self::from_text_reader(&mut reader)?;"
+    );
+    let _ = writeln!(src, "        reader.finish()?;");
+    let _ = writeln!(src, "        Ok(msg)");
     let _ = writeln!(src, "    }}");
     emit_write_text(src, desc);
+    emit_from_text_reader(src, desc);
     emit_from_text_value(src, desc);
 }
 
@@ -251,6 +296,169 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
         }
     }
     let _ = writeln!(src, "        Ok(())");
+    let _ = writeln!(src, "    }}");
+}
+
+pub(crate) fn emit_from_text_reader(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    pub fn from_text_reader(reader: &mut pbrs::text::TextReader<'_>) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(
+        src,
+        "        while let Some(field) = reader.next_field()? {{"
+    );
+    let _ = writeln!(src, "            match field.name() {{");
+    for f in desc.fields.values() {
+        let id = field_id(f);
+        let m = field_raw(f);
+        let name = rust_str(&f.name);
+        let _ = writeln!(src, "                {name} => {{");
+        if f.is_map {
+            let kt = map_key_ty(f);
+            let vf = map_value_field(f);
+            let key_read = match kt {
+                FieldType::String => "reader.read_string()?".to_string(),
+                FieldType::Bool => "reader.read_bool()?".to_string(),
+                FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+                    "reader.read_i64()?".to_string()
+                }
+                FieldType::Uint32 | FieldType::Fixed32 => "reader.read_u32()?".to_string(),
+                FieldType::Uint64 | FieldType::Fixed64 => "reader.read_u64()?".to_string(),
+                _ => "reader.read_i32()?".to_string(),
+            };
+            let val_read = match vf {
+                Some(v) => text_read_scalar(v),
+                None => "reader.read_i32()?".into(),
+            };
+            let _ = writeln!(
+                src,
+                "                    let close = reader.enter_message()?;"
+            );
+            let _ = writeln!(
+                src,
+                "                    let mut k = {};",
+                text_stream_map_key_default(kt)
+            );
+            let _ = writeln!(
+                src,
+                "                    let mut v = {};",
+                vf.map(text_stream_map_val_default)
+                    .unwrap_or_else(|| "0i32".into())
+            );
+            let _ = writeln!(
+                src,
+                "                    while let Some(entry) = reader.next_field()? {{"
+            );
+            let _ = writeln!(src, "                        match entry.name() {{");
+            let _ = writeln!(
+                src,
+                "                            \"key\" => k = {key_read},"
+            );
+            let _ = writeln!(
+                src,
+                "                            \"value\" => v = {val_read},"
+            );
+            let _ = writeln!(
+                src,
+                "                            _ => return Err(ParseError::owned(format!(\"unknown field {{}}\", entry.name()))),"
+            );
+            let _ = writeln!(src, "                        }}");
+            let _ = writeln!(src, "                    }}");
+            let _ = writeln!(src, "                    reader.exit_message(close)?;");
+            // `MapQuery` is implemented for `&str`, not `String`.
+            let key_arg = if kt == FieldType::String {
+                "k.as_str()"
+            } else {
+                "k"
+            };
+            let _ = writeln!(
+                src,
+                "                    msg.{id}_mut().insert({key_arg}, v);"
+            );
+        } else if f.cardinality == Cardinality::Repeated {
+            let item = text_read_scalar(f);
+            if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
+                let ty = scalar_type(f);
+                let _ = writeln!(src, "                    if reader.at_list() {{");
+                let _ = writeln!(src, "                        reader.enter_list()?;");
+                let _ = writeln!(
+                    src,
+                    "                        while !reader.at_list_end() {{"
+                );
+                let _ = writeln!(
+                    src,
+                    "                            let close = reader.enter_message()?;"
+                );
+                let _ = writeln!(
+                    src,
+                    "                            msg.{id}_mut().push({ty}::from_text_reader(reader)?);"
+                );
+                let _ = writeln!(
+                    src,
+                    "                            reader.exit_message(close)?;"
+                );
+                let _ = writeln!(src, "                            reader.list_item_done()?;");
+                let _ = writeln!(src, "                        }}");
+                let _ = writeln!(src, "                        reader.exit_list()?;");
+                let _ = writeln!(src, "                    }} else {{");
+                let _ = writeln!(
+                    src,
+                    "                        let close = reader.enter_message()?;"
+                );
+                let _ = writeln!(
+                    src,
+                    "                        msg.{id}_mut().push({ty}::from_text_reader(reader)?);"
+                );
+                let _ = writeln!(src, "                        reader.exit_message(close)?;");
+                let _ = writeln!(src, "                    }}");
+            } else {
+                let _ = writeln!(src, "                    if reader.at_list() {{");
+                let _ = writeln!(src, "                        reader.enter_list()?;");
+                let _ = writeln!(
+                    src,
+                    "                        while !reader.at_list_end() {{"
+                );
+                let _ = writeln!(
+                    src,
+                    "                            msg.{id}_mut().push({item});"
+                );
+                let _ = writeln!(src, "                            reader.list_item_done()?;");
+                let _ = writeln!(src, "                        }}");
+                let _ = writeln!(src, "                        reader.exit_list()?;");
+                let _ = writeln!(src, "                    }} else {{");
+                let _ = writeln!(src, "                        msg.{id}_mut().push({item});");
+                let _ = writeln!(src, "                    }}");
+            }
+        } else if f.field_type == FieldType::Message {
+            let ty = scalar_type(f);
+            let _ = writeln!(
+                src,
+                "                    let close = reader.enter_message()?;"
+            );
+            let _ = writeln!(
+                src,
+                "                    let sub = {ty}::from_text_reader(reader)?;"
+            );
+            let _ = writeln!(src, "                    reader.exit_message(close)?;");
+            let _ = writeln!(src, "                    msg.{id}_mut().merge_from(sub);");
+        } else {
+            let _ = writeln!(
+                src,
+                "                    msg.set_{m}({});",
+                text_read_scalar(f)
+            );
+        }
+        let _ = writeln!(src, "                }}");
+    }
+    let _ = writeln!(
+        src,
+        "                _ => return Err(ParseError::owned(format!(\"unknown field {{}}\", field.name()))),"
+    );
+    let _ = writeln!(src, "            }}");
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "        Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 

@@ -669,8 +669,12 @@ fn assert_generated_text_is_field_wise(src: &str) {
             "generated text must not allocate DynamicMessage:\n{block}"
         );
         assert!(
-            block.contains("pbrs::text::parse"),
-            "from_text must use pbrs::text::parse:\n{block}"
+            block.contains("TextReader"),
+            "generated from_text must stream via TextReader:\n{block}"
+        );
+        assert!(
+            !block.contains("pbrs::text::parse"),
+            "generated from_text must not build an intermediate tree:\n{block}"
         );
     }
 }

@@ -1,10 +1,11 @@
 //! Field-wise JSON and text for generated Timestamp / Duration / Empty /
 //! proto3 wrappers.
 //!
-//! These checks fail on current main: generated `Empty` / wrapper
-//! `to_json` / `to_text` still serialize then `DynamicMessage`. After the
-//! cut they must not. Struct / Value / ListValue / Any / FieldMask and
-//! TAT stay on `DynamicMessage`. Remaining is not closed.
+//! Freshly generated code must be field-wise with streaming text
+//! (`TextReader`, no `DynamicMessage`, no intermediate tree). Checked-in
+//! `src/generated/` files predate the PK-21 cut and still pin the tree
+//! `parse` API until they regenerate. Struct / Value / ListValue / Any /
+//! FieldMask and TAT stay on `DynamicMessage`.
 
 #![allow(
     clippy::disallowed_methods,
@@ -155,8 +156,31 @@ fn assert_wkt_text_field_wise(src: &str, type_hint: &str) {
         "generated {type_hint} text must not allocate DynamicMessage:\n{block}"
     );
     assert!(
+        block.contains("TextReader"),
+        "generated from_text must stream via TextReader:\n{block}"
+    );
+    assert!(
+        !block.contains("pbrs::text::parse"),
+        "generated from_text must not build an intermediate tree:\n{block}"
+    );
+}
+
+/// Checked-in `src/generated/` files predate the PK-21 streaming cut and
+/// regenerate under GN-02's scope, so they still pin the tree `parse` API
+/// until the regeneration PR flips them to `assert_wkt_text_field_wise`.
+fn assert_wkt_text_field_wise_checked_in(src: &str, type_hint: &str) {
+    let block = text_method_block(src, type_hint);
+    assert!(
+        block.contains("write_text"),
+        "generated {type_hint} text must be field-wise:\n{block}"
+    );
+    assert!(
+        !block.contains("DynamicMessage"),
+        "generated {type_hint} text must not allocate DynamicMessage:\n{block}"
+    );
+    assert!(
         block.contains("pbrs::text::parse"),
-        "from_text must use pbrs::text::parse:\n{block}"
+        "checked-in {type_hint} from_text still uses pbrs::text::parse; flip to TextReader on regen:\n{block}"
     );
 }
 
@@ -198,7 +222,7 @@ fn checked_in(name: &str) -> String {
 fn checked_in_timestamp_json_text_is_field_wise() {
     let src = checked_in("timestamp.rs");
     assert_wkt_json_field_wise(&src, "Timestamp", "timestamp");
-    assert_wkt_text_field_wise(&src, "Timestamp");
+    assert_wkt_text_field_wise_checked_in(&src, "Timestamp");
 }
 
 /// Fails on current main: checked-in Duration `to_json` still mentions
@@ -207,7 +231,7 @@ fn checked_in_timestamp_json_text_is_field_wise() {
 fn checked_in_duration_json_text_is_field_wise() {
     let src = checked_in("duration.rs");
     assert_wkt_json_field_wise(&src, "Duration", "duration");
-    assert_wkt_text_field_wise(&src, "Duration");
+    assert_wkt_text_field_wise_checked_in(&src, "Duration");
 }
 
 /// Fails on current main: checked-in Empty `to_json` still mentions
@@ -216,7 +240,7 @@ fn checked_in_duration_json_text_is_field_wise() {
 fn checked_in_empty_json_text_is_field_wise() {
     let src = checked_in("empty.rs");
     assert_wkt_json_field_wise(&src, "Empty", "empty");
-    assert_wkt_text_field_wise(&src, "Empty");
+    assert_wkt_text_field_wise_checked_in(&src, "Empty");
 }
 
 /// Fails on current main: checked-in wrapper `to_json` still mentions
@@ -236,7 +260,7 @@ fn checked_in_wrappers_json_text_is_field_wise() {
         ("BytesValue", "bytes"),
     ] {
         assert_wkt_json_field_wise(&src, ty, helper);
-        assert_wkt_text_field_wise(&src, ty);
+        assert_wkt_text_field_wise_checked_in(&src, ty);
     }
 }
 

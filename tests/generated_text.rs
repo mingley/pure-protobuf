@@ -198,6 +198,14 @@ fn assert_field_wise_text(src: &str) {
             !block.contains("DynamicMessage"),
             "generated text must not allocate DynamicMessage:\n{block}"
         );
+        assert!(
+            block.contains("TextReader"),
+            "generated from_text must stream via TextReader:\n{block}"
+        );
+        assert!(
+            !block.contains("pbrs::text::parse"),
+            "generated from_text must not build an intermediate tree:\n{block}"
+        );
     }
 }
 
@@ -339,6 +347,48 @@ fn main() {{
     // unknown field rejected.
     assert!(Person::from_text("nope: 1").is_err());
     assert!(Person::from_text("id: 1 leftover").is_err());
+    assert!(Person::from_text("[foo.bar]: 1").is_err());
+
+    // int32 boundaries and overflow.
+    assert_eq!(Person::from_text("id: 2147483647").unwrap().id(), 2147483647);
+    assert_eq!(Person::from_text("id: -2147483648").unwrap().id(), -2147483648);
+    assert!(Person::from_text("id: 2147483648").is_err());
+    assert!(Person::from_text("id: -2147483649").is_err());
+    assert!(Person::from_text("id: 0x80000000").is_err());
+
+    // Empty repeated list is a no-op; single-quoted and escaped strings decode.
+    let t = Person::from_text("tags: []").unwrap();
+    assert_eq!(t.tags().len(), 0);
+    assert!(Person::from_text("tags: [\"a\",]").is_err());
+    assert!(Person::from_text("tags: [\"a\" \"b\",]").is_err());
+    let t = Person::from_text("name: 'a\\x64\\u0061'").unwrap();
+    assert_eq!(t.name(), "ada");
+    let t = Person::from_text("name: \"\\a\\b\\f\\v\"").unwrap();
+    assert_eq!(t.name().as_bytes(), &[0x07, 0x08, 0x0c, 0x0b]);
+    assert!(Person::from_text("name: \"\\x\"").is_err());
+    assert!(Person::from_text("name: \"\\u00\"").is_err());
+    assert!(Person::from_text("name: \"unterminated").is_err());
+
+    // Separators: trailing ok, leading or duplicated rejected.
+    assert_eq!(Person::from_text("id: 1,").unwrap().id(), 1);
+    assert_eq!(Person::from_text("id: 1; name: \"x\"").unwrap().name(), "x");
+    assert!(Person::from_text("; id: 1").is_err());
+    assert!(Person::from_text("id: 1,, name: \"x\"").is_err());
+    assert!(Person::from_text("id: 1;;").is_err());
+
+    // Delimiters must match; messages reject scalars and vice versa.
+    assert!(Person::from_text("address {{ city: \"x\" >").is_err());
+    assert!(Person::from_text("address < city: \"x\" }}").is_err());
+    assert!(Person::from_text("address: 1").is_err());
+    assert!(Person::from_text("id {{ value: 1 }}").is_err());
+    assert!(Person::from_text("id: [1]").is_err());
+    assert!(Person::from_text("name: [\"a\"]").is_err());
+
+    // Tree-compat shim still parses the same language.
+    let compat = Person::from_text_value(&pbrs::text::parse(&text).unwrap()).unwrap();
+    assert_eq!(compat.to_text().unwrap(), text);
+    let compat = Address::from_text_value(&pbrs::text::parse("city: \"z\"").unwrap()).unwrap();
+    assert_eq!(compat.city(), "z");
 
     // Unknown fields print only on to_text_with_unknown.
     let mut raw = pbrs::Serialize::serialize(&p).unwrap();
@@ -353,6 +403,78 @@ fn main() {{
         ),
     );
     assert_eq!(run_consumer(&consumer), "ok person");
+}
+
+/// Nested enum names resolve through the pool on the dynamic text path.
+///
+/// OTLP spans carry `SpanKind`, a nested enum three levels down. Pool-linked
+/// nested descriptors lack direct enum linkage, so the text parser falls back
+/// to pool resolution instead of rejecting known names.
+#[test]
+fn generated_otlp_text_round_trips_nested_enums() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let tmp = root.join("target").join("generated-text-otlp");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let otlp = root.join("bench/corpora/otlp/protos");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out=emit_deps=true:{}", tmp.display()))
+        .arg("-I")
+        .arg(&otlp)
+        .arg(otlp.join("opentelemetry/proto/trace/v1/trace.proto"))
+        .status()
+        .expect("run protoc");
+    assert!(status.success(), "protoc plugin failed for OTLP trace");
+    let generated = std::fs::read_to_string(tmp.join("trace.rs")).expect("generated trace rs");
+
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        r#"
+fn main() {
+    let mut td = TracesData::new();
+    let mut rs = ResourceSpans::new();
+    let mut ss = ScopeSpans::new();
+    let mut span = Span::new();
+    span.set_trace_id(vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    span.set_span_id(vec![0u8, 16, 17, 18, 19, 20, 21, 22]);
+    span.set_name("operation-0");
+    span.set_kind(2);
+    span.status_mut().set_code(1);
+    ss.spans_mut().push(span);
+    rs.scope_spans_mut().push(ss);
+    td.resource_spans_mut().push(rs);
+
+    let text = td.to_text().expect("to_text");
+    assert!(text.contains("kind: SPAN_KIND_SERVER"), "{text}");
+    assert!(text.contains("code: STATUS_CODE_OK"), "{text}");
+
+    // Nested enum names parse back (pool fallback, not "unknown enum").
+    let back = TracesData::from_text(&text).expect("from_text");
+    assert_eq!(back.to_text().unwrap(), text);
+    let named = TracesData::from_text(
+        "resource_spans { scope_spans { spans { kind: SPAN_KIND_CLIENT } } }",
+    )
+    .unwrap();
+    assert!(named.to_text().unwrap().contains("kind: SPAN_KIND_CLIENT"));
+    assert!(TracesData::from_text(
+        "resource_spans { scope_spans { spans { kind: SPAN_KIND_NOPE } } }",
+    )
+    .is_err());
+    assert!(TracesData::from_text(
+        "resource_spans { scope_spans { spans { kind: 3 } } }",
+    )
+    .is_ok());
+    println!("ok otlp text");
+}
+"#,
+    );
+    assert_eq!(run_consumer(&consumer), "ok otlp text");
 }
 
 #[test]
