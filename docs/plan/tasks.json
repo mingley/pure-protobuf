@@ -3085,7 +3085,12 @@
         "TLS server identity, HTTP authority and resolved addresses remain distinct; define behavior for empty answers, IPv4/IPv6 and endpoint removal.",
         "Provide deterministic test timelines and narrow interfaces for FL-02/03/04; client-managed discovery is not implied by existing DNS-at-connect support."
       ],
-      "checks": []
+      "checks": [],
+      "status": "done",
+      "notes": "2026-09-29 coordinator: approved after verification (Target rejects resolver URIs, CH-02 path additive opt-in, resolver suite 33/33 green on t0-t7 timelines). CH-01 maintainer gate unchanged.",
+      "evidence": [
+        "docs/resolver-contract.md"
+      ]
     },
     {
       "id": "FL-02",
