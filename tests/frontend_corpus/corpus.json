@@ -1,0 +1,2486 @@
+{
+ "version": 1,
+ "protoc": {
+  "pin": "v35.1",
+  "sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "build": "scripts/build-pinned-protoc.sh"
+ },
+ "repos": {
+  "protobuf": {
+   "url": "https://github.com/protocolbuffers/protobuf.git",
+   "rev": "v35.1",
+   "sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+   "license": "BSD-3-Clause",
+   "license_file": "LICENSE",
+   "role": "corpus",
+   "note": "Reuses the repository vendor/google pin; fetched by scripts/fetch-protobuf.sh."
+  },
+  "googleapis": {
+   "url": "https://github.com/googleapis/googleapis.git",
+   "rev": "5d2a5100759be0b6fe5a1d3ce5e025d53d8283f4",
+   "sha": "5d2a5100759be0b6fe5a1d3ce5e025d53d8283f4",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "corpus"
+  },
+  "envoy": {
+   "url": "https://github.com/envoyproxy/data-plane-api.git",
+   "rev": "e23a28a41013518863542bdd7e8daba568624bc4",
+   "sha": "e23a28a41013518863542bdd7e8daba568624bc4",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "corpus"
+  },
+  "otel": {
+   "url": "https://github.com/open-telemetry/opentelemetry-proto.git",
+   "rev": "v1.9.0",
+   "sha": "a8951735f7801e8adfaec5c0ace9262771cfec6e",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "corpus"
+  },
+  "grpc": {
+   "url": "https://github.com/grpc/grpc-proto.git",
+   "rev": "813330824839bfdd3abc52f41807095c0de2ec19",
+   "sha": "813330824839bfdd3abc52f41807095c0de2ec19",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "corpus"
+  },
+  "xds": {
+   "url": "https://github.com/cncf/xds.git",
+   "rev": "dba9d589def2cd10099a3a64887d859188c2f57a",
+   "sha": "dba9d589def2cd10099a3a64887d859188c2f57a",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "support",
+   "note": "Provides udpa/annotations and xds/ imports of the envoy leg."
+  },
+  "pgv": {
+   "url": "https://github.com/envoyproxy/protoc-gen-validate.git",
+   "rev": "414042a5ff2e98dc47f8161937316a25b1da5bba",
+   "sha": "414042a5ff2e98dc47f8161937316a25b1da5bba",
+   "license": "Apache-2.0",
+   "license_file": "LICENSE",
+   "role": "support",
+   "note": "Provides validate/validate.proto imported by the envoy leg."
+  },
+  "edition2024": {
+   "url": null,
+   "rev": null,
+   "sha": null,
+   "license": "BSD-3-Clause",
+   "license_file": null,
+   "role": "corpus",
+   "note": "In-repo fixtures at tests/fixtures/edition2024 (no upstream fetch)."
+  }
+ },
+ "roots": {
+  "protobuf": "tests/frontend_corpus/proto/protobuf",
+  "googleapis": "tests/frontend_corpus/proto/googleapis",
+  "envoy": "tests/frontend_corpus/proto/envoy",
+  "otel": "tests/frontend_corpus/proto/otel",
+  "grpc": "tests/frontend_corpus/proto/grpc",
+  "xds": "tests/frontend_corpus/proto/xds",
+  "pgv": "tests/frontend_corpus/proto/pgv",
+  "edition2024": "tests/fixtures/edition2024/proto",
+  "edition2024-rejected": "tests/fixtures/edition2024/rejected",
+  "repo": "."
+ },
+ "entries": [
+  {
+   "id": "edition2024-rejected:ctype_option.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/ctype_option.proto"
+   ],
+   "expect": "fail",
+   "sha256": "d88e31b21e4ffe8df472b0a9fbb1afebf8e50c00e4b9009ac90ddbb00c06d08f"
+  },
+  {
+   "id": "edition2024-rejected:group_syntax.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/group_syntax.proto"
+   ],
+   "expect": "fail",
+   "sha256": "505445a4a14bce6e32b64cf3bb1cd24b8d707a4f21d0213209efb8927e355e89"
+  },
+  {
+   "id": "edition2024-rejected:import_weak.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/import_weak.proto"
+   ],
+   "expect": "fail",
+   "sha256": "de6835a373eb20d5e39977c3d10b58a9116525c814bfb3b14680270e93b458aa"
+  },
+  {
+   "id": "edition2024-rejected:java_multiple_files.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/java_multiple_files.proto"
+   ],
+   "expect": "fail",
+   "sha256": "7c1bd1fb66964449d761b7fc181b37a6a4b3d37aeacd68e17eca29f205a4417f"
+  },
+  {
+   "id": "edition2024-rejected:naming_style.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/naming_style.proto"
+   ],
+   "expect": "fail",
+   "sha256": "d73b97645000a528bb4d5082ef5be84f697bd76be5cb1eda20d0fe05c25b5721"
+  },
+  {
+   "id": "edition2024-rejected:optional_keyword.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/optional_keyword.proto"
+   ],
+   "expect": "fail",
+   "sha256": "be6ffd0ebbeffbb004fd0f57fa02e987b6791094df580471ab11a144012bb804"
+  },
+  {
+   "id": "edition2024-rejected:required_keyword.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/required_keyword.proto"
+   ],
+   "expect": "fail",
+   "sha256": "c293542fb350ce44525d84ab10b8e9cc107afbb456b4c04fa54328b70d4e1000"
+  },
+  {
+   "id": "edition2024-rejected:visibility_defs.proto",
+   "roots": [
+    "edition2024-rejected"
+   ],
+   "files": [
+    "visibility_defs.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a07cd087daab16b8be690e34b2d6f033e8d789b0d89d50de15056fe1dbc10ac1"
+  },
+  {
+   "id": "edition2024-rejected:visibility_import_local.proto",
+   "roots": [
+    "repo",
+    "edition2024-rejected"
+   ],
+   "files": [
+    "tests/fixtures/edition2024/rejected/visibility_import_local.proto"
+   ],
+   "expect": "fail",
+   "sha256": "dcd05b53f90cf4180c743b501a88cf6340aebbf3715a0c2119e068d293562f4f"
+  },
+  {
+   "id": "edition2024:closed_enum.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "closed_enum.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a59934503f4df4690d0e84739eadba36e629a2da53bdffeca03de6b5f35c8d3f"
+  },
+  {
+   "id": "edition2024:defaults.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "defaults.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c0dcdb21f184a9ba484680303ecab585f32654b83a73626d17befff652aaa786"
+  },
+  {
+   "id": "edition2024:extensions.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "extensions.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ed7f0f13f0b3fecea95e2dd85efd937cdc7fd9f932946f65830cbc66117b3588"
+  },
+  {
+   "id": "edition2024:inheritance.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "inheritance.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8cb1d2f376e824e96667b8c0ae979a83b66ef6c5a41188d028319548853d72ee"
+  },
+  {
+   "id": "edition2024:legacy_style.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "legacy_style.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5677d898b5de360f953582012197206b072cf1e57d0d92f4f6b3dbbe6645914a"
+  },
+  {
+   "id": "edition2024:maps.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "maps.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0042031e1cc7ade1302c28ca76039f3e11d16aac9cf2a05cc28f24daa8102be5"
+  },
+  {
+   "id": "edition2024:maps_none.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "maps_none.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c90961f92049754f7a04f17e1cd2e316c7d55a6868ff89b8ad9917ab60414f8b"
+  },
+  {
+   "id": "edition2024:overrides.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "overrides.proto"
+   ],
+   "expect": "ok",
+   "sha256": "daaf272daacfdd28a5042621af56deb420718531bcf47c5cdc0cfff28c01358d"
+  },
+  {
+   "id": "edition2024:visibility.proto",
+   "roots": [
+    "edition2024"
+   ],
+   "files": [
+    "visibility.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5ca71450e442b583f182ed66ed2cdd4b94be0af8dfc6e3c8658250dc3212b4f4"
+  },
+  {
+   "id": "envoy:envoy/annotations/deprecation.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/annotations/deprecation.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bc72a2deefc60cacdb0f49380e1c92028078e219b02993d6772e2854a8929b36"
+  },
+  {
+   "id": "envoy:envoy/annotations/resource.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/annotations/resource.proto"
+   ],
+   "expect": "ok",
+   "sha256": "e8ac2e9005cec6e14b0103b8a774a7e6fd9565bfdd91ad55da30f499b9ff8123"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/address.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/address.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5cb499df159eaa682dd33209ece9683b9055cf249d75c61d7e187724b2a5ff80"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/backoff.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/backoff.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f347a6a36616ea6735ff031b546d10cc79aaae17da3a60e8174479c7f75ac53e"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/base.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/base.proto"
+   ],
+   "expect": "ok",
+   "sha256": "2759bee6cb33ac5206d51f6b9559c08febd88b6f75a0298d0ac9c6c209aefa67"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/extension.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/extension.proto"
+   ],
+   "expect": "ok",
+   "sha256": "860106c686cab11106159f462243ce4009cbc405f197df7df8ab423af71a82a7"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/grpc_service.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/grpc_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "6d31cac5fe834c78a6a11df62f968d48003ad42f75cf484611498e432d00d86c"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/http_service.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/http_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "cee62dbe8c280944318ecc39f708f0a3c4ec3e99c1cad36f2341c0b0b9119078"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/http_uri.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/http_uri.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ef5c59234f0be07a23327d695afc65435ef5052941a63184795b0d300fccf1e6"
+  },
+  {
+   "id": "envoy:envoy/config/core/v3/socket_option.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/core/v3/socket_option.proto"
+   ],
+   "expect": "ok",
+   "sha256": "78937443cba81f3a60a18b71debc9962b27b484ec55ea79892cfb1deabda9058"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/datadog.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/datadog.proto"
+   ],
+   "expect": "ok",
+   "sha256": "2b734cb2caac4a52de2f2325b8108c1622b3c58674727b4a7595dff32e9605fb"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/dynamic_ot.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/dynamic_ot.proto"
+   ],
+   "expect": "ok",
+   "sha256": "aa8b2b9777b4bd82ff408471ae299f75f469a2844f69b72b3082cffe5fec69d6"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/http_tracer.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/http_tracer.proto"
+   ],
+   "expect": "ok",
+   "sha256": "492a751edd87887003c4df07712f5e9835f04d6bf38476ac5966655484c89c3a"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/lightstep.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/lightstep.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f26b0a9917b89fb1528ce0cd7c3665266dcb394d68bebe567fa1639390cb7cc0"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/opentelemetry.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/opentelemetry.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bd246b7cf19e3ff48c27bc10c2ca80fb2f055d4bdcbf5dcf4d5f08a30b634f57"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/service.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0580ffa7d2e0f0871adb8bcf517c9265f6be7338b494072275c9a3fae0054775"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/trace.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/trace.proto"
+   ],
+   "expect": "ok",
+   "sha256": "49ce66a1ef0801ef7a57bb6834f98738708dd334becde767e861cd4368a89976"
+  },
+  {
+   "id": "envoy:envoy/config/trace/v3/zipkin.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/config/trace/v3/zipkin.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0fafd7f4c63ad64159cfcd1c30b3090c724a158d16f3b277118ae093904064df"
+  },
+  {
+   "id": "envoy:envoy/type/v3/http_status.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/type/v3/http_status.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d46c670810e539fabf6c8204d9a33dd135f092ef5896d6c37193999e38a3952c"
+  },
+  {
+   "id": "envoy:envoy/type/v3/percent.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/type/v3/percent.proto"
+   ],
+   "expect": "ok",
+   "sha256": "b5b5ea7f6264f465ce4b398601e855b62395e3c83e4bb7e0d9d4ebae788210ca"
+  },
+  {
+   "id": "envoy:envoy/type/v3/range.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/type/v3/range.proto"
+   ],
+   "expect": "ok",
+   "sha256": "7c311addf6883b5a8d286bf15f5ea09c5c5a6259c1832e8e04023a1666c7cade"
+  },
+  {
+   "id": "envoy:envoy/type/v3/semantic_version.proto",
+   "roots": [
+    "envoy",
+    "xds",
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "envoy/type/v3/semantic_version.proto"
+   ],
+   "expect": "ok",
+   "sha256": "71cc18d6cbbccd0e3a027d3499bbdbe0a7e74cdf125565f36843736027cc8cc5"
+  },
+  {
+   "id": "googleapis:google/api/annotations.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/annotations.proto"
+   ],
+   "expect": "ok",
+   "sha256": "e79ea741cb605a65e78ca322174764a4af9fde1962c1631e12b84c4934ba9a6c"
+  },
+  {
+   "id": "googleapis:google/api/auth.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/auth.proto"
+   ],
+   "expect": "ok",
+   "sha256": "01264e4e5b8ee20388dc350066704cad3816bf51430b580f2ccdbdbab36ac336"
+  },
+  {
+   "id": "googleapis:google/api/backend.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/backend.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8d56380cc90a7cbe87766e53bb228baf90539058421a78a487b81eb6fbc5a5cc"
+  },
+  {
+   "id": "googleapis:google/api/billing.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/billing.proto"
+   ],
+   "expect": "ok",
+   "sha256": "09e4ad9b42f918160bc82f14de80ab93603158600246e4cd5aa88c7bf7156f26"
+  },
+  {
+   "id": "googleapis:google/api/client.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/client.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5e9fc117290fe7d3472791543c979bec7cf4497f3fe6ffaf9de9ae99cc4f1804"
+  },
+  {
+   "id": "googleapis:google/api/config_change.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/config_change.proto"
+   ],
+   "expect": "ok",
+   "sha256": "569e013add9082005f06ca659738cf29c06b86a03d6afb6cd95449603bc5a2d5"
+  },
+  {
+   "id": "googleapis:google/api/consumer.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/consumer.proto"
+   ],
+   "expect": "ok",
+   "sha256": "999acb311628d9c2941d0cfdaabdf18047be2ee061dda2d9543d79aa6defec84"
+  },
+  {
+   "id": "googleapis:google/api/context.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/context.proto"
+   ],
+   "expect": "ok",
+   "sha256": "9a66fb2aa3ba46df37e3bd377ba8b842025a4418af78f38beb998af5aaf97185"
+  },
+  {
+   "id": "googleapis:google/api/control.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/control.proto"
+   ],
+   "expect": "ok",
+   "sha256": "581efb54aea34a7cd12cc06e0dd2e3155a713645269ecef215629723338965fe"
+  },
+  {
+   "id": "googleapis:google/api/distribution.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/distribution.proto"
+   ],
+   "expect": "ok",
+   "sha256": "94bd1a17dbe20bcfb9ad14e160647b3eb2e09a95edaba3437b83b19d118fc286"
+  },
+  {
+   "id": "googleapis:google/api/documentation.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/documentation.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a632846b2a6a06de4ab3880d842f3142a385105553a17ffc9ffe3718b8c58747"
+  },
+  {
+   "id": "googleapis:google/api/endpoint.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/endpoint.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a57c5c460f6c8ec3dca195c6bd04a24bea67aea379ac95acb00973de668dc38d"
+  },
+  {
+   "id": "googleapis:google/api/error_reason.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/error_reason.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c69dbc781135d7ca94485ec674e82cce9458b01ae706906a5b73eb275cb5130e"
+  },
+  {
+   "id": "googleapis:google/api/field_behavior.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/field_behavior.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bb7ed77725c95f751ec2c47cd92359d0137c39383b8a62aef41bab7aa7478da5"
+  },
+  {
+   "id": "googleapis:google/api/field_info.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/field_info.proto"
+   ],
+   "expect": "ok",
+   "sha256": "53bb0a673642b4efff2cb48f6eb9dbb0693b198ac837da684ae54f751e8cf39e"
+  },
+  {
+   "id": "googleapis:google/api/http.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/http.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ead99129aa15dd5f6233942030c72eec33bc0d7b1c7c260dc143293ef66c5b78"
+  },
+  {
+   "id": "googleapis:google/api/httpbody.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/httpbody.proto"
+   ],
+   "expect": "ok",
+   "sha256": "454a5102396e030edb0dae5c09056c8953041a27f665e4b1e3c12280f6ed2421"
+  },
+  {
+   "id": "googleapis:google/api/label.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/label.proto"
+   ],
+   "expect": "ok",
+   "sha256": "dadfde6d5ecce36b7e3232e2439a0d5ac83357500732a2b7760e89cc66111806"
+  },
+  {
+   "id": "googleapis:google/api/launch_stage.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/launch_stage.proto"
+   ],
+   "expect": "ok",
+   "sha256": "68e22c9821227b4e84c7029569fce1055c21e6ccab991e0986bc75f12ef4dd82"
+  },
+  {
+   "id": "googleapis:google/api/log.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/log.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4989e9f19f6dba74de6ae2915a046fbbec8f7aa61b55552f45317df7ac8fec27"
+  },
+  {
+   "id": "googleapis:google/api/logging.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/logging.proto"
+   ],
+   "expect": "ok",
+   "sha256": "803958363b6412ed765ecae4e2aab2986b411637c5cb49158196575e61f9eb58"
+  },
+  {
+   "id": "googleapis:google/api/metric.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/metric.proto"
+   ],
+   "expect": "ok",
+   "sha256": "021f0ef550db23d98f8bafb74aca4189bed165911c8890bf8769ad052c7ad6cd"
+  },
+  {
+   "id": "googleapis:google/api/monitored_resource.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/monitored_resource.proto"
+   ],
+   "expect": "ok",
+   "sha256": "cf7d64333f5b6287adb0eb8bdbe552bc38813a85ce8134c39cbe1c56be7e9cd2"
+  },
+  {
+   "id": "googleapis:google/api/monitoring.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/monitoring.proto"
+   ],
+   "expect": "ok",
+   "sha256": "06563dc549e756dc559ba73136ca7c5e94ae52f9a88f44fd33d5d99e83fccecf"
+  },
+  {
+   "id": "googleapis:google/api/policy.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/policy.proto"
+   ],
+   "expect": "ok",
+   "sha256": "695cc0f9b612e43c9585aec68c70fe7a741026ade82ab288cd7bfb3905c7968a"
+  },
+  {
+   "id": "googleapis:google/api/quota.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/quota.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ad5e8a53037fd180bf646894f4e36705ac984f204dc2d5d98d8fe99dedb725d3"
+  },
+  {
+   "id": "googleapis:google/api/resource.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/resource.proto"
+   ],
+   "expect": "ok",
+   "sha256": "815d51eada4341bf01672b474b5ec0abbea190e8df9f4aa26a0c96dbdad2993b"
+  },
+  {
+   "id": "googleapis:google/api/routing.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/routing.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f31cb43c3efe07a80cd814eede587f1a38b4dac88053069dcfeaac86700511be"
+  },
+  {
+   "id": "googleapis:google/api/service.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "91c47190669fb339437f09f911d2ea4307c6e99f5d66ab504c48d1a3d2274da3"
+  },
+  {
+   "id": "googleapis:google/api/source_info.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/source_info.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8698efc898d714b206edcc8af0bcbcf80d538e7dd005fe206d2b922c314bab63"
+  },
+  {
+   "id": "googleapis:google/api/system_parameter.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/system_parameter.proto"
+   ],
+   "expect": "ok",
+   "sha256": "b45151987677ac2789912bc8bbb270709b4f64a853383c65a133013e0974f793"
+  },
+  {
+   "id": "googleapis:google/api/usage.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/usage.proto"
+   ],
+   "expect": "ok",
+   "sha256": "26c382037e3e7c6caeba6d18329b6d7ddf37c1632ec5bcd57c5854d5be007bad"
+  },
+  {
+   "id": "googleapis:google/api/visibility.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/api/visibility.proto"
+   ],
+   "expect": "ok",
+   "sha256": "80f0b5c5174f0c73380e0e91e865e142133930c5f35b3c07c2a52ec6610a1810"
+  },
+  {
+   "id": "googleapis:google/rpc/code.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/code.proto"
+   ],
+   "expect": "ok",
+   "sha256": "83a63185b83cf7332196fc5ead0ec91b93ac207fbe91b3d5bc3d72f461b0bb31"
+  },
+  {
+   "id": "googleapis:google/rpc/context/attribute_context.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/context/attribute_context.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8aa3f0fe9f4872be0a32a1ad4f6203b18a67b7a4bb69fc00a4652550b455a93e"
+  },
+  {
+   "id": "googleapis:google/rpc/context/audit_context.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/context/audit_context.proto"
+   ],
+   "expect": "ok",
+   "sha256": "cd1a53c653cbd626aeb60a226f19913bc975277153e1b5dbae5a3ba43bda045e"
+  },
+  {
+   "id": "googleapis:google/rpc/error_details.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/error_details.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5c18d42e6924f447622534b4b7cdb8b53c0606c8ce729b912ee5edf88d1c5520"
+  },
+  {
+   "id": "googleapis:google/rpc/http.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/http.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f924995faae52eb92c09d7ea25d9b217fe9a662954c06398e75d5cb4e5ac0386"
+  },
+  {
+   "id": "googleapis:google/rpc/status.proto",
+   "roots": [
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "google/rpc/status.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f5bfd262e6705c7ae73f32e0ad8ee20ce8c0a2578df8c4f76ebf76b572f295ed"
+  },
+  {
+   "id": "grpc:grpc/binlog/v1/binarylog.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/binlog/v1/binarylog.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5e6490055ddf5836eb2e01a1423c753e51e65d1ded4e348a96b2344e07f4aa3a"
+  },
+  {
+   "id": "grpc:grpc/binlog/v1alpha/binarylog.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/binlog/v1alpha/binarylog.proto"
+   ],
+   "expect": "ok",
+   "sha256": "1088a5bc995c00bca575aae3e8e62772c916fffc06b98064a01eba4dfbeae8fa"
+  },
+  {
+   "id": "grpc:grpc/channelz/v1/channelz.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/channelz/v1/channelz.proto"
+   ],
+   "expect": "ok",
+   "sha256": "9931f5b510a5b440717ce2a1890585b4a0dc19b71320df963e04bccfd3c952a7"
+  },
+  {
+   "id": "grpc:grpc/core/stats.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/core/stats.proto"
+   ],
+   "expect": "ok",
+   "sha256": "512a89ace63ddf2b8e3b0c20ff329262cec75d283bcf42c17350aac03204ebcf"
+  },
+  {
+   "id": "grpc:grpc/examples/helloworld.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/examples/helloworld.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a7a1adfaa7d50042e568f9fd104a61064837e2b0f155a596335a1193516ef4fd"
+  },
+  {
+   "id": "grpc:grpc/gcp/altscontext.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/gcp/altscontext.proto"
+   ],
+   "expect": "ok",
+   "sha256": "9178e3c0463a22e24f948469c1a2fb91d73cde88e909312e96fb33b9ab047d0e"
+  },
+  {
+   "id": "grpc:grpc/gcp/handshaker.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/gcp/handshaker.proto"
+   ],
+   "expect": "ok",
+   "sha256": "95189ad9aaecb84e49f26cfa96f849af403e771dba0939ca5413b18bd788d2b7"
+  },
+  {
+   "id": "grpc:grpc/gcp/transport_security_common.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/gcp/transport_security_common.proto"
+   ],
+   "expect": "ok",
+   "sha256": "e337f6a0c710defe36cc8da9d5c04665c2369a6ccf25bea157c553deb0ca8404"
+  },
+  {
+   "id": "grpc:grpc/health/v1/health.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/health/v1/health.proto"
+   ],
+   "expect": "ok",
+   "sha256": "164b670058855c6277a0511a14e2a302dd5a8ff899853ca6851b6b201a413d28"
+  },
+  {
+   "id": "grpc:grpc/lb/v1/load_balancer.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/lb/v1/load_balancer.proto"
+   ],
+   "expect": "ok",
+   "sha256": "68189b0b86b8b42bcf8cde942918c80b0d62f722e2f2befc271e97a262af6c2d"
+  },
+  {
+   "id": "grpc:grpc/lb/v1/load_reporter.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/lb/v1/load_reporter.proto"
+   ],
+   "expect": "ok",
+   "sha256": "98da403fee3b652c67922a57f67b019ad8c7b295a96851163a4320cbefaa60f8"
+  },
+  {
+   "id": "grpc:grpc/lookup/v1/rls.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/lookup/v1/rls.proto"
+   ],
+   "expect": "ok",
+   "sha256": "488c7788e829d71ef229fdb2d91cc1d2b1a0deee610b7ee70d9d0fc6c687af71"
+  },
+  {
+   "id": "grpc:grpc/lookup/v1/rls_config.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/lookup/v1/rls_config.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0758101ae49187a7c9109cb91ded899fda1e2caad9ad859fccffa2e2e486a408"
+  },
+  {
+   "id": "grpc:grpc/reflection/v1/reflection.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/reflection/v1/reflection.proto"
+   ],
+   "expect": "ok",
+   "sha256": "92fe8aab9378b0b9807b081de1fc743f847262c1fb6d1ca16501f9e91d450b19"
+  },
+  {
+   "id": "grpc:grpc/reflection/v1alpha/reflection.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/reflection/v1alpha/reflection.proto"
+   ],
+   "expect": "ok",
+   "sha256": "308ce7f1027f59670283454182436729f64acc24ea86167ce3cf21752393ccd4"
+  },
+  {
+   "id": "grpc:grpc/service_config/service_config.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/service_config/service_config.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8d8f5601172362f59deb69abb53ffcfc6013017afe1609c6629e1011e9fc4b59"
+  },
+  {
+   "id": "grpc:grpc/testing/benchmark_service.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/benchmark_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a9373418b54ea71237d2abbef179f54e88851a661b1ffa95aff19c49f1e5c208"
+  },
+  {
+   "id": "grpc:grpc/testing/control.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/control.proto"
+   ],
+   "expect": "ok",
+   "sha256": "529e536515c6e239c656c4628cf61ecf9c6762847ed5066b2f0f2ca4d8e050e2"
+  },
+  {
+   "id": "grpc:grpc/testing/empty.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/empty.proto"
+   ],
+   "expect": "ok",
+   "sha256": "026f0ea78f09fbb8544b1b3e5fd234f07ac85e437b6cce88f2b99c76e2b1c2d6"
+  },
+  {
+   "id": "grpc:grpc/testing/messages.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/messages.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0c848d3f8f2323e04de35bd9b6f34047cf1c7ed578e4a730fd8fa7c5c4f5eb4a"
+  },
+  {
+   "id": "grpc:grpc/testing/payloads.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/payloads.proto"
+   ],
+   "expect": "ok",
+   "sha256": "53b65d4cd34170585f2292fc88ce31053a513a3fda15d804a50ab7aebf9ee092"
+  },
+  {
+   "id": "grpc:grpc/testing/report_qps_scenario_service.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/report_qps_scenario_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f0d2f70cfecd859554dd2d8a636d6931ebc9a5e876a99ee65dc2051f562b2593"
+  },
+  {
+   "id": "grpc:grpc/testing/stats.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/stats.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4785ce5a2439e6a593f05de06e7ad0dcf43baf57aad58b814f7ff0c736a62860"
+  },
+  {
+   "id": "grpc:grpc/testing/test.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/test.proto"
+   ],
+   "expect": "ok",
+   "sha256": "037f1a95f35e25acaec1ced04ae560e021de79ac5fb4126c73d1e0fab4efdfb4"
+  },
+  {
+   "id": "grpc:grpc/testing/worker_service.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/worker_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "cbd18f8c187f62044426ecbe2c8f58f6a574e813069c6ec2071675d90d96fc10"
+  },
+  {
+   "id": "grpc:grpc/testing/xdsconfig/xdsconfig.proto",
+   "roots": [
+    "grpc",
+    "googleapis",
+    "protobuf"
+   ],
+   "files": [
+    "grpc/testing/xdsconfig/xdsconfig.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ee91fba056e68ad9771e5d768b9aab8a2d5014ead3e82dd88f8b188f54ac43f0"
+  },
+  {
+   "id": "otel:opentelemetry/proto/collector/logs/v1/logs_service.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/collector/logs/v1/logs_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0252687fc8f59d139ced709d383e83678e9bd4957bdbe76077242f1c32363fa5"
+  },
+  {
+   "id": "otel:opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/collector/metrics/v1/metrics_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "2bb3c6adee5f7609c8a32c5e4b1ec57057320015e298e9cf136699a42abc24d7"
+  },
+  {
+   "id": "otel:opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/collector/profiles/v1development/profiles_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "934161a0a59b8031cf96b3d2950f0c28ef72f064c3d505fab9aa52969bc6512c"
+  },
+  {
+   "id": "otel:opentelemetry/proto/collector/trace/v1/trace_service.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/collector/trace/v1/trace_service.proto"
+   ],
+   "expect": "ok",
+   "sha256": "03c8cc4e3e101087d884392d6eda32152ad5cd696e6344f50deaa59804a75c7a"
+  },
+  {
+   "id": "otel:opentelemetry/proto/common/v1/common.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/common/v1/common.proto"
+   ],
+   "expect": "ok",
+   "sha256": "354d818af9cb0ed67f7447b9cf8408f1ac8911cedea0db73c5309484ec2bcc04"
+  },
+  {
+   "id": "otel:opentelemetry/proto/logs/v1/logs.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/logs/v1/logs.proto"
+   ],
+   "expect": "ok",
+   "sha256": "37abe88f091239abf77b80be380166a526fa7dbcc0d4061f16802636c71714cb"
+  },
+  {
+   "id": "otel:opentelemetry/proto/metrics/v1/metrics.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/metrics/v1/metrics.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d0a53dda45ad100edbf25675f5b339ce8bf689bdc51816f8cf19b0d51464e1a4"
+  },
+  {
+   "id": "otel:opentelemetry/proto/profiles/v1development/profiles.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/profiles/v1development/profiles.proto"
+   ],
+   "expect": "ok",
+   "sha256": "dbcc486151456ebae0fd477fe1a399ab12a89052e7a005fd487a9ad0a29995d8"
+  },
+  {
+   "id": "otel:opentelemetry/proto/resource/v1/resource.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/resource/v1/resource.proto"
+   ],
+   "expect": "ok",
+   "sha256": "e0a7cdc0ffcfeffaa2606e8611839735ebffaa2d6acdf33e9356f2c48ae692d3"
+  },
+  {
+   "id": "otel:opentelemetry/proto/trace/v1/trace.proto",
+   "roots": [
+    "otel"
+   ],
+   "files": [
+    "opentelemetry/proto/trace/v1/trace.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c3fb1385c90b8bc08a2a462e28b5d0c422c7b524a839f75f75e3cd9f64f36956"
+  },
+  {
+   "id": "pgv:validate/validate.proto",
+   "roots": [
+    "pgv",
+    "protobuf"
+   ],
+   "files": [
+    "validate/validate.proto"
+   ],
+   "expect": "ok",
+   "sha256": "68c9625ebe0668605a37670db1759ceb03864bc07c52eee919b049347cbc018c"
+  },
+  {
+   "id": "protobuf:google/protobuf/any.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/any.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8e56f61e3078e9232d39ce1b1bab28613783af8191f93a910c3617933f87a179"
+  },
+  {
+   "id": "protobuf:google/protobuf/any_test.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/any_test.proto"
+   ],
+   "expect": "ok",
+   "sha256": "2e15836d403368fcbb67350e0df42fedbea5c0ad295f033de65845d76013d61c"
+  },
+  {
+   "id": "protobuf:google/protobuf/api.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/api.proto"
+   ],
+   "expect": "ok",
+   "sha256": "6d47d6272eb687c806b6feb08ef3925243c64ea076cd9440b783e27a7aec5502"
+  },
+  {
+   "id": "protobuf:google/protobuf/compiler/plugin.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/compiler/plugin.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8f5ef6c36fad8e66e3347c0f8d8910dfb14239b8ccfd2a8d16dba8e775b57b7f"
+  },
+  {
+   "id": "protobuf:google/protobuf/cpp_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/cpp_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "98b866a6533e4d7113ec037643db5a19707ee6953fa9b2655c0876c6f42bfb23"
+  },
+  {
+   "id": "protobuf:google/protobuf/cpp_file_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/cpp_file_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4f5f22eebd5ff052adeaef356a9f6bebd4cace2a6ae71c3ae6df0eff78a7b9c3"
+  },
+  {
+   "id": "protobuf:google/protobuf/cpp_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/cpp_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d6b102328016a57750abc911225592dd2cf06919cfeb6c1f6c1e56ef317a0305"
+  },
+  {
+   "id": "protobuf:google/protobuf/descriptor.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/descriptor.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f46ec56fc26c48433f4cebfdc98cf1cdd5ae15f129f150256dfa82c1ec77e0a3"
+  },
+  {
+   "id": "protobuf:google/protobuf/duration.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/duration.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a3f7301ff2956ec2e30c2241ece07197e4a86c752348d5607224819d4921c9fe"
+  },
+  {
+   "id": "protobuf:google/protobuf/edition_unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/edition_unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "69f6e06fa476fc1468c33fbbb3599be88b5cc92c4c43501329897daaa8963a89"
+  },
+  {
+   "id": "protobuf:google/protobuf/empty.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/empty.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ecef3d54cc9e079673b9816c67bac770f7f3bf6dada2d4596ba69d71daa971e6"
+  },
+  {
+   "id": "protobuf:google/protobuf/field_mask.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/field_mask.proto"
+   ],
+   "expect": "ok",
+   "sha256": "9f031219ae54383afa84299fdd747e119b5f83c8e3dab060930ebb126af4460f"
+  },
+  {
+   "id": "protobuf:google/protobuf/internal_metadata_locator_test.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/internal_metadata_locator_test.proto"
+   ],
+   "expect": "ok",
+   "sha256": "2178108ce723574abb3c8505c7b347694c88296dd975cc1662755bfcfde8bc14"
+  },
+  {
+   "id": "protobuf:google/protobuf/internal_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/internal_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "7a7521fd2a5f5391a14ff9584a4d8e7892b086c6318d618f79b2d1ab8aafdc5d"
+  },
+  {
+   "id": "protobuf:google/protobuf/java_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/java_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ac0253f236f9392a9c71c1b21297bc7ca892496ed550b12c93d0a4ae8e4120df"
+  },
+  {
+   "id": "protobuf:google/protobuf/java_mutable_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/java_mutable_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f3c1386ea09a16b9ad6f5e0d1d9c06d2338aa5eb5f878b0e57920e0c3b45eb07"
+  },
+  {
+   "id": "protobuf:google/protobuf/json_enumvalue_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/json_enumvalue_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "340f597860c95ab84ec917a4146e22cf6c84f39cb417a6376a122c97f2ce55cc"
+  },
+  {
+   "id": "protobuf:google/protobuf/json_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/json_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f885bf4af73dd82159434676a8a88742f7bf577f9cbb1ed8cd79818c4977fab5"
+  },
+  {
+   "id": "protobuf:google/protobuf/late_loaded_option.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/late_loaded_option.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a0286f2a3e44cbb16d64d018fca62f15a9f2e9922d51f5c5d1700b72c07ebb49"
+  },
+  {
+   "id": "protobuf:google/protobuf/late_loaded_option_user.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/late_loaded_option_user.proto"
+   ],
+   "expect": "ok",
+   "sha256": "e70db6635e0e644c56178a510e870e067aba1aaa68f9c0ad5e9f56f46bb38967"
+  },
+  {
+   "id": "protobuf:google/protobuf/map_lite_unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/map_lite_unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "33a964937777b492aa04e27b4283b3d4f4011f20f3ccf8d519140f66144f78a5"
+  },
+  {
+   "id": "protobuf:google/protobuf/map_proto2_unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/map_proto2_unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "6ff45016267dd37728bbcf4c3fd19488b19ea90960aa0f06b4c336c7ba6a4ba0"
+  },
+  {
+   "id": "protobuf:google/protobuf/map_proto3_unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/map_proto3_unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ca71d991dd28f034a0c8cbf12bf7676ac51341b154c8a035c60ead87b8333f9d"
+  },
+  {
+   "id": "protobuf:google/protobuf/map_unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/map_unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "eb2572f4b497cef4d11b8f87c5d1c033902499cd42467cb303d5e0a0f9520007"
+  },
+  {
+   "id": "protobuf:google/protobuf/only_one_enum_test.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/only_one_enum_test.proto"
+   ],
+   "expect": "ok",
+   "sha256": "28d1fcb07f45eb7472a8a9622fb4a5926b54214789c68f1120c3696a1e3ecba8"
+  },
+  {
+   "id": "protobuf:google/protobuf/sample_messages_edition.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/sample_messages_edition.proto"
+   ],
+   "expect": "ok",
+   "sha256": "338464ff89077fb4b7403153d9c4b97aef7b81ffb6b8c8877254419580587c2b"
+  },
+  {
+   "id": "protobuf:google/protobuf/source_context.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/source_context.proto"
+   ],
+   "expect": "ok",
+   "sha256": "37d3401de89af1d1496fc949924a5f2011bd2fadfbeb0da1caa277159a96776d"
+  },
+  {
+   "id": "protobuf:google/protobuf/struct.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/struct.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4f46aa6248ddcd0ac820aab2ffd4f4e02c5bcd09596edc763fa6764f74deb785"
+  },
+  {
+   "id": "protobuf:google/protobuf/test_messages_proto2.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/test_messages_proto2.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8e6dd24e2eb255f589e16d383147404e9c08ae72ba41470af01caad8981f9893"
+  },
+  {
+   "id": "protobuf:google/protobuf/test_messages_proto3.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/test_messages_proto3.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c3c6fd3959fe767f00c19bcb79e71bc4ca2b51769b7f49a14b24e9b24e152873"
+  },
+  {
+   "id": "protobuf:google/protobuf/timestamp.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/timestamp.proto"
+   ],
+   "expect": "ok",
+   "sha256": "fa6c44dca2c90a2aaf3a1e4776cef2e9177f70fba365f236269f0f41ac166c96"
+  },
+  {
+   "id": "protobuf:google/protobuf/type.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/type.proto"
+   ],
+   "expect": "ok",
+   "sha256": "50a3b67b4d894e828173319aafcd6ac440c15340048452bd13a13e8b47cc6637"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest.proto"
+   ],
+   "expect": "ok",
+   "sha256": "96ef82dc646d9e1f3b54dfbfb1400c43bbf7d663d9ca311468f41009c00683ed"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_arena.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_arena.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5331974744fbc7182f1ee7747ba42e5262cae6aa164724a75242d40c833ff9e3"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_custom_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_custom_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "3150cad09959c8cfb598a1953dfdfe26df5f8ffc989c9d70a7f175dc496c766d"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_custom_options.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_custom_options.proto"
+   ],
+   "expect": "ok",
+   "sha256": "31a21bfe87476417b56b9fc0efa56998cb8f30b31c70369de410003e617177b3"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_custom_options_unlinked.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_custom_options_unlinked.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a4624bf88ad2f7969e5fe7cd5fb626497e0724970d50e1fe1cf147f58420fba8"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_delimited.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_delimited.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d37544e20e964f38ef86be69eda091f44c6a2d3b0504ab6293cf01f5a27d8efe"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_delimited_import.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_delimited_import.proto"
+   ],
+   "expect": "ok",
+   "sha256": "40f1543f1633db971eee1068ee1b748db94dbe179f7a15ac833ec5ce87c41b3a"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_drop_unknown_fields.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_drop_unknown_fields.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d4fc1bf416f1023de09b3ba4bf5952641d5f79e5966b7cbac6d2b7056df88c94"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_embed_optimize_for.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_embed_optimize_for.proto"
+   ],
+   "expect": "ok",
+   "sha256": "51cfa86c67d98b1d8c9d6476ebf4d330913e31c40a9b7076e0974a75d48a6ace"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_empty.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_empty.proto"
+   ],
+   "expect": "ok",
+   "sha256": "38c255a2392fcf737d34dc3eb90a96b42fd6b8f31785254070aae3cdf7cefe94"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_enormous_descriptor.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_enormous_descriptor.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8afba8a1c0d5a70065da8ccf5f75e98461b9f4b6592aca3dced466f20ae588f4"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_extension_set.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_extension_set.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bc61206121ee9271cd5dd70e5736d808b89748e863903c6ea99c0ecccc7303fc"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "16a5669ddb2278a267834442fd0ebdba1f753f930da907e8c718151ce3cb3335"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_fuzz_extensions.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_fuzz_extensions.proto"
+   ],
+   "expect": "ok",
+   "sha256": "f765b8b34e4cbeae5aebfceb6ab2ea7cfad9ee639426544680a628c217b5d5fe"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_import.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_import.proto"
+   ],
+   "expect": "ok",
+   "sha256": "feb755e5f7acb14f6760c6032df13bcc2db83c01862d532eceabbf3e34117d8a"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_import_lite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_import_lite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "7d3cc38cc0951d600bcf233aaf9036c2bb221f60c6deb6f10569e8d95bc289ba"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_import_option.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_import_option.proto"
+   ],
+   "expect": "ok",
+   "sha256": "3ebad1c7a99967daaccd34465fbb26c2eb52f28e28b80e27f5be90b6027c94cd"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_import_public.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_import_public.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c21fae69030240ecd211258e616402f7b00881cb8abbabcec7b67f5a333bd915"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_import_public_lite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_import_public_lite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "45c219a1bfbe89d15be73b4184a29658a7b569b2460e57fd9c675e8b8c6414c4"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_invalid_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_invalid_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bc7dc37fad398681cc80ca9b8a64290840d8b8ff93e83d6e834bb0214d9f1834"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lazy_dependencies.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lazy_dependencies.proto"
+   ],
+   "expect": "ok",
+   "sha256": "13bd8fa5c91a522867cf51adb99dd2fdff71245d1a89e76a51f3638952cb8372"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lazy_dependencies_custom_option.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lazy_dependencies_custom_option.proto"
+   ],
+   "expect": "ok",
+   "sha256": "56ab9ac2907d44d8594681e98239595926f5ecf618920163c874603c3f760182"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lazy_dependencies_enum.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lazy_dependencies_enum.proto"
+   ],
+   "expect": "ok",
+   "sha256": "3fb1ad8fe8a7393ebab46da2acf88f1f1692216e3f2b2e85aa450e2d8c01d5e4"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_legacy_features.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_legacy_features.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5a81c60db651833f46423af26cbe859b4e9b21203f2e33d461d6682daca81a7e"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "ab876c8e58a678fbf6d3405ecc9e1aeee9be9685a4d2d7c63052e3cf9fb5bfb4"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lite_edition_2024.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lite_edition_2024.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c0879477e0127cf8985f2d40b6635a1d96ac30174bce0c7fbc593df5c260b38f"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_lite_imports_nonlite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_lite_imports_nonlite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "76c042f53a7b83b6c64ca3077e2dc16b783fd9cdc2ff6f6e11ba1089a49d1799"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_mset.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_mset.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5ab5b17da651f6cd6e3991687e25aa1f04b3a4ea827c0df9d129e4c4d68e2077"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_mset_wire_format.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_mset_wire_format.proto"
+   ],
+   "expect": "ok",
+   "sha256": "9bdb5b0d21bf52a1e9a498b712e02d6715fcd8ffc492e7eb954a8a946e0e7fe4"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_no_field_presence.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_no_field_presence.proto"
+   ],
+   "expect": "ok",
+   "sha256": "eb79af71fd55d45a4cc5c73df9eeebf835268a099791e518a482ee42c7e5495a"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_no_generic_services.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_no_generic_services.proto"
+   ],
+   "expect": "ok",
+   "sha256": "14c4578075e7b8320407a86a044272af4c117af26af2c838a414f42b082480dd"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_optimize_for.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_optimize_for.proto"
+   ],
+   "expect": "ok",
+   "sha256": "dde1ea21f266b63fc14423251ffeeb726b4376aeee8529d9b4b2d86647851dbf"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_preserve_unknown_enum.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_preserve_unknown_enum.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4f9a34589861633bc795bf86aaa1c0bfde4d526466169da40d7650243618e3b0"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_preserve_unknown_enum2.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_preserve_unknown_enum2.proto"
+   ],
+   "expect": "ok",
+   "sha256": "c8dba54d9ee87267d09b0bc58a2b5aa915c4b0a57b4dcb0f908ceeee4f3636b0"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4382da6a62b10d9c2dcb9c5a56a1b243a1b923bbc99320d760dac64a636b2e85"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_arena.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_arena.proto"
+   ],
+   "expect": "ok",
+   "sha256": "bf93cd6869a208acc3a45a964d2b879cf2e262c7e5f19bcec6de0b46c657fb86"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_arena_lite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_arena_lite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "6a8009cc139042afed7847564608d7b514d08182c138cf04852b3a7c78976aff"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_bad_macros.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_bad_macros.proto"
+   ],
+   "expect": "ok",
+   "sha256": "8540865a55690eb38744592b442bf39bf25d2cb53b358ba01f5acd5e9a5159d5"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_extensions.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_extensions.proto"
+   ],
+   "expect": "ok",
+   "sha256": "7dfd6ae801370e65084025d1a9e308a0d7156fe0e05baedb71c442f9e833b1b8"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_lite.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_lite.proto"
+   ],
+   "expect": "ok",
+   "sha256": "70469ac4e8810c29473bc6652389a4175df516304e9e75014e2c84d3c97c3c0e"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_proto3_optional.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_proto3_optional.proto"
+   ],
+   "expect": "ok",
+   "sha256": "fc11c8a42122c3917a84f89ea7da080a5694a058857382738a857d37771aff99"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_redaction.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_redaction.proto"
+   ],
+   "expect": "ok",
+   "sha256": "1ab9bca2d866549ce9d605c5b1df96b34ae5e38ecd3a8ccf98596255c274e804"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_retention.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_retention.proto"
+   ],
+   "expect": "ok",
+   "sha256": "5d5dc105b1c42a5af7090a82d6bce95081b1ed0ec73896c5a77590424ff8469a"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_string_type.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_string_type.proto"
+   ],
+   "expect": "ok",
+   "sha256": "95a6587d4a29d11db63c22fb882048e00f6813e7109e9350b50dacf1b01cdf1f"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_string_view.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_string_view.proto"
+   ],
+   "expect": "ok",
+   "sha256": "711eb763f9d92d829f59d545f8c96c7488e65e5a62ca9c28558ec7a7afb5656c"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_utf8_string_extensions.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_utf8_string_extensions.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0a0eaf01400344a8f4f6b359682accdce84c2b6147521179cdb281b0be3a07e0"
+  },
+  {
+   "id": "protobuf:google/protobuf/unittest_well_known_types.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/unittest_well_known_types.proto"
+   ],
+   "expect": "ok",
+   "sha256": "979bcff1f1abe178bd463fa271026edb933d2e3743180015f718da9045a198f2"
+  },
+  {
+   "id": "protobuf:google/protobuf/wrappers.proto",
+   "roots": [
+    "protobuf"
+   ],
+   "files": [
+    "google/protobuf/wrappers.proto"
+   ],
+   "expect": "ok",
+   "sha256": "6878dc7534cf9805eee56345cdc38b5e9ca39dece246710c663c7007a67fef49"
+  },
+  {
+   "id": "xds:udpa/annotations/migrate.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "udpa/annotations/migrate.proto"
+   ],
+   "expect": "ok",
+   "sha256": "4fb5c329d0ac560e0c127b2f2d3368fb2038d093961202dba8700fd4f1308a86"
+  },
+  {
+   "id": "xds:udpa/annotations/sensitive.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "udpa/annotations/sensitive.proto"
+   ],
+   "expect": "ok",
+   "sha256": "a1789e2e40bedca1b6e75459b46a8e319a504e668358f9151fbeb7e0d70962f4"
+  },
+  {
+   "id": "xds:udpa/annotations/status.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "udpa/annotations/status.proto"
+   ],
+   "expect": "ok",
+   "sha256": "038771f31b67fc4d5be4b41eb08e5846bd4e972d3aa73674097706a8aac9e697"
+  },
+  {
+   "id": "xds:udpa/annotations/versioning.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "udpa/annotations/versioning.proto"
+   ],
+   "expect": "ok",
+   "sha256": "d53f268b4a2b69a6067ff06a43486fb2a2a0d65a3405d3cf43e82192818e2d27"
+  },
+  {
+   "id": "xds:xds/annotations/v3/status.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "xds/annotations/v3/status.proto"
+   ],
+   "expect": "ok",
+   "sha256": "0145b2d9437ace6c1201453cd57d44c96e2e89894e502c2d869e8ee2b59b8c19"
+  },
+  {
+   "id": "xds:xds/core/v3/context_params.proto",
+   "roots": [
+    "xds",
+    "protobuf"
+   ],
+   "files": [
+    "xds/core/v3/context_params.proto"
+   ],
+   "expect": "ok",
+   "sha256": "912801a580c04553d75a0099d16206a668dd609277c860b6d05d86f8cbddc11c"
+  }
+ ]
+}
