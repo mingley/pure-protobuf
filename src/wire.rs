@@ -1,12 +1,16 @@
 //! Binary wire codec. No schema.
 #![allow(
     clippy::unwrap_used,
-    reason = "fixed32/64 try_into after a length check"
+    reason = "fixed32/64 try_into and 16-byte SIMD chunk after a length check"
 )]
 
 use crate::error::ParseError;
 use crate::internal::MAX_MESSAGE_BYTES;
 use bytes::{BufMut, Bytes};
+#[cfg(target_arch = "aarch64")]
+use std::arch::aarch64::*;
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 
 /// Byte sink for binary encode. Implemented for every [`BufMut`] (`Vec<u8>`,
 /// `BytesMut`, tonic `EncodeBuf`).
@@ -226,37 +230,192 @@ pub fn varint_len(mut value: u64) -> u64 {
     n
 }
 
+/// Continuation-bit mask of a 16-byte varint run (PK-04).
+///
+/// Bit `i` is set iff `chunk[i]` has the varint continuation bit
+/// (`byte >= 0x80`). NEON (`aarch64`) and SSE2 (`x86_64`) builds compute it
+/// with one unaligned vector load plus a SIMD reduction; every other target
+/// uses a scalar byte loop with identical results. SSE2 is part of the
+/// x86-64 baseline and ASIMD of aarch64, so no runtime feature check is
+/// needed. Shared by the two bulk loops below, which in turn serve the
+/// generated inline path and the table engine through `validate_varints`
+/// and `PackedCodec::decode`.
+#[inline(always)]
+fn cont_mask16(chunk: &[u8; 16]) -> u16 {
+    #[cfg(target_arch = "aarch64")]
+    {
+        // SAFETY: `vld1q_u8` reads exactly the 16 bytes behind the shared
+        // reference (no alignment requirement, no over-read); the remaining
+        // intrinsics operate on register values only, so aliasing,
+        // out-of-bounds access, and use-after-free are impossible. The
+        // weights vector is a compile-time constant transmuted to a register
+        // (same size and alignment; every bit pattern is a valid vector).
+        // See docs/unsafe-invariants.md §11.
+        unsafe {
+            let v = vld1q_u8(chunk.as_ptr());
+            // 0xFF per lane whose byte is >= 0x80 (negative as i8).
+            let hi = vcltq_s8(vreinterpretq_s8_u8(v), vdupq_n_s8(0));
+            let weights: uint8x16_t =
+                std::mem::transmute([1u8, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128]);
+            let m = vandq_u8(hi, weights);
+            u16::from(vaddv_u8(vget_low_u8(m))) | (u16::from(vaddv_u8(vget_high_u8(m))) << 8)
+        }
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        // SAFETY: `_mm_loadu_si128` reads exactly the 16 bytes behind the
+        // shared reference (explicitly unaligned-safe, no over-read);
+        // `_mm_movemask_epi8` only packs register sign bits, so aliasing,
+        // out-of-bounds access, and use-after-free are impossible.
+        // See docs/unsafe-invariants.md §11.
+        unsafe {
+            let v = _mm_loadu_si128(chunk.as_ptr() as *const __m128i);
+            _mm_movemask_epi8(v) as u16
+        }
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    {
+        let mut mask = 0u16;
+        for (i, b) in chunk.iter().enumerate() {
+            if *b >= 0x80 {
+                mask |= 1 << i;
+            }
+        }
+        mask
+    }
+}
+
+/// `cont_mask16` pattern of eight consecutive 2-byte varints: bytes
+/// 0,2,...,14 carry a continuation bit and bytes 1,3,...,15 terminate.
+const VARINT_PAIRS_MASK16: u16 = 0x5555;
+
 /// Packed-varint well-formedness without materializing values.
+///
+/// Buffers of 16+ bytes run the outlined SIMD classifier (PK-04) first;
+/// short buffers and chunk tails use the scalar loop. The shell stays
+/// small so callers inline it exactly as before the SIMD work.
 #[inline]
 pub fn validate_varints(buf: &[u8]) -> Result<(), ParseError> {
     let mut i = 0;
     let n = buf.len();
+    if n >= 16 {
+        i = validate_bulk_16(buf, 0)?;
+    }
     while i < n {
-        let b = buf[i];
-        i += 1;
-        if b < 0x80 {
-            continue;
-        }
-        let mut cnt = 1u32;
-        loop {
-            if i >= n {
-                return Err(ParseError::new("truncated varint"));
-            }
-            let c = buf[i];
-            i += 1;
-            cnt += 1;
-            if c < 0x80 {
-                if cnt == 10 && c > 1 {
-                    return Err(ParseError::new("varint overflow"));
-                }
-                break;
-            }
-            if cnt >= 10 {
-                return Err(ParseError::new("varint overflow"));
-            }
-        }
+        i = validate_one_varint(buf, i, n)?;
     }
     Ok(())
+}
+
+/// SIMD bulk validation over the 16-byte-chunk portion of `buf` starting
+/// at `i`, returning the offset where fewer than 16 bytes remain. Each
+/// chunk is sixteen 1-byte varints, eight 2-byte varints (both
+/// unconditionally valid — overflow needs 10 bytes), a leading run of
+/// 1-byte varints, or one scalar varint. Skipped bytes are provably valid,
+/// so the first error reported is identical to the scalar loop.
+/// Out-of-line by design: one call per field keeps the `validate_varints`
+/// shell (and its inlining) unchanged for short buffers.
+#[inline(never)]
+fn validate_bulk_16(buf: &[u8], mut i: usize) -> Result<usize, ParseError> {
+    let n = buf.len();
+    while n - i >= 16 {
+        let chunk = buf[i..].first_chunk::<16>().unwrap();
+        let mask = cont_mask16(chunk);
+        if mask == 0 {
+            i += 16;
+            continue;
+        }
+        if mask == VARINT_PAIRS_MASK16 {
+            i += 16;
+            continue;
+        }
+        // Mixed chunk: skip the leading 1-byte run (`trailing_zeros` < 16
+        // because the mask is nonzero), else decode one scalar varint below.
+        let singles = mask.trailing_zeros() as usize;
+        if singles > 0 {
+            i += singles;
+            continue;
+        }
+        i = validate_one_varint(buf, i, n)?;
+    }
+    Ok(i)
+}
+
+/// SIMD bulk decode of the 16-byte-chunk portion of a packed varint
+/// payload, appending through `conv` and returning the offset where fewer
+/// than 16 bytes remain. Values use the same arithmetic as the scalar 1-
+/// and 2-byte fast paths, and the first invalid varint is always handled
+/// by `decode_varint` at the identical offset, so status, values, and the
+/// partial prefix match the scalar loop exactly. Shared by every packed
+/// varint/bool codec (generated inline path and table engine alike).
+/// Out-of-line by design: one call per field keeps the `decode` shells
+/// (and their inlining) unchanged for short buffers.
+#[inline(never)]
+pub(crate) fn bulk_decode_varints<T, F>(
+    buf: &[u8],
+    mut i: usize,
+    out: &mut Vec<T>,
+    conv: F,
+) -> Result<usize, ParseError>
+where
+    F: Fn(u64) -> T,
+{
+    let n = buf.len();
+    while n - i >= 16 {
+        let chunk = buf[i..].first_chunk::<16>().unwrap();
+        let mask = cont_mask16(chunk);
+        if mask == 0 {
+            out.extend(chunk.iter().map(|b| conv(u64::from(*b))));
+            i += 16;
+            continue;
+        }
+        if mask == VARINT_PAIRS_MASK16 {
+            out.extend(
+                chunk
+                    .chunks_exact(2)
+                    .map(|p| conv(u64::from(p[0] & 0x7f) | (u64::from(p[1]) << 7))),
+            );
+            i += 16;
+            continue;
+        }
+        let singles = mask.trailing_zeros() as usize;
+        if singles > 0 {
+            out.extend(chunk[..singles].iter().map(|b| conv(u64::from(*b))));
+            i += singles;
+            continue;
+        }
+        out.push(conv(decode_varint(buf, &mut i)?));
+    }
+    Ok(i)
+}
+
+/// Validate the single varint starting at `i` (`i < n`), returning the
+/// offset past it. Scalar step shared by the SIMD loop and the tail.
+#[inline(always)]
+fn validate_one_varint(buf: &[u8], mut i: usize, n: usize) -> Result<usize, ParseError> {
+    let b = buf[i];
+    i += 1;
+    if b < 0x80 {
+        return Ok(i);
+    }
+    let mut cnt = 1u32;
+    loop {
+        if i >= n {
+            return Err(ParseError::new("truncated varint"));
+        }
+        let c = buf[i];
+        i += 1;
+        cnt += 1;
+        if c < 0x80 {
+            if cnt == 10 && c > 1 {
+                return Err(ParseError::new("varint overflow"));
+            }
+            return Ok(i);
+        }
+        if cnt >= 10 {
+            return Err(ParseError::new("varint overflow"));
+        }
+    }
 }
 
 pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
@@ -761,5 +920,426 @@ mod tests {
         };
         encode_len_field_shared(&mut rec, 2, &shared);
         assert_eq!(rec.shared_calls, 1);
+    }
+
+    // --- PK-04 SIMD varint differential tests ---
+
+    /// Scalar reference for `cont_mask16` (the fallback-target algorithm).
+    fn scalar_cont_mask16(chunk: &[u8; 16]) -> u16 {
+        let mut mask = 0u16;
+        for (i, b) in chunk.iter().enumerate() {
+            if *b >= 0x80 {
+                mask |= 1 << i;
+            }
+        }
+        mask
+    }
+
+    #[test]
+    fn simd_cont_mask_matches_scalar() {
+        assert_eq!(cont_mask16(&[0u8; 16]), 0);
+        assert_eq!(cont_mask16(&[0xffu8; 16]), 0xffff);
+        assert_eq!(
+            cont_mask16(&[0x80, 0, 0x81, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
+            0x0005
+        );
+        let mut pairs = [0u8; 16];
+        for i in 0..8 {
+            pairs[2 * i] = 0x80 | i as u8;
+            pairs[2 * i + 1] = i as u8;
+        }
+        assert_eq!(cont_mask16(&pairs), VARINT_PAIRS_MASK16);
+        // Deterministic sweep against the scalar loop (short under Miri:
+        // each intrinsic step is interpreted).
+        let mut rng = CampaignRng(0x9e37_79b9_7f4a_7c15);
+        let iters = if cfg!(miri) { 500 } else { 200_000 };
+        for _ in 0..iters {
+            let mut chunk = [0u8; 16];
+            for b in chunk.iter_mut() {
+                *b = rng.next_byte();
+            }
+            assert_eq!(cont_mask16(&chunk), scalar_cont_mask16(&chunk));
+        }
+    }
+
+    /// Independent scalar varint reference (never calls crate decoders).
+    fn ref_decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, &'static str> {
+        let mut result = 0u64;
+        let mut shift = 0;
+        for i in 0..10 {
+            if *pos >= buf.len() {
+                return Err("truncated");
+            }
+            let byte = buf[*pos];
+            *pos += 1;
+            if i == 9 && byte > 1 {
+                return Err("overflow");
+            }
+            result |= u64::from(byte & 0x7f) << shift;
+            if byte < 0x80 {
+                return Ok(result);
+            }
+            shift += 7;
+        }
+        Err("overflow")
+    }
+
+    fn ref_varint_len(mut value: u64) -> usize {
+        let mut n = 1;
+        while value >= 0x80 {
+            value >>= 7;
+            n += 1;
+        }
+        n
+    }
+
+    fn ref_decode_tag(buf: &[u8], pos: &mut usize) -> Result<(u32, u32), &'static str> {
+        let start = *pos;
+        let tag = ref_decode_varint(buf, pos)?;
+        if *pos - start != ref_varint_len(tag) {
+            return Err("overlong tag");
+        }
+        if tag > u64::from(u32::MAX) {
+            return Err("tag overflow");
+        }
+        let wire = (tag & 7) as u32;
+        let number = (tag >> 3) as u32;
+        if number == 0 || number > MAX_FIELD_NUMBER {
+            return Err("illegal field number");
+        }
+        Ok((number, wire))
+    }
+
+    /// Reference packed-payload decode: values so far plus final status.
+    fn ref_decode_all(buf: &[u8]) -> (Vec<u64>, Result<(), &'static str>) {
+        let mut pos = 0;
+        let mut out = Vec::new();
+        while pos < buf.len() {
+            match ref_decode_varint(buf, &mut pos) {
+                Ok(v) => out.push(v),
+                Err(e) => return (out, Err(e)),
+            }
+        }
+        (out, Ok(()))
+    }
+
+    fn ref_zigzag32(n: u64) -> i32 {
+        let n = n as u32;
+        ((n >> 1) as i32) ^ -((n & 1) as i32)
+    }
+
+    fn ref_zigzag64(n: u64) -> i64 {
+        ((n >> 1) as i64) ^ -((n & 1) as i64)
+    }
+
+    fn check_codec<C, F>(data: &[u8], values: &[u64], ok: bool, conv: F)
+    where
+        C: crate::packed::PackedCodec,
+        C::Elem: std::fmt::Debug,
+        F: Fn(u64) -> C::Elem,
+    {
+        let mut out = Vec::new();
+        let status = C::decode(data, &mut out);
+        assert_eq!(
+            status.is_ok(),
+            ok,
+            "{} status {data:?}",
+            std::any::type_name::<C>()
+        );
+        let expect: Vec<C::Elem> = values.iter().map(|x| conv(*x)).collect();
+        assert_eq!(
+            out,
+            expect,
+            "{} values {data:?}",
+            std::any::type_name::<C>()
+        );
+    }
+
+    /// Full differential check of one input: single varint/tag (status,
+    /// position, value), packed validation (status), and every varint
+    /// codec decode (status plus the full value vector, including the
+    /// partial prefix when decoding fails partway).
+    fn check_one_varint_input(data: &[u8]) {
+        use crate::packed::{
+            Bools, PackedCodec, VarintI32, VarintI64, VarintU32, VarintU64, ZigZag32, ZigZag64,
+        };
+
+        let mut fast_pos = 0;
+        let mut ref_pos = 0;
+        let fast = decode_varint(data, &mut fast_pos).map_err(|_| ());
+        let reference = ref_decode_varint(data, &mut ref_pos).map_err(|_| ());
+        assert_eq!(
+            fast.is_ok(),
+            reference.is_ok(),
+            "decode_varint status {data:?}"
+        );
+        assert_eq!(fast_pos, ref_pos, "decode_varint position {data:?}");
+        if let (Ok(fast), Ok(reference)) = (fast, reference) {
+            assert_eq!(fast, reference, "decode_varint value {data:?}");
+        }
+
+        let mut fast_pos = 0;
+        let mut ref_pos = 0;
+        let fast = decode_tag(data, &mut fast_pos).map_err(|_| ());
+        let reference = ref_decode_tag(data, &mut ref_pos).map_err(|_| ());
+        assert_eq!(
+            fast.is_ok(),
+            reference.is_ok(),
+            "decode_tag status {data:?}"
+        );
+        assert_eq!(fast_pos, ref_pos, "decode_tag position {data:?}");
+        if let (Ok(fast), Ok(reference)) = (fast, reference) {
+            assert_eq!(fast, reference, "decode_tag value {data:?}");
+        }
+
+        let (values, status) = ref_decode_all(data);
+        let ok = status.is_ok();
+        assert_eq!(
+            validate_varints(data).is_ok(),
+            ok,
+            "validate_varints {data:?}"
+        );
+        assert_eq!(
+            <VarintU64 as PackedCodec>::validate(data).is_ok(),
+            ok,
+            "packed validate {data:?}"
+        );
+
+        check_codec::<VarintU64, _>(data, &values, ok, |v| v);
+        check_codec::<VarintU32, _>(data, &values, ok, |v| v as u32);
+        check_codec::<VarintI32, _>(data, &values, ok, |v| v as i32);
+        check_codec::<VarintI64, _>(data, &values, ok, |v| v as i64);
+        check_codec::<ZigZag32, _>(data, &values, ok, ref_zigzag32);
+        check_codec::<ZigZag64, _>(data, &values, ok, ref_zigzag64);
+        check_codec::<Bools, _>(data, &values, ok, |v| v != 0);
+    }
+
+    #[test]
+    fn simd_chunk_edges_match_reference() {
+        let singles = |n: usize| vec![0x7fu8; n];
+        let pairs = |n: usize| {
+            let mut v = Vec::new();
+            for i in 0..n {
+                v.push(0x80 | (i as u8 & 0x7f));
+                v.push(i as u8 & 0x7f);
+            }
+            v
+        };
+        let overlong_pairs = |n: usize| {
+            let mut v = Vec::new();
+            for _ in 0..n {
+                v.push(0x80);
+                v.push(0x00);
+            }
+            v
+        };
+        let max10: &[u8] = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
+        let over10: &[u8] = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02];
+        let over11: &[u8] = &[
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+        ];
+        let trunc1: &[u8] = &[0x80];
+        let trunc2: &[u8] = &[0x80, 0x80];
+
+        let mut cases: Vec<Vec<u8>> = Vec::new();
+        for n in [15usize, 16, 17, 31, 32, 33, 48, 64] {
+            cases.push(singles(n));
+        }
+        cases.push(pairs(8));
+        cases.push(pairs(16));
+        cases.push(pairs(20));
+        // Pair split across the 16-byte chunk boundary.
+        let mut split = singles(15);
+        split.extend_from_slice(&pairs(2));
+        cases.push(split);
+        let mut split2 = singles(7);
+        split2.extend_from_slice(&pairs(6));
+        cases.push(split2);
+        cases.push(overlong_pairs(16));
+        // Error tails after full SIMD chunks, plus an embedded error.
+        for prefix in [singles(16), pairs(8), singles(32)] {
+            for tail in [max10, over10, over11, trunc1, trunc2] {
+                let mut v = prefix.clone();
+                v.extend_from_slice(tail);
+                cases.push(v);
+            }
+            let mut v = prefix.clone();
+            v.extend_from_slice(over10);
+            v.extend_from_slice(&singles(20));
+            cases.push(v);
+        }
+        // Alternating single/double: every chunk mixed.
+        let mut alt = Vec::new();
+        for i in 0..20u8 {
+            alt.push(i);
+            alt.push(0x80 | i);
+            alt.push(i);
+        }
+        cases.push(alt);
+        // Packed-256-shaped payload: 128 singles then 128 doubles.
+        let mut p256 = singles(128);
+        p256.extend_from_slice(&pairs(128));
+        cases.push(p256);
+
+        for c in &cases {
+            check_one_varint_input(c);
+        }
+        assert!(!cases.is_empty());
+    }
+
+    /// Deterministic xorshift64 (fixed seed: the campaign is reproducible).
+    struct CampaignRng(u64);
+
+    impl CampaignRng {
+        fn next_u64(&mut self) -> u64 {
+            let mut s = self.0;
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            self.0 = s;
+            s
+        }
+
+        fn next_byte(&mut self) -> u8 {
+            (self.next_u64() >> 11) as u8
+        }
+
+        fn next_below(&mut self, n: usize) -> usize {
+            (self.next_u64() % n as u64) as usize
+        }
+
+        /// Lengths biased at SIMD chunk boundaries (15/16/17 + 16k).
+        fn next_len(&mut self) -> usize {
+            match self.next_below(8) {
+                0..=3 => self.next_below(96),
+                4 => 15 + 16 * self.next_below(4),
+                5 => 16 + 16 * self.next_below(4),
+                6 => 17 + 16 * self.next_below(4),
+                _ => self.next_below(8),
+            }
+        }
+
+        /// Fill `out` with one shape: uniform bytes, single-byte runs,
+        /// 2-byte pair runs, concatenated canonical encodings (maybe
+        /// truncated), or a structured edge fragment in random context.
+        fn fill(&mut self, out: &mut Vec<u8>) {
+            out.clear();
+            let len = self.next_len();
+            out.reserve(len);
+            match self.next_below(5) {
+                0 => {
+                    for _ in 0..len {
+                        out.push(self.next_byte());
+                    }
+                }
+                1 => {
+                    for _ in 0..len {
+                        let b = self.next_byte();
+                        out.push(if self.next_below(8) == 0 { b } else { b & 0x7f });
+                    }
+                }
+                2 => {
+                    let mut i = 0;
+                    while i < len {
+                        if self.next_below(8) == 0 || i + 1 >= len {
+                            out.push(self.next_byte());
+                            i += 1;
+                        } else {
+                            out.push(self.next_byte() | 0x80);
+                            out.push(self.next_byte() & 0x7f);
+                            i += 2;
+                        }
+                    }
+                }
+                3 => {
+                    while out.len() < len {
+                        let v = self.next_u64() >> self.next_below(64);
+                        let mut tmp = Vec::new();
+                        encode_varint(&mut tmp, v);
+                        out.extend_from_slice(&tmp);
+                    }
+                    out.truncate(len);
+                }
+                _ => {
+                    const FRAGS: &[&[u8]] = &[
+                        &[0x80, 0x00],
+                        &[0xff, 0xff, 0xff, 0xff, 0x0f],
+                        &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+                        &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02],
+                        &[0x80],
+                        &[
+                            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+                        ],
+                        &[
+                            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01,
+                        ],
+                    ];
+                    let frag = FRAGS[self.next_below(FRAGS.len())];
+                    let at = if len == 0 {
+                        0
+                    } else {
+                        self.next_below(len + 1)
+                    };
+                    for _ in 0..at.min(len) {
+                        out.push(self.next_byte());
+                    }
+                    for b in frag.iter().take(len.saturating_sub(out.len())) {
+                        out.push(*b);
+                    }
+                    while out.len() < len {
+                        out.push(self.next_byte());
+                    }
+                }
+            }
+        }
+    }
+
+    /// Bounded deterministic differential campaign: every input runs the
+    /// full [`check_one_varint_input`]. `PBRS_VARINT_BULK_N` sets the PRNG
+    /// input count (default 20k, fast for `cargo test`); large campaigns
+    /// add the exhaustive 3-byte sweep. Prints the exact input count; a
+    /// pass means zero divergence over all of them.
+    #[test]
+    fn bulk_varint_differential_campaign() {
+        let prng_n: u64 = std::env::var("PBRS_VARINT_BULK_N")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(20_000);
+        // Short under Miri: the interpreter runs every intrinsic step.
+        let (depth, prng_n) = if cfg!(miri) {
+            (1, prng_n.min(200))
+        } else {
+            (2, prng_n)
+        };
+        let mut count = 0u64;
+        let mut check = |data: &[u8]| {
+            check_one_varint_input(data);
+            count += 1;
+        };
+        check(b"");
+        for a in 0..=255u16 {
+            check(&[a as u8]);
+            if depth >= 2 {
+                for b in 0..=255u16 {
+                    check(&[a as u8, b as u8]);
+                }
+            }
+        }
+        if !cfg!(miri) && prng_n >= 1_000_000 {
+            for a in 0..=255u16 {
+                for b in 0..=255u16 {
+                    for c in 0..=255u16 {
+                        check(&[a as u8, b as u8, c as u8]);
+                    }
+                }
+            }
+        }
+        let mut rng = CampaignRng(0x243f_6a88_85a3_08d3);
+        let mut buf = Vec::new();
+        for _ in 0..prng_n {
+            rng.fill(&mut buf);
+            check(&buf);
+        }
+        println!("bulk varint differential: {count} inputs, no divergence");
     }
 }

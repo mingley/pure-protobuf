@@ -9,8 +9,8 @@ use crate::error::ParseError;
 use crate::lazy::Wire;
 use crate::repeated::{Repeated, RepeatedMut, RepeatedView};
 use crate::wire::{
-    decode_varint, decode_zigzag32, decode_zigzag64, encode_varint, encode_zigzag32,
-    encode_zigzag64,
+    bulk_decode_varints, decode_varint, decode_zigzag32, decode_zigzag64, encode_varint,
+    encode_zigzag32, encode_zigzag64,
 };
 use std::sync::OnceLock;
 
@@ -42,7 +42,12 @@ macro_rules! varint_codec {
                 crate::wire::validate_varints(buf)
             }
             fn decode(buf: &[u8], out: &mut Vec<$elem>) -> Result<(), ParseError> {
+                // SIMD bulk prefix (PK-04) is out-of-line; the shell stays
+                // small so callers inline it exactly as before.
                 let mut i = 0;
+                if buf.len() >= 16 {
+                    i = bulk_decode_varints(buf, 0, out, $from)?;
+                }
                 while i < buf.len() {
                     out.push($from(decode_varint(buf, &mut i)?));
                 }
@@ -73,6 +78,9 @@ impl PackedCodec for Bools {
     }
     fn decode(buf: &[u8], out: &mut Vec<bool>) -> Result<(), ParseError> {
         let mut i = 0;
+        if buf.len() >= 16 {
+            i = bulk_decode_varints(buf, 0, out, |v| v != 0)?;
+        }
         while i < buf.len() {
             out.push(decode_varint(buf, &mut i)? != 0);
         }
@@ -516,5 +524,96 @@ mod tests {
     #[should_panic(expected = "packed encode length overflow")]
     fn packed_byte_len_overflow_fails_closed() {
         let _ = super::packed_byte_len(usize::MAX / 8 + 1, 8);
+    }
+
+    /// Scalar one-varint-at-a-time decode (reference for the SIMD loops).
+    fn scalar_decode_u64(buf: &[u8]) -> Result<Vec<u64>, ParseError> {
+        let mut i = 0;
+        let mut out = Vec::new();
+        while i < buf.len() {
+            out.push(decode_varint(buf, &mut i)?);
+        }
+        Ok(out)
+    }
+
+    #[test]
+    fn simd_bulk_decode_matches_scalar() {
+        // Shapes hitting every bulk path: all-singles, all-pairs, mixed,
+        // and pair runs split across 16-byte chunk boundaries.
+        let mut bufs: Vec<Vec<u8>> = Vec::new();
+        bufs.push((0..64u8).collect());
+        let mut pairs = Vec::new();
+        for i in 0..32u8 {
+            pairs.push(0x80 | (i & 0x7f));
+            pairs.push(i & 0x7f);
+        }
+        bufs.push(pairs);
+        let mut mixed = Vec::new();
+        for i in 0..24u8 {
+            mixed.push(i);
+            mixed.push(0x80 | i);
+            mixed.push(0x01);
+        }
+        bufs.push(mixed);
+        for prefix in [7usize, 15, 17, 31] {
+            let mut v = vec![0x11u8; prefix];
+            for i in 0..16u8 {
+                v.push(0x80 | i);
+                v.push(0x02);
+            }
+            bufs.push(v);
+        }
+        // Canonical encodings of 0..256 (packed_256 shape) plus an
+        // overlong pair and a truncated tail variant.
+        let mut p256 = Vec::new();
+        for i in 0..256u64 {
+            encode_varint(&mut p256, i);
+        }
+        bufs.push(p256.clone());
+        let mut overlong = p256.clone();
+        overlong.extend_from_slice(&[0x80, 0x00]);
+        bufs.push(overlong);
+        let mut trunc = p256;
+        trunc.push(0x80);
+        bufs.push(trunc);
+
+        for buf in &bufs {
+            let expect = scalar_decode_u64(buf);
+            let mut i32_out = Vec::new();
+            let i32_res = VarintI32::decode(buf, &mut i32_out);
+            let mut u64_out = Vec::new();
+            let u64_res = VarintU64::decode(buf, &mut u64_out);
+            let mut zz_out = Vec::new();
+            let zz_res = ZigZag32::decode(buf, &mut zz_out);
+            let mut b_out = Vec::new();
+            let b_res = Bools::decode(buf, &mut b_out);
+            match &expect {
+                Ok(values) => {
+                    assert!(i32_res.is_ok());
+                    assert!(u64_res.is_ok());
+                    assert!(zz_res.is_ok());
+                    assert!(b_res.is_ok());
+                    assert_eq!(u64_out, *values);
+                    assert_eq!(
+                        i32_out,
+                        values.iter().map(|v| *v as i32).collect::<Vec<_>>()
+                    );
+                    assert_eq!(
+                        zz_out,
+                        values
+                            .iter()
+                            .map(|v| decode_zigzag32(*v))
+                            .collect::<Vec<_>>()
+                    );
+                    assert_eq!(b_out, values.iter().map(|v| *v != 0).collect::<Vec<_>>());
+                }
+                Err(_) => {
+                    assert!(i32_res.is_err());
+                    assert!(u64_res.is_err());
+                    assert!(zz_res.is_err());
+                    assert!(b_res.is_err());
+                }
+            }
+        }
     }
 }

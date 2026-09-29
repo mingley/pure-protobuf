@@ -560,3 +560,89 @@ Items found while qualifying at `fd4500c6`. All four were fixed by the coordinat
 | PB07-F4 | `src/lazy.rs` (`Wire::from_slice`/`window`) | FIXED 2026-09-29: `u32_offset` helper with `checked_add` + `u32::try_from`, fail-closed panic; boundary unit tests. |
 
 Resolved in PB-05/PB-06 (kept for audit continuity): wire `usize` overflow, codegen char-boundary slice, JSON duration truncate, timestamp day-0/month-13 arithmetic, text map-default `value:0` — see §6.2 history. No unresolved fuzz crashers remain: no `crash-*` files exist under `fuzz/corpus/` (seeds only), and the minimized findings are embedded as constants in `tests/fuzz_parse.rs`, which passes (1 test feeding 5 corpus inputs).
+
+---
+
+## 11. SIMD Varint Kernels (PK-04)
+
+`src/wire.rs::cont_mask16` classifies a 16-byte varint run into a
+continuation-bit mask (bit `i` set iff `chunk[i] >= 0x80`). It is the only
+new `unsafe` on this card (one block per target, inside an otherwise safe
+`fn`); the out-of-line bulk loops (`validate_bulk_16`,
+`bulk_decode_varints`) are safe code over the mask plus bounds-checked
+slices, entered through small inline shells that keep short-buffer
+inlining identical to the scalar code. Generated inline parsing and the
+table engine share the primitive through
+`validate_varints`/`PackedCodec::decode`; no dispatch was rewired. Portable
+SWAR is intentionally absent (tried, regressed, and reverted in
+`039c7cd1`).
+
+### 11.1 Unsafe sites and preconditions
+
+- **NEON (`aarch64`).** `vld1q_u8(chunk.as_ptr())` reads exactly the 16
+  bytes behind the `&[u8; 16]` shared reference: the callee-side
+  `n - i >= 16` guard plus `first_chunk::<16>()` proves the bytes are
+  in-bounds, and `vld1q` has no alignment requirement, so unaligned packet
+  offsets cannot fault. The compare/AND/horizontal-add chain operates on
+  register values only. The `transmute` materializes a 16-byte array
+  constant as `uint8x16_t` (same size/alignment; every bit pattern is a
+  valid vector).
+- **SSE2 (`x86_64`).** `_mm_loadu_si128` reads exactly the 16 referenced
+  bytes (explicitly unaligned-safe, no over-read);
+  `_mm_movemask_epi8` packs register sign bits. No alignment, aliasing, or
+  lifetime precondition beyond the shared reference.
+- **No target-feature gating.** SSE2 is part of the x86-64 baseline and
+  ASIMD of aarch64, so both paths are compile-gated with no runtime
+  detection to get wrong. All other targets (32-bit, big-endian) compile
+  the scalar byte loop in the same function with identical results.
+
+In all three cases the `unsafe` block cannot cause UB: reads stay inside a
+live shared borrow, no raw pointer escapes, and no `set_len`/`from_raw_parts`
+is involved.
+
+### 11.2 Classification soundness (safe code, shared by all targets)
+
+- `mask == 0` skips/decodes sixteen 1-byte varints; `mask == 0x5555`
+  skips/decodes eight 2-byte varints. Both shapes are unconditionally
+  valid: varint overflow needs 10 bytes, and the 16-byte gate rules out
+  truncation inside the chunk.
+- Otherwise `trailing_zeros` (< 16: the mask is nonzero) counts a leading
+  run of provably valid 1-byte varints, which is skipped/decoded; a zero
+  count decodes exactly one scalar varint. Every iteration consumes
+  `>= 1` byte, so the loop terminates.
+- Bulk-decoded values use the same arithmetic as the scalar 1- and 2-byte
+  fast paths (`b as u64`, `(b0 & 0x7f) | (b1 << 7)`), so values — including
+  overlong pairs such as `[0x80, 0x00]` — are bit-identical.
+- **Error precedence.** Only provably valid varints are consumed by the
+  fast paths; the first invalid varint is always handled by the scalar
+  step with the identical offset, so error kind, error position, and the
+  partial value prefix match the scalar loop exactly.
+
+### 11.3 Test anchors
+
+- `simd_cont_mask_matches_scalar` (`src/wire.rs`): the intrinsic mask
+  against the scalar loop over 200k deterministic chunks (500 under Miri).
+- `simd_chunk_edges_match_reference` (`src/wire.rs`): chunk-boundary
+  lengths (15/16/17/31/32/33), all-singles/all-pairs runs, pairs split
+  across the 16-byte boundary, overlong runs, and error tails after full
+  chunks, each through the full single/decode/tag/validate/codec
+  differential.
+- `simd_bulk_decode_matches_scalar` (`src/packed.rs`): every bulk shape
+  plus a packed_256-shaped payload and truncated variants across four
+  codecs.
+- `bulk_varint_differential_campaign` (`src/wire.rs`, env-gated count):
+  exhaustive 0–2-byte inputs plus (large runs) the exhaustive 3-byte sweep
+  and PRNG shapes biased at chunk boundaries, each through the full
+  differential of §11.2. 2026-09-29 local run: 1,016,843,009 inputs, no
+  divergence (release, macOS arm64).
+- `fuzz/fuzz_targets/varint_diff.rs`: the libFuzzer entry now checks
+  packed decode status plus full value vectors for all seven varint
+  codecs, so the scheduled QG-02 campaign covers the SIMD loops on every
+  fuzz host arch (including x86_64 SSE2, which this worktree cannot
+  execute: no QEMU runner per PB-07).
+- Miri strict provenance covers the NEON block (Miri executes these
+  intrinsics with native-identical results, verified by probe); the
+  campaign and mask sweep shrink automatically under `cfg!(miri)`.
+- The 32-bit/big-endian lanes compile the scalar fallback: same
+  classification code, same differentials; execution proof stays with the
+  scheduled `target-matrix` CI job (§9 exclusions apply).
