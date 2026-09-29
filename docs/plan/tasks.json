@@ -3866,7 +3866,12 @@
         "Selected option has reviewed record framing, nonce/key discipline, handshake state machine, memory safety, MSRV, license and transitive graph; review recorded.",
         "No dependency added before approval; if no option qualifies, record the blocker instead of commissioning an unbounded rewrite."
       ],
-      "checks": []
+      "checks": [],
+      "status": "done",
+      "notes": "2026-09-29 coordinator: BLOCKER verdict integrated (43f658a5) — no maintained pure-Rust ALTS provider (15 probes 404, sole candidate rejected); no dependency, no rewrite. EX-18b/EX-19 stay gated on a re-survey trigger, not launched.",
+      "evidence": [
+        "docs/evidence/alts-record-review.md"
+      ]
     },
     {
       "id": "EX-18b",
