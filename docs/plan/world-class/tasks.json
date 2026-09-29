@@ -6905,8 +6905,12 @@
     "E1"
    ],
    "relates": [],
-   "notes": "2026-09-29 coordinator re-scope: peer lists in run.py (server_command/preflight) and cells.py are hardcoded, so the worker may extend them to register new peers. Disjoint from SB-12 (scenarios/ + scripts/stack-matrix.sh).",
-   "status": "in_progress"
+   "notes": "Closed 2026-09-29: all 7 optional peers pinned+scripted; all not_run pending tests/interop/ harnesses (future work, hotspot-shared with IO cards). Fairness verifier flags pre-existing go/cpp/tonic-prost default-settings and unrecorded TLS-suite gaps as info.",
+   "status": "done",
+   "evidence": [
+    "bench/stack-matrix/peers/: 7 pinned optional peers, not_run with reasons",
+    "stack-matrix smoke: matrix_complete=True, required peers pass"
+   ]
   },
   {
    "id": "SB-19",
