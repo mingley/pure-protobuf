@@ -66,6 +66,8 @@ use peers::touch_prost14_tat;
 use peers::touch_qp_person;
 use prost_tat::TestAllTypesProto3 as P13Tat;
 use protobuf::{Parse as G36Parse, Serialize as G36Serialize};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 /// Generated Person schema layout from `proto/person.proto` via protoc-gen-pbrs.
@@ -1412,6 +1414,75 @@ where
     xs[samples / 2]
 }
 
+/// Process-wide Rust-heap counters (BM-03 retained-memory reporting).
+/// Installed as the global allocator so per-codec retained measurements need
+/// no extra dependency. Only `System` (Rust) allocations are counted: the v4
+/// upb Arena lives on the C heap and is NOT included in `g36` cells, and
+/// borrowed views (`buffa view`/`lazy`, `qp`) retain the caller's wire buffer,
+/// which sits outside the counted window. Both limits are labeled in the
+/// output (`retained_scope`) and in docs/benchmarks.md.
+struct CountingAlloc;
+
+static ALLOC_BYTES: AtomicUsize = AtomicUsize::new(0);
+static FREE_BYTES: AtomicUsize = AtomicUsize::new(0);
+static ALLOC_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: forwards to System; only the accounting is added.
+        let ptr = unsafe { System.alloc(layout) };
+        if !ptr.is_null() {
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+        }
+        ptr
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: `ptr`/`layout` come from a matching `alloc` call.
+        unsafe { System.dealloc(ptr, layout) };
+        FREE_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOC: CountingAlloc = CountingAlloc;
+
+/// Rust heap retained while one parsed message is alive.
+#[derive(Clone, Copy, Default)]
+struct Retained {
+    bytes: u64,
+    allocs: u64,
+}
+
+fn alloc_snapshot() -> (usize, usize, usize) {
+    (
+        ALLOC_BYTES.load(Ordering::SeqCst),
+        FREE_BYTES.load(Ordering::SeqCst),
+        ALLOC_CALLS.load(Ordering::SeqCst),
+    )
+}
+
+/// Parse one message from an already-owned wire buffer and report the Rust
+/// heap retained while the message is alive. `parse` must not allocate
+/// beyond the message itself; one-time per-codec initialization is warmed up
+/// by the equivalence pre-checks, which always run before this.
+fn measure_retained<M>(parse: impl FnOnce() -> M) -> (M, Retained) {
+    let (a0, f0, c0) = alloc_snapshot();
+    let msg = parse();
+    std::hint::black_box(&msg);
+    let (a1, f1, c1) = alloc_snapshot();
+    let bytes = a1.saturating_sub(a0).saturating_sub(f1.saturating_sub(f0));
+    let allocs = c1.saturating_sub(c0);
+    (
+        msg,
+        Retained {
+            bytes: bytes as u64,
+            allocs: allocs as u64,
+        },
+    )
+}
+
 /// 40k iters of 5 MiB is a multi-minute memcpy loop. Scale the timer down.
 fn timer_budget(payload: usize) -> (u32, usize) {
     if payload >= 3_000_000 {
@@ -1435,6 +1506,49 @@ where
         std::hint::black_box(f());
     }
     t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
+}
+
+/// Median plus the raw per-sample values in sample order, so published runs
+/// can be re-analyzed with uncertainty instead of trusting one median.
+/// Samples are fixed-order and sequential across codecs, not interleaved or
+/// randomized pairs; see `raw_samples_note` in the JSON output.
+fn median_ns_raw<F, R>(samples: usize, iters: u32, mut f: F) -> (f64, Vec<f64>)
+where
+    F: FnMut() -> R,
+{
+    let raw: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
+    let mut sorted = raw.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    (sorted[samples / 2], raw)
+}
+
+/// Raw per-sample timings for the gated comparison columns only (cached
+/// encode plus owned decode for the five owned codecs). Fresh, mutated,
+/// touch, view, lazy, and quick-protobuf columns stay median-only.
+#[derive(Default)]
+struct RawSamples {
+    ours_enc: Vec<f64>,
+    prost_enc: Vec<f64>,
+    prost14_enc: Vec<f64>,
+    g36_enc: Vec<f64>,
+    buffa_enc: Vec<f64>,
+    ours_dec: Vec<f64>,
+    prost_dec: Vec<f64>,
+    prost14_dec: Vec<f64>,
+    g36_dec: Vec<f64>,
+    buffa_dec: Vec<f64>,
+}
+
+fn print_raw_array(name: &str, values: &[f64], last: bool) {
+    let comma = if last { "" } else { "," };
+    print!("      \"{name}\": [");
+    for (i, v) in values.iter().enumerate() {
+        if i > 0 {
+            print!(", ");
+        }
+        print!("{v:.3}");
+    }
+    println!("]{comma}");
 }
 
 /// Fresh-encode iteration budget. Factored out so every codec in a case times
@@ -1739,6 +1853,15 @@ struct Case {
     buffa_view_touch: Option<f64>,
     buffa_lazy_touch: Option<f64>,
     qp_touch: Option<f64>,
+    ours_mem: Retained,
+    prost_mem: Retained,
+    prost14_mem: Retained,
+    g36_mem: Retained,
+    buffa_mem: Retained,
+    buffa_view_mem: Retained,
+    buffa_lazy_mem: Retained,
+    qp_mem: Option<Retained>,
+    raw: RawSamples,
     fresh_iters: u32,
     payload: usize,
     ours_def: Option<f64>,
@@ -1838,16 +1961,32 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     assert_eq!(t_ours, t_buffa, "{name}: ours vs buffa092 touch");
     assert_eq!(t_ours, t_view, "{name}: ours vs buffa092 view touch");
     assert_eq!(t_ours, t_lazy, "{name}: ours vs buffa092 lazy touch");
+    // Retained-memory snapshot (not timed): one parse per codec from the same
+    // wire, after the pre-checks above warmed any one-time initialization.
+    let (_, ours_mem) = measure_retained(|| TestAllTypesProto3::parse(&bytes).unwrap());
+    let (_, prost_mem) = measure_retained(|| {
+        let m: P13Tat = prost::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (_, prost14_mem) = measure_retained(|| {
+        let m: P14Tat = prost14::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (_, g36_mem) = measure_retained(|| G36Tat::parse(&bytes).unwrap());
+    let (_, buffa_mem) = measure_retained(|| B092Tat::decode_from_slice(&bytes).unwrap());
+    let (_, buffa_view_mem) = measure_retained(|| B092TatView::decode_view(&bytes).unwrap());
+    let (_, buffa_lazy_mem) = measure_retained(|| B092TatLazy::decode_lazy(&bytes).unwrap());
     let ours_def = if name == "tat_populated" {
         Some(median_ns(samples, iters, TestAllTypesProto3::new))
     } else {
         None
     };
     let fresh_iters = fresh_encode_iters::<TestAllTypesProto3>(iters, bytes.len());
-    let ours_dec = median_ns(samples, iters, || {
+    let (ours_dec, raw_ours_dec) = median_ns_raw(samples, iters, || {
         TestAllTypesProto3::parse(&bytes).unwrap()
     });
-    let ours_enc = median_ns(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
+    let (ours_enc, raw_ours_enc) =
+        median_ns_raw(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
     let ours_fresh_enc = Some(median_fresh_encode_ns(
         samples,
         fresh_iters,
@@ -1918,6 +2057,40 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
             m.optional_int32 = v;
             B092Message::encode_to_vec(m)
         });
+    let (prost_enc, raw_prost_enc) =
+        median_ns_raw(samples, iters, || prost::Message::encode_to_vec(&prost_msg));
+    let (prost14_enc, raw_prost14_enc) = median_ns_raw(samples, iters, || {
+        prost14::Message::encode_to_vec(&prost14_msg)
+    });
+    let (g36_enc, raw_g36_enc) = median_ns_raw(samples, iters, || {
+        G36Serialize::serialize(&g36_msg).unwrap()
+    });
+    let (buffa_enc, raw_buffa_enc) =
+        median_ns_raw(samples, iters, || B092Message::encode_to_vec(&buffa_msg));
+    let (prost_dec, raw_prost_dec) = median_ns_raw(samples, iters, || {
+        let m: P13Tat = prost::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (prost14_dec, raw_prost14_dec) = median_ns_raw(samples, iters, || {
+        let m: P14Tat = prost14::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (g36_dec, raw_g36_dec) = median_ns_raw(samples, iters, || G36Tat::parse(&bytes).unwrap());
+    let (buffa_dec, raw_buffa_dec) = median_ns_raw(samples, iters, || {
+        B092Tat::decode_from_slice(&bytes).unwrap()
+    });
+    let raw = RawSamples {
+        ours_enc: raw_ours_enc,
+        prost_enc: raw_prost_enc,
+        prost14_enc: raw_prost14_enc,
+        g36_enc: raw_g36_enc,
+        buffa_enc: raw_buffa_enc,
+        ours_dec: raw_ours_dec,
+        prost_dec: raw_prost_dec,
+        prost14_dec: raw_prost14_dec,
+        g36_dec: raw_g36_dec,
+        buffa_dec: raw_buffa_dec,
+    };
     Case {
         name,
         layout: "generated",
@@ -1926,38 +2099,26 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
         ours_enc,
         ours_fresh_enc,
         ours_mutated_enc,
-        prost_enc: median_ns(samples, iters, || prost::Message::encode_to_vec(&prost_msg)),
+        prost_enc,
         prost_fresh_enc,
         prost_mutated_enc,
-        prost14_enc: median_ns(samples, iters, || {
-            prost14::Message::encode_to_vec(&prost14_msg)
-        }),
+        prost14_enc,
         prost14_fresh_enc,
         prost14_mutated_enc,
-        g36_enc: median_ns(samples, iters, || {
-            G36Serialize::serialize(&g36_msg).unwrap()
-        }),
+        g36_enc,
         g36_fresh_enc,
         g36_mutated_enc,
-        buffa_enc: median_ns(samples, iters, || B092Message::encode_to_vec(&buffa_msg)),
+        buffa_enc,
         buffa_fresh_enc,
         buffa_mutated_enc,
         qp_enc: None,
         qp_fresh_enc: None,
         qp_mutated_enc: None,
         ours_dec,
-        prost_dec: median_ns(samples, iters, || {
-            let m: P13Tat = prost::Message::decode(bytes.as_slice()).unwrap();
-            m
-        }),
-        prost14_dec: median_ns(samples, iters, || {
-            let m: P14Tat = prost14::Message::decode(bytes.as_slice()).unwrap();
-            m
-        }),
-        g36_dec: median_ns(samples, iters, || G36Tat::parse(&bytes).unwrap()),
-        buffa_dec: median_ns(samples, iters, || {
-            B092Tat::decode_from_slice(&bytes).unwrap()
-        }),
+        prost_dec,
+        prost14_dec,
+        g36_dec,
+        buffa_dec,
         buffa_view: Some(median_ns(samples, iters, || {
             B092TatView::decode_view(&bytes).unwrap()
         })),
@@ -1987,6 +2148,15 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
             touch_b092_tat_lazy(&B092TatLazy::decode_lazy(&bytes).unwrap())
         })),
         qp_touch: None,
+        ours_mem,
+        prost_mem,
+        prost14_mem,
+        g36_mem,
+        buffa_mem,
+        buffa_view_mem,
+        buffa_lazy_mem,
+        qp_mem: None,
+        raw,
         fresh_iters,
         ours_def,
         iters,
@@ -2112,9 +2282,26 @@ where
     assert_eq!(t_ours, t_view, "{name}: ours vs buffa092 view touch");
     assert_eq!(t_ours, t_lazy, "{name}: ours vs buffa092 lazy touch");
     assert_eq!(t_ours, t_qp, "{name}: ours vs qp touch");
+    // Retained-memory snapshot (not timed): one parse per codec from the same
+    // wire, after the pre-checks above warmed any one-time initialization.
+    let (_, ours_mem) = measure_retained(|| parse(&bytes));
+    let (_, prost_mem) = measure_retained(|| {
+        let m: P13Person = prost::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (_, prost14_mem) = measure_retained(|| {
+        let m: P14Person = prost14::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (_, g36_mem) = measure_retained(|| G36Person::parse(&bytes).unwrap());
+    let (_, buffa_mem) = measure_retained(|| B092Person::decode_from_slice(&bytes).unwrap());
+    let (_, buffa_view_mem) = measure_retained(|| B092PersonView::decode_view(&bytes).unwrap());
+    let (_, buffa_lazy_mem) = measure_retained(|| B092PersonLazy::decode_lazy(&bytes).unwrap());
+    let (_, qp_mem) = measure_retained(|| qp_decode(&bytes).unwrap());
     let fresh_iters = fresh_encode_iters::<M>(iters, bytes.len());
-    let ours_dec = median_ns(samples, iters, || parse(&bytes));
-    let ours_enc = median_ns(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
+    let (ours_dec, raw_ours_dec) = median_ns_raw(samples, iters, || parse(&bytes));
+    let (ours_enc, raw_ours_enc) =
+        median_ns_raw(samples, iters, || pbrs::Serialize::serialize(&msg).unwrap());
     let ours_fresh_enc = Some(median_fresh_encode_ns(
         samples,
         fresh_iters,
@@ -2208,6 +2395,41 @@ where
             qp_encode(m)
         },
     );
+    let (prost_enc, raw_prost_enc) =
+        median_ns_raw(samples, iters, || prost::Message::encode_to_vec(&prost_msg));
+    let (prost14_enc, raw_prost14_enc) = median_ns_raw(samples, iters, || {
+        prost14::Message::encode_to_vec(&prost14_msg)
+    });
+    let (g36_enc, raw_g36_enc) = median_ns_raw(samples, iters, || {
+        G36Serialize::serialize(&g36_msg).unwrap()
+    });
+    let (buffa_enc, raw_buffa_enc) =
+        median_ns_raw(samples, iters, || B092Message::encode_to_vec(&buffa_msg));
+    let (prost_dec, raw_prost_dec) = median_ns_raw(samples, iters, || {
+        let m: P13Person = prost::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (prost14_dec, raw_prost14_dec) = median_ns_raw(samples, iters, || {
+        let m: P14Person = prost14::Message::decode(bytes.as_slice()).unwrap();
+        m
+    });
+    let (g36_dec, raw_g36_dec) =
+        median_ns_raw(samples, iters, || G36Person::parse(&bytes).unwrap());
+    let (buffa_dec, raw_buffa_dec) = median_ns_raw(samples, iters, || {
+        B092Person::decode_from_slice(&bytes).unwrap()
+    });
+    let raw = RawSamples {
+        ours_enc: raw_ours_enc,
+        prost_enc: raw_prost_enc,
+        prost14_enc: raw_prost14_enc,
+        g36_enc: raw_g36_enc,
+        buffa_enc: raw_buffa_enc,
+        ours_dec: raw_ours_dec,
+        prost_dec: raw_prost_dec,
+        prost14_dec: raw_prost14_dec,
+        g36_dec: raw_g36_dec,
+        buffa_dec: raw_buffa_dec,
+    };
     Case {
         name,
         layout: meta.layout,
@@ -2216,38 +2438,26 @@ where
         ours_enc,
         ours_fresh_enc,
         ours_mutated_enc,
-        prost_enc: median_ns(samples, iters, || prost::Message::encode_to_vec(&prost_msg)),
+        prost_enc,
         prost_fresh_enc,
         prost_mutated_enc,
-        prost14_enc: median_ns(samples, iters, || {
-            prost14::Message::encode_to_vec(&prost14_msg)
-        }),
+        prost14_enc,
         prost14_fresh_enc,
         prost14_mutated_enc,
-        g36_enc: median_ns(samples, iters, || {
-            G36Serialize::serialize(&g36_msg).unwrap()
-        }),
+        g36_enc,
         g36_fresh_enc,
         g36_mutated_enc,
-        buffa_enc: median_ns(samples, iters, || B092Message::encode_to_vec(&buffa_msg)),
+        buffa_enc,
         buffa_fresh_enc,
         buffa_mutated_enc,
         qp_enc: Some(median_ns(samples, iters, || qp_encode(&qp_msg))),
         qp_fresh_enc: Some(qp_fresh_enc),
         qp_mutated_enc: Some(qp_mutated_enc),
         ours_dec,
-        prost_dec: median_ns(samples, iters, || {
-            let m: P13Person = prost::Message::decode(bytes.as_slice()).unwrap();
-            m
-        }),
-        prost14_dec: median_ns(samples, iters, || {
-            let m: P14Person = prost14::Message::decode(bytes.as_slice()).unwrap();
-            m
-        }),
-        g36_dec: median_ns(samples, iters, || G36Person::parse(&bytes).unwrap()),
-        buffa_dec: median_ns(samples, iters, || {
-            B092Person::decode_from_slice(&bytes).unwrap()
-        }),
+        prost_dec,
+        prost14_dec,
+        g36_dec,
+        buffa_dec,
         buffa_view: Some(median_ns(samples, iters, || {
             B092PersonView::decode_view(&bytes).unwrap()
         })),
@@ -2280,6 +2490,15 @@ where
         qp_touch: Some(median_ns(samples, iters, || {
             touch_qp_person(&qp_decode(&bytes).unwrap())
         })),
+        ours_mem,
+        prost_mem,
+        prost14_mem,
+        g36_mem,
+        buffa_mem,
+        buffa_view_mem,
+        buffa_lazy_mem,
+        qp_mem: Some(qp_mem),
+        raw,
         fresh_iters,
         ours_def: None,
         iters,
@@ -2345,6 +2564,15 @@ fn gated(name: &str) -> bool {
     )
 }
 
+/// Primary vs. holdout workload classification (benchmark contract §3.5).
+/// Process-gated cases are the primary regression set; every reported-only
+/// case is a holdout validation cell that guards against overfitting the
+/// gated set. Gates stay historical smoke until BM-13; this label only
+/// records which side of that line each case sits on.
+fn workload(name: &str) -> &'static str {
+    if gated(name) { "primary" } else { "holdout" }
+}
+
 fn view_gated(name: &str) -> bool {
     // tat_populated / person vs buffa view sit in a ~3% band. Do not fail
     // the process on them. Packed-fixed view is also ungated (no owned Vec).
@@ -2382,6 +2610,11 @@ fn print_peers() {
         );
     }
     println!("  ],");
+}
+
+fn print_retained(codec: &str, mem: Retained) {
+    println!("      \"{codec}_retained_bytes\": {},", mem.bytes);
+    println!("      \"{codec}_retained_allocs\": {},", mem.allocs);
 }
 
 fn main() {
@@ -2426,6 +2659,13 @@ fn main() {
         std::mem::size_of::<TestAllTypesProto3>()
     );
     println!("  \"iters\": {iters},");
+    println!("  \"retained_scope\": \"rust-heap\",");
+    println!(
+        "  \"retained_scope_note\": \"g36 cells exclude the v4 upb Arena (C heap); buffa view/lazy and qp borrow the caller wire buffer outside the counted window\","
+    );
+    println!(
+        "  \"raw_samples_note\": \"fixed-order sequential samples in sample order, not interleaved or randomized; gated cached-encode and owned-decode columns only\","
+    );
     print_peers();
     println!("  \"cases\": [");
     for (i, c) in cases.iter().enumerate() {
@@ -2435,6 +2675,7 @@ fn main() {
         println!("      \"layout\": \"{}\",", c.layout);
         println!("      \"role\": \"{}\",", c.role);
         println!("      \"topology\": \"{}\",", topology(c.name));
+        println!("      \"workload\": \"{}\",", workload(c.name));
         println!("      \"payload_bytes\": {},", c.payload);
         println!("      \"iters\": {},", c.iters);
         println!("      \"fresh_encode_iters\": {},", c.fresh_iters);
@@ -2543,6 +2784,32 @@ fn main() {
             Some(v) => println!("      \"qp_touch_ns\": {v:.3},"),
             None => println!("      \"qp_touch_ns\": null,"),
         }
+        print_retained("ours", c.ours_mem);
+        print_retained("prost", c.prost_mem);
+        print_retained("prost14", c.prost14_mem);
+        print_retained("g36", c.g36_mem);
+        print_retained("buffa", c.buffa_mem);
+        print_retained("buffa_view", c.buffa_view_mem);
+        print_retained("buffa_lazy", c.buffa_lazy_mem);
+        match c.qp_mem {
+            Some(m) => print_retained("qp", m),
+            None => {
+                println!("      \"qp_retained_bytes\": null,");
+                println!("      \"qp_retained_allocs\": null,");
+            }
+        }
+        println!("      \"raw_samples\": {{");
+        print_raw_array("ours_encode_ns", &c.raw.ours_enc, false);
+        print_raw_array("prost_encode_ns", &c.raw.prost_enc, false);
+        print_raw_array("prost14_encode_ns", &c.raw.prost14_enc, false);
+        print_raw_array("g36_encode_ns", &c.raw.g36_enc, false);
+        print_raw_array("buffa_encode_ns", &c.raw.buffa_enc, false);
+        print_raw_array("ours_decode_owned_ns", &c.raw.ours_dec, false);
+        print_raw_array("prost_decode_owned_ns", &c.raw.prost_dec, false);
+        print_raw_array("prost14_decode_owned_ns", &c.raw.prost14_dec, false);
+        print_raw_array("g36_decode_owned_ns", &c.raw.g36_dec, false);
+        print_raw_array("buffa_decode_owned_ns", &c.raw.buffa_dec, true);
+        println!("      }},");
         match c.ours_def {
             Some(v) => println!("      \"ours_default_ns\": {v:.3},"),
             None => println!("      \"ours_default_ns\": null,"),

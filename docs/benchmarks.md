@@ -29,7 +29,7 @@ not prove universal performance leadership or production readiness.
 
 | Area | Where pbrs looked faster | Where pbrs looked slower or open | What the numbers do not prove |
 |---|---|---|---|
-| Core codec `bench` | All twelve gated cases still won encode and owned decode against prost, v4 upb, and buffa owned in the recorded Apple M4 Pro capture. | `tat_populated` and `person` were in a ~3% band behind buffa view and are not process-gated. Large packed-fixed results are only reported, not gated. | No universal codec ranking, retained-memory claim, or view-versus-owned equivalence. |
+| Core codec `bench` | All twelve gated cases still won encode and owned decode against prost, v4 upb, and buffa owned in the recorded Apple M4 Pro capture. | `tat_populated` and `person` were in a ~3% band behind buffa view and are not process-gated. Large packed-fixed results are only reported, not gated. | No universal codec ranking or view-versus-owned equivalence; retained cells are Rust-heap only (v4 arena excluded). |
 | Large payloads | pbrs, v4 upb, and buffa owned were in the same band for owned bytes encode/decode at 1-5 MiB. | buffa `decode_view` on bytes does not copy. v4 encode was a bit faster for 5 MiB packed fixed32. | No zero-copy claim from these rows: they time the copying `parse(&[u8])` path. The newer shared-buffer path (`parse_bytes`) is covered in [Large payloads / zero-copy](zero-copy.md). |
 | tonic codec survey | Most common-shape cached-encode-plus-parse rows beat prost and v4 in the historical capture. | pbrs loses some small common-shape rows versus prost (`empty`, `id`, `name_80`) and has diagnostic mutation/first-encode caveats. | No claim that historical "fresh" encode cells are direct first-encode timings. |
 | Native gRPC transport | Fair-loopback results show pbrs-grpc ahead on p50 latency, throughput, and most streaming axes. | tonic leads empty-unary p99 under the fair settings; old Xeon tables are superseded by SB-01. | No production tail-latency, network, or multicore leadership claim. |
@@ -78,7 +78,9 @@ semantic bias across layout, buffer ownership, caching, and access patterns:
    pbrs can retain its own wire backing and defer field materialization; prost
    eagerly owns fields; v4 uses an upb Arena. Borrowed view decoders
    (`buffa view`) borrow slices directly from the input wire bytes, so they
-   stay in a separate column.
+   stay in a separate column. Per-case retained Rust-heap bytes and
+   allocation counts are reported for every decoder; see Retained-Memory
+   Footprint for the scope limits.
 3. **Fresh, cached, and mutated encode.** Cached encode re-serializes a
    message whose length (`cached_size`) and canonical packed varint bytes
    (`Packed::encoded`) are already computed. Fresh encode serializes a freshly
@@ -86,16 +88,22 @@ semantic bias across layout, buffer ownership, caching, and access patterns:
    preparation are outside the timed interval. `fresh_encode_iters` is capped
    at 10,000 and an estimated 32 MiB of prepared inputs per sample in `bench`.
    The current `bench` and `tonic-bench` executables directly time this path,
-   but the historical tonic tables below predate that fix. Construction and
-   field assignment are not included. Mutated encode alternates a field before
-   every pbrs encode to include cache invalidation and size recomputation.
+   but the historical tonic tables below predate that fix. Fresh construction
+   (`new` plus field setters, no parse) is timed as a separate column in
+   `tonic-bench` for every row: each codec builds the same specimen its other
+   columns encode, and a rebuilt message must serialize to the checked wire
+   before the row is accepted. `bench` does not time construction. Mutated
+   encode alternates a field before every encode to include cache invalidation
+   and size recomputation: `bench` alternates one scalar per case, while
    `tonic-bench` reports separate three-codec `Person` ID and variable-length
    name-mutation rows for handwritten and generated pbrs. Those rows are
    diagnostic and do not replace cached encode rows.
 4. **Parse-only vs. parse-and-touch.** Parse-only deserializes wire bytes and
    drops the message without field access. Parse-and-touch recursively accesses
    string, bytes, and collection fields on the parsed message so deferred
-   materialization and accessor costs show up.
+   materialization and accessor costs show up. In `tonic-bench` the touch
+   checksum reads every populated field and every string/bytes payload byte,
+   and must match across codecs before timing.
 
 Decode uses pbrs wire bytes. `./bench` from `bench/` runs 40000 iterations and
 reports the median of 15 after warmup. Builds are release, thin link-time
@@ -114,6 +122,13 @@ does not build an owned `Vec`; `person` and `tat_populated` sit in a ~3% band
 versus buffa view and are not process gates. These legacy owned-versus-view
 gates are smoke checks only, not comparable codec evidence under the benchmark
 contract; replacing them requires BM-13.
+
+Per-case JSON also carries `"workload"` (primary/holdout), per-codec
+retained Rust-heap bytes/allocation counts, and `"raw_samples"`: the raw
+per-sample values behind the gated cached-encode and owned-decode medians,
+in sample order, so medians can be recomputed and uncertainty bounded
+without rerunning. Raw samples are fixed-order sequential runs, not
+interleaved or randomized pairs.
 
 JSON, text, proto2 required, maps larger than 64, and well-known types (WKT)
 are not gated. 1 MiB and 5 MiB rows are reported below and are not gated.
@@ -203,20 +218,51 @@ See `docs/upb.md`.
 
 ## Retained-Memory Footprint
 
-Retained heap bytes and allocation counts are **not measured** by the current
-codec harness. Previous byte/allocator-count estimates were not backed by a
-reproducible counter, so they cannot qualify a memory-efficiency claim.
-Measure retained messages in separate processes with identical input-buffer
-lifetimes and report RSS plus allocator-aware counts for both Rust allocations
-and the C/upb arena. Owned and borrowed-view representations need separate
-columns; retaining the input buffer is part of a borrowed view's memory cost.
-Until that evidence is recorded, retained-memory comparisons remain open.
+Both codec harnesses report retained **Rust-heap** bytes and allocation calls
+per parsed message: one parse per codec from the same wire, measured with a
+counting global allocator after the equivalence pre-checks warm any one-time
+initialization. `bench` emits `*_retained_bytes` / `*_retained_allocs` per
+case; `tonic-bench` prints a retained section per row group.
+
+Scope limits are labeled in the output (`retained_scope: rust-heap`) and
+apply to every comparison:
+
+- v4 cells count the Rust side only. The upb Arena lives on the C heap, so
+  `g36`/`v4` retained cells undercount by the whole arena.
+- Borrowed views (`buffa view`/`lazy`, quick-protobuf in `bench`) retain the
+  caller's wire buffer, which sits outside the counted window; their small
+  cells do not include that buffer.
+- Counts are single-message, same-process snapshots, not RSS peaks, and the
+  samples are fixed-order sequential runs, not randomized pairs.
+
+Until arena-aware and RSS evidence is recorded with identical input-buffer
+lifetimes, retained-memory comparisons stay diagnostic, not claim-grade.
 
 ## Holdout-Schema Coverage
 
-The emitted JSON labels the topology of each measured case. Additional holdout
-schemas below are proposed stress cases, not all measured in the current
-harness; their risks cannot be counted as performance results:
+Both harnesses measure holdout validation cells alongside the tuned sets
+(benchmark contract §3.5). Holdouts are reported, never gated, and never
+tuned against; they exist to catch overfitting the primary rows.
+
+`bench` labels every case `"workload": "primary"` (the twelve process-gated
+cases) or `"workload": "holdout"` (the nine reported-only cases:
+`person_generated`, `bytes`, `scalars`, `unpacked_fixed_256`, `oneof`, and
+the four 1-5 MiB rows), in addition to the existing `"topology"` label.
+Gates are unchanged historical smoke until BM-13 approves a replacement.
+
+`tonic-bench` measures four holdout shapes from the existing
+`codec_cases.proto` types with populations the tuned survey does not cover:
+`nest_d8` (deeper recursion than `nest_d4`), `oneof_err` (the unmeasured
+`err` union variant), `rpc_sparse_path` (sparse `Rpc` populated at `path`
+instead of `id`), and `headers_1` (single-entry map instead of the wide
+`map_8`). All four are byte-stable, so wire equality is checked before
+timing, and they print in a separate holdout section with their own
+first-encode, construction, retained-memory, and raw-sample rows.
+
+The topology table below names the regression risk each family guards; the
+`bench` and `tonic-bench` holdout rows above are the measured instances,
+not proposals. Their risks still cannot be counted as performance results
+beyond the reported cells:
 
 | schema / topology | characteristics | pbrs behavior | regression risk guarded |
 |---|---|---|---|
@@ -492,9 +538,9 @@ after parse**, not the cost of constructing and populating a new object. pbrs
 may retain wire-backed lazy fields/canonical
 caches, prost materializes owned fields, and v4 uses an upb Arena; first-encode
 numbers do not erase those materialization differences. Borrowed views are
-reported separately in `bench`, not in this survey. The existing touch
-checksums access case-selected fields, not every nested leaf; exhaustive
-parse-and-touch materialization remains BM-03 work.
+reported separately in `bench`, not in this survey. Parse-and-touch
+checksums read every populated field and every string/bytes payload byte,
+and must match across codecs before timing.
 
 **Person layout diagnostic (not historical, not gated):** `tonic-bench/build.rs`
 generates a pbrs `Person` from the repository's `proto/person.proto` alongside
@@ -502,18 +548,19 @@ the existing common-shape bindings. Its `person_handwritten` and
 `person_generated` layout rows parse **the same 62-byte Person wire**. Each independently
 measures repeated encode, first encode after parse, parse-only, and parse-and-touch
 for pbrs, prost and the existing v4 upb Person. Full re-encoded buffers must
-match the shared input; the touch checks access id, name, present email, both
-tags, the one scores entry and nested address city, and match across layouts
-and codecs before timing. The diagnostic prints actual iteration/sample counts
-and raw times without declaring winners or changing any smoke gate. A third
-`person_generated_extras` row carries one nonempty typed `extras` map entry
+match the shared input; the touch checks read every populated field and every
+string/bytes payload byte (id, name, present email, both tags, the one scores
+entry, nested address city, plus the typed extras entry on the extras row),
+and match across layouts and codecs before timing. The diagnostic prints
+actual iteration/sample counts and raw times without declaring winners or
+changing any smoke gate. A third `person_generated_extras` row carries one nonempty typed `extras` map entry
 (tag 16) and measures generated pbrs against prost/v4 independently, with
 the same sample budget and checked wire/parsed-field/touch equivalence.
 There is **no handwritten comparator** for that row. Repeated
 prost/v4 encode does not imply a pbrs-style cached-size optimization, and
 prost/v4 comparator cells are **timed anew** for each layout, not copied.
-Touch sums string lengths and scalar values; it does not scan every string
-byte. All these measurements are fixed-order and same-process, not randomized
+Each row also times fresh construction per codec through the same builders.
+All these measurements are fixed-order and same-process, not randomized
 paired runs on independent pinned hosts.
 
 The handwritten `pbrs::testdata::Person` does **not** expose `extras` (tag 16);
@@ -544,8 +591,17 @@ pbrs, prost and v4, and agree on populated fields; any mismatch fails the
 run. All four rows use the same input and iteration/sample counts within the
 existing 10,000/estimated-32-MiB cap.
 No raw host qualification or numeric speed claim follows from these
-diagnostics; map/bytes/other field-mutation parity, retained memory, exhaustive touch,
-and holdout-schema coverage remain BM-03 work.
+diagnostics; map/bytes/other field-mutation parity remains BM-03 work.
+
+**Construction, retained memory, and raw samples (current executable, not
+historical):** every `tonic-bench` row times fresh construction per codec
+through the same builders its other columns use, reports retained Rust-heap
+bytes/allocation calls per parsed message (v4 excludes the upb Arena), and
+contributes its per-sample timings to a trailing `tonic-raw/1` JSON block.
+The raw block covers all fifteen survey columns per row plus the four
+mutation rows, so medians can be recomputed and uncertainty bounded without
+rerunning. Samples are fixed-order sequential runs, not interleaved or
+randomized pairs; none of these sections change the historical smoke gates.
 
 Historical table columns report:
 - `pbrs enc (fresh / cached)`: older derived fresh estimate alongside cached

@@ -11,6 +11,9 @@ use pbrs::testdata::{Address as PbrsAddress, Person as PbrsPerson};
 use pbrs::{AsView, Parse, Serialize};
 use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::RefCell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 mod helloworld {
@@ -70,13 +73,95 @@ struct ProstPerson {
     extras: std::collections::HashMap<String, i32>,
 }
 
-fn median_ns<F, R>(samples: usize, iters: u32, mut f: F) -> f64
+/// Median plus the raw per-sample values in sample order, so published runs
+/// can be re-analyzed with uncertainty instead of trusting one median.
+/// Samples are fixed-order and sequential across codecs, not interleaved or
+/// randomized pairs.
+fn median_ns_raw<F, R>(samples: usize, iters: u32, mut f: F) -> (f64, Vec<f64>)
 where
     F: FnMut() -> R,
 {
-    let mut xs: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
-    xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    xs[samples / 2]
+    let raw: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
+    let mut sorted = raw.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    (sorted[samples / 2], raw)
+}
+
+/// One measured row's raw per-sample timings in sample order. Survey rows
+/// carry fifteen codec columns; mutation rows carry three (`pbrs`, `prost`,
+/// `v4` mutation+encode) with `first_iters` 0 and the field transition in
+/// `detail`.
+struct RawRow {
+    name: &'static str,
+    detail: &'static str,
+    holdout: bool,
+    payload: usize,
+    iters: u32,
+    samples: usize,
+    first_iters: u32,
+    cols: Vec<(&'static str, Vec<f64>)>,
+}
+
+#[cfg(test)]
+impl RawRow {
+    fn col(&self, label: &str) -> &[f64] {
+        self.cols
+            .iter()
+            .find(|(name, _)| *name == label)
+            .map(|(_, values)| values.as_slice())
+            .unwrap_or_else(|| panic!("raw column {label} missing for {}", self.name))
+    }
+
+    fn col_median(&self, label: &str) -> f64 {
+        let mut sorted = self.col(label).to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted[sorted.len() / 2]
+    }
+}
+
+thread_local! {
+    static RAW_ROWS: RefCell<Vec<RawRow>> = RefCell::new(Vec::new());
+}
+
+fn push_raw_row(row: RawRow) {
+    RAW_ROWS.with(|rows| rows.borrow_mut().push(row));
+}
+
+fn take_raw_rows() -> Vec<RawRow> {
+    RAW_ROWS.with(|rows| std::mem::take(&mut *rows.borrow_mut()))
+}
+
+/// Publishable raw paired results (schema `tonic-raw/1`): every timed
+/// column's per-sample values, so medians can be recomputed and uncertainty
+/// bounded without rerunning. Fixed-order sequential samples, not
+/// interleaved or randomized pairs; construction-cache effects are included
+/// via the separately reported construct column, not hidden.
+fn print_raw_block() {
+    let rows = take_raw_rows();
+    print!("{{\"schema\": \"tonic-raw/1\", ");
+    print!(
+        "\"samples\": \"fixed-order sequential in sample order, not interleaved or randomized\", "
+    );
+    println!("\"rows\": [");
+    for (i, row) in rows.iter().enumerate() {
+        let comma = if i + 1 == rows.len() { "" } else { "," };
+        print!(
+            "  {{\"name\": \"{}\", \"detail\": \"{}\", \"holdout\": {}, \"payload\": {}, \"iters\": {}, \"samples\": {}, \"first_iters\": {}",
+            row.name, row.detail, row.holdout, row.payload, row.iters, row.samples, row.first_iters
+        );
+        for (label, values) in &row.cols {
+            print!(", \"{label}\": [");
+            for (j, value) in values.iter().enumerate() {
+                if j > 0 {
+                    print!(", ");
+                }
+                print!("{value:.3}");
+            }
+            print!("]");
+        }
+        println!("}}{comma}");
+    }
+    println!("]}}");
 }
 
 fn bench_ns<F, R>(iters: u32, mut f: F) -> f64
@@ -93,12 +178,94 @@ where
     t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
 }
 
-fn median_first_encode_ns<M, F, E, O>(
+/// Byte-exhaustive string/bytes read for parse-and-touch checksums. Every
+/// payload byte is loaded and folded into the checksum, so lazy or
+/// wire-backed fields cannot hide materialization cost behind a length call.
+fn bytes_sum(bytes: &[u8]) -> usize {
+    bytes.iter().map(|byte| usize::from(*byte)).sum()
+}
+
+/// Process-wide Rust-heap counters (BM-03 retained-memory reporting).
+/// Only `System` (Rust) allocations are counted: the v4 upb Arena lives on
+/// the C heap and is NOT included in `v4` cells. That limit is labeled in
+/// the retained section and in docs/benchmarks.md.
+struct CountingAlloc;
+
+static ALLOC_BYTES: AtomicUsize = AtomicUsize::new(0);
+static FREE_BYTES: AtomicUsize = AtomicUsize::new(0);
+static ALLOC_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: forwards to System; only the accounting is added.
+        let ptr = unsafe { System.alloc(layout) };
+        if !ptr.is_null() {
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+        }
+        ptr
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: `ptr`/`layout` come from a matching `alloc` call.
+        unsafe { System.dealloc(ptr, layout) };
+        FREE_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOC: CountingAlloc = CountingAlloc;
+
+/// Rust heap retained while one parsed message is alive.
+#[derive(Clone, Copy, Default)]
+struct Retained {
+    bytes: u64,
+    allocs: u64,
+}
+
+fn alloc_snapshot() -> (usize, usize, usize) {
+    (
+        ALLOC_BYTES.load(Ordering::SeqCst),
+        FREE_BYTES.load(Ordering::SeqCst),
+        ALLOC_CALLS.load(Ordering::SeqCst),
+    )
+}
+
+/// Parse one message from an already-owned wire buffer and report the Rust
+/// heap retained while the message is alive. `parse` must not allocate
+/// beyond the message itself; one-time per-codec initialization is warmed up
+/// by the equivalence pre-checks, which always run before this.
+fn measure_retained<M>(parse: impl FnOnce() -> M) -> (M, Retained) {
+    let (a0, f0, c0) = alloc_snapshot();
+    let msg = parse();
+    std::hint::black_box(&msg);
+    let (a1, f1, c1) = alloc_snapshot();
+    let bytes = a1.saturating_sub(a0).saturating_sub(f1.saturating_sub(f0));
+    let allocs = c1.saturating_sub(c0);
+    (
+        msg,
+        Retained {
+            bytes: bytes as u64,
+            allocs: allocs as u64,
+        },
+    )
+}
+
+#[cfg(test)]
+fn median_first_encode_ns<M, F, E, O>(samples: usize, iters: u32, prepare: F, encode: E) -> f64
+where
+    F: FnMut() -> M,
+    E: FnMut(&M) -> O,
+{
+    median_first_encode_ns_raw(samples, iters, prepare, encode).0
+}
+
+fn median_first_encode_ns_raw<M, F, E, O>(
     samples: usize,
     iters: u32,
     mut prepare: F,
     mut encode: E,
-) -> f64
+) -> (f64, Vec<f64>)
 where
     F: FnMut() -> M,
     E: FnMut(&M) -> O,
@@ -116,8 +283,9 @@ where
         }
         times.push(start.elapsed().as_secs_f64() * 1e9 / f64::from(iters));
     }
-    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    times[samples / 2]
+    let mut sorted = times.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    (sorted[samples / 2], times)
 }
 
 fn first_encode_budget<P, R, V>(iters: u32, payload: usize) -> u32 {
@@ -138,13 +306,29 @@ fn first_encode_budget<P, R, V>(iters: u32, payload: usize) -> u32 {
     iters.min(10_000).min(by_memory)
 }
 
+#[cfg(test)]
 fn median_mutated_encode_ns<M, F, U, E, O>(
+    samples: usize,
+    iters: u32,
+    prepare: F,
+    mutate: U,
+    encode: E,
+) -> f64
+where
+    F: FnMut() -> M,
+    U: FnMut(&mut M, bool),
+    E: FnMut(&M) -> O,
+{
+    median_mutated_encode_ns_raw(samples, iters, prepare, mutate, encode).0
+}
+
+fn median_mutated_encode_ns_raw<M, F, U, E, O>(
     samples: usize,
     iters: u32,
     mut prepare: F,
     mut mutate: U,
     mut encode: E,
-) -> f64
+) -> (f64, Vec<f64>)
 where
     F: FnMut() -> M,
     U: FnMut(&mut M, bool),
@@ -172,8 +356,9 @@ where
         }
         times.push(start.elapsed().as_secs_f64() * 1e9 / f64::from(iters));
     }
-    times.sort_by(|a, b| a.partial_cmp(b).expect("finite mutation timings"));
-    times[samples / 2]
+    let mut sorted = times.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("finite mutation timings"));
+    (sorted[samples / 2], times)
 }
 
 fn assert_person_mutation_output(
@@ -237,29 +422,38 @@ fn timer_budget(payload: usize) -> (u32, usize) {
 #[derive(Clone, Copy)]
 struct Row {
     name: &'static str,
+    /// True for holdout validation rows (contract §3.5): measured shapes the
+    /// tuned survey was not optimized against. Never gated.
+    holdout: bool,
     payload: usize,
     iters: u32,
     samples: usize,
+    pbrs_mem: Retained,
+    prost_mem: Retained,
+    v4_mem: Retained,
     pbrs_enc: f64,       // cached encode (pre-warmed length/canonical cache)
     pbrs_fresh_enc: f64, // direct first encode after parse, before canonical cache
     first_iters: u32,
-    pbrs_dec: f64,   // parse only (message dropped)
-    pbrs_touch: f64, // parse-and-touch (reading parsed fields)
+    pbrs_dec: f64,       // parse only (message dropped)
+    pbrs_touch: f64,     // parse-and-touch (reading parsed fields)
+    pbrs_construct: f64, // fresh construction via new/setters (no parse)
     prost_enc: f64,
     prost_first_enc: f64,
     prost_dec: f64,
     prost_touch: f64,
+    prost_construct: f64,
     v4_enc: f64,
     v4_first_enc: f64,
     v4_dec: f64,
     v4_touch: f64,
+    v4_construct: f64,
 }
 
-fn run<P, R, V, TP, TR, TV>(
+fn run<P, R, V, TP, TR, TV, BP, BR, BV>(
     name: &'static str,
-    pbrs: &P,
-    prost: &R,
-    v4: &V,
+    build_pbrs: BP,
+    build_prost: BR,
+    build_v4: BV,
     check_wire: bool,
     touch_pbrs: TP,
     touch_prost: TR,
@@ -272,30 +466,35 @@ where
     TP: Fn(&P) -> usize,
     TR: Fn(&R) -> usize,
     TV: Fn(&V) -> usize,
+    BP: Fn() -> P,
+    BR: Fn() -> R,
+    BV: Fn() -> V,
 {
     run_with_budget(
         name,
-        pbrs,
-        prost,
-        v4,
+        build_pbrs,
+        build_prost,
+        build_v4,
         check_wire,
         touch_pbrs,
         touch_prost,
         touch_v4,
         None,
+        false,
     )
 }
 
-fn run_with_budget<P, R, V, TP, TR, TV>(
+fn run_with_budget<P, R, V, TP, TR, TV, BP, BR, BV>(
     name: &'static str,
-    pbrs: &P,
-    prost: &R,
-    v4: &V,
+    build_pbrs: BP,
+    build_prost: BR,
+    build_v4: BV,
     check_wire: bool,
     touch_pbrs: TP,
     touch_prost: TR,
     touch_v4: TV,
     budget: Option<(u32, usize)>,
+    holdout: bool,
 ) -> Row
 where
     P: Parse + Serialize + PartialEq,
@@ -304,11 +503,20 @@ where
     TP: Fn(&P) -> usize,
     TR: Fn(&R) -> usize,
     TV: Fn(&V) -> usize,
+    BP: Fn() -> P,
+    BR: Fn() -> R,
+    BV: Fn() -> V,
 {
-    let pbrs_wire = Serialize::serialize(pbrs).expect("pbrs wire");
+    // Builders are the single source of the reference messages: the timed
+    // construction column and every equivalence check below observe the same
+    // construction path, so no codec can be handed a cheaper specimen.
+    let pbrs = build_pbrs();
+    let prost = build_prost();
+    let v4 = build_v4();
+    let pbrs_wire = Serialize::serialize(&pbrs).expect("pbrs wire");
     let mut prost_wire = Vec::new();
-    prost::Message::encode(prost, &mut prost_wire).expect("prost wire");
-    let v4_wire = V4Serialize::serialize(v4).expect("v4 wire");
+    prost::Message::encode(&prost, &mut prost_wire).expect("prost wire");
+    let v4_wire = V4Serialize::serialize(&v4).expect("v4 wire");
     let parsed_pbrs = P::parse(&pbrs_wire).expect("pbrs parses pbrs wire");
     let parsed_prost = R::decode(pbrs_wire.as_slice()).expect("prost parses pbrs wire");
     let parsed_v4 = V::parse(&pbrs_wire).expect("v4 parses pbrs wire");
@@ -362,6 +570,12 @@ where
         touch_v4(&parsed_v4),
         "{name}: pbrs vs v4 touch"
     );
+    // Retained-memory snapshot (not timed): one parse per codec from the same
+    // wire, after the pre-checks above warmed any one-time initialization.
+    let (_, pbrs_mem) = measure_retained(|| P::parse(&pbrs_wire).expect("pbrs retained parse"));
+    let (_, prost_mem) =
+        measure_retained(|| R::decode(pbrs_wire.as_slice()).expect("prost retained parse"));
+    let (_, v4_mem) = measure_retained(|| V::parse(&pbrs_wire).expect("v4 retained parse"));
 
     let payload = pbrs_wire.len();
     let (iters, samples) = budget.unwrap_or_else(|| timer_budget(payload));
@@ -370,13 +584,14 @@ where
         "benchmark needs a positive budget"
     );
     let first_iters = first_encode_budget::<P, R, V>(iters, payload);
-    let pbrs_enc = median_ns(samples, iters, || {
+    let (pbrs_enc, raw_pbrs_enc) = median_ns_raw(samples, iters, || {
         dst.clear();
-        Serialize::encode(pbrs, &mut dst).expect("pbrs encode");
+        Serialize::encode(&pbrs, &mut dst).expect("pbrs encode");
         std::hint::black_box(&dst[..]);
     });
-    let pbrs_dec = median_ns(samples, iters, || P::parse(&pbrs_wire).expect("pbrs parse"));
-    let pbrs_fresh_enc = median_first_encode_ns(
+    let (pbrs_dec, raw_pbrs_dec) =
+        median_ns_raw(samples, iters, || P::parse(&pbrs_wire).expect("pbrs parse"));
+    let (pbrs_fresh_enc, raw_pbrs_fresh) = median_first_encode_ns_raw(
         samples,
         first_iters,
         || P::parse(&pbrs_wire).expect("pbrs first parse"),
@@ -386,19 +601,20 @@ where
             std::hint::black_box(&dst[..]);
         },
     );
-    let pbrs_touch = median_ns(samples, iters, || {
+    let (pbrs_touch, raw_pbrs_touch) = median_ns_raw(samples, iters, || {
         let msg = P::parse(&pbrs_wire).expect("pbrs parse");
         touch_pbrs(&msg)
     });
-    let prost_enc = median_ns(samples, iters, || {
+    let (pbrs_construct, raw_pbrs_construct) = median_ns_raw(samples, iters, || build_pbrs());
+    let (prost_enc, raw_prost_enc) = median_ns_raw(samples, iters, || {
         dst.clear();
-        prost::Message::encode(prost, &mut dst).expect("prost encode");
+        prost::Message::encode(&prost, &mut dst).expect("prost encode");
         std::hint::black_box(&dst[..]);
     });
-    let prost_dec = median_ns(samples, iters, || {
+    let (prost_dec, raw_prost_dec) = median_ns_raw(samples, iters, || {
         R::decode(pbrs_wire.as_slice()).expect("prost decode")
     });
-    let prost_first_enc = median_first_encode_ns(
+    let (prost_first_enc, raw_prost_first) = median_first_encode_ns_raw(
         samples,
         first_iters,
         || R::decode(pbrs_wire.as_slice()).expect("prost first parse"),
@@ -408,43 +624,247 @@ where
             std::hint::black_box(&dst[..]);
         },
     );
-    let prost_touch = median_ns(samples, iters, || {
+    let (prost_touch, raw_prost_touch) = median_ns_raw(samples, iters, || {
         let msg = R::decode(pbrs_wire.as_slice()).expect("prost decode");
         touch_prost(&msg)
     });
-    let v4_enc = median_ns(samples, iters, || {
-        V4Serialize::serialize(v4).expect("v4 encode")
+    let (prost_construct, raw_prost_construct) = median_ns_raw(samples, iters, || build_prost());
+    let (v4_enc, raw_v4_enc) = median_ns_raw(samples, iters, || {
+        V4Serialize::serialize(&v4).expect("v4 encode")
     });
-    let v4_dec = median_ns(samples, iters, || V::parse(&pbrs_wire).expect("v4 parse"));
-    let v4_first_enc = median_first_encode_ns(
+    let (v4_dec, raw_v4_dec) =
+        median_ns_raw(samples, iters, || V::parse(&pbrs_wire).expect("v4 parse"));
+    let (v4_first_enc, raw_v4_first) = median_first_encode_ns_raw(
         samples,
         first_iters,
         || V::parse(&pbrs_wire).expect("v4 first parse"),
         |message| V4Serialize::serialize(message).expect("v4 first encode"),
     );
-    let v4_touch = median_ns(samples, iters, || {
+    let (v4_touch, raw_v4_touch) = median_ns_raw(samples, iters, || {
         let msg = V::parse(&pbrs_wire).expect("v4 parse");
         touch_v4(&msg)
     });
-    Row {
+    let (v4_construct, raw_v4_construct) = median_ns_raw(samples, iters, || build_v4());
+    push_raw_row(RawRow {
         name,
+        detail: "",
+        holdout,
         payload,
         iters,
         samples,
+        first_iters,
+        cols: Vec::from([
+            ("pbrs_enc", raw_pbrs_enc),
+            ("pbrs_first_enc", raw_pbrs_fresh),
+            ("pbrs_dec", raw_pbrs_dec),
+            ("pbrs_touch", raw_pbrs_touch),
+            ("pbrs_construct", raw_pbrs_construct),
+            ("prost_enc", raw_prost_enc),
+            ("prost_first_enc", raw_prost_first),
+            ("prost_dec", raw_prost_dec),
+            ("prost_touch", raw_prost_touch),
+            ("prost_construct", raw_prost_construct),
+            ("v4_enc", raw_v4_enc),
+            ("v4_first_enc", raw_v4_first),
+            ("v4_dec", raw_v4_dec),
+            ("v4_touch", raw_v4_touch),
+            ("v4_construct", raw_v4_construct),
+        ]),
+    });
+    // Construction parity pre-check (not timed): a rebuilt message must
+    // serialize to the same wire the checks above validated, so the timed
+    // construction column cannot run a cheaper builder than the checks saw.
+    assert_eq!(
+        Serialize::serialize(&build_pbrs()).expect("pbrs rebuild wire"),
+        pbrs_wire,
+        "{name}: pbrs rebuilt wire"
+    );
+    if check_wire {
+        let mut rebuilt_prost = Vec::new();
+        prost::Message::encode(&build_prost(), &mut rebuilt_prost).expect("prost rebuild wire");
+        assert_eq!(rebuilt_prost, pbrs_wire, "{name}: prost rebuilt wire");
+        assert_eq!(
+            V4Serialize::serialize(&build_v4()).expect("v4 rebuild wire"),
+            pbrs_wire,
+            "{name}: v4 rebuilt wire"
+        );
+    }
+    Row {
+        name,
+        holdout,
+        payload,
+        iters,
+        samples,
+        pbrs_mem,
+        prost_mem,
+        v4_mem,
         pbrs_enc,
         pbrs_fresh_enc,
         first_iters,
         pbrs_dec,
         pbrs_touch,
+        pbrs_construct,
         prost_enc,
         prost_first_enc,
         prost_dec,
         prost_touch,
+        prost_construct,
         v4_enc,
         v4_first_enc,
         v4_dec,
         v4_touch,
+        v4_construct,
     }
+}
+
+/// Holdout validation row (contract §3.5): identical measurement to
+/// [`run_with_budget`], flagged so reports can separate tuned survey rows
+/// from shapes the implementation was not optimized against. Never gated.
+fn run_holdout<P, R, V, TP, TR, TV, BP, BR, BV>(
+    name: &'static str,
+    build_pbrs: BP,
+    build_prost: BR,
+    build_v4: BV,
+    check_wire: bool,
+    touch_pbrs: TP,
+    touch_prost: TR,
+    touch_v4: TV,
+    budget: Option<(u32, usize)>,
+) -> Row
+where
+    P: Parse + Serialize + PartialEq,
+    R: prost::Message + Default,
+    V: V4Parse + V4Serialize,
+    TP: Fn(&P) -> usize,
+    TR: Fn(&R) -> usize,
+    TV: Fn(&V) -> usize,
+    BP: Fn() -> P,
+    BR: Fn() -> R,
+    BV: Fn() -> V,
+{
+    run_with_budget(
+        name,
+        build_pbrs,
+        build_prost,
+        build_v4,
+        check_wire,
+        touch_pbrs,
+        touch_prost,
+        touch_v4,
+        budget,
+        true,
+    )
+}
+
+/// Holdout shapes built from the existing `codec_cases.proto` types with
+/// populations the tuned survey does not cover: deeper recursion than
+/// `nest_d4`, the unmeasured `err` union variant, a sparse `Rpc` populated
+/// at a different field than `rpc_sparse`, and a single-entry map instead of
+/// the wide `map_8`. All four are byte-stable (single-entry maps serialize
+/// deterministically), so wire equality is checked.
+fn run_holdout_rows(budget: Option<(u32, usize)>) -> [Row; 4] {
+    [
+        run_holdout(
+            "nest_d8",
+            || pbrs_node(8),
+            || prost_node(8),
+            || v4_node(8),
+            true,
+            touch_node_pbrs,
+            touch_node_prost,
+            touch_node_v4,
+            budget,
+        ),
+        run_holdout(
+            "oneof_err",
+            || {
+                let mut m = pbrs_cases::PbResult::new();
+                m.set_err("broken");
+                m
+            },
+            || prost_cases::Result {
+                kind: Some(prost_cases::result::Kind::Err("broken".into())),
+            },
+            || {
+                let mut m = v4_cases::Result::new();
+                m.set_err("broken");
+                m
+            },
+            true,
+            |m| m.err_opt().map(|s| bytes_sum(s.as_bytes())).unwrap_or(0),
+            |m| match &m.kind {
+                Some(prost_cases::result::Kind::Err(s)) => bytes_sum(s.as_bytes()),
+                _ => 0,
+            },
+            |m| {
+                if m.has_err() {
+                    bytes_sum(m.err().as_bytes())
+                } else {
+                    0
+                }
+            },
+            budget,
+        ),
+        run_holdout(
+            "rpc_sparse_path",
+            || {
+                let mut m = pbrs_cases::Rpc::new();
+                m.set_path("/v1/items");
+                m
+            },
+            || prost_cases::Rpc {
+                path: "/v1/items".into(),
+                ..Default::default()
+            },
+            || {
+                let mut m = v4_cases::Rpc::new();
+                m.set_path("/v1/items");
+                m
+            },
+            true,
+            |m| bytes_sum(m.path().as_bytes()),
+            |m| bytes_sum(m.path.as_bytes()),
+            |m| bytes_sum(m.path().as_bytes()),
+            budget,
+        ),
+        run_holdout(
+            "headers_1",
+            || {
+                let mut m = pbrs_cases::Headers::new();
+                m.h_mut().insert("content-type", "application/json");
+                m
+            },
+            || prost_cases::Headers {
+                h: [("content-type".to_owned(), "application/json".to_owned())]
+                    .into_iter()
+                    .collect(),
+            },
+            || {
+                let mut m = v4_cases::Headers::new();
+                m.h_mut().insert("content-type", "application/json");
+                m
+            },
+            true,
+            |m| {
+                m.h()
+                    .iter()
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
+                    .sum()
+            },
+            |m| {
+                m.h.iter()
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
+                    .sum()
+            },
+            |m| {
+                m.h()
+                    .iter()
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
+                    .sum()
+            },
+            budget,
+        ),
+    ]
 }
 
 fn pbrs_hello(name: &str) -> PbrsHello {
@@ -457,6 +877,12 @@ fn prost_hello(name: &str) -> ProstHello {
     ProstHello {
         name: name.to_string(),
     }
+}
+
+fn v4_name(name: &str) -> v4_cases::Name {
+    let mut m = v4_cases::Name::new();
+    m.set_name(name);
+    m
 }
 
 fn meta_pbrs() -> pbrs_cases::Meta {
@@ -595,73 +1021,122 @@ fn print_first_encodes(rows: &[Row]) {
     println!();
 }
 
+fn print_constructs(rows: &[Row]) {
+    println!("Fresh construction via new/setters (diagnostic; ns, no parse):");
+    println!("| case | pbrs | prost | v4 |");
+    println!("|---|---:|---:|---:|");
+    for r in rows {
+        println!(
+            "| {} | {:.1} | {:.1} | {:.1} |",
+            r.name, r.pbrs_construct, r.prost_construct, r.v4_construct
+        );
+    }
+    println!();
+}
+
+fn print_retained(rows: &[Row]) {
+    println!("Retained Rust heap per parsed message (diagnostic; bytes / allocation calls):");
+    println!("| case | pbrs bytes/allocs | prost bytes/allocs | v4 bytes/allocs |");
+    println!("|---|---:|---:|---:|");
+    for r in rows {
+        println!(
+            "| {} | {} / {} | {} / {} | {} / {} |",
+            r.name,
+            r.pbrs_mem.bytes,
+            r.pbrs_mem.allocs,
+            r.prost_mem.bytes,
+            r.prost_mem.allocs,
+            r.v4_mem.bytes,
+            r.v4_mem.allocs,
+        );
+    }
+    println!("v4 cells exclude the upb Arena (C heap); Rust-side only.");
+    println!();
+}
+
 fn touch_handwritten_person(m: &PbrsPerson) -> usize {
     m.id() as usize
-        + m.name().as_bytes().len()
-        + m.email_opt().map_or(0, |email| email.as_bytes().len())
+        + bytes_sum(m.name().as_bytes())
+        + m.email_opt().map_or(0, |email| bytes_sum(email.as_bytes()))
         + m.tags()
             .iter()
-            .map(|tag| tag.as_view().as_bytes().len())
+            .map(|tag| bytes_sum(tag.as_view().as_bytes()))
             .sum::<usize>()
         + m.scores()
             .iter()
-            .map(|(key, score)| key.as_view().as_bytes().len() + score as usize)
+            .map(|(key, score)| bytes_sum(key.as_view().as_bytes()) + score as usize)
             .sum::<usize>()
-        + m.address().city().as_bytes().len()
+        + bytes_sum(m.address().city().as_bytes())
 }
 
 fn touch_generated_person(m: &pbrs_person::Person) -> usize {
     m.id() as usize
-        + m.name().as_bytes().len()
-        + m.email_opt().map_or(0, |email| email.as_bytes().len())
+        + bytes_sum(m.name().as_bytes())
+        + m.email_opt().map_or(0, |email| bytes_sum(email.as_bytes()))
         + m.tags()
             .iter()
-            .map(|tag| tag.as_view().as_bytes().len())
+            .map(|tag| bytes_sum(tag.as_view().as_bytes()))
             .sum::<usize>()
         + m.scores()
             .iter()
-            .map(|(key, score)| key.as_view().as_bytes().len() + score as usize)
+            .map(|(key, score)| bytes_sum(key.as_view().as_bytes()) + score as usize)
             .sum::<usize>()
-        + m.address().city().as_bytes().len()
+        + bytes_sum(m.address().city().as_bytes())
         + m.extras()
             .iter()
-            .map(|(key, value)| key.as_view().as_bytes().len() + value as usize)
+            .map(|(key, value)| bytes_sum(key.as_view().as_bytes()) + value as usize)
             .sum::<usize>()
 }
 
 fn touch_prost_person(m: &ProstPerson) -> usize {
     m.id as usize
-        + m.name.len()
-        + m.email.as_ref().map_or(0, String::len)
-        + m.tags.iter().map(String::len).sum::<usize>()
+        + bytes_sum(m.name.as_bytes())
+        + m.email
+            .as_ref()
+            .map_or(0, |email| bytes_sum(email.as_bytes()))
+        + m.tags
+            .iter()
+            .map(|tag| bytes_sum(tag.as_bytes()))
+            .sum::<usize>()
         + m.scores
             .iter()
-            .map(|(key, score)| key.len() + *score as usize)
+            .map(|(key, score)| bytes_sum(key.as_bytes()) + *score as usize)
             .sum::<usize>()
-        + m.address.as_ref().map_or(0, |address| address.city.len())
+        + m.address
+            .as_ref()
+            .map_or(0, |address| bytes_sum(address.city.as_bytes()))
         + m.extras
             .iter()
-            .map(|(key, value)| key.len() + *value as usize)
+            .map(|(key, value)| bytes_sum(key.as_bytes()) + *value as usize)
             .sum::<usize>()
 }
 
 fn touch_v4_person(m: &v4_person::Person) -> usize {
     m.id() as usize
-        + m.name().len()
-        + (if m.has_email() { m.email().len() } else { 0 })
-        + m.tags().iter().map(|tag| tag.len()).sum::<usize>()
+        + bytes_sum(m.name().as_bytes())
+        + (if m.has_email() {
+            bytes_sum(m.email().as_bytes())
+        } else {
+            0
+        })
+        + m.tags()
+            .iter()
+            .map(|tag| bytes_sum(tag.as_bytes()))
+            .sum::<usize>()
         + m.scores()
             .iter()
-            .map(|(key, score)| key.len() + score as usize)
+            .map(|(key, score)| bytes_sum(key.as_bytes()) + score as usize)
             .sum::<usize>()
-        + m.address().city().len()
+        + bytes_sum(m.address().city().as_bytes())
         + m.extras()
             .iter()
-            .map(|(key, value)| key.len() + value as usize)
+            .map(|(key, value)| bytes_sum(key.as_bytes()) + value as usize)
             .sum::<usize>()
 }
 
-fn person_input_wire() -> Vec<u8> {
+/// Constructor-parity builders: every Person row builds its reference
+/// messages through these, and the timed construction column runs them too.
+fn build_handwritten_person() -> PbrsPerson {
     let mut address = PbrsAddress::new();
     address.set_city("nyc");
     let mut person = PbrsPerson::new();
@@ -672,7 +1147,69 @@ fn person_input_wire() -> Vec<u8> {
     person.tags_mut().push("eng");
     person.scores_mut().insert("notes", 12);
     person.set_address(address);
-    Serialize::serialize(&person).expect("person input wire")
+    person
+}
+
+fn build_generated_person() -> pbrs_person::Person {
+    let mut address = pbrs_person::Address::new();
+    address.set_city("nyc");
+    let mut person = pbrs_person::Person::new();
+    person.set_id(7);
+    person.set_name("ada lovelace");
+    person.set_email("ada@example.com");
+    person.tags_mut().push("math");
+    person.tags_mut().push("eng");
+    person.scores_mut().insert("notes", 12);
+    person.set_address(address);
+    person
+}
+
+fn build_prost_person() -> ProstPerson {
+    ProstPerson {
+        id: 7,
+        name: "ada lovelace".into(),
+        email: Some("ada@example.com".into()),
+        tags: ["math".to_owned(), "eng".to_owned()].into(),
+        scores: [("notes".to_owned(), 12)].into_iter().collect(),
+        address: Some(ProstAddress { city: "nyc".into() }),
+        extras: std::collections::HashMap::new(),
+    }
+}
+
+fn build_v4_person() -> v4_person::Person {
+    let mut address = v4_person::Address::new();
+    address.set_city("nyc");
+    let mut person = v4_person::Person::new();
+    person.set_id(7);
+    person.set_name("ada lovelace");
+    person.set_email("ada@example.com");
+    person.tags_mut().push("math");
+    person.tags_mut().push("eng");
+    person.scores_mut().insert("notes", 12);
+    person.set_address(address);
+    person
+}
+
+fn build_generated_person_extras() -> pbrs_person::Person {
+    let mut person = build_generated_person();
+    person.extras_mut().insert("project", 7);
+    person
+}
+
+fn build_prost_person_extras() -> ProstPerson {
+    let mut person = build_prost_person();
+    person.extras.insert("project".into(), 7);
+    person
+}
+
+fn build_v4_person_extras() -> v4_person::Person {
+    let mut person = build_v4_person();
+    person.extras_mut().insert("project", 7);
+    person
+}
+
+fn person_input_wire() -> Vec<u8> {
+    Serialize::serialize(&build_handwritten_person()).expect("person input wire")
 }
 
 fn person_extras_wire(base: &[u8]) -> Vec<u8> {
@@ -682,9 +1219,14 @@ fn person_extras_wire(base: &[u8]) -> Vec<u8> {
 }
 
 fn run_person_extras_row(input: &[u8], budget: Option<(u32, usize)>) -> Row {
-    let generated = pbrs_person::Person::parse(input).expect("generated extras input");
-    let prost: ProstPerson = prost::Message::decode(input).expect("prost extras input");
-    let v4 = v4_person::Person::parse(input).expect("v4 extras input");
+    let generated = build_generated_person_extras();
+    let prost = build_prost_person_extras();
+    let v4 = build_v4_person_extras();
+    assert_eq!(
+        Serialize::serialize(&generated).expect("generated extras wire"),
+        input,
+        "generated extras builder must reproduce the shared input wire"
+    );
     assert_eq!(generated.extras().iter().count(), 1);
     assert_eq!(prost.extras.get("project"), Some(&7));
     assert!(
@@ -695,14 +1237,15 @@ fn run_person_extras_row(input: &[u8], budget: Option<(u32, usize)>) -> Row {
     );
     run_with_budget(
         "person_generated_extras",
-        &generated,
-        &prost,
-        &v4,
+        build_generated_person_extras,
+        build_prost_person_extras,
+        build_v4_person_extras,
         true,
         touch_generated_person,
         touch_prost_person,
         touch_v4_person,
         budget,
+        false,
     )
 }
 
@@ -719,43 +1262,41 @@ fn mutation_name(alternate: bool) -> &'static str {
 }
 
 fn run_person_rows(input: &[u8], budget: Option<(u32, usize)>) -> [Row; 2] {
-    let handwritten = PbrsPerson::parse(input).expect("handwritten person input");
-    let generated = pbrs_person::Person::parse(input).expect("generated person input");
-    let prost: ProstPerson = prost::Message::decode(input).expect("prost person input");
-    let v4 = v4_person::Person::parse(input).expect("v4 person input");
     assert_eq!(
-        Serialize::serialize(&handwritten).expect("handwritten person wire"),
-        input
+        Serialize::serialize(&build_handwritten_person()).expect("handwritten person wire"),
+        input,
+        "handwritten builder must reproduce the shared input wire"
     );
     assert_eq!(
-        Serialize::serialize(&generated).expect("generated person wire"),
-        input
+        Serialize::serialize(&build_generated_person()).expect("generated person wire"),
+        input,
+        "generated builder must reproduce the shared input wire"
     );
     let handwritten_row = run_with_budget(
         "person_handwritten",
-        &handwritten,
-        &prost,
-        &v4,
+        build_handwritten_person,
+        build_prost_person,
+        build_v4_person,
         true,
         touch_handwritten_person,
         touch_prost_person,
         touch_v4_person,
         budget,
+        false,
     );
-    let prost: ProstPerson = prost::Message::decode(input).expect("prost generated-row input");
-    let v4 = v4_person::Person::parse(input).expect("v4 generated-row input");
     [
         handwritten_row,
         run_with_budget(
             "person_generated",
-            &generated,
-            &prost,
-            &v4,
+            build_generated_person,
+            build_prost_person,
+            build_v4_person,
             true,
             touch_generated_person,
             touch_prost_person,
             touch_v4_person,
             budget,
+            false,
         ),
     ]
 }
@@ -795,8 +1336,8 @@ fn person_report(rows: &[Row; 2], extras: &Row) -> String {
     );
     let mut report = String::from(
         "## Person layouts (proto/person.proto; diagnostic, ns, not gated)\n\
-         | case (pbrs layout) | payload | repeated/parse iters | first-encode iters | samples | pbrs enc first/prewarmed | pbrs dec parse/touch | prost enc first/repeated | prost dec parse/touch | v4 enc first/repeated | v4 dec parse/touch |\n\
-         |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n",
+         | case (pbrs layout) | payload | repeated/parse iters | first-encode iters | samples | pbrs enc first/prewarmed | pbrs dec parse/touch | prost enc first/repeated | prost dec parse/touch | v4 enc first/repeated | v4 dec parse/touch | pbrs construct | prost construct | v4 construct |\n\
+         |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n",
     );
     for row in rows.iter().chain(std::iter::once(extras)) {
         for value in [
@@ -804,14 +1345,17 @@ fn person_report(rows: &[Row; 2], extras: &Row) -> String {
             row.pbrs_fresh_enc,
             row.pbrs_dec,
             row.pbrs_touch,
+            row.pbrs_construct,
             row.prost_enc,
             row.prost_first_enc,
             row.prost_dec,
             row.prost_touch,
+            row.prost_construct,
             row.v4_enc,
             row.v4_first_enc,
             row.v4_dec,
             row.v4_touch,
+            row.v4_construct,
         ] {
             assert!(
                 value.is_finite() && value > 0.0,
@@ -820,7 +1364,7 @@ fn person_report(rows: &[Row; 2], extras: &Row) -> String {
             );
         }
         report.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} |\n",
+            "| {} | {} | {} | {} | {} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} / {:.1} | {:.1} | {:.1} | {:.1} |\n",
             row.name,
             row.payload,
             row.iters,
@@ -838,13 +1382,17 @@ fn person_report(rows: &[Row; 2], extras: &Row) -> String {
             row.v4_enc,
             row.v4_dec,
             row.v4_touch,
+            row.pbrs_construct,
+            row.prost_construct,
+            row.v4_construct,
         ));
     }
     report.push_str(
         "\nEach row uses a matched wire across its codecs; prost/v4 are timed independently. \
          The two layout rows share an empty-extras wire; the generated-only extras row has \
          one typed tag-16 entry and no handwritten comparator. \
-         Touch uses string lengths and scalar values, not a bytewise string scan. \
+         Touch reads every populated field and every string/bytes payload byte. \
+         Construction builds the same specimen each codec encodes; rebuilt wire must match. \
          Fixed-order, same-process timings do not qualify a speed or memory claim.\n",
     );
     report
@@ -967,7 +1515,7 @@ where
 {
     let mut pbrs_dst = BytesMut::new();
     let mut prost_dst = BytesMut::new();
-    let pbrs_ns = median_mutated_encode_ns(
+    let (pbrs_ns, raw_pbrs) = median_mutated_encode_ns_raw(
         samples,
         iters,
         || {
@@ -983,7 +1531,7 @@ where
             std::hint::black_box(&pbrs_dst[..]);
         },
     );
-    let prost_ns = median_mutated_encode_ns(
+    let (prost_ns, raw_prost) = median_mutated_encode_ns_raw(
         samples,
         iters,
         || {
@@ -997,7 +1545,7 @@ where
             std::hint::black_box(&prost_dst[..]);
         },
     );
-    let v4_ns = median_mutated_encode_ns(
+    let (v4_ns, raw_v4) = median_mutated_encode_ns_raw(
         samples,
         iters,
         || {
@@ -1010,6 +1558,20 @@ where
             std::hint::black_box(V4Serialize::serialize(message).expect("v4 person encode"));
         },
     );
+    push_raw_row(RawRow {
+        name: label.layout,
+        detail: label.transition,
+        holdout: false,
+        payload: input.len(),
+        iters,
+        samples,
+        first_iters: 0,
+        cols: Vec::from([
+            ("pbrs_mutated_enc", raw_pbrs),
+            ("prost_mutated_enc", raw_prost),
+            ("v4_mutated_enc", raw_v4),
+        ]),
+    });
     MutationRow {
         name: label.layout,
         transition: label.transition,
@@ -1145,51 +1707,66 @@ fn main() {
     let blob_4k = vec![0x5a; 4096];
     let blob_64k = vec![0x5a; 64 * 1024];
 
-    let p_hello = pbrs_hello(hello_short);
-    let r_hello = prost_hello(hello_short);
-    // v4 has no helloworld here; Name is the same 1-string shape.
-    let mut v_name = v4_cases::Name::new();
-    v_name.set_name(hello_short);
+    // Constructor-parity builders: each row builds its reference messages
+    // through these closures, and the timed construction column runs them.
+    let build_p_hello = || pbrs_hello(hello_short);
+    let build_r_hello = || prost_hello(hello_short);
 
-    let p_hello4 = pbrs_hello(&hello_4k);
-    let r_hello4 = prost_hello(&hello_4k);
+    let build_p_hello4 = || pbrs_hello(&hello_4k);
+    let build_r_hello4 = || prost_hello(&hello_4k);
 
-    let mut p_name = pbrs_cases::Name::new();
-    p_name.set_name(hello_short);
-    let r_name = prost_cases::Name {
+    let build_p_name = || {
+        let mut m = pbrs_cases::Name::new();
+        m.set_name(hello_short);
+        m
+    };
+    let build_r_name = || prost_cases::Name {
         name: hello_short.into(),
     };
 
-    let mut p_name80 = pbrs_cases::Name::new();
-    p_name80.set_name(name_80.as_str());
-    let r_name80 = prost_cases::Name {
+    let build_p_name80 = || {
+        let mut m = pbrs_cases::Name::new();
+        m.set_name(name_80.as_str());
+        m
+    };
+    let build_r_name80 = || prost_cases::Name {
         name: name_80.clone(),
     };
-    let mut v_name80 = v4_cases::Name::new();
-    v_name80.set_name(name_80.as_str());
+    let build_v_name80 = || v4_name(name_80.as_str());
 
-    let mut p_name4k = pbrs_cases::Name::new();
-    p_name4k.set_name(hello_4k.as_str());
-    let r_name4k = prost_cases::Name {
+    let build_p_name4k = || {
+        let mut m = pbrs_cases::Name::new();
+        m.set_name(hello_4k.as_str());
+        m
+    };
+    let build_r_name4k = || prost_cases::Name {
         name: hello_4k.clone(),
     };
-    let mut v_name4k = v4_cases::Name::new();
-    v_name4k.set_name(hello_4k.as_str());
+    let build_v_name4k = || v4_name(&hello_4k);
 
-    let mut p_id = pbrs_cases::Id::new();
-    p_id.set_id(7);
-    let r_id = prost_cases::Id { id: 7 };
-    let mut v_id = v4_cases::Id::new();
-    v_id.set_id(7);
+    let build_p_id = || {
+        let mut m = pbrs_cases::Id::new();
+        m.set_id(7);
+        m
+    };
+    let build_r_id = || prost_cases::Id { id: 7 };
+    let build_v_id = || {
+        let mut m = v4_cases::Id::new();
+        m.set_id(7);
+        m
+    };
 
-    let mut p_sc = pbrs_cases::Scalars::new();
-    p_sc.set_id(7);
-    p_sc.set_seq(3);
-    p_sc.set_ok(true);
-    p_sc.set_status(1);
-    p_sc.set_ts(1_700_000_000);
-    p_sc.set_lat(1.5);
-    let r_sc = prost_cases::Scalars {
+    let build_p_sc = || {
+        let mut m = pbrs_cases::Scalars::new();
+        m.set_id(7);
+        m.set_seq(3);
+        m.set_ok(true);
+        m.set_status(1);
+        m.set_ts(1_700_000_000);
+        m.set_lat(1.5);
+        m
+    };
+    let build_r_sc = || prost_cases::Scalars {
         id: 7,
         seq: 3,
         ok: true,
@@ -1197,98 +1774,149 @@ fn main() {
         ts: 1_700_000_000,
         lat: 1.5,
     };
-    let mut v_sc = v4_cases::Scalars::new();
-    v_sc.set_id(7);
-    v_sc.set_seq(3);
-    v_sc.set_ok(true);
-    v_sc.set_status(v4_cases::Status::Ok);
-    v_sc.set_ts(1_700_000_000);
-    v_sc.set_lat(1.5);
+    let build_v_sc = || {
+        let mut m = v4_cases::Scalars::new();
+        m.set_id(7);
+        m.set_seq(3);
+        m.set_ok(true);
+        m.set_status(v4_cases::Status::Ok);
+        m.set_ts(1_700_000_000);
+        m.set_lat(1.5);
+        m
+    };
 
-    let mut p_b32 = pbrs_cases::Blob::new();
-    p_b32.set_payload(blob_32.as_slice());
-    let r_b32 = prost_cases::Blob {
+    let build_p_b32 = || {
+        let mut m = pbrs_cases::Blob::new();
+        m.set_payload(blob_32.as_slice());
+        m
+    };
+    let build_r_b32 = || prost_cases::Blob {
         payload: blob_32.clone(),
     };
-    let mut v_b32 = v4_cases::Blob::new();
-    v_b32.set_payload(blob_32.as_slice());
+    let build_v_b32 = || {
+        let mut m = v4_cases::Blob::new();
+        m.set_payload(blob_32.as_slice());
+        m
+    };
 
-    let mut p_b4k = pbrs_cases::Blob::new();
-    p_b4k.set_payload(blob_4k.as_slice());
-    let r_b4k = prost_cases::Blob {
+    let build_p_b4k = || {
+        let mut m = pbrs_cases::Blob::new();
+        m.set_payload(blob_4k.as_slice());
+        m
+    };
+    let build_r_b4k = || prost_cases::Blob {
         payload: blob_4k.clone(),
     };
-    let mut v_b4k = v4_cases::Blob::new();
-    v_b4k.set_payload(blob_4k.as_slice());
+    let build_v_b4k = || {
+        let mut m = v4_cases::Blob::new();
+        m.set_payload(blob_4k.as_slice());
+        m
+    };
 
-    let mut p_b64 = pbrs_cases::Blob::new();
-    p_b64.set_payload(blob_64k.as_slice());
-    let r_b64 = prost_cases::Blob {
+    let build_p_b64 = || {
+        let mut m = pbrs_cases::Blob::new();
+        m.set_payload(blob_64k.as_slice());
+        m
+    };
+    let build_r_b64 = || prost_cases::Blob {
         payload: blob_64k.clone(),
     };
-    let mut v_b64 = v4_cases::Blob::new();
-    v_b64.set_payload(blob_64k.as_slice());
+    let build_v_b64 = || {
+        let mut m = v4_cases::Blob::new();
+        m.set_payload(blob_64k.as_slice());
+        m
+    };
 
-    let mut p_env = pbrs_cases::Envelope::new();
-    p_env.set_meta(meta_pbrs());
-    p_env.set_body("hello body");
-    let r_env = prost_cases::Envelope {
+    let build_p_env = || {
+        let mut m = pbrs_cases::Envelope::new();
+        m.set_meta(meta_pbrs());
+        m.set_body("hello body");
+        m
+    };
+    let build_r_env = || prost_cases::Envelope {
         meta: Some(meta_prost()),
         body: "hello body".into(),
     };
-    let mut v_env = v4_cases::Envelope::new();
-    v_env.set_meta(meta_v4());
-    v_env.set_body("hello body");
+    let build_v_env = || {
+        let mut m = v4_cases::Envelope::new();
+        m.set_meta(meta_v4());
+        m.set_body("hello body");
+        m
+    };
 
-    let p_nest = pbrs_node(4);
-    let r_nest = prost_node(4);
-    let v_nest = v4_node(4);
+    let build_p_nest = || pbrs_node(4);
+    let build_r_nest = || prost_node(4);
+    let build_v_nest = || v4_node(4);
 
-    let mut p_ids16 = pbrs_cases::Ids::new();
-    p_ids16.set_ids(0..16);
-    let r_ids16 = prost_cases::Ids {
+    let build_p_ids16 = || {
+        let mut m = pbrs_cases::Ids::new();
+        m.set_ids(0..16);
+        m
+    };
+    let build_r_ids16 = || prost_cases::Ids {
         ids: (0..16).collect(),
     };
-    let mut v_ids16 = v4_cases::Ids::new();
-    for i in 0..16 {
-        v_ids16.ids_mut().push(i);
-    }
+    let build_v_ids16 = || {
+        let mut m = v4_cases::Ids::new();
+        for i in 0..16 {
+            m.ids_mut().push(i);
+        }
+        m
+    };
 
-    let mut p_ids256 = pbrs_cases::Ids::new();
-    p_ids256.set_ids(0..256);
-    let r_ids256 = prost_cases::Ids {
+    let build_p_ids256 = || {
+        let mut m = pbrs_cases::Ids::new();
+        m.set_ids(0..256);
+        m
+    };
+    let build_r_ids256 = || prost_cases::Ids {
         ids: (0..256).collect(),
     };
-    let mut v_ids256 = v4_cases::Ids::new();
-    for i in 0..256 {
-        v_ids256.ids_mut().push(i);
-    }
+    let build_v_ids256 = || {
+        let mut m = v4_cases::Ids::new();
+        for i in 0..256 {
+            m.ids_mut().push(i);
+        }
+        m
+    };
 
     let tags4 = ["alpha", "beta", "gamma", "delta"];
-    let mut p_tags4 = pbrs_cases::Tags::new();
-    for t in tags4 {
-        p_tags4.tags_mut().push(t);
-    }
-    let r_tags4 = prost_cases::Tags {
+    let build_p_tags4 = || {
+        let mut m = pbrs_cases::Tags::new();
+        for t in tags4 {
+            m.tags_mut().push(t);
+        }
+        m
+    };
+    let build_r_tags4 = || prost_cases::Tags {
         tags: tags4.iter().map(|s| (*s).to_string()).collect(),
     };
-    let mut v_tags4 = v4_cases::Tags::new();
-    for t in tags4 {
-        v_tags4.tags_mut().push(t);
-    }
+    let build_v_tags4 = || {
+        let mut m = v4_cases::Tags::new();
+        for t in tags4 {
+            m.tags_mut().push(t);
+        }
+        m
+    };
 
     let tag32: Vec<String> = (0..32).map(|i| format!("t{i:02}")).collect();
-    let mut p_tags32 = pbrs_cases::Tags::new();
-    for t in &tag32 {
-        p_tags32.tags_mut().push(t.as_str());
-    }
-    let r_tags32 = prost_cases::Tags {
+    let build_p_tags32 = || {
+        let mut m = pbrs_cases::Tags::new();
+        for t in &tag32 {
+            m.tags_mut().push(t.as_str());
+        }
+        m
+    };
+    let build_r_tags32 = || prost_cases::Tags {
         tags: tag32.clone(),
     };
-    let mut v_tags32 = v4_cases::Tags::new();
-    for t in &tag32 {
-        v_tags32.tags_mut().push(t.as_str());
-    }
+    let build_v_tags32 = || {
+        let mut m = v4_cases::Tags::new();
+        for t in &tag32 {
+            m.tags_mut().push(t.as_str());
+        }
+        m
+    };
 
     let hdrs = [
         ("content-type", "application/json"),
@@ -1300,44 +1928,59 @@ fn main() {
         ("authorization", "none"),
         ("cache-control", "no-store"),
     ];
-    let mut p_map = pbrs_cases::Headers::new();
-    for (k, v) in hdrs {
-        p_map.h_mut().insert(k, v);
-    }
-    let r_map = prost_cases::Headers {
+    let build_p_map = || {
+        let mut m = pbrs_cases::Headers::new();
+        for (k, v) in hdrs {
+            m.h_mut().insert(k, v);
+        }
+        m
+    };
+    let build_r_map = || prost_cases::Headers {
         h: hdrs
             .iter()
             .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
             .collect(),
     };
-    let mut v_map = v4_cases::Headers::new();
-    for (k, v) in hdrs {
-        v_map.h_mut().insert(k, v);
-    }
+    let build_v_map = || {
+        let mut m = v4_cases::Headers::new();
+        for (k, v) in hdrs {
+            m.h_mut().insert(k, v);
+        }
+        m
+    };
 
-    let mut p_ok = pbrs_cases::PbResult::new();
-    p_ok.set_ok("fine");
-    let r_ok = prost_cases::Result {
+    let build_p_ok = || {
+        let mut m = pbrs_cases::PbResult::new();
+        m.set_ok("fine");
+        m
+    };
+    let build_r_ok = || prost_cases::Result {
         kind: Some(prost_cases::result::Kind::Ok("fine".into())),
     };
-    let mut v_ok = v4_cases::Result::new();
-    v_ok.set_ok("fine");
+    let build_v_ok = || {
+        let mut m = v4_cases::Result::new();
+        m.set_ok("fine");
+        m
+    };
 
-    let mut p_rpc = pbrs_cases::Rpc::new();
-    p_rpc.set_id(99);
-    p_rpc.set_method("Get");
-    p_rpc.set_path("/v1/items");
-    p_rpc.set_user("ada");
-    p_rpc.set_meta(meta_pbrs());
-    p_rpc.set_ids(0..8);
-    for t in tags4 {
-        p_rpc.tags_mut().push(t);
-    }
-    for (k, v) in hdrs.iter().take(4) {
-        p_rpc.headers_mut().insert(*k, *v);
-    }
-    p_rpc.set_extra(&b"extra"[..]);
-    let r_rpc = prost_cases::Rpc {
+    let build_p_rpc = || {
+        let mut m = pbrs_cases::Rpc::new();
+        m.set_id(99);
+        m.set_method("Get");
+        m.set_path("/v1/items");
+        m.set_user("ada");
+        m.set_meta(meta_pbrs());
+        m.set_ids(0..8);
+        for t in tags4 {
+            m.tags_mut().push(t);
+        }
+        for (k, v) in hdrs.iter().take(4) {
+            m.headers_mut().insert(*k, *v);
+        }
+        m.set_extra(&b"extra"[..]);
+        m
+    };
+    let build_r_rpc = || prost_cases::Rpc {
         id: 99,
         method: "Get".into(),
         path: "/v1/items".into(),
@@ -1352,66 +1995,71 @@ fn main() {
             .collect(),
         extra: b"extra".to_vec(),
     };
-    let mut v_rpc = v4_cases::Rpc::new();
-    v_rpc.set_id(99);
-    v_rpc.set_method("Get");
-    v_rpc.set_path("/v1/items");
-    v_rpc.set_user("ada");
-    v_rpc.set_meta(meta_v4());
-    for i in 0..8 {
-        v_rpc.ids_mut().push(i);
-    }
-    for t in tags4 {
-        v_rpc.tags_mut().push(t);
-    }
-    for (k, v) in hdrs.iter().take(4) {
-        v_rpc.headers_mut().insert(*k, *v);
-    }
-    v_rpc.set_extra(&b"extra"[..]);
+    let build_v_rpc = || {
+        let mut m = v4_cases::Rpc::new();
+        m.set_id(99);
+        m.set_method("Get");
+        m.set_path("/v1/items");
+        m.set_user("ada");
+        m.set_meta(meta_v4());
+        for i in 0..8 {
+            m.ids_mut().push(i);
+        }
+        for t in tags4 {
+            m.tags_mut().push(t);
+        }
+        for (k, v) in hdrs.iter().take(4) {
+            m.headers_mut().insert(*k, *v);
+        }
+        m.set_extra(&b"extra"[..]);
+        m
+    };
 
-    let mut p_sparse = pbrs_cases::Rpc::new();
-    p_sparse.set_id(99);
-    let r_sparse = prost_cases::Rpc {
+    let build_p_sparse = || {
+        let mut m = pbrs_cases::Rpc::new();
+        m.set_id(99);
+        m
+    };
+    let build_r_sparse = || prost_cases::Rpc {
         id: 99,
         ..Default::default()
     };
-    let mut v_sparse = v4_cases::Rpc::new();
-    v_sparse.set_id(99);
+    let build_v_sparse = || {
+        let mut m = v4_cases::Rpc::new();
+        m.set_id(99);
+        m
+    };
 
     // hello has no v4 twin in this crate; Name is the same 1-string shape.
     let published = [
         run(
             "hello",
-            &p_hello,
-            &r_hello,
-            &v_name,
+            build_p_hello,
+            build_r_hello,
+            || v4_name(hello_short),
             true,
-            |m| m.name().as_bytes().len(),
-            |m| m.name.len(),
-            |m| m.name().len(),
+            |m| bytes_sum(m.name().as_bytes()),
+            |m| bytes_sum(m.name.as_bytes()),
+            |m| bytes_sum(m.name().as_bytes()),
         ),
-        {
-            let mut v = v4_cases::Name::new();
-            v.set_name(hello_4k.as_str());
-            run(
-                "hello_4kib",
-                &p_hello4,
-                &r_hello4,
-                &v,
-                true,
-                |m| m.name().as_bytes().len(),
-                |m| m.name.len(),
-                |m| m.name().len(),
-            )
-        },
+        run(
+            "hello_4kib",
+            build_p_hello4,
+            build_r_hello4,
+            || v4_name(&hello_4k),
+            true,
+            |m| bytes_sum(m.name().as_bytes()),
+            |m| bytes_sum(m.name.as_bytes()),
+            |m| bytes_sum(m.name().as_bytes()),
+        ),
     ];
 
     let survey = [
         run(
             "empty",
-            &pbrs_cases::Empty::new(),
-            &prost_cases::Empty {},
-            &v4_cases::Empty::new(),
+            pbrs_cases::Empty::new,
+            || prost_cases::Empty {},
+            v4_cases::Empty::new,
             true,
             |_| 0,
             |_| 0,
@@ -1419,9 +2067,9 @@ fn main() {
         ),
         run(
             "id",
-            &p_id,
-            &r_id,
-            &v_id,
+            build_p_id,
+            build_r_id,
+            build_v_id,
             true,
             |m| m.id() as usize,
             |m| m.id as usize,
@@ -1429,9 +2077,9 @@ fn main() {
         ),
         run(
             "scalars",
-            &p_sc,
-            &r_sc,
-            &v_sc,
+            build_p_sc,
+            build_r_sc,
+            build_v_sc,
             true,
             |m| {
                 m.id() as usize
@@ -1460,89 +2108,95 @@ fn main() {
         ),
         run(
             "name_short",
-            &p_name,
-            &r_name,
-            &v_name,
+            build_p_name,
+            build_r_name,
+            || v4_name(hello_short),
             true,
-            |m| m.name().as_bytes().len(),
-            |m| m.name.len(),
-            |m| m.name().len(),
+            |m| bytes_sum(m.name().as_bytes()),
+            |m| bytes_sum(m.name.as_bytes()),
+            |m| bytes_sum(m.name().as_bytes()),
         ),
         run(
             "name_80",
-            &p_name80,
-            &r_name80,
-            &v_name80,
+            build_p_name80,
+            build_r_name80,
+            build_v_name80,
             true,
-            |m| m.name().as_bytes().len(),
-            |m| m.name.len(),
-            |m| m.name().len(),
+            |m| bytes_sum(m.name().as_bytes()),
+            |m| bytes_sum(m.name.as_bytes()),
+            |m| bytes_sum(m.name().as_bytes()),
         ),
         run(
             "name_4kib",
-            &p_name4k,
-            &r_name4k,
-            &v_name4k,
+            build_p_name4k,
+            build_r_name4k,
+            build_v_name4k,
             true,
-            |m| m.name().as_bytes().len(),
-            |m| m.name.len(),
-            |m| m.name().len(),
+            |m| bytes_sum(m.name().as_bytes()),
+            |m| bytes_sum(m.name.as_bytes()),
+            |m| bytes_sum(m.name().as_bytes()),
         ),
         run(
             "blob_32",
-            &p_b32,
-            &r_b32,
-            &v_b32,
+            build_p_b32,
+            build_r_b32,
+            build_v_b32,
             true,
-            |m| m.payload().len(),
-            |m| m.payload.len(),
-            |m| m.payload().len(),
+            |m| bytes_sum(m.payload()),
+            |m| bytes_sum(&m.payload),
+            |m| bytes_sum(m.payload()),
         ),
         run(
             "blob_4kib",
-            &p_b4k,
-            &r_b4k,
-            &v_b4k,
+            build_p_b4k,
+            build_r_b4k,
+            build_v_b4k,
             true,
-            |m| m.payload().len(),
-            |m| m.payload.len(),
-            |m| m.payload().len(),
+            |m| bytes_sum(m.payload()),
+            |m| bytes_sum(&m.payload),
+            |m| bytes_sum(m.payload()),
         ),
         run(
             "blob_64kib",
-            &p_b64,
-            &r_b64,
-            &v_b64,
+            build_p_b64,
+            build_r_b64,
+            build_v_b64,
             true,
-            |m| m.payload().len(),
-            |m| m.payload.len(),
-            |m| m.payload().len(),
+            |m| bytes_sum(m.payload()),
+            |m| bytes_sum(&m.payload),
+            |m| bytes_sum(m.payload()),
         ),
         run(
             "envelope",
-            &p_env,
-            &r_env,
-            &v_env,
+            build_p_env,
+            build_r_env,
+            build_v_env,
             true,
             |m| {
                 m.meta().id() as usize
-                    + m.meta().trace().as_bytes().len()
-                    + m.body().as_bytes().len()
+                    + m.meta().ts() as usize
+                    + bytes_sum(m.meta().trace().as_bytes())
+                    + bytes_sum(m.body().as_bytes())
             },
             |m| {
                 m.meta
                     .as_ref()
-                    .map(|x| x.id as usize + x.trace.len())
+                    .map(|x| x.id as usize + x.ts as usize + bytes_sum(x.trace.as_bytes()))
                     .unwrap_or(0)
-                    + m.body.len()
+                    + bytes_sum(m.body.as_bytes())
             },
-            |m| m.meta().id() as usize + m.meta().trace().len() + m.body().len(),
+            |m| {
+                m.meta().id() as usize
+                    + m.meta().ts() as usize
+                    + bytes_sum(m.meta().trace().as_bytes())
+                    + bytes_sum(m.body().as_bytes())
+            },
         ),
         run(
             "nest_d4",
-            &p_nest,
-            &r_nest,
-            &v_nest,
+            build_p_nest,
+            build_r_nest,
+            build_v_nest,
             true,
             touch_node_pbrs,
             touch_node_prost,
@@ -1550,9 +2204,9 @@ fn main() {
         ),
         run(
             "packed_16",
-            &p_ids16,
-            &r_ids16,
-            &v_ids16,
+            build_p_ids16,
+            build_r_ids16,
+            build_v_ids16,
             true,
             |m| m.ids().iter().sum::<i64>() as usize,
             |m| m.ids.iter().sum::<i64>() as usize,
@@ -1560,9 +2214,9 @@ fn main() {
         ),
         run(
             "packed_256",
-            &p_ids256,
-            &r_ids256,
-            &v_ids256,
+            build_p_ids256,
+            build_r_ids256,
+            build_v_ids256,
             true,
             |m| m.ids().iter().sum::<i64>() as usize,
             |m| m.ids.iter().sum::<i64>() as usize,
@@ -1570,106 +2224,137 @@ fn main() {
         ),
         run(
             "tags_4",
-            &p_tags4,
-            &r_tags4,
-            &v_tags4,
+            build_p_tags4,
+            build_r_tags4,
+            build_v_tags4,
             true,
-            |m| m.tags().iter().map(|s| s.as_bytes().len()).sum(),
-            |m| m.tags.iter().map(|s| s.len()).sum(),
-            |m| m.tags().iter().map(|s| s.len()).sum(),
+            |m| m.tags().iter().map(|s| bytes_sum(s.as_bytes())).sum(),
+            |m| m.tags.iter().map(|s| bytes_sum(s.as_bytes())).sum(),
+            |m| m.tags().iter().map(|s| bytes_sum(s.as_bytes())).sum(),
         ),
         run(
             "tags_32",
-            &p_tags32,
-            &r_tags32,
-            &v_tags32,
+            build_p_tags32,
+            build_r_tags32,
+            build_v_tags32,
             true,
-            |m| m.tags().iter().map(|s| s.as_bytes().len()).sum(),
-            |m| m.tags.iter().map(|s| s.len()).sum(),
-            |m| m.tags().iter().map(|s| s.len()).sum(),
+            |m| m.tags().iter().map(|s| bytes_sum(s.as_bytes())).sum(),
+            |m| m.tags.iter().map(|s| bytes_sum(s.as_bytes())).sum(),
+            |m| m.tags().iter().map(|s| bytes_sum(s.as_bytes())).sum(),
         ),
         run(
             "map_8",
-            &p_map,
-            &r_map,
-            &v_map,
+            build_p_map,
+            build_r_map,
+            build_v_map,
             false,
             |m| {
                 m.h()
                     .iter()
-                    .map(|(k, v)| k.as_bytes().len() + v.as_bytes().len())
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
                     .sum()
             },
-            |m| m.h.iter().map(|(k, v)| k.len() + v.len()).sum(),
-            |m| m.h().iter().map(|(k, v)| k.len() + v.len()).sum(),
+            |m| {
+                m.h.iter()
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
+                    .sum()
+            },
+            |m| {
+                m.h()
+                    .iter()
+                    .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
+                    .sum()
+            },
         ),
         run(
             "oneof_ok",
-            &p_ok,
-            &r_ok,
-            &v_ok,
+            build_p_ok,
+            build_r_ok,
+            build_v_ok,
             true,
-            |m| m.ok_opt().map(|s| s.as_bytes().len()).unwrap_or(0),
+            |m| m.ok_opt().map(|s| bytes_sum(s.as_bytes())).unwrap_or(0),
             |m| match &m.kind {
-                Some(prost_cases::result::Kind::Ok(s)) => s.len(),
+                Some(prost_cases::result::Kind::Ok(s)) => bytes_sum(s.as_bytes()),
                 _ => 0,
             },
-            |m| if m.has_ok() { m.ok().len() } else { 0 },
+            |m| {
+                if m.has_ok() {
+                    bytes_sum(m.ok().as_bytes())
+                } else {
+                    0
+                }
+            },
         ),
         run(
             "rpc_mixed",
-            &p_rpc,
-            &r_rpc,
-            &v_rpc,
+            build_p_rpc,
+            build_r_rpc,
+            build_v_rpc,
             false,
             |m| {
                 m.id() as usize
-                    + m.method().as_bytes().len()
-                    + m.path().as_bytes().len()
-                    + m.user().as_bytes().len()
+                    + bytes_sum(m.method().as_bytes())
+                    + bytes_sum(m.path().as_bytes())
+                    + bytes_sum(m.user().as_bytes())
                     + m.meta().id() as usize
+                    + m.meta().ts() as usize
+                    + bytes_sum(m.meta().trace().as_bytes())
                     + m.ids().iter().sum::<i64>() as usize
-                    + m.tags().iter().map(|s| s.as_bytes().len()).sum::<usize>()
+                    + m.tags()
+                        .iter()
+                        .map(|s| bytes_sum(s.as_bytes()))
+                        .sum::<usize>()
                     + m.headers()
                         .iter()
-                        .map(|(k, v)| k.as_bytes().len() + v.as_bytes().len())
+                        .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
                         .sum::<usize>()
-                    + m.extra().len()
+                    + bytes_sum(m.extra())
             },
             |m| {
                 m.id as usize
-                    + m.method.len()
-                    + m.path.len()
-                    + m.user.len()
-                    + m.meta.as_ref().map(|x| x.id as usize).unwrap_or(0)
+                    + bytes_sum(m.method.as_bytes())
+                    + bytes_sum(m.path.as_bytes())
+                    + bytes_sum(m.user.as_bytes())
+                    + m.meta
+                        .as_ref()
+                        .map(|x| x.id as usize + x.ts as usize + bytes_sum(x.trace.as_bytes()))
+                        .unwrap_or(0)
                     + m.ids.iter().sum::<i64>() as usize
-                    + m.tags.iter().map(|s| s.len()).sum::<usize>()
+                    + m.tags
+                        .iter()
+                        .map(|s| bytes_sum(s.as_bytes()))
+                        .sum::<usize>()
                     + m.headers
                         .iter()
-                        .map(|(k, v)| k.len() + v.len())
+                        .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
                         .sum::<usize>()
-                    + m.extra.len()
+                    + bytes_sum(&m.extra)
             },
             |m| {
                 m.id() as usize
-                    + m.method().len()
-                    + m.path().len()
-                    + m.user().len()
+                    + bytes_sum(m.method().as_bytes())
+                    + bytes_sum(m.path().as_bytes())
+                    + bytes_sum(m.user().as_bytes())
                     + m.meta().id() as usize
+                    + m.meta().ts() as usize
+                    + bytes_sum(m.meta().trace().as_bytes())
                     + m.ids().iter().sum::<i64>() as usize
-                    + m.tags().iter().map(|s| s.len()).sum::<usize>()
+                    + m.tags()
+                        .iter()
+                        .map(|s| bytes_sum(s.as_bytes()))
+                        .sum::<usize>()
                     + m.headers()
                         .iter()
-                        .map(|(k, v)| k.len() + v.len())
+                        .map(|(k, v)| bytes_sum(k.as_bytes()) + bytes_sum(v.as_bytes()))
                         .sum::<usize>()
-                    + m.extra().len()
+                    + bytes_sum(m.extra())
             },
         ),
         run(
             "rpc_sparse",
-            &p_sparse,
-            &r_sparse,
-            &v_sparse,
+            build_p_sparse,
+            build_r_sparse,
+            build_v_sparse,
             true,
             |m| m.id() as usize,
             |m| m.id as usize,
@@ -1680,10 +2365,12 @@ fn main() {
     println!("# Codec survey (encode into BytesMut; v4 serialize is Arena+FFI)");
     println!("iters=40000 samples=15 except payload>=32KiB (4000x9). median. release thin-LTO.");
     println!("pbrs vs prost vs crates.io protobuf 4.35.1-release (upb).");
+    println!("Holdout shapes are measured but never tuned against or gated.");
     println!("map_8 / rpc_mixed skip byte-equal (HashMap order); decoded values checked.");
     println!(
         "First encode is directly timed from separately parsed messages with matched input counts."
     );
+    println!("Construction builds the same specimen each codec encodes; rebuilt wire must match.");
     println!(
         "pbrs may retain lazy wire backing; prost owns fields; v4 uses an upb Arena. No views."
     );
@@ -1693,8 +2380,28 @@ fn main() {
         &published,
     );
     print_first_encodes(&published);
+    print_constructs(&published);
     print_table("## Common shapes (codec_cases.proto)", &survey);
     print_first_encodes(&survey);
+    print_constructs(&survey);
+    let holdouts = run_holdout_rows(None);
+    assert!(
+        published
+            .iter()
+            .chain(survey.iter())
+            .all(|row| !row.holdout),
+        "survey rows must not be flagged holdout"
+    );
+    assert!(
+        holdouts.iter().all(|row| row.holdout),
+        "holdout rows must all be flagged holdout"
+    );
+    print_table(
+        "## Holdout shapes (codec_cases.proto; not tuned, not gated)",
+        &holdouts,
+    );
+    print_first_encodes(&holdouts);
+    print_constructs(&holdouts);
     let person_wire = person_input_wire();
     let person_rows = run_person_rows(&person_wire, None);
     let extras_wire = person_extras_wire(&person_wire);
@@ -1709,6 +2416,12 @@ fn main() {
             person_samples
         ))
     );
+    print_retained(&published);
+    print_retained(&survey);
+    print_retained(&holdouts);
+    print_retained(&[person_rows[0], person_rows[1], extras_row]);
+    println!("## Raw paired samples (schema tonic-raw/1; fixed-order sequential, not interleaved)");
+    print_raw_block();
 
     let mut failed = false;
     for r in survey.iter() {
@@ -1753,19 +2466,34 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        MutationRow, ProstPerson, assert_person_mutation_output, first_encode_budget,
-        median_first_encode_ns, median_mutated_encode_ns, mutation_report, pbrs_person,
-        person_extras_wire, person_input_wire, person_mutation_budget, person_report,
-        run_person_extras_row, run_person_mutations, run_person_rows, touch_generated_person,
-        touch_handwritten_person, touch_prost_person, touch_v4_person, v4_person,
-        verify_person_mutations,
+        MutationRow, ProstPerson, assert_person_mutation_output, build_generated_person,
+        build_generated_person_extras, build_prost_person, build_prost_person_extras,
+        build_v4_person, build_v4_person_extras, first_encode_budget, median_first_encode_ns,
+        median_mutated_encode_ns, mutation_report, pbrs_person, person_extras_wire,
+        person_input_wire, person_mutation_budget, person_report, run_holdout_rows,
+        run_person_extras_row, run_person_mutations, run_person_rows, take_raw_rows,
+        touch_generated_person, touch_handwritten_person, touch_prost_person, touch_v4_person,
+        v4_person, verify_person_mutations,
     };
     use pbrs::testdata::Person as PbrsPerson;
     use pbrs::{AsView, Parse, Serialize};
     use protobuf::{Parse as V4Parse, Serialize as V4Serialize};
 
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Hold for the whole body of every test in this module: the
+    /// retained-memory counters are process-wide, so heap churn on any
+    /// other test thread can shrink a `measure_retained` window to zero
+    /// and fail a live-counter assertion spuriously.
+    fn serial_guard() -> std::sync::MutexGuard<'static, ()> {
+        SERIAL
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     #[test]
     fn first_encode_prepares_and_encodes_every_sample_once() {
+        let _serial = serial_guard();
         let mut prepared = 0usize;
         let mut encoded = Vec::new();
         let measurement = median_first_encode_ns(
@@ -1787,6 +2515,7 @@ mod tests {
 
     #[test]
     fn first_encode_budget_limits_the_estimated_prepared_footprint() {
+        let _serial = serial_guard();
         let payload = 64 * 1024;
         let count = first_encode_budget::<u64, u64, u64>(40_000, payload);
         assert!(count <= 10_000);
@@ -1808,6 +2537,7 @@ mod tests {
 
     #[test]
     fn mutation_helper_reuses_each_parsed_message_and_alternates_before_every_encode() {
+        let _serial = serial_guard();
         let mut prepared = 0usize;
         let mut encoded = Vec::new();
         let measurement = median_mutated_encode_ns(
@@ -1834,6 +2564,7 @@ mod tests {
 
     #[test]
     fn generated_person_matches_the_populated_handwritten_fixture() {
+        let _serial = serial_guard();
         let input = person_input_wire();
         assert_eq!(input.len(), 62);
         let handwritten = PbrsPerson::parse(&input).expect("handwritten person");
@@ -1878,14 +2609,131 @@ mod tests {
         );
         assert_eq!(V4Serialize::serialize(&v4).expect("v4 wire"), input);
         let touched = touch_handwritten_person(&handwritten);
-        assert_eq!(touched, 61);
+        assert_eq!(touched, 4282);
         assert_eq!(touch_generated_person(&generated), touched);
         assert_eq!(touch_prost_person(&prost), touched);
         assert_eq!(touch_v4_person(&v4), touched);
     }
 
     #[test]
+    fn person_builders_reproduce_the_shared_input_wires() {
+        let _serial = serial_guard();
+        let input = person_input_wire();
+        assert_eq!(input.len(), 62);
+        assert_eq!(
+            Serialize::serialize(&build_generated_person()).expect("generated wire"),
+            input
+        );
+        assert_eq!(prost::Message::encode_to_vec(&build_prost_person()), input);
+        assert_eq!(
+            V4Serialize::serialize(&build_v4_person()).expect("v4 wire"),
+            input
+        );
+        let extras = person_extras_wire(&input);
+        assert_eq!(
+            Serialize::serialize(&build_generated_person_extras()).expect("extras wire"),
+            extras
+        );
+        assert_eq!(
+            prost::Message::encode_to_vec(&build_prost_person_extras()),
+            extras
+        );
+        assert_eq!(
+            V4Serialize::serialize(&build_v4_person_extras()).expect("v4 extras wire"),
+            extras
+        );
+    }
+
+    #[test]
+    fn holdout_rows_measure_untuned_shapes_with_live_retained_counters() {
+        let _serial = serial_guard();
+        let rows = run_holdout_rows(Some((10, 3)));
+        assert_eq!(
+            rows.iter().map(|row| row.name).collect::<Vec<_>>(),
+            ["nest_d8", "oneof_err", "rpc_sparse_path", "headers_1"]
+        );
+        for row in &rows {
+            assert!(row.holdout, "{} must be flagged holdout", row.name);
+            assert!(row.payload > 0, "{} must carry wire bytes", row.name);
+            for value in [
+                row.pbrs_enc,
+                row.pbrs_fresh_enc,
+                row.pbrs_dec,
+                row.pbrs_touch,
+                row.pbrs_construct,
+                row.prost_enc,
+                row.prost_first_enc,
+                row.prost_dec,
+                row.prost_touch,
+                row.prost_construct,
+                row.v4_enc,
+                row.v4_first_enc,
+                row.v4_dec,
+                row.v4_touch,
+                row.v4_construct,
+            ] {
+                assert!(
+                    value.is_finite() && value > 0.0,
+                    "{} has an invalid measured time",
+                    row.name
+                );
+            }
+        }
+        // The counting allocator must be live: prost boxes every nested Node,
+        // so decoding depth-8 must retain heap. (v4 is assert-free here: its
+        // Arena lives on the C heap, outside the counted window.)
+        assert!(rows[0].prost_mem.bytes > 0);
+        assert!(rows[0].prost_mem.allocs > 0);
+    }
+
+    #[test]
+    fn raw_paired_samples_reproduce_row_medians() {
+        let _serial = serial_guard();
+        let rows = run_holdout_rows(Some((10, 3)));
+        let mutations = run_person_mutations(&person_input_wire(), 10, 3);
+        let raw = take_raw_rows();
+        assert_eq!(raw.len(), 8);
+        for (row, raw_row) in rows.iter().zip(raw.iter()) {
+            assert_eq!(raw_row.name, row.name);
+            assert!(raw_row.holdout);
+            assert_eq!(raw_row.cols.len(), 15);
+            for (label, values) in &raw_row.cols {
+                assert_eq!(values.len(), row.samples, "{label}");
+                assert!(
+                    values.iter().all(|value| value.is_finite() && *value > 0.0),
+                    "{label} must hold measured samples"
+                );
+            }
+            assert_eq!(raw_row.col_median("pbrs_enc"), row.pbrs_enc);
+            assert_eq!(raw_row.col_median("pbrs_first_enc"), row.pbrs_fresh_enc);
+            assert_eq!(raw_row.col_median("pbrs_dec"), row.pbrs_dec);
+            assert_eq!(raw_row.col_median("pbrs_touch"), row.pbrs_touch);
+            assert_eq!(raw_row.col_median("pbrs_construct"), row.pbrs_construct);
+            assert_eq!(raw_row.col_median("prost_enc"), row.prost_enc);
+            assert_eq!(raw_row.col_median("prost_first_enc"), row.prost_first_enc);
+            assert_eq!(raw_row.col_median("prost_dec"), row.prost_dec);
+            assert_eq!(raw_row.col_median("prost_touch"), row.prost_touch);
+            assert_eq!(raw_row.col_median("prost_construct"), row.prost_construct);
+            assert_eq!(raw_row.col_median("v4_enc"), row.v4_enc);
+            assert_eq!(raw_row.col_median("v4_first_enc"), row.v4_first_enc);
+            assert_eq!(raw_row.col_median("v4_dec"), row.v4_dec);
+            assert_eq!(raw_row.col_median("v4_touch"), row.v4_touch);
+            assert_eq!(raw_row.col_median("v4_construct"), row.v4_construct);
+        }
+        for (mutation, raw_row) in mutations.iter().zip(raw.iter().skip(4)) {
+            assert_eq!(raw_row.name, mutation.name);
+            assert_eq!(raw_row.detail, mutation.transition);
+            assert_eq!(raw_row.cols.len(), 3);
+            assert_eq!(raw_row.col_median("pbrs_mutated_enc"), mutation.pbrs_ns);
+            assert_eq!(raw_row.col_median("prost_mutated_enc"), mutation.prost_ns);
+            assert_eq!(raw_row.col_median("v4_mutated_enc"), mutation.v4_ns);
+        }
+        assert!(take_raw_rows().is_empty());
+    }
+
+    #[test]
     fn person_layout_rows_use_same_wire_work_and_report_both_measurements() {
+        let _serial = serial_guard();
         let input = person_input_wire();
         let rows = run_person_rows(&input, Some((10, 3)));
         let extras = run_person_extras_row(&person_extras_wire(&input), Some((10, 3)));
@@ -1918,6 +2766,7 @@ mod tests {
 
     #[test]
     fn generated_person_extras_compares_only_codecs_with_typed_tag_16() {
+        let _serial = serial_guard();
         let base = person_input_wire();
         let wire = person_extras_wire(&base);
         assert!(wire.len() > base.len());
@@ -1950,6 +2799,7 @@ mod tests {
 
     #[test]
     fn person_mutation_checks_all_codecs_and_rejects_mismatches() {
+        let _serial = serial_guard();
         let input = person_input_wire();
         verify_person_mutations(&input);
         let iters = person_mutation_budget(40_000, input.len());
@@ -2007,6 +2857,7 @@ mod tests {
 
     #[test]
     fn person_mutation_covers_non_id_field_for_both_layouts() {
+        let _serial = serial_guard();
         let rows = run_person_mutations(&person_input_wire(), 10, 3);
         assert_eq!(rows.len(), 4, "name mutation must have two additional rows");
         let report = mutation_report(&rows);
@@ -2016,6 +2867,7 @@ mod tests {
 
     #[test]
     fn mutation_report_is_separate_and_fails_closed_on_missing_measurements() {
+        let _serial = serial_guard();
         let row = MutationRow {
             name: "person_handwritten",
             transition: "id 42 <-> 43",
