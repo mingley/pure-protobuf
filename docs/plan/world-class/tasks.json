@@ -2931,10 +2931,11 @@
    ],
    "relates": [],
    "status": "in_progress",
-   "notes": "2026-09-29 coordinator: option slice integrated (emit_reflection/emit_json/emit_text Config+plugin+env; 156 tests/clippy/fmt green; lean consumer verified). REMAINDER: dedup embedded descriptor bytes across files + lazy descriptor load when reflection is enabled; defaults still embed per-file bytes.",
+   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing.",
    "evidence": [
     "docs/evidence/gn-03-reflection-options.md",
-    "docs/evidence/gn-02-generated-shrink.md"
+    "docs/evidence/gn-02-generated-shrink.md",
+    "docs/evidence/gn-03-descriptor-sharing.md"
    ]
   },
   {
