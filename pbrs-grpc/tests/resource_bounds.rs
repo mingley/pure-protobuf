@@ -2,6 +2,7 @@
 
 #![allow(
     clippy::disallowed_methods,
+    clippy::disallowed_types,
     clippy::let_underscore_must_use,
     clippy::unwrap_used,
     clippy::expect_used,
@@ -27,7 +28,7 @@ use pbrs_grpc::{
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
@@ -40,6 +41,7 @@ const SLOW_PEER_P99: Duration = Duration::from_millis(200);
 const IDLE_PEER_P99: Duration = Duration::from_millis(200);
 const RESET_STORM_P99: Duration = Duration::from_millis(300);
 const OVERLOAD_P99: Duration = Duration::from_millis(500);
+const MAX_SERVER_SCHEDULING_DELAY: Duration = Duration::from_millis(100);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
 fn current_rss_bytes() -> Option<u64> {
@@ -173,9 +175,24 @@ impl FairnessRecord {
         assert_eq!(self.timed_out, 0, "unanswered calls: {self:?}");
     }
 
-    fn report(&self, label: &str, queue: &QueueProbe, budget: usize, permit: &PermitProbe) {
+    fn report(
+        &self,
+        label: &str,
+        queue: &QueueProbe,
+        budget: usize,
+        permit: &PermitProbe,
+        server: &Server<GreeterServer<Echo>>,
+        server_queue_baseline: usize,
+    ) {
         let (waits, max_wait) = queue.summary();
         assert_eq!(waits, self.latencies.len(), "missing client queue waits");
+        let (server_queue_added, server_queue_max, server_queue_p99) =
+            permit.server_queue_delta(server_queue_baseline);
+        assert!(
+            server_queue_added >= self.successful,
+            "every admitted small RPC must emit a post-admission server scheduling delay \
+             (rejected calls emit none; reset storms admitted on the same method add extras)"
+        );
         let observed_bytes = self
             .max_sampled_allocated_bytes
             .max(permit.peak_allocated_bytes.load(Ordering::SeqCst));
@@ -183,15 +200,29 @@ impl FairnessRecord {
             observed_bytes <= budget && (self.successful == 0 || observed_bytes > 0),
             "observed allocation {observed_bytes} is outside the expected 0..={budget} byte budget"
         );
+        let tracker = server.byte_budget_tracker();
+        let exact_peak = tracker.peak_allocated();
+        let token_peak = tracker.peak_active_byte_permit_tokens();
+        assert!(
+            observed_bytes <= exact_peak,
+            "sampled lower bound {observed_bytes} exceeds exact lifetime peak {exact_peak}"
+        );
+        assert!(
+            exact_peak <= budget,
+            "exact lifetime byte peak {exact_peak} exceeds budget {budget}"
+        );
         let admitted_streams_peak = permit.peak_streams.load(Ordering::SeqCst);
         let admitted_streams_active = permit.active();
+        let admitted_streams_started = permit.started_streams.load(Ordering::SeqCst);
         eprintln!(
-            "{label}: offered={} success={} rejected={} p99_all={:?} max_scheduling_lag={:?} max_client_queue_wait={max_wait:?} max_observed_server_allocated_bytes={observed_bytes} byte_budget_bytes={budget} admitted_streams_peak={admitted_streams_peak} admitted_streams_active={admitted_streams_active} start_rss_bytes={:?} peak_rss_bytes={:?}",
+            "{label}: offered={} success={} rejected={} p99_all={:?} max_scheduling_lag={:?} max_client_queue_wait={max_wait:?} server_queue_samples={server_queue_added} server_queue_max={server_queue_max:?} server_queue_p99={server_queue_p99:?} max_observed_server_allocated_bytes={observed_bytes} exact_server_byte_peak={exact_peak} server_byte_permit_token_peak={token_peak} server_byte_permit_tokens_at_report={} server_allocated_at_report={} byte_budget_bytes={budget} admitted_streams_started={admitted_streams_started} admitted_streams_peak={admitted_streams_peak} admitted_streams_active={admitted_streams_active} start_rss_bytes={:?} peak_rss_bytes={:?}",
             self.latencies.len(),
             self.successful,
             self.rejected,
             self.p99_latency(),
             self.max_queue_delay(),
+            tracker.active_byte_permit_tokens(),
+            tracker.allocated(),
             self.start_rss_bytes,
             self.peak_rss_bytes
         );
@@ -239,6 +270,8 @@ struct PermitProbe {
     failed_streams: Arc<AtomicUsize>,
     last_stream_failure_code: Arc<AtomicI32>,
     started: Arc<Notify>,
+    server_queue_samples: Arc<Mutex<Vec<u64>>>,
+    started_streams: Arc<AtomicUsize>,
 }
 
 impl LifecycleObserver for PermitProbe {
@@ -246,6 +279,7 @@ impl LifecycleObserver for PermitProbe {
         if matches!(call.method(), "ClientHello" | "ServerHello") {
             let active = self.active_streams.fetch_add(1, Ordering::SeqCst) + 1;
             self.peak_streams.fetch_max(active, Ordering::SeqCst);
+            self.started_streams.fetch_add(1, Ordering::SeqCst);
             self.started.notify_one();
         }
     }
@@ -277,6 +311,15 @@ impl LifecycleObserver for PermitProbe {
     fn on_bytes_sent(&self, _call: &CallLabels<'_>, _bytes: usize) {
         self.sample_budget();
     }
+
+    fn on_server_queue_wait(&self, call: &CallLabels<'_>, wait: Duration) {
+        if call.method() == "SayHello" {
+            self.server_queue_samples
+                .lock()
+                .expect("server queue probe mutex poisoned")
+                .push(u64::try_from(wait.as_nanos()).unwrap_or(u64::MAX));
+        }
+    }
 }
 
 impl PermitProbe {
@@ -303,6 +346,35 @@ impl PermitProbe {
         self.active_streams.load(Ordering::SeqCst)
     }
 
+    fn server_queue_count(&self) -> usize {
+        self.server_queue_samples
+            .lock()
+            .expect("server queue probe mutex poisoned")
+            .len()
+    }
+
+    fn server_queue_delta(&self, baseline: usize) -> (usize, Duration, Option<Duration>) {
+        let samples = self
+            .server_queue_samples
+            .lock()
+            .expect("server queue probe mutex poisoned");
+        assert!(
+            baseline <= samples.len(),
+            "server queue baseline {baseline} exceeds {} samples",
+            samples.len()
+        );
+        let mut delta: Vec<Duration> = samples[baseline..]
+            .iter()
+            .map(|nanos| Duration::from_nanos(*nanos))
+            .collect();
+        delta.sort();
+        let max = delta.last().copied().unwrap_or(Duration::ZERO);
+        let p99 = delta
+            .get((99 * delta.len()).div_ceil(100).saturating_sub(1))
+            .copied();
+        (delta.len(), max, p99)
+    }
+
     async fn wait_for_active(&self, expected: usize) {
         tokio::time::timeout(PROBE_TIMEOUT, async {
             while self.active() < expected {
@@ -311,6 +383,16 @@ impl PermitProbe {
         })
         .await
         .expect("stream never acquired an RPC permit");
+    }
+
+    async fn wait_for_started(&self, expected: usize) {
+        tokio::time::timeout(PROBE_TIMEOUT, async {
+            while self.started_streams.load(Ordering::SeqCst) < expected {
+                self.started.notified().await;
+            }
+        })
+        .await
+        .expect("stream was never admitted");
     }
 
     fn assert_streams_ok(&self, count: usize) {
@@ -1148,6 +1230,7 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
     assert_eq!(permit.active(), 3, "bulk streams must overlap");
 
     let before = bulk_progress.load(Ordering::SeqCst);
+    let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&client, &server, "small", 32).await;
     let during = bulk_progress.load(Ordering::SeqCst) - before;
     assert_eq!(record.successful, 32, "small RPC starvation: {record:?}");
@@ -1156,19 +1239,34 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
         during >= BULK_MESSAGES,
         "only {during} bulk messages arrived during the competing probes"
     );
-    record.report("bulk-vs-small", &queue, BUDGET, &permit);
+    record.report(
+        "bulk-vs-small",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
     eprintln!("bulk-vs-small: bulk_messages_during={during}");
     assert!(
         record.p99_latency() < BULK_SMALL_P99,
         "F-2: p99 under bulk load was {:?}",
         record.p99_latency()
     );
+    let (server_queue_added, server_queue_max, _) =
+        permit.server_queue_delta(server_queue_baseline);
+    assert_eq!(
+        server_queue_added, record.successful,
+        "no storm here: exactly one server scheduling delay per admitted probe"
+    );
     assert!(
         record.max_queue_delay() < BULK_MAX_SCHEDULING_LAG
-            && queue.summary().1 < BULK_MAX_SCHEDULING_LAG,
-        "F-3: scheduling lag {:?}, client pool wait {:?}",
+            && queue.summary().1 < BULK_MAX_SCHEDULING_LAG
+            && server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: scheduling lag {:?}, client pool wait {:?}, server scheduling delay {:?}",
         record.max_queue_delay(),
-        queue.summary().1
+        queue.summary().1,
+        server_queue_max
     );
 
     for handle in bulk_handles {
@@ -1230,6 +1328,7 @@ async fn test_slow_reader_peer_isolation() {
 
     let queue = QueueProbe::default();
     let fast_client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&fast_client, &server, "fast-reader", 32).await;
     assert_eq!(
         record.successful, 32,
@@ -1240,11 +1339,28 @@ async fn test_slow_reader_peer_isolation() {
         server.byte_budget_allocated() <= BUDGET,
         "paused reader exceeded the transport byte budget"
     );
-    record.report("slow-reader", &queue, BUDGET, &permit);
+    record.report(
+        "slow-reader",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
     assert!(
         record.p99_latency() < SLOW_PEER_P99,
         "F-4: fast RPC p99 with slow reader was {:?}",
         record.p99_latency()
+    );
+    let (server_queue_added, server_queue_max, _) =
+        permit.server_queue_delta(server_queue_baseline);
+    assert_eq!(
+        server_queue_added, record.successful,
+        "no storm here: exactly one server scheduling delay per admitted probe"
+    );
+    assert!(
+        server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: server scheduling delay with slow reader was {server_queue_max:?}"
     );
 
     tokio::time::timeout(Duration::from_secs(2), async {
@@ -1390,6 +1506,7 @@ async fn test_slow_writer_peer_isolation() {
 
     let queue = QueueProbe::default();
     let fast_client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&fast_client, &server, "fast-writer", 32).await;
     assert_eq!(
         record.successful, 32,
@@ -1401,11 +1518,28 @@ async fn test_slow_writer_peer_isolation() {
         "writer did not drip during probes"
     );
     assert_eq!(permit.active(), 1, "writer must still hold a server permit");
-    record.report("slow-writer", &queue, BUDGET, &permit);
+    record.report(
+        "slow-writer",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
     assert!(
         record.p99_latency() < SLOW_PEER_P99,
         "F-4: fast RPC p99 with slow writer was {:?}",
         record.p99_latency()
+    );
+    let (server_queue_added, server_queue_max, _) =
+        permit.server_queue_delta(server_queue_baseline);
+    assert_eq!(
+        server_queue_added, record.successful,
+        "no storm here: exactly one server scheduling delay per admitted probe"
+    );
+    assert!(
+        server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: server scheduling delay with slow writer was {server_queue_max:?}"
     );
 
     release_tx.send(()).expect("release slow writer");
@@ -1451,17 +1585,35 @@ async fn test_idle_peers_contention_and_fairness() {
     let queue = QueueProbe::default();
     let active_channel = connect_client(addr).await.observer(queue.clone());
     let active_client = GreeterClient::new(active_channel);
+    let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&active_client, &server, "active", 32).await;
     assert_eq!(
         record.successful, 32,
         "idle peers starved active RPCs: {record:?}"
     );
     assert!(idle_channels.iter().all(Channel::connected));
-    record.report("idle-peers", &queue, BUDGET, &permit);
+    record.report(
+        "idle-peers",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
     assert!(
         record.p99_latency() < IDLE_PEER_P99,
         "F-6: active RPC p99 with idle peers was {:?}",
         record.p99_latency()
+    );
+    let (server_queue_added, server_queue_max, _) =
+        permit.server_queue_delta(server_queue_baseline);
+    assert_eq!(
+        server_queue_added, record.successful,
+        "no storm here: exactly one server scheduling delay per admitted probe"
+    );
+    assert!(
+        server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: server scheduling delay with idle peers was {server_queue_max:?}"
     );
 
     drop(idle_channels);
@@ -1537,6 +1689,7 @@ async fn test_reset_storm_isolation_and_competing_progress() {
     let queue = QueueProbe::default();
     let fast_client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
     let before = sent.load(Ordering::SeqCst);
+    let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&fast_client, &server, "legit", 32).await;
     let during = sent.load(Ordering::SeqCst) - before;
     storm_stop.store(true, Ordering::SeqCst);
@@ -1552,12 +1705,24 @@ async fn test_reset_storm_isolation_and_competing_progress() {
         record.successful, 32,
         "RST storm starved valid RPCs: {record:?}"
     );
-    record.report("reset-storm", &queue, BUDGET, &permit);
+    record.report(
+        "reset-storm",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
     eprintln!("reset-storm: resets_during={during} reconnects={reconnects}");
     assert!(
         record.p99_latency() < RESET_STORM_P99,
         "F-5: legitimate RPC p99 during RST storm was {:?}",
         record.p99_latency()
+    );
+    let (_, server_queue_max, _) = permit.server_queue_delta(server_queue_baseline);
+    assert!(
+        server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: server scheduling delay during RST storm was {server_queue_max:?}"
     );
 
     assert_server_quiescent(&server, &permit).await;
@@ -1565,6 +1730,295 @@ async fn test_reset_storm_isolation_and_competing_progress() {
         .say_hello(Request::new(req("after-reset-storm")))
         .await
         .expect("post-reset permit probe");
+}
+
+#[tokio::test]
+async fn test_mixed_bulk_slow_idle_reset_fairness() {
+    // RT-07 full-mix proof: bulk streams, a paused slow reader, a dripping slow
+    // writer, idle peers and a reset storm overlap scheduled small RPCs. Limits
+    // mirror Profile 2 (docs/resource-budgets.md section 6.2) scaled to a
+    // deterministic CI footprint: explicit connection and RPC ceilings, small
+    // flow-control windows and send buffer so peers actually contend, bounded
+    // reset tracking, and a transport byte budget every violation cites.
+    const BUDGET: usize = 2 * 1024 * 1024;
+    const BULK_MESSAGES: usize = 32;
+    const BULK_ITEM_BYTES: usize = 32 * 1024;
+    let permit = PermitProbe::default();
+    let (addr, server, _guard) = spawn_custom_server(|s| {
+        s.max_concurrent_connections(16)
+            .max_concurrent_rpcs(32)
+            .max_concurrent_streams(64)
+            .initial_connection_window_size(1024 * 1024)
+            .initial_stream_window_size(256 * 1024)
+            .max_send_buffer_size(64 * 1024)
+            .max_pending_accept_reset_streams(32)
+            .max_concurrent_reset_streams(64)
+            .byte_budget(BUDGET)
+            .observer(permit.clone())
+    })
+    .await;
+    assert_eq!(server.byte_budget_limit(), Some(BUDGET));
+    permit.watch_budget(&server);
+
+    let bulk_channel = connect_with_config(
+        addr,
+        ChannelConfig::default()
+            .initial_stream_window_size(256 * 1024)
+            .initial_connection_window_size(1024 * 1024),
+    )
+    .await;
+    let bulk_client = GreeterClient::new(bulk_channel);
+    let parts: Vec<String> = (0..BULK_MESSAGES)
+        .map(|i| format!("{i:02}-{}", "b".repeat(BULK_ITEM_BYTES - 3)))
+        .collect();
+    let payload = parts.join(",");
+    let bulk_progress = Arc::new(AtomicUsize::new(0));
+    let mut bulk_handles = Vec::new();
+    for _ in 0..2 {
+        let client = bulk_client.clone();
+        let parts = parts.clone();
+        let payload = payload.clone();
+        let progress = bulk_progress.clone();
+        bulk_handles.push(tokio::spawn(async move {
+            let mut stream = tokio::time::timeout(
+                PROBE_TIMEOUT,
+                client.server_hello(Request::new(req(&payload))),
+            )
+            .await
+            .expect("bulk stream headers stalled")
+            .expect("bulk stream opens")
+            .into_inner();
+            for (i, expected) in parts.iter().enumerate() {
+                let message = tokio::time::timeout(PROBE_TIMEOUT, stream.message())
+                    .await
+                    .expect("bulk stream stalled")
+                    .expect("bulk stream status")
+                    .expect("bulk stream truncated");
+                assert_eq!(name_of(&message), *expected, "bulk stream item {i}");
+                progress.fetch_add(1, Ordering::SeqCst);
+                tokio::time::sleep(Duration::from_millis(8)).await;
+            }
+            assert!(
+                tokio::time::timeout(PROBE_TIMEOUT, stream.message())
+                    .await
+                    .expect("bulk stream trailers stalled")
+                    .expect("bulk trailers")
+                    .is_none()
+            );
+        }));
+    }
+
+    let slow_reader_client = GreeterClient::new(
+        connect_with_config(
+            addr,
+            ChannelConfig::default()
+                .initial_stream_window_size(64 * 1024)
+                .initial_connection_window_size(128 * 1024),
+        )
+        .await,
+    );
+    let reader_parts: Vec<String> = (0..20)
+        .map(|i| format!("{i:02}-{}", "r".repeat(8192 - 3)))
+        .collect();
+    let mut reader_stream = tokio::time::timeout(
+        PROBE_TIMEOUT,
+        slow_reader_client.server_hello(Request::new(req(&reader_parts.join(",")))),
+    )
+    .await
+    .expect("slow reader headers stalled")
+    .expect("slow reader stream opens")
+    .into_inner();
+    let first = tokio::time::timeout(PROBE_TIMEOUT, reader_stream.message())
+        .await
+        .expect("slow reader first message stalled")
+        .expect("slow reader first status")
+        .expect("slow reader first message");
+    assert_eq!(name_of(&first), reader_parts[0]);
+
+    let slow_writer_client = GreeterClient::new(connect_client(addr).await);
+    let (slow_tx, slow_call) = slow_writer_client.client_hello(Request::new(()));
+    let slow_call = tokio::spawn(slow_call);
+    slow_tx
+        .send(req("slow_start"))
+        .await
+        .expect("slow writer initial message");
+    let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+    let dripped = Arc::new(AtomicUsize::new(0));
+    let dripped_by_writer = dripped.clone();
+    let writer = tokio::spawn(async move {
+        for i in 0..3 {
+            tokio::time::sleep(Duration::from_millis(15)).await;
+            slow_tx
+                .send(req(&format!("drip-{i}")))
+                .await
+                .expect("dripped message");
+            dripped_by_writer.fetch_add(1, Ordering::SeqCst);
+        }
+        release_rx.await.expect("writer release");
+        slow_tx.close();
+    });
+
+    permit.wait_for_started(4).await;
+    assert!(
+        permit.active() >= 1,
+        "the held writer must still own a server permit"
+    );
+
+    let mut idle_channels = Vec::new();
+    for _ in 0..4 {
+        idle_channels.push(connect_client(addr).await);
+    }
+    assert!(idle_channels.iter().all(Channel::connected));
+
+    let storm_stop = Arc::new(AtomicBool::new(false));
+    let sent = Arc::new(AtomicUsize::new(0));
+    let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+    let storm_handle = {
+        let stop = storm_stop.clone();
+        let sent = sent.clone();
+        tokio::spawn(async move {
+            let mut raw = RawPeer::connect(addr).await.expect("storm peer connects");
+            let mut started = Some(started_tx);
+            let mut reconnects = 0;
+            while !stop.load(Ordering::SeqCst) {
+                let ready = tokio::time::timeout(PROBE_TIMEOUT, raw.send.clone().ready()).await;
+                let mut sender = match ready {
+                    Ok(Ok(sender)) => sender,
+                    Ok(Err(_)) | Err(_) => {
+                        reconnects += 1;
+                        assert!(reconnects <= 8, "storm cannot reconnect repeatedly");
+                        raw = RawPeer::connect(addr).await.expect("storm peer reconnects");
+                        continue;
+                    }
+                };
+                match sender.send_request(raw.request("/helloworld.Greeter/SayHello"), false) {
+                    Ok((_response, mut stream)) => {
+                        stream.send_reset(h2::Reason::CANCEL);
+                        sent.fetch_add(1, Ordering::SeqCst);
+                        if let Some(tx) = started.take() {
+                            tx.send(()).expect("storm start receiver");
+                        }
+                    }
+                    Err(_) => {
+                        reconnects += 1;
+                        assert!(reconnects <= 8, "storm connection repeatedly closed");
+                        raw = RawPeer::connect(addr).await.expect("storm peer reconnects");
+                    }
+                }
+                tokio::task::yield_now().await;
+            }
+            reconnects
+        })
+    };
+    tokio::time::timeout(PROBE_TIMEOUT, started_rx)
+        .await
+        .expect("storm never sent a reset")
+        .expect("storm task exited without sending");
+
+    let queue = QueueProbe::default();
+    let client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    let before_bulk = bulk_progress.load(Ordering::SeqCst);
+    let before_resets = sent.load(Ordering::SeqCst);
+    let server_queue_baseline = permit.server_queue_count();
+    let record = run_small_calls(&client, &server, "mixed", 32).await;
+    let bulk_during = bulk_progress.load(Ordering::SeqCst) - before_bulk;
+    let resets_during = sent.load(Ordering::SeqCst) - before_resets;
+    storm_stop.store(true, Ordering::SeqCst);
+    let reconnects = tokio::time::timeout(Duration::from_secs(2), storm_handle)
+        .await
+        .expect("storm task did not stop")
+        .expect("storm task failed");
+
+    assert_eq!(
+        record.successful, 32,
+        "mixed hostility starved small RPCs: {record:?}"
+    );
+    assert_eq!(record.rejected, 0, "no unexpected rejections");
+    assert!(
+        bulk_during >= BULK_MESSAGES / 2,
+        "only {bulk_during} bulk messages arrived during the competing probes"
+    );
+    assert!(
+        resets_during >= 16,
+        "storm sent only {resets_during} resets during probes"
+    );
+    assert_eq!(
+        dripped.load(Ordering::SeqCst),
+        3,
+        "writer did not drip during probes"
+    );
+    assert!(idle_channels.iter().all(Channel::connected));
+    record.report(
+        "mixed-hostility",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
+    eprintln!(
+        "mixed-hostility: bulk_messages_during={bulk_during} resets_during={resets_during} reconnects={reconnects}"
+    );
+    assert!(
+        record.p99_latency() < BULK_SMALL_P99,
+        "F-1/F-2: p99 under mixed hostility was {:?}",
+        record.p99_latency()
+    );
+    let (_, server_queue_max, _) = permit.server_queue_delta(server_queue_baseline);
+    assert!(
+        record.max_queue_delay() < BULK_MAX_SCHEDULING_LAG
+            && queue.summary().1 < BULK_MAX_SCHEDULING_LAG
+            && server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "F-3: scheduling lag {:?}, client pool wait {:?}, server scheduling delay {:?}",
+        record.max_queue_delay(),
+        queue.summary().1,
+        server_queue_max
+    );
+
+    release_tx.send(()).expect("release slow writer");
+    writer.await.expect("writer task");
+    let slow_reply = tokio::time::timeout(PROBE_TIMEOUT, slow_call)
+        .await
+        .expect("slow writer did not complete")
+        .expect("slow writer task")
+        .expect("slow writer status");
+    assert_eq!(
+        name_of(slow_reply.get_ref()),
+        "slow_start,drip-0,drip-1,drip-2"
+    );
+    tokio::time::timeout(Duration::from_secs(2), async {
+        for expected in reader_parts.iter().skip(1) {
+            let message = reader_stream
+                .message()
+                .await
+                .expect("slow reader stream status")
+                .expect("slow reader lost an accepted message");
+            assert_eq!(name_of(&message), *expected);
+        }
+        assert!(
+            reader_stream
+                .message()
+                .await
+                .expect("slow reader trailers")
+                .is_none()
+        );
+    })
+    .await
+    .expect("slow reader never drained");
+    drop(reader_stream);
+    for handle in bulk_handles {
+        tokio::time::timeout(Duration::from_secs(2), handle)
+            .await
+            .expect("bulk stream did not finish")
+            .expect("bulk task failed");
+    }
+    drop(idle_channels);
+    assert_server_quiescent(&server, &permit).await;
+    permit.assert_streams_ok(4);
+    client
+        .say_hello(Request::new(req("after-mixed")))
+        .await
+        .expect("post-mix permit probe");
 }
 
 #[tokio::test]
@@ -1593,6 +2047,7 @@ async fn test_overload_explicit_status_rejection_no_silent_buffering() {
     let queue = QueueProbe::default();
     let client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
     let mut record = FairnessRecord::new();
+    let server_queue_baseline = permit.server_queue_count();
     let scheduled = TokioInstant::now() + Duration::from_millis(20);
     let mut calls = Vec::new();
     for i in 0..REJECTED {
@@ -1631,7 +2086,19 @@ async fn test_overload_explicit_status_rejection_no_silent_buffering() {
     }
     record.sample_resources(server.byte_budget_allocated());
     record.assert_complete(REJECTED);
-    record.report("server-overload", &queue, BUDGET, &permit);
+    record.report(
+        "server-overload",
+        &queue,
+        BUDGET,
+        &permit,
+        &server,
+        server_queue_baseline,
+    );
+    assert_eq!(
+        permit.server_queue_delta(server_queue_baseline).0,
+        0,
+        "rejected calls emit no server scheduling delay"
+    );
     assert_eq!(record.successful, 0, "no slot was free: {record:?}");
     assert_eq!(
         record.rejected, REJECTED,
@@ -1667,6 +2134,7 @@ async fn test_overload_explicit_status_rejection_no_silent_buffering() {
     let recovered =
         GreeterClient::new(connect_client(addr).await.observer(recovered_queue.clone()));
     let mut admitted = FairnessRecord::new();
+    let recovered_queue_baseline = permit.server_queue_count();
     for i in 0..8 {
         let scheduled = TokioInstant::now();
         let lag = TokioInstant::now().saturating_duration_since(scheduled);
@@ -1689,12 +2157,29 @@ async fn test_overload_explicit_status_rejection_no_silent_buffering() {
     }
     admitted.sample_resources(server.byte_budget_allocated());
     admitted.assert_complete(8);
-    admitted.report("post-overload-admitted", &recovered_queue, BUDGET, &permit);
+    admitted.report(
+        "post-overload-admitted",
+        &recovered_queue,
+        BUDGET,
+        &permit,
+        &server,
+        recovered_queue_baseline,
+    );
     assert_eq!(admitted.successful, 8, "admitted calls did not recover");
     assert!(
         admitted.p99_admitted() < OVERLOAD_P99,
         "O-2: admitted p99 after overload was {:?}",
         admitted.p99_admitted()
+    );
+    let (recovered_server_queue_added, recovered_server_queue_max, _) =
+        permit.server_queue_delta(recovered_queue_baseline);
+    assert_eq!(
+        recovered_server_queue_added, admitted.successful,
+        "no storm here: exactly one server scheduling delay per admitted probe"
+    );
+    assert!(
+        recovered_server_queue_max < MAX_SERVER_SCHEDULING_DELAY,
+        "O-2: server scheduling delay after overload was {recovered_server_queue_max:?}"
     );
 
     let hold = server

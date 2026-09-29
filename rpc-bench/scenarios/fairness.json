@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "contract": "docs/benchmark-contract.md",
   "resource_budgets": "docs/resource-budgets.md",
-  "description": "RT-07 fairness scenarios; native bulk_vs_small_streams has a separate-process diagnostic runner, while other cells and qualification remain unimplemented",
+  "description": "RT-07 fairness scenarios; native bulk_vs_small_streams has a separate-process diagnostic runner, and CI smoke in resource_bounds covers all six cells plus a combined mixed-hostility run with server scheduling delay and exact byte-permit peaks, while dedicated-host qualification remains unimplemented",
   "defaults": {
     "duration_seconds": 60,
     "warmup_seconds": 15,
@@ -174,8 +174,13 @@
     "reset_storm_legitimate_p99_latency_ms": 300.0,
     "overload_explicit_outcome_pct": 100.0,
     "overload_admitted_p99_latency_ms": 500.0,
+    "server_max_scheduling_delay_ms": 100.0,
+    "combined_mixed_success_pct": 100.0,
+    "combined_mixed_p99_latency_ms": 500.0,
+    "exact_byte_peak_within_budget": true,
     "post_drain_allocated_bytes": 0,
     "post_drain_active_stream_permits": 0,
+    "post_drain_active_byte_permit_tokens": 0,
     "rss": "recorded, not threshold-gated in PR runs; shared-process RSS cannot attribute an endpoint",
     "percentiles": "32-call deterministic loopback regression, not statistically qualified p99"
   },
@@ -186,7 +191,10 @@
       "scheduled Poisson 128-byte unary RPCs overlap repeating finite 64 x 64KiB server streams at bounded concurrency, after discarded mixed warmup",
       "per-class offered/dispatched/success/failure counts, typed RESOURCE_EXHAUSTED and QUEUE_OVERFLOW, deadline-valued timeout samples, raw latency/scheduling lag and sampled client pool wait",
       "separate-process client/server baseline RSS, lifetime peak RSS, CPU deltas, exact tracker-lifetime byte and byte-permit-token high-water (includes warmup), sampled byte lower bounds and post-drain accounting",
-      "bounded CI smoke tests for competition, observed client queue wait and post-drain admission probes"
+      "bounded CI smoke tests for competition, observed client queue wait and post-drain admission probes",
+      "combined mixed-hostility CI smoke: bulk streams, a slow reader, a slow writer, idle peers and a reset storm overlap scheduled unary probes; every probe succeeds within the fairness budget with exact delivery preserved",
+      "server post-admission scheduling delay observed per admitted small RPC in CI smoke (exactly one per probe outside storms; admitted storm resets share the method and add extras)",
+      "exact tracker-lifetime byte and byte-permit-token high-water asserted within budget in CI smoke alongside sampled lower bounds, admitted-stream permit counts and start/peak RSS"
     ],
     "required_before_qualification": [
       "runnable slow reader/writer, idle peer, reset storm and overload cells; open-loop offered load for every required workload class",
