@@ -115,7 +115,7 @@
    "introduced_by": "SB-03"
   },
   "xlang-codec": {
-   "command": "./scripts/xlang-codec.sh --corpus all",
+   "command": "./scripts/xlang-codec.sh",
    "introduced_by": "SB-06"
   },
   "stack-matrix": {
@@ -1568,7 +1568,11 @@
     "A12"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "bench/xlang/go/: 3 pinned peers, 232/288 measured, 0 verify failures"
+   ],
+   "notes": "Closed 2026-09-29: all peers fetchable+building; vt gm2 + hyperpb encode honestly not_run."
   },
   {
    "id": "SB-08",
