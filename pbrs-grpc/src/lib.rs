@@ -1198,9 +1198,8 @@ pub use server::{
     ConnectionInfo, Incoming, IncomingAccept, PeerCred, Router, Rpc, Server, Service,
 };
 pub use service_config::{
-    HedgingPolicy, LbPolicyConfig, MethodConfig, MethodName, RetryPolicy, RetryThrottler,
-    RetryThrottling, RingHashConfig, ServiceConfig, WeightedRoundRobinConfig, pushback_delay,
-    retry_backoff,
+    HedgingPolicy, LbPolicyConfig, MethodConfig, MethodName, RetryPolicy, RetryThrottling,
+    RingHashConfig, ServiceConfig, WeightedRoundRobinConfig, pushback_delay, retry_backoff,
 };
 pub use status::{Code, ParseCodeError, Pushback, Status};
 pub use stream::{Framed, StreamSender, Streaming};

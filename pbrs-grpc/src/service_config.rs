@@ -83,7 +83,9 @@ impl ServiceConfig {
             .get("healthCheckConfig")
             .and_then(serde_json::Value::as_object)
             .and_then(|hc| hc.get("serviceName"))
-            .map(parse_json_string)
+            .map(|v| {
+                parse_json_string(v).map_err(|e| at("healthCheckConfig.serviceName".to_owned(), e))
+            })
             .transpose()?
             .filter(|name| !name.is_empty());
         Ok(Self {
@@ -102,42 +104,21 @@ impl ServiceConfig {
     /// covers the call.
     #[must_use]
     pub fn method_config(&self, service: &str, method: &str) -> Option<&MethodConfig> {
-        let mut fallback: Option<&MethodConfig> = None;
+        // Specificity wins over document order: exact, then service-wide,
+        // then global. Duplicates are rejected at parse, so each rank holds
+        // at most one entry covering a call and the pick is deterministic.
+        let mut best: Option<(u8, &MethodConfig)> = None;
         for entry in &self.methods {
             for name in &entry.names {
                 if name.matches(service, method) {
-                    if name.is_exact() {
-                        return Some(&entry.config);
-                    }
-                    if name.is_service_default() {
-                        fallback.get_or_insert(&entry.config);
-                    } else if fallback.is_none() {
-                        fallback = Some(&entry.config);
+                    let rank = name.specificity();
+                    if best.is_none_or(|(r, _)| rank > r) {
+                        best = Some((rank, &entry.config));
                     }
                 }
             }
         }
-        // An exact match returns early; otherwise prefer a service default
-        // over the global default even when the file lists it later.
-        if fallback.is_some_and(|_| {
-            self.methods.iter().any(|entry| {
-                entry
-                    .names
-                    .iter()
-                    .any(|name| name.is_service_default() && name.matches(service, method))
-            })
-        }) {
-            for entry in &self.methods {
-                if entry
-                    .names
-                    .iter()
-                    .any(|name| name.is_service_default() && name.matches(service, method))
-                {
-                    return Some(&entry.config);
-                }
-            }
-        }
-        fallback
+        best.map(|(_, config)| config)
     }
 
     /// The `loadBalancingConfig` list in preference order (first is preferred).
@@ -207,6 +188,12 @@ impl MethodName {
     fn matches(&self, service: &str, method: &str) -> bool {
         (self.service.is_empty() || self.service == service)
             && (self.method.is_empty() || self.method == method)
+    }
+
+    /// Match rank: exact (2) beats service-wide (1) beats global (0).
+    #[must_use]
+    fn specificity(&self) -> u8 {
+        u8::from(self.is_exact()) * 2 + u8::from(self.is_service_default())
     }
 }
 
@@ -280,8 +267,11 @@ pub struct RetryThrottling {
 /// successful call refunds `token_ratio`, capped at `max_tokens`. A retry (or
 /// a hedged send past the first) is allowed only while more than half the
 /// bucket remains.
+///
+/// Deliberately crate-internal: callers observe throttling through
+/// [`crate::Channel::retry_stats`], never through the bucket itself.
 #[derive(Debug)]
-pub struct RetryThrottler {
+pub(crate) struct RetryThrottler {
     max_tokens: f64,
     token_ratio: f64,
     tokens: Mutex<f64>,
@@ -290,7 +280,7 @@ pub struct RetryThrottler {
 impl RetryThrottler {
     /// Build a full bucket from the config.
     #[must_use]
-    pub fn new(config: &RetryThrottling) -> Self {
+    pub(crate) fn new(config: &RetryThrottling) -> Self {
         Self {
             max_tokens: config.max_tokens,
             token_ratio: config.token_ratio,
@@ -299,26 +289,27 @@ impl RetryThrottler {
     }
 
     /// Record a failed call. Returns the remaining tokens.
-    pub async fn on_failure(&self) -> f64 {
+    pub(crate) async fn on_failure(&self) -> f64 {
         let mut tokens = self.tokens.lock().await;
         *tokens -= 1.0;
         *tokens
     }
 
     /// Record a successful call. Returns the remaining tokens.
-    pub async fn on_success(&self) -> f64 {
+    pub(crate) async fn on_success(&self) -> f64 {
         let mut tokens = self.tokens.lock().await;
         *tokens = (*tokens + self.token_ratio).min(self.max_tokens);
         *tokens
     }
 
     /// Whether another retry or hedged send is allowed right now.
-    pub async fn retry_allowed(&self) -> bool {
+    pub(crate) async fn retry_allowed(&self) -> bool {
         *self.tokens.lock().await > self.max_tokens / 2.0
     }
 
-    /// Current token balance, for tests and telemetry.
-    pub async fn tokens(&self) -> f64 {
+    /// Current token balance, for unit tests.
+    #[cfg(test)]
+    pub(crate) async fn tokens(&self) -> f64 {
         *self.tokens.lock().await
     }
 }
@@ -674,6 +665,12 @@ fn jitter_unit(salt: u32) -> f64 {
 
 // --- parsing ---------------------------------------------------------------
 
+/// Attach the JSON path to a parse error so every `InvalidArgument`
+/// names the offending entry/field.
+fn at(path: String, err: Status) -> Status {
+    Status::invalid_argument(format!("{path}: {}", err.message()))
+}
+
 fn parse_method_entry(
     index: usize,
     entry: &serde_json::Value,
@@ -699,15 +696,22 @@ fn parse_method_entry(
             }
         }
     };
-    let wait_for_ready = obj.get("waitForReady").map(parse_json_bool).transpose()?;
-    let timeout = obj.get("timeout").map(parse_json_duration).transpose()?;
+    let ctx = |field: &str| format!("methodConfig[{index}].{field}");
+    let wait_for_ready = obj
+        .get("waitForReady")
+        .map(|v| parse_json_bool(v).map_err(|e| at(ctx("waitForReady"), e)))
+        .transpose()?;
+    let timeout = obj
+        .get("timeout")
+        .map(|v| parse_json_duration(v).map_err(|e| at(ctx("timeout"), e)))
+        .transpose()?;
     let max_request_message_bytes = obj
         .get("maxRequestMessageBytes")
-        .map(parse_byte_limit)
+        .map(|v| parse_byte_limit(v).map_err(|e| at(ctx("maxRequestMessageBytes"), e)))
         .transpose()?;
     let max_response_message_bytes = obj
         .get("maxResponseMessageBytes")
-        .map(parse_byte_limit)
+        .map(|v| parse_byte_limit(v).map_err(|e| at(ctx("maxResponseMessageBytes"), e)))
         .transpose()?;
     let retry_policy = obj
         .get("retryPolicy")
@@ -748,12 +752,18 @@ fn parse_method_name(
     })?;
     let service = obj
         .get("service")
-        .map(parse_json_string)
+        .map(|v| {
+            parse_json_string(v)
+                .map_err(|e| at(format!("methodConfig[{index}].name[{ni}].service"), e))
+        })
         .transpose()?
         .unwrap_or_default();
     let method = obj
         .get("method")
-        .map(parse_json_string)
+        .map(|v| {
+            parse_json_string(v)
+                .map_err(|e| at(format!("methodConfig[{index}].name[{ni}].method"), e))
+        })
         .transpose()?
         .unwrap_or_default();
     if service.is_empty() && !method.is_empty() {
@@ -789,22 +799,32 @@ fn parse_retry_policy(index: usize, value: &serde_json::Value) -> Result<RetryPo
     let max_attempts = parse_max_attempts(index, obj, "retryPolicy")?;
     let initial_backoff = parse_required_duration(index, obj, "retryPolicy", "initialBackoff")?;
     let max_backoff = parse_required_duration(index, obj, "retryPolicy", "maxBackoff")?;
-    let backoff_multiplier = obj
-        .get("backoffMultiplier")
-        .and_then(serde_json::Value::as_f64)
-        .ok_or_else(|| {
-            Status::invalid_argument(format!(
-                "methodConfig[{index}].retryPolicy.backoffMultiplier is required"
-            ))
-        })?;
+    let multiplier_path = format!("methodConfig[{index}].retryPolicy.backoffMultiplier");
+    let Some(multiplier_raw) = obj.get("backoffMultiplier") else {
+        return Err(Status::invalid_argument(format!(
+            "{multiplier_path} is required"
+        )));
+    };
+    let Some(backoff_multiplier) = multiplier_raw.as_f64() else {
+        return Err(Status::invalid_argument(format!(
+            "{multiplier_path} must be a number, found {multiplier_raw}"
+        )));
+    };
     if !backoff_multiplier.is_finite() || backoff_multiplier <= 0.0 {
         return Err(Status::invalid_argument(format!(
-            "methodConfig[{index}].retryPolicy.backoffMultiplier must be a positive finite number"
+            "{multiplier_path} must be a positive finite number, found {multiplier_raw}"
         )));
     }
     let per_attempt_recv_timeout = obj
         .get("perAttemptRecvTimeout")
-        .map(parse_json_duration)
+        .map(|v| {
+            parse_json_duration(v).map_err(|e| {
+                at(
+                    format!("methodConfig[{index}].retryPolicy.perAttemptRecvTimeout"),
+                    e,
+                )
+            })
+        })
         .transpose()?;
     let codes = obj.get("retryableStatusCodes").ok_or_else(|| {
         Status::invalid_argument(format!(
@@ -822,10 +842,14 @@ fn parse_retry_policy(index: usize, value: &serde_json::Value) -> Result<RetryPo
         )));
     }
     let mut retryable_status_codes = BTreeSet::new();
-    for code in codes {
-        let name = parse_json_string(code)?;
+    for (ci, code) in codes.iter().enumerate() {
+        let path = format!("methodConfig[{index}].retryPolicy.retryableStatusCodes[{ci}]");
+        let name = match parse_json_string(code) {
+            Ok(name) => name,
+            Err(e) => return Err(at(path, e)),
+        };
         let code = Code::from_str(&name)
-            .map_err(|_| Status::invalid_argument(format!("unknown retryable code {name:?}")))?;
+            .map_err(|_| Status::invalid_argument(format!("{path}: unknown status {name:?}")))?;
         retryable_status_codes.insert(code);
     }
     Ok(RetryPolicy {
@@ -847,7 +871,14 @@ fn parse_hedging_policy(index: usize, value: &serde_json::Value) -> Result<Hedgi
     let max_attempts = parse_max_attempts(index, obj, "hedgingPolicy")?;
     let hedging_delay = obj
         .get("hedgingDelay")
-        .map(parse_json_duration)
+        .map(|v| {
+            parse_json_duration(v).map_err(|e| {
+                at(
+                    format!("methodConfig[{index}].hedgingPolicy.hedgingDelay"),
+                    e,
+                )
+            })
+        })
         .transpose()?;
     let mut non_fatal_status_codes = BTreeSet::new();
     if let Some(codes) = obj.get("nonFatalStatusCodes") {
@@ -856,10 +887,15 @@ fn parse_hedging_policy(index: usize, value: &serde_json::Value) -> Result<Hedgi
                 "methodConfig[{index}].hedgingPolicy.nonFatalStatusCodes must be an array"
             ))
         })?;
-        for code in codes {
-            let name = parse_json_string(code)?;
-            let code = Code::from_str(&name)
-                .map_err(|_| Status::invalid_argument(format!("unknown hedging code {name:?}")))?;
+        for (ci, code) in codes.iter().enumerate() {
+            let path = format!("methodConfig[{index}].hedgingPolicy.nonFatalStatusCodes[{ci}]");
+            let name = match parse_json_string(code) {
+                Ok(name) => name,
+                Err(e) => return Err(at(path, e)),
+            };
+            let code = Code::from_str(&name).map_err(|_| {
+                Status::invalid_argument(format!("{path}: unknown status {name:?}"))
+            })?;
             non_fatal_status_codes.insert(code);
         }
     }
@@ -875,17 +911,18 @@ fn parse_max_attempts(
     obj: &serde_json::Map<String, serde_json::Value>,
     policy: &str,
 ) -> Result<u32, Status> {
-    let attempts = obj
-        .get("maxAttempts")
-        .and_then(|v| v.as_u64())
-        .ok_or_else(|| {
-            Status::invalid_argument(format!(
-                "methodConfig[{index}].{policy}.maxAttempts is required"
-            ))
-        })?;
+    let path = format!("methodConfig[{index}].{policy}.maxAttempts");
+    let Some(raw) = obj.get("maxAttempts") else {
+        return Err(Status::invalid_argument(format!("{path} is required")));
+    };
+    let Some(attempts) = raw.as_u64() else {
+        return Err(Status::invalid_argument(format!(
+            "{path} must be an integer, found {raw}"
+        )));
+    };
     if attempts < 2 {
         return Err(Status::invalid_argument(format!(
-            "methodConfig[{index}].{policy}.maxAttempts must be at least 2"
+            "{path} must be at least 2, found {attempts}"
         )));
     }
     Ok(u32::try_from(attempts.min(5)).unwrap_or(5))
@@ -897,42 +934,44 @@ fn parse_required_duration(
     policy: &str,
     field: &str,
 ) -> Result<Duration, Status> {
-    obj.get(field)
-        .map(parse_json_duration)
-        .transpose()?
-        .ok_or_else(|| {
-            Status::invalid_argument(format!(
-                "methodConfig[{index}].{policy}.{field} is required"
-            ))
-        })
+    let path = format!("methodConfig[{index}].{policy}.{field}");
+    let Some(raw) = obj.get(field) else {
+        return Err(Status::invalid_argument(format!("{path} is required")));
+    };
+    parse_json_duration(raw).map_err(|e| at(path, e))
 }
 
 fn parse_throttling(value: &serde_json::Value) -> Result<RetryThrottling, Status> {
     let obj = value
         .as_object()
         .ok_or_else(|| Status::invalid_argument("retryThrottling must be an object"))?;
-    let max_tokens = obj
-        .get("maxTokens")
-        .and_then(serde_json::Value::as_f64)
-        .ok_or_else(|| Status::invalid_argument("retryThrottling.maxTokens is required"))?;
-    let token_ratio = obj
-        .get("tokenRatio")
-        .and_then(serde_json::Value::as_f64)
-        .ok_or_else(|| Status::invalid_argument("retryThrottling.tokenRatio is required"))?;
-    if !max_tokens.is_finite() || max_tokens <= 0.0 {
-        return Err(Status::invalid_argument(
-            "retryThrottling.maxTokens must be a positive finite number",
-        ));
-    }
-    if !token_ratio.is_finite() || token_ratio <= 0.0 {
-        return Err(Status::invalid_argument(
-            "retryThrottling.tokenRatio must be a positive finite number",
-        ));
-    }
+    let max_tokens = parse_throttle_field(obj, "maxTokens")?;
+    let token_ratio = parse_throttle_field(obj, "tokenRatio")?;
     Ok(RetryThrottling {
         max_tokens,
         token_ratio,
     })
+}
+
+fn parse_throttle_field(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+) -> Result<f64, Status> {
+    let path = format!("retryThrottling.{field}");
+    let Some(raw) = obj.get(field) else {
+        return Err(Status::invalid_argument(format!("{path} is required")));
+    };
+    let Some(n) = raw.as_f64() else {
+        return Err(Status::invalid_argument(format!(
+            "{path} must be a number, found {raw}"
+        )));
+    };
+    if !n.is_finite() || n <= 0.0 {
+        return Err(Status::invalid_argument(format!(
+            "{path} must be a positive finite number, found {raw}"
+        )));
+    }
+    Ok(n)
 }
 
 fn parse_lb_list(value: &serde_json::Value) -> Result<Vec<LbPolicyConfig>, Status> {
@@ -1645,9 +1684,13 @@ mod tests {
             parse_duration_str("1.000000001s"),
             Some(Duration::new(1, 1))
         );
+        assert_eq!(parse_duration_str("0s"), Some(Duration::ZERO));
         assert_eq!(parse_duration_str("-1s"), None);
         assert_eq!(parse_duration_str("1"), None);
+        assert_eq!(parse_duration_str(""), None);
         assert_eq!(parse_duration_str("1.0000000001s"), None);
+        assert_eq!(parse_duration_str("99999999999999999999s"), None);
+        assert_eq!(parse_duration_str("18446744073709551615s"), None);
     }
 
     #[test]
@@ -1697,11 +1740,14 @@ mod tests {
         };
         let throttler = RetryThrottler::new(&config);
         assert!(throttler.retry_allowed().await);
+        assert_eq!(throttler.tokens().await, 10.0);
         for _ in 0..5 {
             throttler.on_failure().await;
         }
+        assert_eq!(throttler.tokens().await, 5.0);
         assert!(!throttler.retry_allowed().await);
         throttler.on_success().await;
+        assert_eq!(throttler.tokens().await, 6.0);
         assert!(throttler.retry_allowed().await);
     }
 }
