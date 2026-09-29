@@ -1,9 +1,11 @@
 //! MX-01 split of `super`: descriptors (mechanical move, no behavior change).
 
 use super::*;
-use crate::dynamic::{Cardinality, DescriptorPool, FieldType};
+use crate::dynamic::{Cardinality, DescriptorPool, FieldType, ServiceDescriptor};
 use crate::wire::{self, WIRE_LEN, decode_tag, encode_len_field, read_len_bytes};
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub fn generate_from_code_generator_request(
     bytes: &[u8],
@@ -61,30 +63,7 @@ pub fn generate_from_code_generator_request(
         None => ExplicitOptions::default(),
     };
     let resolved = resolve_options(&explicit);
-    STUBS.with(|c| c.set(resolved.stubs));
-    EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
-    NO_WKT.with(|c| c.set(resolved.no_wkt));
-    SHARED_POOL.with(|c| c.set(resolved.shared_pool));
-    NO_REFLECT.with(|c| c.set(resolved.no_reflect));
-    EMIT_JSON.with(|c| c.set(resolved.emit_json));
-    EMIT_TEXT.with(|c| c.set(resolved.emit_text));
-    BUILD_CLIENT.with(|c| c.set(resolved.build_client));
-    BUILD_SERVER.with(|c| c.set(resolved.build_server));
-    GENERATE_DEFAULT_STUBS.with(|c| c.set(resolved.generate_default_stubs));
-    USE_ARC_SELF.with(|c| c.set(resolved.use_arc_self));
-    DISABLE_COMMENTS.with(|c| c.set(resolved.disable_comments));
-    SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
-    EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
-    RUNTIME_CRATE.with(|c| *c.borrow_mut() = resolved.runtime_crate.clone());
-    GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
-    TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
-    CODEC_PATH.with(|c| *c.borrow_mut() = resolved.codec_path.clone());
-    TYPE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.type_attributes.clone());
-    MESSAGE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.message_attributes.clone());
-    ENUM_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.enum_attributes.clone());
-    FIELD_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.field_attributes.clone());
-    CLIENT_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.client_attributes.clone());
-    SERVER_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.server_attributes.clone());
+    apply_resolved_config(&resolved);
 
     let mut fds = Vec::new();
     // Stabilize proto_files ordering by file name so fds is byte-identical across input order permutations
@@ -98,7 +77,11 @@ pub fn generate_from_code_generator_request(
             path: files_to_generate.first().map(PathBuf::from),
         }
     })?;
-    let names: Vec<String> = pool.collect_names();
+    // Collected once: the per-target loops below used to re-clone the full
+    // name lists (and rebuild the message-name set) for every target.
+    let msg_names: Vec<String> = pool.collect_names();
+    let enum_names: Vec<String> = pool.collect_enum_names();
+    let msg_set: std::collections::BTreeSet<String> = msg_names.iter().cloned().collect();
     let mut file_packages: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::new();
     for blob in &proto_files {
@@ -206,8 +189,11 @@ pub fn generate_from_code_generator_request(
     }
 
     let mut type_files = std::collections::BTreeMap::new();
-    for name in pool.collect_names() {
-        if let Some(desc) = pool.get_message(&name) {
+    // Per-type facts are derived here, once per request, instead of once
+    // per (target, type) in the emission loops below.
+    let mut msg_facts = Vec::with_capacity(msg_names.len());
+    for name in &msg_names {
+        if let Some(desc) = pool.get_message(name) {
             let pkg = file_packages
                 .get(&desc.file_name)
                 .cloned()
@@ -216,11 +202,19 @@ pub fn generate_from_code_generator_request(
                         .map(|f| f.package.clone())
                         .unwrap_or_default()
                 });
-            type_files.insert(name, (desc.file_name.clone(), pkg));
+            type_files.insert(name.clone(), (desc.file_name.clone(), pkg));
+            msg_facts.push(TypeFacts {
+                name: name.clone(),
+                file: desc.file_name.clone(),
+                is_map_entry: desc.is_map_entry,
+                is_extern: is_extern_type(&desc.full_name),
+                is_wkt: desc.full_name.starts_with("google.protobuf."),
+            });
         }
     }
-    for name in pool.collect_enum_names() {
-        if let Some(ed) = pool.get_enum(&name) {
+    let mut enum_facts = Vec::with_capacity(enum_names.len());
+    for name in &enum_names {
+        if let Some(ed) = pool.get_enum(name) {
             let pkg = file_packages
                 .get(&ed.file_name)
                 .cloned()
@@ -229,7 +223,14 @@ pub fn generate_from_code_generator_request(
                         .map(|f| f.package.clone())
                         .unwrap_or_default()
                 });
-            type_files.insert(name, (ed.file_name.clone(), pkg));
+            type_files.insert(name.clone(), (ed.file_name.clone(), pkg));
+            enum_facts.push(TypeFacts {
+                name: name.clone(),
+                file: ed.file_name.clone(),
+                is_map_entry: false,
+                is_extern: is_extern_type(&ed.full_name),
+                is_wkt: ed.full_name.starts_with("google.protobuf."),
+            });
         }
     }
     TYPE_FILES.with(|c| *c.borrow_mut() = type_files);
@@ -237,17 +238,43 @@ pub fn generate_from_code_generator_request(
     // Every emitted file embeds the same descriptor bytes; render the hex
     // block once and share it rather than re-formatting per target.
     let fds_block = (!resolved.no_reflect && !resolved.shared_pool).then(|| fds_hex_block(&fds));
-    let mut out_files = Vec::new();
-    for target in &targets {
+    // File-level facts shared by every target: each unique file's stem and
+    // whether it matches any target. The emission loops below used to
+    // re-derive these per (target, type) with fresh normalizations.
+    let services_all: Vec<Arc<ServiceDescriptor>> = pool.collect_services();
+    let all_matcher = FileMatcher::for_slice(&targets);
+    let mut file_memo: std::collections::BTreeMap<String, FileFacts> =
+        std::collections::BTreeMap::new();
+    for file in msg_facts
+        .iter()
+        .map(|facts| facts.file.as_str())
+        .chain(enum_facts.iter().map(|facts| facts.file.as_str()))
+        .chain(services_all.iter().map(|svc| svc.file_name.as_str()))
+    {
+        file_memo
+            .entry(file.to_string())
+            .or_insert_with_key(|file| FileFacts::for_file(file, &all_matcher));
+    }
+    // One target's emission as a pure closure over shared-immutable inputs
+    // (plus thread-local codegen state): this lets multi-target requests
+    // emit files on worker threads while staying byte-identical.
+    let emit_one = |target: &String| -> Result<Vec<(String, String)>, CodegenError> {
+        let mut partial: Vec<(String, String)> = Vec::new();
         let norm_target = normalize_proto_path_str(target);
         CURRENT_TARGET.with(|c| *c.borrow_mut() = norm_target.clone());
         let safe_target = norm_target.replace(['/', '.', '-'], "_");
         let gen_mod = format!("__gen_{safe_target}");
-        let wanted: std::collections::BTreeSet<String> = std::iter::once(target.clone()).collect();
-        let target_is_wkt = wanted.iter().any(|w| {
-            let s = w.replace('\\', "/");
-            s.contains("google/protobuf/") && !s.contains("test_messages")
-        });
+        // `wanted` was a singleton set holding `target`; test it directly.
+        let target_slashes = target.replace('\\', "/");
+        let target_is_wkt = target_slashes.contains("google/protobuf/")
+            && !target_slashes.contains("test_messages");
+        // Pre-normalized matchers: every per-type `file_matches` below used
+        // to re-normalize and rebuild `format!` suffixes from scratch.
+        let target_matcher = FileMatcher::single(target);
+        let target_stem = std::path::Path::new(target)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
         let mut src = format!(
             "// @generated by protoc-gen-pbrs\n\
 #[allow(unused, reason = \"generated protobuf code may not exercise all fields, methods, or imports\")]\n\
@@ -303,131 +330,74 @@ use pbrs::UnknownFields;\n\n"
         }
         let direct_pub_files = pool.public_import_files(std::slice::from_ref(target));
         let transitive_pub_files = transitive_public_imports(&pool, target);
+        let pub_matcher = FileMatcher::for_slice(&transitive_pub_files);
         let mut emit_names = Vec::new();
-        for name in &names {
-            let Some(desc) = pool.get_message(name) else {
-                continue;
-            };
-            if desc.is_map_entry {
-                continue;
-            }
-            if is_extern_type(&desc.full_name) {
-                continue;
-            }
-            let wkt = desc.full_name.starts_with("google.protobuf.");
-            let emit_wkt = wkt && !target_is_wkt && !resolved.no_wkt;
-            let emit_deps = resolved.emit_deps;
-            let is_target_file = file_matches(&wanted, &desc.file_name);
-            let is_pub_import = transitive_pub_files
-                .iter()
-                .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &desc.file_name));
-            let is_same_stem_non_target = {
-                let f_stem = std::path::Path::new(&desc.file_name)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
-                let w_stem = std::path::Path::new(target)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
-                f_stem == w_stem
-                    && !targets.iter().any(|t| {
-                        file_matches(&std::iter::once(t.clone()).collect(), &desc.file_name)
-                    })
-            };
-            if !is_target_file
-                && !emit_wkt
-                && !(emit_deps && !wkt)
-                && !is_pub_import
-                && !is_same_stem_non_target
-            {
-                continue;
-            }
-            emit_names.push(name.clone());
-        }
-        if !resolved.emit_deps {
-            emit_names.retain(|n| {
-                let Some(d) = pool.get_message(n) else {
-                    return true;
-                };
-                let wkt = d.full_name.starts_with("google.protobuf.");
-                if wkt && !target_is_wkt && !resolved.no_wkt {
-                    return true;
+        {
+            let mut scratch = None;
+            for facts in &msg_facts {
+                if facts.is_map_entry {
+                    continue;
                 }
-                let is_pub = transitive_pub_files
-                    .iter()
-                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name));
-                let pub_file_in_targets = targets
-                    .iter()
-                    .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &d.file_name));
-                !(is_pub && pub_file_in_targets)
-            });
+                if facts.is_extern {
+                    continue;
+                }
+                let emit_wkt = facts.is_wkt && !target_is_wkt && !resolved.no_wkt;
+                let emit_deps = resolved.emit_deps;
+                let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
+                let is_target_file = target_matcher.matches(&facts.file);
+                let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
+                let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
+                if !is_target_file
+                    && !emit_wkt
+                    && !(emit_deps && !facts.is_wkt)
+                    && !is_pub_import
+                    && !is_same_stem_non_target
+                {
+                    continue;
+                }
+                // Folded from the post-pass `retain` below it: drop a pub-import
+                // type whose file is itself generated, unless WKT emission
+                // keeps it. Same inputs, same outcome, one pass instead of two.
+                if !emit_deps && is_pub_import && ff.in_any_target && !emit_wkt {
+                    continue;
+                }
+                emit_names.push(facts.name.clone());
+            }
         }
         emit_names.sort();
         emit_names.dedup();
         let mut emit_enums = Vec::new();
-        for name in pool.collect_enum_names() {
-            let Some(ed) = pool.get_enum(&name) else {
-                continue;
-            };
-            if is_extern_type(&ed.full_name) {
-                continue;
-            }
-            let wkt = ed.full_name.starts_with("google.protobuf.");
-            let emit_wkt = wkt && !target_is_wkt && !resolved.no_wkt;
-            let emit_deps = resolved.emit_deps;
-            let is_target_file = file_matches(&wanted, &ed.file_name);
-            let is_pub_import = transitive_pub_files
-                .iter()
-                .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &ed.file_name));
-            let is_same_stem_non_target = {
-                let f_stem = std::path::Path::new(&ed.file_name)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
-                let w_stem = std::path::Path::new(target)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
-                f_stem == w_stem
-                    && !targets
-                        .iter()
-                        .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &ed.file_name))
-            };
-            if !is_target_file
-                && !emit_wkt
-                && !(emit_deps && !wkt)
-                && !is_pub_import
-                && !is_same_stem_non_target
-            {
-                continue;
-            }
-            emit_enums.push(name);
-        }
-        if !resolved.emit_deps {
-            emit_enums.retain(|n| {
-                let Some(ed) = pool.get_enum(n) else {
-                    return true;
-                };
-                let wkt = ed.full_name.starts_with("google.protobuf.");
-                if wkt && !target_is_wkt && !resolved.no_wkt {
-                    return true;
+        {
+            let mut scratch = None;
+            for facts in &enum_facts {
+                if facts.is_extern {
+                    continue;
                 }
-                let is_pub = transitive_pub_files
-                    .iter()
-                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &ed.file_name));
-                let pub_file_in_targets = targets
-                    .iter()
-                    .any(|t| file_matches(&std::iter::once(t.clone()).collect(), &ed.file_name));
-                !(is_pub && pub_file_in_targets)
-            });
+                let emit_wkt = facts.is_wkt && !target_is_wkt && !resolved.no_wkt;
+                let emit_deps = resolved.emit_deps;
+                let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
+                let is_target_file = target_matcher.matches(&facts.file);
+                let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
+                let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
+                if !is_target_file
+                    && !emit_wkt
+                    && !(emit_deps && !facts.is_wkt)
+                    && !is_pub_import
+                    && !is_same_stem_non_target
+                {
+                    continue;
+                }
+                // Folded post-pass `retain`, mirroring the message loop.
+                if !emit_deps && is_pub_import && ff.in_any_target && !emit_wkt {
+                    continue;
+                }
+                emit_enums.push(facts.name.clone());
+            }
         }
         emit_enums.sort();
         emit_enums.dedup();
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
-        let msg_set: std::collections::BTreeSet<String> =
-            pool.collect_names().into_iter().collect();
         IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
         if !resolved.emit_deps {
             emit_public_uses(&mut src, &pool, &direct_pub_files, &targets);
@@ -482,33 +452,23 @@ use pbrs::UnknownFields;\n\n"
             emit_map_decoders(&mut src, desc, edition2024)?;
         }
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
-        let mut services: Vec<_> = pool
-            .collect_services()
-            .into_iter()
-            .filter(|s| {
-                if is_extern_type(&s.full_name) {
-                    return false;
+        let mut services: Vec<Arc<ServiceDescriptor>> = Vec::new();
+        {
+            let mut scratch = None;
+            for svc in &services_all {
+                if is_extern_type(&svc.full_name) {
+                    continue;
                 }
-                file_matches(&wanted, &s.file_name)
-                    || transitive_pub_files
-                        .iter()
-                        .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &s.file_name))
-                    || {
-                        let f_stem = std::path::Path::new(&s.file_name)
-                            .file_stem()
-                            .and_then(|st| st.to_str())
-                            .unwrap_or("");
-                        let w_stem = std::path::Path::new(target)
-                            .file_stem()
-                            .and_then(|st| st.to_str())
-                            .unwrap_or("");
-                        f_stem == w_stem
-                            && !targets.iter().any(|t| {
-                                file_matches(&std::iter::once(t.clone()).collect(), &s.file_name)
-                            })
-                    }
-            })
-            .collect();
+                let ff = file_facts(&file_memo, &svc.file_name, &all_matcher, &mut scratch);
+                let same_stem = ff.stem == target_stem && !ff.in_any_target;
+                if target_matcher.matches(&svc.file_name)
+                    || (!pub_matcher.is_empty() && pub_matcher.matches(&svc.file_name))
+                    || same_stem
+                {
+                    services.push(Arc::clone(svc));
+                }
+            }
+        }
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
         match resolved.stubs {
             Stubs::None => {}
@@ -569,7 +529,7 @@ use pbrs::UnknownFields;\n\n"
         } else {
             format!("{norm_target}.rs")
         };
-        out_files.push((rel_rs.clone(), src.clone()));
+        partial.push((rel_rs.clone(), src.clone()));
 
         let stem = std::path::Path::new(&norm_target)
             .file_stem()
@@ -577,7 +537,60 @@ use pbrs::UnknownFields;\n\n"
             .unwrap_or("generated");
         let root_rs = format!("{stem}.rs");
         if stem_counts.get(stem) == Some(&1) && root_rs != rel_rs {
-            out_files.push((root_rs, src));
+            partial.push((root_rs, src));
+        }
+        Ok(partial)
+    };
+    // Targets are independent given the shared-immutable inputs above plus
+    // per-thread codegen state, so multi-target requests emit in parallel.
+    // Order is restored below (`out_files` is sorted after), and the first
+    // error in target order wins, exactly like the sequential loop.
+    let mut out_files: Vec<(String, String)> = Vec::new();
+    let worker_count = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .min(targets.len())
+        .max(1);
+    if worker_count <= 1 {
+        for target in &targets {
+            out_files.extend(emit_one(target)?);
+        }
+    } else {
+        // Move the shared map out of this thread's TLS; each worker takes a
+        // clone for its own TLS. Nothing after this point reads it here.
+        let type_files_snapshot = TYPE_FILES.with(|c| c.take());
+        let chunk_size = targets.len().div_ceil(worker_count);
+        // Shared references for the workers (bound outside so the `move`
+        // closures copy references instead of moving owned values).
+        let emit_ref = &emit_one;
+        let resolved_ref = &resolved;
+        let snapshot_ref = &type_files_snapshot;
+        let ordered: Vec<TargetEmission> = std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for (chunk_idx, group) in targets.chunks(chunk_size).enumerate() {
+                let base = chunk_idx * chunk_size;
+                handles.push(s.spawn(move || {
+                    let _guard = CodegenStateGuard::new();
+                    apply_resolved_config(resolved_ref);
+                    TYPE_FILES.with(|c| *c.borrow_mut() = snapshot_ref.clone());
+                    let mut part = Vec::with_capacity(group.len());
+                    for (offset, target) in group.iter().enumerate() {
+                        part.push((base + offset, emit_ref(target)));
+                    }
+                    part
+                }));
+            }
+            let mut ordered = Vec::new();
+            for handle in handles {
+                match handle.join() {
+                    Ok(part) => ordered.extend(part),
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
+            }
+            ordered
+        });
+        for (_, result) in ordered {
+            out_files.extend(result?);
         }
     }
     let mod_rs = emit_root_mod_rs(&targets, &file_packages, &pool);
@@ -585,6 +598,181 @@ use pbrs::UnknownFields;\n\n"
     out_files.sort_by(|a, b| a.0.cmp(&b.0));
     out_files.dedup_by(|a, b| a.0 == b.0);
     Ok(out_files)
+}
+
+/// Publish a resolved plugin/request configuration to this thread's
+/// codegen state. The request entry point calls this for the calling
+/// thread; parallel-emission workers call it for theirs.
+pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
+    STUBS.with(|c| c.set(resolved.stubs));
+    EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
+    NO_WKT.with(|c| c.set(resolved.no_wkt));
+    SHARED_POOL.with(|c| c.set(resolved.shared_pool));
+    NO_REFLECT.with(|c| c.set(resolved.no_reflect));
+    EMIT_JSON.with(|c| c.set(resolved.emit_json));
+    EMIT_TEXT.with(|c| c.set(resolved.emit_text));
+    BUILD_CLIENT.with(|c| c.set(resolved.build_client));
+    BUILD_SERVER.with(|c| c.set(resolved.build_server));
+    GENERATE_DEFAULT_STUBS.with(|c| c.set(resolved.generate_default_stubs));
+    USE_ARC_SELF.with(|c| c.set(resolved.use_arc_self));
+    DISABLE_COMMENTS.with(|c| c.set(resolved.disable_comments));
+    SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
+    EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
+    RUNTIME_CRATE.with(|c| *c.borrow_mut() = resolved.runtime_crate.clone());
+    GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
+    TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
+    CODEC_PATH.with(|c| *c.borrow_mut() = resolved.codec_path.clone());
+    TYPE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.type_attributes.clone());
+    MESSAGE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.message_attributes.clone());
+    ENUM_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.enum_attributes.clone());
+    FIELD_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.field_attributes.clone());
+    CLIENT_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.client_attributes.clone());
+    SERVER_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.server_attributes.clone());
+}
+
+/// Per-message/per-enum emission inputs that do not vary by target.
+///
+/// Derived once per request while the type→file map is built, instead of
+/// re-derived from the pool for every (target, type) pair.
+struct TypeFacts {
+    name: String,
+    file: String,
+    is_map_entry: bool,
+    is_extern: bool,
+    is_wkt: bool,
+}
+
+/// Per-file emission inputs shared by every target of a request.
+struct FileFacts {
+    /// `Path::file_stem` of the proto path, computed once per unique file.
+    stem: String,
+    /// Whether the file matches any request target.
+    in_any_target: bool,
+}
+
+impl FileFacts {
+    fn for_file(file: &str, all_targets: &FileMatcher) -> Self {
+        Self {
+            stem: Path::new(file)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string(),
+            in_any_target: all_targets.matches(file),
+        }
+    }
+}
+
+/// One target's emission result paired with its index in `targets`, so
+/// parallel workers can be re-sequenced deterministically.
+type TargetEmission = (usize, Result<Vec<(String, String)>, CodegenError>);
+
+/// Look up a file's [`FileFacts`], computing them into `scratch` when the
+/// file was not enumerated up front (defensive; every pool file is).
+fn file_facts<'memo, 'out>(
+    memo: &'memo std::collections::BTreeMap<String, FileFacts>,
+    file: &str,
+    all_targets: &FileMatcher,
+    scratch: &'out mut Option<FileFacts>,
+) -> &'out FileFacts
+where
+    'memo: 'out,
+{
+    if let Some(facts) = memo.get(file) {
+        return facts;
+    }
+    scratch.insert(FileFacts::for_file(file, all_targets))
+}
+
+/// Pre-normalized `wanted` set for repeated file-membership tests.
+///
+/// [`file_matches`] used to normalize every `wanted` entry and rebuild
+/// `format!` suffixes on each call; the emission loops test every
+/// (target, type) pair, which made path matching ~40% of generation time.
+/// A matcher normalizes once and then tests allocation-free.
+pub(crate) struct FileMatcher {
+    /// `(normalized, without ".proto" suffix)` per wanted entry.
+    entries: Vec<(String, String)>,
+    /// A `generated[.proto]` entry matches every file.
+    matches_all: bool,
+}
+
+impl FileMatcher {
+    fn from_iter<'a>(wanted: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut entries = Vec::new();
+        let mut matches_all = false;
+        for w in wanted {
+            let norm = normalize_cow(w).into_owned();
+            if norm == "generated.proto" || norm == "generated" {
+                matches_all = true;
+            } else {
+                let no_proto = norm.strip_suffix(".proto").unwrap_or(&norm).to_string();
+                entries.push((norm, no_proto));
+            }
+        }
+        Self {
+            entries,
+            matches_all,
+        }
+    }
+
+    pub(crate) fn for_slice(wanted: &[String]) -> Self {
+        Self::from_iter(wanted.iter().map(String::as_str))
+    }
+
+    pub(crate) fn single(wanted: &str) -> Self {
+        Self::from_iter(std::iter::once(wanted))
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        !self.matches_all && self.entries.is_empty()
+    }
+
+    pub(crate) fn matches(&self, file_name: &str) -> bool {
+        if file_name.is_empty() || self.matches_all {
+            return true;
+        }
+        let file_norm = normalize_cow(file_name);
+        let file_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
+        self.entries.iter().any(|(w, w_no_proto)| {
+            wanted_entry_matches_norm(w, w_no_proto, &file_norm, file_no_proto)
+        })
+    }
+}
+
+/// `hay` ends with `/needle` on a path-segment boundary, without
+/// allocating the joined `/{needle}` suffix.
+fn ends_with_slash_suffix(hay: &str, needle: &str) -> bool {
+    hay.strip_suffix(needle)
+        .is_some_and(|prefix| prefix.ends_with('/'))
+}
+
+/// One pre-normalized `wanted` entry against one pre-normalized file:
+/// exactly the [`file_matches`] comparisons, without allocation.
+fn wanted_entry_matches_norm(
+    w_norm: &str,
+    w_no_proto: &str,
+    file_norm: &str,
+    file_no_proto: &str,
+) -> bool {
+    if w_norm == file_norm || w_no_proto == file_no_proto {
+        return true;
+    }
+    if ends_with_slash_suffix(w_norm, file_norm)
+        || ends_with_slash_suffix(w_no_proto, file_no_proto)
+    {
+        return true;
+    }
+    ends_with_slash_suffix(file_norm, w_norm) || ends_with_slash_suffix(file_no_proto, w_no_proto)
+}
+
+fn wanted_entry_matches(wanted: &str, file_norm: &str, file_no_proto: &str) -> bool {
+    let w_norm = normalize_cow(wanted);
+    if w_norm.as_ref() == "generated.proto" || w_norm.as_ref() == "generated" {
+        return true;
+    }
+    let w_no_proto = w_norm.strip_suffix(".proto").unwrap_or(&w_norm);
+    wanted_entry_matches_norm(&w_norm, w_no_proto, file_norm, file_no_proto)
 }
 
 /// Generate from a FileDescriptorSet plus the proto paths to emit.
@@ -745,10 +933,7 @@ pub fn encode_code_generator_response_error(error: &str) -> Vec<u8> {
     out
 }
 
-pub(crate) fn normalize_proto_path_str(s: &str) -> String {
-    if !s.contains('\\') && !s.contains("//") && !s.starts_with("./") && !s.starts_with('/') {
-        return s.to_string();
-    }
+fn normalize_slow(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let replaced = s.replace('\\', "/");
     let mut prev_slash = false;
@@ -769,6 +954,20 @@ pub(crate) fn normalize_proto_path_str(s: &str) -> String {
     }
     s = s.trim_start_matches('/');
     s.to_string()
+}
+
+/// Borrowed fast path for already-normal paths (the common case); the
+/// slow path is byte-identical to the previous implementation.
+fn normalize_cow(s: &str) -> Cow<'_, str> {
+    if !s.contains('\\') && !s.contains("//") && !s.starts_with("./") && !s.starts_with('/') {
+        Cow::Borrowed(s)
+    } else {
+        Cow::Owned(normalize_slow(s))
+    }
+}
+
+pub(crate) fn normalize_proto_path_str(s: &str) -> String {
+    normalize_cow(s).into_owned()
 }
 
 pub(crate) fn clean_proto_target_name(target: &str) -> String {
@@ -803,29 +1002,21 @@ pub(crate) fn file_matches(wanted: &std::collections::BTreeSet<String>, file_nam
     if file_name.is_empty() {
         return true;
     }
-    let file_norm = normalize_proto_path_str(file_name);
-    let file_norm_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
-    let suff = format!("/{file_norm}");
-    let suff_no_proto = format!("/{file_norm_no_proto}");
-    wanted.iter().any(|w| {
-        let w_norm = normalize_proto_path_str(w);
-        if w_norm == "generated.proto" || w_norm == "generated" {
-            return true;
-        }
-        let w_norm_no_proto = w_norm.strip_suffix(".proto").unwrap_or(&w_norm);
-        if w_norm == file_norm || w_norm_no_proto == file_norm_no_proto {
-            return true;
-        }
-        if w_norm.ends_with(&suff) || w_norm_no_proto.ends_with(&suff_no_proto) {
-            return true;
-        }
-        let f_suff = format!("/{w_norm}");
-        let f_suff_no_proto = format!("/{w_norm_no_proto}");
-        if file_norm.ends_with(&f_suff) || file_norm_no_proto.ends_with(&f_suff_no_proto) {
-            return true;
-        }
-        false
-    })
+    let file_norm = normalize_cow(file_name);
+    let file_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
+    wanted
+        .iter()
+        .any(|w| wanted_entry_matches(w, &file_norm, file_no_proto))
+}
+
+/// [`file_matches`] for a single `wanted` entry, without building a set.
+pub(crate) fn file_matches_single(wanted: &str, file_name: &str) -> bool {
+    if file_name.is_empty() {
+        return true;
+    }
+    let file_norm = normalize_cow(file_name);
+    let file_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
+    wanted_entry_matches(wanted, &file_norm, file_no_proto)
 }
 
 pub(crate) fn transitive_public_imports(pool: &DescriptorPool, target: &str) -> Vec<String> {
@@ -943,4 +1134,182 @@ pub(crate) fn emit_root_mod_rs(
     let mut src = String::from("// @generated by protoc-gen-pbrs\n");
     emit_node(&mut src, &root, 0);
     src
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pre-GN-04 `file_matches`, kept as the equivalence oracle.
+    fn reference_file_matches(
+        wanted: &std::collections::BTreeSet<String>,
+        file_name: &str,
+    ) -> bool {
+        if file_name.is_empty() {
+            return true;
+        }
+        let file_norm = normalize_proto_path_str(file_name);
+        let file_norm_no_proto = file_norm.strip_suffix(".proto").unwrap_or(&file_norm);
+        let suff = format!("/{file_norm}");
+        let suff_no_proto = format!("/{file_norm_no_proto}");
+        wanted.iter().any(|w| {
+            let w_norm = normalize_proto_path_str(w);
+            if w_norm == "generated.proto" || w_norm == "generated" {
+                return true;
+            }
+            let w_norm_no_proto = w_norm.strip_suffix(".proto").unwrap_or(&w_norm);
+            if w_norm == file_norm || w_norm_no_proto == file_norm_no_proto {
+                return true;
+            }
+            if w_norm.ends_with(&suff) || w_norm_no_proto.ends_with(&suff_no_proto) {
+                return true;
+            }
+            let f_suff = format!("/{w_norm}");
+            let f_suff_no_proto = format!("/{w_norm_no_proto}");
+            if file_norm.ends_with(&f_suff) || file_norm_no_proto.ends_with(&f_suff_no_proto) {
+                return true;
+            }
+            false
+        })
+    }
+
+    fn corpus_paths() -> Vec<&'static str> {
+        vec![
+            "",
+            "/",
+            "///",
+            ".",
+            "./",
+            "generated",
+            "generated.proto",
+            "./generated",
+            "./generated.proto",
+            "part_00.proto",
+            "part_00",
+            "a/part_00.proto",
+            "x/a/part_00.proto",
+            "/abs/part_00.proto",
+            "./rel/part_00.proto",
+            "a//b//part_00.proto",
+            "a\\b\\part_00.proto",
+            "part_00.proto.proto",
+            ".proto",
+            "foo.",
+            ".foo",
+            "google/protobuf/timestamp.proto",
+            "google/protobuf/",
+            "envoy/config/core/v3/address.proto",
+            "test_messages_proto3.proto",
+            "a/b",
+            "a/b/",
+            "C:\\win\\path.proto",
+            "trailing.proto/",
+            ".hidden/file.proto",
+            "UPPER.PROTO",
+        ]
+    }
+
+    #[test]
+    fn file_matcher_matches_reference() {
+        let paths = corpus_paths();
+        for file in &paths {
+            // Singleton sets.
+            for wanted in &paths {
+                let set = std::iter::once(wanted.to_string()).collect();
+                assert_eq!(
+                    file_matches(&set, file),
+                    reference_file_matches(&set, file),
+                    "file_matches({wanted:?}, {file:?})"
+                );
+                assert_eq!(
+                    FileMatcher::single(wanted).matches(file),
+                    reference_file_matches(&set, file),
+                    "matcher.single({wanted:?}).matches({file:?})"
+                );
+                assert_eq!(
+                    file_matches_single(wanted, file),
+                    reference_file_matches(&set, file),
+                    "file_matches_single({wanted:?}, {file:?})"
+                );
+            }
+            // Multi-entry sets incl. duplicates and generated entries.
+            let multi: std::collections::BTreeSet<String> = paths
+                .iter()
+                .step_by(3)
+                .map(|s| s.to_string())
+                .chain(["generated".to_string()])
+                .collect();
+            assert_eq!(
+                file_matches(&multi, file),
+                reference_file_matches(&multi, file),
+                "file_matches(multi, {file:?})"
+            );
+            let slice: Vec<String> = multi.iter().cloned().collect();
+            assert_eq!(
+                FileMatcher::for_slice(&slice).matches(file),
+                reference_file_matches(&multi, file),
+                "matcher.for_slice(multi).matches({file:?})"
+            );
+            let empty: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+            assert_eq!(
+                file_matches(&empty, file),
+                reference_file_matches(&empty, file),
+                "file_matches(empty, {file:?})"
+            );
+            assert!(
+                FileMatcher::for_slice(&[]).is_empty(),
+                "empty matcher reports empty"
+            );
+        }
+    }
+
+    #[test]
+    fn normalize_cow_matches_owned() {
+        for path in corpus_paths() {
+            let owned = normalize_proto_path_str(path);
+            assert_eq!(normalize_cow(path).into_owned(), owned, "{path:?}");
+            if !path.contains('\\')
+                && !path.contains("//")
+                && !path.starts_with("./")
+                && !path.starts_with('/')
+            {
+                assert!(
+                    matches!(normalize_cow(path), Cow::Borrowed(_)),
+                    "fast path borrows for {path:?}"
+                );
+            }
+        }
+    }
+
+    /// Hand-encoded `FileDescriptorSet` with two files so multi-target
+    /// emission (and its parallel path) is covered without `protoc`.
+    fn two_file_fds() -> Vec<u8> {
+        fn file_proto(name: &str, package: &str, message: &str) -> Vec<u8> {
+            // FileDescriptorProto: 1=name, 2=package, 4=message_type.
+            // DescriptorProto: 1=name.
+            let mut msg = Vec::new();
+            encode_string_field(&mut msg, 1, message);
+            let mut file = Vec::new();
+            encode_string_field(&mut file, 1, name);
+            encode_string_field(&mut file, 2, package);
+            encode_len_field(&mut file, 4, &msg);
+            file
+        }
+        let mut fds = Vec::new();
+        encode_len_field(&mut fds, 1, &file_proto("a.proto", "pkg", "MsgA"));
+        encode_len_field(&mut fds, 1, &file_proto("dir/b.proto", "pkg", "MsgB"));
+        fds
+    }
+
+    #[test]
+    fn multi_target_emission_is_deterministic() {
+        let fds = two_file_fds();
+        let targets = ["a.proto".to_string(), "dir/b.proto".to_string()];
+        let first = generate_from_file_descriptor_set(&fds, &targets).expect("generate");
+        assert!(first.len() >= 3, "two targets plus mod.rs: {}", first.len());
+        for _ in 0..25 {
+            let again = generate_from_file_descriptor_set(&fds, &targets).expect("generate");
+            assert_eq!(again, first, "parallel emission must be deterministic");
+        }
+    }
 }

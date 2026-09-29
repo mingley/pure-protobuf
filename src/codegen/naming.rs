@@ -109,10 +109,9 @@ pub(crate) fn emit_public_uses(
     let mut sorted_pub = pub_files.to_vec();
     sorted_pub.sort();
     sorted_pub.dedup();
+    let all_targets = FileMatcher::for_slice(targets);
     for p in &sorted_pub {
-        let in_targets = targets
-            .iter()
-            .any(|t| file_matches(&std::iter::once(t.clone()).collect(), p));
+        let in_targets = all_targets.matches(p);
         let pkg = pool
             .get_file(p)
             .map(|f| f.package.clone())
@@ -182,17 +181,23 @@ pub(crate) fn rust_type_path(s: &str) -> String {
     if let Some(id) = IDENTS.with(|c| c.borrow().get(key).cloned()) {
         return id;
     }
-    if let Some((type_file, pkg)) = TYPE_FILES.with(|c| c.borrow().get(key).cloned()) {
-        let current_target = CURRENT_TARGET.with(|c| c.borrow().clone());
-        if !current_target.is_empty()
-            && file_matches(&std::iter::once(current_target).collect(), &type_file)
-        {
-            return ident_last(key);
+    // Resolve inside the table borrow: cloning the (file, package) pair
+    // plus the current target on every field-type lookup showed up hot.
+    // Only the emitted path is allocated.
+    if let Some(path) = TYPE_FILES.with(|c| {
+        let map = c.borrow();
+        let (type_file, pkg) = map.get(key)?;
+        let same_file = CURRENT_TARGET.with(|t| {
+            let current = t.borrow();
+            !current.is_empty() && file_matches_single(&current, type_file)
+        });
+        if same_file {
+            return Some(ident_last(key));
         }
         if !pkg.is_empty() {
-            let pkg_path = pkg_mod_path(&pkg);
+            let pkg_path = pkg_mod_path(pkg);
             let rel = key
-                .strip_prefix(&pkg)
+                .strip_prefix(pkg.as_str())
                 .unwrap_or(key)
                 .trim_start_matches('.');
             if rel.contains('.') {
@@ -202,15 +207,17 @@ pub(crate) fn rust_type_path(s: &str) -> String {
                     .map(|p| to_snake(&ident_last(p)))
                     .collect();
                 let last = ident_last(parts.last().unwrap_or(&""));
-                return format!("{pkg_path}::{}::{last}", mod_parts.join("::"));
+                Some(format!("{pkg_path}::{}::{last}", mod_parts.join("::")))
             } else {
                 let last = ident_last(rel);
-                return format!("{pkg_path}::{last}");
+                Some(format!("{pkg_path}::{last}"))
             }
         } else {
             let last = ident_last(key);
-            return format!("crate::{last}");
+            Some(format!("crate::{last}"))
         }
+    }) {
+        return path;
     }
     ident_last(key)
 }
@@ -325,7 +332,6 @@ pub(crate) fn field_name_with_collision_avoidance(
 
 pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     let mut used = std::collections::BTreeSet::new();
-    used.insert("unknown".into());
     let mut raw_used = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
     let mut raws = std::collections::BTreeMap::new();
@@ -336,7 +342,9 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
             raw_used.insert(raw.clone());
         }
         let mut id = field_ident_base(&raw);
-        if !used.insert(id.clone()) {
+        // `unknown` is reserved (unknown-fields storage); treating it as
+        // used without seeding an allocation matches the old `insert`.
+        if id == "unknown" || !used.insert(id.clone()) {
             id = format!("{}_{}", id.trim_start_matches("r#"), f.number);
             used.insert(id.clone());
         }
@@ -594,13 +602,16 @@ pub(crate) fn starts_with_ignore_ascii(name: &str, prefix: &str) -> bool {
         .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
 }
 
-pub(crate) fn strip_enum_prefix<'a>(enum_name: &str, value_name: &'a str) -> &'a str {
-    let prefixes = [
+fn enum_prefixes(enum_name: &str) -> [String; 3] {
+    [
         enum_name.to_string(),
         screaming_snake_to_upper_camel(enum_name),
         camel_to_snake_name(enum_name),
-    ];
-    for p in &prefixes {
+    ]
+}
+
+fn strip_enum_prefix_with<'a>(prefixes: &[String; 3], value_name: &'a str) -> &'a str {
+    for p in prefixes {
         if starts_with_ignore_ascii(value_name, p) {
             let mut rest = &value_name[p.len()..];
             rest = rest.strip_prefix('_').unwrap_or(rest);
@@ -613,8 +624,8 @@ pub(crate) fn strip_enum_prefix<'a>(enum_name: &str, value_name: &'a str) -> &'a
     value_name
 }
 
-pub(crate) fn enum_value_rs_name(enum_name: &str, value_name: &str) -> String {
-    let stripped = strip_enum_prefix(enum_name, value_name);
+fn enum_value_rs_name_with(prefixes: &[String; 3], value_name: &str) -> String {
+    let stripped = strip_enum_prefix_with(prefixes, value_name);
     let mut name = screaming_snake_to_upper_camel(stripped);
     if name.is_empty() {
         name = screaming_snake_to_upper_camel(value_name);
@@ -636,11 +647,13 @@ pub(crate) struct RustEnumValue {
 }
 
 pub(crate) fn rust_enum_values(enum_name: &str, listed: &[(i32, String)]) -> Vec<RustEnumValue> {
+    // Prefixes depend only on the enum, not the value: build once.
+    let prefixes = enum_prefixes(enum_name);
     let mut seen_name = std::collections::BTreeSet::new();
     let mut by_number: std::collections::BTreeMap<i32, usize> = std::collections::BTreeMap::new();
     let mut out: Vec<RustEnumValue> = Vec::new();
     for (number, proto_name) in listed {
-        let rust_name = enum_value_rs_name(enum_name, proto_name);
+        let rust_name = enum_value_rs_name_with(&prefixes, proto_name);
         if !seen_name.insert(rust_name.clone()) {
             continue;
         }
