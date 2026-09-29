@@ -8374,7 +8374,10 @@
     "RX-08",
     "H2-01"
    ],
-   "status": "in_progress"
+   "status": "in_progress",
+   "evidence": [
+    "Partial 2026-09-29 (b158cc99): client fast paths (skip 144B attempt guard unobserved, lazy labels/telemetry), exact header sizing, frame-reader/send trims across 9 transport files. pbrs-grpc lib 432/432, full grpc suite green, CI rpc-bench tests 85+1+1+89 green, fmt clean, clippy 0 errors. Dev-loop callgrind beat-tonic measurement still open; RX-09 stays pending."
+   ]
   },
   {
    "id": "TC-23",
