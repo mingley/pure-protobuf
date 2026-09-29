@@ -8390,8 +8390,12 @@
    "relates": [
     "TC-10"
    ],
-   "notes": "Split from TC-10 2026-09-29: SB-13 never measured tonic+prost (its tonic rows are tonic+pbrs). Keep the prost arm bench-only; shipping profiles stay prost-free per QG-04.",
-   "status": "in_progress"
+   "notes": "Closed 2026-09-29: matched-harness comparison recorded win-and-mixed; completes the TC-10 accept remainder.",
+   "status": "done",
+   "evidence": [
+    "docs/evidence/tonic-prost-arm.md",
+    "rpc-bench --codec=prost arm, 85+89+1 tests green"
+   ]
   },
   {
    "id": "PK-22",
