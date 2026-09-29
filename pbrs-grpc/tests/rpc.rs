@@ -19,7 +19,7 @@
 mod common;
 
 use common::{name_of, req, spawn_greeter};
-use pbrs_grpc::hello::{Greeter, GreeterClient, HelloReply, HelloRequest};
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{Code, Request, Response, Status, Streaming};
 
 struct Echo;
@@ -480,6 +480,7 @@ async fn concurrent_unary_on_connection_pool() {
             name_of(&resp.into_inner())
         }));
     }
+
     let mut got = Vec::new();
     for h in hs {
         got.push(h.await.expect("join"));
@@ -488,4 +489,38 @@ async fn concurrent_unary_on_connection_pool() {
     let mut want: Vec<String> = (0..16u32).map(|i| format!("n{i}")).collect();
     want.sort();
     assert_eq!(got, want);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connection_pool_spreads_when_peer_stream_cap_is_low() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let guard = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_concurrent_streams(1)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::connect_pool(addr, 4).await.expect("pool");
+    let mut hs = Vec::new();
+    for i in 0..16u32 {
+        let c = client.clone();
+        hs.push(tokio::spawn(async move {
+            let label = format!("cap{i}");
+            let resp = c.say_hello(Request::new(req(&label))).await.expect("unary");
+            name_of(&resp.into_inner())
+        }));
+    }
+    let mut got = Vec::new();
+    for h in hs {
+        got.push(h.await.expect("join"));
+    }
+    got.sort();
+    let mut want: Vec<String> = (0..16u32).map(|i| format!("cap{i}")).collect();
+    want.sort();
+    assert_eq!(got, want);
+    guard.abort();
 }

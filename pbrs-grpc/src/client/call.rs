@@ -301,6 +301,7 @@ pub(crate) async fn race_in<R: Runtime, T>(
 
 /// HEADERS sent; request DATA has not started. Transparent retry stops here.
 pub(crate) struct Opened {
+    pub(crate) load: Option<super::pool::SlotLoadGuard>,
     pub(crate) lease: Option<crate::keepalive::Lease>,
     pub(crate) driver: Option<watch::Sender<bool>>,
     pub(crate) resp_fut: backend::ResponseFuture,
@@ -578,6 +579,7 @@ impl super::Channel {
                 live.rr_addr,
                 live.channelz_socket,
             );
+            let load = live.load;
             match open_in::<R>(
                 live.send,
                 &self.authority,
@@ -595,6 +597,7 @@ impl super::Channel {
             {
                 Ok((resp_fut, send)) => {
                     return Ok(Opened {
+                        load,
                         lease,
                         driver,
                         resp_fut,

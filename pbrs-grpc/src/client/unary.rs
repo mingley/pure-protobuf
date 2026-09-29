@@ -327,6 +327,7 @@ impl super::Channel {
                     };
                     let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
                     let live_socket = live.channelz_socket;
+                    let _load = live.load;
                     // A48 least-request: RAII in-flight count for this
                     // attempt; drops (releasing) on every exit path.
                     let _lr =

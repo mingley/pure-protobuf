@@ -77,11 +77,54 @@ pub(crate) struct Dialed {
     pub(crate) peer_addr: Option<crate::channelz::EndpointAddr>,
 }
 
+#[derive(Debug)]
+pub(crate) struct SlotLoad {
+    in_flight: AtomicUsize,
+    max_streams: AtomicUsize,
+}
+
+impl SlotLoad {
+    fn new() -> Self {
+        Self {
+            in_flight: AtomicUsize::new(0),
+            max_streams: AtomicUsize::new(usize::MAX),
+        }
+    }
+
+    fn snapshot(&self) -> (usize, usize) {
+        (
+            self.in_flight.load(Ordering::Relaxed),
+            self.max_streams.load(Ordering::Relaxed).max(1),
+        )
+    }
+
+    fn start(self: &Arc<Self>, max_streams: usize) -> SlotLoadGuard {
+        self.max_streams
+            .store(max_streams.max(1), Ordering::Relaxed);
+        self.in_flight.fetch_add(1, Ordering::Relaxed);
+        SlotLoadGuard {
+            load: Arc::clone(self),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct SlotLoadGuard {
+    load: Arc<SlotLoad>,
+}
+
+impl Drop for SlotLoadGuard {
+    fn drop(&mut self) {
+        self.load.in_flight.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 /// A sender taken from a pool slot, plus the generation so a raced `GOAWAY`
 /// can discard this slot instead of writing into a reconnect that already
 /// landed.
 pub(crate) struct LiveConn {
     pub(crate) send: backend::SendRequest,
+    pub(crate) load: Option<SlotLoadGuard>,
     pub(crate) lease: Option<crate::keepalive::Lease>,
     /// Clone of the slot's driver-stop sender. Held on a received
     /// [`Streaming`] so dropping the last [`Channel`] does not stop the
@@ -129,6 +172,7 @@ const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
 
 pub(crate) struct ChannelInner {
     pub(crate) slots: Vec<Mutex<ConnSlot>>,
+    pub(crate) loads: Vec<Arc<SlotLoad>>,
     pub(crate) next: AtomicUsize,
     pub(crate) authority: Authority,
     pub(crate) endpoint: Endpoint,
@@ -554,8 +598,12 @@ pub(crate) fn finish_channel(
     channelz: crate::channelz::ChannelHandle,
 ) -> Channel {
     let https = tls.is_some();
+    let loads = (0..slots.len())
+        .map(|_| Arc::new(SlotLoad::new()))
+        .collect();
     let inner = Arc::new(ChannelInner {
         slots,
+        loads,
         next: AtomicUsize::new(0),
         authority: authority.clone(),
         endpoint,
@@ -667,10 +715,29 @@ impl ChannelInner {
             return Err(Status::unavailable("empty connection pool"));
         }
         if n == 1 {
-            Ok(0)
-        } else {
-            Ok(self.next.fetch_add(1, Ordering::Relaxed) % n)
+            return Ok(0);
         }
+        let start = self.next.fetch_add(1, Ordering::Relaxed) % n;
+        let mut best = None;
+        let mut best_load = usize::MAX;
+        let mut fallback = start;
+        let mut fallback_load = usize::MAX;
+        for offset in 0..n {
+            let idx = (start + offset) % n;
+            let Some(load) = self.loads.get(idx) else {
+                continue;
+            };
+            let (in_flight, max_streams) = load.snapshot();
+            if in_flight < fallback_load {
+                fallback = idx;
+                fallback_load = in_flight;
+            }
+            if in_flight < max_streams && in_flight < best_load {
+                best = Some(idx);
+                best_load = in_flight;
+            }
+        }
+        Ok(best.unwrap_or(fallback))
     }
 
     pub(crate) fn slot(&self, i: usize) -> Result<&Mutex<ConnSlot>, Status> {
@@ -738,6 +805,11 @@ impl ChannelInner {
             }
         }
         let i = self.pick()?;
+        let load = self
+            .loads
+            .get(i)
+            .cloned()
+            .ok_or_else(|| Status::unavailable("empty connection pool"))?;
         let mut attempt = 0usize;
         loop {
             let (handle, lease, r#gen, driver, channelz_socket) = {
@@ -753,8 +825,10 @@ impl ChannelInner {
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
+                    let load = Some(load.start(ready.current_max_send_streams()));
                     return Ok(LiveConn {
                         send: ready,
+                        load,
                         lease,
                         driver,
                         slot: i,
@@ -795,8 +869,10 @@ impl ChannelInner {
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
                         spawn_age_watch(Arc::clone(self), i);
+                        let load = Some(load.start(send.current_max_send_streams()));
                         return Ok(LiveConn {
                             send,
+                            load,
                             lease,
                             driver,
                             slot: i,
@@ -899,6 +975,7 @@ impl ChannelInner {
                         {
                             return Ok(LiveConn {
                                 send: ready,
+                                load: None,
                                 lease,
                                 driver,
                                 slot: 0,
@@ -976,6 +1053,7 @@ impl ChannelInner {
                         }
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1094,6 +1172,7 @@ impl ChannelInner {
                     if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1145,6 +1224,7 @@ impl ChannelInner {
                         }
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1261,6 +1341,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1314,6 +1395,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1430,6 +1512,7 @@ impl ChannelInner {
                     if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1481,6 +1564,7 @@ impl ChannelInner {
                         }
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1596,6 +1680,7 @@ impl ChannelInner {
                     if reuse_health_ok(self, &lb, &addr, &ready, &driver, health.as_ref()).await {
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1647,6 +1732,7 @@ impl ChannelInner {
                         }
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1766,6 +1852,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1819,6 +1906,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1938,6 +2026,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -1991,6 +2080,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -2111,6 +2201,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &ready, &driver).await;
                         return Ok(LiveConn {
                             send: ready,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,
@@ -2164,6 +2255,7 @@ impl ChannelInner {
                         spawn_oob_watch(self, &lb, &addr, &send, &driver).await;
                         return Ok(LiveConn {
                             send,
+                            load: None,
                             lease,
                             driver,
                             slot: 0,

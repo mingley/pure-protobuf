@@ -708,6 +708,7 @@ impl super::Channel {
                         live.rr_addr,
                         live.channelz_socket,
                     );
+                    let _load = live.load;
                     let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -1056,6 +1057,7 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
+                let _load = opened.load;
                 let budget = channel.byte_budget.clone();
                 let response: Response<Resp> = match run_client_stream(
                     opened.resp_fut,
@@ -1260,6 +1262,7 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
+                let _load = opened.load;
                 let budget = channel.byte_budget.clone();
                 let response = match run_bidi(
                     opened.resp_fut,
