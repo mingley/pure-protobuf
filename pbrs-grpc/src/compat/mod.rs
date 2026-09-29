@@ -72,7 +72,7 @@ pub fn iter<T>(items: impl IntoIterator<Item = T>) -> Iter<T> {
 /// Forward a client request stream into the native write half.
 pub fn spawn_request_stream<T, S>(stream: S, sender: StreamSender<T>)
 where
-    T: pbrs::Serialize + Send + 'static,
+    T: crate::CodecMessage + Send + 'static,
     S: Stream<Item = T> + Send + 'static,
 {
     drop(tokio::spawn(async move {
@@ -93,7 +93,7 @@ where
 /// Convert a tonic-shaped response stream into the native streaming response.
 pub fn response_stream<T, S>(response: Response<S>) -> Response<Streaming<T>>
 where
-    T: pbrs::Serialize + Send + 'static,
+    T: crate::CodecMessage + Send + 'static,
     S: Stream<Item = Result<T, Status>> + Send + 'static,
 {
     let (stream, parts) = response.into_message_and_parts();
