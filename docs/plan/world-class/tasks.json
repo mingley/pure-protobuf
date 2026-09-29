@@ -7961,7 +7961,12 @@
     "E4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/compression.md",
+    "pbrs-grpc/tests/compression.rs",
+    "tests/interop/tonic/"
+   ]
   },
   {
    "id": "TC-21",
