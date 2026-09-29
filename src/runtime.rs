@@ -37,6 +37,7 @@ pub use mini_table::__unstable;
 pub use mini_table::FieldType;
 pub use mini_table::MiniField;
 pub use mini_table::MiniTable;
+pub use mini_table::MiniTableEnum;
 pub use mini_table::MiniTableEnumInitPtr;
 pub use mini_table::MiniTableEnumPtr;
 pub use mini_table::MiniTableInitPtr;

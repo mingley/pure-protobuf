@@ -15,8 +15,11 @@ fn address_table_has_one_string_field() {
 }
 
 #[test]
-fn enum_table_build_is_a_null_pointer() {
-    assert!(unsafe { build_enum_mini_table("$E0") }.is_null());
+fn enum_table_build_returns_owned_validation_metadata() {
+    let table = unsafe { build_enum_mini_table("!$") };
+    assert!(!table.is_null());
+    // SAFETY: the table is a fresh Box owned exclusively by this test.
+    unsafe { drop(Box::from_raw(table.cast_mut())) };
 }
 
 #[test]

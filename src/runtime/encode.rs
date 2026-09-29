@@ -269,6 +269,7 @@ pub(crate) fn encode_slot(f: &MiniField, slot: FieldKind, out: &mut Vec<u8>) {
                                 required: false,
                                 is_map: false,
                                 sub: MiniTablePtr::dangling(),
+                                closed_enum: None,
                                 oneof_group: 0,
                             });
                     (kf, vf)
@@ -284,6 +285,7 @@ pub(crate) fn encode_slot(f: &MiniField, slot: FieldKind, out: &mut Vec<u8>) {
                         required: false,
                         is_map: false,
                         sub: MiniTablePtr::dangling(),
+                        closed_enum: None,
                         oneof_group: 0,
                     },
                 ));

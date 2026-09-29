@@ -7,7 +7,14 @@
 
 use std::fmt::Debug;
 
-pub type MiniTableEnumPtr = *const ();
+pub type MiniTableEnumPtr = *const MiniTableEnum;
+
+/// Known wire numbers of a closed enum, owned for the generated table's lifetime.
+#[derive(Debug)]
+pub struct MiniTableEnum {
+    // Sorted unsigned bit patterns also represent negative i32 enum values.
+    values: Vec<u32>,
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct MiniTableEnumInitPtr(pub MiniTableEnumPtr);
@@ -68,7 +75,21 @@ pub struct MiniField {
     pub required: bool,
     pub is_map: bool,
     pub sub: MiniTablePtr,
+    /// None for open enums/non-enums; a linked, immutable table for closed enums.
+    /// Some(null) is only the not-yet-linked descriptor-building state.
+    pub closed_enum: Option<MiniTableEnumPtr>,
     pub oneof_group: u32,
+}
+
+impl MiniField {
+    pub(crate) fn accepts_enum(self, value: i32) -> bool {
+        self.closed_enum.is_none_or(|table| {
+            // SAFETY: generated linking installs an immutable enum table that
+            // outlives the message MiniTable, just like a linked submessage.
+            unsafe { table.as_ref() }
+                .is_some_and(|table| table.values.binary_search(&(value as u32)).is_ok())
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -152,21 +173,76 @@ pub unsafe fn build_mini_table(mini_descriptor: &'static str) -> MiniTablePtr {
     MiniTablePtr(Box::into_raw(Box::new(mt)))
 }
 
-pub unsafe fn build_enum_mini_table(_mini_descriptor: &'static str) -> MiniTableEnumPtr {
-    std::ptr::null()
+/// Builds owned, immutable validation metadata for a generated closed enum.
+///
+/// # Safety
+/// The descriptor must describe the generated enum. The returned allocation
+/// must remain live while any linked MiniTable can be used; generated code
+/// retains it permanently in a OnceLock, like message MiniTables.
+pub unsafe fn build_enum_mini_table(mini_descriptor: &'static str) -> MiniTableEnumPtr {
+    Box::into_raw(Box::new(
+        decode_enum_mini_table(mini_descriptor.as_bytes())
+            .expect("valid generated enum descriptor"),
+    ))
 }
 
+fn decode_enum_mini_table(bytes: &[u8]) -> Result<MiniTableEnum, &'static str> {
+    let mut values = Vec::new();
+    if bytes.is_empty() {
+        return Ok(MiniTableEnum { values });
+    }
+    if bytes[0] != b'!' {
+        return Err("invalid enum mini descriptor version");
+    }
+    let mut i = 1;
+    let mut base = 0u32;
+    // Pinned upb mini_descriptor/build_enum.c uses five-value masks and
+    // base92 skips. Arithmetic wraps at u32::MAX for negative enum numbers.
+    while i < bytes.len() {
+        let ch = bytes[i];
+        i += 1;
+        if ch <= b'A' && from92(ch) >= 0 {
+            let mask = from92(ch) as u32;
+            for bit in 0..5 {
+                if mask & (1 << bit) != 0 {
+                    values.push(base);
+                }
+                base = base.wrapping_add(1);
+            }
+        } else if (b'_'..=b'~').contains(&ch) {
+            base = base.wrapping_add(decode_base92_varint(bytes, &mut i, ch, b'_', b'~'));
+        } else {
+            return Err("invalid enum mini descriptor character");
+        }
+    }
+    values.sort_unstable();
+    values.dedup();
+    Ok(MiniTableEnum { values })
+}
+
+/// Links freshly built tables before generated code publishes them for use.
+///
+/// # Safety
+/// `mini_table` must be exclusively accessible for linking. All supplied
+/// pointers must come from the corresponding table builder, remain immutable
+/// after linking, and outlive every message using the linked table. Subtables
+/// must be in the generator's field order, with enums only for closed fields.
 pub unsafe fn link_mini_table(
     mini_table: MiniTablePtr,
     submessages: &[MiniTablePtr],
-    _subenums: &[MiniTableEnumPtr],
+    subenums: &[MiniTableEnumPtr],
 ) {
     if mini_table.0.is_null() {
         return;
     }
     let mt = unsafe { &mut *mini_table.0.cast_mut() };
     let mut si = 0usize;
+    let mut ei = 0usize;
     for f in &mut mt.fields {
+        if f.closed_enum.is_some() {
+            f.closed_enum = Some(subenums[ei]);
+            ei += 1;
+        }
         if (f.ty == FieldType::Message || f.ty == FieldType::Group || f.is_map)
             && si < submessages.len()
         {
@@ -225,6 +301,7 @@ fn decode_mini_table(bytes: &[u8]) -> MiniTable {
                 required: false,
                 is_map: false,
                 sub: MiniTablePtr::dangling(),
+                closed_enum: (tyv == 18).then_some(std::ptr::null()),
                 oneof_group: 0,
             });
         } else if (b'L'..=b'[').contains(&ch) {
@@ -300,5 +377,34 @@ mod tests {
         assert_eq!(mt.fields.len(), 1);
         assert_eq!(mt.fields[0].number, 1);
         assert_eq!(mt.fields[0].ty, FieldType::String);
+    }
+
+    #[test]
+    fn closed_enum_descriptor_masks_skips_and_negative_values() {
+        // Exact strings emitted by the pinned generator for NestedEnum and
+        // TestSparseEnum in rust/test/unittest.proto.
+        assert_eq!(
+            decode_enum_mini_table(b"!0y~~~~~b!").unwrap().values,
+            [1, 2, 3, u32::MAX]
+        );
+        let mut expected = [123i32, 62374, 12589234, -15, -53452, 0, 2].map(|number| number as u32);
+        expected.sort_unstable();
+        assert_eq!(
+            decode_enum_mini_table(b"!&ub!ex{`!fgh}j!|rd}r~b!wds`!")
+                .unwrap()
+                .values,
+            expected
+        );
+        assert!(decode_enum_mini_table(b"$E0").is_err());
+        assert!(decode_enum_mini_table(b"!J").is_err());
+    }
+
+    #[test]
+    fn mini_descriptor_distinguishes_open_and_closed_enums() {
+        let table = decode_mini_table(b"$4.4");
+        assert_eq!(table.fields.len(), 3);
+        assert!(table.fields[0].closed_enum.is_some());
+        assert!(table.fields[1].closed_enum.is_none());
+        assert!(table.fields[2].closed_enum.is_some());
     }
 }

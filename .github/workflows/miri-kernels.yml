@@ -51,14 +51,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri, rust-src
-      - name: Miri on pbrs core unit tests
+      - name: Miri on pbrs core and generated-kernel integration tests
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
         run: |
           set -euo pipefail
           rustc --version
           cargo miri --version
-          cargo miri test --locked -p pbrs --lib
+          cargo miri test --locked -p pbrs --lib --test runtime --test upb_kernel
       - name: Miri on pbrs-h2 unit tests
         # Activates automatically once H2-04 lands the crate.
         if: hashFiles('pbrs-h2/Cargo.toml') != ''

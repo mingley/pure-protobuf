@@ -755,6 +755,7 @@ mod tests {
             required: false,
             is_map: false,
             sub: MiniTablePtr::dangling(),
+            closed_enum: None,
             oneof_group: 0,
         }
     }
