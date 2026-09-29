@@ -85,6 +85,8 @@ http = "1"
 # test-util is dev-only: paused-clock resolver timelines. Production keeps
 # the minimal feature set above.
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "test-util"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
+tonic-prost = "0.14"
 
 [[bin]]
 name = "pbrs-grpc-hello"
