@@ -140,6 +140,8 @@ pub(crate) struct Prepared<T> {
     pub(crate) channelz_server: Option<crate::channelz::ServerId>,
     /// Channelz socket serving this RPC, for stream/message counters.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
+    #[cfg(feature = "grpc-web")]
+    pub(crate) web: Option<crate::web::Mode>,
 }
 
 #[allow(
@@ -198,6 +200,7 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
             tap.log_written(seg);
         }
     }
+
     if let Some(obs) = observer {
         obs.on_bytes_sent(call_labels, frame.total_len());
     }
@@ -218,6 +221,89 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
     }
+}
+
+#[cfg(feature = "grpc-web")]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal write helper with observer and options"
+)]
+pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
+    response: Response<Resp>,
+    mut respond: backend::SendResponse,
+    web: crate::web::Mode,
+    wire: Wire,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
+    tap: Option<&crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
+) {
+    let (msg, headers, trailers, compress) = response.split();
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
+    let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    let frame = match encode_msg(&msg, codec, wire.limits, wire.gzip_level) {
+        Ok(frame) => frame,
+        Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
+            crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
+            return;
+        }
+    };
+    let permit = match budget.acquire(frame.total_len()) {
+        Ok(p) => p,
+        Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(&Metadata::new(), &status);
+            }
+            crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
+            return;
+        }
+    };
+    let Ok(mut send) =
+        crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip)
+    else {
+        return;
+    };
+    if let Some(tap) = tap {
+        tap.log_server_header(&headers);
+        for seg in frame.segments() {
+            tap.log_written(seg);
+        }
+    }
+    if let Some(obs) = observer {
+        obs.on_bytes_sent(call_labels, frame.total_len());
+    }
+    if let Some(socket) = channelz_socket {
+        crate::channelz::Registry::global().note_messages(socket, true, 1);
+    }
+    let mut text = crate::web::TextEncoder::new();
+    crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer)
+        .await
+        .ok();
+    drop(permit);
+    let mut status = Status::ok();
+    if !trailers.is_empty() {
+        *status.metadata_mut() = trailers;
+    }
+    if let Some(tap) = tap {
+        tap.log_trailer(status.metadata(), &status);
+    }
+    crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
+        .await
+        .ok();
 }
 
 #[allow(
@@ -330,6 +416,229 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
         send.send_trailers(map).ok();
     }
     status
+}
+
+#[cfg(feature = "grpc-web")]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal stream write helper with observer and options"
+)]
+pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
+    response: Response<Streaming<Resp>>,
+    mut respond: backend::SendResponse,
+    web: crate::web::Mode,
+    wire: Wire,
+    deadline: Option<tokio::time::Instant>,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
+    tap: Option<&crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
+) -> Status {
+    let (mut stream, headers, trailers, compress) = response.split();
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
+    let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    let Ok(mut send) =
+        crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip)
+    else {
+        return Status::unavailable("failed to send response headers");
+    };
+    if let Some(tap) = tap {
+        tap.log_server_header(&headers);
+    }
+    let ok_trailers = trailers;
+    let mut status = Status::ok();
+    let mut text = crate::web::TextEncoder::new();
+    let drained = if web.is_text() {
+        match deadline {
+            None => {
+                drain_to_web_text(
+                    &mut stream,
+                    &mut send,
+                    web,
+                    &mut text,
+                    wire,
+                    compress,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                    peer_accepts_deflate,
+                    #[cfg(feature = "zstd")]
+                    peer_accepts_zstd,
+                    budget,
+                    observer,
+                    call_labels,
+                    tap.cloned(),
+                    channelz_socket,
+                )
+                .await
+            }
+            Some(at) => tokio::time::timeout_at(
+                at,
+                drain_to_web_text(
+                    &mut stream,
+                    &mut send,
+                    web,
+                    &mut text,
+                    wire,
+                    compress,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                    peer_accepts_deflate,
+                    #[cfg(feature = "zstd")]
+                    peer_accepts_zstd,
+                    budget,
+                    observer,
+                    call_labels,
+                    tap.cloned(),
+                    channelz_socket,
+                ),
+            )
+            .await
+            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
+        }
+    } else {
+        match deadline {
+            None => {
+                drain_to_wire(
+                    &mut stream,
+                    &mut send,
+                    wire,
+                    compress,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                    peer_accepts_deflate,
+                    #[cfg(feature = "zstd")]
+                    peer_accepts_zstd,
+                    budget,
+                    observer,
+                    call_labels,
+                    tap.cloned(),
+                    channelz_socket,
+                )
+                .await
+            }
+            Some(at) => tokio::time::timeout_at(
+                at,
+                drain_to_wire(
+                    &mut stream,
+                    &mut send,
+                    wire,
+                    compress,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                    peer_accepts_deflate,
+                    #[cfg(feature = "zstd")]
+                    peer_accepts_zstd,
+                    budget,
+                    observer,
+                    call_labels,
+                    tap.cloned(),
+                    channelz_socket,
+                ),
+            )
+            .await
+            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
+        }
+    };
+    if let Err(err) = drained {
+        match err {
+            DrainError::Transport => return Status::unavailable("transport closed during stream"),
+            DrainError::Producer(producer) => status = producer,
+        }
+    }
+    if let Some(at) = deadline {
+        if status.is_ok() && tokio::time::Instant::now() >= at {
+            status = Status::deadline_exceeded();
+        }
+    }
+    if status.is_ok() && !ok_trailers.is_empty() {
+        *status.metadata_mut() = ok_trailers;
+    }
+    if let Some(tap) = tap {
+        tap.log_trailer(status.metadata(), &status);
+    }
+    crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
+        .await
+        .ok();
+    status
+}
+
+#[cfg(feature = "grpc-web")]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal stream write helper with observer and options"
+)]
+pub(crate) async fn drain_to_web_text<Resp: CodecMessage + Send>(
+    stream: &mut Streaming<Resp>,
+    send: &mut backend::SendStream,
+    web: crate::web::Mode,
+    text: &mut crate::web::TextEncoder,
+    wire: Wire,
+    envelope: Option<bool>,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")] peer_accepts_zstd: bool,
+    budget: &ByteBudgetTracker,
+    observer: Option<&dyn LifecycleObserver>,
+    call_labels: &CallLabels<'_>,
+    tap: Option<crate::binlog::CallLogger>,
+    channelz_socket: Option<crate::channelz::SocketId>,
+) -> Result<(), DrainError> {
+    let negotiated = preferred_codec(
+        wire.send_codec,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+    );
+    loop {
+        let item = tokio::select! {
+            biased;
+            reset = poll_fn(|cx| send.poll_reset(cx)) => {
+                drop(reset);
+                return Err(DrainError::Transport);
+            }
+            item = stream.next_framed() => item,
+        };
+        let item = match item {
+            Ok(Some(item)) => item,
+            Ok(None) => break,
+            Err(status) => return Err(DrainError::Producer(status)),
+        };
+        let codec = select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated);
+        let frame = encode_msg(&item.message, codec, wire.limits, wire.gzip_level)
+            .map_err(DrainError::Producer)?;
+        let permit = budget
+            .acquire(frame.total_len())
+            .map_err(DrainError::Producer)?;
+        if let Some(tap) = &tap {
+            for seg in frame.segments() {
+                tap.log_written(seg);
+            }
+        }
+        if let Some(obs) = observer {
+            obs.on_bytes_sent(call_labels, frame.total_len());
+        }
+        if let Some(socket) = channelz_socket {
+            crate::channelz::Registry::global().note_messages(socket, true, 1);
+        }
+        crate::web::send_frame(send, web, text, frame, wire.send_buffer)
+            .await
+            .map_err(|_| DrainError::Transport)?;
+        drop(permit);
+    }
+    Ok(())
 }
 
 /// Why a stream stopped before its clean end.

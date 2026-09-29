@@ -1083,6 +1083,9 @@ pub mod interop_cases;
 pub mod telemetry;
 #[forbid(unsafe_code)]
 pub mod timeout;
+#[cfg(feature = "grpc-web")]
+pub mod web;
+
 #[cfg(feature = "tower")]
 pub mod tower_client;
 #[cfg(feature = "tower")]

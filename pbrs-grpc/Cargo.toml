@@ -72,6 +72,9 @@ copy-counts = ["pbrs/copy-counts"]
 # Tower Service adapters for Router and Channel. Off by default so the
 # default dependency graph stays unchanged.
 tower = ["dep:http-body", "dep:http-body-util", "dep:tower"]
+# HTTP/2 gRPC-Web server responses. Off by default; native gRPC behavior and
+# default dependency graph stay unchanged.
+grpc-web = []
 
 [dev-dependencies]
 # In-memory metrics assertions for tests/otel.rs (GF-01).

@@ -260,7 +260,8 @@ pub(crate) enum RequestReject {
 ///
 /// Type and subtype are matched case-insensitively. This kernel only
 /// decodes protobuf messages, so `application/grpc+json` and other `+`
-/// suffixes are not gRPC here: they are HTTP 415, like grpc-web.
+/// suffixes are not native gRPC here: they are HTTP 415 unless another
+/// feature explicitly admits them. Without the `grpc-web` feature,
 /// `application/grpc-web` is not a match either (`-web` is not `+` / `;`).
 pub(crate) fn grpc_content_type(ct: &str) -> bool {
     let ct = ct.trim();
@@ -331,6 +332,10 @@ pub(crate) fn check_request(
         return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     };
     if !grpc_content_type(ct) {
+        #[cfg(feature = "grpc-web")]
+        if crate::web::is_supported_content_type(ct) {
+            return Ok(());
+        }
         return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     }
     if let Some(enc) = request.headers().get(GRPC_ENCODING) {

@@ -139,6 +139,35 @@ pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
   caller-selected layers such as timeouts, concurrency limits, load shedding,
   and tracing there; the ordinary `Channel` path stays unbuffered.
 
+## gRPC-Web
+
+Enable the optional `grpc-web` feature to serve gRPC-Web over the existing
+HTTP/2 transport:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] }
+```
+
+With the feature enabled, the server accepts `application/grpc-web`,
+`application/grpc-web+proto`, `application/grpc-web-text`, and
+`application/grpc-web-text+proto` for unary and server-streaming methods.
+Responses encode trailers in the response body as required by gRPC-Web; native
+`application/grpc` behavior is unchanged. Client-streaming and bidirectional
+browser gRPC-Web calls are rejected with `UNIMPLEMENTED`, matching tonic-web's
+browser-facing limits.
+
+This support is HTTP/2-only. Browser HTTP/1.1 and h2c upgrade deployments still
+need an edge proxy or a future HTTP/1.1 accept layer. CORS preflight defaults
+to deny-all; opt in explicitly:
+
+```rust
+let config = pbrs_grpc::ServerConfig::new()
+    .grpc_web_allow_origin("https://app.example");
+```
+
+Use `grpc_web_allow_any_origin()` only for public APIs that intentionally allow
+all browser origins.
+
 ## Production Capabilities & How-to Guides
 
 The sections below summarize what ships and point to the detailed guides.

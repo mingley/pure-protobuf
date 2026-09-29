@@ -12,6 +12,8 @@ use super::drain::{
     CancelOnDrop, Prepared, hold_cancel, notify_deadline, run_handler, send_stream_response,
     send_unary_response,
 };
+#[cfg(feature = "grpc-web")]
+use super::drain::{send_web_stream_response, send_web_unary_response};
 use super::router::split_path;
 use crate::codec::CodecMessage;
 use crate::compression::Codec;
@@ -57,6 +59,8 @@ pub struct Rpc {
     pub(crate) peer_identity: Option<PeerIdentity>,
     pub(crate) peer_cred: Option<PeerCred>,
     pub(crate) transport_scheme: Option<&'static str>,
+    #[cfg(feature = "grpc-web")]
+    pub(crate) web: Option<crate::web::Mode>,
     pub(crate) extensions: http::Extensions,
     pub(crate) metadata: Metadata,
     pub(crate) diagnostic_config: Option<DiagnosticConfig>,
@@ -523,6 +527,11 @@ impl Rpc {
             tap.log_trailer(&Metadata::new(), &status);
         }
         channelz_end(self.channelz_server, self.channelz_socket, false);
+        #[cfg(feature = "grpc-web")]
+        if let Some(web) = self.web {
+            crate::web::send_trailers_only(&mut self.respond, web, status, &Metadata::new());
+            return;
+        }
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -573,6 +582,11 @@ impl Rpc {
         }
         let ok = status.is_ok();
         channelz_end(self.channelz_server, self.channelz_socket, ok);
+        #[cfg(feature = "grpc-web")]
+        if let Some(web) = self.web {
+            crate::web::send_trailers_only(&mut self.respond, web, status, &Metadata::new());
+            return;
+        }
         send_trailers_only(&mut self.respond, status, &Metadata::new());
     }
 
@@ -622,6 +636,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+            web,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -658,9 +674,54 @@ impl Rpc {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
                     channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    send_trailers_only(&mut respond, status, &Metadata::new())
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = web {
+                        crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
+                    } else {
+                        send_trailers_only(&mut respond, status, &Metadata::new());
+                    }
+                    #[cfg(not(feature = "grpc-web"))]
+                    send_trailers_only(&mut respond, status, &Metadata::new());
                 }
                 Ok(response) => {
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = web {
+                        send_web_unary_response(
+                            response,
+                            respond,
+                            web,
+                            wire,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            peer_accepts_deflate,
+                            #[cfg(feature = "zstd")]
+                            peer_accepts_zstd,
+                            &budget,
+                            observer.as_deref(),
+                            &call_labels,
+                            binlog.as_ref(),
+                            channelz_socket,
+                        )
+                        .await;
+                    } else {
+                        send_unary_response(
+                            response,
+                            respond,
+                            wire,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            peer_accepts_deflate,
+                            #[cfg(feature = "zstd")]
+                            peer_accepts_zstd,
+                            &budget,
+                            observer.as_deref(),
+                            &call_labels,
+                            binlog.as_ref(),
+                            channelz_socket,
+                        )
+                        .await;
+                    }
+                    #[cfg(not(feature = "grpc-web"))]
                     send_unary_response(
                         response,
                         respond,
@@ -710,6 +771,13 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
+        #[cfg(feature = "grpc-web")]
+        if self.web.is_some() {
+            self.reject(Status::unimplemented(
+                "gRPC-Web supports unary and server-streaming methods",
+            ));
+            return;
+        }
         let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
@@ -733,6 +801,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+                web: _,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -851,6 +921,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+            web,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -887,9 +959,56 @@ impl Rpc {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
                     channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    send_trailers_only(&mut respond, status, &Metadata::new())
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = web {
+                        crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
+                    } else {
+                        send_trailers_only(&mut respond, status, &Metadata::new());
+                    }
+                    #[cfg(not(feature = "grpc-web"))]
+                    send_trailers_only(&mut respond, status, &Metadata::new());
                 }
                 Ok(response) => {
+                    #[cfg(feature = "grpc-web")]
+                    let final_status = if let Some(web) = web {
+                        send_web_stream_response(
+                            response,
+                            respond,
+                            web,
+                            wire,
+                            deadline,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            peer_accepts_deflate,
+                            #[cfg(feature = "zstd")]
+                            peer_accepts_zstd,
+                            &budget,
+                            observer.as_deref(),
+                            &call_labels,
+                            binlog.as_ref(),
+                            channelz_socket,
+                        )
+                        .await
+                    } else {
+                        send_stream_response(
+                            response,
+                            respond,
+                            wire,
+                            deadline,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            peer_accepts_deflate,
+                            #[cfg(feature = "zstd")]
+                            peer_accepts_zstd,
+                            &budget,
+                            observer.as_deref(),
+                            &call_labels,
+                            binlog.as_ref(),
+                            channelz_socket,
+                        )
+                        .await
+                    };
+                    #[cfg(not(feature = "grpc-web"))]
                     let final_status = send_stream_response(
                         response,
                         respond,
@@ -947,6 +1066,13 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
+        #[cfg(feature = "grpc-web")]
+        if self.web.is_some() {
+            self.reject(Status::unimplemented(
+                "gRPC-Web supports unary and server-streaming methods",
+            ));
+            return;
+        }
         let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
@@ -970,6 +1096,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+                web: _,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -1060,6 +1188,8 @@ impl Rpc {
         let observer = self.observer.clone();
         let channelz_server = self.channelz_server;
         let channelz_socket = self.channelz_socket;
+        #[cfg(feature = "grpc-web")]
+        let web = self.web;
         let call_start = tokio::time::Instant::now();
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
@@ -1082,6 +1212,8 @@ impl Rpc {
             peer_identity,
             peer_cred,
             transport_scheme: _,
+            #[cfg(feature = "grpc-web")]
+                web: _,
             extensions,
             metadata,
             diagnostic_config,
@@ -1102,6 +1234,27 @@ impl Rpc {
         let obs_clone = observer.clone();
         let labels_clone = owned_labels.clone();
         let outcome = wrap_timeout(timeout, async {
+            #[cfg(feature = "grpc-web")]
+            let framed = if web.is_some_and(crate::web::Mode::is_text) {
+                crate::web::read_one_text_message::<Req>(
+                    &mut recv,
+                    limits,
+                    config.accepts_compressed(),
+                    request_codec,
+                    binlog.as_ref(),
+                )
+                .await?
+            } else {
+                read_one_message::<Req>(
+                    &mut recv,
+                    limits,
+                    config.accepts_compressed(),
+                    request_codec,
+                    binlog.as_ref(),
+                )
+                .await?
+            };
+            #[cfg(not(feature = "grpc-web"))]
             let framed = read_one_message::<Req>(
                 &mut recv,
                 limits,
@@ -1188,6 +1341,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+            web,
         })
     }
 
@@ -1215,6 +1370,8 @@ impl Rpc {
         let observer = self.observer.clone();
         let channelz_server = self.channelz_server;
         let channelz_socket = self.channelz_socket;
+        #[cfg(feature = "grpc-web")]
+        let web = self.web;
         let call_start = tokio::time::Instant::now();
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
@@ -1237,6 +1394,8 @@ impl Rpc {
             peer_identity,
             peer_cred,
             transport_scheme: _,
+            #[cfg(feature = "grpc-web")]
+                web: _,
             extensions,
             metadata,
             diagnostic_config,
@@ -1334,6 +1493,8 @@ impl Rpc {
             binlog,
             channelz_server,
             channelz_socket,
+            #[cfg(feature = "grpc-web")]
+            web,
         })
     }
 }

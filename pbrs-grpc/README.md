@@ -46,6 +46,18 @@ The default feature set keeps the crate MSRV at Rust 1.85. The `zstd` feature
 uses `ruzstd` 0.9 and therefore has MSRV 1.87; all requested compression levels
 map to `ruzstd`'s implemented `Fastest` mode (roughly zstd level 1).
 
+Enable `grpc-web` when browser gRPC-Web clients must call the same HTTP/2
+server:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] }
+```
+
+The feature supports binary and text gRPC-Web content types for unary and
+server-streaming methods. CORS preflight is deny-all by default; configure an
+allowed origin with `ServerConfig::grpc_web_allow_origin` or allow all origins
+with `grpc_web_allow_any_origin`.
+
 ## Installation
 
 Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
@@ -147,6 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Area | What is available |
 |---|---|
 | RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](../docs/guides/rpc-shapes.md). |
+| gRPC-Web | Optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web, including `grpc-web-text` and explicit CORS preflight policy. |
 | Message codec | The `CodecMessage` trait abstracts native messages. pbrs messages use the default fast path: direct encode into frames, `Bytes` parsing, and shared large `bytes` segments. |
 | TLS and mTLS | `rustls` + Graviola with enforced ALPN `h2`; verified client identities are available through `Rpc::peer_identity`. See the [production service guide](../docs/guides/production-service.md). |
 | Routing | `Router` composes multiple services on one TCP/TLS port. With the optional `tower` feature it can also be mounted as a tower service next to REST routes. |

@@ -252,6 +252,8 @@ pub(crate) fn incoming_rpc(
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
+    #[cfg(feature = "grpc-web")]
+    let web = crate::web::Mode::from_headers(request.headers());
     let mut extensions = http::Extensions::new();
     let tcp_info = TcpConnectInfo {
         local_addr: peer.local,
@@ -278,6 +280,8 @@ pub(crate) fn incoming_rpc(
         peer_identity: peer.identity,
         peer_cred: peer.cred,
         transport_scheme: peer.scheme,
+        #[cfg(feature = "grpc-web")]
+        web,
         extensions,
         metadata,
         diagnostic_config: None,
@@ -409,6 +413,10 @@ where
                     break;
                 };
                 occupied = true;
+                #[cfg(feature = "grpc-web")]
+                if crate::web::send_cors_preflight(&request, &mut respond, config.grpc_web_cors()) {
+                    continue;
+                }
                 if let Err(err) = check_request(&request, config.accepts_compressed()) {
                     if let Some(obs) = dispatch.observer() {
                         let path = request.uri().path();
@@ -429,6 +437,18 @@ where
                         obs.on_server_call_end(&labels, &status, Duration::ZERO);
                     }
                     note_rejected_call(channelz_server, channelz_socket_id);
+                    #[cfg(feature = "grpc-web")]
+                    if let (Some(web), crate::wire::RequestReject::Grpc(status)) =
+                        (crate::web::Mode::from_headers(request.headers()), &err)
+                    {
+                        crate::web::send_trailers_only(
+                            &mut respond,
+                            web,
+                            status.clone(),
+                            &Metadata::new(),
+                        );
+                        continue;
+                    }
                     reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
@@ -449,6 +469,16 @@ where
                         obs.on_server_call_end(&labels, &status, Duration::ZERO);
                     }
                     note_rejected_call(channelz_server, channelz_socket_id);
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = crate::web::Mode::from_headers(request.headers()) {
+                        crate::web::send_trailers_only(
+                            &mut respond,
+                            web,
+                            status,
+                            &Metadata::new(),
+                        );
+                        continue;
+                    }
                     reject(
                         &mut respond,
                         status,
@@ -475,6 +505,16 @@ where
                                 obs.on_server_call_end(&labels, &status, Duration::ZERO);
                             }
                             note_rejected_call(channelz_server, channelz_socket_id);
+                            #[cfg(feature = "grpc-web")]
+                            if let Some(web) = crate::web::Mode::from_headers(request.headers()) {
+                                crate::web::send_trailers_only(
+                                    &mut respond,
+                                    web,
+                                    status,
+                                    &Metadata::new(),
+                                );
+                                continue;
+                            }
                             reject(
                                 &mut respond,
                                 status,

@@ -172,6 +172,8 @@ pub struct ServerConfig {
     accept_compressed: bool,
     gzip_compression_level: u32,
     compression_codec: Codec,
+    #[cfg(feature = "grpc-web")]
+    grpc_web_cors: crate::web::CorsPolicy,
 }
 
 impl Default for ServerConfig {
@@ -209,6 +211,8 @@ impl Default for ServerConfig {
             accept_compressed: true,
             gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
             compression_codec: Codec::default(),
+            #[cfg(feature = "grpc-web")]
+            grpc_web_cors: crate::web::CorsPolicy::DenyAll,
         }
     }
 }
@@ -248,6 +252,35 @@ impl ServerConfig {
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
         self
+    }
+
+    /// Allow gRPC-Web CORS preflight requests from any origin.
+    ///
+    /// Default is deny-all. Applies only when the `grpc-web` feature is
+    /// enabled; native gRPC requests do not use CORS.
+    #[cfg(feature = "grpc-web")]
+    #[must_use]
+    pub fn grpc_web_allow_any_origin(mut self) -> Self {
+        self.grpc_web_cors = crate::web::CorsPolicy::AllowAny;
+        self
+    }
+
+    /// Allow gRPC-Web CORS preflight requests from one static origin.
+    ///
+    /// Default is deny-all. Applies only when the `grpc-web` feature is
+    /// enabled; native gRPC requests do not use CORS.
+    #[cfg(feature = "grpc-web")]
+    #[must_use]
+    pub fn grpc_web_allow_origin(mut self, origin: &'static str) -> Self {
+        self.grpc_web_cors = crate::web::CorsPolicy::AllowOrigin(origin);
+        self
+    }
+
+    /// Configured gRPC-Web CORS preflight policy.
+    #[cfg(feature = "grpc-web")]
+    #[must_use]
+    pub fn grpc_web_cors(&self) -> crate::web::CorsPolicy {
+        self.grpc_web_cors
     }
 
     /// HTTP/2 per-stream receive window. Default 16 MiB.

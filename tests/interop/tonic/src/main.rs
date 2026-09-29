@@ -24,6 +24,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::disallowed_methods,
+    clippy::doc_lazy_continuation,
+    clippy::collapsible_if,
     missing_docs,
     reason = "interop test binary"
 )]
@@ -1214,7 +1216,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    use super::{Grpc, HttpRequest, HttpResponse, Pin, ProtobufCodec};
+    use pbrs_grpc::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
+    use pbrs_grpc::{Request as PbrsRequest, Response as PbrsResponse, Status as PbrsStatus};
     use pbrs_grpc::{Codec, MessageLimits};
+    use std::future::Future;
+    use std::task::{Context, Poll};
+    use tonic::body::Body;
+    use tonic::Request;
+    use tonic::transport::Channel;
+    use tonic_web::GrpcWebCall;
+    use tonic_web::GrpcWebClientService;
+    use tower_service::Service;
 
     #[test]
     fn zstd_codec_interops_with_c_zstd_peer() {
@@ -1228,6 +1241,73 @@ mod tests {
             .decode_limited(&c, MessageLimits::unlimited())
             .expect("pbrs zstd decode");
         assert_eq!(decoded, payload);
+    }
+
+    struct EchoGreeter;
+
+    impl Greeter for EchoGreeter {
+        async fn say_hello(
+            &self,
+            request: PbrsRequest<HelloRequest>,
+        ) -> Result<PbrsResponse<HelloReply>, PbrsStatus> {
+            let mut reply = HelloReply::new();
+            reply.set_message(request.get_ref().name().to_string());
+            Ok(PbrsResponse::new(reply))
+        }
+    }
+
+    #[derive(Clone)]
+    struct GenericBodyChannel(Channel);
+
+    impl Service<HttpRequest<GrpcWebCall<Body>>> for GenericBodyChannel {
+        type Response = HttpResponse<Body>;
+        type Error = <Channel as Service<HttpRequest<Body>>>::Error;
+        type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+        fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+            self.0.poll_ready(cx)
+        }
+
+        fn call(&mut self, request: HttpRequest<GrpcWebCall<Body>>) -> Self::Future {
+            let request = request.map(Body::new);
+            let fut = self.0.call(request);
+            Box::pin(fut)
+        }
+    }
+
+    #[tokio::test]
+    async fn tonic_web_client_talks_to_pbrs_grpc_web_server() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let server = tokio::spawn(async move {
+            GreeterServer::new(EchoGreeter)
+                .serve_listener(listener)
+                .await
+                .ok();
+        });
+
+        let channel = Channel::from_shared(format!("http://{addr}"))
+            .expect("uri")
+            .connect()
+            .await
+            .expect("connect");
+        let mut grpc = Grpc::new(GrpcWebClientService::new(GenericBodyChannel(channel)));
+        grpc.ready().await.expect("ready");
+        let path = "/helloworld.Greeter/SayHello".parse().expect("path");
+        let mut request = HelloRequest::new();
+        request.set_name("ada");
+        let response = grpc
+            .unary(
+                Request::new(request),
+                path,
+                ProtobufCodec::<HelloRequest, HelloReply>::default(),
+            )
+            .await
+            .expect("tonic-web unary");
+        assert_eq!(response.into_inner().message(), "ada");
+        server.abort();
     }
 }
 /// Wire-independent prost mode: server, client and case procedures over
