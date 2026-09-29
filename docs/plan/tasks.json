@@ -3397,7 +3397,11 @@
       "checks": [
         "native-rpc",
         "interop"
-      ]
+      ],
+      "evidence": [
+        "Partial 2026-09-29 (40f665e4): vendored ORCA protos pinned to cncf/xds@dba9d589 (pbrs-grpc/proto/xds/PIN); TestService.UnaryCall stamps bounded per-query reports (32-entry/64B-label caps, RESOURCE_EXHAUSTED/INVALID_ARGUMENT diagnosis, no payload bytes read). tests/orca.rs 10/10 (per_query_against_peer self-skips: ORCA_PER_RPC_PEER unset, no pinned Go interop server binary in repo). Wire proof both codec directions: pinned_go_report_decodes (Go->us) plus coordinator-run us->Go decode of our official-vector trailer hex via tests/interop/go orcagolden yielding exactly cpu=0.821 mem=0.5847 costs={cost:3456.32} utils={util:0.30499} with rates/named/app unset. Remaining: live orca_per_rpc RPC against a pinned Go interop server; EX-01 stays pending."
+      ],
+      "status": "in_progress"
     },
     {
       "id": "EX-02",
