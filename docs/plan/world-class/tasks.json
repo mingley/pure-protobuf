@@ -1788,7 +1788,8 @@
     "D5",
     "D6"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "SB-13",
@@ -4696,7 +4697,10 @@
     "CP-04",
     "EX-21"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/cl-04.md"
+   ]
   },
   {
    "id": "CL-05",
@@ -4771,7 +4775,8 @@
     "C6",
     "C7"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "SV-01",
@@ -8004,7 +8009,11 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/resolver.rs",
+    "docs/guides/migration.md"
+   ]
   },
   {
    "id": "TC-20",
