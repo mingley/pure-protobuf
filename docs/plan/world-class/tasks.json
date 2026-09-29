@@ -2240,7 +2240,13 @@
     "A5"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "src/table.rs: safe-only table engine",
+    "tests/table_parse.rs: differential both engines",
+    "Miri 21/21, conformance PASS, devloop neutral"
+   ],
+   "notes": "Closed 2026-09-29: engine landed, not yet on hot path (PK-07 wires codegen). New pub mod table surface pending QL-05 API review. Dynamic nested values fuse via serialize/reparse bridge (proven lossless)."
   },
   {
    "id": "PK-07",
