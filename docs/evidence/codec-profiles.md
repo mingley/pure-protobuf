@@ -265,3 +265,33 @@ implementation because the previous corrected target-cell comparison already
 showed a large absolute regression on the same Linux/callgrind path (about
 +2k Ir/op on packed/unpacked target cells), and the final code restored scalar
 validation.
+
+## Small `name_80` encode follow-up
+
+Corrected baseline artifact: `target/devloop/small-encode-before.json`.
+After artifact: `target/devloop/small-string-final.json`. Both runs used the
+Linux Docker callgrind wrapper with differential instructions, 500 iters and 3
+repeats.
+
+Cause: generated singular string encode read the `LazyStr` twice:
+`is_empty()` and then `as_bytes()`. For owned `name_80`, that repeats the
+`LazyStr`/`ProtoString` representation walk before writing the field. The
+generator now binds `let bytes = field.as_bytes()` once and reuses it for the
+presence test and write. The same shape is used in size computation so first
+size computation stays consistent with encode.
+
+| cell | before instr | after instr | delta | allocs | bytes | verdict |
+|---|---:|---:|---:|---:|---:|---|
+| `codec.pbrs.small_name80_encode` | 238.140 | 219.594 | -7.79% | 0.0 -> 0.0 | 0.0 -> 0.0 | win |
+| `codec.pbrs.small_id_encode` | 123.064 | 122.834 | -0.19% | 0.0 -> 0.0 | 0.0 -> 0.0 | guard ok |
+| `codec.pbrs.small_empty_encode` | 92.454 | 91.914 | -0.58% | 0.0 -> 0.0 | 0.0 -> 0.0 | guard ok |
+| `codec.pbrs.small_name80_decode` | 584.304 | 583.912 | -0.07% | 1.0 -> 1.0 | 80.0 -> 80.0 | guard ok |
+| `codec.pbrs.small_id_decode` | 122.178 | 122.294 | +0.09% | 0.0 -> 0.0 | 0.0 -> 0.0 | guard ok |
+| `codec.pbrs.small_empty_decode` | 92.760 | 92.840 | +0.09% | 0.0 -> 0.0 | 0.0 -> 0.0 | guard ok |
+
+Comparator rows in the same runs were stable: `codec.prost.small_name80_encode`
+203.874 Ir/op after, `codec.prost.small_id_encode` 112.206 Ir/op after, and
+`codec.prost.small_name80_decode` 579.006 Ir/op after. The pbrs `name_80`
+encode loss is narrowed but not fully eliminated; the remaining gap is likely
+fixed generated/runtime encode overhead plus bench-only pbrs copy-count
+instrumentation on payload writes.

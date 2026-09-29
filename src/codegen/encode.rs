@@ -155,7 +155,7 @@ pub(crate) fn emit_size(src: &mut String, f: &FieldDescriptor, p: &str) {
         } else {
             let _ = writeln!(
                 src,
-                "        if !{fld}.is_empty() {{ n += pbrs::rt::key_len_value_len({num}, {fld}.as_bytes().len() as u64); }}"
+                "        {{ let bytes = {fld}.as_bytes(); if !bytes.is_empty() {{ n += pbrs::rt::key_len_value_len({num}, bytes.len() as u64); }} }}"
             );
         }
         return;
@@ -361,7 +361,7 @@ pub(crate) fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
         } else {
             let _ = writeln!(
                 src,
-                "        if !{fld}.is_empty() {{ pbrs::rt::encode_len_field(out, {num}, {fld}.as_bytes()); }}"
+                "        {{ let bytes = {fld}.as_bytes(); if !bytes.is_empty() {{ pbrs::rt::encode_len_field(out, {num}, bytes); }} }}"
             );
         }
         return;
