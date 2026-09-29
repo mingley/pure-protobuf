@@ -7,6 +7,7 @@ use super::headers::{
     accept_encoding_value, encoding_value,
 };
 use super::out_batch::{OutBatch, let_producer_catch_up};
+use crate::codec::CodecMessage;
 use crate::compression::Codec;
 use crate::config::Wire;
 use crate::metadata::Metadata;
@@ -17,7 +18,6 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
-use pbrs::Serialize;
 use std::time::Duration;
 
 pub(crate) async fn wait_capacity(send: &mut backend::SendStream, n: usize) -> Result<(), Status> {
@@ -256,7 +256,7 @@ pub(crate) enum PumpEnd {
 /// means this pump half-closed; [`PumpEnd::Reset`] means it already reset;
 /// [`PumpEnd::Failed`] is [`crate::StreamSender::fail`]. The caller RSTs
 /// CANCEL; bidi holds that RST until the Call takes the status.
-pub(crate) async fn pump_outbound<T: Serialize>(
+pub(crate) async fn pump_outbound<T: CodecMessage>(
     send: &mut backend::SendStream,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,

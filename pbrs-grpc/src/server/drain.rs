@@ -1,5 +1,6 @@
 //! Response draining: handler race, cancel guards, and wire writers.
 
+use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::limits::ByteBudgetTracker;
 use crate::metadata::Metadata;
@@ -13,7 +14,6 @@ use crate::wire::{
     OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
     select_outbound_codec, select_stream_codec, send_frame, send_ok_headers, send_trailers_only,
 };
-use pbrs::Serialize;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -146,7 +146,7 @@ pub(crate) struct Prepared<T> {
     clippy::too_many_arguments,
     reason = "internal write helper with observer and options"
 )]
-pub(crate) async fn send_unary_response<Resp: Serialize>(
+pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     response: Response<Resp>,
     mut respond: backend::SendResponse,
     wire: Wire,
@@ -222,7 +222,7 @@ pub(crate) async fn send_unary_response<Resp: Serialize>(
     clippy::too_many_arguments,
     reason = "internal stream write helper with observer and options"
 )]
-pub(crate) async fn send_stream_response<Resp: Serialize + Send>(
+pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
     response: Response<Streaming<Resp>>,
     mut respond: backend::SendResponse,
     wire: Wire,
@@ -352,7 +352,7 @@ pub(crate) async fn flush_queued_before_error(
     clippy::too_many_arguments,
     reason = "internal stream drain helper with observer and options"
 )]
-pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
+pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     stream: &mut Streaming<Resp>,
     send: &mut backend::SendStream,
     mut wire: Wire,
@@ -419,7 +419,7 @@ pub(crate) async fn drain_to_wire<Resp: Serialize + Send>(
             };
             item.compressed =
                 select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated).is_some();
-            let frame_len = 5 + item.message.serialized_len();
+            let frame_len = 5 + item.message.encoded_len();
             let permit = match budget.acquire(frame_len) {
                 Ok(permit) => permit,
                 Err(status) => {

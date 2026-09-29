@@ -43,6 +43,8 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "itoa",
  "matchit",
  "memchr",
@@ -51,6 +53,7 @@ dependencies = [
  "pin-project-lite",
  "serde_core",
  "sync_wrapper",
+ "tokio",
  "tower",
  "tower-layer",
  "tower-service",
@@ -540,6 +543,8 @@ dependencies = [
  "futures-core",
  "h2",
  "http",
+ "http-body",
+ "http-body-util",
  "libc",
  "opentelemetry",
  "opentelemetry_sdk",
@@ -551,9 +556,19 @@ dependencies = [
  "socket2",
  "tokio",
  "tokio-rustls",
+ "tower",
  "webpki-roots",
  "zstd",
  "zstd-rs",
+]
+
+[[package]]
+name = "pbrs-grpc-example-axum-cohost"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "pbrs-grpc",
+ "tokio",
 ]
 
 [[package]]

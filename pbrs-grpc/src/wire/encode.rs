@@ -1,11 +1,11 @@
 //! Outbound message framing: length-prefix encoding.
 
 use crate::codec;
+use crate::codec::CodecMessage;
 use crate::compression::Codec;
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
-use pbrs::Serialize;
 use pbrs::rt::WireOut;
 
 /// Segmented outbound sink (PK-11): small writes accumulate in `head`;
@@ -198,31 +198,31 @@ impl SegFrame {
 ///
 /// Large shared bytes fields are retained as extra segments instead of
 /// being copied (PK-11); the concatenated bytes are identical.
-pub(crate) fn frame_from_msg<T: Serialize>(msg: &T, len: usize) -> Result<SegFrame, Status> {
+pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<SegFrame, Status> {
     let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
     let mut sink = SegSink::new();
     sink.reserve(codec::HEADER_LEN + len);
     sink.put_u8(0);
     sink.put_slice(&prefix.to_be_bytes());
-    T::encode(msg, &mut sink).map_err(|e| Status::internal(e.to_string()))?;
+    msg.encode_payload(&mut sink)?;
     let shared = sink.shared_len();
     let frame = sink.finish();
     crate::copy_counts::note_encode(len.saturating_sub(shared));
     Ok(frame)
 }
 
-pub(crate) fn encode_msg<T: Serialize>(
+pub(crate) fn encode_msg<T: CodecMessage>(
     msg: &T,
     codec: Option<Codec>,
     limits: MessageLimits,
     gzip_level: u32,
 ) -> Result<SegFrame, Status> {
-    let len = T::serialized_len(msg);
+    let len = msg.encoded_len();
     limits.check_encode(len)?;
     let Some(codec) = codec else {
         return frame_from_msg(msg, len);
     };
-    let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
+    let body = msg.encode_to_vec()?;
     crate::copy_counts::note_serialize(body.len());
     // Compress straight into the framed buffer: one allocation instead of
     // two, and no second copy of the compressed bytes. The length prefix
@@ -265,17 +265,17 @@ pub(crate) const STREAM_BATCH_BYTES: usize = 32 * 1024;
 /// The uncompressed path serializes straight into `sink`, so a batch of `n`
 /// messages costs one head buffer rather than `n`; large shared fields
 /// become segments of their own.
-pub(crate) fn append_frame<T: Serialize>(
+pub(crate) fn append_frame<T: CodecMessage>(
     sink: &mut SegSink,
     msg: &T,
     codec: Option<Codec>,
     limits: MessageLimits,
     gzip_level: u32,
 ) -> Result<(), Status> {
-    let len = T::serialized_len(msg);
+    let len = msg.encoded_len();
     limits.check_encode(len)?;
     if let Some(codec) = codec {
-        let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
+        let body = msg.encode_to_vec()?;
         crate::copy_counts::note_serialize(body.len());
         let head = sink.head_mut();
         head.reserve(codec::HEADER_LEN + body.len() / 2 + 32);
@@ -297,7 +297,7 @@ pub(crate) fn append_frame<T: Serialize>(
     sink.reserve(codec::HEADER_LEN + len);
     sink.put_u8(0);
     sink.put_slice(&prefix.to_be_bytes());
-    T::encode(msg, sink).map_err(|e| Status::internal(e.to_string()))?;
+    msg.encode_payload(sink)?;
     Ok(())
 }
 

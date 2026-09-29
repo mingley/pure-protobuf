@@ -3,11 +3,11 @@
 use super::encode::{STREAM_BATCH_BYTES, SegSink, append_frame};
 use super::send::send_frame;
 use crate::binlog::CallLogger;
+use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::status::Status;
 use crate::stream::Framed;
 use crate::transport::h2::SendStream;
-use pbrs::Serialize;
 
 /// Accumulates encoded stream output and hands it to HTTP/2 in batches.
 pub(crate) struct OutBatch {
@@ -40,7 +40,7 @@ impl OutBatch {
     ///
     /// Encode-cap and serialize failures stay [`Status`] so a server drain
     /// can ship them as trailers instead of treating them as a dead socket.
-    pub(crate) fn encode<T: Serialize>(&mut self, item: Framed<T>) -> Result<(), Status> {
+    pub(crate) fn encode<T: CodecMessage>(&mut self, item: Framed<T>) -> Result<(), Status> {
         let checkpoint = self.sink.checkpoint();
         if let Err(status) = append_frame(
             &mut self.sink,

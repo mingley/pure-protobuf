@@ -7,6 +7,7 @@ use super::call::{
 use super::pool;
 use super::retry::{PolicyDecision, policy_retry_delay, retry_exhausted};
 use crate::binlog::CallLogger;
+use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::limits::{ByteBudgetTracker, BytePermit};
 use crate::request::{Call, Request, Response};
@@ -24,7 +25,6 @@ use crate::wire::{
 use bytes::Bytes;
 use http::HeaderValue;
 use http::uri::Authority;
-use pbrs::{Parse, Serialize};
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -50,7 +50,7 @@ pub(crate) async fn run_server_stream<Resp>(
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
-    Resp: Parse + Default + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
 {
     let outcome = run_server_stream_inner(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
@@ -87,7 +87,7 @@ async fn run_server_stream_inner<Resp>(
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
-    Resp: Parse + Default + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
@@ -203,8 +203,8 @@ async fn run_client_stream<Req, Resp>(
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Resp>, Status>
 where
-    Req: Serialize + Send + 'static,
-    Resp: Parse + Default,
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage,
 {
     // Keep the send half on this stack and RST it if the Call is dropped
     // mid-wait. Harvesting it from a spawned pump lost the RST: cancel can
@@ -290,7 +290,7 @@ where
     result
 }
 
-async fn pump_outbound_budget<T: Serialize>(
+async fn pump_outbound_budget<T: CodecMessage>(
     send: &mut backend::SendStream,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
@@ -343,7 +343,7 @@ async fn pump_outbound_budget<T: Serialize>(
                 Ok(item) => item,
                 Err(status) => return PumpEnd::Failed(status),
             };
-            let frame_len = 5 + item.message.serialized_len();
+            let frame_len = 5 + item.message.encoded_len();
             match budget.acquire(frame_len) {
                 Ok(permit) => permits.push(permit),
                 Err(status) => return PumpEnd::Failed(status),
@@ -405,8 +405,8 @@ async fn run_bidi<Req, Resp>(
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
-    Req: Serialize + Send + 'static,
-    Resp: Parse + Default + Send + 'static,
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
 {
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
@@ -574,8 +574,8 @@ impl super::Channel {
         req: Request<Req>,
     ) -> Call<Response<Streaming<Resp>>>
     where
-        Req: Serialize + Send + 'static,
-        Resp: Parse + Default + Send + 'static,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
         let mut req = req;
@@ -951,8 +951,8 @@ impl super::Channel {
         req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Resp>>)
     where
-        Req: Serialize + Send + 'static,
-        Resp: Parse + Default + Send + 'static,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
     {
         let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);
@@ -1153,8 +1153,8 @@ impl super::Channel {
         req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Streaming<Resp>>>)
     where
-        Req: Serialize + Send + 'static,
-        Resp: Parse + Default + Send + 'static,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
         let mut req = req;

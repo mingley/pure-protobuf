@@ -115,6 +115,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 For complete examples, channel setup, and cancellation behavior, see the
 [RPC shapes guide](guides/rpc-shapes.md).
 
+## Message codecs and Tower integration
+
+Generated pbrs messages implement `pbrs_grpc::CodecMessage` automatically.
+That trait is the native transport's message seam: pbrs keeps direct encode
+into the gRPC frame, `Bytes`-backed parse for large fields, and shared outbound
+segments for large `bytes` values. Hand-written or foreign message types can
+implement `CodecMessage` and then use the same `Channel`, `Rpc`, `Streaming`,
+and `StreamSender` APIs for all four RPC shapes.
+
+The optional `tower` feature adds integration points without changing the
+default dependency graph:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+```
+
+- `Router::into_tower_service()` exposes a native router as
+  `tower::Service<http::Request<B>>`, suitable for axum/hyper co-hosting next
+  to REST routes. The same adapter serves regular handlers, health, and
+  reflection; see `examples/axum-cohost`.
+- `Channel::tower_unary()` exposes one unary method as a tower service. Apply
+  caller-selected layers such as timeouts, concurrency limits, load shedding,
+  and tracing there; the ordinary `Channel` path stays unbuffered.
+
 ## Production Capabilities & How-to Guides
 
 The sections below summarize what ships and point to the detailed guides.

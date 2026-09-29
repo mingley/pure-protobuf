@@ -13,6 +13,7 @@ use super::drain::{
     send_unary_response,
 };
 use super::router::split_path;
+use crate::codec::CodecMessage;
 use crate::compression::Codec;
 use crate::config::ServerConfig;
 use crate::limits::{ByteBudgetTracker, MessageLimits};
@@ -30,7 +31,6 @@ use crate::transport::h2::{RecvStream, SendResponse};
 use crate::wire::{
     WireStream, accepts_codec, inbound_codec, read_one_message, send_trailers_only, wrap_timeout,
 };
-use pbrs::{Parse, Serialize};
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -593,8 +593,8 @@ impl Rpc {
     /// ```
     pub async fn unary<Req, Resp, F, Fut>(self, handler: F)
     where
-        Req: Parse + Default,
-        Resp: Serialize,
+        Req: CodecMessage,
+        Resp: CodecMessage,
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
@@ -701,8 +701,8 @@ impl Rpc {
     /// ```
     pub async fn client_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
-        Req: Parse + Default + Send + 'static,
-        Resp: Serialize,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
@@ -816,8 +816,8 @@ impl Rpc {
     /// ```
     pub async fn server_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
-        Req: Parse + Default,
-        Resp: Serialize + Send,
+        Req: CodecMessage,
+        Resp: CodecMessage + Send,
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
@@ -932,8 +932,8 @@ impl Rpc {
     /// ```
     pub async fn bidi_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
-        Req: Parse + Default + Send + 'static,
-        Resp: Serialize + Send,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
@@ -1028,7 +1028,7 @@ impl Rpc {
     /// `None` means the request was rejected and already answered.
     async fn run_unary_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
     where
-        Req: Parse + Default,
+        Req: CodecMessage,
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
@@ -1183,7 +1183,7 @@ impl Rpc {
     /// `None` means the request was rejected and already answered.
     async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
     where
-        Req: Parse + Default + Send + 'static,
+        Req: CodecMessage + Send + 'static,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {

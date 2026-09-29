@@ -1,0 +1,21 @@
+[package]
+name = "pbrs-grpc-example-axum-cohost"
+version = "0.1.0"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
+edition = "2024"
+rust-version = "1.85"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Co-host pbrs-grpc and axum routes on one port"
+
+[[bin]]
+name = "axum-cohost"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "http2", "tokio"] }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["tower"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+
+[lints]
+workspace = true

@@ -5,6 +5,7 @@ use super::call::{
 };
 use super::retry::{HedgeUnary, PolicyDecision, policy_retry_delay, retry_exhausted};
 use crate::binlog::CallLogger;
+use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::limits::BytePermit;
 use crate::request::{Call, Request, Response};
@@ -18,7 +19,6 @@ use crate::transport::h2 as backend;
 use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
 use http::uri::Authority;
-use pbrs::{Parse, Serialize};
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -43,7 +43,7 @@ pub(crate) async fn run_unary<Resp>(
     tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
 where
-    Resp: Parse + Default,
+    Resp: CodecMessage,
 {
     let outcome = run_unary_inner(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
@@ -79,7 +79,7 @@ async fn run_unary_inner<Resp>(
     tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
 where
-    Resp: Parse + Default,
+    Resp: CodecMessage,
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
@@ -176,8 +176,8 @@ impl super::Channel {
     /// ```
     pub fn unary<Req, Resp>(&self, path: &'static str, req: Request<Req>) -> Call<Response<Resp>>
     where
-        Req: Serialize + Send + 'static,
-        Resp: Parse + Default + Send + 'static,
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
     {
         let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);

@@ -5,6 +5,7 @@
 //! returns a [`Streaming`] of responses. The pair is created with
 //! [`Streaming::channel`].
 
+use crate::codec::CodecMessage;
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::Status;
@@ -562,7 +563,7 @@ impl<T> StreamSender<T> {
     /// also ends a server response stream with [`crate::Code::ResourceExhausted`].
     pub async fn send(&self, message: T) -> Result<(), Status>
     where
-        T: pbrs::Serialize,
+        T: CodecMessage,
     {
         if self.compress {
             self.send_framed(Framed::compressed(message)).await
@@ -577,7 +578,7 @@ impl<T> StreamSender<T> {
     /// Distinct from [`Self::send`]: that follows [`Self::compress`]; this gzips one message regardless of that flag.
     pub async fn send_compressed(&self, message: T) -> Result<(), Status>
     where
-        T: pbrs::Serialize,
+        T: CodecMessage,
     {
         self.send_framed(Framed::compressed(message)).await
     }
@@ -592,9 +593,9 @@ impl<T> StreamSender<T> {
     /// so a handler that ignores the error cannot ship OK trailers.
     pub async fn send_framed(&self, item: Framed<T>) -> Result<(), Status>
     where
-        T: pbrs::Serialize,
+        T: CodecMessage,
     {
-        if let Err(status) = self.limits.check_encode(T::serialized_len(&item.message)) {
+        if let Err(status) = self.limits.check_encode(item.message.encoded_len()) {
             self.tx.send(Err(status.clone())).await.ok();
             return Err(status);
         }

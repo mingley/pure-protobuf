@@ -20,6 +20,22 @@
 - **Independent transport**: runs directly on prior-knowledge HTTP/2 (`h2`), `rustls`, and Graviola.
 - **Native pbrs messages**: generated stubs use the `pbrs` `Parse` and `Serialize` traits.
 
+## Optional features
+
+The default feature set stays small. Enable `tower` only when you want Tower
+integration:
+
+```toml
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+```
+
+With that feature, `Router::into_tower_service()` exposes native services as
+`tower::Service<http::Request<B>>` for axum/hyper co-hosting; health and
+reflection use the same router path. `Channel::tower_unary()` exposes one
+unary method as a tower service so caller-selected layers such as timeout,
+concurrency limit, load shed, and tracing wrap the client without adding a
+buffer to the default `Channel` path. See `examples/axum-cohost`.
+
 ## Installation
 
 Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
@@ -121,8 +137,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Area | What is available |
 |---|---|
 | RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](../docs/guides/rpc-shapes.md). |
+| Message codec | The `CodecMessage` trait abstracts native messages. pbrs messages use the default fast path: direct encode into frames, `Bytes` parsing, and shared large `bytes` segments. |
 | TLS and mTLS | `rustls` + Graviola with enforced ALPN `h2`; verified client identities are available through `Rpc::peer_identity`. See the [production service guide](../docs/guides/production-service.md). |
-| Routing | `Router` composes multiple services on one TCP/TLS port. |
+| Routing | `Router` composes multiple services on one TCP/TLS port. With the optional `tower` feature it can also be mounted as a tower service next to REST routes. |
 | Local IPC | Unix Domain Sockets (`serve_unix`, `connect_unix`) and in-memory duplex channels (`Channel::from_io`). |
 | HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, and oversize frames. |
 | Name resolution | Default direct `host:port`; opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:` targets. DNS refresh needs explicit `DnsConfig` bounds. |

@@ -16,9 +16,63 @@
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
+use pbrs::{Parse, Serialize};
 
 /// Size of the gRPC length-prefix header.
 pub const HEADER_LEN: usize = 5;
+
+/// Message codec contract used by the native transport.
+///
+/// pbrs-generated messages implement this through the blanket implementation
+/// below, which preserves the fast paths: direct encode into the framed sink,
+/// `Bytes`-backed parsing, and shared outbound segments for large bytes fields.
+/// Other message families can implement this trait without changing the
+/// transport or the four RPC shapes.
+pub trait CodecMessage: Sized {
+    /// Return the uncompressed protobuf payload length.
+    fn encoded_len(&self) -> usize;
+
+    /// Encode the uncompressed protobuf payload into `out`.
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status>;
+
+    /// Materialize the uncompressed protobuf payload for compressed sends.
+    fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+        let mut out = Vec::with_capacity(self.encoded_len());
+        self.encode_payload(&mut out)?;
+        Ok(out)
+    }
+
+    /// Decode one uncompressed protobuf payload.
+    fn decode_payload(payload: Bytes) -> Result<Self, Status>;
+
+    /// Empty unary bodies decode as the message default.
+    fn empty() -> Self;
+}
+
+impl<T> CodecMessage for T
+where
+    T: Parse + Serialize + Default,
+{
+    fn encoded_len(&self) -> usize {
+        Serialize::serialized_len(self)
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+        Serialize::encode(self, out).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+        Serialize::serialize(self).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn decode_payload(payload: Bytes) -> Result<Self, Status> {
+        Parse::parse_bytes(payload).map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn empty() -> Self {
+        Self::default()
+    }
+}
 
 /// One length-prefixed frame lifted off the wire.
 #[derive(Clone, Debug)]

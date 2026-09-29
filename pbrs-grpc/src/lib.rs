@@ -1083,6 +1083,10 @@ pub mod interop_cases;
 pub mod telemetry;
 #[forbid(unsafe_code)]
 pub mod timeout;
+#[cfg(feature = "tower")]
+pub mod tower_client;
+#[cfg(feature = "tower")]
+pub mod tower_server;
 
 pub mod channelz;
 pub mod health;
@@ -1151,6 +1155,7 @@ pub mod codegen_support {
 }
 
 pub use client::{Channel, RetryStats, Target};
+pub use codec::CodecMessage;
 pub use compression::Codec;
 pub use config::{
     ChannelConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,

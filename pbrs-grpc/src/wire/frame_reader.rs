@@ -5,7 +5,7 @@ use super::headers::{
     encoding_not_supported, grpc_encoding, inbound_codec,
 };
 use crate::binlog::{CallLogger, Logger};
-use crate::codec::{self, Frame};
+use crate::codec::{self, CodecMessage, Frame};
 use crate::compression::Codec;
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
@@ -14,7 +14,6 @@ use crate::stream::{Framed, Streaming};
 use crate::transport::{Error as TransportError, FlowControl, RecvStream, h2 as backend};
 use bytes::{Bytes, BytesMut};
 use http::{HeaderMap, StatusCode};
-use pbrs::Parse;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -159,7 +158,7 @@ impl FrameReader {
     }
 }
 
-pub(crate) fn decode_frame<T: Parse + Default>(
+pub(crate) fn decode_frame<T: CodecMessage>(
     frame: Frame,
     limits: MessageLimits,
     accept_gzip: bool,
@@ -170,9 +169,9 @@ pub(crate) fn decode_frame<T: Parse + Default>(
             return Err(encoding_not_supported(false));
         }
         let raw = codec.decode_limited(&frame.payload, limits)?;
-        T::parse_bytes(Bytes::from(raw)).map_err(|e| Status::internal(e.to_string()))?
+        T::decode_payload(Bytes::from(raw))?
     } else {
-        T::parse_bytes(frame.payload).map_err(|e| Status::internal(e.to_string()))?
+        T::decode_payload(frame.payload)?
     };
     Ok(Framed {
         message,
@@ -184,7 +183,7 @@ pub(crate) fn decode_frame<T: Parse + Default>(
 ///
 /// An empty body decodes to `T::default()`, matching gRPC's treatment of a
 /// zero-field message. More than one message is a protocol violation.
-pub(crate) async fn read_one_message<T: Parse + Default>(
+pub(crate) async fn read_one_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
@@ -213,7 +212,7 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
     if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
         tap.log_half_close();
     }
-    Ok(found.unwrap_or_else(|| Framed::new(T::default())))
+    Ok(found.unwrap_or_else(|| Framed::new(T::empty())))
 }
 
 /// Drain trailers so the HTTP/2 stream closes cleanly.
@@ -233,7 +232,7 @@ pub(crate) struct WireStream<T> {
     recv: backend::RecvStream,
     reader: FrameReader,
     limits: MessageLimits,
-    /// Bound at construction, where `T: Parse` is known, so the public
+    /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
     decode: fn(Frame, MessageLimits, bool, Codec) -> Result<Framed<T>, Status>,
     accept_gzip: bool,
@@ -249,7 +248,7 @@ pub(crate) struct WireStream<T> {
     tap: Option<CallLogger>,
 }
 
-impl<T: Parse + Default> WireStream<T> {
+impl<T: CodecMessage> WireStream<T> {
     pub(crate) fn new(
         recv: backend::RecvStream,
         limits: MessageLimits,
@@ -446,7 +445,7 @@ pub(crate) fn refuse_encoding_reply(headers: &HeaderMap, accept_gzip: bool) -> R
     Ok(())
 }
 
-pub(crate) async fn finish_unary<Resp: Parse + Default>(
+pub(crate) async fn finish_unary<Resp: CodecMessage>(
     response: http::Response<backend::RecvStream>,
     limits: MessageLimits,
     accept_gzip: bool,
@@ -524,7 +523,7 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
     .with_encoding(encoding))
 }
 
-pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
+pub(crate) async fn finish_stream<Resp: CodecMessage + Send + 'static>(
     response: http::Response<backend::RecvStream>,
     limits: MessageLimits,
     deadline: Option<tokio::time::Instant>,

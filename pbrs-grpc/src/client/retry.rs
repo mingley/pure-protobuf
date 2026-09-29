@@ -2,6 +2,7 @@
 
 use super::Channel;
 use super::unary::run_unary;
+use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::request::Response;
 use crate::service_config::{HedgingPolicy, RetryPolicy, retry_backoff};
@@ -10,7 +11,6 @@ use crate::telemetry::{
     AttemptGuard, AttemptLabels, CallGuard, CancellationReason, LifecycleObserver, OwnedCallLabels,
 };
 use http::HeaderValue;
-use pbrs::Parse;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -270,7 +270,7 @@ fn spawn_hedge_attempt<Resp>(
     tx: mpsc::Sender<HedgeOutcome<Resp>>,
 ) -> tokio::task::JoinHandle<()>
 where
-    Resp: Parse + Default + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
 {
     let path = req.path;
     let md = req.md.clone();
@@ -465,7 +465,7 @@ impl super::Channel {
         mut req: HedgeUnary,
     ) -> Result<Response<Resp>, Status>
     where
-        Resp: Parse + Default + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
     {
         let _held = req.permit.take();
         let max = req.policy.max_attempts.max(1);
