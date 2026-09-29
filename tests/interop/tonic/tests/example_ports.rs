@@ -482,7 +482,18 @@ async fn compression_and_error_details_cross_stack() -> Result<(), BoxError> {
 
     let (addr, handle) = serve_tonic_greeter().await?;
     let pbrs = ports::prost_gen::helloworld::GreeterClient::new(
-        pbrs_grpc::Channel::connect(addr).await?,
+        pbrs_grpc::Channel::connect(addr).await?.send_compressed(),
+    );
+    let err = pbrs
+        .say_hello(pbrs_grpc::Request::new(pbrs_hello_request("reject")))
+        .await
+        .expect_err("tonic default rejects compressed requests");
+    assert_eq!(err.code(), pbrs_grpc::Code::Unimplemented);
+    handle.abort();
+
+    let (addr, handle) = serve_tonic_greeter_gzip().await?;
+    let pbrs = ports::prost_gen::helloworld::GreeterClient::new(
+        pbrs_grpc::Channel::connect(addr).await?.send_compressed(),
     );
     assert_eq!(
         pbrs

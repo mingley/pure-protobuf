@@ -174,9 +174,18 @@ against original tonic servers for:
 - helloworld unary;
 - routeguide unary, server-streaming, client-streaming, and bidi;
 - streaming echo unary, server-streaming, and bidi;
-- compression (tonic gzip client ↔ pbrs gzip server and pbrs client ↔ tonic gzip server);
+- compression (tonic gzip client ↔ pbrs gzip server, and pbrs gzip-upload client ↔ tonic gzip server when the tonic service enables `accept_compressed(Gzip)`);
 - richer error details (tonic client receives packed `grpc-status-details-bin`
   from the pbrs error-details server).
+
+The earlier pbrs-client to tonic-server compressed-upload failure was a tonic
+test-server configuration issue: tonic's default server rejects compressed
+requests unless the generated service enables
+`accept_compressed(CompressionEncoding::Gzip)`. The interop test now covers
+both outcomes. With tonic's default server, a pbrs client configured with
+`Channel::send_compressed()` still sends gzip and surfaces the server's
+`UNIMPLEMENTED`, matching grpc-go's behavior for a caller-forced compressed
+request when the peer omits gzip from `grpc-accept-encoding`.
 
 ### Tower middleware parity
 
