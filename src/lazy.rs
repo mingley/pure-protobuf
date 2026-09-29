@@ -44,6 +44,14 @@ enum WireInner {
     Shared(Bytes),
 }
 
+/// Private-window offset as `u32`, fail-closed above `u32::MAX` (PB07-F4:
+/// a silent `as` truncation would corrupt the window; single frames over
+/// 4 GiB are outside the qualified envelope).
+fn u32_offset(base: usize, rel: usize) -> u32 {
+    let sum = base.checked_add(rel).expect("Wire offset overflow");
+    u32::try_from(sum).expect("Wire offset exceeds u32")
+}
+
 impl Wire {
     pub fn empty() -> Self {
         Self {
@@ -57,7 +65,7 @@ impl Wire {
         }
         crate::copy_counts::note_wire(data.len());
         let buf: Arc<[u8]> = Arc::from(data);
-        let end = buf.len() as u32;
+        let end = u32_offset(buf.len(), 0);
         Self {
             inner: WireInner::Private { buf, start: 0, end },
         }
@@ -135,8 +143,8 @@ impl Wire {
                 Self {
                     inner: WireInner::Private {
                         buf: Arc::clone(buf),
-                        start: base as u32 + rel_start as u32,
-                        end: base as u32 + rel_end as u32,
+                        start: u32_offset(base, rel_start),
+                        end: u32_offset(base, rel_end),
                     },
                 }
             }
@@ -967,5 +975,24 @@ mod tests {
         let s = LazyStr::from_span(&w, 0, 3);
         assert!(matches!(s, LazyStr::Owned(_)));
         assert_eq!(s.as_view(), "ada");
+    }
+
+    #[test]
+    fn u32_offset_boundary() {
+        assert_eq!(super::u32_offset(0, 0), 0);
+        assert_eq!(super::u32_offset(100, 23), 123);
+        assert_eq!(super::u32_offset(u32::MAX as usize, 0), u32::MAX);
+    }
+
+    #[test]
+    #[should_panic(expected = "Wire offset exceeds u32")]
+    fn u32_offset_over_u32_max_fails_closed() {
+        let _ = super::u32_offset(u32::MAX as usize, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Wire offset overflow")]
+    fn u32_offset_add_overflow_fails_closed() {
+        let _ = super::u32_offset(usize::MAX, 1);
     }
 }

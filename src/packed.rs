@@ -23,6 +23,15 @@ pub trait PackedCodec: Sized {
     fn encode(elems: &[Self::Elem], out: &mut Vec<u8>);
 }
 
+/// Byte length of a fixed-width packed run, fail-closed on overflow
+/// (PB07-F2: `usize` multiply wraps on 32-bit targets for multi-GiB
+/// vectors; truncating the slice would silently corrupt output).
+fn packed_byte_len(elems_len: usize, width: usize) -> usize {
+    elems_len
+        .checked_mul(width)
+        .expect("packed encode length overflow")
+}
+
 macro_rules! varint_codec {
     ($name:ident, $elem:ty, $from:expr_2021, $to:expr_2021) => {
         #[derive(Clone, Copy, Debug)]
@@ -114,14 +123,16 @@ macro_rules! fixed_codec {
                 Ok(())
             }
             fn encode(elems: &[$elem], out: &mut Vec<u8>) {
-                crate::copy_counts::note_emit(elems.len() * $width);
+                let byte_len = packed_byte_len(elems.len(), $width);
+                crate::copy_counts::note_emit(byte_len);
                 #[cfg(target_endian = "little")]
                 {
+                    // SAFETY: the cast to *const u8 needs only 1-byte
+                    // alignment, so any element alignment is fine; `elems`
+                    // is a live shared slice, so `byte_len` bytes at that
+                    // address are valid and initialized (see §4.2).
                     let bytes = unsafe {
-                        std::slice::from_raw_parts(
-                            elems.as_ptr() as *const u8,
-                            elems.len() * $width,
-                        )
+                        std::slice::from_raw_parts(elems.as_ptr() as *const u8, byte_len)
                     };
                     out.extend_from_slice(bytes);
                 }
@@ -489,5 +500,21 @@ mod tests {
         assert!(z.is_empty());
         assert_eq!(z, PackedI32::new());
         drop(z);
+    }
+
+    #[test]
+    fn packed_byte_len_passthrough() {
+        assert_eq!(super::packed_byte_len(0, 8), 0);
+        assert_eq!(super::packed_byte_len(3, 4), 12);
+        assert_eq!(
+            super::packed_byte_len(usize::MAX / 8, 8),
+            usize::MAX / 8 * 8
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "packed encode length overflow")]
+    fn packed_byte_len_overflow_fails_closed() {
+        let _ = super::packed_byte_len(usize::MAX / 8 + 1, 8);
     }
 }

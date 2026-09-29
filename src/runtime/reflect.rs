@@ -178,7 +178,6 @@ impl ProtoBytes {
 pub(crate) unsafe fn kernel_fieldkind_to_view<'msg, T: crate::proxied::Proxied + 'static>(
     fk: FieldKind,
 ) -> Option<crate::proxied::View<'msg, T>> {
-    use crate::proxied::View;
     use std::any::TypeId;
     unsafe {
         if TypeId::of::<T>() == TypeId::of::<i32>() {
@@ -259,15 +258,10 @@ pub(crate) unsafe fn kernel_fieldkind_to_view<'msg, T: crate::proxied::Proxied +
             }
             return kernel_msg_ptr_to_view::<'msg, T>(p);
         }
-        if std::mem::size_of::<View<'msg, T>>() == 4 {
-            let v = match fk {
-                FieldKind::I32(x) => x,
-                FieldKind::U32(x) => x as i32,
-                FieldKind::F32(x) => x.to_bits() as i32,
-                _ => return None,
-            };
-            return Some(std::mem::transmute_copy(&v));
-        }
+        // PB07-F3: no 4-byte view without a named arm above exists, so the
+        // former size-based transmute fallback was unreachable; it is
+        // removed rather than fixed, since transmuting into an unknown
+        // view type cannot be proven sound.
         let _ = fk;
         None
     }
