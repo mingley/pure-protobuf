@@ -835,3 +835,149 @@ fn hybrid_map_generated_string_keys_at_scale() {
     let again = Serialize::serialize(&parsed).expect("reserialize concat");
     assert_eq!(again, both, "concat encode order stable");
 }
+
+// PB-07: lazy buffer lifetimes. Windows keep the parent frame alive through
+// refcounting (Arc for private windows, Bytes for shared windows), so a
+// window stays valid after the parent handle is dropped.
+#[test]
+fn wire_window_outlives_parent_frame() {
+    let window = {
+        let parent = pbrs::rt::Wire::from_slice(b"hello world, this is a longer payload buffer");
+        let w = parent.window(6, 11);
+        assert_eq!(w.as_slice(), b"world");
+        w
+    };
+    assert_eq!(window.as_slice(), b"world");
+
+    let shared = {
+        let frame = pbrs::rt::Bytes::copy_from_slice(b"alpha-beta-gamma-delta!!");
+        let parent = pbrs::rt::Wire::from_bytes(frame);
+        let w = parent.window(6, 10);
+        assert_eq!(w.as_slice(), b"beta");
+        assert!(w.is_shared());
+        w
+    };
+    assert_eq!(shared.as_slice(), b"beta");
+
+    // Empty windows normalize to the static empty instead of pinning a frame.
+    let parent = pbrs::rt::Wire::from_slice(b"some bytes here");
+    let empty = parent.window(4, 4);
+    assert!(empty.as_slice().is_empty());
+}
+
+// PB-07: lazy string spans above the inline threshold window the parent
+// Wire and stay readable after the parent is dropped; short spans copy.
+#[test]
+fn lazy_str_span_survives_parent_wire_drop() {
+    let field = {
+        let data = b"field-prefix: this lazy string is well over twenty-three bytes long";
+        let parent = pbrs::rt::Wire::from_slice(data);
+        pbrs::rt::LazyStr::from_span(&parent, 14, data.len())
+    };
+    assert_eq!(
+        field.as_bytes(),
+        b"this lazy string is well over twenty-three bytes long"
+    );
+
+    let short = {
+        let parent = pbrs::rt::Wire::from_slice(b"tiny");
+        pbrs::rt::LazyStr::from_span(&parent, 0, 4)
+    };
+    assert_eq!(short.as_bytes(), b"tiny");
+}
+
+// PB-07: out-of-bounds windows fail closed (panic), never slicing OOB.
+// Private backing records offsets and panics on the first read; shared
+// backing panics inside Bytes::slice. debug_assert documents the same
+// bound in debug builds.
+#[test]
+#[should_panic]
+fn wire_window_past_end_panics_private() {
+    let parent = pbrs::rt::Wire::from_slice(b"short");
+    let _ = parent.window(0, 6).as_slice();
+}
+
+#[test]
+#[should_panic]
+fn wire_window_past_end_panics_shared() {
+    let parent = pbrs::rt::Wire::from_bytes(pbrs::rt::Bytes::copy_from_slice(b"short"));
+    let _ = parent.window(0, 6);
+}
+
+// PB-07: endian-sensitive anchor, runnable on any host. The
+// #[cfg(target_endian = "big")] decoder is chunks_exact + from_le_bytes and
+// the encoder is per-element to_le_bytes; that fallback algorithm must agree
+// with the little-endian memcpy path bit-for-bit. No big-endian runner
+// exists in CI (explicit exclusion), so this test runs the fallback
+// explicitly on the LE host.
+#[test]
+fn packed_fixed_matches_big_endian_fallback_algorithm() {
+    let vals = [0u32, 1, 0x1234_5678, u32::MAX, 0x8000_0001];
+    let mut wire = Vec::new();
+    for v in vals {
+        wire.extend_from_slice(&v.to_le_bytes());
+    }
+    // Fallback decode path, as written in the big-endian cfg branch.
+    let fallback: Vec<u32> = wire
+        .chunks_exact(4)
+        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+        .collect();
+    assert_eq!(fallback, vals);
+    // Memcpy-path decode agrees.
+    let mut p = pbrs::rt::PackedFx32::new();
+    p.append_bytes(&wire).expect("append fixed");
+    let got: Vec<u32> = (0..p.as_view().len())
+        .map(|i| p.as_view().get(i).unwrap())
+        .collect();
+    assert_eq!(got, vals);
+    // Fallback encode agrees with the memcpy-path encoder.
+    let mut enc = Vec::new();
+    for v in vals {
+        enc.extend_from_slice(&v.to_le_bytes());
+    }
+    assert_eq!(p.packed_bytes().expect("packed bytes"), enc.as_slice());
+
+    // Width-8 float path, including NaN payload bits and signed zero.
+    let dvals = [0.0f64, -0.0, f64::NAN, f64::INFINITY, 1.5];
+    let mut dwire = Vec::new();
+    for v in dvals {
+        dwire.extend_from_slice(&v.to_bits().to_le_bytes());
+    }
+    let fallback_f64: Vec<u64> = dwire
+        .chunks_exact(8)
+        .map(|c| u64::from_le_bytes(c.try_into().unwrap()))
+        .collect();
+    assert_eq!(
+        fallback_f64,
+        dvals.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+    );
+    let mut pf = pbrs::rt::PackedF64::new();
+    pf.append_bytes(&dwire).expect("append f64");
+    for (i, v) in dvals.iter().enumerate() {
+        assert_eq!(pf.as_view().get(i).unwrap().to_bits(), v.to_bits());
+    }
+}
+
+// PB-07: zeroed_message<T> is sound only for zero-valid T. The two
+// non-trivial primitives both define all-zero bits as their default state:
+// OptBool::NONE is 0 (Option<bool> would be Some(false)) and CachedSize 0
+// is the clean empty-message size.
+#[test]
+fn zeroed_primitives_are_valid_defaults() {
+    let z: pbrs::rt::OptBool = unsafe { pbrs::rt::zeroed_message() };
+    assert!(z.is_none());
+    assert_eq!(z, pbrs::rt::OptBool::NONE);
+    assert_eq!(std::mem::size_of::<pbrs::rt::OptBool>(), 1);
+    let c: pbrs::rt::CachedSize = unsafe { pbrs::rt::zeroed_message() };
+    assert_eq!(c.get(), Some(0));
+}
+
+// PB-07: StringView::empty is a null pointer; as_ref guards null/empty
+// before from_raw_parts.
+#[test]
+fn string_view_empty_reads_as_empty_slice() {
+    let v = pbrs::runtime::StringView::empty();
+    unsafe { assert_eq!(v.as_ref(), b"".as_slice()) };
+    let live = pbrs::runtime::StringView::from(b"live");
+    unsafe { assert_eq!(live.as_ref(), b"live".as_slice()) };
+}
