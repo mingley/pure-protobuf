@@ -2891,7 +2891,8 @@
    "relates": [
     "CG-20"
    ],
-   "status": "in_progress"
+   "status": "in_progress",
+   "notes": "2026-09-29 coordinator: on landing, re-run the GN-04 SB-09 generation cells — residual prost gaps (Envoy core ~55ms, googleapis ~noise) should close via output-volume shrink; record the re-measure in gn04-codegen-speed.md."
   },
   {
    "id": "GN-03",
@@ -2974,7 +2975,11 @@
     "B2"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 coordinator: integrated 1bb3f336 (matcher/facts/parallel emission; EMIT flags added inside per-thread helper at integration). Verified: 10+30+41 tests, clippy/fmt, parallel determinism + EMIT-honored probes green. Accept 1 met; accept 2 substantially met (beats prost 4/7 to 2.1x, v4 ~all; residual Envoy-core/googleapis gaps structural on output volume) with re-measure owed after GN-02 lands.",
+   "evidence": [
+    "docs/evidence/gn04-codegen-speed.md"
+   ]
   },
   {
    "id": "GN-05",
