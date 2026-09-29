@@ -8558,6 +8558,45 @@
    ],
    "notes": "Split from SB-20 premise check 2026-09-29: runs 36488933446/36456626203 fail in devloop.sh cargo build --offline (no matching protobuf package). Gates SB-20 re-dispatch.",
    "status": "in_progress"
+  },
+  {
+   "id": "GF-11",
+   "title": "Enforce the RFC 9113 TLS cipher blacklist",
+   "lane": "GF",
+   "milestone": "M7",
+   "priority": "P2",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "GF-06",
+    "TC-23",
+    "IO-09"
+   ],
+   "read": [
+    "pbrs-grpc/src/tls.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "docs/evidence/io09-upstream-triage.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/tls.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "docs/grfc.md"
+   ],
+   "deliverable": "When TLS 1.2 negotiates an RFC 9113 section 9.2.2 blacklisted cipher, fail the connection with GOAWAY(INADEQUATE_SECURITY); record the decision and gRFC row.",
+   "accept": [
+    "A blacklisted-cipher TLS 1.2 handshake ends in GOAWAY 0xC, proven by a dedicated test; TLS 1.3 paths unchanged."
+   ],
+   "checks": [
+    "native-tls",
+    "native-hostile"
+   ],
+   "scoreboard": [
+    "F3"
+   ],
+   "relates": [
+    "IO-09"
+   ],
+   "notes": "Split from IO-09 triage 2026-09-29. Runs after GF-06 (tls.rs) and TC-23 (connection.rs)."
   }
  ]
 }
