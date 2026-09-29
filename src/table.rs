@@ -16,20 +16,23 @@
 //!   with lazy string/bytes, packed, and lazy-message storage. Codegen does
 //!   not emit table users yet (PK-07); the unit tests below drive
 //!   representative typed messages through the loop.
-//! * `parse_dynamic_table` (with the `reflect` feature) for dynamic messages,
-//!   used by the `tests/table_parse.rs` differential against inline parsing.
+//! * The dynamic driver (with the `reflect` feature) for
+//!   [`DynamicMessage`](crate::dynamic::DynamicMessage): PK-18 compiles one
+//!   [`DynamicTable`] per descriptor at runtime (cached in the owning pool)
+//!   and parses through [`merge_dynamic_loop`], the single binary-parse
+//!   engine for dynamic messages. `parse_dynamic_table` keeps the PK-06
+//!   split-unknown contract for differential testing.
 //!
-//! Semantics mirror generated `merge_inner` (typed path) and dynamic
-//! `merge_bytes` (dynamic path): last-wins singular assignment, oneof
+//! Semantics mirror generated `merge_inner` (typed path) and the historical
+//! dynamic behavior (dynamic path): last-wins singular assignment, oneof
 //! replacement, proto2 required checks, per-edition UTF-8 rules,
 //! unknown-enum retention for closed enums, packed/unpacked compatibility,
 //! groups (including truncation/mismatch errors), recursion limits, and
 //! unknown-field preservation through the shared `capture_unknown` helper.
 //!
-//! One intentional typed/dynamic difference is inherited from the inline
-//! engines: generated code keeps unknown values of *repeated* closed enums
-//! in the field, while dynamic parsing moves them to unknown fields. Each
-//! table path mirrors its own inline counterpart.
+//! One intentional typed/dynamic difference: generated code keeps unknown
+//! values of *repeated* closed enums in the field, while dynamic parsing
+//! moves them to unknown fields. Each table path mirrors its own counterpart.
 
 use crate::error::ParseError;
 use crate::lazy::{LazyBytes, LazyStr, Wire};
@@ -725,11 +728,9 @@ fn dispatch_packed<M: TableMerge>(
 
 #[cfg(feature = "reflect")]
 use crate::dynamic::{
-    Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, MapKeyValue,
-    MessageDescriptor, Value,
+    Cardinality, DescriptorPool, DynamicMessage, EnumDescriptor, FieldDescriptor, FieldType,
+    MapKeyValue, MessageDescriptor, Value,
 };
-#[cfg(feature = "reflect")]
-use crate::message::{MergeFrom, Serialize};
 #[cfg(feature = "reflect")]
 use crate::string::{ProtoBytes, ProtoString};
 #[cfg(feature = "reflect")]
@@ -828,13 +829,198 @@ fn table_kind(field: &FieldDescriptor) -> FieldKind {
     }
 }
 
+/// Compiled dynamic-parse table for one message descriptor (PK-18).
+///
+/// Built once per descriptor (cached in the owning [`DescriptorPool`], or
+/// fresh per parse for pool-less descriptors) and shared by every occurrence
+/// in the parse. Dispatch entries come from [`build_table`]; the parallel
+/// snapshots carry everything else the fast loop needs per occurrence without
+/// touching the descriptor: oneof membership for singular assignment,
+/// closed-enum descriptors for unknown-value checks, and the required set.
+/// Nested message/group/map-entry types resolve lazily through
+/// [`DynamicParseCtx`], which also memoizes tables per parse.
+#[cfg(feature = "reflect")]
+#[derive(Debug)]
+pub(crate) struct DynamicTable {
+    /// Owning descriptor, consulted only on resolution-cache misses.
+    desc: Arc<MessageDescriptor>,
+    /// Field dispatch entries, sorted by number (see [`build_table`]).
+    entries: Vec<FieldEntry>,
+    /// Oneof members per entry index (`None` for non-oneof fields).
+    oneof: Vec<Option<Vec<u32>>>,
+    /// Closed-enum descriptors per entry index for unknown-value checks.
+    enums: Vec<Option<Arc<EnumDescriptor>>>,
+    /// Required field numbers for end-of-message enforcement.
+    required: Vec<u32>,
+    /// MessageSet wire format flag snapshot.
+    message_set: bool,
+    /// Direct map-entry decode snapshot, when this table describes a map
+    /// entry with singular non-map key/value fields (see
+    /// [`decode_dynamic_map_entry_direct`]).
+    map_entry: Option<MapEntrySnap>,
+}
+
+/// Snapshotted key/value shape of a map entry: entry indices plus the field
+/// metadata the direct decoder needs without touching the descriptor.
+#[cfg(feature = "reflect")]
+#[derive(Debug)]
+struct MapEntrySnap {
+    /// Index into [`DynamicTable::entries`] (and the parallel `oneof`/`enums`
+    /// snapshots) of the key field (number 1).
+    key_idx: usize,
+    /// Index of the value field (number 2).
+    val_idx: usize,
+    /// Key field type, for the missing-key default.
+    key_ty: FieldType,
+    /// Value field descriptor, for the missing-value default.
+    val_field: FieldDescriptor,
+}
+
+/// Compile the parse table for `desc`: PK-06 dispatch entries plus the
+/// dynamic snapshots the fast loop needs per occurrence.
+#[cfg(feature = "reflect")]
+pub(crate) fn compile_dynamic_table(desc: &Arc<MessageDescriptor>) -> DynamicTable {
+    let entries = build_table(desc);
+    let mut oneof = Vec::with_capacity(entries.len());
+    let mut enums = Vec::with_capacity(entries.len());
+    let mut required = Vec::new();
+    for entry in &entries {
+        let field = desc.field(entry.number);
+        oneof.push(
+            field
+                .and_then(|f| f.oneof_index)
+                .and_then(|idx| desc.oneofs.get(idx as usize).cloned()),
+        );
+        enums.push(field.and_then(|f| {
+            if f.field_type == FieldType::Enum {
+                f.enum_ty.clone().filter(|e| e.closed)
+            } else {
+                None
+            }
+        }));
+        if field.is_some_and(|f| f.cardinality == Cardinality::Required) {
+            required.push(entry.number);
+        }
+    }
+    // Direct map-entry snapshots apply to any table shaped like an entry;
+    // only entry tables ever query them.
+    let map_entry = (|| {
+        let key_idx = entries
+            .binary_search_by_key(&1, |entry| entry.number)
+            .ok()?;
+        let val_idx = entries
+            .binary_search_by_key(&2, |entry| entry.number)
+            .ok()?;
+        for idx in [key_idx, val_idx] {
+            let entry = entries.get(idx)?;
+            if entry.is_map() || entry.is_repeated() {
+                return None;
+            }
+        }
+        Some(MapEntrySnap {
+            key_idx,
+            val_idx,
+            key_ty: desc.field(1)?.field_type,
+            val_field: desc.field(2)?.clone(),
+        })
+    })();
+    DynamicTable {
+        desc: desc.clone(),
+        entries,
+        oneof,
+        enums,
+        required,
+        message_set: desc.message_set_wire_format,
+        map_entry,
+    }
+}
+
+/// One memoized nested-type resolution: the resolved descriptor plus its
+/// compiled table, keyed by (parent table address, entry index).
+#[cfg(feature = "reflect")]
+#[derive(Debug)]
+struct ResolvedNested {
+    key: (usize, usize),
+    desc: Arc<MessageDescriptor>,
+    table: Arc<DynamicTable>,
+}
+
+/// Per-parse dynamic resolution state (PK-18).
+///
+/// The pool is fixed for a whole top-level parse, so every nested-type and
+/// table lookup is memoized here: a repeated field pays one pool resolution
+/// and one table fetch per parse no matter how many occurrences it has.
+/// Tables themselves are immutable during the parse, which keeps the memo
+/// keys (plain addresses) sound.
+#[cfg(feature = "reflect")]
+#[derive(Debug)]
+pub(crate) struct DynamicParseCtx {
+    pool: Option<Arc<DescriptorPool>>,
+    /// Compiled tables by descriptor address.
+    tables: Vec<(usize, Arc<DynamicTable>)>,
+    /// Resolved nested types by (parent table address, entry index).
+    resolved: Vec<ResolvedNested>,
+}
+
+#[cfg(feature = "reflect")]
+impl DynamicParseCtx {
+    pub(crate) fn new(pool: Option<Arc<DescriptorPool>>) -> Self {
+        Self {
+            pool,
+            tables: Vec::new(),
+            resolved: Vec::new(),
+        }
+    }
+
+    /// Table for `desc`, memoized per parse. Pool-owned descriptors share the
+    /// pool cache; foreign ones compile fresh.
+    pub(crate) fn table_for(&mut self, desc: &Arc<MessageDescriptor>) -> Arc<DynamicTable> {
+        let key = Arc::as_ptr(desc) as usize;
+        if let Some(hit) = self.tables.iter().find(|(k, _)| *k == key) {
+            return hit.1.clone();
+        }
+        let table = match self.pool.as_ref() {
+            Some(pool) => pool.parse_table_for(desc),
+            None => Arc::new(compile_dynamic_table(desc)),
+        };
+        self.tables.push((key, table.clone()));
+        table
+    }
+
+    /// Resolve the nested message/group/map-entry type of one entry, memoized
+    /// per parse. Pool-first, then descriptor-linked — exactly
+    /// `field_message_desc` — plus the nested compiled table.
+    pub(crate) fn resolve_nested(
+        &mut self,
+        table: &Arc<DynamicTable>,
+        index: usize,
+        number: u32,
+    ) -> Result<(Arc<MessageDescriptor>, Arc<DynamicTable>), ParseError> {
+        let key = (Arc::as_ptr(table) as usize, index);
+        if let Some(hit) = self.resolved.iter().find(|r| r.key == key) {
+            return Ok((hit.desc.clone(), hit.table.clone()));
+        }
+        let field = table
+            .desc
+            .field(number)
+            .ok_or_else(|| ParseError::new("table descriptor mismatch"))?;
+        let desc = crate::dynamic::field_message_desc(field, self.pool.as_ref())?;
+        let nested = self.table_for(&desc);
+        self.resolved.push(ResolvedNested {
+            key,
+            desc: desc.clone(),
+            table: nested.clone(),
+        });
+        Ok((desc, nested))
+    }
+}
+
 /// Dynamic message parsed through the table loop.
 ///
-/// Unknown storage lives in `dynamic.rs`, which PK-06 must not modify, so
-/// top-level unknowns are returned alongside the message instead of inside
-/// it: `msg.serialize()` bytes followed by `unknown.encode()` bytes equal the
-/// inline parse serialization byte-for-byte. Nested values are fused through
-/// a serialize/reparse round trip (see [`parse_dynamic_table`]).
+/// The loop stores unknowns in the message directly; this split return keeps
+/// the PK-06 contract for differential testing: `msg.serialize()` bytes
+/// followed by `unknown.encode()` bytes equal the inline parse serialization
+/// byte-for-byte.
 #[cfg(feature = "reflect")]
 pub struct TabledDynamic {
     pub msg: DynamicMessage,
@@ -861,37 +1047,32 @@ pub fn parse_dynamic_table_with(
     depth: u32,
     enforce_required: bool,
 ) -> Result<TabledDynamic, ParseError> {
-    let table = build_table(&desc);
-    let mut msg = DynamicMessage::new(desc.clone());
-    if let Some(pool) = &pool {
-        msg.set_pool(pool.clone());
-    }
-    let mut unknown = UnknownFields::default();
-    merge_dynamic_table(
-        &desc,
-        pool.as_ref(),
-        &table,
-        &mut msg,
-        &mut unknown,
-        data,
-        depth,
-        enforce_required,
-        None,
-    )?;
+    let mut msg = DynamicMessage::parse_with_pool_depth(desc, pool, data, depth, enforce_required)?;
+    let unknown = msg.take_unknown();
     Ok(TabledDynamic { msg, unknown })
 }
 
-/// Table-driven merge into a dynamic message; mirrors `merge_bytes` with
-/// `until` added for group bodies.
+/// Unified table-driven dynamic merge (PK-18): the single binary-parse engine
+/// for [`DynamicMessage`], with `until` added for group bodies.
+///
+/// Dispatch is a binary search over the compiled [`DynamicTable`]; unknowns
+/// land in the message directly. Semantics are the historical dynamic ones:
+/// last-wins singular assignment (with singular-message deep merge), oneof
+/// replacement, proto2 required checks, per-field UTF-8 rules,
+/// unknown-enum retention for closed enums, packed/unpacked compatibility
+/// independent of the `packed` flag, groups (including truncation/mismatch
+/// errors), recursion limits, and unknown-field preservation.
 #[cfg(feature = "reflect")]
-#[allow(clippy::too_many_arguments, reason = "mirrors merge_table framing")]
-fn merge_dynamic_table(
-    desc: &MessageDescriptor,
-    pool: Option<&Arc<DescriptorPool>>,
-    table: &[FieldEntry],
+#[allow(
+    clippy::too_many_arguments,
+    reason = "loop carries the full parse frame"
+)]
+pub(crate) fn merge_dynamic_loop(
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
     msg: &mut DynamicMessage,
-    unknown: &mut UnknownFields,
     data: &[u8],
+    pos: &mut usize,
     depth: u32,
     enforce: bool,
     until: Option<u32>,
@@ -899,9 +1080,8 @@ fn merge_dynamic_table(
     if depth > RECURSION_LIMIT {
         return Err(ParseError::new("recursion limit exceeded"));
     }
-    let mut pos = 0;
-    while pos < data.len() {
-        let (number, wire_type) = dyn_decode_tag(data, &mut pos)?;
+    while *pos < data.len() {
+        let (number, wire_type) = dyn_decode_tag(data, pos)?;
         if let Some(group) = until {
             if wire_type == WIRE_EGROUP {
                 if number != group {
@@ -910,29 +1090,34 @@ fn merge_dynamic_table(
                 return Ok(());
             }
         }
-        if desc.message_set_wire_format && number == 1 {
-            merge_dynamic_message_set(desc, pool, msg, unknown, data, &mut pos, wire_type, depth)?;
+        if table.message_set && number == 1 {
+            merge_dynamic_message_set(ctx, table, msg, data, pos, wire_type, depth)?;
             continue;
         }
-        let Some(entry) = find_entry(table, number) else {
-            unknown
-                .fields
-                .push(capture_unknown(data, &mut pos, number, wire_type)?);
+        let Ok(index) = table
+            .entries
+            .binary_search_by_key(&number, |entry| entry.number)
+        else {
+            let unknown = capture_unknown(data, pos, number, wire_type)?;
+            msg.unknown_mut().fields.push(unknown);
             continue;
         };
-        let Some(field) = desc.field(number).cloned() else {
+        let (Some(entry), oneof) = (
+            table.entries.get(index),
+            table.oneof.get(index).and_then(|o| o.as_deref()),
+        ) else {
             return Err(ParseError::new("table descriptor mismatch"));
         };
-        merge_dynamic_field(
-            &field, entry, pool, msg, unknown, data, &mut pos, wire_type, depth,
+        merge_dynamic_entry(
+            ctx, table, index, entry, oneof, msg, data, pos, wire_type, depth,
         )?;
     }
     if until.is_some() {
         return Err(ParseError::new("truncated group"));
     }
     if enforce {
-        for field in desc.fields.values() {
-            if field.cardinality == Cardinality::Required && !msg.has(field.number) {
+        for number in &table.required {
+            if !msg.has(*number) {
                 return Err(ParseError::new("missing required field"));
             }
         }
@@ -940,379 +1125,409 @@ fn merge_dynamic_table(
     Ok(())
 }
 
-/// One accepted field occurrence; mirrors `merge_field` including packed
-/// acceptance independent of the `packed` flag.
+/// Whether `n` is an unknown number for the closed enum at `index` (`false`
+/// for open or non-enum fields).
 #[cfg(feature = "reflect")]
-#[allow(clippy::too_many_arguments, reason = "mirrors merge_field shape")]
-fn merge_dynamic_field(
-    field: &FieldDescriptor,
-    entry: &FieldEntry,
-    pool: Option<&Arc<DescriptorPool>>,
+fn is_closed_unknown(table: &DynamicTable, index: usize, n: i32) -> bool {
+    table
+        .enums
+        .get(index)
+        .and_then(|e| e.as_ref())
+        .is_some_and(|e| !e.values.contains_key(&n))
+}
+
+/// Divert unknown closed-enum numbers to unknown fields. Returns whether the
+/// value was diverted (and so must not be stored in the field).
+#[cfg(feature = "reflect")]
+fn divert_closed_unknown(
+    table: &DynamicTable,
+    index: usize,
     msg: &mut DynamicMessage,
-    unknown: &mut UnknownFields,
+    number: u32,
+    value: &Value,
+) -> bool {
+    let Value::Enum(n) = value else {
+        return false;
+    };
+    if !is_closed_unknown(table, index, *n) {
+        return false;
+    }
+    msg.unknown_mut().fields.push(UnknownField::Varint {
+        number,
+        value: *n as u64,
+    });
+    true
+}
+
+/// One accepted field occurrence, including packed acceptance independent of
+/// the `packed` flag.
+#[cfg(feature = "reflect")]
+#[allow(clippy::too_many_arguments, reason = "one field occurrence frame")]
+fn merge_dynamic_entry(
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
+    index: usize,
+    entry: &FieldEntry,
+    oneof: Option<&[u32]>,
+    msg: &mut DynamicMessage,
     data: &[u8],
     pos: &mut usize,
     wire_type: u32,
     depth: u32,
 ) -> Result<(), ParseError> {
+    let number = entry.number;
     let expected = u32::from(entry.expected_wire);
     let packed_ok = entry.is_packable_repeated() && wire_type == WIRE_LEN;
     let map_wire = entry.is_map() && wire_type == WIRE_LEN;
     if wire_type != expected && !packed_ok && !map_wire {
-        unknown
-            .fields
-            .push(capture_unknown(data, pos, field.number, wire_type)?);
+        let unknown = capture_unknown(data, pos, number, wire_type)?;
+        msg.unknown_mut().fields.push(unknown);
         return Ok(());
     }
-    if field.is_map {
+    if entry.is_map() {
         let payload = read_len_bytes(data, pos)?;
-        let entry_desc = table_field_message_desc(field, pool)?;
-        let (key, value) = decode_dynamic_map_entry(&entry_desc, payload, pool, depth)?;
-        msg.insert_map(field.number, key, value);
+        let (_, nested) = ctx.resolve_nested(table, index, number)?;
+        let (key, value) = decode_dynamic_map_entry(ctx, &nested, payload, depth)?;
+        msg.insert_map(number, key, value);
         return Ok(());
     }
-    if field.cardinality == Cardinality::Repeated {
+    if entry.is_repeated() {
         if packed_ok {
             let payload = read_len_bytes(data, pos)?;
             let mut item = 0;
             let leaf_wire = u32::from(entry.kind.native_wire());
             while item < payload.len() {
-                let value = decode_dynamic_leaf(field, payload, &mut item, leaf_wire, pool, depth)?;
-                if let Value::Enum(number) = &value {
-                    if is_dynamic_closed_unknown(field, *number) {
-                        unknown.fields.push(UnknownField::Varint {
-                            number: field.number,
-                            value: *number as u64,
-                        });
-                        continue;
-                    }
+                let value = decode_dynamic_leaf(
+                    ctx, table, index, entry, payload, &mut item, leaf_wire, depth,
+                )?;
+                if divert_closed_unknown(table, index, msg, number, &value) {
+                    continue;
                 }
-                msg.push(field.number, value);
+                msg.push(number, value);
             }
             return Ok(());
         }
-        let value = decode_dynamic_leaf(field, data, pos, wire_type, pool, depth)?;
-        if let Value::Enum(number) = &value {
-            if is_dynamic_closed_unknown(field, *number) {
-                unknown.fields.push(UnknownField::Varint {
-                    number: field.number,
-                    value: *number as u64,
-                });
-                return Ok(());
-            }
+        let value = decode_dynamic_leaf(ctx, table, index, entry, data, pos, wire_type, depth)?;
+        if divert_closed_unknown(table, index, msg, number, &value) {
+            return Ok(());
         }
-        msg.push(field.number, value);
+        msg.push(number, value);
         return Ok(());
     }
-    let value = decode_dynamic_leaf(field, data, pos, wire_type, pool, depth)?;
-    if let Value::Enum(number) = &value {
-        if is_dynamic_closed_unknown(field, *number) {
-            unknown.fields.push(UnknownField::Varint {
-                number: field.number,
-                value: *number as u64,
-            });
-            return Ok(());
-        }
+    let value = decode_dynamic_leaf(ctx, table, index, entry, data, pos, wire_type, depth)?;
+    if divert_closed_unknown(table, index, msg, number, &value) {
+        return Ok(());
     }
     if let Value::Message(incoming) = value {
-        if let Some(Value::Message(existing)) = msg.get_singular(field.number).cloned() {
-            let mut merged = existing;
-            merged.merge_from(incoming);
-            msg.set(field.number, Value::Message(merged));
-        } else {
-            msg.set(field.number, Value::Message(incoming));
-        }
+        msg.merge_singular_message(number, oneof, incoming);
         return Ok(());
     }
-    msg.set(field.number, value);
+    msg.set_prepared(number, oneof, value);
     Ok(())
 }
 
-/// Decode one field value; mirrors `decode_leaf` including its defensive wire
-/// checks and `std::str::from_utf8` UTF-8 path.
+/// Decode one field value, including the defensive wire checks and the
+/// `std::str::from_utf8` UTF-8 path. Nested messages parse directly into the
+/// loop (no serialize/reparse fuse); unknowns stay inside the nested value.
 #[cfg(feature = "reflect")]
+#[allow(clippy::too_many_arguments, reason = "leaf carries the parse frame")]
 fn decode_dynamic_leaf(
-    field: &FieldDescriptor,
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
+    index: usize,
+    entry: &FieldEntry,
     data: &[u8],
     pos: &mut usize,
     wire_type: u32,
-    pool: Option<&Arc<DescriptorPool>>,
     depth: u32,
 ) -> Result<Value, ParseError> {
-    if field.delimited || field.field_type == FieldType::Group {
-        return decode_dynamic_group(field, data, pos, pool, depth);
-    }
-    match field.field_type {
-        FieldType::Message => {
+    match entry.kind {
+        FieldKind::Group => decode_dynamic_group(ctx, table, index, entry.number, data, pos, depth),
+        FieldKind::Message => {
             if wire_type != WIRE_LEN {
                 return Err(ParseError::new("bad wire type for message"));
             }
             let payload = read_len_bytes(data, pos)?;
-            let desc = table_field_message_desc(field, pool)?;
-            let nested = parse_dynamic_table_with(desc, pool.cloned(), payload, depth + 1, true)?;
-            Ok(Value::Message(fuse_dynamic(nested)?))
+            let (desc, nested) = ctx.resolve_nested(table, index, entry.number)?;
+            let mut inner = DynamicMessage::new(desc);
+            if let Some(pool) = ctx.pool.clone() {
+                inner.set_pool(pool);
+            }
+            let mut inner_pos = 0;
+            merge_dynamic_loop(
+                ctx,
+                &nested,
+                &mut inner,
+                payload,
+                &mut inner_pos,
+                depth + 1,
+                true,
+                None,
+            )?;
+            Ok(Value::Message(inner))
         }
-        FieldType::Group => decode_dynamic_group(field, data, pos, pool, depth),
-        FieldType::String => {
+        FieldKind::String => {
             if wire_type != WIRE_LEN {
                 return Err(ParseError::new("bad wire type for string"));
             }
             let bytes = read_len_bytes(data, pos)?;
-            if field.utf8_validate {
+            if entry.flags.contains(FieldFlags::UTF8_VALIDATE) {
                 std::str::from_utf8(bytes).map_err(|_| ParseError::new("invalid utf-8"))?;
             }
             Ok(Value::String(ProtoString::from_bytes(bytes)))
         }
-        FieldType::Bytes => {
+        FieldKind::Bytes => {
             if wire_type != WIRE_LEN {
                 return Err(ParseError::new("bad wire type for bytes"));
             }
             Ok(Value::Bytes(ProtoBytes::from(read_len_bytes(data, pos)?)))
         }
-        FieldType::Double => Ok(Value::Double(f64::from_bits(read_fixed64(data, pos)?))),
-        FieldType::Float => Ok(Value::Float(f32::from_bits(read_fixed32(data, pos)?))),
-        FieldType::Fixed64 => Ok(Value::Uint64(read_fixed64(data, pos)?)),
-        FieldType::Sfixed64 => Ok(Value::Int64(read_fixed64(data, pos)? as i64)),
-        FieldType::Fixed32 => Ok(Value::Uint32(read_fixed32(data, pos)?)),
-        FieldType::Sfixed32 => Ok(Value::Int32(read_fixed32(data, pos)? as i32)),
-        FieldType::Bool => Ok(Value::Bool(decode_varint(data, pos)? != 0)),
-        FieldType::Int32 => Ok(Value::Int32(decode_varint(data, pos)? as i32)),
-        FieldType::Int64 => Ok(Value::Int64(decode_varint(data, pos)? as i64)),
-        FieldType::Uint32 => Ok(Value::Uint32(decode_varint(data, pos)? as u32)),
-        FieldType::Uint64 => Ok(Value::Uint64(decode_varint(data, pos)?)),
-        FieldType::Sint32 => Ok(Value::Int32(decode_zigzag32(decode_varint(data, pos)?))),
-        FieldType::Sint64 => Ok(Value::Int64(decode_zigzag64(decode_varint(data, pos)?))),
-        FieldType::Enum => Ok(Value::Enum(decode_varint(data, pos)? as i32)),
+        FieldKind::Double => Ok(Value::Double(f64::from_bits(read_fixed64(data, pos)?))),
+        FieldKind::Float => Ok(Value::Float(f32::from_bits(read_fixed32(data, pos)?))),
+        FieldKind::Fixed64 => Ok(Value::Uint64(read_fixed64(data, pos)?)),
+        FieldKind::Sfixed64 => Ok(Value::Int64(read_fixed64(data, pos)? as i64)),
+        FieldKind::Fixed32 => Ok(Value::Uint32(read_fixed32(data, pos)?)),
+        FieldKind::Sfixed32 => Ok(Value::Int32(read_fixed32(data, pos)? as i32)),
+        FieldKind::Bool => Ok(Value::Bool(decode_varint(data, pos)? != 0)),
+        FieldKind::Int32 => Ok(Value::Int32(decode_varint(data, pos)? as i32)),
+        FieldKind::Int64 => Ok(Value::Int64(decode_varint(data, pos)? as i64)),
+        FieldKind::Uint32 => Ok(Value::Uint32(decode_varint(data, pos)? as u32)),
+        FieldKind::Uint64 => Ok(Value::Uint64(decode_varint(data, pos)?)),
+        FieldKind::Sint32 => Ok(Value::Int32(decode_zigzag32(decode_varint(data, pos)?))),
+        FieldKind::Sint64 => Ok(Value::Int64(decode_zigzag64(decode_varint(data, pos)?))),
+        FieldKind::Enum => Ok(Value::Enum(decode_varint(data, pos)? as i32)),
     }
 }
 
-/// Decode one group body; mirrors `decode_group` by running the table loop
-/// over the group descriptor with `until` set to the group number.
+/// Decode one group body by running the loop over the group descriptor with
+/// `until` set to the group number and the caller's cursor. Required checks
+/// stay off inside group bodies, exactly as before.
 #[cfg(feature = "reflect")]
 fn decode_dynamic_group(
-    field: &FieldDescriptor,
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
+    index: usize,
+    number: u32,
     data: &[u8],
     pos: &mut usize,
-    pool: Option<&Arc<DescriptorPool>>,
     depth: u32,
 ) -> Result<Value, ParseError> {
     if depth + 1 > RECURSION_LIMIT {
         return Err(ParseError::new("recursion limit exceeded"));
     }
-    let desc = table_field_message_desc(field, pool)?;
-    let table = build_table(&desc);
-    let mut msg = DynamicMessage::new(desc.clone());
-    if let Some(pool) = pool {
-        msg.set_pool((*pool).clone());
+    let (desc, nested) = ctx.resolve_nested(table, index, number)?;
+    let mut inner = DynamicMessage::new(desc);
+    if let Some(pool) = ctx.pool.clone() {
+        inner.set_pool(pool);
     }
-    let mut unknown = UnknownFields::default();
-    merge_dynamic_group_body(
-        &desc,
-        pool,
-        &table,
-        &mut msg,
-        &mut unknown,
+    merge_dynamic_loop(
+        ctx,
+        &nested,
+        &mut inner,
         data,
         pos,
         depth + 1,
-        field.number,
+        false,
+        Some(number),
     )?;
-    let nested = TabledDynamic { msg, unknown };
-    Ok(Value::Message(fuse_dynamic(nested)?))
+    Ok(Value::Message(inner))
 }
 
-/// Group-body loop sharing `merge_dynamic_table` dispatch with a caller-owned
-/// cursor. Group field errors surface exactly as in `decode_group`.
-#[cfg(feature = "reflect")]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "group framing needs the full context"
-)]
-fn merge_dynamic_group_body(
-    desc: &Arc<MessageDescriptor>,
-    pool: Option<&Arc<DescriptorPool>>,
-    table: &[FieldEntry],
-    msg: &mut DynamicMessage,
-    unknown: &mut UnknownFields,
-    data: &[u8],
-    pos: &mut usize,
-    depth: u32,
-    group_number: u32,
-) -> Result<(), ParseError> {
-    loop {
-        if *pos >= data.len() {
-            return Err(ParseError::new("truncated group"));
-        }
-        let (number, wire_type) = dyn_decode_tag(data, pos)?;
-        if wire_type == WIRE_EGROUP {
-            if number != group_number {
-                return Err(ParseError::new("mismatched end-group"));
-            }
-            return Ok(());
-        }
-        if desc.message_set_wire_format && number == 1 {
-            merge_dynamic_message_set(desc, pool, msg, unknown, data, pos, wire_type, depth)?;
-            continue;
-        }
-        let Some(entry) = find_entry(table, number) else {
-            unknown
-                .fields
-                .push(capture_unknown(data, pos, number, wire_type)?);
-            continue;
-        };
-        let Some(field) = desc.field(number).cloned() else {
-            return Err(ParseError::new("table descriptor mismatch"));
-        };
-        merge_dynamic_field(
-            &field, entry, pool, msg, unknown, data, pos, wire_type, depth,
-        )?;
-    }
-}
-
-/// Fuse a split nested parse into one dynamic message.
-///
-/// Serializes known fields plus unknowns and reparses with the inline engine,
-/// which restores the identical field set and unknown list (the differential
-/// test proves this round trip is lossless). Needed only because unknown
-/// storage is private to `dynamic.rs`, outside the PK-06 write scope; the
-/// typed table path (the PK-07 codegen target) fuses structurally instead.
-#[cfg(feature = "reflect")]
-fn fuse_dynamic(nested: TabledDynamic) -> Result<DynamicMessage, ParseError> {
-    if nested.unknown.fields.is_empty() {
-        return Ok(nested.msg);
-    }
-    let desc = nested.msg.descriptor().clone();
-    let pool = nested.msg.pool().cloned();
-    let mut combined = nested
-        .msg
-        .serialize()
-        .map_err(|_| ParseError::new("table: nested fuse serialize failed"))?;
-    nested.unknown.encode(&mut combined);
-    DynamicMessage::parse_with_pool(desc, pool, &combined)
-}
-
-/// Decode one map entry; mirrors `decode_map_entry` (entry unknowns are
-/// dropped by design in both engines).
+/// Decode one map entry: parse the payload as the entry message, then extract
+/// key and value with the historical defaults. Entry unknowns are dropped by
+/// design (the entry message is a temporary).
 #[cfg(feature = "reflect")]
 fn decode_dynamic_map_entry(
-    entry: &MessageDescriptor,
+    ctx: &mut DynamicParseCtx,
+    entry_table: &Arc<DynamicTable>,
     payload: &[u8],
-    pool: Option<&Arc<DescriptorPool>>,
     depth: u32,
 ) -> Result<(MapKeyValue, Value), ParseError> {
-    let owned_pool = pool.cloned();
-    let parsed = parse_dynamic_table_with(
-        Arc::new(entry.clone()),
-        owned_pool.clone(),
+    if let Some(snap) = entry_table.map_entry.as_ref() {
+        return decode_dynamic_map_entry_direct(ctx, entry_table, snap, payload, depth);
+    }
+    decode_dynamic_map_entry_temp(ctx, entry_table, payload, depth)
+}
+
+/// Decode one map entry through a temporary entry message. This is the
+/// fallback for entry shapes the direct decoder does not cover (map or
+/// repeated typed key/value fields); normal entries never reach it.
+#[cfg(feature = "reflect")]
+fn decode_dynamic_map_entry_temp(
+    ctx: &mut DynamicParseCtx,
+    entry_table: &Arc<DynamicTable>,
+    payload: &[u8],
+    depth: u32,
+) -> Result<(MapKeyValue, Value), ParseError> {
+    let entry_desc = entry_table.desc.clone();
+    let mut parsed = DynamicMessage::new(entry_desc.clone());
+    if let Some(pool) = ctx.pool.clone() {
+        parsed.set_pool(pool);
+    }
+    let mut entry_pos = 0;
+    merge_dynamic_loop(
+        ctx,
+        entry_table,
+        &mut parsed,
         payload,
+        &mut entry_pos,
         depth + 1,
         false,
+        None,
     )?;
-    let key_field = entry
+    let key_field = entry_desc
         .field(1)
         .ok_or_else(|| ParseError::new("map entry missing key"))?;
-    let val_field = entry
+    let val_field = entry_desc
         .field(2)
         .ok_or_else(|| ParseError::new("map entry missing value"))?;
-    let key = match parsed.msg.get_singular(1) {
-        Some(value) => table_value_to_map_key(value)?,
-        None => table_default_map_key(key_field.field_type)?,
+    let key = match parsed.get_singular(1) {
+        Some(value) => crate::dynamic::value_to_map_key(value)?,
+        None => crate::dynamic::default_map_key(key_field.field_type)?,
     };
-    let value = match parsed.msg.get_singular(2) {
+    let value = match parsed.get_singular(2) {
         Some(value) => value.clone(),
-        None => table_default_value(val_field, owned_pool.as_ref())?,
+        None => crate::dynamic::default_value(val_field, ctx.pool.as_ref())?,
     };
     Ok((key, value))
 }
 
-/// Mirror of the dynamic `value_to_map_key` helper.
+/// Store one map-entry key/value occurrence into its slot, replicating the
+/// temporary-message semantics: a repeated message value deep-merges into the
+/// stored one, anything else replaces (clearing the oneof sibling slot first,
+/// exactly like [`DynamicMessage::set`] would inside the temporary).
 #[cfg(feature = "reflect")]
-fn table_value_to_map_key(value: &Value) -> Result<MapKeyValue, ParseError> {
-    match value {
-        Value::Int32(number) => Ok(MapKeyValue::I32(*number)),
-        Value::Int64(number) => Ok(MapKeyValue::I64(*number)),
-        Value::Uint32(number) => Ok(MapKeyValue::U32(*number)),
-        Value::Uint64(number) => Ok(MapKeyValue::U64(*number)),
-        Value::Bool(flag) => Ok(MapKeyValue::Bool(*flag)),
-        Value::String(text) => Ok(MapKeyValue::String(text.clone())),
-        _ => Err(ParseError::new("invalid map key type")),
-    }
-}
-
-/// Mirror of the dynamic `default_map_key` helper.
-#[cfg(feature = "reflect")]
-fn table_default_map_key(ty: FieldType) -> Result<MapKeyValue, ParseError> {
-    match ty {
-        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => Ok(MapKeyValue::I32(0)),
-        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => Ok(MapKeyValue::I64(0)),
-        FieldType::Uint32 | FieldType::Fixed32 => Ok(MapKeyValue::U32(0)),
-        FieldType::Uint64 | FieldType::Fixed64 => Ok(MapKeyValue::U64(0)),
-        FieldType::Bool => Ok(MapKeyValue::Bool(false)),
-        FieldType::String => Ok(MapKeyValue::String(ProtoString::new())),
-        _ => Err(ParseError::new("invalid map key type")),
-    }
-}
-
-/// Mirror of the dynamic `default_value` helper.
-#[cfg(feature = "reflect")]
-fn table_default_value(
-    field: &FieldDescriptor,
-    pool: Option<&Arc<DescriptorPool>>,
-) -> Result<Value, ParseError> {
-    match field.field_type {
-        FieldType::Double => Ok(Value::Double(0.0)),
-        FieldType::Float => Ok(Value::Float(0.0)),
-        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => Ok(Value::Int32(0)),
-        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => Ok(Value::Int64(0)),
-        FieldType::Uint32 | FieldType::Fixed32 => Ok(Value::Uint32(0)),
-        FieldType::Uint64 | FieldType::Fixed64 => Ok(Value::Uint64(0)),
-        FieldType::Bool => Ok(Value::Bool(false)),
-        FieldType::String => Ok(Value::String(ProtoString::new())),
-        FieldType::Bytes => Ok(Value::Bytes(ProtoBytes::new())),
-        FieldType::Enum => Ok(Value::Enum(0)),
-        FieldType::Message | FieldType::Group => {
-            let desc = table_field_message_desc(field, pool)?;
-            Ok(Value::Message(DynamicMessage::new(desc)))
+fn set_map_slot(
+    primary: &mut Option<Value>,
+    secondary: &mut Option<Value>,
+    clear_secondary: bool,
+    value: Value,
+) {
+    match (primary, value) {
+        (Some(Value::Message(existing)), Value::Message(incoming)) => {
+            existing.merge_from_dyn(&incoming);
+        }
+        (slot, v) => {
+            if clear_secondary {
+                *secondary = None;
+            }
+            *slot = Some(v);
         }
     }
 }
 
-/// Mirror of the dynamic `field_message_desc` helper.
+/// Decode one map entry without a temporary message: key/value occurrences
+/// decode straight into two slots, unknown numbers and wire mismatches are
+/// captured and dropped (identical errors to the temporary path, which
+/// captures them into the discarded entry), and absent sides take the
+/// historical defaults.
+///
+/// Wire acceptance, closed-enum diversion, oneof replacement, message merge
+/// across repeats, recursion limits, and defaults all match
+/// [`decode_dynamic_map_entry_temp`] occurrence for occurrence; only shapes
+/// outside the snapshot (map or repeated typed key/value fields) keep the
+/// temporary.
 #[cfg(feature = "reflect")]
-fn table_field_message_desc(
-    field: &FieldDescriptor,
-    pool: Option<&Arc<DescriptorPool>>,
-) -> Result<Arc<MessageDescriptor>, ParseError> {
-    if let (Some(name), Some(pool)) = (field.type_name.as_deref(), pool) {
-        if let Some(desc) = pool.get_message(name.trim_start_matches('.')) {
-            return Ok(desc);
+fn decode_dynamic_map_entry_direct(
+    ctx: &mut DynamicParseCtx,
+    entry_table: &Arc<DynamicTable>,
+    snap: &MapEntrySnap,
+    payload: &[u8],
+    depth: u32,
+) -> Result<(MapKeyValue, Value), ParseError> {
+    if depth + 1 > RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    let entry_depth = depth + 1;
+    let key_entry = entry_table
+        .entries
+        .get(snap.key_idx)
+        .ok_or_else(|| ParseError::new("table descriptor mismatch"))?;
+    let val_entry = entry_table
+        .entries
+        .get(snap.val_idx)
+        .ok_or_else(|| ParseError::new("table descriptor mismatch"))?;
+    let key_clears_val = entry_table
+        .oneof
+        .get(snap.key_idx)
+        .and_then(|o| o.as_deref())
+        .is_some_and(|members| members.contains(&2));
+    let val_clears_key = entry_table
+        .oneof
+        .get(snap.val_idx)
+        .and_then(|o| o.as_deref())
+        .is_some_and(|members| members.contains(&1));
+    let mut key: Option<Value> = None;
+    let mut val: Option<Value> = None;
+    let mut pos = 0;
+    while pos < payload.len() {
+        let (number, wire) = dyn_decode_tag(payload, &mut pos)?;
+        if number == 1 {
+            if wire != u32::from(key_entry.expected_wire) {
+                let _ = capture_unknown(payload, &mut pos, number, wire)?;
+                continue;
+            }
+            let value = decode_dynamic_leaf(
+                ctx,
+                entry_table,
+                snap.key_idx,
+                key_entry,
+                payload,
+                &mut pos,
+                wire,
+                entry_depth,
+            )?;
+            if let Value::Enum(n) = &value {
+                if is_closed_unknown(entry_table, snap.key_idx, *n) {
+                    continue;
+                }
+            }
+            set_map_slot(&mut key, &mut val, key_clears_val, value);
+        } else if number == 2 {
+            if wire != u32::from(val_entry.expected_wire) {
+                let _ = capture_unknown(payload, &mut pos, number, wire)?;
+                continue;
+            }
+            let value = decode_dynamic_leaf(
+                ctx,
+                entry_table,
+                snap.val_idx,
+                val_entry,
+                payload,
+                &mut pos,
+                wire,
+                entry_depth,
+            )?;
+            if let Value::Enum(n) = &value {
+                if is_closed_unknown(entry_table, snap.val_idx, *n) {
+                    continue;
+                }
+            }
+            set_map_slot(&mut val, &mut key, val_clears_key, value);
+        } else {
+            let _ = capture_unknown(payload, &mut pos, number, wire)?;
         }
     }
-    if let Some(desc) = &field.message {
-        return Ok(desc.clone());
-    }
-    Err(ParseError::new("unresolved message type"))
+    let key = match key {
+        Some(value) => crate::dynamic::value_to_map_key(&value)?,
+        None => crate::dynamic::default_map_key(snap.key_ty)?,
+    };
+    let value = match val {
+        Some(value) => value,
+        None => crate::dynamic::default_value(&snap.val_field, ctx.pool.as_ref())?,
+    };
+    Ok((key, value))
 }
 
-/// Mirror of the dynamic closed-enum check.
+/// Merge one MessageSet item, including the two historical quirks:
+/// length-delimited inner unknowns are dropped while group-form inner
+/// unknowns land in the parent unknown list. The item parses directly into
+/// the loop with required checks off.
 #[cfg(feature = "reflect")]
-fn is_dynamic_closed_unknown(field: &FieldDescriptor, number: i32) -> bool {
-    field
-        .enum_ty
-        .as_ref()
-        .is_some_and(|ty| ty.closed && !ty.values.contains_key(&number))
-}
-
-/// Merge one MessageSet item; mirrors `merge_message_set_item`, including
-/// its two quirks: length-delimited inner unknowns are dropped while
-/// group-form inner unknowns land in the parent unknown list.
-#[cfg(feature = "reflect")]
-#[allow(clippy::too_many_arguments, reason = "mirrors message-set shape")]
 fn merge_dynamic_message_set(
-    desc: &MessageDescriptor,
-    pool: Option<&Arc<DescriptorPool>>,
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
     msg: &mut DynamicMessage,
-    unknown: &mut UnknownFields,
     data: &[u8],
     pos: &mut usize,
     wire_type: u32,
@@ -1343,27 +1558,25 @@ fn merge_dynamic_message_set(
             match (number, wire) {
                 (2, WIRE_VARINT) => type_id = decode_varint(data, pos)? as u32,
                 (3, WIRE_LEN) => payload = read_len_bytes(data, pos)?.to_vec(),
-                _ => unknown
-                    .fields
-                    .push(capture_unknown(data, pos, number, wire)?),
+                _ => {
+                    let unknown = capture_unknown(data, pos, number, wire)?;
+                    msg.unknown_mut().fields.push(unknown);
+                }
             }
         }
     } else {
-        unknown
-            .fields
-            .push(capture_unknown(data, pos, 1, wire_type)?);
+        let unknown = capture_unknown(data, pos, 1, wire_type)?;
+        msg.unknown_mut().fields.push(unknown);
         return Ok(());
     }
     if type_id == 0 {
         return Ok(());
     }
-    if let Some(field) = desc.field(type_id).cloned() {
-        let item_desc = table_field_message_desc(&field, pool)?;
-        let nested =
-            parse_dynamic_table_with(item_desc, pool.cloned(), &payload, depth + 1, false)?;
-        msg.set(type_id, Value::Message(fuse_dynamic(nested)?));
-    } else {
-        unknown.fields.push(UnknownField::Group {
+    let Ok(index) = table
+        .entries
+        .binary_search_by_key(&type_id, |entry| entry.number)
+    else {
+        msg.unknown_mut().fields.push(UnknownField::Group {
             number: 1,
             fields: {
                 let mut group = UnknownFields::default();
@@ -1378,7 +1591,26 @@ fn merge_dynamic_message_set(
                 group
             },
         });
+        return Ok(());
+    };
+    let (desc, nested) = ctx.resolve_nested(table, index, type_id)?;
+    let mut inner = DynamicMessage::new(desc);
+    if let Some(pool) = ctx.pool.clone() {
+        inner.set_pool(pool);
     }
+    let mut inner_pos = 0;
+    merge_dynamic_loop(
+        ctx,
+        &nested,
+        &mut inner,
+        &payload,
+        &mut inner_pos,
+        depth + 1,
+        false,
+        None,
+    )?;
+    let oneof = table.oneof.get(index).and_then(|o| o.as_deref());
+    msg.set_prepared(type_id, oneof, Value::Message(inner));
     Ok(())
 }
 
@@ -1393,6 +1625,8 @@ fn merge_dynamic_message_set(
 mod tests {
     use super::*;
     use crate::lazy::{LazyMsg, MergeBytes, require_utf8};
+    #[cfg(feature = "reflect")]
+    use crate::message::Serialize;
     use crate::packed::{PackedFx32, PackedI32};
     use crate::repeated::Repeated;
     use crate::wire::{encode_len_field, encode_tag, encode_varint, encode_zigzag32, skip_field};
@@ -3238,5 +3472,212 @@ mod tests {
         let mut round = Vec::new();
         msg.unknown.encode(&mut round);
         assert_eq!(round, payload);
+    }
+
+    #[cfg(feature = "reflect")]
+    #[test]
+    fn dynamic_map_entry_direct_matches_temp() {
+        use crate::dynamic::{EnumDescriptor, Presence as DynPresence};
+
+        fn table_for(entry: MessageDescriptor) -> Arc<DynamicTable> {
+            Arc::new(compile_dynamic_table(&Arc::new(entry)))
+        }
+
+        /// Direct and temp decoders agree on every payload, success or error.
+        fn check(entry: MessageDescriptor, payloads: &[&[u8]]) {
+            let table = table_for(entry);
+            let snap = table.map_entry.as_ref().expect("direct snapshot");
+            for payload in payloads {
+                let mut ctx = DynamicParseCtx::new(None);
+                let temp = decode_dynamic_map_entry_temp(&mut ctx, &table, payload, 0);
+                let mut ctx = DynamicParseCtx::new(None);
+                let direct = decode_dynamic_map_entry_direct(&mut ctx, &table, snap, payload, 0);
+                assert_eq!(direct, temp, "payload {payload:02x?}");
+            }
+        }
+
+        // Shape A: int32 key, string value.
+        let shape_a = MessageDescriptor::builder("t.EntryA")
+            .field(FieldDescriptor::new(
+                "key",
+                1,
+                FieldType::Int32,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .field(FieldDescriptor::new(
+                "value",
+                2,
+                FieldType::String,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .build();
+        check(
+            shape_a,
+            &[
+                b"\x08\x07\x12\x02ab",        // normal
+                b"",                          // both defaults
+                b"\x08\x07",                  // key only
+                b"\x12\x01z",                 // value only
+                b"\x08\x07\x18\x09\x12\x01z", // unknown number dropped
+                b"\x0a\x01x\x12\x01z",        // key wire mismatch dropped
+                b"\x08\x07\x10\x05",          // value wire mismatch dropped
+                b"\x08\x07\x08\x09",          // repeated key, last wins
+                b"\x12\x01a\x12\x01b",        // repeated value, last wins
+                b"\x08",                      // truncated tag
+                b"\x12\x05a",                 // truncated length-delimited
+                b"\x1a\x05",                  // truncated unknown
+                b"\x12\x02\xff\xff",          // invalid utf-8 value
+            ],
+        );
+
+        // Shape B: string key, message value (merges across repeats, keeps
+        // unknowns inside the value).
+        let nested = MessageDescriptor::builder("t.Val")
+            .field(FieldDescriptor::new(
+                "id",
+                1,
+                FieldType::Int32,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .field(FieldDescriptor::new(
+                "name",
+                2,
+                FieldType::String,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .build();
+        let mut val_field = FieldDescriptor::new(
+            "value",
+            2,
+            FieldType::Message,
+            Cardinality::Optional,
+            DynPresence::Implicit,
+        );
+        val_field.message = Some(Arc::new(nested));
+        let shape_b = MessageDescriptor::builder("t.EntryB")
+            .field(FieldDescriptor::new(
+                "key",
+                1,
+                FieldType::String,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .field(val_field)
+            .build();
+        check(
+            shape_b,
+            &[
+                b"\x0a\x01k\x12\x02\x08\x05",         // normal
+                b"",                                  // both defaults
+                b"\x12\x02\x08\x05",                  // value only (default key)
+                b"\x0a\x01k",                         // key only (default value)
+                b"\x0a\x01k\x12\x04\x08\x05\x48\x09", // unknown kept in value
+                b"\x12\x02\x08\x05\x12\x03\x12\x01s", // repeated values merge
+                b"\x12\x02\x08\x05\x12\x02\x08\x06",  // repeated scalar in value
+                b"\x12\x00",                          // empty value message stays present
+                b"\x12\xff\x01",                      // truncated value
+            ],
+        );
+
+        // Shape C: int32 key, closed-enum value (unknown numbers divert to
+        // the dropped entry unknowns, so the default wins).
+        let mut values = BTreeMap::new();
+        values.insert(0, "A".to_string());
+        values.insert(1, "B".to_string());
+        let mut enum_field = FieldDescriptor::new(
+            "value",
+            2,
+            FieldType::Enum,
+            Cardinality::Optional,
+            DynPresence::Implicit,
+        );
+        enum_field.enum_ty = Some(Arc::new(EnumDescriptor {
+            full_name: "t.E".to_string(),
+            values,
+            closed: true,
+            ..Default::default()
+        }));
+        let shape_c = MessageDescriptor::builder("t.EntryC")
+            .field(FieldDescriptor::new(
+                "key",
+                1,
+                FieldType::Int32,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .field(enum_field)
+            .build();
+        check(
+            shape_c,
+            &[
+                b"\x08\x03\x10\x01",         // known value
+                b"\x08\x03\x10\x05",         // unknown diverted, default wins
+                b"\x08\x03\x10\x05\x10\x01", // diverted then known
+                b"\x10\x05",                 // key default, value diverted
+            ],
+        );
+
+        // Shape D: key/value in one shared oneof; setting one side clears the
+        // other exactly like the temporary message.
+        let mut o1 = FieldDescriptor::new(
+            "key",
+            1,
+            FieldType::Int32,
+            Cardinality::Optional,
+            DynPresence::Implicit,
+        );
+        o1.oneof_index = Some(0);
+        let mut o2 = FieldDescriptor::new(
+            "value",
+            2,
+            FieldType::Int32,
+            Cardinality::Optional,
+            DynPresence::Implicit,
+        );
+        o2.oneof_index = Some(0);
+        let mut shape_d = MessageDescriptor::builder("t.EntryD")
+            .field(o1)
+            .field(o2)
+            .build();
+        shape_d.oneofs = vec![vec![1, 2]];
+        check(
+            shape_d,
+            &[
+                b"\x08\x07\x10\x09", // value wins, key cleared to default
+                b"\x10\x09\x08\x07", // key wins, value cleared to default
+                b"\x08\x07",         // key only
+            ],
+        );
+
+        // Exotic shapes keep the temporary: the dispatcher agrees with it.
+        let exotic = MessageDescriptor::builder("t.EntryX")
+            .field(FieldDescriptor::new(
+                "key",
+                1,
+                FieldType::Int32,
+                Cardinality::Optional,
+                DynPresence::Implicit,
+            ))
+            .field(FieldDescriptor::new(
+                "value",
+                2,
+                FieldType::Int32,
+                Cardinality::Repeated,
+                DynPresence::Implicit,
+            ))
+            .build();
+        let table = table_for(exotic);
+        assert!(table.map_entry.is_none());
+        for payload in [&b"\x08\x01\x10\x02\x10\x03"[..], &b"\x08"[..]] {
+            let mut ctx = DynamicParseCtx::new(None);
+            let temp = decode_dynamic_map_entry_temp(&mut ctx, &table, payload, 0);
+            let mut ctx = DynamicParseCtx::new(None);
+            let dispatched = decode_dynamic_map_entry(&mut ctx, &table, payload, 0);
+            assert_eq!(dispatched, temp, "payload {payload:02x?}");
+        }
     }
 }

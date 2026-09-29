@@ -19,7 +19,7 @@ use pbrs::prelude::*;
 use pbrs::testdata::Person;
 use pbrs::{
     Cardinality, DescriptorPool, DynamicMessage, EnumDescriptor, FieldDescriptor, FieldType,
-    FileDescriptor, MapKeyValue, MessageDescriptor, Presence, Serialize, Value,
+    FileDescriptor, MapKeyValue, MessageDescriptor, Presence, ProtoString, Serialize, Value,
 };
 
 fn person_desc() -> std::sync::Arc<MessageDescriptor> {
@@ -2377,4 +2377,332 @@ fn bundled_reference_pool_preserves_supported_editions() {
         assert!(pool.get_file(file).is_some(), "missing {file}");
         assert_eq!(file_feature_values(&pool, file), features, "{file}");
     }
+}
+
+// --- PK-18: compiled dynamic-parse tables ------------------------------------
+
+fn pk18_pool() -> DescriptorPool {
+    let fds = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/vendor/google/conformance_fds.bin"
+    ));
+    DescriptorPool::from_file_descriptor_set(fds).expect("bundled reference FDS")
+}
+
+fn pk18_tat(pool: &DescriptorPool) -> std::sync::Arc<MessageDescriptor> {
+    let names = pool.collect_names();
+    let name = names
+        .iter()
+        .find(|n| *n == "protobuf_test_messages.proto3.TestAllTypesProto3")
+        .or_else(|| names.iter().find(|n| n.ends_with("TestAllTypesProto3")))
+        .expect("TestAllTypesProto3 in pool");
+    pool.get_message(name).expect("tat descriptor")
+}
+
+/// Pool-cached tables give byte-identical results on every parse, including
+/// nested and repeated message fields.
+#[test]
+fn pk18_pool_tables_give_identical_results_across_parses() {
+    let pool = std::sync::Arc::new(pk18_pool());
+    let desc = pk18_tat(&pool);
+    let nested_field = desc
+        .fields
+        .values()
+        .find(|f| {
+            f.field_type == FieldType::Message
+                && !f.is_map
+                && f.cardinality != Cardinality::Repeated
+        })
+        .expect("singular nested field");
+    let nested_desc = nested_field.message.clone().expect("linked nested type");
+    let repeated_field = desc
+        .fields
+        .values()
+        .find(|f| {
+            f.field_type == FieldType::Message
+                && !f.is_map
+                && f.cardinality == Cardinality::Repeated
+        })
+        .expect("repeated nested field");
+
+    let mut inner = DynamicMessage::new(nested_desc);
+    let scalar_field = inner
+        .descriptor()
+        .fields
+        .values()
+        .find(|f| f.field_type == FieldType::Int32)
+        .map(|f| f.number);
+    if let Some(number) = scalar_field {
+        inner.set(number, Value::Int32(7));
+    }
+    let mut msg = DynamicMessage::new(desc.clone());
+    msg.set(nested_field.number, Value::Message(inner.clone()));
+    for _ in 0..3 {
+        msg.push(repeated_field.number, Value::Message(inner.clone()));
+    }
+    let payload = msg.serialize().expect("serialize");
+
+    let first =
+        DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &payload).expect("parse");
+    let second =
+        DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &payload).expect("parse");
+    assert_eq!(first, second);
+    assert_eq!(
+        first.serialize().expect("reserialize"),
+        second.serialize().expect("reserialize")
+    );
+    assert_eq!(first, msg);
+}
+
+/// Pool-less descriptors compile fresh per parse, so hand-built descriptor
+/// mutation stays visible exactly as before.
+#[test]
+fn pk18_hand_built_descriptor_mutation_visible_between_parses() {
+    let desc = MessageDescriptor::builder("pk18.Mutable")
+        .field(FieldDescriptor::new(
+            "id",
+            1,
+            FieldType::Int32,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ))
+        .build();
+    let mut desc = std::sync::Arc::new(desc);
+    let bytes = [0x08, 0x2A, 0x10, 0x2B];
+    let first = DynamicMessage::parse_with(desc.clone(), &bytes).expect("parse");
+    assert_eq!(first.get_singular(1), Some(&Value::Int32(42)));
+    assert!(first.get_singular(2).is_none());
+    assert_eq!(first.unknown_fields().fields.as_slice().len(), 1);
+    drop(first);
+
+    let live = std::sync::Arc::get_mut(&mut desc).expect("unique owner");
+    live.fields.insert(
+        2,
+        FieldDescriptor::new(
+            "extra",
+            2,
+            FieldType::Int32,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ),
+    );
+    let second = DynamicMessage::parse_with(desc.clone(), &bytes).expect("parse");
+    assert_eq!(second.get_singular(2), Some(&Value::Int32(43)));
+    assert!(second.unknown_fields().fields.as_slice().is_empty());
+}
+
+/// Nested-type resolution stays pool-first: a foreign descriptor whose
+/// `type_name` names a pool message parses with the pool's shape even when
+/// its linked descriptor disagrees.
+#[test]
+fn pk18_pool_resolution_wins_over_descriptor_link() {
+    let pool = pk18_pool();
+    let pool_msg = pk18_tat(&pool);
+    assert!(pool_msg.field(1).is_some());
+    let mut f = FieldDescriptor::new(
+        "sub",
+        1,
+        FieldType::Message,
+        Cardinality::Optional,
+        Presence::Explicit,
+    );
+    f.type_name = Some(format!(".{}", pool_msg.full_name));
+    f.message = Some(std::sync::Arc::new(
+        MessageDescriptor::builder("pk18.Decoy")
+            .field(FieldDescriptor::new(
+                "decoy",
+                9,
+                FieldType::Int32,
+                Cardinality::Optional,
+                Presence::Implicit,
+            ))
+            .build(),
+    ));
+    let outer = std::sync::Arc::new(MessageDescriptor::builder("pk18.Outer").field(f).build());
+    let bytes = [0x0A, 0x02, 0x08, 0x05];
+    let msg = DynamicMessage::parse_with_pool(outer, Some(std::sync::Arc::new(pool)), &bytes)
+        .expect("parse");
+    let Value::Message(inner) = msg.get_singular(1).expect("sub") else {
+        panic!("sub is not a message");
+    };
+    assert_eq!(inner.descriptor().full_name, pool_msg.full_name);
+    assert!(inner.get_singular(1).is_some());
+}
+
+/// Messages registered after the pool table cache was built compile fresh
+/// and parse normally.
+#[test]
+fn pk18_registered_message_parses_after_cache_built() {
+    let mut pool = pk18_pool();
+    let desc = pk18_tat(&pool);
+    let _ = DynamicMessage::parse_with_pool(
+        desc,
+        Some(std::sync::Arc::new(pool.clone())),
+        &[0x08, 0x01],
+    )
+    .expect("first parse builds the pool cache");
+    let extra = MessageDescriptor::builder("pk18.Extra")
+        .field(FieldDescriptor::new(
+            "id",
+            1,
+            FieldType::Int32,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ))
+        .build();
+    let extra = pool.register_message(extra);
+    let msg =
+        DynamicMessage::parse_with_pool(extra, Some(std::sync::Arc::new(pool)), &[0x08, 0x01])
+            .expect("parse");
+    assert_eq!(msg.get_singular(1), Some(&Value::Int32(1)));
+}
+
+/// The table entry point keeps its split-unknown contract against the unified
+/// engine: message bytes plus unknown bytes equal the inline serialization.
+#[test]
+fn pk18_table_split_matches_inline_bytes() {
+    let pool = std::sync::Arc::new(pk18_pool());
+    let desc = pk18_tat(&pool);
+    let payload = [0x08, 0x01, 0x80, 0x80, 0x01, 0x09];
+    let inline =
+        DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &payload).expect("parse");
+    let tabled = pbrs::table::parse_dynamic_table_with(desc, Some(pool), &payload, 0, true)
+        .expect("table parse");
+    let mut combined = tabled.msg.serialize().expect("table serialize");
+    tabled.unknown.encode(&mut combined);
+    assert_eq!(combined, inline.serialize().expect("inline serialize"));
+    assert_eq!(tabled.unknown, *inline.unknown_fields());
+}
+
+/// Replacing a registered message keeps both generations parsing with their
+/// own tables: the replacement misses the cache and compiles fresh, while a
+/// surviving `Arc` of the old descriptor keeps its table.
+#[test]
+fn pk18_replaced_message_parses_with_fresh_table() {
+    fn shape(fields: &[(u32, &str)]) -> MessageDescriptor {
+        let mut b = MessageDescriptor::builder("pk18.Swap");
+        for (number, name) in fields {
+            b = b.field(FieldDescriptor::new(
+                name.to_string(),
+                *number,
+                FieldType::Int32,
+                Cardinality::Optional,
+                Presence::Implicit,
+            ));
+        }
+        b.build()
+    }
+    let mut pool = pk18_pool();
+    let v1 = pool.register_message(shape(&[(1, "a")]));
+    let mut pool = std::sync::Arc::new(pool);
+    let first = DynamicMessage::parse_with_pool(v1.clone(), Some(pool.clone()), &[0x08, 0x2A])
+        .expect("parse v1");
+    assert_eq!(first.get_singular(1), Some(&Value::Int32(42)));
+    drop(first);
+
+    let live = std::sync::Arc::get_mut(&mut pool).expect("unique pool");
+    let v2 = live.register_message(shape(&[(2, "b")]));
+    assert_eq!(v1.full_name, v2.full_name);
+    assert!(!std::sync::Arc::ptr_eq(&v1, &v2));
+
+    let with_v2 =
+        DynamicMessage::parse_with_pool(v2, Some(pool.clone()), &[0x10, 0x2B]).expect("parse v2");
+    assert_eq!(with_v2.get_singular(2), Some(&Value::Int32(43)));
+    assert!(with_v2.unknown_fields().fields.as_slice().is_empty());
+    let with_v1 =
+        DynamicMessage::parse_with_pool(v1, Some(pool.clone()), &[0x08, 0x2A]).expect("parse v1");
+    assert_eq!(with_v1.get_singular(1), Some(&Value::Int32(42)));
+    assert!(with_v1.unknown_fields().fields.as_slice().is_empty());
+}
+
+/// A foreign descriptor parsed with a pool is never cached: the pool must not
+/// pin it, and later `Arc::get_mut` mutation stays visible on the next parse.
+#[test]
+fn pk18_foreign_descriptor_mutation_visible_with_pool() {
+    let pool = std::sync::Arc::new(pk18_pool());
+    let mut desc = std::sync::Arc::new(
+        MessageDescriptor::builder("pk18.Foreign")
+            .field(FieldDescriptor::new(
+                "id",
+                1,
+                FieldType::Int32,
+                Cardinality::Optional,
+                Presence::Implicit,
+            ))
+            .build(),
+    );
+    let bytes = [0x08, 0x2A, 0x10, 0x2B];
+    let first =
+        DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &bytes).expect("parse");
+    assert_eq!(first.get_singular(1), Some(&Value::Int32(42)));
+    assert!(first.get_singular(2).is_none());
+    drop(first);
+
+    let live = std::sync::Arc::get_mut(&mut desc).expect("pool cache must not pin foreign desc");
+    live.fields.insert(
+        2,
+        FieldDescriptor::new(
+            "extra",
+            2,
+            FieldType::Int32,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ),
+    );
+    let second =
+        DynamicMessage::parse_with_pool(desc.clone(), Some(pool.clone()), &bytes).expect("parse");
+    assert_eq!(second.get_singular(2), Some(&Value::Int32(43)));
+    assert!(second.unknown_fields().fields.as_slice().is_empty());
+}
+
+/// Map entries decode with last-wins keys and historical defaults for absent
+/// sides, through the direct entry decoder.
+#[test]
+fn pk18_map_entries_last_wins_with_defaults() {
+    let entry = MessageDescriptor::builder("pk18.ScoresEntry")
+        .field(FieldDescriptor::new(
+            "key",
+            1,
+            FieldType::String,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ))
+        .field(FieldDescriptor::new(
+            "value",
+            2,
+            FieldType::Int32,
+            Cardinality::Optional,
+            Presence::Implicit,
+        ))
+        .build();
+    let mut scores = FieldDescriptor::new(
+        "scores",
+        5,
+        FieldType::Message,
+        Cardinality::Repeated,
+        Presence::Explicit,
+    );
+    scores.is_map = true;
+    scores.message = Some(std::sync::Arc::new(entry));
+    let desc = std::sync::Arc::new(
+        MessageDescriptor::builder("pk18.Holder")
+            .field(scores)
+            .build(),
+    );
+    let payload = [
+        0x2A, 0x05, 0x0A, 0x01, b'a', 0x10, 0x01, // {"a": 1}
+        0x2A, 0x05, 0x0A, 0x01, b'a', 0x10, 0x02, // {"a": 2} wins
+        0x2A, 0x02, 0x10, 0x03, // missing key -> ""
+        0x2A, 0x03, 0x0A, 0x01, b'b', // missing value -> 0
+    ];
+    let msg = DynamicMessage::parse_with(desc.clone(), &payload).expect("parse");
+    let map = msg.get_map(5).expect("scores map");
+    assert_eq!(map.len(), 3);
+    let key = |s: &[u8]| MapKeyValue::String(ProtoString::from_bytes(s));
+    assert_eq!(map.get(&key(b"a")), Some(&Value::Int32(2)));
+    assert_eq!(map.get(&key(b"")), Some(&Value::Int32(3)));
+    assert_eq!(map.get(&key(b"b")), Some(&Value::Int32(0)));
+    let round =
+        DynamicMessage::parse_with(desc, &msg.serialize().expect("serialize")).expect("reparse");
+    assert_eq!(round, msg);
 }

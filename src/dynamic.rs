@@ -8,13 +8,14 @@ use crate::message::{
 };
 use crate::proxied::{AsMut, AsView, IntoMut, IntoView, MutProxied, Proxied};
 use crate::string::{ProtoBytes, ProtoString};
+use crate::table::{DynamicParseCtx, DynamicTable, compile_dynamic_table, merge_dynamic_loop};
 use crate::wire::{
-    self, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP,
-    WIRE_VARINT, decode_tag, decode_varint, encode_len_field, encode_tag, encode_varint,
-    encode_zigzag32, encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64,
-    read_len_bytes, tag_len, varint_len,
+    self, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP, WIRE_VARINT,
+    decode_tag, decode_varint, encode_len_field, encode_tag, encode_varint, encode_zigzag32,
+    encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, tag_len,
+    varint_len,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::sync::{Arc, OnceLock};
 
@@ -623,7 +624,11 @@ struct SymbolMetadata {
 
 /// Resolved descriptor data shared by every [`DescriptorPool`] parsed from
 /// identical `FileDescriptorSet` bytes (see the pool cache below).
-#[derive(Clone, Debug, Default)]
+///
+/// `Clone` is manual: the parse-table cache starts empty in the clone, since
+/// tables are a pure function of the (cloned) descriptors and recompile on
+/// demand.
+#[derive(Debug, Default)]
 struct PoolInner {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
@@ -634,6 +639,99 @@ struct PoolInner {
     public_imports: BTreeMap<String, Vec<String>>,
     file_metadata: BTreeMap<String, FileMetadata>,
     symbol_metadata: BTreeMap<String, SymbolMetadata>,
+    /// Lazily compiled dynamic-parse tables (PK-18), keyed by descriptor
+    /// address and validated by pointer identity.
+    ///
+    /// Each entry is compiled on first use for that descriptor only, so
+    /// parsing one message out of a large pool never compiles tables for the
+    /// rest. Every hit re-checks [`Arc::ptr_eq`] against the stored owner:
+    /// `register_message` can replace a descriptor, so the address alone must
+    /// never decide a hit. The cached owner `Arc` pins its descriptor, which
+    /// both keeps replaced generations parsing with their own table and makes
+    /// a stale address hit impossible (a pinned owner still occupies its
+    /// address); replacements simply miss and compile fresh.
+    parse_tables: ParseTableCache,
+    /// Addresses of the live pool-owned message descriptors in `messages`.
+    ///
+    /// Only owned descriptors are cached in `parse_tables`: foreign and
+    /// hand-built descriptors compile fresh per parse, so `Arc::get_mut`
+    /// mutation between parses stays visible exactly as before (a cached
+    /// `Arc` would both block `get_mut` and serve a stale table). Mutated
+    /// only through `&mut self` paths alongside `messages`, so plain reads
+    /// from `parse_table_for` are sound.
+    owned_descs: HashSet<usize>,
+}
+
+impl Clone for PoolInner {
+    fn clone(&self) -> Self {
+        Self {
+            messages: self.messages.clone(),
+            enums: self.enums.clone(),
+            extensions_by_name: self.extensions_by_name.clone(),
+            services: self.services.clone(),
+            files: self.files.clone(),
+            public_imports: self.public_imports.clone(),
+            file_metadata: self.file_metadata.clone(),
+            symbol_metadata: self.symbol_metadata.clone(),
+            parse_tables: ParseTableCache::default(),
+            // The clone shares the same descriptor allocations, so the same
+            // addresses stay owned.
+            owned_descs: self.owned_descs.clone(),
+        }
+    }
+}
+
+/// Address key for the pool parse-table cache.
+fn parse_table_key(desc: &Arc<MessageDescriptor>) -> usize {
+    Arc::as_ptr(desc) as usize
+}
+
+/// One cached table: the owning descriptor (pins its address) plus the table.
+type CachedTable = (Arc<MessageDescriptor>, Arc<DynamicTable>);
+
+/// Lazily populated pool parse-table cache: descriptor address to [`CachedTable`].
+#[derive(Debug, Default)]
+#[allow(
+    clippy::disallowed_types,
+    reason = "short std RwLock critical sections (hash lookup only) in sync-only parse code; never held across await"
+)]
+struct ParseTableCache(std::sync::RwLock<HashMap<usize, CachedTable>>);
+
+#[allow(
+    clippy::disallowed_types,
+    reason = "short std RwLock critical sections (hash lookup only) in sync-only parse code; never held across await"
+)]
+impl ParseTableCache {
+    /// Cache hit for `desc`, validated by pointer identity.
+    fn get(&self, key: usize, desc: &Arc<MessageDescriptor>) -> Option<Arc<DynamicTable>> {
+        self.0
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&key)
+            .filter(|(owner, _)| Arc::ptr_eq(owner, desc))
+            .map(|(_, table)| table.clone())
+    }
+
+    /// Publish `table` for `desc`, reusing a concurrently inserted table for
+    /// the same descriptor. Returns the table to use.
+    fn insert(
+        &self,
+        key: usize,
+        desc: &Arc<MessageDescriptor>,
+        table: Arc<DynamicTable>,
+    ) -> Arc<DynamicTable> {
+        let mut tables = self
+            .0
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some((owner, existing)) = tables.get(&key) {
+            if Arc::ptr_eq(owner, desc) {
+                return existing.clone();
+            }
+        }
+        tables.insert(key, (desc.clone(), table.clone()));
+        table
+    }
 }
 
 /// Process-wide cache of parsed descriptor pools keyed by the exact
@@ -728,6 +826,25 @@ impl DescriptorPool {
             .enums
             .get(full_name.trim_start_matches('.'))
             .cloned()
+    }
+
+    /// Compiled parse table for `desc` (PK-18).
+    ///
+    /// Pool-owned descriptors share the pool cache; foreign or hand-built
+    /// descriptors compile fresh per parse (through the per-parse memo), so
+    /// descriptor mutation stays visible exactly as before.
+    pub(crate) fn parse_table_for(&self, desc: &Arc<MessageDescriptor>) -> Arc<DynamicTable> {
+        let key = parse_table_key(desc);
+        if let Some(table) = self.inner.parse_tables.get(key, desc) {
+            return table;
+        }
+        let table = Arc::new(compile_dynamic_table(desc));
+        if !self.inner.owned_descs.contains(&key) {
+            // Foreign or hand-built: never cached, so later `Arc::get_mut`
+            // mutation stays visible (and the cache never pins it).
+            return table;
+        }
+        self.inner.parse_tables.insert(key, desc, table)
     }
 
     fn lookup_file_metadata(&self, file_name: &str) -> Option<&FileMetadata> {
@@ -857,7 +974,12 @@ impl DescriptorPool {
         let key = desc.full_name.clone();
         let _ = inner.symbol_metadata.remove(&key);
         let arc = Arc::new(desc);
-        inner.messages.insert(key, arc.clone());
+        if let Some(old) = inner.messages.insert(key, arc.clone()) {
+            // The replaced descriptor may be dropped here; its address must
+            // leave the cache-eligible set so a later reuse never validates.
+            inner.owned_descs.remove(&(Arc::as_ptr(&old) as usize));
+        }
+        inner.owned_descs.insert(Arc::as_ptr(&arc) as usize);
         arc
     }
 
@@ -1158,18 +1280,62 @@ impl DynamicMessage {
     }
 
     pub fn set(&mut self, number: u32, value: Value) {
-        if let Some(field) = self.desc.field(number) {
+        // Borrow the descriptor through a local `Arc` so clearing oneof
+        // siblings needs no per-call member-vector clone.
+        let desc = self.desc.clone();
+        if let Some(field) = desc.field(number) {
             if let Some(idx) = field.oneof_index {
-                if let Some(members) = self.desc.oneofs.get(idx as usize) {
-                    for n in members.clone() {
-                        if n != number {
-                            self.fields.remove(&n);
+                if let Some(members) = desc.oneofs.get(idx as usize) {
+                    for n in members {
+                        if *n != number {
+                            self.fields.remove(n);
                         }
                     }
                 }
             }
         }
         self.fields.insert(number, FieldValue::Singular(value));
+    }
+
+    /// Unknown-field sink for the table-driven parse loop.
+    pub(crate) fn unknown_mut(&mut self) -> &mut UnknownFields {
+        &mut self.unknown
+    }
+
+    /// Singular assignment with pre-resolved oneof membership from the parse
+    /// table. Identical to [`Self::set`] without the descriptor lookup.
+    pub(crate) fn set_prepared(&mut self, number: u32, oneof: Option<&[u32]>, value: Value) {
+        if let Some(members) = oneof {
+            for other in members {
+                if *other != number {
+                    self.fields.remove(other);
+                }
+            }
+        }
+        self.fields.insert(number, FieldValue::Singular(value));
+    }
+
+    /// Singular-message last-wins merge: fold `incoming` into an existing
+    /// message value, else assign (with oneof replacement).
+    pub(crate) fn merge_singular_message(
+        &mut self,
+        number: u32,
+        oneof: Option<&[u32]>,
+        incoming: DynamicMessage,
+    ) {
+        match self.fields.get_mut(&number) {
+            Some(FieldValue::Singular(Value::Message(existing))) => {
+                existing.merge_from_dyn(&incoming);
+            }
+            _ => {
+                self.set_prepared(number, oneof, Value::Message(incoming));
+            }
+        }
+    }
+
+    /// Move unknown fields out of the message (table-driver split contract).
+    pub(crate) fn take_unknown(&mut self) -> UnknownFields {
+        std::mem::take(&mut self.unknown)
     }
 
     pub fn set_extension(&mut self, number: u32, value: Value) {
@@ -1282,120 +1448,24 @@ impl DynamicMessage {
         enforce_required: bool,
         depth: u32,
     ) -> Result<(), ParseError> {
-        if depth > RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
-        }
+        // PK-18: binary parsing runs on the shared table-driven engine. The
+        // root table comes from the pool cache (or compiles fresh for
+        // pool-less descriptors); nested types resolve through the per-parse
+        // context, so no per-occurrence descriptor clones or pool lookups
+        // remain on the hot path.
+        let mut ctx = DynamicParseCtx::new(self.pool.clone());
+        let table = ctx.table_for(&self.desc);
         let mut pos = 0;
-        while pos < data.len() {
-            let (number, wire) = decode_tag(data, &mut pos)?;
-            if self.desc.message_set_wire_format && number == 1 {
-                self.merge_message_set_item(data, &mut pos, wire, depth)?;
-                continue;
-            }
-            match self.desc.field(number).cloned() {
-                None => {
-                    self.unknown
-                        .fields
-                        .push(wire::capture_unknown(data, &mut pos, number, wire)?);
-                }
-                Some(field) => self.merge_field(&field, data, &mut pos, wire, depth)?,
-            }
-        }
-        if enforce_required {
-            for f in self.desc.fields.values() {
-                if f.cardinality == Cardinality::Required && !self.fields.contains_key(&f.number) {
-                    return Err(ParseError::new("missing required field"));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn merge_field(
-        &mut self,
-        field: &FieldDescriptor,
-        data: &[u8],
-        pos: &mut usize,
-        wire: u32,
-        depth: u32,
-    ) -> Result<(), ParseError> {
-        let expected = if field.delimited {
-            WIRE_SGROUP
-        } else {
-            field.field_type.default_wire()
-        };
-        let packed_ok = field.cardinality == Cardinality::Repeated
-            && field.field_type.is_packable()
-            && wire == WIRE_LEN;
-        if wire != expected && !packed_ok && !(field.is_map && wire == WIRE_LEN) {
-            self.unknown
-                .fields
-                .push(wire::capture_unknown(data, pos, field.number, wire)?);
-            return Ok(());
-        }
-        if field.is_map {
-            let payload = read_len_bytes(data, pos)?;
-            let entry = field_message_desc(field, self.pool.as_ref())?;
-            let (k, v) = decode_map_entry(&entry, payload, self.pool.clone(), depth)?;
-            self.insert_map(field.number, k, v);
-            return Ok(());
-        }
-        if field.cardinality == Cardinality::Repeated {
-            if packed_ok {
-                let payload = read_len_bytes(data, pos)?;
-                let mut p = 0;
-                let leaf_wire = field.field_type.default_wire();
-                while p < payload.len() {
-                    let v =
-                        decode_leaf(field, payload, &mut p, leaf_wire, self.pool.clone(), depth)?;
-                    match v {
-                        Value::Enum(n) if is_closed_unknown(field, n) => {
-                            self.unknown.fields.push(UnknownField::Varint {
-                                number: field.number,
-                                value: n as u64,
-                            });
-                        }
-                        value => self.push(field.number, value),
-                    }
-                }
-                return Ok(());
-            }
-            let v = decode_leaf(field, data, pos, wire, self.pool.clone(), depth)?;
-            if let Value::Enum(n) = v {
-                if is_closed_unknown(field, n) {
-                    self.unknown.fields.push(UnknownField::Varint {
-                        number: field.number,
-                        value: n as u64,
-                    });
-                    return Ok(());
-                }
-            }
-            self.push(field.number, v);
-            return Ok(());
-        }
-        let v = decode_leaf(field, data, pos, wire, self.pool.clone(), depth)?;
-        if let Value::Enum(n) = &v {
-            if is_closed_unknown(field, *n) {
-                self.unknown.fields.push(UnknownField::Varint {
-                    number: field.number,
-                    value: *n as u64,
-                });
-                return Ok(());
-            }
-        }
-        if let Value::Message(incoming) = v {
-            match self.fields.get_mut(&field.number) {
-                Some(FieldValue::Singular(Value::Message(existing))) => {
-                    existing.merge_from_dyn(&incoming);
-                }
-                _ => {
-                    self.set(field.number, Value::Message(incoming));
-                }
-            }
-            return Ok(());
-        }
-        self.set(field.number, v);
-        Ok(())
+        merge_dynamic_loop(
+            &mut ctx,
+            &table,
+            self,
+            data,
+            &mut pos,
+            depth,
+            enforce_required,
+            None,
+        )
     }
 
     pub(crate) fn merge_from_dyn(&mut self, src: &DynamicMessage) {
@@ -1460,80 +1530,6 @@ impl DynamicMessage {
         self.unknown.encode(out);
     }
 
-    fn merge_message_set_item(
-        &mut self,
-        data: &[u8],
-        pos: &mut usize,
-        wire: u32,
-        depth: u32,
-    ) -> Result<(), ParseError> {
-        let mut type_id = 0u32;
-        let mut payload = Vec::new();
-        if wire == WIRE_LEN {
-            let inner = read_len_bytes(data, pos)?;
-            let mut p = 0;
-            while p < inner.len() {
-                let (n, w) = decode_tag(inner, &mut p)?;
-                match (n, w) {
-                    (2, WIRE_VARINT) => type_id = decode_varint(inner, &mut p)? as u32,
-                    (3, WIRE_LEN) => payload = read_len_bytes(inner, &mut p)?.to_vec(),
-                    _ => wire::skip_field(inner, &mut p, w)?,
-                }
-            }
-        } else if wire == WIRE_SGROUP {
-            loop {
-                if *pos >= data.len() {
-                    return Err(ParseError::new("truncated message set"));
-                }
-                let (n, w) = decode_tag(data, pos)?;
-                if w == WIRE_EGROUP && n == 1 {
-                    break;
-                }
-                match (n, w) {
-                    (2, WIRE_VARINT) => type_id = decode_varint(data, pos)? as u32,
-                    (3, WIRE_LEN) => payload = read_len_bytes(data, pos)?.to_vec(),
-                    _ => self
-                        .unknown
-                        .fields
-                        .push(wire::capture_unknown(data, pos, n, w)?),
-                }
-            }
-        } else {
-            self.unknown
-                .fields
-                .push(wire::capture_unknown(data, pos, 1, wire)?);
-            return Ok(());
-        }
-        if type_id == 0 {
-            return Ok(());
-        }
-        if let Some(field) = self.desc.field(type_id).cloned() {
-            let mut inner = DynamicMessage::new(field_message_desc(&field, self.pool.as_ref())?);
-            if let Some(p) = self.pool.clone() {
-                inner.set_pool(p);
-            }
-            inner.merge_bytes(&payload, false, depth + 1)?;
-            self.set(type_id, Value::Message(inner));
-        } else {
-            self.unknown.fields.push(UnknownField::Group {
-                number: 1,
-                fields: {
-                    let mut u = UnknownFields::default();
-                    u.fields.push(UnknownField::Varint {
-                        number: 2,
-                        value: u64::from(type_id),
-                    });
-                    u.fields.push(UnknownField::LengthDelimited {
-                        number: 3,
-                        value: payload,
-                    });
-                    u
-                },
-            });
-        }
-        Ok(())
-    }
-
     fn write_message_set(&self, out: &mut impl crate::wire::WireOut) {
         for (number, val) in &self.fields {
             let FieldValue::Singular(Value::Message(m)) = val else {
@@ -1550,14 +1546,7 @@ impl DynamicMessage {
     }
 }
 
-fn is_closed_unknown(field: &FieldDescriptor, n: i32) -> bool {
-    field
-        .enum_ty
-        .as_ref()
-        .is_some_and(|e| e.closed && !e.values.contains_key(&n))
-}
-
-fn field_message_desc(
+pub(crate) fn field_message_desc(
     field: &FieldDescriptor,
     pool: Option<&Arc<DescriptorPool>>,
 ) -> Result<Arc<MessageDescriptor>, ParseError> {
@@ -1572,136 +1561,7 @@ fn field_message_desc(
     Err(ParseError::new("unresolved message type"))
 }
 
-fn decode_leaf(
-    field: &FieldDescriptor,
-    data: &[u8],
-    pos: &mut usize,
-    wire: u32,
-    pool: Option<Arc<DescriptorPool>>,
-    depth: u32,
-) -> Result<Value, ParseError> {
-    if field.delimited || field.field_type == FieldType::Group {
-        return decode_group(field, data, pos, pool, depth);
-    }
-    match field.field_type {
-        FieldType::Message => {
-            if wire != WIRE_LEN {
-                return Err(ParseError::new("bad wire type for message"));
-            }
-            let payload = read_len_bytes(data, pos)?;
-            let desc = field_message_desc(field, pool.as_ref())?;
-            Ok(Value::Message(DynamicMessage::parse_with_pool_depth(
-                desc,
-                pool,
-                payload,
-                depth + 1,
-                true,
-            )?))
-        }
-        FieldType::Group => decode_group(field, data, pos, pool, depth),
-        FieldType::String => {
-            if wire != WIRE_LEN {
-                return Err(ParseError::new("bad wire type for string"));
-            }
-            let bytes = read_len_bytes(data, pos)?;
-            if field.utf8_validate {
-                std::str::from_utf8(bytes).map_err(|_| ParseError::new("invalid utf-8"))?;
-            }
-            Ok(Value::String(ProtoString::from_bytes(bytes)))
-        }
-        FieldType::Bytes => {
-            if wire != WIRE_LEN {
-                return Err(ParseError::new("bad wire type for bytes"));
-            }
-            Ok(Value::Bytes(ProtoBytes::from(read_len_bytes(data, pos)?)))
-        }
-        FieldType::Double => Ok(Value::Double(f64::from_bits(read_fixed64(data, pos)?))),
-        FieldType::Float => Ok(Value::Float(f32::from_bits(read_fixed32(data, pos)?))),
-        FieldType::Fixed64 => Ok(Value::Uint64(read_fixed64(data, pos)?)),
-        FieldType::Sfixed64 => Ok(Value::Int64(read_fixed64(data, pos)? as i64)),
-        FieldType::Fixed32 => Ok(Value::Uint32(read_fixed32(data, pos)?)),
-        FieldType::Sfixed32 => Ok(Value::Int32(read_fixed32(data, pos)? as i32)),
-        FieldType::Bool => Ok(Value::Bool(decode_varint(data, pos)? != 0)),
-        FieldType::Int32 => Ok(Value::Int32(decode_varint(data, pos)? as i32)),
-        FieldType::Int64 => Ok(Value::Int64(decode_varint(data, pos)? as i64)),
-        FieldType::Uint32 => Ok(Value::Uint32(decode_varint(data, pos)? as u32)),
-        FieldType::Uint64 => Ok(Value::Uint64(decode_varint(data, pos)?)),
-        FieldType::Sint32 => Ok(Value::Int32(wire::decode_zigzag32(decode_varint(
-            data, pos,
-        )?))),
-        FieldType::Sint64 => Ok(Value::Int64(wire::decode_zigzag64(decode_varint(
-            data, pos,
-        )?))),
-        FieldType::Enum => Ok(Value::Enum(decode_varint(data, pos)? as i32)),
-    }
-}
-
-fn decode_group(
-    field: &FieldDescriptor,
-    data: &[u8],
-    pos: &mut usize,
-    pool: Option<Arc<DescriptorPool>>,
-    depth: u32,
-) -> Result<Value, ParseError> {
-    if depth + 1 > RECURSION_LIMIT {
-        return Err(ParseError::new("recursion limit exceeded"));
-    }
-    let desc = field_message_desc(field, pool.as_ref())?;
-    let mut msg = DynamicMessage::new(desc);
-    msg.pool = pool;
-    loop {
-        if *pos >= data.len() {
-            return Err(ParseError::new("truncated group"));
-        }
-        let (n, w) = decode_tag(data, pos)?;
-        if w == WIRE_EGROUP {
-            if n != field.number {
-                return Err(ParseError::new("mismatched end-group"));
-            }
-            break;
-        }
-        match msg.desc.field(n).cloned() {
-            None => msg
-                .unknown
-                .fields
-                .push(wire::capture_unknown(data, pos, n, w)?),
-            Some(f) => msg.merge_field(&f, data, pos, w, depth + 1)?,
-        }
-    }
-    Ok(Value::Message(msg))
-}
-
-fn decode_map_entry(
-    entry: &MessageDescriptor,
-    payload: &[u8],
-    pool: Option<Arc<DescriptorPool>>,
-    depth: u32,
-) -> Result<(MapKeyValue, Value), ParseError> {
-    let msg = DynamicMessage::parse_with_pool_depth(
-        Arc::new(entry.clone()),
-        pool.clone(),
-        payload,
-        depth + 1,
-        false,
-    )?;
-    let key_field = entry
-        .field(1)
-        .ok_or_else(|| ParseError::new("map entry missing key"))?;
-    let val_field = entry
-        .field(2)
-        .ok_or_else(|| ParseError::new("map entry missing value"))?;
-    let key = match msg.get_singular(1) {
-        Some(v) => value_to_map_key(v)?,
-        None => default_map_key(key_field.field_type)?,
-    };
-    let value = match msg.get_singular(2) {
-        Some(v) => v.clone(),
-        None => default_value(val_field, pool.as_ref())?,
-    };
-    Ok((key, value))
-}
-
-fn value_to_map_key(v: &Value) -> Result<MapKeyValue, ParseError> {
+pub(crate) fn value_to_map_key(v: &Value) -> Result<MapKeyValue, ParseError> {
     Ok(match v {
         Value::Int32(n) => MapKeyValue::I32(*n),
         Value::Int64(n) => MapKeyValue::I64(*n),
@@ -3977,6 +3837,7 @@ fn resolve_pool(
         }
         resolved.insert(name, Arc::new(d));
     }
+    let owned_descs = resolved.values().map(|d| Arc::as_ptr(d) as usize).collect();
     Ok(PoolInner {
         messages: resolved,
         enums: enum_arcs,
@@ -3986,6 +3847,8 @@ fn resolve_pool(
         public_imports: BTreeMap::new(),
         file_metadata: BTreeMap::new(),
         symbol_metadata,
+        parse_tables: ParseTableCache::default(),
+        owned_descs,
     })
 }
 
