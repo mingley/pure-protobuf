@@ -992,6 +992,7 @@ fn stage_offline_workspace(core_archive: &Path) -> PackWorkspace {
         "protobuf-tonic",
         "examples/greeter",
         "examples/axum-cohost",
+        "examples/tonic-ports",
     ] {
         copy_package_tree(&root.join(package), &staged.root.join(package));
     }

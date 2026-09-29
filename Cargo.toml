@@ -1,5 +1,12 @@
 [workspace]
-members = [".", "protobuf-tonic", "pbrs-grpc", "examples/greeter", "examples/axum-cohost"]
+members = [
+    ".",
+    "protobuf-tonic",
+    "pbrs-grpc",
+    "examples/greeter",
+    "examples/axum-cohost",
+    "examples/tonic-ports",
+]
 exclude = [
     "bench",
     "bench/devloop",

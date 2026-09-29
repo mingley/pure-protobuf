@@ -1,0 +1,73 @@
+[package]
+name = "pbrs-grpc-example-tonic-ports"
+version = "0.1.0"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
+edition = "2024"
+rust-version = "1.85"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Ports of tonic public examples to pbrs-grpc adoption paths"
+
+[features]
+default = []
+zstd = ["pbrs-grpc/zstd"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "tonic-port-helloworld"
+path = "src/bin/helloworld.rs"
+
+[[bin]]
+name = "tonic-port-routeguide"
+path = "src/bin/routeguide.rs"
+
+[[bin]]
+name = "tonic-port-streaming"
+path = "src/bin/streaming.rs"
+
+[[bin]]
+name = "tonic-port-interceptor"
+path = "src/bin/interceptor.rs"
+
+[[bin]]
+name = "tonic-port-health"
+path = "src/bin/health.rs"
+
+[[bin]]
+name = "tonic-port-reflection"
+path = "src/bin/reflection.rs"
+
+[[bin]]
+name = "tonic-port-tls"
+path = "src/bin/tls.rs"
+
+[[bin]]
+name = "tonic-port-uds"
+path = "src/bin/uds.rs"
+
+[[bin]]
+name = "tonic-port-compression"
+path = "src/bin/compression.rs"
+
+[[bin]]
+name = "tonic-port-error-details"
+path = "src/bin/error_details.rs"
+
+[dependencies]
+futures-core = { version = "0.3", default-features = false }
+pbrs = { path = "../.." }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["prost"] }
+prost = "0.14"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "fs"] }
+
+[build-dependencies]
+pbrs = { path = "../.." }
+prost-build = "0.14"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "fs"] }
+
+[lints]
+workspace = true

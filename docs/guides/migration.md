@@ -114,6 +114,45 @@ attribution.
 | `examples/src/helloworld/{server,client}.rs` | `helloworld_compat.rs` | 62 | 57 | +31 / -31 |
 | `examples/src/routeguide/{server,client}.rs` | `routeguide_compat.rs` | 315 | 246 | +135 / -173 |
 
+### Tonic public example ports
+
+`examples/tonic-ports/` is a publish=false workspace member that ports tonic's
+public examples to two adoption paths from TC-01:
+
+- **(a) tonic-shaped native mode**: pbrs messages generated with
+  `Config::tonic_compat(true)`, then served over `pbrs-grpc`.
+- **(c) prost messages over native transport**: prost-build messages plus
+  `pbrs::codegen::prost_stubs` native clients/servers over `pbrs-grpc`.
+
+Each binary starts a server and client in-process; the crate test runs every
+binary's underlying runner. TLS uses the repository test certificates in
+`pbrs-grpc/tests/tls_data`. Compression covers gzip by default and zstd when
+the example crate's `zstd` feature is enabled.
+
+Line statistics compare the listed upstream tonic 0.14.6 example source files
+against the corresponding port section in `examples/tonic-ports/src/lib.rs`
+plus its tiny bin wrapper. Shared harness code is intentionally centralized, so
+the counts are a migration-diff signal rather than a claim that every line maps
+one-to-one.
+
+| Tonic example | Upstream tonic sources | Adoption paths proved | Upstream lines | Port lines | Diff count | Blockers / gaps |
+|---|---|---|---:|---:|---:|---|
+| Helloworld | `src/helloworld/{server,client}.rs` | tonic_compat + prost-native | 62 | 96 | +83 / -49 | None. |
+| RouteGuide | `src/routeguide/{server,client}.rs` | tonic_compat + prost-native; all four RPC shapes | 315 | 363 | +340 / -292 | Uses deterministic in-memory features instead of the JSON route database and random long-running client loop. |
+| Streaming | `src/streaming/{server,client}.rs` | tonic_compat + prost-native; server-streaming and bidi, plus unary/client-streaming smoke | 235 | 230 | +217 / -222 | Infinite/throttled client loop is shortened to finite in-process streams for tests. |
+| Interceptor | `src/interceptor/{server,client}.rs` | native server and client interceptors with tonic_compat + prost-native handlers | 139 | 96 | +76 / -119 | Native interceptors operate on `Rpc`/`Outgoing`, not tonic's `Request<()>` interceptor wrapper type. |
+| Health | `src/health/server.rs` | native health service alongside tonic_compat + prost-native Greeter services | 67 | 41 | +36 / -62 | The tonic sample's status-flipping background loop is reduced to a deterministic `SERVING` check. |
+| Reflection | `src/reflection/server.rs` | native reflection service alongside tonic_compat + prost-native Greeter services | 46 | 51 | +46 / -41 | Uses `pbrs-grpc` reflection client to list services, not grpcurl. |
+| TLS | `src/tls/{server,client}.rs` | TLS serving/dialing with tonic_compat + prost-native Greeter services | 88 | 38 | +36 / -86 | Uses repo test TLS fixtures; no custom verifier or skip-verify equivalent by design. |
+| UDS | `src/uds/{server,client_standard}.rs` | Unix socket serving/dialing with tonic_compat + prost-native Greeter services | 100 | 35 | +31 / -96 | Unix-only; non-Unix runner is a no-op so the crate still builds everywhere. |
+| Compression | `src/compression/{server,client}.rs` | gzip with tonic_compat + prost-native; zstd with `--features zstd` | 73 | 62 | +58 / -69 | Zstd is pbrs-grpc-native parity, not a tonic upstream example because tonic has no public zstd example. |
+| Richer error details | `src/richer-error/{server,client}.rs` | `google.rpc` details with tonic_compat + prost-native Greeter services | 123 | 95 | +79 / -107 | No gap: `pbrs-grpc` supports typed `ErrorDetails` (`BadRequest`, `Help`, `LocalizedMessage`) through `Status::from_error_details`. |
+
+The ports deliberately do not cover tonic examples outside TC-07's public
+adoption scope, such as grpc-web, load-balancing control-plane examples,
+custom JSON codecs, tracing, or Tower middleware. Those remain separate gap
+cards if the project wants executable migration examples for them.
+
 ### Tower middleware parity
 
 Enable `pbrs-grpc`'s optional `tower` feature when you want Tonic-style
