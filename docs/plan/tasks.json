@@ -3231,7 +3231,11 @@
         "Provide exact invalid-config and side-effect test vectors for FL-07/08/09, with a reviewed public API and no exactly-once promise."
       ],
       "checks": [],
-      "status": "in_progress"
+      "status": "done",
+      "evidence": [
+        "docs/service-config.md"
+      ],
+      "notes": "Closed 2026-09-29: contract landed; maintainer sign-off on 5 open questions requested."
     },
     {
       "id": "FL-07",
