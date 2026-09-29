@@ -2601,7 +2601,8 @@
    ],
    "relates": [
     "OP-02"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "PK-16",
@@ -2678,7 +2679,8 @@
     "A3",
     "A5"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "PK-18",
@@ -4409,7 +4411,8 @@
    ],
    "relates": [
     "SP-04"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "RX-05",
@@ -5434,7 +5437,8 @@
     "A14",
     "C4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "SB-17",
@@ -6869,11 +6873,15 @@
    ],
    "read": [
     "bench/stack-matrix/",
-    "rpc-bench/peers/README.md"
+    "rpc-bench/peers/README.md",
+    "bench/stack-matrix/run.py",
+    "bench/stack-matrix/cells.py"
    ],
    "write": [
     "bench/stack-matrix/peers/",
-    "rpc-bench/peers/"
+    "rpc-bench/peers/",
+    "bench/stack-matrix/run.py",
+    "bench/stack-matrix/cells.py"
    ],
    "deliverable": "Add grpc-java (Netty), grpc-dotnet (Kestrel), volo-grpc, connect-rust, Google's grpc crate (0.9 preview or later, where its server is usable), and the Vert.x/Quarkus stacks from grpc_bench to the SB-11 harness.",
    "accept": [
@@ -6889,7 +6897,8 @@
     "E1"
    ],
    "relates": [],
-   "notes": "Premise check 2026-09-28: run.py server_command/preflight and cells.py peer lists hardcode peers; new peers need code changes there, outside this card's write set (peers/ dirs only). Needs coordinator re-scope."
+   "notes": "2026-09-29 coordinator re-scope: peer lists in run.py (server_command/preflight) and cells.py are hardcoded, so the worker may extend them to register new peers. Disjoint from SB-12 (scenarios/ + scripts/stack-matrix.sh).",
+   "status": "in_progress"
   },
   {
    "id": "SB-19",
@@ -7130,7 +7139,8 @@
    "scoreboard": [
     "A11"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "GN-06b",
