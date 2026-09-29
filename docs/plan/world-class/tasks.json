@@ -8463,8 +8463,12 @@
    "relates": [
     "PK-15"
    ],
-   "notes": "Split from PK-15 2026-09-29: ~10 Ir of the 16.6 Ir gap is copy-counts atomics (bench-only), ~4-5 Ir encode dispatch in wire.rs + gencode.",
-   "status": "in_progress"
+   "notes": "Closed 2026-09-29: wire.rs scope exhausted; small_id tie needs codegen (PK-25). small_empty_decode +2.08% flag adjudicated systematic (encode-only diff, dispatch-free micro-measurement identical, prost controls shifted).",
+   "status": "done",
+   "evidence": [
+    "docs/evidence/pk22-string-encode.md",
+    "name_80 -4.8% fair win, small_id -4.9%, 5 encode cells improved, allocs identical"
+   ]
   },
   {
    "id": "PK-23",
@@ -8615,6 +8619,49 @@
     "IO-09"
    ],
    "notes": "Split from IO-09 triage 2026-09-29. Runs after GF-06 (tls.rs) and TC-23 (connection.rs)."
+  },
+  {
+   "id": "PK-25",
+   "title": "Inline small write_to bodies; fuse tag+value stores",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P2",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "PK-22",
+    "GN-02"
+   ],
+   "read": [
+    "src/codegen/parse.rs",
+    "src/codegen/encode.rs",
+    "src/gen_support.rs",
+    "docs/evidence/pk22-string-encode.md"
+   ],
+   "write": [
+    "src/codegen/parse.rs",
+    "src/codegen/encode.rs",
+    "src/generated/"
+   ],
+   "deliverable": "Emit #[inline] on small write_to bodies (~4-5 Ir net, ties then beats prost on small_id) and fuse singular scalar tag+value stores (~3-4 Ir). Runs after GN-02 (codegen owner).",
+   "accept": [
+    "small_id encode ties or beats prost on dev-loop evidence with no primary-cell regression."
+   ],
+   "checks": [
+    "core-lib",
+    "parser",
+    "conformance",
+    "devloop-compare"
+   ],
+   "scoreboard": [
+    "A1",
+    "A2"
+   ],
+   "relates": [
+    "PK-22",
+    "GN-02"
+   ],
+   "notes": "Split from PK-22 2026-09-29: exact sites in evidence section 4 (parse.rs:229, encode.rs:380, gen_support.rs:848 floor)."
   }
  ]
 }
