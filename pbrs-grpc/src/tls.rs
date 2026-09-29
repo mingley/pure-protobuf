@@ -238,7 +238,10 @@ impl fmt::Debug for Identity {
     }
 }
 
-/// Server-side TLS: a rustls acceptor with ALPN `h2`.
+/// Server-side TLS: a rustls acceptor with ALPN `h2` and TLS 1.3 session
+/// tickets, so repeat clients resume instead of re-doing a full handshake.
+/// Ticket keys are per-`ServerTls` and rotate every 6 h; restarting the
+/// server (or building a second `ServerTls`) invalidates outstanding tickets.
 ///
 /// There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only
 /// timeout on the tonic acceptor. This type has no timeout setter; the bound is
@@ -385,6 +388,17 @@ fn build_server(identity: Identity, client_auth: ClientAuth) -> Result<ServerTls
         }
     };
     config.alpn_protocols = vec![ALPN_H2.to_vec()];
+    // TLS 1.3 session tickets so repeat clients can resume instead of paying
+    // a full handshake (RX-04). rustls defaults to `NeverProducesTickets`,
+    // which silently disables all TLS 1.3 resumption even though
+    // `send_tls13_tickets` defaults to 2. Each `ServerTls` mints its own
+    // ticket keys (XChaCha20-Poly1305, rotated every 6 h); keys are never
+    // shared across configs, so the rustls cross-config resumption warning
+    // (authenticated sessions resumed into unauthenticated configs) cannot
+    // trigger between `new` / `mtls` / `optional_mtls` instances.
+    // Verification, ALPN and cipher policy are unchanged.
+    config.ticketer = rustls_graviola::Ticketer::new()
+        .map_err(|e| Status::internal(format!("tls ticketer: {e}")))?;
     let config = Arc::new(config);
     Ok(ServerTls {
         acceptor: TlsAcceptor::from(Arc::clone(&config)),
@@ -392,7 +406,9 @@ fn build_server(identity: Identity, client_auth: ClientAuth) -> Result<ServerTls
     })
 }
 
-/// Client-side TLS: a rustls connector with ALPN `h2`.
+/// Client-side TLS: a rustls connector with ALPN `h2` and a session cache
+/// (up to 256 server names), so reconnected or pooled sockets covered by one
+/// `ClientTls` value resume via TLS 1.3 tickets instead of a full handshake.
 ///
 /// `server_name` is both SNI and the name verified against the certificate.
 /// It is independent of the TCP address, so you can dial `127.0.0.1` while
@@ -567,6 +583,13 @@ fn build_client(
             .map_err(|e| Status::invalid_argument(format!("client certificate: {e}")))?,
     };
     config.alpn_protocols = vec![ALPN_H2.to_vec()];
+    // Session cache for TLS 1.3 ticket resumption (RX-04). Clones of one
+    // `ClientTls` share this `ClientConfig` (and its store), so pooled and
+    // reconnected sockets in a `Channel` resume; a separately constructed
+    // `ClientTls` starts with an empty store. Same parameters as the rustls
+    // default (up to 256 server names; TLS 1.2 session-ID-or-ticket), stated
+    // explicitly so a future default change cannot silently drop resumption.
+    config.resumption = rustls::client::Resumption::in_memory_sessions(256);
     let config = Arc::new(config);
     Ok(ClientTls {
         connector: TlsConnector::from(Arc::clone(&config)),
@@ -664,6 +687,7 @@ mod tests {
 mod handshake {
     use super::{ClientTls, Identity, ServerTls, Status};
     use crate::status::Code;
+    use rustls::HandshakeKind;
     use tokio::net::{TcpListener, TcpStream};
 
     const CA: &str = include_str!("../tests/tls_data/ca.crt");
@@ -696,5 +720,99 @@ mod handshake {
         };
         assert_eq!(err.code(), Code::Unauthenticated, "{err}");
         let _server_outcome = server_task.await;
+    }
+
+    /// A second connection through shared configs must resume (RX-04): the
+    /// server sends TLS 1.3 tickets and the client's session store reuses one.
+    #[tokio::test]
+    async fn session_resumes_across_connections_with_shared_configs() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+        let server_tls = ServerTls::new(identity).expect("server");
+        let client_tls = ClientTls::ca("localhost", CA).expect("client");
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server_task = tokio::spawn(async move {
+            let mut kinds = Vec::new();
+            for _ in 0..2 {
+                let (tcp, _) = listener.accept().await.expect("accept");
+                let mut stream = server_tls.accept(tcp).await.expect("tls accept");
+                kinds.push(stream.get_ref().1.handshake_kind());
+                // App data flushes the queued NewSessionTicket messages ahead
+                // of it, so a client that reads the reply has tickets stored.
+                // The socket stays open for the ack: closing here would race
+                // the client's post-handshake alert check.
+                stream.write_all(b"ok").await.expect("write");
+                let mut ack = [0u8; 2];
+                stream.read_exact(&mut ack).await.expect("ack");
+                assert_eq!(&ack, b"ak");
+            }
+            kinds
+        });
+
+        let mut client_kinds = Vec::new();
+        for _ in 0..2 {
+            let tcp = TcpStream::connect(addr).await.expect("connect");
+            let mut stream = client_tls.connect(tcp).await.expect("tls connect");
+            client_kinds.push(stream.get_ref().1.handshake_kind());
+            let mut buf = [0u8; 2];
+            stream.read_exact(&mut buf).await.expect("read");
+            assert_eq!(&buf, b"ok");
+            stream.write_all(b"ak").await.expect("ack");
+        }
+        let server_kinds = server_task.await.expect("server");
+
+        assert_eq!(client_kinds[0], Some(HandshakeKind::Full), "first is full");
+        assert_eq!(
+            client_kinds[1],
+            Some(HandshakeKind::Resumed),
+            "second resumes"
+        );
+        assert_eq!(server_kinds[0], Some(HandshakeKind::Full), "server first");
+        assert_eq!(
+            server_kinds[1],
+            Some(HandshakeKind::Resumed),
+            "server second"
+        );
+    }
+
+    /// A separately constructed `ClientTls` (fresh session store) performs a
+    /// full handshake even against a ticket-issuing server.
+    #[tokio::test]
+    async fn fresh_client_config_does_not_resume() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+        let server_tls = ServerTls::new(identity).expect("server");
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+
+        let server_task = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (tcp, _) = listener.accept().await.expect("accept");
+                let mut stream = server_tls.accept(tcp).await.expect("tls accept");
+                stream.write_all(b"ok").await.expect("write");
+                let mut ack = [0u8; 2];
+                stream.read_exact(&mut ack).await.expect("ack");
+                assert_eq!(&ack, b"ak");
+            }
+        });
+
+        for _ in 0..2 {
+            let fresh = ClientTls::ca("localhost", CA).expect("client");
+            let tcp = TcpStream::connect(addr).await.expect("connect");
+            let mut stream = fresh.connect(tcp).await.expect("tls connect");
+            assert_eq!(
+                stream.get_ref().1.handshake_kind(),
+                Some(HandshakeKind::Full)
+            );
+            let mut buf = [0u8; 2];
+            stream.read_exact(&mut buf).await.expect("read");
+            assert_eq!(&buf, b"ok");
+            stream.write_all(b"ak").await.expect("ack");
+        }
+        server_task.await.expect("server");
     }
 }
