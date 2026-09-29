@@ -164,6 +164,10 @@ impl UnknownFields {
         self.fields.iter().map(UnknownField::encoded_len).sum()
     }
 
+    // Always inlined: the empty check folds into the caller and the
+    // cold loop body stays out-of-line, saving a call on every encode
+    // (PK-22).
+    #[inline(always)]
     pub fn encode(&self, out: &mut impl WireOut) {
         for f in self.fields.iter() {
             f.encode(out);
@@ -289,11 +293,29 @@ pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
 }
 
 #[inline(always)]
-pub fn encode_varint(out: &mut impl WireOut, mut value: u64) {
+pub fn encode_varint(out: &mut impl WireOut, value: u64) {
+    // One- and two-byte fast paths stay inline: tags, small values, and
+    // small lengths dominate encode traffic. The two-byte form emits via
+    // a single `put_slice` (fixed size, nothing to unroll). The general
+    // loop would unroll into hundreds of bytes at each call site and
+    // bloat small `write_to` bodies, so lengths 3+ live out-of-line
+    // (PK-22).
     if value < 0x80 {
         out.push(value as u8);
-        return;
+    } else if value < 0x4000 {
+        out.extend_from_slice(&[(value as u8) | 0x80, (value >> 7) as u8]);
+    } else {
+        encode_varint_slow(out, value);
     }
+}
+
+/// Varint encode for lengths 3+. Cold and never inlined: keeps the hot
+/// one- and two-byte paths (and their callers) small. Byte-identical to
+/// the inlined loop, including the single `put_slice` emission.
+#[cold]
+#[inline(never)]
+fn encode_varint_slow(out: &mut impl WireOut, mut value: u64) {
+    debug_assert!(value >= 0x4000);
     let mut buf = [0u8; 10];
     let mut i = 0;
     while value >= 0x80 {
