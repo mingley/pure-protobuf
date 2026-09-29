@@ -324,6 +324,11 @@ fn rustc_version() -> String {
 }
 
 fn git_commit() -> String {
+    if let Ok(commit) = std::env::var("PBRS_DEVLOOP_COMMIT") {
+        if !commit.trim().is_empty() {
+            return commit;
+        }
+    }
     std::process::Command::new("git")
         .args(["rev-parse", "--short=12", "HEAD"])
         .output()
@@ -1362,7 +1367,7 @@ fn run_child(
             "valgrind".to_owned(),
             "--tool=callgrind".to_owned(),
             "--cache-sim=no".to_owned(),
-            "--quiet".to_owned(),
+            "--callgrind-out-file=/tmp/devloop-callgrind.%p".to_owned(),
         ]
     } else {
         Vec::new()
@@ -1443,7 +1448,7 @@ fn parse_perf_instructions(stderr: &str) -> Option<f64> {
 fn parse_callgrind_instructions(stderr: &str) -> Option<f64> {
     stderr.lines().find_map(|line| {
         let line = line.trim();
-        line.strip_prefix("I   refs:").and_then(|rest| {
+        line.split_once("I   refs:").and_then(|(_, rest)| {
             rest.trim()
                 .split_whitespace()
                 .next()

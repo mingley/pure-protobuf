@@ -11,6 +11,34 @@ whatever sampler is installed:
 ./scripts/profile.sh --cell rpc.pbrs.unary
 ```
 
+## Linux dev-loop from macOS
+
+On a contended macOS host, `scripts/devloop.sh` can report exact allocations
+but not retired instructions. When Docker Desktop is available, run the same
+dev-loop inside an arm64 Linux container:
+
+```sh
+./scripts/devloop-linux.sh --cells codec.pbrs.owned_decode --out target/devloop/linux.json
+```
+
+The wrapper builds a small image from pinned `rust:1.98-bookworm` with
+`valgrind`, `cmake`, `git`, `g++`, and `protoc`. It mounts the checkout at
+`/work`, caches Cargo registry/git data in the `pbrs-devloop-linux-cargo`
+Docker volume, and caches `bench/devloop/target` in
+`pbrs-devloop-linux-devloop-target`; the pinned Linux `libprotoc 35.1` build is
+cached under `/cargo/pinned-protoc-build` in the Cargo volume. The repo's
+pinned protobuf source and compiler build are prepared before
+`scripts/devloop.sh` runs, so the v4/upb peer uses gencode compatible with
+`protobuf = 4.35.1-release` without writing a Linux executable into the host
+`target/` directory.
+
+All arguments are forwarded to `scripts/devloop.sh`. Output paths inside the
+repository, such as `target/devloop/*.json`, remain on the host checkout. The
+container runs the dev-loop as the invoking uid/gid after fixing cache-volume
+ownership. Override the image or volumes with
+`PBRS_DEVLOOP_LINUX_IMAGE`, `PBRS_DEVLOOP_LINUX_BASE`,
+`PBRS_DEVLOOP_LINUX_CARGO_VOLUME`, or `PBRS_DEVLOOP_LINUX_TARGET_VOLUME`.
+
 Output lands in `target/profile/<cell>-<stamp>/`:
 
 | File | Contents |
