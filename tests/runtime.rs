@@ -725,10 +725,11 @@ fn pk17_encode_entry_i32(out: &mut Vec<u8>, key: i32, val: i32) {
         out.push(v as u8);
     }
     // TestAllTypesProto3.map_int32_int32 is field 56, LEN; entry key = 1, value = 2.
+    // Entry tags use wire type 0 (varint): field << 3.
     let mut entry = Vec::new();
-    varint(&mut entry, (1 << 3) | 0);
+    varint(&mut entry, 1 << 3);
     varint(&mut entry, key as u64);
-    varint(&mut entry, (2 << 3) | 0);
+    varint(&mut entry, 2 << 3);
     varint(&mut entry, val as u64);
     varint(out, (56 << 3) | 2);
     varint(out, entry.len() as u64);
