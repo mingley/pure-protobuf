@@ -2692,7 +2692,13 @@
     "A5"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "src/map.rs: INDEX_THRESHOLD=16 sorted last-wins index",
+    "tests/runtime.rs: boundary oracle tests",
+    "conformance.sh PASS"
+   ],
+   "notes": "Closed 2026-09-29: semantics unchanged (differential fixtures), large maps win, small maps guarded. Size claim rests on scratch bench + guard cells; dev-loop map cells split to PK-23."
   },
   {
    "id": "PK-18",
@@ -8419,6 +8425,43 @@
     "PK-15"
    ],
    "notes": "Split from PK-15 2026-09-29: ~10 Ir of the 16.6 Ir gap is copy-counts atomics (bench-only), ~4-5 Ir encode dispatch in wire.rs + gencode."
+  },
+  {
+   "id": "PK-23",
+   "title": "Add map_8/map_64 cells to the dev-loop harness",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P2",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "SB-08",
+    "PK-17"
+   ],
+   "read": [
+    "bench/devloop/cells/",
+    "bench/src/main.rs"
+   ],
+   "write": [
+    "bench/devloop/cells/",
+    "docs/evidence/pk23-map-cells.md"
+   ],
+   "deliverable": "Add map_8/map_64 parse+touch/get/iter dev-loop cells on the same generated path as bench map_64 so PK-17-class wins and regressions are CI-legible. Runs after SB-08 (cells/ owner).",
+   "accept": [
+    "map_8/map_64 cells run in the harness with exact alloc counts; PK-17 numbers reproduced on re-run."
+   ],
+   "checks": [
+    "devloop-compare"
+   ],
+   "scoreboard": [
+    "A3",
+    "A5"
+   ],
+   "relates": [
+    "PK-17",
+    "SB-08"
+   ],
+   "notes": "Split from PK-17 2026-09-29: size claim currently rests on a scratch bench; guard cells only prove no regression."
   }
  ]
 }
