@@ -697,3 +697,140 @@ fn bytes_setter_shares_without_copy() {
     assert_eq!(p.as_shared().as_ptr(), buf.as_ptr());
     assert_eq!(p.into_vec(), vec![0xCCu8; 4096]);
 }
+
+// PK-17: hybrid map representation. Below the size boundary reads scan the
+// append/last-wins store; above it they use a sorted index. Duplicate-key
+// semantics, iteration order and encode order must be identical on both sides.
+fn pk17_oracle_i32(wire: &[(i32, i32)]) -> (usize, Vec<(i32, i32)>) {
+    use std::collections::HashMap;
+    let mut last: HashMap<i32, i32> = HashMap::new();
+    for (k, v) in wire {
+        last.insert(*k, *v);
+    }
+    let mut order = Vec::new();
+    for (i, (k, _)) in wire.iter().enumerate() {
+        if wire[i + 1..].iter().all(|(k2, _)| k2 != k) {
+            order.push((*k, last[k]));
+        }
+    }
+    (last.len(), order)
+}
+
+fn pk17_encode_entry_i32(out: &mut Vec<u8>, key: i32, val: i32) {
+    fn varint(out: &mut Vec<u8>, mut v: u64) {
+        while v >= 0x80 {
+            out.push((v as u8) | 0x80);
+            v >>= 7;
+        }
+        out.push(v as u8);
+    }
+    // TestAllTypesProto3.map_int32_int32 is field 56, LEN; entry key = 1, value = 2.
+    let mut entry = Vec::new();
+    varint(&mut entry, (1 << 3) | 0);
+    varint(&mut entry, key as u64);
+    varint(&mut entry, (2 << 3) | 0);
+    varint(&mut entry, val as u64);
+    varint(out, (56 << 3) | 2);
+    varint(out, entry.len() as u64);
+    out.extend_from_slice(&entry);
+}
+
+#[test]
+fn hybrid_map_generated_wire_order_dups_and_reserialize() {
+    for n in [3usize, 8, 15, 16, 17, 24, 64] {
+        // Overlapping key ranges force duplicates on the wire.
+        let wire: Vec<(i32, i32)> = (0..n as i32)
+            .map(|i| ((i * 5 + 1) % ((n / 2 + 1) as i32).max(1), i * 3))
+            .collect();
+        let mut bytes = Vec::new();
+        for (k, v) in &wire {
+            pk17_encode_entry_i32(&mut bytes, *k, *v);
+        }
+        let m = TestAllTypesProto3::parse(&bytes).expect("parse map wire");
+        let (unique, order) = pk17_oracle_i32(&wire);
+        let view = m.map_int32_int32();
+        assert_eq!(view.len(), unique, "len (n={n})");
+        for (k, v) in &order {
+            assert_eq!(view.get(*k), Some(*v), "get {k} (n={n})");
+        }
+        assert_eq!(view.get(i32::MIN), None, "missing key (n={n})");
+        let got: Vec<(i32, i32)> = view.iter().collect();
+        assert_eq!(got, order, "iter order (n={n})");
+        // Encode order is wire order including duplicates: re-serialization
+        // is byte-identical and re-parses to the same logical map.
+        let again = Serialize::serialize(&m).expect("serialize map");
+        assert_eq!(again, bytes, "encode order (n={n})");
+        let m2 = TestAllTypesProto3::parse(&again).expect("re-parse map");
+        assert_eq!(m2.map_int32_int32().len(), unique, "re-parse len (n={n})");
+        let got2: Vec<(i32, i32)> = m2.map_int32_int32().iter().collect();
+        assert_eq!(got2, order, "re-parse iter (n={n})");
+    }
+}
+
+#[test]
+fn hybrid_map_generated_string_keys_at_scale() {
+    // LazyStr keys exercise the by-content Ord path of the sorted index.
+    let entries: Vec<(String, String)> = (0..64)
+        .map(|i| (format!("k{:02}", i % 40), format!("v{i}")))
+        .collect();
+    let mut m = TestAllTypesProto3::new();
+    for (k, v) in &entries {
+        m.map_string_string_mut().insert(k.as_str(), v.as_str());
+    }
+    // insert() overwrites in place: order is first-insertion order, values last-wins.
+    let mut seen = std::collections::HashSet::new();
+    let mut order = Vec::new();
+    for i in 0..64 {
+        let k = format!("k{:02}", i % 40);
+        if seen.insert(k.clone()) {
+            order.push(k);
+        }
+    }
+    let view = m.map_string_string();
+    assert_eq!(view.len(), 40);
+    for k in &order {
+        let expect = format!(
+            "v{}",
+            (0..64)
+                .rev()
+                .find(|i| format!("k{:02}", i % 40) == *k)
+                .unwrap()
+        );
+        assert_eq!(
+            view.get(k.as_str()).unwrap().as_view().as_bytes(),
+            expect.as_bytes(),
+            "get {k}"
+        );
+    }
+    let got: Vec<String> = view
+        .iter()
+        .map(|(k, _)| String::from_utf8(k.as_bytes().to_vec()).unwrap())
+        .collect();
+    assert_eq!(got, order, "string iter order");
+    // Concatenated encodings put duplicates on the wire; last message wins
+    // per key and pairs keep the concatenated order on re-serialization.
+    let mut extra = TestAllTypesProto3::new();
+    for i in [0, 7, 39] {
+        let k = format!("k{i:02}");
+        extra.map_string_string_mut().insert(k.as_str(), "dup");
+    }
+    let mut both = Serialize::serialize(&m).expect("serialize base");
+    both.extend_from_slice(&Serialize::serialize(&extra).expect("serialize extra"));
+    let parsed = TestAllTypesProto3::parse(&both).expect("parse concat maps");
+    assert_eq!(parsed.map_string_string().len(), 40);
+    for i in [0, 7, 39] {
+        let k = format!("k{i:02}");
+        assert_eq!(
+            parsed
+                .map_string_string()
+                .get(k.as_str())
+                .unwrap()
+                .as_view()
+                .as_bytes(),
+            b"dup",
+            "dup wins for {k}"
+        );
+    }
+    let again = Serialize::serialize(&parsed).expect("reserialize concat");
+    assert_eq!(again, both, "concat encode order stable");
+}

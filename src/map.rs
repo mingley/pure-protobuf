@@ -2,18 +2,65 @@
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
 use crate::string::ProtoString;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::OnceLock;
 
-type LastWins<K> = OnceLock<BTreeMap<K, usize>>;
+/// Entry count at which lookups, unique length and iteration switch from a
+/// linear scan to the sorted last-wins index. Below this, reads never
+/// allocate an index; at and above it, one build is amortized over all reads.
+/// Measured with the PK-17 scratch bench (cold-index `parse+touch`,
+/// `get-each`, `iter` at 4..256 entries, exact alloc counts plus wall time):
+/// sizes 4-8 are identical-or-better (get/len shed the old node allocations),
+/// size 16 matches the scans on time, and 64+ wins strictly on every path.
+const INDEX_THRESHOLD: usize = 16;
 
-fn last_wins_index<K: MapKey, V>(entries: &[(K, V)]) -> BTreeMap<K, usize> {
-    let mut idx = BTreeMap::new();
-    for (i, (k, _)) in entries.iter().enumerate() {
-        idx.insert(k.clone(), i);
+/// Sorted unique key -> last wire position. One `Vec` (no per-key node
+/// allocation); lookups are binary searches. Built lazily on the first
+/// large-map read, updated incrementally by `insert`, dropped on any other
+/// mutation. Wire order and duplicates stay in `entries`, so encode order,
+/// `pairs()` and last-wins semantics are unchanged.
+struct LastWinsIndex<K> {
+    pos: Vec<(K, usize)>,
+}
+
+type LastWins<K> = OnceLock<LastWinsIndex<K>>;
+
+impl<K: MapKey> LastWinsIndex<K> {
+    fn get(&self, key: &K) -> Option<usize> {
+        self.pos
+            .binary_search_by(|(k, _)| k.cmp(key))
+            .ok()
+            .map(|i| self.pos[i].1)
     }
-    idx
+
+    fn is_last(&self, key: &K, i: usize) -> bool {
+        self.get(key) == Some(i)
+    }
+}
+
+fn build_index<K: MapKey, V>(entries: &[(K, V)]) -> LastWinsIndex<K> {
+    let mut pos: Vec<(K, usize)> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (k, _))| (k.clone(), i))
+        .collect();
+    // Key ascending, position descending: `dedup_by` keeps the first of each
+    // run, which is the last wire position per key. Single allocation.
+    pos.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+    pos.dedup_by(|a, b| a.0 == b.0);
+    LastWinsIndex { pos }
+}
+
+/// Returns the last-wins index when the map is large enough to amortize it.
+/// Small maps always scan, so they never pay for an index build.
+fn hot_index<'a, K: MapKey, V>(
+    entries: &[(K, V)],
+    index: Option<&'a LastWins<K>>,
+) -> Option<&'a LastWinsIndex<K>> {
+    if entries.len() < INDEX_THRESHOLD {
+        return None;
+    }
+    Some(index?.get_or_init(|| build_index(entries)))
 }
 
 fn scan_unique_len<K: MapKey, V>(v: &[(K, V)]) -> usize {
@@ -32,8 +79,8 @@ fn unique_len<K: MapKey, V>(entries: &[(K, V)], index: Option<&LastWins<K>>) -> 
     if entries.is_empty() {
         return 0;
     }
-    match index {
-        Some(lock) => lock.get_or_init(|| last_wins_index(entries)).len(),
+    match hot_index(entries, index) {
+        Some(idx) => idx.pos.len(),
         None => scan_unique_len(entries),
     }
 }
@@ -43,11 +90,8 @@ fn last_wins_pos<K: MapKey, V>(
     index: Option<&LastWins<K>>,
     key: &K,
 ) -> Option<usize> {
-    if let Some(lock) = index {
-        return lock
-            .get_or_init(|| last_wins_index(entries))
-            .get(key)
-            .copied();
+    if let Some(idx) = hot_index(entries, index) {
+        return idx.get(key);
     }
     entries.iter().rposition(|(k, _)| k == key)
 }
@@ -321,13 +365,23 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         let key = key.into();
         let value = value.into();
         let inner = self.ensure();
-        let existing = last_wins_pos(&inner.entries, Some(&inner.index), &key);
-        inner.index = OnceLock::new();
+        // Reuse a built index, but never build one on a mutation path: a
+        // build here would be discarded by the mutation itself.
+        let existing = match inner.index.get() {
+            Some(idx) => idx.get(&key),
+            None => inner.entries.iter().rposition(|(k, _)| k == &key),
+        };
         if let Some(i) = existing {
             if let Some(e) = inner.entries.get_mut(i) {
                 e.1 = value;
                 return false;
             }
+        }
+        let pos = inner.entries.len();
+        if let Some(idx) = inner.index.get_mut() {
+            debug_assert!(idx.get(&key).is_none(), "hot index disagrees with lookup");
+            let at = idx.pos.partition_point(|(k, _)| k < &key);
+            idx.pos.insert(at, (key.clone(), pos));
         }
         inner.entries.push((key, value));
         true
@@ -340,7 +394,13 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
         let inner = self.0.as_mut()?;
-        let i = last_wins_pos(&inner.entries, Some(&inner.index), key)?;
+        // Same no-build rule as `insert`; the swap may move an entry and an
+        // earlier duplicate may remain, so a built index is dropped and
+        // rebuilt lazily on the next large-map read.
+        let i = match inner.index.get() {
+            Some(idx) => idx.get(key),
+            None => inner.entries.iter().rposition(|(k, _)| k == key),
+        }?;
         let out = inner.entries.swap_remove(i).1;
         inner.index = OnceLock::new();
         if inner.entries.is_empty() {
@@ -375,9 +435,20 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
     }
 
     pub fn iter(&self) -> MapIter<'_, K, V> {
-        MapIter {
-            items: self.pairs(),
-            i: 0,
+        match self.0.as_deref() {
+            Some(inner) => {
+                let items = inner.entries.as_slice();
+                MapIter {
+                    items,
+                    index: hot_index(items, Some(&inner.index)),
+                    i: 0,
+                }
+            }
+            None => MapIter {
+                items: &[],
+                index: None,
+                i: 0,
+            },
         }
     }
 
@@ -397,12 +468,26 @@ impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for Map<K, V> 
 
 pub struct MapIter<'msg, K, V> {
     items: &'msg [(K, V)],
+    index: Option<&'msg LastWinsIndex<K>>,
     i: usize,
 }
 
 impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
     type Item = (&'msg K, &'msg V);
     fn next(&mut self) -> Option<Self::Item> {
+        // Indexed path yields the same last-occurrence order as the scan:
+        // position `i` is yielded exactly when no later duplicate exists.
+        if let Some(idx) = self.index {
+            while self.i < self.items.len() {
+                let (k, v) = &self.items[self.i];
+                let i = self.i;
+                self.i += 1;
+                if idx.is_last(k, i) {
+                    return Some((k, v));
+                }
+            }
+            return None;
+        }
         while self.i < self.items.len() {
             let (k, v) = &self.items[self.i];
             self.i += 1;
@@ -601,16 +686,24 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         V: 'static,
     {
         if let Some(v) = self.inner.as_mut() {
-            let existing = last_wins_pos(v, self.index.as_deref(), &key);
+            // Reuse a built index, but never build one on a mutation path.
+            let existing = match self.index.as_deref().and_then(|l| l.get()) {
+                Some(idx) => idx.get(&key),
+                None => v.iter().rposition(|(k, _)| k == &key),
+            };
             if let Some(i) = existing {
                 if let Some(e) = v.get_mut(i) {
                     e.1 = value;
-                    Self::drop_index(&mut self.index);
                     return false;
                 }
             }
+            let pos = v.len();
+            if let Some(idx) = self.index.as_deref_mut().and_then(|l| l.get_mut()) {
+                debug_assert!(idx.get(&key).is_none(), "hot index disagrees with lookup");
+                let at = idx.pos.partition_point(|(k, _)| k < &key);
+                idx.pos.insert(at, (key.clone(), pos));
+            }
             v.push((key, value));
-            Self::drop_index(&mut self.index);
             true
         } else if let Some(raw) = self.raw {
             crate::runtime::kernel_map_insert(raw, key, value, self.arena)
@@ -657,7 +750,14 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     pub fn remove(&mut self, key: impl MapQuery<K>) -> bool {
         let key = key.to_owned_key();
         if let Some(v) = self.inner.as_mut() {
-            if let Some(i) = last_wins_pos(v, self.index.as_deref(), &key) {
+            // Same no-build rule as `insert_owned`; the swap may move an
+            // entry and an earlier duplicate may remain, so a built index is
+            // dropped and rebuilt lazily on the next large-map read.
+            let found = match self.index.as_deref().and_then(|l| l.get()) {
+                Some(idx) => idx.get(&key),
+                None => v.iter().rposition(|(k, _)| k == &key),
+            };
+            if let Some(i) = found {
                 v.swap_remove(i);
                 Self::drop_index(&mut self.index);
                 return true;
@@ -891,14 +991,28 @@ impl<
                 }
             }
         } else if let Some(inner) = view.inner {
-            for (i, (k, v)) in inner.iter().enumerate() {
-                if inner[i + 1..].iter().any(|(k2, _)| k2 == k) {
-                    continue;
+            // Same last-occurrence order either way; the index turns the
+            // per-position duplicate check from a scan into a binary search.
+            if let Some(idx) = hot_index(inner, view.index) {
+                for (i, (k, v)) in inner.iter().enumerate() {
+                    if !idx.is_last(k, i) {
+                        continue;
+                    }
+                    items.push(Some((
+                        crate::proxied::AsView::as_view(k),
+                        crate::proxied::AsView::as_view(v),
+                    )));
                 }
-                items.push(Some((
-                    crate::proxied::AsView::as_view(k),
-                    crate::proxied::AsView::as_view(v),
-                )));
+            } else {
+                for (i, (k, v)) in inner.iter().enumerate() {
+                    if inner[i + 1..].iter().any(|(k2, _)| k2 == k) {
+                        continue;
+                    }
+                    items.push(Some((
+                        crate::proxied::AsView::as_view(k),
+                        crate::proxied::AsView::as_view(v),
+                    )));
+                }
             }
         }
         Self { items, i: 0 }
@@ -1073,6 +1187,97 @@ mod tests {
             .map(|(key, value)| (key.as_bytes().to_vec(), value))
             .collect();
         assert_eq!(pairs, vec![(b"alpha".to_vec(), 7)]);
+    }
+
+    fn oracle_last_wins(wire: &[(i32, i32)]) -> (usize, Vec<(i32, i32)>) {
+        use std::collections::HashMap;
+        let mut last: HashMap<i32, i32> = HashMap::new();
+        for (k, v) in wire {
+            last.insert(*k, *v);
+        }
+        let mut order = Vec::new();
+        for (i, (k, _)) in wire.iter().enumerate() {
+            if wire[i + 1..].iter().all(|(k2, _)| k2 != k) {
+                order.push((*k, last[k]));
+            }
+        }
+        (last.len(), order)
+    }
+
+    #[test]
+    fn hybrid_matches_scan_across_threshold() {
+        // White-box boundary: below INDEX_THRESHOLD reads scan, at and above
+        // they use the sorted index. Semantics must be identical.
+        for n in [
+            0,
+            1,
+            2,
+            INDEX_THRESHOLD - 1,
+            INDEX_THRESHOLD,
+            INDEX_THRESHOLD + 1,
+            64,
+            100,
+        ] {
+            let wire: Vec<(i32, i32)> = (0..n as i32)
+                .map(|i| ((i * 7 + 3) % ((n / 2 + 1) as i32).max(1), i))
+                .collect();
+            let mut m = Map::new();
+            for (k, v) in &wire {
+                m.push_entry(*k, *v);
+            }
+            let (unique, order) = oracle_last_wins(&wire);
+            assert_eq!(m.pairs(), wire.as_slice(), "pairs keep wire order (n={n})");
+            assert_eq!(m.len(), unique, "len (n={n})");
+            assert_eq!(m.as_view().len(), unique, "view len (n={n})");
+            for (k, v) in &order {
+                assert_eq!(m.get(k), Some(v), "get {k} (n={n})");
+                assert_eq!(m.as_view().get(*k), Some(*v), "view get {k} (n={n})");
+            }
+            assert_eq!(m.get(&i32::MIN), None, "missing key (n={n})");
+            let got: Vec<(i32, i32)> = m.iter().map(|(k, v)| (*k, *v)).collect();
+            assert_eq!(got, order, "iter order (n={n})");
+            let vgot: Vec<(i32, i32)> = m.as_view().iter().collect();
+            assert_eq!(vgot, order, "view iter order (n={n})");
+        }
+    }
+
+    #[test]
+    fn hybrid_hot_index_survives_insert_and_rebuilds_after_remove() {
+        let n = INDEX_THRESHOLD + 8;
+        let mut m = Map::new();
+        for i in 0..n as i32 {
+            m.push_entry(i, i * 10);
+        }
+        // Build the index, then mutate through both owned and view APIs.
+        assert_eq!(m.get(&0), Some(&0));
+        assert!(!m.insert(0, 1));
+        assert!(m.insert(n as i32, -1));
+        assert_eq!(m.get(&0), Some(&1));
+        assert_eq!(m.get(&(n as i32)), Some(&-1));
+        assert_eq!(m.len(), n + 1);
+        {
+            let mut mm = m.as_mut();
+            assert!(!mm.insert(1, 11));
+            assert!(mm.insert(n as i32 + 1, -2));
+            assert_eq!(mm.get(1), Some(11));
+            assert_eq!(mm.len(), n + 2);
+            assert!(mm.remove(1));
+            assert_eq!(mm.get(1), None);
+            assert_eq!(mm.len(), n + 1);
+        }
+        // Duplicate-key remove drops only the last entry; the earlier one
+        // resurfaces even after the index was dropped and rebuilt.
+        m.push_entry(1000, 50);
+        m.push_entry(1000, 51);
+        assert_eq!(m.get(&1000), Some(&51));
+        assert_eq!(m.remove(&1000), Some(51));
+        assert_eq!(m.get(&1000), Some(&50));
+        assert_eq!(m.remove(&1000), Some(50));
+        assert_eq!(m.get(&1000), None);
+        let (unique, order) = oracle_last_wins(m.pairs());
+        assert_eq!(m.len(), unique);
+        let got: Vec<(i32, i32)> = m.iter().map(|(k, v)| (*k, *v)).collect();
+        assert_eq!(got, order);
     }
 
     #[test]
