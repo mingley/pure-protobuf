@@ -2134,7 +2134,11 @@
     "A3",
     "A5"
    ],
-   "relates": []
+   "relates": [],
+   "status": "pending",
+   "evidence": [
+    "docs/evidence/codec-profiles.md"
+   ]
   },
   {
    "id": "PK-05",
@@ -2171,7 +2175,10 @@
     "B6"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/decisions/table-driven-parse.md"
+   ]
   },
   {
    "id": "PK-06",
