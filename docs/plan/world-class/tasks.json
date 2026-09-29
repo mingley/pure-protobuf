@@ -1617,7 +1617,8 @@
    "relates": [
     "BM-03"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "notes": "2026-09-29 DONE (2f2b3ec1): drift tests 4/4, pins+checksums match SB08_PROVENANCE.md, 21 cases with handwritten person diagnostic, byte-identical-wire asserts clean over 4 runs (1 debug + 3 release); residual perf-gate failures hop cases run-to-run (smoke-knob noise, worker saw same); tonic-bench 2/2 + 9/9 green. Note: bench deps fetched via public crates.io (corp artifactory mirror DNS-dead); user cargo config untouched (verified byte-identical restore)."
   },
   {
    "id": "SB-09",
