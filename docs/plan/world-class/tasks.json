@@ -8245,6 +8245,48 @@
     "H2-01"
    ],
    "status": "in_progress"
+  },
+  {
+   "id": "TC-23",
+   "title": "Close small tonic builder parity gaps",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-08"
+   ],
+   "read": [
+    "docs/guides/comparison.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/config.rs",
+    "pbrs-grpc/src/server/accept.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/rt/",
+    "pbrs-grpc/src/tcp.rs",
+    "pbrs-grpc/src/compat/",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/",
+    "docs/guides/comparison.md",
+    "docs/guides/migration.md"
+   ],
+   "deliverable": "Add a tcp_nodelay toggle (default on) for server and client, keep_alive_while_idle(false), a custom executor hook for server and client background tasks, a native trace_fn equivalent (optional tracing feature), and tonic-style Server::builder()/tls_config shims in compat mode.",
+   "accept": [
+    "Each addition is additive with defaults unchanged, tested, and reflected in the parity matrix; the only remaining Partial rows are deliberate boundaries (no skip-verify or custom verifier, mandatory ALPN h2)."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F4"
+   ],
+   "relates": [
+    "TC-08"
+   ],
+   "status": "in_progress"
   }
  ]
 }
