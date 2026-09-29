@@ -4,6 +4,11 @@
 # one job, runs the deterministic dev-loop suite for both, uploads the
 # JSON reports, and writes a per-cell delta summary. Never fails the PR:
 # SB-20 decides gating thresholds from the retained runs.
+#
+# SB-23: every lane step after checkout is non-fatal (continue-on-error)
+# and compare/upload run under if: always(), so a bench compile failure
+# is reported in the logs, summary, and uploaded JSONs instead of
+# exiting silent before artifacts upload.
 name: dev-loop perf
 
 on:
@@ -18,18 +23,44 @@ on:
 jobs:
   devloop-compare:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      # SB-23: v4_tat needs `protoc --rust_out` with gencode in
+      # [4.34, 4.35.1] to match the `protobuf` runtime pin, but apt's
+      # protoc is 3.21.12 with no Rust codegen at all, so the lane
+      # could never compile in CI. Build the pinned v35.1 protoc from
+      # the vendored sources instead (same pattern as
+      # compatibility.yml) and put it first on PATH: v4_tat invokes
+      # plain `protoc`, and prost/tonic builders fall back to PATH.
+      - name: Install C++ compiler and cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Cache pinned protoc with built-in Rust output
+        uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
       - name: Fetch dependencies and protobuf sources
         run: |
           cargo fetch
+          # bench/devloop is its own workspace (excluded from the root
+          # one), so the root fetch above does not cover its closure.
+          # Without this, the cold-cache offline build in devloop.sh
+          # fails resolution with "no matching package named `protobuf`".
+          cargo fetch --manifest-path bench/devloop/Cargo.toml
           scripts/fetch-protobuf.sh
+      - name: Build pinned protoc and put it on PATH
+        run: |
+          scripts/build-pinned-protoc.sh
+          echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
 
       # devloop prefers `perf stat` when present but asserts on wrapper
       # failure, so a present-but-unusable perf would crash the suite.
@@ -52,33 +83,83 @@ jobs:
           command -v valgrind >/dev/null 2>&1 && echo "valgrind: present" || echo "valgrind: absent"
 
       - name: Run dev-loop suite on head
+        if: always()
+        continue-on-error: true
         run: scripts/devloop.sh --out head.json
 
       - name: Run dev-loop suite on base
+        if: always()
+        continue-on-error: true
         run: |
           set -euo pipefail
-          mv head.json /tmp/devloop-head.json
+          if [ -f head.json ]; then
+            mv head.json /tmp/devloop-head.json
+          else
+            echo "no head report to stash; compare will use a placeholder"
+          fi
           git checkout '${{ github.event.pull_request.base.sha }}'
+          # Base may pin different deps than head; re-fetch its closure
+          # so its offline build resolves from a warm cache.
+          cargo fetch --manifest-path bench/devloop/Cargo.toml || \
+            echo "base fetch failed; devloop.sh will try cached deps"
+          # Always restore head.json, even when the base suite fails, so
+          # both reports reach the compare/upload steps.
+          set +e
           scripts/devloop.sh --out /tmp/devloop-base.json
-          mv /tmp/devloop-base.json base.json
-          mv /tmp/devloop-head.json head.json
+          BASE_EXIT=$?
+          set -e
+          echo "base suite exit: $BASE_EXIT (non-blocking)"
+          if [ -f /tmp/devloop-base.json ]; then
+            mv /tmp/devloop-base.json base.json
+          else
+            echo "no base report produced; compare will use a placeholder"
+          fi
+          if [ -f /tmp/devloop-head.json ]; then
+            mv /tmp/devloop-head.json head.json
+          fi
+          exit "$BASE_EXIT"
 
       - name: Compare and summarize
+        if: always()
+        continue-on-error: true
         run: |
           set -euo pipefail
           BIN="bench/devloop/target/release/devloop"
-          set +e
-          "$BIN" compare --baseline base.json --current head.json --budget bench/devloop/baselines/picker.json > compare.txt 2>&1
-          COMPARE_EXIT=$?
-          set -e
+          for f in base.json head.json; do
+            if [ ! -f "$f" ]; then
+              echo "warning: $f missing; writing placeholder so the artifact always uploads" >&2
+              printf '%s\n' '{"schema":"devloop/1","host":{"os":"unknown","arch":"unknown","cpu":"unknown","rustc":"unknown","perf":false,"strace":false,"valgrind":false},"devloop_commit":"unknown","cells":[],"error":"suite step produced no report"}' > "$f"
+            fi
+          done
+          COMPARE_EXIT=0
+          if grep -l '"error"' base.json head.json >/dev/null 2>&1; then
+            echo "compare skipped: one or both reports carry a suite error (non-blocking)" > compare.txt
+          elif [ ! -x "$BIN" ]; then
+            echo "compare skipped: harness binary missing (non-blocking)" > compare.txt
+          else
+            set +e
+            "$BIN" compare --baseline base.json --current head.json --budget bench/devloop/baselines/picker.json > compare.txt 2>&1
+            COMPARE_EXIT=$?
+            set -e
+          fi
           echo "compare exit: $COMPARE_EXIT (non-blocking)"
           cat compare.txt
           python3 - base.json head.json compare.txt "$COMPARE_EXIT" >> "$GITHUB_STEP_SUMMARY" <<'PY'
           import json, sys
 
           base_path, head_path, compare_path, compare_exit = sys.argv[1:5]
-          base = json.load(open(base_path))
-          head = json.load(open(head_path))
+
+          def load(path):
+              try:
+                  rep = json.load(open(path))
+              except Exception as e:
+                  return {"schema": "devloop/1", "devloop_commit": "?",
+                          "cells": [], "error": "unreadable report: %s" % e}
+              rep.setdefault("cells", [])
+              return rep
+
+          base = load(base_path)
+          head = load(head_path)
           verdict = open(compare_path).read().strip()
 
           def value(cell, metric):
@@ -101,6 +182,10 @@ jobs:
           print("## dev-loop perf: base vs head (non-blocking)")
           print()
           print(f"base `{base.get('devloop_commit', '?')}` vs head `{head.get('devloop_commit', '?')}`.")
+          for label, rep in (("base", base), ("head", head)):
+              if rep.get("error"):
+                  print()
+                  print(f"**{label} suite error:** {rep['error']}")
           print()
           print("| cell | instructions base → head | Δ | allocs/RPC base → head | Δ |")
           print("|---|---|---|---|---|")
@@ -124,10 +209,12 @@ jobs:
           PY
 
       - name: Retain reports for noise analysis
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: devloop-${{ github.run_id }}
           retention-days: 180
+          if-no-files-found: warn
           path: |
             base.json
             head.json
