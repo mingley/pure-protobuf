@@ -440,3 +440,32 @@ The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04
 5. **New `unsafe` needs a second pair of eyes.** At least one reviewer other than the author must approve the `SAFETY` argument. This relates to PB-07, which qualifies the invariants on additional targets.
 
 Until `pbrs-h2` exists, the PR-time job exercises in-crate kernel paths (`pbrs --lib`). The `pbrs-h2` steps activate automatically once the crate lands, using directory guards rather than hardcoded package lists.
+
+---
+
+## 8. PK-12 Arena Prototype (`bench/devloop/cells/arena.rs`, unregistered)
+
+Bench-only prototype behind the PK-12 REJECT decision; not compiled into
+any crate (unregistered until SB-08 wires `cells/`). Its small `unsafe`
+core has local `// SAFETY:` proofs and Miri strict-provenance coverage
+(10/10). Shared invariants, for audit if the prototype is ever revived:
+
+- **Chunk access through `UnsafeCell`.** `BumpArena` owns a chunk list
+  behind `UnsafeCell`; all mutation goes through `&self` methods that
+  hand out disjoint slices. The arena is `!Sync` (no cross-thread
+  sharing), so no aliasing across threads; within a thread, each
+  allocation advances a bump cursor and never reuses live bytes.
+- **Bump-pointer arithmetic.** `tail.base.add(start)` stays in-bounds:
+  `start + len` is checked against the chunk capacity before the
+  pointer is formed, and a fresh chunk is allocated otherwise. Chunk
+  backing is `u128`-aligned storage (Miri caught an earlier align-1
+  `[u8; 16]` backing), so all derived pointers meet payload alignment
+  after `align_up`.
+- **Capture-once pointers.** Base pointers are captured once in place
+  and never re-derived across a `Box` move (Miri/Stacked-Borrows caught
+  a repeated-`as_mut_ptr` pop); no pointer outlives its chunk, and
+  `reset`/`drop` invalidates all outstanding borrows by lifetime (refs
+  borrow the arena).
+- **`from_utf8_unchecked_mut`.** Used only on bytes just validated as
+  UTF-8 by the probe parser on the same slice, with no intervening
+  mutation.
