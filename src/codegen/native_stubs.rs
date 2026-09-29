@@ -855,6 +855,25 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Mount alongside another service using static tuple dispatch instead of dynamic [`{G}::Router`] hashing and boxed service futures."
+    );
+    let _ = writeln!(
+        src,
+        "    /// The returned [`{G}::Server`] preserves this server's configuration and dispatches by matching the full `/<service>/<method>` path."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn add_static_service<S: {G}::Service>(self, service: S) -> {G}::Server<(Self, S)> {{"
+    );
+    let _ = writeln!(src, "        let config = self.config;");
+    let _ = writeln!(
+        src,
+        "        {G}::Server::new((self, service)).config(config)"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
         "    /// Mount `service` when `Some`. `None` is a no-op. Distinct from [`Self::add_service`], which always mounts. `None` does not replace a service already there. Services that stay mounted still complete every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -1044,17 +1063,30 @@ pub(crate) fn emit_kernel_server(
         "        let inner = ::std::sync::Arc::clone(&self.inner);"
     );
     let _ = writeln!(src, "        async move {{");
-    let _ = writeln!(src, "            match rpc.method() {{");
+    let _ = writeln!(src, "            match rpc.path() {{");
     for m in &svc.methods {
         let shape = shape_of(m);
         let fn_name = to_snake(&m.name);
-        let _ = writeln!(src, "                \"{}\" => {{", m.name);
+        let _ = writeln!(src, "                \"/{full_name}/{}\" => {{", m.name);
         let _ = writeln!(
             src,
             "                    rpc.{}(move |request| async move {{ inner.{fn_name}(request).await }}).await;",
             shape.dispatch
         );
         let _ = writeln!(src, "                }}");
+        if full_name == "grpc.reflection.v1.ServerReflection" {
+            let _ = writeln!(
+                src,
+                "                \"/grpc.reflection.v1alpha.ServerReflection/{}\" => {{",
+                m.name
+            );
+            let _ = writeln!(
+                src,
+                "                    rpc.{}(move |request| async move {{ inner.{fn_name}(request).await }}).await;",
+                shape.dispatch
+            );
+            let _ = writeln!(src, "                }}");
+        }
     }
     let _ = writeln!(src, "                _ => rpc.unimplemented(),");
     let _ = writeln!(src, "            }}");

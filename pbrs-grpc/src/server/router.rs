@@ -131,6 +131,60 @@ impl Default for Router {
     }
 }
 
+fn path_matches_service_or_alias<S: Service>(path: &str) -> bool {
+    Router::path_matches_service(path, S::NAME)
+        || S::ALIASES
+            .iter()
+            .any(|alias| Router::path_matches_service(path, alias))
+}
+
+macro_rules! impl_tuple_service {
+    ($($idx:tt : $ty:ident => $variant:ident),+ $(,)?) => {
+        impl<$($ty: Service),+> Service for ($($ty,)+) {
+            const NAME: &'static str = "pbrs_grpc.StaticRouter";
+
+            fn call(&self, rpc: Rpc) -> impl Future<Output = ()> + Send {
+                enum Route {
+                    $($variant,)+
+                    Unknown,
+                }
+
+                let path = rpc.path();
+                let route = if false {
+                    Route::Unknown
+                } $(
+                    else if path_matches_service_or_alias::<$ty>(path) {
+                        Route::$variant
+                    }
+                )+ else {
+                    Route::Unknown
+                };
+
+                async move {
+                    match route {
+                        $(Route::$variant => self.$idx.call(rpc).await,)+
+                        Route::Unknown => rpc.unimplemented(),
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_tuple_service!(0: A => A);
+impl_tuple_service!(0: A => A, 1: B => B);
+impl_tuple_service!(0: A => A, 1: B => B, 2: C => C);
+impl_tuple_service!(0: A => A, 1: B => B, 2: C => C, 3: D => D);
+impl_tuple_service!(0: A => A, 1: B => B, 2: C => C, 3: D => D, 4: E => E);
+impl_tuple_service!(
+    0: A => A,
+    1: B => B,
+    2: C => C,
+    3: D => D,
+    4: E => E,
+    5: F => F
+);
+
 impl Router {
     /// An empty router with default configuration.
     #[must_use]
@@ -145,6 +199,24 @@ impl Router {
             binlog: None,
             channelz: None,
         }
+    }
+
+    /// Whether `path` is under `/<service>/` without allocating or hashing.
+    ///
+    /// Generated static routers use this helper before dispatching directly
+    /// to a concrete [`Service`]. It deliberately accepts an empty method half:
+    /// the service then returns `UNIMPLEMENTED`, matching dynamic [`Router`]
+    /// behavior for `/<service>/`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn path_matches_service(path: &str, service: &str) -> bool {
+        let Some(rest) = path.strip_prefix('/') else {
+            return false;
+        };
+        let Some(rest) = rest.strip_prefix(service) else {
+            return false;
+        };
+        rest.starts_with('/')
     }
 
     /// Register the channelz server entity for this serve, named for
