@@ -7844,7 +7844,11 @@
     "E5"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/tc-15-adaptive-window.md",
+    "pbrs-grpc/tests/adaptive_window.rs"
+   ]
   },
   {
    "id": "TC-16",
