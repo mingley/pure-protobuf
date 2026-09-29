@@ -13,6 +13,13 @@ not set `id-token: write` and does not authenticate with OIDC. Uploads use the
 repository secret **`CRATES_IO_TOKEN`**, mapped to `CARGO_REGISTRY_TOKEN` for
 `cargo publish`.
 
+## Support and security policy
+
+Supported versions, MSRV, deprecation, per-crate patch/rollback, and
+provenance rules live in [the support policy](support-policy.md)
+(proposed, pending owner approval). Vulnerability reporting and
+response targets live in [the security policy](../SECURITY.md).
+
 ## Crates
 
 Versions are read from each crate's `Cargo.toml` at the release SHA. They are
