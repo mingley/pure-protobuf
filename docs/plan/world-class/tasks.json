@@ -3748,7 +3748,8 @@
     "D2",
     "D8"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "H2-02",
@@ -4583,7 +4584,10 @@
    "relates": [
     "CP-02"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/cl-02.md"
+   ]
   },
   {
    "id": "CL-03",
@@ -4625,7 +4629,10 @@
    "relates": [
     "CP-02"
    ],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/cl-03.md"
+   ]
   },
   {
    "id": "CL-04",
@@ -4664,7 +4671,8 @@
     "CP-03",
     "CP-04",
     "EX-21"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "CL-05",
@@ -4699,7 +4707,10 @@
     "C3"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/cl-05.md"
+   ]
   },
   {
    "id": "CL-06",
@@ -4982,7 +4993,8 @@
    "relates": [
     "SP-02",
     "RT-07"
-   ]
+   ],
+   "status": "in_progress"
   },
   {
    "id": "SV-07",
@@ -5017,7 +5029,8 @@
     "D5",
     "D6"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-01",
@@ -7928,7 +7941,8 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-20",
