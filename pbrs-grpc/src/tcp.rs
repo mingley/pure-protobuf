@@ -371,4 +371,32 @@ mod tests {
         let (_server, peer) = listener.accept().await.unwrap();
         assert_eq!(peer.ip(), client.local_addr().unwrap().ip());
     }
+
+    #[tokio::test]
+    async fn connect_bound_literal_mismatch_is_no_usable_address() {
+        // A lone literal of the wrong family is skipped by the lookup
+        // loop, leaving "no usable address" (no dial is attempted).
+        // Locks the error a future literal fast path must preserve.
+        let local = SocketAddr::new(loopback_alias(), 0);
+        let err = connect("[::1]:1", Some(local)).await.expect_err("mismatch");
+        assert_eq!(err.kind(), std::io::ErrorKind::AddrNotAvailable);
+        assert!(
+            err.to_string().contains("no usable address"),
+            "{}",
+            err.to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn absent_proxy_env_means_direct_dial() {
+        // No env mutation (which would need cross-test serialization):
+        // when neither proxy variable is set, the full config parse
+        // yields no proxy and the dial path skips tunneling. The
+        // proxy-set paths are covered by tests/proxy.rs.
+        if std::env::var_os("HTTPS_PROXY").is_none() && std::env::var_os("https_proxy").is_none() {
+            assert!(crate::proxy::ProxyConfig::from_env().is_none());
+            let tunneled = super::dial_via_proxy("127.0.0.1:9", None).await.unwrap();
+            assert!(tunneled.is_none());
+        }
+    }
 }
