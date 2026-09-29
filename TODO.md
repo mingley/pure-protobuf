@@ -60,6 +60,29 @@ API was changed. Finish these gaps, RX-09's equivalent-work profiles and
 SB-20's calibration. The
 [benchmark contract](docs/benchmark-contract.md) owns numeric thresholds.
 
+## Adoption findings (2026-09-29)
+
+An adoption evaluation against a production-shaped schema set and
+tonic-based service stack filed these cards. Dev-loop evidence is in each
+card's `notes`.
+
+| Card | Priority | Finding |
+|---|---|---|
+| GN-10 | P0 | Fields named `default`, `clone` or `serialize` generate code that does not compile. |
+| PK-26 | P0 | Message getters take a global mutex and hash a `TypeId` on every read of a present field. |
+| PK-27 | P0 | Reading every field after decode costs 2-5x prost instructions on deep or `Any`-heavy messages. |
+| TC-25 | P0 | TLS hard-wires the graviola provider; callers cannot pass rustls configs, providers or cert resolvers. |
+| GN-11 | P1 | Each generated file carries private well-known-type copies; `::pbrs::wkt` in the docs does not exist. |
+| TC-26 | P1 | Services cannot mount in tonic-typed frameworks (`NamedService`, tonic connect-info types). |
+| TC-27 | P1 | The Tower client adapter covers unary calls only. |
+| TC-28 | P1 | The config-only `codec_path` route from tonic-prost-build works but is untested and undocumented. |
+| PK-28 | P2 | Serialized field order differs from prost, C++ and Go. |
+
+In the same evaluation, prost messages on pbrs-grpc cost 5-7% fewer
+instructions and up to 29% fewer allocated bytes per unary RPC than on
+tonic. pbrs messages cost more CPU on either transport once handlers read
+every field (PK-27).
+
 ## Work that should wait
 
 - **Custom HTTP/2 engine:** H2-04 is blocked by the recorded no-go decision.

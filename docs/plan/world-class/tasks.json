@@ -2687,7 +2687,8 @@
    "relates": [
     "OP-04",
     "OP-05"
-   ]
+   ],
+   "notes": "Generated from_json currently goes DynamicMessage::from_json_with_pool, then serialize, then lazy parse (src/codegen/json.rs). Messages built from JSON therefore stay wire-backed: later encode or clone copies the retained bytes, which makes JSON-seeded messages unsuitable as fresh-build benchmark inputs."
   },
   {
    "id": "PK-17",
@@ -2807,7 +2808,8 @@
     "A7",
     "A8"
    ],
-   "relates": []
+   "relates": [],
+   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. Cloning setter-built responses (10/100/1000 records with Any payloads) cost +34%/+62%/+66% instructions vs prost and more allocations; see PK-27."
   },
   {
    "id": "GN-01",
@@ -9034,6 +9036,349 @@
    ],
    "implementer": "sb21_claim_accounting (guide follow-up)",
    "reviewer": "coordinator"
+  },
+  {
+   "id": "GN-10",
+   "title": "Escape generated accessors that collide with trait methods",
+   "lane": "GN",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "src/codegen/messages.rs",
+    "src/codegen/naming.rs",
+    "src/gen_support.rs"
+   ],
+   "write": [
+    "src/codegen/messages.rs",
+    "src/codegen/naming.rs",
+    "src/gen_support.rs",
+    "tests/"
+   ],
+   "deliverable": "Generated code must compile for any legal field name. Today fields named `default`, `clone` or `serialize` generate inherent accessors that shadow Default::default, Clone::clone and Serialize::serialize inside generated bodies and impl_typed_message!, so the file fails to compile (10 errors for the three names).",
+   "accept": [
+    "Reproducer compiles and round-trips: `message DefaultField { optional string default = 1; } message CloneField { optional string clone = 1; } message SerializeField { optional string serialize = 1; }`.",
+    "Generated bodies and macros call trait methods fully qualified (for example `<Self as Default>::default()`) or accessors are renamed by a documented, deterministic rule; audit every trait method pbrs generated code relies on (Default, Clone, PartialEq, Hash, Debug, Parse, Serialize, Clear, Message) plus inherent helpers (new, merge_*, write_to, compute_size, to_json, from_json).",
+    "A regression test covers each colliding name with presence, getter, setter and clear."
+   ],
+   "checks": [
+    "codegen",
+    "conformance"
+   ],
+   "scoreboard": [],
+   "relates": [],
+   "notes": "Found on a widely imported internal options schema (a rule message with `optional string default = 2`); any schema importing it failed to compile. new/eq/hash/fmt/parse/clear compiled in the same reproducer but should be covered by the audit."
+  },
+  {
+   "id": "GN-11",
+   "title": "Share well-known types across generated files by default",
+   "lane": "GN",
+   "milestone": "M1",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/codegen-layout.md",
+    "src/codegen/config.rs",
+    "src/codegen/messages.rs",
+    "src/codegen/descriptors.rs"
+   ],
+   "write": [
+    "src/codegen/",
+    "docs/codegen-layout.md",
+    "docs/guides/codegen.md",
+    "tests/"
+   ],
+   "deliverable": "Emit each referenced google.protobuf type once per generated crate (or ship a pbrs::wkt module) instead of a private copy per file, and make the documented extern_path escape hatch work.",
+   "accept": [
+    "Reproducer: opt_a.proto imports google/protobuf/descriptor.proto and extends MessageOptions; opt_b.proto and opt_c.proto import opt_a.proto and set the option on a one-field message. Today each of the three files emits about 11.2k lines, each with its own DescriptorProto/FieldDescriptorProto copies. After the change the descriptor types are emitted once and total output shrinks accordingly (report B3 before/after).",
+    "`extern_path(\".google.protobuf\", ...)` examples in docs/codegen-layout.md point at a path that exists (`::pbrs::wkt` does not exist today) and compile in a docs-contract test.",
+    "Including google/protobuf files in the same compile set as an extern_path for .google.protobuf either emits the types at the mapped path or fails generation with a clear error; today it silently emits no WKT types and the output does not compile.",
+    "Types remain source-compatible for single-file include! users, or the break is called out in release notes."
+   ],
+   "checks": [
+    "codegen",
+    "docs-contract",
+    "codegen-harness"
+   ],
+   "scoreboard": [
+    "B3",
+    "B4",
+    "B5"
+   ],
+   "relates": [
+    "CG-05",
+    "CG-19"
+   ],
+   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. A 20-file production-shaped closure whose option schemas import descriptor.proto generated 284,377 lines (19.5 MB) versus prost's 1,825 lines (71 KB). Generating google/protobuf once in a separate pass, mounting it at crate::google::protobuf and extern_path-ing the app files cut this to 104,913 lines (8.1 MB) and compiled; debug rebuild of that crate took 7.1-8.2 s vs prost 5.3-6.0 s."
+  },
+  {
+   "id": "PK-26",
+   "title": "Stop eager default-instance lookups in message getters",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "src/codegen/messages.rs",
+    "src/gen_support.rs"
+   ],
+   "write": [
+    "src/codegen/messages.rs",
+    "src/gen_support.rs",
+    "src/generated/"
+   ],
+   "deliverable": "Generated singular-message getters use `.unwrap_or(pbrs::gen_support::default_instance_of())` (src/codegen/messages.rs, both the hot and cold getter templates). unwrap_or evaluates its argument eagerly, so every read of a present message field takes a process-global Mutex and hashes a TypeId. Make the fallback lazy and lock-free.",
+   "accept": [
+    "Getters evaluate the default only when the field is absent (unwrap_or_else at minimum); the absent path avoids a global Mutex (for example a per-type static in generated code or a lock-free map).",
+    "Dev-loop parse-then-touch cells for nested messages improve by at least 2% instructions with no allocation regression; regenerated checked-in output passes regen-check."
+   ],
+   "checks": [
+    "codegen",
+    "conformance",
+    "regen-check"
+   ],
+   "scoreboard": [
+    "A5"
+   ],
+   "relates": [
+    "PK-27"
+   ],
+   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. In the parse-then-touch profile of the nested-request corpus, the default_instance_of HashMap entry path was about 3% of instructions, plus mutex atomics."
+  },
+  {
+   "id": "PK-27",
+   "title": "Close the parse-then-touch gap on deep and Any-heavy messages",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "PK-26"
+   ],
+   "read": [
+    "src/lazy.rs",
+    "src/rt.rs",
+    "src/codegen/parse.rs",
+    "bench/devloop/src/main.rs"
+   ],
+   "write": [
+    "src/lazy.rs",
+    "src/rt.rs",
+    "src/codegen/parse.rs",
+    "bench/devloop/src/main.rs",
+    "bench/devloop/proto/"
+   ],
+   "deliverable": "Lazy decode wins only when fields go unread. When a handler reads every field, pbrs costs 2-5x prost instructions on deeply nested recursive messages and about 2x on repeated records with Any payloads. Add public dev-loop cells for both shapes and remove the repeated work.",
+   "accept": [
+    "New dev-loop cells with public schemas: a recursive boolean query tree (message Q { oneof v { QList and = 1; QList or = 2; Q not = 3; Pred field = 4; } } with typed-value predicates, 5+ levels) and a repeated record list with Any payloads (10/100/1000 records, 512 B values). Each has decode and parse_touch variants against prost 0.14 with identical touch checksums.",
+    "Profile attribution recorded for the current cost: Wire::window Arc clones per nested field, per-level validate_inner re-walks of already-validated subtrees, repeated UTF-8 validation of the same bytes, and default-instance lookups (PK-26).",
+    "parse_touch instructions are at or below prost on both new cells with no allocation regression, and existing codec gates stay green; otherwise record the residual gap and its cause."
+   ],
+   "checks": [
+    "codec-bench",
+    "conformance",
+    "codegen"
+   ],
+   "scoreboard": [
+    "A3",
+    "A5",
+    "A13"
+   ],
+   "relates": [
+    "PK-19",
+    "PK-18"
+   ],
+   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. parse_touch vs prost: nested-request corpus 2.74M vs 529k instructions (+418%); 10/100/1000-record Any responses +102%/+95%/+110%. Decode without touch was 49-75% cheaper than prost with about 3 allocations. Top profile entries for the request corpus: pbrs::lazy::Wire::window 16%, core::str::from_utf8 8%, decode_varint 6%, recursive validate_inner per nesting level. In unary RPCs where the server reads the whole request and the client reads the whole response, pbrs messages cost +17%/+49%/+60% instructions per RPC vs prost on tonic and +10%/+46%/+56% on pbrs-grpc; the codec, not the transport, drives the loss."
+  },
+  {
+   "id": "PK-28",
+   "title": "Define and document serialized field order",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P2",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "src/codegen/parse.rs",
+    "src/codegen/messages.rs",
+    "docs/design.md"
+   ],
+   "write": [
+    "src/codegen/parse.rs",
+    "docs/design.md",
+    "docs/guides/migration.md",
+    "tests/"
+   ],
+   "deliverable": "Generated write_to emits hot-stored fields before cold-stored fields, so the bytes differ from prost, C++ and Go (field-number order) for the same message. Pick a policy and document it.",
+   "accept": [
+    "Either serialize in field-number order at no measured encode cost, or document the order and offer an opt-in deterministic field-number-order mode.",
+    "docs/guides/migration.md warns that byte-keyed caches, fingerprints and golden files change when switching from prost.",
+    "A test pins the chosen order for a message whose hot and cold fields interleave by number."
+   ],
+   "checks": [
+    "codegen",
+    "conformance"
+   ],
+   "scoreboard": [
+    "A1"
+   ],
+   "relates": [],
+   "notes": "Example: a response message with repeated records at field 1 and an optional sint64 total at field 3 serializes the total first. Same length and semantically equal (prost decodes it to an equal message), but not byte-identical."
+  },
+  {
+   "id": "TC-25",
+   "title": "Accept caller rustls configs and crypto providers",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "pbrs-grpc/src/tls.rs",
+    "pbrs-grpc/Cargo.toml",
+    "docs/security.md",
+    "docs/credentials-contract.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/tls.rs",
+    "pbrs-grpc/Cargo.toml",
+    "docs/decisions/",
+    "docs/grpc.md",
+    "pbrs-grpc/tests/"
+   ],
+   "deliverable": "pbrs-grpc hard-wires rustls-graviola (pbrs-grpc/src/tls.rs provider()) and accepts only PEM identities, CA PEM, CRL or SPIFFE constructors. Deployments that mandate a provider (ring, aws-lc-rs, FIPS) or their own verifier, certificate resolver or rotation cannot use pbrs TLS.",
+   "accept": [
+    "Decision record: how callers pass an Arc<rustls::ServerConfig>/Arc<rustls::ClientConfig> or a CryptoProvider, how ALPN h2 and mandatory verification are enforced on caller configs, and whether graviola stays the default feature.",
+    "ServerTls/ClientTls constructors from caller rustls configs, with tests that a caller ring provider completes mTLS against graviola and tonic peers and that a config without h2 ALPN is rejected.",
+    "Dynamic certificate rotation works through a caller ResolvesServerCert without rebuilding the server.",
+    "dep-audit profiles still pass: an alternate provider does not enter the default graph."
+   ],
+   "checks": [
+    "native-tls",
+    "interop",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F7"
+   ],
+   "relates": [
+    "RX-04"
+   ],
+   "notes": "Adoption blocker: the target fleet standardizes rustls with ring and builds rustls configs in a shared authn library."
+  },
+  {
+   "id": "TC-26",
+   "title": "Mount pbrs-grpc services in tonic-typed stacks",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-18"
+   ],
+   "read": [
+    "pbrs-grpc/src/tower_server.rs",
+    "pbrs-grpc/src/request.rs",
+    "pbrs-grpc/src/compat/",
+    "pbrs-grpc/src/server/"
+   ],
+   "write": [
+    "pbrs-grpc/src/tower_server.rs",
+    "pbrs-grpc/src/request.rs",
+    "pbrs-grpc/Cargo.toml",
+    "pbrs-grpc/tests/",
+    "docs/guides/migration.md"
+   ],
+   "deliverable": "Frameworks built on tonic register services as tower::Service<http::Request<tonic::body::Body>> + tonic::server::NamedService, and their authn middleware reads tonic's own TlsConnectInfo<TcpConnectInfo> from extensions by TypeId. pbrs-grpc has no NamedService, and TC-18's connect-info types are distinct types that such middleware cannot see.",
+   "accept": [
+    "Behind an optional feature, generated servers and RouterService implement tonic::server::NamedService and accept or emit tonic::body::Body without an extra copy.",
+    "Behind the same feature, the server also inserts tonic's TcpConnectInfo/TlsConnectInfo (with peer certificates) so unmodified tonic-typed middleware authenticates pbrs-grpc connections; tested with a tower layer that reads the tonic types.",
+    "A test mounts a generated pbrs-grpc service into tonic::transport::Server::add_service and serves real clients."
+   ],
+   "checks": [
+    "native-serving",
+    "tonic",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-13"
+   ],
+   "notes": "Needed to adopt pbrs-grpc behind existing tonic-based service frameworks without rewriting their ACL, observability and request-context layers."
+  },
+  {
+   "id": "TC-27",
+   "title": "Add streaming Tower client adapters",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "pbrs-grpc/src/tower_client.rs",
+    "pbrs-grpc/src/client.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tower_client.rs",
+    "pbrs-grpc/tests/",
+    "docs/grpc.md"
+   ],
+   "deliverable": "Channel::tower_unary is the only Tower client adapter. Tower-based balancers, retry and discovery stacks also need server-streaming, client-streaming and bidirectional calls.",
+   "accept": [
+    "Tower Service adapters for the three streaming shapes, preserving deadlines, cancellation and trailers.",
+    "Tests drive each shape through a tower::balance/retry-wrapped client."
+   ],
+   "checks": [
+    "native-rpc",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": []
+  },
+  {
+   "id": "TC-28",
+   "title": "Document the codec_path route for existing tonic-build pipelines",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [],
+   "read": [
+    "protobuf-tonic/src/lib.rs",
+    "docs/guides/migration.md",
+    "examples/tonic-ports/build.rs"
+   ],
+   "write": [
+    "protobuf-tonic/tests/",
+    "protobuf-tonic/build.rs",
+    "docs/guides/migration.md"
+   ],
+   "deliverable": "Teams whose tooling already drives tonic-prost-build can adopt pbrs messages by configuration alone: `.codec_path(\"protobuf_tonic::ProtobufCodec\")` plus `.extern_path(pkg, pbrs_module_path)` for each package generates tonic stubs over pbrs types (verified 2026-09-29 with tonic-prost-build 0.14.6). Make this a tested, documented path.",
+   "accept": [
+    "A protobuf-tonic test builds stubs through tonic-prost-build with codec_path plus extern_path and round-trips unary and streaming calls.",
+    "docs/guides/migration.md documents the route and its limits: codec_path is global per generation run, so every message in that run must be a pbrs type, including imported packages.",
+    "The guide points to PK-27 evidence: when handlers read every field, pbrs messages currently cost more CPU than prost."
+   ],
+   "checks": [
+    "tonic",
+    "docs-contract"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-24"
+   ]
   }
  ],
  "last_audit": {
