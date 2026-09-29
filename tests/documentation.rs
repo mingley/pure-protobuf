@@ -894,7 +894,8 @@ pub fn discover_guide_files() -> Vec<PathBuf> {
     files
 }
 
-/// Validates that all Rust and Protobuf snippets across documentation guides are syntactically valid.
+/// Validates Rust and Protobuf syntax, including named executable recipe fences.
+/// API type checking and runtime behavior live in the onboarding consumer suite.
 pub fn validate_all_guide_code_blocks() -> Result<(), Vec<String>> {
     let root = workspace_root();
     let files = discover_guide_files();
@@ -1287,6 +1288,16 @@ fn test_rust_snippet_syntax_validator_detects_errors() {
     let bad_code = "fn broken( { invalid";
     let res = check_rust_snippet_syntax(bad_code);
     assert!(res.is_err(), "Invalid Rust syntax should be rejected");
+}
+
+#[test]
+fn test_named_recipe_fences_still_receive_negative_syntax_checks() {
+    let blocks = extract_code_blocks(
+        "Editorial context.\n```rust recipe=health\nfn broken( { invalid\n```\nMore prose.",
+    );
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].lang, "rust");
+    assert!(check_rust_snippet_syntax(&blocks[0].code).is_err());
 }
 
 #[test]

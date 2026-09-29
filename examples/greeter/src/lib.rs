@@ -1,86 +1,26 @@
-//! A gRPC service that depends on [`pbrs_grpc`] as an ordinary crate.
+//! A gRPC service using generated `pbrs-grpc` stubs as an ordinary dependency.
 //!
-//! `proto/hello.proto` is compiled by `build.rs` with
-//! [`pbrs::codegen::compile_protos`] (kernel stubs are the default). The binary serves the greeter
-//! together with `grpc.health.v1` and `grpc.reflection.v1` on loopback, then
-//! calls `SayHello`. Tests cover all four RPC shapes, health `Check` and
-//! `Watch`, and reflection `list_services`.
+//! `build.rs` compiles `proto/hello.proto` with
+//! [`pbrs::codegen::compile_protos`]. The loopback example serves all four RPC
+//! shapes with health and reflection. [`production`] adds bounded TLS/mTLS,
+//! readiness and shutdown; [`telemetry`] demonstrates bounded metric labels.
 //!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client.
+//! [`pbrs_grpc::Status::from_error_details`] preserves typed rich-error details.
+//! Where an error originates determines when it reaches the caller:
 //!
-//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter handler Err is after the handler ran.
+//! | Origin | Effect |
+//! |---|---|
+//! | Client request interceptor | Local rejection before opening a stream or taking a concurrency slot |
+//! | Server request interceptor | Trailers-only rejection before reading the body or running the handler |
+//! | Handler | Non-OK status after the handler runs |
+//! | Server response interceptor | Trailers-only rejection after a successful handler |
+//! | Response stream producer | [`pbrs_grpc::StreamSender::fail`] sends non-OK trailers after any messages already sent |
+//! | Client response interceptor | Fails the call after receiving a successful response |
 //!
-//! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter handler Err is after the handler ran.
-//!
-//! Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter handler Err is after the handler ran.
-//!
-//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter handler Err is after the handler ran.
-//!
-//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter handler Err is after the handler ran.
-//!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter interceptor Err is trailers without reading the body.
-//!
-//! Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter interceptor Err is trailers without reading the body.
-//!
-//! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body.
-//!
-//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter interceptor Err is trailers without reading the body.
-//!
-//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter interceptor Err is trailers without reading the body.
-//!
-//! Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler.
-//!
-//! [`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from an example greeter interceptor: that runs on the inbound RPC before the handler; this example greeter client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter StreamSender fail is trailers after any messages already sent.
-//!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter server on_response Err; a local reject is trailers-only after handler Ok.
-//!
-//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter server on_response Err is trailers-only after handler Ok.
-//!
-//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client on_response Err; a local reject fails the Call after a successful receive.
-//!
-//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter client on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter client on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter client on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client on_response Err fails the Call after a successful receive.
+//! [`pbrs_grpc::Outgoing::connected`] snapshots the live socket when a client
+//! interceptor runs. A lazy first call can see `false` even with wait-for-ready.
+//! See the example README for the lifecycle recipes and the operations guide
+//! for compiled health, reflection, rich-error and in-memory recipes.
 
 #![allow(
     missing_docs,
@@ -478,140 +418,6 @@ pub async fn run() -> Result<String, Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn example_docs_name_from_error_details_on_handler_err() {
-        let src = include_str!("lib.rs");
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter handler Err is after the handler ran."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter handler Err is after the handler ran."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter handler Err is after the handler ran."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter handler Err is after the handler ran."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter handler Err is after the handler ran."
-        ));
-    }
-
-    #[test]
-    fn example_docs_name_from_error_details_on_interceptor_err() {
-        let src = include_str!("lib.rs");
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter interceptor Err is trailers without reading the body."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler."
-        ));
-    }
-
-    #[test]
-    fn example_docs_name_from_error_details_on_client_interceptor_err() {
-        let src = include_str!("lib.rs");
-        assert!(src.contains(
-            "[`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
-        ));
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client interceptor Err is a local reject never opens a stream."
-        ));
-        assert!(src.contains(
-            "Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor: that runs on the inbound RPC before the handler; this example greeter client interceptor runs on the outbound call before the stream opens."
-        ));
-    }
-
-    #[test]
-    fn example_docs_name_from_error_details_on_stream_sender_fail() {
-        let src = include_str!("lib.rs");
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter StreamSender fail is trailers after any messages already sent."
-        ));
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter server on_response Err; a local reject is trailers-only after handler Ok."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter server on_response Err is trailers-only after handler Ok."
-        ));
-        assert!(src.contains(
-            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client on_response Err; a local reject fails the Call after a successful receive."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter client on_response Err fails the Call after a successful receive."
-        ));
-        assert!(src.contains(
-            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client on_response Err fails the Call after a successful receive."
-        ));
-    }
 
     #[test]
     fn example_readme_covers_error_lifecycle() {

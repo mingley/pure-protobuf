@@ -766,6 +766,195 @@ fn write_packaged_greeter_consumer(dir: &Path, name: &str) {
     std::fs::write(dir.join("src/main.rs"), PACKAGED_GREETER_CONSUMER_MAIN).unwrap();
 }
 
+/// Extract executable Rust by a stable fence ID, independent of surrounding prose.
+fn operation_recipes(guide: &str) -> String {
+    const IDS: &[&str] = &[
+        "health",
+        "readiness",
+        "reflection",
+        "rich_error",
+        "inspect_error",
+        "from_io",
+    ];
+    let mut blocks = std::collections::BTreeMap::new();
+    let mut active: Option<String> = None;
+    let mut code = String::new();
+    for line in guide.lines() {
+        if let Some(id) = line.trim().strip_prefix("```rust recipe=") {
+            assert!(active.is_none(), "nested operation recipe");
+            assert!(IDS.contains(&id), "unexercised operation recipe: {id}");
+            active = Some(id.to_owned());
+        } else if line.trim() == "```" && active.is_some() {
+            let id = active.take().unwrap();
+            assert!(
+                blocks
+                    .insert(id.clone(), std::mem::take(&mut code))
+                    .is_none(),
+                "duplicate operation recipe: {id}"
+            );
+        } else if active.is_some() {
+            code.push_str(line);
+            code.push('\n');
+        }
+    }
+    assert!(active.is_none(), "unclosed operation recipe");
+    let mut source = String::new();
+    for id in IDS {
+        let code = blocks
+            .get(*id)
+            .unwrap_or_else(|| panic!("missing operation recipe: {id}"));
+        source.push_str(&format!("mod {id} {{\n{code}\n}}\n"));
+    }
+    source.push_str(OPERATIONS_CONSUMER_MAIN);
+    source
+}
+
+const OPERATIONS_CONSUMER_MAIN: &str = r#"
+use pbrs_grpc::{Channel, Code, Request, Router, Status};
+use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
+use pbrs_grpc::reflection::{ServerReflectionClient, ServerReflectionRequest};
+use pbrs_grpc_example_greeter::{GreeterClient, GreeterServer, HelloRequest, MyGreeter};
+use std::time::Duration;
+
+struct ConnectionTask(tokio::task::JoinHandle<Result<(), Status>>);
+impl Drop for ConnectionTask {
+    fn drop(&mut self) { self.0.abort(); }
+}
+
+async fn connect(router: Router) -> Result<(Channel, ConnectionTask), Status> {
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let task = ConnectionTask(tokio::spawn(router.serve_connection(server_io)));
+    Ok((Channel::from_io(client_io, "guide-test").await?, task))
+}
+
+async fn exercise() -> Result<(), Status> {
+    let (router, reporter) = health::health_router();
+    let (channel, _health_task) = connect(router).await?;
+    let health_client = HealthClient::new(channel);
+    let mut request = HealthCheckRequest::new();
+    request.set_service(GreeterServer::<MyGreeter>::NAME);
+    assert_eq!(health_client.check(Request::new(request.clone())).await?.into_inner().status(), ServingStatus::Serving);
+    let mut watch = health_client.watch(Request::new(request.clone())).await?.into_inner();
+    assert_eq!(watch.message().await?.unwrap().status(), ServingStatus::Serving);
+    readiness::mark_not_ready(&reporter);
+    assert_eq!(watch.message().await?.unwrap().status(), ServingStatus::NotServing);
+    assert_eq!(health_client.check(Request::new(request)).await?.into_inner().status(), ServingStatus::NotServing);
+    assert_eq!(reporter.status(""), Some(ServingStatus::NotServing));
+    drop(watch);
+
+    let (channel, _reflection_task) = connect(reflection::reflection_router()?).await?;
+    let client = ServerReflectionClient::new(channel);
+    let (sender, call) = client.server_reflection_info(Request::new(()));
+    let mut responses = call.await?.into_inner();
+    let mut request = ServerReflectionRequest::new();
+    request.set_list_services("");
+    sender.send(request).await.map_err(|error| Status::internal(error.to_string()))?;
+    let response = responses.message().await?.unwrap();
+    assert!(response.list_services_response().service().iter()
+        .any(|service| service.name().to_str().unwrap() == GreeterServer::<MyGreeter>::NAME));
+    let mut request = ServerReflectionRequest::new();
+    request.set_file_containing_symbol(GreeterServer::<MyGreeter>::NAME);
+    sender.send(request).await.map_err(|error| Status::internal(error.to_string()))?;
+    sender.close();
+    let response = responses.message().await?.unwrap();
+    assert!(response.has_file_descriptor_response());
+    assert!(!response.file_descriptor_response().file_descriptor_proto().is_empty());
+    assert!(responses.message().await?.is_none());
+
+    let rich_status = rich_error::quota_status()?;
+    let router = Router::new().add_service(GreeterServer::new(MyGreeter))
+        .intercept(move |_: &mut pbrs_grpc::Rpc| Err(rich_status.clone()));
+    let (channel, _error_task) = connect(router).await?;
+    let client = GreeterClient::new(channel);
+    let mut request = HelloRequest::new();
+    request.set_name("ada");
+    let status = client.say_hello(Request::new(request)).await.unwrap_err();
+    assert_eq!(status.code(), Code::ResourceExhausted);
+    assert_eq!(status.message(), "quota exceeded");
+    assert_eq!(status.error_info().unwrap().reason().to_str().unwrap(), "RATE_LIMITED");
+    assert_eq!(status.error_info().unwrap().domain().to_str().unwrap(), "api.example.com");
+    assert_eq!(status.retry_delay(), Some(Duration::from_secs(5)));
+    assert_eq!(inspect_error::invalid_fields(&status), ["user_id"]);
+    assert_eq!(status.bad_request().unwrap().field_violations().get(0).unwrap()
+        .description().to_str().unwrap(), "must be positive");
+
+    from_io::greeter_in_process().await?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Status> {
+    tokio::time::timeout(Duration::from_secs(5), exercise()).await
+        .map_err(|_| Status::deadline_exceeded())??;
+    println!("[operations] health/watch, reflection/descriptors, rich errors and from_io verified");
+    Ok(())
+}
+"#;
+
+#[test]
+fn operations_guide_recipes_compile_run_and_reject_api_drift() {
+    let guide = std::fs::read_to_string(repo_root().join("docs/guides/operations.md")).unwrap();
+    let source = operation_recipes(&guide);
+    let prose_rewrite = format!(
+        "A rewritten introduction outside all code fences.\n\n{guide}\nAdditional editorial context.\n"
+    );
+    let rewritten_source = operation_recipes(&prose_rewrite);
+    assert_eq!(
+        source, rewritten_source,
+        "prose must not affect executable recipes"
+    );
+
+    let tmp = scratch_unique("pbrs-onboarding-operations");
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    write_packaged_greeter_consumer(&tmp, "pbrs-onboarding-operations");
+    // Explicitly select the documented Tokio API feature, without relying on
+    // a workspace dependency to happen to enable duplex I/O for the consumer.
+    let manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        manifest.replace("\"sync\"]", "\"sync\", \"io-util\"]"),
+    )
+    .unwrap();
+    std::fs::write(tmp.join("src/main.rs"), rewritten_source).unwrap();
+    let out = cargo_run(&tmp, None, true);
+    assert!(
+        out.status.success(),
+        "extracted guide consumer failed:\n{}",
+        dump(&out)
+    );
+    assert!(String::from_utf8_lossy(&out.stdout).contains(
+        "[operations] health/watch, reflection/descriptors, rich errors and from_io verified"
+    ));
+
+    let mutation = guide.replacen(
+        "health_reporter.set_serving",
+        "health_reporter.nonexistent_guide_method",
+        1,
+    );
+    assert_ne!(mutation, guide, "mutation must reach an extracted recipe");
+    std::fs::write(tmp.join("src/main.rs"), operation_recipes(&mutation)).unwrap();
+    let mut command = Command::new("cargo");
+    command
+        .args(["check", "--offline", "--quiet"])
+        .current_dir(&tmp)
+        .env(
+            "CARGO_TARGET_DIR",
+            repo_root().join("target/integration-consumers"),
+        )
+        .env("CARGO_TERM_COLOR", "never");
+    apply_cargo_home(&mut command);
+    let bad = cargo_output(&mut command, "check deliberate guide API mutation");
+    assert!(
+        !bad.status.success(),
+        "a nonexistent method must fail type checking"
+    );
+    assert!(
+        String::from_utf8_lossy(&bad.stderr).contains("nonexistent_guide_method"),
+        "failure must diagnose the mutated API:\n{}",
+        dump(&bad)
+    );
+}
+
 fn generate_hello(out: &Path, mut cfg: pbrs::codegen::Config) -> String {
     std::fs::create_dir_all(out).unwrap();
     let proto_dir = out.join("proto");

@@ -13,6 +13,14 @@ client in one process; the original no-argument `cargo run` still prints
 the same recipe from a fresh crate and asserts the outcomes below. This guide
 links to tested source instead of duplicating Rust snippets.
 
+This recipe uses the default `pbrs-grpc` features (TLS and health are built in)
+and Tokio's `rt-multi-thread`, `macros`, `net`, `time`, and `sync` features from
+the [example manifest](../../examples/greeter/Cargo.toml). No optional
+`native-roots`, `otel` or `zstd` feature is needed. The
+`packaged_production_recipe_exercises_tls_and_mtls_overload_and_drain`
+onboarding test compiles the linked implementation as a fresh consumer and
+runs both modes, including admission and stream-limit failures and recovery.
+
 <a id="tls"></a>
 ## 1. Run the TLS and mTLS recipes
 

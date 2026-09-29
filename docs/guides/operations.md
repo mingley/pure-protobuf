@@ -5,6 +5,15 @@ and telemetry to a generated service. Start with health and resource limits;
 enable other diagnostics as your deployment needs them. Replace TLS material
 by constructing new server/client objects.
 
+The named Rust recipes below use the generated types and `MyGreeter` from
+the [greeter example](../../examples/greeter/src/lib.rs). The
+[onboarding tests](../../tests/onboarding.rs) extract these recipes, compile
+them as a fresh consumer, and exercise their RPC behavior. They use the default
+`pbrs-grpc` feature set and Tokio's `rt-multi-thread`, `macros`, `net`, `time`,
+`sync`, and `io-util` features; health, reflection and rich errors need no
+optional crate feature. The [production recipe](production-service.md) supplies
+the separately compiled TLS/mTLS and resource-limit example.
+
 ---
 
 <a id="health-checks"></a>
@@ -15,33 +24,38 @@ Mount the built-in official gRPC Health Checking protocol
 
 ### Mounting the Health Service
 
-```rust
+```rust recipe=health
 use pbrs_grpc::health;
 use pbrs_grpc::Router;
+use pbrs_grpc_example_greeter::{GreeterServer, MyGreeter};
 
-let (health_service, health_reporter) = health::service();
-
-// Set initial serving status
-health_reporter.set_serving("");
-health_reporter.set_serving("hello.Greeter");
-
-let router = Router::new()
-    .add_service(GreeterServer::new(MyGreeter))
-    .add_service(health_service);
-
-router.serve("0.0.0.0:50051".parse()?).await?;
+pub fn health_router() -> (Router, health::HealthReporter) {
+    let (health_service, health_reporter) = health::service();
+    health_reporter.set_serving("");
+    health_reporter.set_serving(GreeterServer::<MyGreeter>::NAME);
+    let router = Router::new()
+        .add_service(GreeterServer::new(MyGreeter))
+        .add_service(health_service);
+    (router, health_reporter)
+}
 ```
+
+Serve the returned router with your chosen listener and shutdown signal;
+retain the reporter for readiness updates.
 
 ### Dynamic Status Updates
 
 Update status during startup, shutdown, or health probes:
 
-```rust
-// Mark a specific service unhealthy
-health_reporter.set_not_serving("hello.Greeter");
+```rust recipe=readiness
+use pbrs_grpc::health::HealthReporter;
+use pbrs_grpc_example_greeter::{GreeterServer, MyGreeter};
 
-// Mark the entire process not serving during graceful drain
-health_reporter.shutdown();
+pub fn mark_not_ready(health_reporter: &HealthReporter) {
+    health_reporter.set_not_serving(GreeterServer::<MyGreeter>::NAME);
+    // Mark the entire process not serving during graceful drain.
+    health_reporter.shutdown();
+}
 ```
 
 Clients can run unary `Check` calls or subscribe to long-lived streaming
@@ -56,17 +70,17 @@ names.
 Enable server reflection when developer tools such as `grpcurl` or Postman may
 inspect and call services without local `.proto` files:
 
-```rust
-use pbrs_grpc::{reflection, Router};
+```rust recipe=reflection
+use pbrs_grpc::{reflection, Router, Status};
+use pbrs_grpc_example_greeter::{FILE_DESCRIPTOR_SET, GreeterServer, MyGreeter};
 
-// FILE_DESCRIPTOR_SET is emitted alongside the generated service code.
-let reflection_service = reflection::service([FILE_DESCRIPTOR_SET])?;
-
-let router = Router::new()
-    .add_service(GreeterServer::new(MyGreeter))
-    .add_service(reflection_service);
-
-router.serve("0.0.0.0:50051".parse()?).await?;
+pub fn reflection_router() -> Result<Router, Status> {
+    // FILE_DESCRIPTOR_SET is emitted alongside the generated service code.
+    let reflection_service = reflection::service([FILE_DESCRIPTOR_SET])?;
+    Ok(Router::new()
+        .add_service(GreeterServer::new(MyGreeter))
+        .add_service(reflection_service))
+}
 ```
 
 ### Inspecting with `grpcurl`
@@ -153,32 +167,29 @@ Status::unavailable("service temporarily overloaded");
 Use `ErrorDetails` when a server needs to return structured
 `google.rpc.Status` payloads in the `grpc-status-details-bin` trailer:
 
-```rust
+```rust recipe=rich_error
 use pbrs_grpc::pb::{BadRequest, ErrorDetails, ErrorInfo, RetryInfo};
 use pbrs_grpc::{Code, Status};
 use std::time::Duration;
 
-// Constructing rich error details on the server:
-let details = ErrorDetails::new()
-    .with_error_info(ErrorInfo::with_reason("RATE_LIMITED", "api.example.com"))
-    .with_retry_info(RetryInfo::with_retry_delay(Duration::from_secs(5)))
-    .with_bad_request(BadRequest::with_field("user_id", "must be positive"));
-
-let status = Status::from_error_details(Code::ResourceExhausted, "quota exceeded", &details)?;
+pub fn quota_status() -> Result<Status, Status> {
+    let details = ErrorDetails::new()
+        .with_error_info(ErrorInfo::with_reason("RATE_LIMITED", "api.example.com"))
+        .with_retry_info(RetryInfo::with_retry_delay(Duration::from_secs(5)))
+        .with_bad_request(BadRequest::with_field("user_id", "must be positive"));
+    Status::from_error_details(Code::ResourceExhausted, "quota exceeded", &details)
+}
 ```
 
 On the client, inspect the unpacked details from the returned `Status`:
 
-```rust
-match client.say_hello(req).await {
-    Ok(resp) => { /* ... */ }
-    Err(status) => {
-        if let Some(bad_req) = status.bad_request() {
-            for violation in bad_req.field_violations() {
-                println!("Invalid field '{}': {}", violation.field(), violation.description());
-            }
-        }
-    }
+```rust recipe=inspect_error
+pub fn invalid_fields(status: &pbrs_grpc::Status) -> Vec<String> {
+    status.bad_request().map_or_else(Vec::new, |bad_request| {
+        bad_request.field_violations().iter()
+            .map(|violation| violation.field().to_str().unwrap_or_default().to_owned())
+            .collect()
+    })
 }
 ```
 
@@ -367,28 +378,32 @@ descriptors is separately authorized.
 Use `Channel::from_io` for deterministic service tests that should not open TCP
 sockets or manage ports:
 
-```rust
-use pbrs_grpc::{Channel, Request, Server};
+```rust recipe=from_io
+use pbrs_grpc::{Channel, Request, Server, Status};
+use pbrs_grpc_example_greeter::{GreeterClient, GreeterServer, HelloRequest, MyGreeter};
 
-#[tokio::test]
-async fn test_greeter_in_process() {
+pub async fn greeter_in_process() -> Result<(), Status> {
     let (client_io, server_io) = tokio::io::duplex(64 * 1024);
 
     // Run server in background task
-    tokio::spawn(async move {
+    let server = tokio::spawn(async move {
         Server::new(GreeterServer::new(MyGreeter))
             .serve_connection(server_io)
             .await
-            .unwrap();
     });
 
-    // Connect client directly to the in-memory duplex stream
-    let channel = Channel::from_io(client_io, "in-process").await.unwrap();
-    let client = GreeterClient::new(channel);
-
-    let mut req = HelloRequest::new();
-    req.set_name("Test");
-    let reply = client.say_hello(Request::new(req)).await.unwrap();
-    assert_eq!(reply.get_ref().message(), "Hello, Test!");
+    let result = async {
+        let channel = Channel::from_io(client_io, "in-process").await?;
+        let client = GreeterClient::new(channel);
+        let mut req = HelloRequest::new();
+        req.set_name("Test");
+        let reply = client.say_hello(Request::new(req)).await?;
+        assert_eq!(reply.get_ref().message().to_str().unwrap(), "hello Test");
+        Ok(())
+    }.await;
+    // This one-connection fixture has no listener to drain; stop and join it.
+    server.abort();
+    let _ = server.await;
+    result
 }
 ```
