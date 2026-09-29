@@ -1527,7 +1527,12 @@
     "A10"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "scripts/xlang-codec.sh: planned xlang-codec check",
+    "288/288 cells measured, verify-before-time"
+   ],
+   "notes": "Closed 2026-09-29: all 3 peers wired (cpp/cpp_arena/upb). upb map cells semantic_equal (reorders maps, stable). devloop-compare self-check blocked by pre-existing v4_tat gencode breakage (SB-03-owned)."
   },
   {
    "id": "SB-07",
