@@ -1,6 +1,7 @@
-// Vendored from https://github.com/cncf/xds/blob/main/xds/data/orca/v3/orca_load_report.proto
-// (fetched 2026-09-26). The `validate/validate.proto` import and its custom
-// field options are stripped: pbrs codegen does not implement PGV options,
+// Pinned to cncf/xds@dba9d589def2cd10099a3a64887d859188c2f57a (see
+// proto/xds/PIN): identical to xds/data/orca/v3/orca_load_report.proto at
+// that commit except the `validate/validate.proto` import and its field
+// options, which are stripped: pbrs codegen does not implement PGV options,
 // and they carry no wire meaning, so the generated codec is wire-identical.
 // Field numbers, names, and types are untouched.
 syntax = "proto3";

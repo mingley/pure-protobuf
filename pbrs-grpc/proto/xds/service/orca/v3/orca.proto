@@ -1,6 +1,7 @@
-// Vendored from https://github.com/cncf/xds/blob/main/xds/service/orca/v3/orca.proto
-// (fetched 2026-09-26). Byte-identical to upstream: the only imports are the
-// vendored ORCA report proto and google.protobuf.Duration.
+// Pinned to cncf/xds@dba9d589def2cd10099a3a64887d859188c2f57a (see
+// proto/xds/PIN): byte-identical to xds/service/orca/v3/orca.proto at that
+// commit. The only imports are the vendored ORCA report proto and
+// google.protobuf.Duration.
 syntax = "proto3";
 
 package xds.service.orca.v3;
@@ -8,7 +9,7 @@ package xds.service.orca.v3;
 option java_outer_classname = "OrcaProto";
 option java_multiple_files = true;
 option java_package = "com.github.xds.service.orca.v3";
-option go_package = "github.com/cncf/xds/service/orca/v3";
+option go_package = "github.com/cncf/xds/go/xds/service/orca/v3";
 
 import "xds/data/orca/v3/orca_load_report.proto";
 

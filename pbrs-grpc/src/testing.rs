@@ -148,6 +148,8 @@ impl Echo {
 ///
 /// Official uncompressed `_TEST_CASES` and the four gzip cases pass against
 /// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
+/// `UnaryCall` also honors `orca_per_query_report`, stamping the bounded
+/// per-call report the official `orca_per_rpc` procedure checks.
 /// This local demo caps each generated response `Payload.body` at the default
 /// 4 MiB decoded-message budget. A serialized `SimpleResponse` or
 /// `StreamingOutputCallResponse` adds protobuf envelope bytes, so callers
@@ -289,7 +291,19 @@ async fn unary_call_impl(
 ) -> Result<Response<SimpleResponse>, Status> {
     let echo = Echo::capture(&request);
     let compressed = request.compressed();
-    unary_reply(&echo, request.into_inner(), compressed, cap).await
+    // Cloned before `into_inner` moves the request: a `response_status`
+    // echo still wins over an invalid ORCA field, matching the pinned
+    // peers (the Go server checks the echo first).
+    let orca = request.get_ref().orca_per_query_report_opt().cloned();
+    let mut response = unary_reply(&echo, request.into_inner(), compressed, cap).await?;
+    if let Some(data) = orca {
+        let report = crate::orca::per_query_report(&data)?;
+        let bytes = crate::orca::encode_trailer(&report)?;
+        response
+            .trailers_mut()
+            .insert_bin(crate::orca::TRAILER, bytes)?;
+    }
+    Ok(response)
 }
 
 async fn streaming_output_call_impl(
