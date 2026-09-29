@@ -207,6 +207,16 @@ Plugging in `pbrs-grpc` default parameters:
 $$\text{Memory}_{\text{server\_default}} \le N_{\text{conn}} \times \left( 1.375 \text{ MiB} + 16 \text{ MiB} \right) + N_{\text{rpc}} \times \left( 20 \text{ KiB} + 4 \text{ MiB} + 4 \text{ MiB} + M_{\text{encode}} \right) + M_{\text{app}}$$
 $$\text{Memory}_{\text{server\_default}} \approx N_{\text{conn}} \times 17.38 \text{ MiB} + N_{\text{rpc}} \times (8.02 \text{ MiB} + M_{\text{encode}}) + M_{\text{app}}$$
 
+#### Adaptive receive windows
+
+`ServerConfig::adaptive_window(true)` and `ChannelConfig::adaptive_window(true)`
+are opt-in only. When enabled, a connection starts from the configured adaptive
+initial window, samples inbound DATA with BDP PINGs, and grows the stream and
+connection receive windows only up to `adaptive_window_max_size` (16 MiB by
+default). For resource budgeting, use the configured adaptive cap as
+$W_{\text{conn}}$ and $W_{\text{stream}}$ in the formulas above; the 16 MiB
+fixed defaults and all default behavior are unchanged.
+
 ---
 
 ### 3.2 Client Upper-Bound Memory Model

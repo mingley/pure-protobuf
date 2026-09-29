@@ -63,7 +63,9 @@ pub mod process;
 
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::net::TcpListener;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::time::Instant as TokioInstant;
 
 /// Create a router mounting both `TestService` and `BenchmarkService`.
 /// `max_response_body` raises the generated-response cap for
@@ -143,9 +145,46 @@ impl std::fmt::Display for LoadTransport {
     }
 }
 
+/// Native HTTP/2 flow-control mode driven by the `load` subcommand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeWindowMode {
+    /// Existing fixed 16 MiB stream and connection windows.
+    Default,
+    /// Fixed small stream and connection windows.
+    Small,
+    /// Adaptive BDP-estimating stream and connection windows.
+    Adaptive,
+}
+
+impl std::str::FromStr for NativeWindowMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "default" | "fixed-default" => Ok(Self::Default),
+            "small" | "fixed-small" => Ok(Self::Small),
+            "adaptive" => Ok(Self::Adaptive),
+            other => Err(format!(
+                "unknown native window mode '{other}': expected default, small, or adaptive"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for NativeWindowMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Default => write!(f, "default"),
+            Self::Small => write!(f, "small"),
+            Self::Adaptive => write!(f, "adaptive"),
+        }
+    }
+}
+
 /// Largest request/response payload the `load` subcommand will allocate.
 /// SB-11 cells peak at 64 KiB; anything past this is a typo, not a cell.
 pub const LOAD_MAX_PAYLOAD_BYTES: usize = 64 * 1024 * 1024;
+pub const DEFAULT_SMALL_WINDOW_SIZE: u32 = 65_535;
 
 /// CLI options for load generation.
 #[derive(Debug, Clone, PartialEq)]
@@ -169,6 +208,10 @@ pub struct LoadCliArgs {
     pub tls_server_name: Option<String>,
     pub max_message_size: Option<usize>,
     pub connections: Option<usize>,
+    pub window_mode: NativeWindowMode,
+    pub small_window_size: u32,
+    pub small_window_override: bool,
+    pub latency_rtt: Option<Duration>,
 }
 
 fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
@@ -186,6 +229,47 @@ fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
 fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter()
         .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
+}
+
+fn native_channel_config(
+    connections: usize,
+    mode: NativeWindowMode,
+    small_window_size: u32,
+    small_window_override: bool,
+) -> pbrs_grpc::ChannelConfig {
+    let config = pbrs_grpc::ChannelConfig::default().connections(connections);
+    match mode {
+        NativeWindowMode::Default => config,
+        NativeWindowMode::Small => config
+            .initial_stream_window_size(small_window_size)
+            .initial_connection_window_size(small_window_size),
+        NativeWindowMode::Adaptive if small_window_override => config
+            .adaptive_window(true)
+            .adaptive_window_initial_size(small_window_size),
+        NativeWindowMode::Adaptive => config.adaptive_window(true),
+    }
+}
+
+fn native_server_config(
+    mode: NativeWindowMode,
+    small_window_size: u32,
+    small_window_override: bool,
+    max_message_size: Option<usize>,
+) -> pbrs_grpc::ServerConfig {
+    let mut config = pbrs_grpc::ServerConfig::default();
+    if let Some(n) = max_message_size {
+        config = config.max_decoding_message_size(n);
+    }
+    match mode {
+        NativeWindowMode::Default => config,
+        NativeWindowMode::Small => config
+            .initial_stream_window_size(small_window_size)
+            .initial_connection_window_size(small_window_size),
+        NativeWindowMode::Adaptive if small_window_override => config
+            .adaptive_window(true)
+            .adaptive_window_initial_size(small_window_size),
+        NativeWindowMode::Adaptive => config.adaptive_window(true),
+    }
 }
 
 /// Parse load generator options from command-line arguments.
@@ -357,6 +441,46 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         );
     }
 
+    let window_mode = if let Some(val) = get_arg_val(args, "--window-mode")
+        .or_else(|| get_arg_val(args, "--native-window-mode"))
+    {
+        val.parse::<NativeWindowMode>()?
+    } else {
+        NativeWindowMode::Default
+    };
+    if transport == Some(LoadTransport::Tonic) && window_mode != NativeWindowMode::Default {
+        return Err("--window-mode is native-only; tonic fairness stays fixed-default".to_string());
+    }
+
+    let small_window_arg =
+        get_arg_val(args, "--small-window-size").or_else(|| get_arg_val(args, "--small-window"));
+    let small_window_override = small_window_arg.is_some();
+    let small_window_size = if let Some(val) = small_window_arg {
+        let n: u32 = val
+            .parse()
+            .map_err(|e| format!("invalid --small-window-size '{val}': {e}"))?;
+        if n == 0 {
+            return Err("invalid --small-window-size: must be at least 1".to_string());
+        }
+        n
+    } else {
+        DEFAULT_SMALL_WINDOW_SIZE
+    };
+
+    let latency_rtt = if let Some(val) =
+        get_arg_val(args, "--latency-rtt-ms").or_else(|| get_arg_val(args, "--latency_rtt_ms"))
+    {
+        let ms: f64 = val
+            .parse()
+            .map_err(|e| format!("invalid --latency-rtt-ms '{val}': {e}"))?;
+        if ms < 0.0 {
+            return Err("invalid --latency-rtt-ms: must be non-negative".to_string());
+        }
+        Some(Duration::from_secs_f64(ms / 1000.0))
+    } else {
+        None
+    };
+
     let max_message_size = if let Some(val) =
         get_arg_val(args, "--max-message-size").or_else(|| get_arg_val(args, "--max_message_size"))
     {
@@ -393,6 +517,10 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         tls_server_name,
         max_message_size,
         connections,
+        window_mode,
+        small_window_size,
+        small_window_override,
+        latency_rtt,
     })
 }
 
@@ -415,6 +543,9 @@ pub fn extended_usage() -> String {
            --tls-server-name <N>    Server name to verify against the CA\n  \
            --max-message-size <N>   Max decoded message bytes (default: transport default, 4 MiB)\n  \
            --connections <N>        Client connections to pool over (default: 1)\n\
+           --window-mode <MODE>     Native flow control: default, small, or adaptive (default: default)\n  \
+           --small-window-size <N>  Small fixed-window bytes; also adaptive initial override (default: 65535)\n  \
+           --latency-rtt-ms <MS>    Bench-only loopback TCP proxy RTT injection before the client connects\n\
          Worker options:\n  \
            worker                   Run official gRPC WorkerService\n  \
            --driver_port <PORT>     Port to listen on for benchmark driver (default: 10010)\n  \
@@ -432,8 +563,16 @@ async fn load_native_channel(
     tls_server_name: Option<&str>,
     max_message_size: Option<usize>,
     connections: usize,
+    window_mode: NativeWindowMode,
+    small_window_size: u32,
+    small_window_override: bool,
 ) -> Result<pbrs_grpc::Channel, String> {
-    let config = pbrs_grpc::ChannelConfig::default().connections(connections);
+    let config = native_channel_config(
+        connections,
+        window_mode,
+        small_window_size,
+        small_window_override,
+    );
     let channel = match (tls_ca, tls_server_name) {
         (Some(ca_path), Some(name)) => {
             let ca_pem = std::fs::read(ca_path)
@@ -505,9 +644,21 @@ async fn run_load_native(
     benchmark_service: bool,
     max_message_size: Option<usize>,
     connections: usize,
+    window_mode: NativeWindowMode,
+    small_window_size: u32,
+    small_window_override: bool,
 ) -> Result<load::LoadRecord, String> {
-    let channel =
-        load_native_channel(addr, tls_ca, tls_server_name, max_message_size, connections).await?;
+    let channel = load_native_channel(
+        addr,
+        tls_ca,
+        tls_server_name,
+        max_message_size,
+        connections,
+        window_mode,
+        small_window_size,
+        small_window_override,
+    )
+    .await?;
     match (shape, benchmark_service) {
         (LoadShape::Unary, true) => {
             let client = benchmark_service::BenchmarkServiceClient::new(channel);
@@ -878,6 +1029,68 @@ async fn run_load_tonic(
     }
 }
 
+async fn start_latency_proxy(target: SocketAddr, rtt: Duration) -> Result<SocketAddr, String> {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .map_err(|e| format!("bind latency proxy: {e}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|e| format!("latency proxy local_addr: {e}"))?;
+    let one_way = Duration::from_secs_f64(rtt.as_secs_f64() / 2.0);
+    tokio::spawn(async move {
+        loop {
+            let Ok((inbound, _peer)) = listener.accept().await else {
+                break;
+            };
+            tokio::spawn(async move {
+                let Ok(outbound) = TcpStream::connect(target).await else {
+                    return;
+                };
+                let (client_read, client_write) = inbound.into_split();
+                let (server_read, server_write) = outbound.into_split();
+                let c2s = copy_with_delay(client_read, server_write, one_way);
+                let s2c = copy_with_delay(server_read, client_write, one_way);
+                let _ = tokio::join!(c2s, s2c);
+            });
+        }
+    });
+    Ok(addr)
+}
+
+async fn copy_with_delay<R, W>(mut read: R, mut write: W, delay: Duration)
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<(TokioInstant, Vec<u8>)>(64);
+    let reader = async {
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            let n = match read.read(&mut buf).await {
+                Ok(0) => return,
+                Ok(n) => n,
+                Err(_) => return,
+            };
+            let due = TokioInstant::now() + delay;
+            if tx.send((due, buf[..n].to_vec())).await.is_err() {
+                return;
+            }
+        }
+    };
+    let writer = async {
+        while let Some((due, bytes)) = rx.recv().await {
+            if !delay.is_zero() {
+                tokio::time::sleep_until(due).await;
+            }
+            if write.write_all(&bytes).await.is_err() {
+                return;
+            }
+        }
+        let _ = write.shutdown().await;
+    };
+    let _ = tokio::join!(reader, writer);
+}
+
 async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), String> {
     let distribution = opts.distribution.unwrap_or(if opts.rate.is_some() {
         load::LoadDistribution::Constant
@@ -927,15 +1140,19 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
     });
 
     println!(
-        "running load benchmark: distribution={distribution}, rate={rate:?}, duration={duration:.1}s, max_in_flight={}, shape={shape}, transport={transport}, req_bytes={req_bytes}, resp_bytes={resp_bytes}, stream_msgs={stream_msgs}, tls={}",
+        "running load benchmark: distribution={distribution}, rate={rate:?}, duration={duration:.1}s, max_in_flight={}, shape={shape}, transport={transport}, req_bytes={req_bytes}, resp_bytes={resp_bytes}, stream_msgs={stream_msgs}, tls={} window_mode={} latency_rtt_ms={}",
         cfg.max_in_flight,
         opts.tls_ca.is_some(),
+        opts.window_mode,
+        opts.latency_rtt
+            .map(|dur| dur.as_secs_f64() * 1000.0)
+            .unwrap_or(0.0),
         duration = duration.as_secs_f64(),
     );
 
     let load_gen = load::LoadGenerator::new(cfg);
 
-    let addr: SocketAddr = if let Some(ref addr_str) = opts.server_addr {
+    let raw_addr: SocketAddr = if let Some(ref addr_str) = opts.server_addr {
         addr_str
             .parse()
             .map_err(|e| format!("invalid --server_addr '{addr_str}': {e}"))?
@@ -953,16 +1170,26 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
             .local_addr()
             .map_err(|e| format!("failed to get local addr: {e}"))?;
         let max_message_size = opts.max_message_size;
+        let window_mode = opts.window_mode;
+        let small_window_size = opts.small_window_size;
+        let small_window_override = opts.small_window_override;
         tokio::spawn(async move {
             let router = create_dual_server(max_message_size);
-            let router = match max_message_size {
-                Some(n) => router.max_decoding_message_size(n),
-                None => router,
-            };
+            let router = router.config(native_server_config(
+                window_mode,
+                small_window_size,
+                small_window_override,
+                max_message_size,
+            ));
             router.serve_listener(listener).await.ok();
         });
         tokio::time::sleep(Duration::from_millis(50)).await;
         bound
+    };
+    let addr = if let Some(rtt) = opts.latency_rtt {
+        start_latency_proxy(raw_addr, rtt).await?
+    } else {
+        raw_addr
     };
 
     let connections = opts.connections.unwrap_or(1);
@@ -980,6 +1207,9 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 opts.benchmark_service,
                 opts.max_message_size,
                 connections,
+                opts.window_mode,
+                opts.small_window_size,
+                opts.small_window_override,
             )
             .await?
         }
@@ -1326,6 +1556,10 @@ mod tests {
         assert_eq!(opts.transport, None);
         assert_eq!(opts.tls_ca, None);
         assert_eq!(opts.connections, None);
+        assert_eq!(opts.window_mode, NativeWindowMode::Default);
+        assert_eq!(opts.small_window_size, DEFAULT_SMALL_WINDOW_SIZE);
+        assert!(!opts.small_window_override);
+        assert_eq!(opts.latency_rtt, None);
 
         let opts = parse_load_cli_args(&load_args(&["--connections=8"])).unwrap();
         assert_eq!(opts.connections, Some(8));
@@ -1333,6 +1567,17 @@ mod tests {
         assert_eq!(opts.connections, Some(4));
         assert!(parse_load_cli_args(&load_args(&["--connections=0"])).is_err());
         assert!(parse_load_cli_args(&load_args(&["--connections=257"])).is_err());
+
+        let opts = parse_load_cli_args(&load_args(&[
+            "--window-mode=adaptive",
+            "--small-window-size=32768",
+            "--latency-rtt-ms=40",
+        ]))
+        .unwrap();
+        assert_eq!(opts.window_mode, NativeWindowMode::Adaptive);
+        assert_eq!(opts.small_window_size, 32768);
+        assert!(opts.small_window_override);
+        assert_eq!(opts.latency_rtt, Some(Duration::from_millis(40)));
     }
 
     #[test]
@@ -1345,6 +1590,14 @@ mod tests {
         assert!(parse_load_cli_args(&load_args(&["--stream-msgs=0"])).is_err());
         // Unknown transport.
         assert!(parse_load_cli_args(&load_args(&["--transport=go"])).is_err());
+        // Window modes are native-only and validated.
+        assert!(parse_load_cli_args(&load_args(&["--window-mode=bogus"])).is_err());
+        assert!(parse_load_cli_args(&load_args(&["--small-window-size=0"])).is_err());
+        assert!(parse_load_cli_args(&load_args(&["--latency-rtt-ms=-1"])).is_err());
+        assert!(
+            parse_load_cli_args(&load_args(&["--transport=tonic", "--window-mode=adaptive"]))
+                .is_err()
+        );
         // TLS needs both halves.
         assert!(parse_load_cli_args(&load_args(&["--tls-ca=/tmp/ca.pem"])).is_err());
         assert!(parse_load_cli_args(&load_args(&["--tls-server-name=localhost"])).is_err());

@@ -146,6 +146,8 @@ pub(crate) trait ClientBuilder {
     fn header_table_size(&mut self, size: u32) -> &mut Self;
     /// Outbound DATA frames in flight before backpressure.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
+    /// Adaptive receive-window estimator and shared ping driver.
+    fn adaptive_window(&mut self, config: Option<crate::bdp::Config>) -> &mut Self;
     /// Run the client handshake over `io`.
     ///
     /// Takes the builder by value so the future borrows nothing: callers
@@ -187,6 +189,8 @@ pub(crate) trait ServerBuilder {
     fn header_table_size(&mut self, size: u32) -> &mut Self;
     /// Outbound DATA frames in flight before backpressure.
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self;
+    /// Adaptive receive-window estimator and shared ping driver.
+    fn adaptive_window(&mut self, config: Option<crate::bdp::Config>) -> &mut Self;
     /// Run the server handshake over `io`.
     ///
     /// Takes the builder by value for the same MSRV reason as

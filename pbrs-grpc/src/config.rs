@@ -12,6 +12,12 @@ use std::time::Duration;
 /// their large-payload throughput.
 pub const DEFAULT_WINDOW_SIZE: u32 = 16 * 1024 * 1024;
 
+/// Default adaptive-window starting point: the RFC 9113 initial window.
+pub const DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE: u32 = 65_535;
+
+/// Default adaptive-window cap: 16 MiB.
+pub const DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE: u32 = DEFAULT_WINDOW_SIZE;
+
 /// Default HTTP/2 `SETTINGS_MAX_FRAME_SIZE`: 1 MiB.
 pub const DEFAULT_MAX_FRAME_SIZE: u32 = 1024 * 1024;
 
@@ -137,6 +143,9 @@ pub struct ServerConfig {
     limits: MessageLimits,
     initial_stream_window_size: u32,
     initial_connection_window_size: u32,
+    adaptive_window: bool,
+    adaptive_initial_window_size: u32,
+    adaptive_max_window_size: u32,
     max_frame_size: u32,
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
@@ -171,6 +180,9 @@ impl Default for ServerConfig {
             limits: MessageLimits::default(),
             initial_stream_window_size: DEFAULT_WINDOW_SIZE,
             initial_connection_window_size: DEFAULT_WINDOW_SIZE,
+            adaptive_window: false,
+            adaptive_initial_window_size: DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE,
+            adaptive_max_window_size: DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE,
             max_frame_size: DEFAULT_MAX_FRAME_SIZE,
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
@@ -261,6 +273,42 @@ impl ServerConfig {
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
+        self
+    }
+
+    /// Enable or disable adaptive HTTP/2 receive windows. Disabled by default.
+    ///
+    /// When enabled, the handshake starts at
+    /// [`DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE`] for both stream and connection
+    /// receive windows, then grows both windows from BDP PING samples up to
+    /// [`Self::adaptive_window_max_size`]. This matches tonic/hyper's
+    /// `http2_adaptive_window(true)` behavior and overrides
+    /// [`Self::initial_stream_window_size`] /
+    /// [`Self::initial_connection_window_size`] while enabled.
+    #[must_use]
+    pub fn adaptive_window(mut self, enable: bool) -> Self {
+        self.adaptive_window = enable;
+        self
+    }
+
+    /// Adaptive receive-window starting point. Default 65,535 bytes.
+    ///
+    /// Only used when [`Self::adaptive_window`] is enabled. Values above
+    /// [`Self::adaptive_window_max_size`] are clamped to that cap at
+    /// handshake time.
+    #[must_use]
+    pub fn adaptive_window_initial_size(mut self, bytes: u32) -> Self {
+        self.adaptive_initial_window_size = bytes.clamp(1, crate::bdp::MAX_WINDOW_SIZE);
+        self
+    }
+
+    /// Adaptive receive-window cap. Default 16 MiB.
+    ///
+    /// Only used when [`Self::adaptive_window`] is enabled. This is the
+    /// resource bound for BDP growth; windows never grow beyond this value.
+    #[must_use]
+    pub fn adaptive_window_max_size(mut self, bytes: u32) -> Self {
+        self.adaptive_max_window_size = bytes.clamp(1, crate::bdp::MAX_WINDOW_SIZE);
         self
     }
 
@@ -882,6 +930,24 @@ impl ServerConfig {
         self.initial_connection_window_size
     }
 
+    /// Whether adaptive receive windows are enabled. See [`Self::adaptive_window`].
+    #[must_use]
+    pub fn adaptive_window_enabled(self) -> bool {
+        self.adaptive_window
+    }
+
+    /// Adaptive receive-window starting point. See [`Self::adaptive_window_initial_size`].
+    #[must_use]
+    pub fn adaptive_window_initial(self) -> u32 {
+        self.adaptive_initial_window_size
+    }
+
+    /// Adaptive receive-window cap. See [`Self::adaptive_window_max_size`].
+    #[must_use]
+    pub fn adaptive_window_max(self) -> u32 {
+        self.adaptive_max_window_size
+    }
+
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
     /// Applies to every call shape.
     #[must_use]
@@ -989,6 +1055,17 @@ impl ServerConfig {
         )
     }
 
+    pub(crate) fn adaptive_flow_control(self) -> Option<crate::bdp::Config> {
+        self.adaptive_window.then(|| {
+            crate::bdp::Config::new(
+                self.adaptive_initial_window_size,
+                self.adaptive_max_window_size,
+                self.keep_alive_interval,
+                self.keep_alive_timeout,
+            )
+        })
+    }
+
     pub(crate) fn wire(self) -> Wire {
         Wire {
             limits: self.limits,
@@ -1002,9 +1079,15 @@ impl ServerConfig {
     pub(crate) fn h2_builder(self) -> crate::transport::h2::ServerBuilder {
         use crate::transport::ServerBuilder;
         let mut builder = crate::transport::h2::ServerBuilder::new();
+        let adaptive = self.adaptive_flow_control();
+        let stream_window =
+            adaptive.map_or(self.initial_stream_window_size, |cfg| cfg.initial_window());
+        let connection_window = adaptive.map_or(self.initial_connection_window_size, |cfg| {
+            cfg.initial_window()
+        });
         builder
-            .initial_window_size(self.initial_stream_window_size)
-            .initial_connection_window_size(self.initial_connection_window_size)
+            .initial_window_size(stream_window)
+            .initial_connection_window_size(connection_window)
             .max_frame_size(self.max_frame_size)
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
@@ -1014,7 +1097,8 @@ impl ServerConfig {
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
             .max_local_error_reset_streams(Some(self.max_local_error_reset_streams))
             .max_concurrent_reset_streams(self.max_concurrent_reset_streams)
-            .reset_stream_duration(self.reset_stream_duration);
+            .reset_stream_duration(self.reset_stream_duration)
+            .adaptive_window(adaptive);
         builder
     }
 }
@@ -1059,6 +1143,9 @@ pub struct ChannelConfig {
     connections: usize,
     initial_stream_window_size: u32,
     initial_connection_window_size: u32,
+    adaptive_window: bool,
+    adaptive_initial_window_size: u32,
+    adaptive_max_window_size: u32,
     max_frame_size: u32,
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
@@ -1097,6 +1184,9 @@ impl Default for ChannelConfig {
             connections: 1,
             initial_stream_window_size: DEFAULT_WINDOW_SIZE,
             initial_connection_window_size: DEFAULT_WINDOW_SIZE,
+            adaptive_window: false,
+            adaptive_initial_window_size: DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE,
+            adaptive_max_window_size: DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE,
             max_frame_size: DEFAULT_MAX_FRAME_SIZE,
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
@@ -1230,6 +1320,42 @@ impl ChannelConfig {
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
+        self
+    }
+
+    /// Enable or disable adaptive HTTP/2 receive windows. Disabled by default.
+    ///
+    /// When enabled, the handshake starts at
+    /// [`DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE`] for both stream and connection
+    /// receive windows, then grows both windows from BDP PING samples up to
+    /// [`Self::adaptive_window_max_size`]. This matches tonic/hyper's
+    /// `http2_adaptive_window(true)` behavior and overrides
+    /// [`Self::initial_stream_window_size`] /
+    /// [`Self::initial_connection_window_size`] while enabled.
+    #[must_use]
+    pub fn adaptive_window(mut self, enable: bool) -> Self {
+        self.adaptive_window = enable;
+        self
+    }
+
+    /// Adaptive receive-window starting point. Default 65,535 bytes.
+    ///
+    /// Only used when [`Self::adaptive_window`] is enabled. Values above
+    /// [`Self::adaptive_window_max_size`] are clamped to that cap at
+    /// handshake time.
+    #[must_use]
+    pub fn adaptive_window_initial_size(mut self, bytes: u32) -> Self {
+        self.adaptive_initial_window_size = bytes.clamp(1, crate::bdp::MAX_WINDOW_SIZE);
+        self
+    }
+
+    /// Adaptive receive-window cap. Default 16 MiB.
+    ///
+    /// Only used when [`Self::adaptive_window`] is enabled. This is the
+    /// resource bound for BDP growth; windows never grow beyond this value.
+    #[must_use]
+    pub fn adaptive_window_max_size(mut self, bytes: u32) -> Self {
+        self.adaptive_max_window_size = bytes.clamp(1, crate::bdp::MAX_WINDOW_SIZE);
         self
     }
 
@@ -1840,6 +1966,24 @@ impl ChannelConfig {
         self.initial_connection_window_size
     }
 
+    /// Whether adaptive receive windows are enabled. See [`Self::adaptive_window`].
+    #[must_use]
+    pub fn adaptive_window_enabled(self) -> bool {
+        self.adaptive_window
+    }
+
+    /// Adaptive receive-window starting point. See [`Self::adaptive_window_initial_size`].
+    #[must_use]
+    pub fn adaptive_window_initial(self) -> u32 {
+        self.adaptive_initial_window_size
+    }
+
+    /// Adaptive receive-window cap. See [`Self::adaptive_window_max_size`].
+    #[must_use]
+    pub fn adaptive_window_max(self) -> u32 {
+        self.adaptive_max_window_size
+    }
+
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
     /// Applies to every call shape.
     #[must_use]
@@ -2008,6 +2152,17 @@ impl ChannelConfig {
         self.dial_timeout()
     }
 
+    pub(crate) fn adaptive_flow_control(self) -> Option<crate::bdp::Config> {
+        self.adaptive_window.then(|| {
+            crate::bdp::Config::new(
+                self.adaptive_initial_window_size,
+                self.adaptive_max_window_size,
+                self.keep_alive_interval,
+                self.keep_alive_timeout,
+            )
+        })
+    }
+
     pub(crate) fn wire(self) -> Wire {
         Wire {
             limits: self.limits,
@@ -2021,9 +2176,15 @@ impl ChannelConfig {
     pub(crate) fn h2_builder(self) -> crate::transport::h2::ClientBuilder {
         use crate::transport::ClientBuilder;
         let mut builder = crate::transport::h2::ClientBuilder::new();
+        let adaptive = self.adaptive_flow_control();
+        let stream_window =
+            adaptive.map_or(self.initial_stream_window_size, |cfg| cfg.initial_window());
+        let connection_window = adaptive.map_or(self.initial_connection_window_size, |cfg| {
+            cfg.initial_window()
+        });
         builder
-            .initial_window_size(self.initial_stream_window_size)
-            .initial_connection_window_size(self.initial_connection_window_size)
+            .initial_window_size(stream_window)
+            .initial_connection_window_size(connection_window)
             .max_frame_size(self.max_frame_size)
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
@@ -2039,7 +2200,8 @@ impl ChannelConfig {
             // before the peer speaks. Starting send capacity at 0 lets
             // `finish_h2` wait until `current_max_send_streams` leaves 0,
             // which is when the peer's SETTINGS has been applied.
-            .initial_max_send_streams(0);
+            .initial_max_send_streams(0)
+            .adaptive_window(adaptive);
         builder
     }
 }
@@ -2066,6 +2228,46 @@ mod tests {
         assert_eq!(config.keep_alive_ping_interval(), None);
         assert_eq!(config.stream_window(), super::DEFAULT_WINDOW_SIZE);
         assert_eq!(config.connection_window(), super::DEFAULT_WINDOW_SIZE);
+        assert!(!config.adaptive_window_enabled());
+        assert_eq!(
+            config.adaptive_window_initial(),
+            super::DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE
+        );
+        assert_eq!(
+            config.adaptive_window_max(),
+            super::DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE
+        );
+        assert!(!ChannelConfig::new().adaptive_window_enabled());
+        assert_eq!(
+            ChannelConfig::new().adaptive_window_initial(),
+            super::DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE
+        );
+        assert_eq!(
+            ChannelConfig::new().adaptive_window_max(),
+            super::DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE
+        );
+        assert!(
+            ServerConfig::new()
+                .adaptive_window(true)
+                .adaptive_window_enabled()
+        );
+        assert!(
+            ChannelConfig::new()
+                .adaptive_window(true)
+                .adaptive_window_enabled()
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .adaptive_window_initial_size(0)
+                .adaptive_window_initial(),
+            1
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .adaptive_window_max_size(0)
+                .adaptive_window_max(),
+            1
+        );
         assert_eq!(config.frame_size(), super::DEFAULT_MAX_FRAME_SIZE);
         assert_eq!(
             config.concurrent_streams(),

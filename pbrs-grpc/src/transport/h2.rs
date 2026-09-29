@@ -6,6 +6,7 @@
 //! the [`super`] traits for methods and name these types in signatures; a
 //! future native engine (H2-04) re-implements the same traits.
 
+use crate::bdp;
 use bytes::Bytes;
 use http::{HeaderMap, Request, Response};
 use std::fmt;
@@ -177,39 +178,54 @@ impl super::SendStream for SendStream {
 // ---------------------------------------------------------------------------
 
 /// Inbound half of one stream.
-pub(crate) struct RecvStream(::h2::RecvStream);
+pub(crate) struct RecvStream {
+    inner: ::h2::RecvStream,
+    recorder: bdp::Recorder,
+}
+
+impl RecvStream {
+    fn new(inner: ::h2::RecvStream, recorder: bdp::Recorder) -> Self {
+        Self { inner, recorder }
+    }
+}
 
 impl fmt::Debug for RecvStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
 impl super::RecvStream for RecvStream {
     fn poll_data(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, Error>>> {
-        self.0
-            .poll_data(cx)
-            .map(|opt| opt.map(|r| r.map_err(Error)))
+        match self.inner.poll_data(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok(bytes))) => {
+                self.recorder.record_data(bytes.len());
+                Poll::Ready(Some(Ok(bytes)))
+            }
+            Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(Error(error)))),
+        }
     }
 
     fn poll_trailers(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Error>> {
-        self.0.poll_trailers(cx).map(|r| r.map_err(Error))
+        self.inner.poll_trailers(cx).map(|r| r.map_err(Error))
     }
 
     fn trailers(&mut self) -> impl Future<Output = Result<Option<HeaderMap>, Error>> {
-        let fut = self.0.trailers();
+        let fut = self.inner.trailers();
         async move { fut.await.map_err(Error) }
     }
 
     fn is_end_stream(&self) -> bool {
-        self.0.is_end_stream()
+        self.inner.is_end_stream()
     }
 
     /// Owned window handle. h2's handle is a shared refcounted reference to
     /// the stream's window, so cloning it here releases capacity against the
     /// same window as the borrowed `h2::RecvStream::flow_control`.
     fn flow_control(&mut self) -> FlowControl {
-        FlowControl(self.0.flow_control().clone())
+        FlowControl(self.inner.flow_control().clone())
     }
 }
 
@@ -235,17 +251,33 @@ impl super::FlowControl for FlowControl {
 
 /// Client handle that opens outbound streams. Cheap to clone.
 #[derive(Clone)]
-pub(crate) struct SendRequest(::h2::client::SendRequest<Bytes>);
+pub(crate) struct SendRequest {
+    inner: ::h2::client::SendRequest<Bytes>,
+    recorder: bdp::Recorder,
+}
+
+impl SendRequest {
+    fn new(inner: ::h2::client::SendRequest<Bytes>) -> Self {
+        Self {
+            inner,
+            recorder: bdp::Recorder::disabled(),
+        }
+    }
+
+    fn set_recorder(&mut self, recorder: bdp::Recorder) {
+        self.recorder = recorder;
+    }
+}
 
 impl fmt::Debug for SendRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
 impl super::SendRequest for SendRequest {
     fn ready(self) -> ReadySendRequest {
-        ReadySendRequest(self.0.ready())
+        ReadySendRequest(self.inner.ready())
     }
 
     fn send_request(
@@ -253,14 +285,22 @@ impl super::SendRequest for SendRequest {
         request: Request<()>,
         end_of_stream: bool,
     ) -> Result<(ResponseFuture, SendStream), Error> {
-        self.0
+        self.inner
             .send_request(request, end_of_stream)
-            .map(|(rsp, send)| (ResponseFuture(rsp), SendStream(send)))
+            .map(|(rsp, send)| {
+                (
+                    ResponseFuture {
+                        inner: rsp,
+                        recorder: self.recorder.clone(),
+                    },
+                    SendStream(send),
+                )
+            })
             .map_err(Error)
     }
 
     fn current_max_send_streams(&self) -> usize {
-        self.0.current_max_send_streams()
+        self.inner.current_max_send_streams()
     }
 }
 
@@ -279,12 +319,15 @@ impl Future for ReadySendRequest {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.0)
             .poll(cx)
-            .map(|r| r.map(SendRequest).map_err(Error))
+            .map(|r| r.map(SendRequest::new).map_err(Error))
     }
 }
 
 /// Future that resolves to the response headers of one request.
-pub(crate) struct ResponseFuture(::h2::client::ResponseFuture);
+pub(crate) struct ResponseFuture {
+    inner: ::h2::client::ResponseFuture,
+    recorder: bdp::Recorder,
+}
 
 impl fmt::Debug for ResponseFuture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -296,14 +339,29 @@ impl Future for ResponseFuture {
     type Output = Result<Response<RecvStream>, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.0)
-            .poll(cx)
-            .map(|r| r.map(|rsp| rsp.map(RecvStream)).map_err(Error))
+        let recorder = self.recorder.clone();
+        Pin::new(&mut self.inner).poll(cx).map(|r| {
+            r.map(|rsp| rsp.map(|recv| RecvStream::new(recv, recorder)))
+                .map_err(Error)
+        })
     }
 }
 
 /// Client connection driver: polled until the connection closes.
-pub(crate) struct ClientConnection<IO>(::h2::client::Connection<IO, Bytes>);
+pub(crate) struct ClientConnection<IO> {
+    inner: ::h2::client::Connection<IO, Bytes>,
+    ping: Option<bdp::Driver>,
+}
+
+impl<IO> ClientConnection<IO> {
+    fn new(inner: ::h2::client::Connection<IO, Bytes>) -> Self {
+        Self { inner, ping: None }
+    }
+
+    fn install_ping_driver(&mut self, driver: bdp::Driver) {
+        self.ping = Some(driver);
+    }
+}
 
 impl<IO> fmt::Debug for ClientConnection<IO> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -315,18 +373,38 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> Future for ClientConnection<IO> {
     type Output = Result<(), Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.0).poll(cx).map_err(Error)
+        if let Some(driver) = &mut self.ping {
+            match driver.poll(cx) {
+                Poll::Ready(Ok(bdp::Event::SizeUpdate(window))) => {
+                    self.inner.set_target_window_size(window);
+                    if let Err(error) = self.inner.set_initial_window_size(window) {
+                        return Poll::Ready(Err(Error(error)));
+                    }
+                }
+                Poll::Ready(Ok(bdp::Event::KeepAliveTimedOut)) => return Poll::Ready(Ok(())),
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(error)),
+                Poll::Pending => {}
+            }
+        }
+        Pin::new(&mut self.inner).poll(cx).map_err(Error)
     }
 }
 
 impl<IO: AsyncRead + AsyncWrite + Unpin> super::ClientConnection for ClientConnection<IO> {
     fn ping_pong(&mut self) -> Option<PingPong> {
-        self.0.ping_pong().map(PingPong)
+        if self.ping.is_some() {
+            None
+        } else {
+            self.inner.ping_pong().map(PingPong)
+        }
     }
 }
 
 /// Builder for client connections.
-pub(crate) struct ClientBuilder(::h2::client::Builder);
+pub(crate) struct ClientBuilder {
+    inner: ::h2::client::Builder,
+    adaptive: Option<bdp::Config>,
+}
 
 impl fmt::Debug for ClientBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -336,76 +414,84 @@ impl fmt::Debug for ClientBuilder {
 
 impl super::ClientBuilder for ClientBuilder {
     fn new() -> Self {
-        Self(::h2::client::Builder::new())
+        Self {
+            inner: ::h2::client::Builder::new(),
+            adaptive: None,
+        }
     }
 
     fn initial_window_size(&mut self, size: u32) -> &mut Self {
-        self.0.initial_window_size(size);
+        self.inner.initial_window_size(size);
         self
     }
 
     fn initial_connection_window_size(&mut self, size: u32) -> &mut Self {
-        self.0.initial_connection_window_size(size);
+        self.inner.initial_connection_window_size(size);
         self
     }
 
     fn max_frame_size(&mut self, max: u32) -> &mut Self {
-        self.0.max_frame_size(max);
+        self.inner.max_frame_size(max);
         self
     }
 
     fn max_header_list_size(&mut self, max: u32) -> &mut Self {
-        self.0.max_header_list_size(max);
+        self.inner.max_header_list_size(max);
         self
     }
 
     fn max_concurrent_streams(&mut self, max: u32) -> &mut Self {
-        self.0.max_concurrent_streams(max);
+        self.inner.max_concurrent_streams(max);
         self
     }
 
     fn initial_max_send_streams(&mut self, initial: usize) -> &mut Self {
-        self.0.initial_max_send_streams(initial);
+        self.inner.initial_max_send_streams(initial);
         self
     }
 
     fn max_concurrent_reset_streams(&mut self, max: usize) -> &mut Self {
-        self.0.max_concurrent_reset_streams(max);
+        self.inner.max_concurrent_reset_streams(max);
         self
     }
 
     fn reset_stream_duration(&mut self, dur: std::time::Duration) -> &mut Self {
-        self.0.reset_stream_duration(dur);
+        self.inner.reset_stream_duration(dur);
         self
     }
 
     fn max_send_buffer_size(&mut self, max: usize) -> &mut Self {
-        self.0.max_send_buffer_size(max);
+        self.inner.max_send_buffer_size(max);
         self
     }
 
     fn max_pending_accept_reset_streams(&mut self, max: usize) -> &mut Self {
-        self.0.max_pending_accept_reset_streams(max);
+        self.inner.max_pending_accept_reset_streams(max);
         self
     }
 
     fn max_local_error_reset_streams(&mut self, max: Option<usize>) -> &mut Self {
-        self.0.max_local_error_reset_streams(max);
+        self.inner.max_local_error_reset_streams(max);
         self
     }
 
     fn enable_push(&mut self, enabled: bool) -> &mut Self {
-        self.0.enable_push(enabled);
+        self.inner.enable_push(enabled);
         self
     }
 
     fn header_table_size(&mut self, size: u32) -> &mut Self {
-        self.0.header_table_size(size);
+        self.inner.header_table_size(size);
         self
     }
 
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self {
-        self.0.data_frame_budget(budget);
+        self.inner.data_frame_budget(budget);
+        self
+    }
+
+    fn adaptive_window(&mut self, config: Option<bdp::Config>) -> &mut Self {
+        self.adaptive = config;
         self
     }
 
@@ -420,14 +506,22 @@ impl super::ClientBuilder for ClientBuilder {
         // stream: coroutine layouts keep dead upvar storage, and h2's
         // handshake future owns `io` again, so an unboxed upvar would pay
         // for it twice (a TLS stream is ~1KB). One setup-time alloc.
-        let builder = self.0;
+        let builder = self.inner;
+        let adaptive = self.adaptive;
         let io = Box::new(io);
         async move {
-            builder
-                .handshake::<IO, Bytes>(*io)
-                .await
-                .map(|(send, conn)| (SendRequest(send), ClientConnection(conn)))
-                .map_err(Error)
+            let (inner_send, inner_conn) =
+                builder.handshake::<IO, Bytes>(*io).await.map_err(Error)?;
+            let mut send = SendRequest::new(inner_send);
+            let mut conn = ClientConnection::new(inner_conn);
+            if let Some(config) = adaptive {
+                if let Some(ping_pong) = conn.inner.ping_pong().map(PingPong) {
+                    let (recorder, driver) = bdp::Driver::new(ping_pong, config);
+                    send.set_recorder(recorder);
+                    conn.install_ping_driver(driver);
+                }
+            }
+            Ok((send, conn))
         }
     }
 }
@@ -467,7 +561,52 @@ impl super::SendResponse for SendResponse {
 }
 
 /// Server connection driver: accepts streams until the connection closes.
-pub(crate) struct ServerConnection<IO>(::h2::server::Connection<IO, Bytes>);
+pub(crate) struct ServerConnection<IO> {
+    inner: ::h2::server::Connection<IO, Bytes>,
+    recorder: bdp::Recorder,
+    ping: Option<bdp::Driver>,
+    ping_timed_out: bool,
+}
+
+impl<IO> ServerConnection<IO> {
+    fn new(inner: ::h2::server::Connection<IO, Bytes>) -> Self {
+        Self {
+            inner,
+            recorder: bdp::Recorder::disabled(),
+            ping: None,
+            ping_timed_out: false,
+        }
+    }
+
+    fn install_ping_driver(&mut self, recorder: bdp::Recorder, driver: bdp::Driver) {
+        self.recorder = recorder;
+        self.ping = Some(driver);
+    }
+
+    fn poll_ping(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Error>>
+    where
+        IO: AsyncRead + AsyncWrite + Unpin,
+    {
+        let Some(driver) = &mut self.ping else {
+            return Poll::Pending;
+        };
+        match driver.poll(cx) {
+            Poll::Ready(Ok(bdp::Event::SizeUpdate(window))) => {
+                self.inner.set_target_window_size(window);
+                match self.inner.set_initial_window_size(window) {
+                    Ok(()) => Poll::Ready(Ok(())),
+                    Err(error) => Poll::Ready(Err(Error(error))),
+                }
+            }
+            Poll::Ready(Ok(bdp::Event::KeepAliveTimedOut)) => {
+                self.ping_timed_out = true;
+                Poll::Ready(Ok(()))
+            }
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
 
 impl<IO> fmt::Debug for ServerConnection<IO> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -480,10 +619,22 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConne
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<super::Accepted, Error>>> {
-        self.0.poll_accept(cx).map(|opt| {
+        if self.ping_timed_out {
+            return Poll::Ready(None);
+        }
+        if let Poll::Ready(Err(error)) = self.poll_ping(cx) {
+            return Poll::Ready(Some(Err(error)));
+        }
+        let recorder = self.recorder.clone();
+        self.inner.poll_accept(cx).map(|opt| {
             opt.map(|r| {
-                r.map(|(req, rsp)| (req.map(RecvStream), SendResponse(rsp)))
-                    .map_err(Error)
+                r.map(|(req, rsp)| {
+                    (
+                        req.map(|recv| RecvStream::new(recv, recorder)),
+                        SendResponse(rsp),
+                    )
+                })
+                .map_err(Error)
             })
         })
     }
@@ -493,16 +644,23 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConne
     }
 
     fn ping_pong(&mut self) -> Option<PingPong> {
-        self.0.ping_pong().map(PingPong)
+        if self.ping.is_some() {
+            None
+        } else {
+            self.inner.ping_pong().map(PingPong)
+        }
     }
 
     fn graceful_shutdown(&mut self) {
-        self.0.graceful_shutdown();
+        self.inner.graceful_shutdown();
     }
 }
 
 /// Builder for server connections.
-pub(crate) struct ServerBuilder(::h2::server::Builder);
+pub(crate) struct ServerBuilder {
+    inner: ::h2::server::Builder,
+    adaptive: Option<bdp::Config>,
+}
 
 impl fmt::Debug for ServerBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -512,66 +670,74 @@ impl fmt::Debug for ServerBuilder {
 
 impl super::ServerBuilder for ServerBuilder {
     fn new() -> Self {
-        Self(::h2::server::Builder::new())
+        Self {
+            inner: ::h2::server::Builder::new(),
+            adaptive: None,
+        }
     }
 
     fn initial_window_size(&mut self, size: u32) -> &mut Self {
-        self.0.initial_window_size(size);
+        self.inner.initial_window_size(size);
         self
     }
 
     fn initial_connection_window_size(&mut self, size: u32) -> &mut Self {
-        self.0.initial_connection_window_size(size);
+        self.inner.initial_connection_window_size(size);
         self
     }
 
     fn max_frame_size(&mut self, max: u32) -> &mut Self {
-        self.0.max_frame_size(max);
+        self.inner.max_frame_size(max);
         self
     }
 
     fn max_header_list_size(&mut self, max: u32) -> &mut Self {
-        self.0.max_header_list_size(max);
+        self.inner.max_header_list_size(max);
         self
     }
 
     fn max_concurrent_streams(&mut self, max: u32) -> &mut Self {
-        self.0.max_concurrent_streams(max);
+        self.inner.max_concurrent_streams(max);
         self
     }
 
     fn max_concurrent_reset_streams(&mut self, max: usize) -> &mut Self {
-        self.0.max_concurrent_reset_streams(max);
+        self.inner.max_concurrent_reset_streams(max);
         self
     }
 
     fn reset_stream_duration(&mut self, dur: std::time::Duration) -> &mut Self {
-        self.0.reset_stream_duration(dur);
+        self.inner.reset_stream_duration(dur);
         self
     }
 
     fn max_send_buffer_size(&mut self, max: usize) -> &mut Self {
-        self.0.max_send_buffer_size(max);
+        self.inner.max_send_buffer_size(max);
         self
     }
 
     fn max_pending_accept_reset_streams(&mut self, max: usize) -> &mut Self {
-        self.0.max_pending_accept_reset_streams(max);
+        self.inner.max_pending_accept_reset_streams(max);
         self
     }
 
     fn max_local_error_reset_streams(&mut self, max: Option<usize>) -> &mut Self {
-        self.0.max_local_error_reset_streams(max);
+        self.inner.max_local_error_reset_streams(max);
         self
     }
 
     fn header_table_size(&mut self, size: u32) -> &mut Self {
-        self.0.header_table_size(size);
+        self.inner.header_table_size(size);
         self
     }
 
     fn data_frame_budget(&mut self, budget: usize) -> &mut Self {
-        self.0.data_frame_budget(budget);
+        self.inner.data_frame_budget(budget);
+        self
+    }
+
+    fn adaptive_window(&mut self, config: Option<bdp::Config>) -> &mut Self {
+        self.adaptive = config;
         self
     }
 
@@ -583,14 +749,19 @@ impl super::ServerBuilder for ServerBuilder {
         // stream: coroutine layouts keep dead upvar storage, and h2's
         // handshake future owns `io` again, so an unboxed upvar would pay
         // for it twice (a TLS stream is ~1KB). One setup-time alloc.
-        let builder = self.0;
+        let builder = self.inner;
+        let adaptive = self.adaptive;
         let io = Box::new(io);
         async move {
-            builder
-                .handshake::<IO, Bytes>(*io)
-                .await
-                .map(ServerConnection)
-                .map_err(Error)
+            let inner = builder.handshake::<IO, Bytes>(*io).await.map_err(Error)?;
+            let mut conn = ServerConnection::new(inner);
+            if let Some(config) = adaptive {
+                if let Some(ping_pong) = conn.inner.ping_pong().map(PingPong) {
+                    let (recorder, driver) = bdp::Driver::new(ping_pong, config);
+                    conn.install_ping_driver(recorder, driver);
+                }
+            }
+            Ok(conn)
         }
     }
 }
@@ -612,6 +783,16 @@ impl super::PingPong for PingPong {
     fn ping(&mut self, ping: Ping) -> impl Future<Output = Result<Pong, Error>> {
         let fut = self.0.ping(ping.0);
         async move { fut.await.map(Pong).map_err(Error) }
+    }
+}
+
+impl PingPong {
+    pub(crate) fn send_ping(&mut self, ping: Ping) -> Result<(), Error> {
+        self.0.send_ping(ping.0).map_err(Error)
+    }
+
+    pub(crate) fn poll_pong(&mut self, cx: &mut Context<'_>) -> Poll<Result<Pong, Error>> {
+        self.0.poll_pong(cx).map(|r| r.map(Pong).map_err(Error))
     }
 }
 
