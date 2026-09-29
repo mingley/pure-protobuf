@@ -11,7 +11,8 @@
 //! - `rst_after_data`: sends UnaryCall; asserts call fails.
 //! - `ping`: sends UnaryCall; asserts call succeeds with response body 314159 zeros.
 //! - `max_streams`: sends initial UnaryCall, then sends 10 concurrent UnaryCalls under
-//!   server's MAX_CONCURRENT_STREAMS; asserts all succeed with response body 314159 zeros.
+//!   the server's updated MAX_CONCURRENT_STREAMS (= 1); asserts all succeed with
+//!   response body 314159 zeros.
 //! - `data_frame_padding`: sends UnaryCall expecting padded DATA frames; asserts call
 //!   succeeds without flow-control deadlock and with response body 314159 zeros.
 //! - `no_df_padding_sanity_test`: sends UnaryCall expecting small unpadded DATA frames;
@@ -296,9 +297,10 @@ async fn run_ping(client: &TestServiceClient) -> Result<(), Status> {
 }
 
 /// Case `max_streams`:
-/// Sends initial UnaryCall to allow server to update MAX_CONCURRENT_STREAMS;
-/// then concurrently sends 10 UnaryCalls; asserts all 11 succeed with response
-/// body 314159 zeros.
+/// Sends initial UnaryCall to allow server to update MAX_CONCURRENT_STREAMS
+/// to 1 (the peer withholds the first call's trailers until the update is
+/// ACKed, so all later streams start under the new limit); then concurrently
+/// sends 10 UnaryCalls; asserts all 11 succeed with response body 314159 zeros.
 async fn run_max_streams(client: &TestServiceClient) -> Result<(), Status> {
     let req0 = large_simple_request();
     let resp0 = client.unary_call(Request::new(req0)).await?;

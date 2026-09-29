@@ -960,7 +960,7 @@
         "passing_directions": [
           "client_to_server"
         ],
-        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies SETTINGS_MAX_CONCURRENT_STREAMS limit is enforced under 10 concurrent requests without deadlock."
+        "notes": "Verified passing via native client adapter in scripts/grpc-http2-interop.sh; verifies the client respects an updated SETTINGS_MAX_CONCURRENT_STREAMS=1 (lowered after the first call; the 10 concurrent requests proceed only after the client ACKs the update) without deadlock."
       }
     },
     {

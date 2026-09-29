@@ -7,7 +7,7 @@
 #   rst_during_data           - RST_STREAM frame in the middle of DATA streaming
 #   rst_after_data            - RST_STREAM frame after all DATA without receiving trailers
 #   ping                      - PING frame roundtrip and ACK observation
-#   max_streams               - SETTINGS_MAX_CONCURRENT_STREAMS enforcement under concurrency
+#   max_streams               - Updated SETTINGS_MAX_CONCURRENT_STREAMS respected under concurrency
 #   data_frame_padding        - Padded DATA frames flow control and decoding without deadlock
 #   no_df_padding_sanity_test - Unpadded small DATA frames baseline sanity test
 #
@@ -247,19 +247,21 @@ def handle_conn(conn):
         if not preface:
             return
 
-        if case == "max_streams":
-            conn.sendall(h2_frame(4, 0, 0, struct.pack(">HI", 3, 1)))
-        else:
-            conn.sendall(h2_frame(4, 0, 0, b""))
+        # All cases start with default (effectively unlimited) concurrency;
+        # the `max_streams` case later sends an updated SETTINGS lowering
+        # MAX_CONCURRENT_STREAMS to 1, proving the client respects updates.
+        conn.sendall(h2_frame(4, 0, 0, b""))
 
         conn_window = 65535
         initial_stream_window = 65535
         stream_windows = {}
         outstanding_pings = 0
         ping_probes_sent = False
-        active_streams = set()
         max_active = 0
         calls_handled = 0
+        settings_update_sent = False
+        settings_update_acked = False
+        pending_headers = []
 
         def mark_done(phase="complete"):
             nonlocal case_done
@@ -268,9 +270,17 @@ def handle_conn(conn):
                 print(f"SERVER_CASE_DONE idx={my_idx} phase={phase}", file=sys.stderr, flush=True)
 
         def send_ack_or_flow(ftype, fflags, fstream, fpayload):
-            nonlocal conn_window, initial_stream_window, outstanding_pings
+            nonlocal conn_window, initial_stream_window, outstanding_pings, settings_update_acked
             if ftype == 4:
-                if not (fflags & 1):
+                if fflags & 1:
+                    # Any SETTINGS ACK observed after the `max_streams` update
+                    # was sent must acknowledge that update: the client ACKs
+                    # every server SETTINGS exactly once, in order, and the
+                    # initial SETTINGS was already ACKed before any
+                    # first-call HEADERS could arrive.
+                    if settings_update_sent:
+                        settings_update_acked = True
+                else:
                     for i in range(0, len(fpayload), 6):
                         if i + 6 <= len(fpayload):
                             sid, val = struct.unpack(">HI", fpayload[i:i+6])
@@ -304,10 +314,16 @@ def handle_conn(conn):
                 f = read_frame(conn)
                 if not f:
                     break
-                send_ack_or_flow(f[0], f[1], f[2], f[3])
+                if f[0] == 1:
+                    pending_headers.append(f)
+                else:
+                    send_ack_or_flow(f[0], f[1], f[2], f[3])
 
         while True:
-            f = read_frame(conn)
+            if pending_headers:
+                f = pending_headers.pop(0)
+            else:
+                f = read_frame(conn)
             if not f:
                 break
             ftype, fflags, fstream, fpayload = f
@@ -379,22 +395,82 @@ def handle_conn(conn):
                     outstanding_pings += 1
                     ping_probes_sent = True
                 elif case == "max_streams":
-                    active_streams.add(stream_id)
-                    if len(active_streams) > max_active:
-                        max_active = len(active_streams)
-                    if len(active_streams) > 1:
-                        print(f"SERVER_ASSERTION_FAILED: max concurrent streams violated: active={len(active_streams)}", file=sys.stderr)
                     calls_handled += 1
-                    conn.sendall(h2_frame(1, 4, stream_id, headers_payload))
-                    chunk_size = 16384
-                    for offset in range(0, len(grpc_msg), chunk_size):
-                        drain_incoming()
-                        chunk = grpc_msg[offset:offset+chunk_size]
-                        conn.sendall(h2_frame(0, 0, stream_id, chunk))
-                    conn.sendall(h2_frame(1, 5, stream_id, trailers_payload))
-                    active_streams.discard(stream_id)
-                    if calls_handled >= 11 and max_active <= 1:
-                        mark_done()
+                    if calls_handled == 1:
+                        conn.sendall(h2_frame(1, 4, stream_id, headers_payload))
+                        chunk_size = 16384
+                        for offset in range(0, len(grpc_msg), chunk_size):
+                            drain_incoming()
+                            chunk = grpc_msg[offset:offset+chunk_size]
+                            conn.sendall(h2_frame(0, 0, stream_id, chunk))
+                        # Update MAX_CONCURRENT_STREAMS to 1 mid-connection and
+                        # withhold the first-call trailers until the client
+                        # ACKs, so every later stream provably starts under the
+                        # updated limit instead of racing it.
+                        conn.sendall(h2_frame(4, 0, 0, struct.pack(">HI", 3, 1)))
+                        settings_update_sent = True
+                        print("SETTINGS_UPDATED max_concurrent_streams=1", file=sys.stderr, flush=True)
+                        ack_deadline = time.monotonic() + 5.0
+                        while not settings_update_acked:
+                            remaining = ack_deadline - time.monotonic()
+                            if remaining <= 0:
+                                raise Exception("timed out waiting for updated SETTINGS ACK")
+                            r, _, _ = select.select([conn], [], [], remaining)
+                            if not r:
+                                raise Exception("timed out waiting for updated SETTINGS ACK")
+                            f = read_frame(conn)
+                            if not f:
+                                raise Exception("EOF waiting for updated SETTINGS ACK")
+                            if f[0] == 1:
+                                pending_headers.append(f)
+                            else:
+                                send_ack_or_flow(f[0], f[1], f[2], f[3])
+                        conn.sendall(h2_frame(1, 5, stream_id, trailers_payload))
+                    else:
+                        # The peer answers synchronously, so a bare open-stream
+                        # count can never exceed 1 here. Instead, watch for a
+                        # next HEADERS while this stream is still open: a
+                        # client honoring the updated limit of 1 cannot open
+                        # another stream before these trailers arrive.
+                        open_streams = [stream_id]
+                        while open_streams:
+                            sid = open_streams.pop(0)
+                            preexisting = len(pending_headers)
+                            if max_active < 1:
+                                max_active = 1
+                            conn.sendall(h2_frame(1, 4, sid, headers_payload))
+                            chunk_size = 16384
+                            for offset in range(0, len(grpc_msg), chunk_size):
+                                drain_incoming()
+                                chunk = grpc_msg[offset:offset+chunk_size]
+                                conn.sendall(h2_frame(0, 0, sid, chunk))
+                            grace_deadline = time.monotonic() + 0.05
+                            while True:
+                                remaining = grace_deadline - time.monotonic()
+                                if remaining <= 0:
+                                    break
+                                r, _, _ = select.select([conn], [], [], remaining)
+                                if not r:
+                                    break
+                                gf = read_frame(conn)
+                                if not gf:
+                                    break
+                                if gf[0] == 1:
+                                    open_streams.append(gf[2])
+                                    calls_handled += 1
+                                else:
+                                    send_ack_or_flow(gf[0], gf[1], gf[2], gf[3])
+                            while len(pending_headers) > preexisting:
+                                early = pending_headers.pop(preexisting)
+                                open_streams.append(early[2])
+                                calls_handled += 1
+                            if open_streams:
+                                if len(open_streams) + 1 > max_active:
+                                    max_active = len(open_streams) + 1
+                                print(f"SERVER_ASSERTION_FAILED: max concurrent streams violated: {max_active} streams open while {sid} still open", file=sys.stderr)
+                            conn.sendall(h2_frame(1, 5, sid, trailers_payload))
+                        if calls_handled >= 11 and max_active <= 1 and settings_update_acked:
+                            mark_done()
                 elif case in ("data_frame_padding", "no_df_padding_sanity_test"):
                     is_padded = (case == "data_frame_padding")
                     pad_len = 255 if is_padded else 0
@@ -437,8 +513,8 @@ def handle_conn(conn):
             if outstanding_pings != 0:
                 print(f"SERVER_ASSERTION_FAILED: outstanding pings on disconnect: {outstanding_pings} != 0", file=sys.stderr)
         elif case == "max_streams":
-            if max_active > 1 or calls_handled < 11:
-                print(f"SERVER_ASSERTION_FAILED: max concurrent streams assertion failed: max_active={max_active}, calls_handled={calls_handled}", file=sys.stderr)
+            if max_active > 1 or calls_handled < 11 or not settings_update_acked:
+                print(f"SERVER_ASSERTION_FAILED: max concurrent streams assertion failed: max_active={max_active}, calls_handled={calls_handled}, update_acked={settings_update_acked}", file=sys.stderr)
     except Exception as e:
         if started and not case_done:
             print(f"SERVER_ASSERTION_FAILED: {case} peer failed before completion: {e}", file=sys.stderr, flush=True)
