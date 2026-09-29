@@ -5310,7 +5310,12 @@
     "tonic"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "done",
+   "evidence": [
+    "examples/tonic-ports/",
+    "docs/guides/migration.md"
+   ]
   },
   {
    "id": "TC-08",
@@ -8105,6 +8110,43 @@
     "SV-03",
     "CL-02",
     "CL-05"
+   ],
+   "status": "in_progress"
+  },
+  {
+   "id": "TC-22",
+   "title": "Port the remaining tonic examples and prove cross-stack interop",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "TC-07"
+   ],
+   "read": [
+    "docs/guides/migration.md"
+   ],
+   "write": [
+    "examples/tonic-ports/",
+    "tests/interop/tonic/",
+    "docs/guides/migration.md",
+    "docs/guides/comparison.md"
+   ],
+   "deliverable": "Port tonic's load_balance, dynamic_load_balance, json-codec, tracing, authentication, cancellation, h2c and tower examples, and prove each ported server interoperates with the original tonic client (and vice versa) in the standalone tonic interop workspace.",
+   "accept": [
+    "Each example builds and runs in-process; cross-stack interop tests pass against original tonic peers; line-diff statistics and any blockers are recorded."
+   ],
+   "checks": [
+    "clippy",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F2",
+    "F4"
+   ],
+   "relates": [
+    "TC-07"
    ],
    "status": "in_progress"
   }
