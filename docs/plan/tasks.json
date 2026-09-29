@@ -3402,7 +3402,11 @@
         "Map all six pinned auth cases to providers and real test prerequisites; local fakes are not official cloud-auth evidence."
       ],
       "checks": [],
-      "status": "in_progress"
+      "status": "done",
+      "evidence": [
+        "docs/credentials-contract.md"
+      ],
+      "notes": "Closed 2026-09-29: contract landed; maintainer sign-off on 5 open questions requested."
     },
     {
       "id": "EX-04",
