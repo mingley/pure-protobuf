@@ -8181,6 +8181,59 @@
    "relates": [
     "TC-07"
    ],
+   "status": "done",
+   "evidence": [
+    "examples/tonic-ports/",
+    "tests/interop/tonic/",
+    "docs/guides/migration.md"
+   ]
+  },
+  {
+   "id": "RX-09",
+   "title": "Close the per-RPC instruction and byte gap to tonic",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [
+    "RX-08"
+   ],
+   "read": [
+    "docs/evidence/rx-08.md",
+    "docs/evidence/h2-costs.md",
+    "docs/evidence/tc-03-prost.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/server/dispatch.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/stream.rs",
+    "pbrs-grpc/src/wire/",
+    "pbrs-grpc/src/codec.rs",
+    "pbrs-grpc/src/metadata.rs",
+    "pbrs-grpc/src/status.rs",
+    "docs/evidence/rx-09.md"
+   ],
+   "deliverable": "Loop-only callgrind dev-loop cells show pbrs-grpc using about half of tonic's allocations but 4% more instructions per unary RPC and 13% more per server-streaming RPC, with 11-12% more heap bytes. Diff the profiles function by function and remove the excess.",
+   "accept": [
+    "rpc.pbrs.unary and rpc.pbrs.server_stream beat rpc.tonic.* on instructions, allocations and bytes per RPC in the same dev-loop harness, with all transport gates green."
+   ],
+   "checks": [
+    "clippy"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4",
+    "C2",
+    "D2"
+   ],
+   "relates": [
+    "RX-08",
+    "H2-01"
+   ],
    "status": "in_progress"
   }
  ]
