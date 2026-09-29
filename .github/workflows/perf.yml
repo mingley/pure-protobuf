@@ -88,6 +88,19 @@ jobs:
         run: |
           scripts/build-pinned-protoc.sh
           echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
+      - name: Provide verified upstream schemas to baseline
+        run: |
+          # Worktrees do not inherit ignored third_party checkouts. The v4
+          # comparator builds from these schemas, not just the protoc binary.
+          # Share only an identical pin; a compiler upgrade needs a separately
+          # qualified comparison instead of silently using the head's schemas.
+          cmp vendor/google/PIN "$RUNNER_TEMP/devloop-base/vendor/google/PIN"
+          cmp vendor/google/SHA "$RUNNER_TEMP/devloop-base/vendor/google/SHA"
+          test "$(git -C third_party/protobuf rev-parse HEAD)" = \
+            "$(cat "$RUNNER_TEMP/devloop-base/vendor/google/SHA")"
+          mkdir -p "$RUNNER_TEMP/devloop-base/third_party"
+          ln -s "$GITHUB_WORKSPACE/third_party/protobuf" \
+            "$RUNNER_TEMP/devloop-base/third_party/protobuf"
 
       - name: Use instruction counters only when available
         run: |
