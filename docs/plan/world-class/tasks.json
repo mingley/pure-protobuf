@@ -2129,7 +2129,9 @@
    "read": [
     "src/wire.rs",
     "src/packed.rs",
-    "docs/unsafe-invariants.md"
+    "docs/unsafe-invariants.md",
+    "src/table.rs",
+    "docs/evidence/pk22-string-encode.md"
    ],
    "write": [
     "src/wire.rs",
@@ -2137,7 +2139,7 @@
     "fuzz/fuzz_targets/varint_diff.rs",
     "docs/unsafe-invariants.md"
    ],
-   "deliverable": "Replace the scalar varint and packed-varint validation loops with a portable SWAR fast path plus optional std::arch (SSE/AVX2, NEON) paths selected at compile or run time, preserving overflow, overlong and truncation semantics.",
+   "deliverable": "Add std::arch-gated SIMD varint/tag decoding (SSE2/AVX2/NEON) at the scalar sites the live engines use. Portable SWAR is EXCLUDED (tried and disproved, reverted in 039c7cd1 \u2014 do not retry). Place the SIMD where both the generated inline path and the PK-06 table engine consume it.",
    "accept": [
     "Differential fuzzing against the scalar decoder finds no divergence over at least 1e9 inputs.",
     "Dev-loop instructions improve on packed_256, unpacked_256 and tags_32 cells without regressing tiny-message cells by more than 1%.",
@@ -2155,10 +2157,11 @@
     "A5"
    ],
    "relates": [],
-   "status": "pending",
+   "status": "in_progress",
    "evidence": [
     "docs/evidence/codec-profiles.md"
-   ]
+   ],
+   "notes": "2026-09-29 coordinator re-scope: portable SWAR excluded after disproof; arch-specific paths only, shared with the table engine. Runs after PK-22 (src/wire.rs hotspot) \u2014 PK-22 landed."
   },
   {
    "id": "PK-05",
