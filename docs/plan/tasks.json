@@ -2970,7 +2970,11 @@
         "native-lib",
         "native-rpc",
         "rpc-bench"
-      ]
+      ],
+      "evidence": [
+        "Partial 2026-09-29 (79817836): InMemoryMetricSink::diagnose folds recordings into timeout/retry/saturation counts behind BoundedMetricObserver allowlists; W3C traceparent injector/capture pair plus redacted TelemetryContext debug; measure_dispatch_overhead reports absolute ps/iter. Release probe on this host: disabled ~579-737 ps/iter, enabled ~1208-1845 ps/iter (100k/1M iters x3) -- against microsecond-scale per-RPC CPU this is far under the proposed 2% disabled budget. pbrs-grpc lib checks on rustc 1.85 with and without otel; pure-rust audit all-profiles pure; telemetry tests 7/7 (8/8 with otel), greeter telemetry 4/4. Greeter module wired by coordinator (pub mod telemetry). rpc-bench two-process CPU pairing and formal budget signoff remain open; OB-02 stays pending."
+      ],
+      "status": "in_progress"
     },
     {
       "id": "OB-03",
