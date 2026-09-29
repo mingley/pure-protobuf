@@ -198,6 +198,51 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         required_all: &["Parse", "Serialize", "prost::Message"],
         description: "protobuf-tonic must document using Google protobuf v4 traits, not prost::Message.",
     },
+    // ------------------------------------------------------------------------
+    // 6. Published performance/support claim provenance (DX-07)
+    // ------------------------------------------------------------------------
+    CaveatRequirement {
+        category: "claim_provenance",
+        title: "benchmark_provenance_framing",
+        doc_path: "docs/benchmarks.md",
+        required_all: &["dated source", "raw artifact", "benchmark-contract.md"],
+        description: "Benchmarks must state that tables lack complete dated source and raw artifacts, and link the benchmark contract for stronger claims.",
+    },
+    CaveatRequirement {
+        category: "claim_provenance",
+        title: "status_support_qualification",
+        doc_path: "docs/status.md",
+        required_all: &[
+            "not a production certification",
+            "historical results",
+            "## Verified",
+        ],
+        description: "Status must qualify support claims as historical results rather than production certification, under a Verified section.",
+    },
+    CaveatRequirement {
+        category: "claim_provenance",
+        title: "contract_forbids_universal_fastest",
+        doc_path: "docs/benchmark-contract.md",
+        required_all: &["fastest in the world", "forbidden"],
+        description: "Benchmark contract must forbid universal fastest-in-the-world claims.",
+    },
+    // ------------------------------------------------------------------------
+    // 7. Evidence links and rustdoc navigation (DX-07)
+    // ------------------------------------------------------------------------
+    CaveatRequirement {
+        category: "evidence_links",
+        title: "map_links_evidence_scripts",
+        doc_path: "docs/documentation-map.md",
+        required_all: &["scripts/conformance.sh", "scripts/grpc-interop.sh"],
+        description: "Documentation map must link the runnable conformance and interop evidence scripts.",
+    },
+    CaveatRequirement {
+        category: "rustdoc_navigation",
+        title: "map_names_rustdoc_entry",
+        doc_path: "docs/documentation-map.md",
+        required_all: &["cargo doc", "docs.rs"],
+        description: "Documentation map must route API reference readers through rustdoc and docs.rs.",
+    },
 ];
 
 /// Validates whether a given document content satisfies the requirement.
@@ -1256,4 +1301,697 @@ fn test_protobuf_snippet_syntax_validator_detects_errors() {
     let bad_proto = "syntax = \"proto3\";\nmessage BadMsg { invalid field definition }";
     let res = check_protobuf_snippet_syntax(bad_proto);
     assert!(res.is_err(), "Invalid Protobuf syntax should be rejected");
+}
+
+// ============================================================================
+// Published claim, version, and rustdoc navigation contracts (DX-07)
+// ============================================================================
+
+/// User-facing documents where performance and support claims appear.
+/// Plan cards, decision logs, and closed evidence are historical records,
+/// not published claims, and are intentionally excluded.
+pub const CLAIM_DOCS: &[&str] = &[
+    "README.md",
+    "docs/benchmarks.md",
+    "docs/status.md",
+    "docs/grpc.md",
+    "docs/architecture.md",
+    "docs/documentation-map.md",
+    "pbrs-grpc/README.md",
+    "protobuf-tonic/README.md",
+];
+
+/// Release and roadmap records additionally cite published versions.
+pub const VERSION_DOCS_EXTRA: &[&str] = &["docs/RELEASE.md", "docs/ROADMAP.md"];
+
+/// Every published document: the fixed claim pages plus every guide.
+pub fn published_doc_paths() -> Vec<PathBuf> {
+    let root = workspace_root();
+    let mut seen = HashSet::new();
+    let mut paths = Vec::new();
+    for rel in CLAIM_DOCS {
+        let path = root.join(rel);
+        if seen.insert(path.clone()) {
+            paths.push(path);
+        }
+    }
+    for path in discover_guide_files() {
+        if seen.insert(path.clone()) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    paths
+}
+
+/// Removes fenced code blocks and inline code spans so claim scanners only
+/// see rendered prose. Newlines are preserved to keep line numbers stable.
+pub fn strip_markdown_code(content: &str) -> String {
+    let mut prose = String::with_capacity(content.len());
+    let mut in_fence = false;
+    for line in content.lines() {
+        if line.trim().starts_with("```") {
+            in_fence = !in_fence;
+            prose.push('\n');
+            continue;
+        }
+        if in_fence {
+            prose.push('\n');
+            continue;
+        }
+        for (idx, segment) in line.split('`').enumerate() {
+            if idx % 2 == 0 {
+                prose.push_str(segment);
+            } else {
+                prose.push(' ');
+            }
+        }
+        prose.push('\n');
+    }
+    prose
+}
+
+/// Removes markdown link destinations (`](target)` -> `]`) so URL slugs
+/// never read as prose claims.
+fn strip_link_destinations(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let mut out = String::with_capacity(line.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == ']' && i + 1 < chars.len() && chars[i + 1] == '(' {
+            out.push(']');
+            i += 2;
+            let mut depth = 1;
+            while i < chars.len() && depth > 0 {
+                if chars[i] == '(' {
+                    depth += 1;
+                } else if chars[i] == ')' {
+                    depth -= 1;
+                }
+                i += 1;
+            }
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Superlatives that must never appear as unqualified prose in published docs.
+pub const UNQUALIFIED_SUPERLATIVES: &[&str] = &[
+    "fastest",
+    "best in class",
+    "best-in-class",
+    "world-class",
+    "world class",
+    "blazing",
+    "orders of magnitude",
+];
+
+/// Lowercased phrases exempt from the superlative scan (program titles that
+/// link to the plan, not performance claims).
+pub const SUPERLATIVE_ALLOWLIST: &[&str] = &["world-class grpc program", "world-class program"];
+
+/// Returns `(line_number, matched_pattern)` for every unqualified
+/// superlative in prose (code already stripped via [`strip_markdown_code`]).
+pub fn find_unqualified_superlatives(prose: &str) -> Vec<(usize, String)> {
+    let mut hits = Vec::new();
+    for (idx, line) in prose.lines().enumerate() {
+        let without_targets = strip_link_destinations(line);
+        let mut folded: String = without_targets
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+        for allowed in SUPERLATIVE_ALLOWLIST {
+            folded = folded.replace(allowed, " ");
+        }
+        for pattern in UNQUALIFIED_SUPERLATIVES {
+            if folded.contains(pattern) {
+                hits.push((idx + 1, (*pattern).to_string()));
+            }
+        }
+    }
+    hits
+}
+
+/// Validates that no published document makes an unqualified superlative claim.
+pub fn validate_published_prose() -> Result<(), Vec<String>> {
+    let root = workspace_root();
+    let mut errors = Vec::new();
+    for path in published_doc_paths() {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .display()
+            .to_string();
+        match fs::read_to_string(&path) {
+            Ok(content) => {
+                let prose = strip_markdown_code(&content);
+                for (line, pattern) in find_unqualified_superlatives(&prose) {
+                    errors.push(format!(
+                        "{rel}:{line}: unqualified superlative '{pattern}'; performance claims need dated source and result artifacts per docs/benchmark-contract.md"
+                    ));
+                }
+            }
+            Err(error) => errors.push(format!("failed to read {rel}: {error}")),
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Reads the `[package] version` from manifest content.
+pub fn read_package_version(manifest: &str) -> Option<String> {
+    let mut in_package = false;
+    for line in manifest.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_package = trimmed == "[package]";
+            continue;
+        }
+        if !in_package || !trimmed.starts_with("version") {
+            continue;
+        }
+        let after_key = trimmed.strip_prefix("version")?.trim_start();
+        if !after_key.starts_with('=') {
+            continue;
+        }
+        let value = after_key.strip_prefix('=')?;
+        let start = value.find('"')? + 1;
+        let end = value[start..].find('"')? + start;
+        return Some(value[start..end].to_string());
+    }
+    None
+}
+
+/// Reads the exact `tonic = ...` dependency requirement from manifest content.
+/// `tonic-health` and `tonic-reflection` keys must not match.
+pub fn read_tonic_requirement(manifest: &str) -> Option<String> {
+    for line in manifest.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("tonic") {
+            continue;
+        }
+        let after_key = trimmed.strip_prefix("tonic")?.trim_start();
+        if !after_key.starts_with('=') {
+            continue;
+        }
+        let value = after_key.strip_prefix('=')?;
+        let quoted = if let Some(pos) = value.find("version") {
+            let rest = value[pos + "version".len()..].trim_start();
+            rest.strip_prefix('=')?
+        } else {
+            value
+        };
+        let start = quoted.find('"')? + 1;
+        let end = quoted[start..].find('"')? + start;
+        return Some(quoted[start..end].to_string());
+    }
+    None
+}
+
+/// `0.2.0` -> `0.2`.
+pub fn major_minor(version: &str) -> String {
+    let mut parts = version.split('.');
+    match (parts.next(), parts.next()) {
+        (Some(major), Some(minor)) => format!("{major}.{minor}"),
+        _ => version.to_string(),
+    }
+}
+
+/// Whether the text around `pos` (byte offset, `window` bytes each side)
+/// marks the mention as historical or unsupported rather than current.
+pub fn has_historical_qualifier(text: &str, pos: usize, window: usize) -> bool {
+    let mut start = pos.saturating_sub(window);
+    while start < pos && !text.is_char_boundary(start) {
+        start += 1;
+    }
+    let mut end = (pos + window).min(text.len());
+    while end > pos && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let context = text[start..end].to_ascii_lowercase();
+    context.contains("older") || context.contains("predate") || context.contains("unsupported")
+}
+
+/// Every `pbrs = "req"` (or `pbrs = { version = "req", ... }`) dependency
+/// requirement cited in a document, as `(line_number, requirement)`.
+/// `pbrs-grpc`, `pbrs_build`, and `pbrs::` paths never match.
+pub fn find_pbrs_requirements(content: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    while let Some(rel) = content[start..].find("pbrs") {
+        let abs = start + rel;
+        let after = &content[abs + "pbrs".len()..];
+        let value = after
+            .trim_start_matches(' ')
+            .strip_prefix('=')
+            .map(|rest| rest.trim_start_matches(' '));
+        let req = value.and_then(|value| {
+            if let Some(rest) = value.strip_prefix('"') {
+                rest.find('"').map(|end| rest[..end].to_string())
+            } else if value.starts_with('{') {
+                let pos = value.find("version")?;
+                let rest = value[pos + "version".len()..].trim_start();
+                let quoted = rest.strip_prefix('=')?.trim_start();
+                let inner = quoted.strip_prefix('"')?;
+                inner.find('"').map(|end| inner[..end].to_string())
+            } else {
+                None
+            }
+        });
+        if let Some(req) = req {
+            let line = content[..abs].matches('\n').count() + 1;
+            out.push((line, req));
+        }
+        start = abs + "pbrs".len();
+    }
+    out
+}
+
+/// Every `X.Y.Z-alpha.N` token in a document, as
+/// `(line_number, byte_offset, token)`.
+pub fn find_prerelease_versions(content: &str) -> Vec<(usize, usize, String)> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    while let Some(rel) = content[start..].find("-alpha.") {
+        let abs = start + rel;
+        let prefix = &content[..abs];
+        let mut ver_start = abs;
+        for (idx, ch) in prefix.char_indices().rev() {
+            if ch.is_ascii_digit() || ch == '.' {
+                ver_start = idx;
+            } else {
+                break;
+            }
+        }
+        let rest = &content[abs + "-alpha.".len()..];
+        let digits: usize = rest
+            .chars()
+            .take_while(|ch| ch.is_ascii_digit())
+            .map(char::len_utf8)
+            .sum();
+        if digits > 0 && ver_start < abs {
+            let token = format!("{}-alpha.{}", &content[ver_start..abs], &rest[..digits]);
+            let line = content[..abs].matches('\n').count() + 1;
+            out.push((line, abs, token));
+        }
+        start = abs + "-alpha.".len();
+    }
+    out
+}
+
+/// Every `tonic M.m...` support mention in a document, as
+/// `(line_number, byte_offset, major.minor)`. Matches `tonic`/`Tonic` only;
+/// bare version numbers without the crate name are not attributed.
+pub fn find_tonic_versions(content: &str) -> Vec<(usize, usize, String)> {
+    let bytes = content.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + "tonic ".len() < bytes.len() {
+        let is_tonic = bytes[i..].starts_with(b"tonic ") || bytes[i..].starts_with(b"Tonic ");
+        if !is_tonic {
+            i += 1;
+            continue;
+        }
+        let mut j = i + "tonic ".len();
+        let major_start = j;
+        while j < bytes.len() && bytes[j].is_ascii_digit() {
+            j += 1;
+        }
+        let mut minor_end = None;
+        if j > major_start && j < bytes.len() && bytes[j] == b'.' {
+            j += 1;
+            let minor_start = j;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j > minor_start {
+                minor_end = Some(j);
+            }
+        }
+        if let Some(end) = minor_end {
+            let line = content[..i].matches('\n').count() + 1;
+            out.push((line, i, content[major_start..end].to_string()));
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Checks `pbrs = "req"` citations in one document against the manifest.
+pub fn check_pbrs_requirements(
+    rel: &str,
+    content: &str,
+    expected_minor: &str,
+    full_version: &str,
+) -> Vec<String> {
+    find_pbrs_requirements(content)
+        .into_iter()
+        .filter(|(_, req)| req != expected_minor && req != full_version)
+        .map(|(line, req)| {
+            format!(
+                "{rel}:{line}: documented `pbrs = \"{req}\"` does not match Cargo.toml version {full_version}"
+            )
+        })
+        .collect()
+}
+
+/// Checks adapter pre-release citations in one document: each must equal the
+/// current version or be qualified as an older release nearby.
+pub fn check_prerelease_mentions(rel: &str, content: &str, current: &str) -> Vec<String> {
+    find_prerelease_versions(content)
+        .into_iter()
+        .filter(|(_, offset, token)| {
+            token != current && !has_historical_qualifier(content, *offset, 150)
+        })
+        .map(|(line, _, token)| {
+            format!(
+                "{rel}:{line}: documented adapter version `{token}` does not match Cargo.toml version {current} and is not labeled as an older release"
+            )
+        })
+        .collect()
+}
+
+/// Checks tonic support mentions in one document against the manifest.
+pub fn check_tonic_mentions(rel: &str, content: &str, expected_minor: &str) -> Vec<String> {
+    find_tonic_versions(content)
+        .into_iter()
+        .filter(|(_, offset, token)| {
+            token != expected_minor && !has_historical_qualifier(content, *offset, 150)
+        })
+        .map(|(line, _, token)| {
+            format!(
+                "{rel}:{line}: documented tonic {token} does not match protobuf-tonic/Cargo.toml requirement {expected_minor} and is not labeled older/unsupported"
+            )
+        })
+        .collect()
+}
+
+/// Documents whose version citations must match the Cargo manifests.
+pub fn version_doc_paths() -> Vec<PathBuf> {
+    let root = workspace_root();
+    let mut paths = published_doc_paths();
+    for rel in VERSION_DOCS_EXTRA {
+        let path = root.join(rel);
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    paths
+}
+
+/// Validates documented `pbrs` requirements and adapter pre-releases against
+/// the Cargo manifests, including adapter version parity.
+pub fn validate_documented_versions() -> Result<(), Vec<String>> {
+    let root = workspace_root();
+    let mut errors = Vec::new();
+    let pbrs_version = read_package_version(&read_workspace_file("Cargo.toml"))
+        .unwrap_or_else(|| panic!("Cargo.toml has no [package] version"));
+    let grpc_version = read_package_version(&read_workspace_file("pbrs-grpc/Cargo.toml"))
+        .unwrap_or_else(|| panic!("pbrs-grpc/Cargo.toml has no [package] version"));
+    let adapter_version = read_package_version(&read_workspace_file("protobuf-tonic/Cargo.toml"))
+        .unwrap_or_else(|| panic!("protobuf-tonic/Cargo.toml has no [package] version"));
+    if grpc_version != adapter_version {
+        errors.push(format!(
+            "adapter version drift: pbrs-grpc is {grpc_version} but protobuf-tonic is {adapter_version}"
+        ));
+    }
+    let pbrs_minor = major_minor(&pbrs_version);
+    let mut pbrs_mentions = 0;
+    let mut current_adapter_mentions = 0;
+    for path in version_doc_paths() {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .display()
+            .to_string();
+        match fs::read_to_string(&path) {
+            Ok(content) => {
+                pbrs_mentions += find_pbrs_requirements(&content).len();
+                current_adapter_mentions += find_prerelease_versions(&content)
+                    .iter()
+                    .filter(|(_, _, token)| token == &grpc_version)
+                    .count();
+                errors.extend(check_pbrs_requirements(
+                    &rel,
+                    &content,
+                    &pbrs_minor,
+                    &pbrs_version,
+                ));
+                errors.extend(check_prerelease_mentions(&rel, &content, &grpc_version));
+            }
+            Err(error) => errors.push(format!("failed to read {rel}: {error}")),
+        }
+    }
+    if pbrs_mentions == 0 {
+        errors.push("no `pbrs = \"...\"` requirement cited in published docs".to_string());
+    }
+    if current_adapter_mentions == 0 {
+        errors.push(format!(
+            "current adapter version {grpc_version} is not cited in published docs"
+        ));
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Validates documented tonic support boundaries against the adapter manifest.
+pub fn validate_tonic_support_boundary() -> Result<(), Vec<String>> {
+    let root = workspace_root();
+    let mut errors = Vec::new();
+    let tonic_req = read_tonic_requirement(&read_workspace_file("protobuf-tonic/Cargo.toml"))
+        .unwrap_or_else(|| panic!("protobuf-tonic/Cargo.toml has no `tonic =` requirement"));
+    let expected = major_minor(&tonic_req);
+    let mut current_mentions = 0;
+    for path in version_doc_paths() {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(&path)
+            .display()
+            .to_string();
+        match fs::read_to_string(&path) {
+            Ok(content) => {
+                current_mentions += find_tonic_versions(&content)
+                    .iter()
+                    .filter(|(_, _, token)| token == &expected)
+                    .count();
+                errors.extend(check_tonic_mentions(&rel, &content, &expected));
+            }
+            Err(error) => errors.push(format!("failed to read {rel}: {error}")),
+        }
+    }
+    if current_mentions == 0 {
+        errors.push(format!(
+            "supported tonic {expected} is not cited in published docs"
+        ));
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Published crate roots whose rustdoc landing sections back API navigation.
+pub const RUSTDOC_CRATE_ROOTS: &[&str] = &[
+    "src/lib.rs",
+    "pbrs-grpc/src/lib.rs",
+    "protobuf-tonic/src/lib.rs",
+];
+
+/// Whether a crate root opens with a crate-level `//!` rustdoc section.
+pub fn crate_root_has_landing_docs(content: &str) -> bool {
+    content
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .is_some_and(|line| line.starts_with("//!"))
+}
+
+/// Validates that every published crate root has rustdoc landing docs.
+pub fn validate_rustdoc_landing_docs() -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    for rel in RUSTDOC_CRATE_ROOTS {
+        if !crate_root_has_landing_docs(&read_workspace_file(rel)) {
+            errors.push(format!(
+                "{rel} has no crate-level `//!` rustdoc landing section for API navigation"
+            ));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+#[test]
+fn test_claim_provenance_contract() {
+    for req in CRITICAL_CAVEATS
+        .iter()
+        .filter(|c| c.category == "claim_provenance")
+    {
+        let content = read_workspace_file(req.doc_path);
+        verify_caveat(req, &content).unwrap_or_else(|err| panic!("{err}"));
+    }
+}
+
+#[test]
+fn test_evidence_links_and_rustdoc_navigation_contract() {
+    for req in CRITICAL_CAVEATS
+        .iter()
+        .filter(|c| c.category == "evidence_links" || c.category == "rustdoc_navigation")
+    {
+        let content = read_workspace_file(req.doc_path);
+        verify_caveat(req, &content).unwrap_or_else(|err| panic!("{err}"));
+    }
+    validate_rustdoc_landing_docs().unwrap_or_else(|errs| {
+        panic!(
+            "Rustdoc landing-doc validation failed:\n{}",
+            errs.join("\n")
+        );
+    });
+    assert!(crate_root_has_landing_docs(
+        "//! Kernel docs.\nfn main() {}"
+    ));
+    assert!(crate_root_has_landing_docs("\n\n//! Indented start.\n"));
+    assert!(!crate_root_has_landing_docs("fn main() {}"));
+    assert!(!crate_root_has_landing_docs(""));
+}
+
+#[test]
+fn test_published_prose_has_no_unqualified_superlatives() {
+    validate_published_prose().unwrap_or_else(|errs| {
+        panic!(
+            "Published prose superlative validation failed with {} errors:\n{}",
+            errs.len(),
+            errs.join("\n")
+        );
+    });
+
+    // Synthetic prose claims fail.
+    for (prose, pattern) in [
+        ("our stack is the fastest grpc implementation", "fastest"),
+        (
+            "the best-in-class codec for every workload",
+            "best-in-class",
+        ),
+        ("a world-class transport layer", "world-class"),
+        ("blazing performance on all hosts", "blazing"),
+        ("faster by orders of magnitude", "orders of magnitude"),
+    ] {
+        let hits = find_unqualified_superlatives(&strip_markdown_code(prose));
+        assert_eq!(hits.len(), 1, "expected one hit in {prose:?}");
+        assert_eq!(hits[0].1, pattern);
+    }
+
+    // Code spans, fenced blocks, link targets, and the plan-program title pass.
+    for prose in [
+        "map to `ruzstd`'s implemented `Fastest` mode",
+        "```rust\n// the fastest path\n```",
+        "[World-class gRPC program](docs/plan/world-class/README.md)",
+        "[world-class program](plan/world-class/README.md)",
+        "ordinary performance prose without claims",
+    ] {
+        let hits = find_unqualified_superlatives(&strip_markdown_code(prose));
+        assert!(hits.is_empty(), "unexpected hits in {prose:?}: {hits:?}");
+    }
+}
+
+#[test]
+fn test_documented_versions_match_cargo_manifests() {
+    validate_documented_versions().unwrap_or_else(|errs| {
+        panic!(
+            "Documented version validation failed with {} errors:\n{}",
+            errs.len(),
+            errs.join("\n")
+        );
+    });
+
+    assert_eq!(
+        read_package_version("[package]\nname = \"pbrs\"\nversion = \"0.2.0\"\n"),
+        Some("0.2.0".to_string())
+    );
+    assert_eq!(
+        read_package_version("[package]\nversion=\"1.4.2\" # comment\n"),
+        Some("1.4.2".to_string())
+    );
+    assert_eq!(
+        read_package_version("[dependencies]\nversion = \"9\"\n"),
+        None
+    );
+    assert_eq!(major_minor("0.2.0"), "0.2");
+
+    // Stale citations fail; current and labeled-older citations pass.
+    assert!(check_pbrs_requirements("doc.md", "pbrs = \"0.2\"", "0.2", "0.2.0").is_empty());
+    assert_eq!(
+        check_pbrs_requirements("doc.md", "pbrs = \"0.1\"", "0.2", "0.2.0").len(),
+        1
+    );
+    assert!(
+        check_pbrs_requirements("doc.md", "pbrs-grpc = \"0.1.0-alpha.2\"", "0.2", "0.2.0")
+            .is_empty()
+    );
+    assert!(
+        check_prerelease_mentions("doc.md", "uses `0.1.0-alpha.2` today", "0.1.0-alpha.2")
+            .is_empty()
+    );
+    assert_eq!(
+        check_prerelease_mentions("doc.md", "uses `0.1.0-alpha.9` today", "0.1.0-alpha.2").len(),
+        1
+    );
+    assert!(
+        check_prerelease_mentions(
+            "doc.md",
+            "the older `0.1.0-alpha.1` archives still need it",
+            "0.1.0-alpha.2",
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn test_tonic_support_boundary_matches_manifest() {
+    validate_tonic_support_boundary().unwrap_or_else(|errs| {
+        panic!(
+            "Tonic support-boundary validation failed with {} errors:\n{}",
+            errs.len(),
+            errs.join("\n")
+        );
+    });
+
+    assert_eq!(
+        read_tonic_requirement("tonic = { version = \"0.14\", default-features = false }\n"),
+        Some("0.14".to_string())
+    );
+    assert_eq!(
+        read_tonic_requirement("tonic = \"0.14\"\n"),
+        Some("0.14".to_string())
+    );
+    assert_eq!(
+        read_tonic_requirement("tonic-health = \"0.14\"\ntonic-reflection = \"0.14\"\n"),
+        None
+    );
+
+    assert!(check_tonic_mentions("doc.md", "needs tonic 0.14+ today", "0.14").is_empty());
+    assert!(check_tonic_mentions("doc.md", "ports of Tonic 0.14.6 examples", "0.14").is_empty());
+    assert!(
+        check_tonic_mentions("doc.md", "tonic 0.12 and 0.13 are unsupported", "0.14").is_empty()
+    );
+    assert_eq!(
+        check_tonic_mentions("doc.md", "needs tonic 0.13 today", "0.14").len(),
+        1
+    );
 }

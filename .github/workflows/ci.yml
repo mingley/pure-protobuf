@@ -51,6 +51,8 @@ jobs:
         run: python3 -B -m unittest discover -s tonic-bench -p 'test_checked_v4.py' -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
+      - name: Compiled examples (DX-07 documentation contract)
+        run: cargo build --workspace --examples
       - run: cargo test --workspace
       - name: Standalone benchmark correctness contracts (no performance gate)
         run: |

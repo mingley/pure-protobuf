@@ -122,13 +122,19 @@ their shape when editing the listed files:
 - [tests/onboarding.rs](../tests/onboarding.rs)
   `tonic_readme_selects_stubs_explicitly`: 2 presence checks on
   the tonic README (`emit_tonic_stubs(true)`, `prost::Message`).
-- [tests/documentation.rs](../tests/documentation.rs): 14 tests —
-  19 critical-caveat presence contracts, repo-wide markdown
-  link/anchor validation, this map's `docs/` reference validation,
-  negative checks for missing examples/stale generated references,
-  and rust/`protoc` syntax checks for guide snippets. The separate
-  CI workspace and packaged-consumer checks compile the example and
-  generated code; snippet parsing alone does not type-check a recipe.
+- [tests/documentation.rs](../tests/documentation.rs): 23 tests —
+  24 critical-caveat presence contracts (including claim-provenance,
+  evidence-link, and rustdoc-navigation rows), repo-wide markdown
+  link/anchor validation (offline; external URLs are never fetched),
+  this map's `docs/` reference validation, negative checks for
+  missing examples/stale generated references/repository escape,
+  version-freshness checks against the Cargo manifests (`pbrs`
+  requirements, adapter pre-releases, tonic support boundary), an
+  unqualified-superlative ban over published prose, rustdoc
+  landing-doc presence, and rust/`protoc` syntax checks for guide
+  snippets. The separate CI workspace, compiled-examples, and
+  packaged-consumer checks compile the example and generated code;
+  snippet parsing alone does not type-check a recipe.
 
 ### 5.3 Already migrated
 
@@ -201,6 +207,11 @@ are not fetched during the offline check. Every backticked `docs/` path
 in this file resolves inside the repository, and every guide snippet
 parses. Markdown discovery refuses out-of-repository file or directory
 symlinks rather than traversing external material. The suite requires
-`protoc` to validate Protobuf snippets. When
-adding a page, add its journey row in section 2 and its domain
+`protoc` to validate Protobuf snippets. Published prose must avoid
+unqualified superlatives (`fastest`, `best in class`, `world-class`,
+`blazing`, `orders of magnitude`) outside code spans and the
+world-class program title; version citations must match the Cargo
+manifests (older releases only when labeled older/unsupported); and
+every published crate root keeps `//!` landing docs for rustdoc.
+When adding a page, add its journey row in section 2 and its domain
 row in section 1 in the same change.
