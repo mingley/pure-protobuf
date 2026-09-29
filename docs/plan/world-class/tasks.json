@@ -2012,7 +2012,10 @@
     "OP-01"
    ],
    "notes": "Executes OP-01 on dev-loop evidence instead of waiting for BM-13 dedicated hosts; claim-grade confirmation stays with SB-15.",
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "docs/evidence/codec-profiles.md"
+   ]
   },
   {
    "id": "PK-02",
@@ -2167,7 +2170,8 @@
     "B4",
     "B6"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "PK-06",
@@ -5066,7 +5070,10 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/codec_generic.rs"
+   ]
   },
   {
    "id": "TC-03",
@@ -5105,7 +5112,8 @@
     "C2",
     "D2"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-04",
@@ -5138,7 +5146,11 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "examples/axum-cohost/",
+    "pbrs-grpc/tests/tower_server.rs"
+   ]
   },
   {
    "id": "TC-05",
@@ -5172,7 +5184,10 @@
    ],
    "scoreboard": [],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/tower_client.rs"
+   ]
   },
   {
    "id": "TC-06",
@@ -7731,7 +7746,8 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-15",
@@ -7799,7 +7815,8 @@
    "scoreboard": [
     "F4"
    ],
-   "relates": []
+   "relates": [],
+   "status": "in_progress"
   },
   {
    "id": "TC-17",
@@ -7958,7 +7975,10 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress"
+   "status": "done",
+   "evidence": [
+    "pbrs-grpc/tests/reflection.rs"
+   ]
   }
  ]
 }
