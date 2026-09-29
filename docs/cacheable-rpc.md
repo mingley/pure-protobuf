@@ -3,13 +3,15 @@
 This page explains why `cacheable_unary` is not part of the standard native
 gRPC over HTTP/2 profile for `pbrs-grpc`. Bottom line: standard gRPC requires
 HTTP/2 `POST`; `cacheable_unary` is an abandoned experimental `GET` procedure
-with security risks, so its disposition is `not_applicable`.
+with security risks, so its recommended disposition is `not_applicable`
+(pending maintainer approval).
 
 **Task:** EX-20 ("Resolve the official cacheable-unary contract")  
 **Pinned Standards:** `grpc/grpc` @ `d1487957db6658bc532b72871775148229836627`, `doc/PROTOCOL-HTTP2.md`, `doc/interop-test-descriptions.md`, RFC 9110 (HTTP Semantics), RFC 9111 (HTTP Caching), RFC 9113 (HTTP/2)  
 **Read Scope:** `pbrs-grpc/src/testing.rs`, `pbrs-grpc/src/server.rs`, `tests/interop/cases.json`  
 **Write Scope:** `docs/cacheable-rpc.md`, `tests/interop/cases.json`  
-**Authoritative Disposition:** `not_applicable` (Standard gRPC over HTTP/2 Profile)  
+**Recommended Disposition:** `not_applicable` (Standard gRPC over HTTP/2 Profile) — **pending maintainer approval (gate, see §9)**  
+**Verification:** 2026-09-29, base `fd4500c6`; pinned upstream refs re-verified read-only (see §8). No `third_party/grpc` in this worktree.
 
 ---
 
@@ -28,25 +30,26 @@ Task **EX-20** evaluates whether that procedure applies to the standard native
 gRPC over HTTP/2 target. It also records the protocol, security, and interop
 reasons for the final registry disposition.
 
-### Authoritative Finding
+### Finding
 1. **Unratified Specification:** The official gRPC over HTTP/2 wire
    specification (`doc/PROTOCOL-HTTP2.md`) explicitly and exclusively mandates
-   `Method -> ":method POST"`. There is no ratified or active gRPC Request for
+   `Method -> ":method POST"`. No ratified or active gRPC Request for
    Comments (gRFC) in `grpc/proposal` establishing HTTP `GET` semantics for
-   gRPC.
-2. **Upstream Abandonment and Peer Status:** The procedure originated in 2016 as an experimental C++ prototype (PR #8101). In active peer runtimes:
-   - **C++ Core (`grpc/grpc`):** `HttpServerFilter` actively rejects
+   gRPC is cited by any pinned source (exhaustive absence not proven; see §8).
+2. **Upstream Abandonment and Peer Status:** The procedure originated in 2016 as an experimental C++ prototype (PR #8101, opened 2016-09-14, merged 2016-10-12). In active peer runtimes (all pinned refs re-verified 2026-09-29 unless noted):
+   - **C++ Core (`grpc/grpc@d1487957`):** `HttpServerFilter` actively rejects
      `:method GET` as a malformed request
-     (`MalformedRequest("Bad method header")`). The client procedure was never
-     enabled in the standard interop runner (`tools/run_tests/run_interop_tests.py`),
-     and upstream issue #18230 confirmed it is experimental and not tested in
-     the interop matrix.
-   - **Java (`grpc-java`):** `TestServiceClient.java` explicitly comments
+     (`MalformedRequest("Bad method header")`). The case is absent from the
+     standard interop runner (`tools/run_tests/run_interop_tests.py`: zero
+     matches in the full 60,739-byte pinned file), and upstream issue #18230
+     (maintainer comment, 2019-09-05) confirmed it is experimental and not
+     tested in the interop matrix.
+   - **Java (`grpc-java`, unpinned — supporting evidence only):** `TestServiceClient.java` on master explicitly comments
      `// THIS TEST IS BROKEN. Enabling safe just on the MethodDescriptor does nothing by itself. This test would need to enable GET on the channel.`
-     Channel builders (`NettyChannelBuilder`, `OkHttpChannelBuilder`,
-     `CronetChannelBuilder`) have `useGetForSafeMethods = false` hardcoded as
-     private with no public API to enable it.
-   - **Go (`grpc-go`):** Unimplemented; unary calls are strictly `POST`.
+     (verified on master 2026-09-29; this repo pins no grpc-java revision, and
+     channel-builder internals were not re-verified).
+   - **Go (`grpc-go@dd51b1c9`):** Unimplemented; the pinned interop client
+     contains zero `cacheable` references and unary calls are strictly `POST`.
 3. **Severe Security Hazards:** Allowing unauthenticated or ambient-credential HTTP `GET` requests creates severe vulnerabilities:
    - **Cross-Site Request Forgery (CSRF):** Browser `GET` requests bypass
      Cross-Origin Resource Sharing (CORS) preflight checks, exposing backend
@@ -59,16 +62,19 @@ reasons for the final registry disposition.
      sessions violates RFC 9111 Section 3.5 without complex, non-standard
      cache-partitioning headers.
 4. **Core Kernel Invariant:** The `pbrs-grpc` wire kernel
-   (`pbrs-grpc/src/wire.rs::check_request`) strictly enforces
+   (`pbrs-grpc/src/wire/headers.rs::check_request`, invoked from
+   `pbrs-grpc/src/server/connection.rs`) strictly enforces
    `request.method() == http::Method::POST`, returning HTTP 405
    (`Method Not Allowed`) immediately before handler allocation. Globally
    relaxing this check would violate `PROTOCOL-HTTP2.md` and compromise server
    denial-of-service resilience.
 
 ### Disposition
-**`cacheable_unary` is formally determined to be `not_applicable` to the
-standard gRPC over HTTP/2 full profile.** This determination has maintainer
-approval and is updated in `tests/interop/cases.json`.
+**`cacheable_unary` is recommended as `not_applicable` to the
+standard gRPC over HTTP/2 full profile.** The registry row in
+`tests/interop/cases.json` records that recommended disposition, but the
+verdict is **not final until the maintainer approves it** (gate; see §9).
+No POST, authorization, or caching rule is relaxed by this card.
 
 ---
 
@@ -89,31 +95,40 @@ that complies with `PROTOCOL-HTTP2.md` must receive `:method POST` for every
 valid gRPC request.
 
 ### 2.2 History of `cacheable_unary` (PR #8101 & Issue #18230)
-In September 2016, upstream PR #8101 (`makdharma/cacheable_unary`) added
-`CacheableUnaryCall` to `src/proto/grpc/testing/test.proto` and added the test
-description to `doc/interop-test-descriptions.md`:
+Upstream PR #8101 ("Add interop test for Cacheable Unary Calls", opened
+2016-09-14 by `makdharma`, merged 2016-10-12) added `CacheableUnaryCall` to
+`src/proto/grpc/testing/test.proto` and added the test description to
+`doc/interop-test-descriptions.md`:
 > *"This test verifies that gRPC requests marked as cacheable use GET verb instead of POST, and that server sets appropriate cache control headers for the response to be cached by a proxy. This test requires that the server is behind a caching proxy. Use of current timestamp in the request prevents accidental cache matches left over from previous tests."*
+
+The pinned description further requires a caching proxy in front of the
+server, an `x-user-ip: 1.2.3.4` header (since GFE will not cache
+localhost requests), and a client-side cacheable flag, noting that
+*"longer term this should be driven by the method option specified in the
+proto file itself"* — i.e. even the procedure text admits the signaling is
+unsettled.
 
 However:
 
 - **No gRFC Proposal:** The change was merged without a corresponding proposal
-  in `grpc/proposal`. To date, no gRFC, such as an A-series architecture
-  document, defines GET method mapping, query string serialization, or
-  cache-control behavior for gRPC.
-- **Omission from Active Test Runners:** The procedure was omitted from the
-  canonical interop test runner (`tools/run_tests/run_interop_tests.py`) across
-  all language pairs at pinned revision
-  `d1487957db6658bc532b72871775148229836627`.
-- **Maintainer Clarification (Issue #18230):** In upstream issue #18230 (*"GET method is mentioned in interop test, but not in the spec"*), gRPC core maintainers confirmed:
+  in `grpc/proposal`. To date, no gRFC cited by any pinned source, such as an
+  A-series architecture document, defines GET method mapping, query string
+  serialization, or cache-control behavior for gRPC.
+- **Omission from Active Test Runners:** The procedure is absent from the
+  canonical interop test runner (`tools/run_tests/run_interop_tests.py`) —
+  zero `cacheable` matches in the full 60,739-byte pinned file at
+  `d1487957db6658bc532b72871775148229836627` — so it runs in no language
+  pair of the active matrix.
+- **Maintainer Clarification (Issue #18230):** In upstream issue #18230 (*"GET method is mentioned in interop test, but not in the spec"*), a gRPC maintainer (lidizheng, 2019-09-05) confirmed:
   > *"Cacheable is an experimental feature... that currently only C++ implemented. And it is not tested on regular basis based on the interop matrix... By default, gRPC is running on POST, it is specified in the Requests section of gRPC over HTTP2. The GET method means getting cached response which has different semantic than POST."*
 
 ### 2.3 Peer Language Runtime Audit
 | Implementation | GET Support Status | In-Tree Evidence |
 |---|---|---|
-| **C++ Core (`grpc/grpc`)** | **Actively Rejected in Server** | `src/core/ext/filters/http/server/http_server_filter.cc`: `case HttpMethodMetadata::kGet: return MalformedRequest("Bad method header");`. Flags in `grpc_types.h` (`GRPC_INITIAL_METADATA_CACHEABLE_REQUEST`) remain unstandardized. |
-| **Java (`grpc-java`)** | **Broken & Hardcoded Disabled** | `TestServiceClient.java`: `// THIS TEST IS BROKEN. Enabling safe just on the MethodDescriptor does nothing by itself. This test would need to enable GET on the channel.` In `NettyChannelBuilder`, `OkHttpChannelBuilder`, and `CronetChannelBuilder`, `useGetForSafeMethods = false` is private and unconfigurable. |
-| **Go (`grpc-go`)** | **Never Implemented** | `test.proto` generates the stub method, but neither client transport nor server handler implements HTTP `GET` mapping. |
-| **Rust (`pbrs-grpc`)** | **Rejected with HTTP 405** | `wire.rs::check_request` rejects non-POST requests with HTTP 405 `Method Not Allowed` per `PROTOCOL-HTTP2.md`. |
+| **C++ Core (`grpc/grpc@d1487957`, pinned)** | **Actively Rejected in Server** | `src/core/ext/filters/http/server/http_server_filter.cc`: `case HttpMethodMetadata::kGet: return MalformedRequest("Bad method header");`. Flags in `grpc_types.h` (`GRPC_INITIAL_METADATA_CACHEABLE_REQUEST`) remain unstandardized. |
+| **Java (`grpc-java`, unpinned)** | **Self-Declared Broken** | `TestServiceClient.java` (master): `// THIS TEST IS BROKEN. Enabling safe just on the MethodDescriptor does nothing by itself. This test would need to enable GET on the channel.` Supporting evidence only; no grpc-java pin in `tests/interop/cases.json`. |
+| **Go (`grpc-go@dd51b1c9`, pinned)** | **Never Implemented** | Pinned `interop/client/client.go` has zero `cacheable` references; unary calls are strictly `POST`. |
+| **Rust (`pbrs-grpc`)** | **Rejected with HTTP 405** | `wire/headers.rs::check_request` rejects non-POST requests with HTTP 405 `Method Not Allowed` per `PROTOCOL-HTTP2.md`. |
 
 ---
 
@@ -222,7 +237,9 @@ critical security vulnerabilities.
 ## 5. Architectural Evaluation for `pbrs-grpc`
 
 ### 5.1 Request Verification in `pbrs-grpc`
-In `pbrs-grpc/src/wire.rs`, request validation is strictly enforced at stream arrival:
+In `pbrs-grpc/src/wire/headers.rs` (`check_request`, called from
+`pbrs-grpc/src/server/connection.rs` before any handler is spawned), request
+validation is strictly enforced at stream arrival:
 
 ```rust
 pub(crate) fn check_request(
@@ -256,40 +273,43 @@ This design guarantees three things:
    rejection and introduce ambiguity between streaming and unary dispatch.
 
 ### 5.2 Test Handler in `pbrs-grpc/src/testing.rs`
-`pbrs-grpc/src/testing.rs` implements `InteropTestService`:
+`pbrs-grpc/src/testing.rs` implements `InteropTestService` (and the
+`SizedInteropTestService` variant identically apart from the response cap):
 ```rust
     /// Identical to `UnaryCall`; the interop suite only cares that it answers.
     async fn cacheable_unary_call(
         &self,
         request: Request<SimpleRequest>,
     ) -> Result<Response<SimpleResponse>, Status> {
-        let echo = Echo::capture(&request);
-        let compressed = request.compressed();
-        unary_reply(&echo, request.into_inner(), compressed).await
+        unary_call_impl(MAX_INTEROP_RESPONSE_BODY_SIZE, request).await
     }
 ```
 When invoked over normal gRPC `POST`, `cacheable_unary_call` behaves exactly
-like `unary_call`. That satisfies the generated protobuf service trait without
-changing transport rules.
+like `unary_call`. That satisfies the generated protobuf service trait
+(`proto/grpc/testing/test.proto` declares
+`rpc CacheableUnaryCall(SimpleRequest) returns (SimpleResponse)`) without
+changing transport rules. No GET client procedure exists in
+`pbrs-grpc/src/interop_cases.rs` or the interop CLI binaries, and the
+handler emits no `cache-control` headers — deliberately, per §4.
 
 ---
 
 ## 6. Official Resolution & Maintenance Decision
 
 ### 6.1 Disposition in `tests/interop/cases.json`
-`tests/interop/cases.json` is updated with the authoritative classification:
+`tests/interop/cases.json` records the recommended classification:
 
 - **Case:** `cacheable_unary`
 - **Procedure source:** The pinned `doc/interop-test-descriptions.md` description, not `run_interop_tests.py`, which omits the case.
-- **Disposition:** `not_applicable`
+- **Disposition:** `not_applicable` (recommended; final only with maintainer approval — see §9)
 - **Justification:** Unratified experimental procedure not included in the
   gRPC over HTTP/2 specification (`PROTOCOL-HTTP2.md` requires
-  `:method POST`). Excluded from the active upstream test runner
-  (`run_interop_tests.py`), rejected in C++ core (`HttpServerFilter`), broken
-  in `grpc-java`, and unimplemented in `grpc-go`. Excluded from the standard
-  HTTP/2 full profile with maintainer approval due to CSRF and URL credential
-  disclosure hazards.
-- **Coverage Status:** `not_applicable`
+  `:method POST`). Absent from the active upstream test runner
+  (`run_interop_tests.py`), rejected in C++ core (`HttpServerFilter`),
+  self-declared broken in `grpc-java`, and unimplemented in `grpc-go`.
+  Recommended for exclusion from the standard HTTP/2 full profile pending
+  maintainer approval, due to CSRF and URL credential disclosure hazards.
+- **Coverage Status:** `not_applicable` (same gate)
 
 ### 6.2 Ecosystem Distinction: Connect Protocol vs. Native gRPC
 Protocols such as Connect RPC (`connectrpc.com`) have standardized HTTP `GET`
@@ -301,3 +321,80 @@ If Connect protocol support or an edge HTTP gateway is added to the
 `pure-protobuf` ecosystem in the future, it must be a separate, opt-in protocol
 adapter crate. It needs dedicated CORS, CSRF, and URL-length validation. It
 must not globally relax the native gRPC over HTTP/2 transport kernel.
+
+---
+
+## 7. Conditional Follow-ups (Only If the Maintainer Rules the Case Applicable)
+
+The EX-20 accept condition requires separate opt-in fixture cards if
+`cacheable_unary` is applicable. The recommendation here is
+`not_applicable`, so **no fixture card is created by this card** and no GET
+behavior is implemented. If the maintainer instead rules the case applicable,
+the coordinator must add bounded cards (with independent proof each) **before**
+the case leaves `unsupported`, for example:
+
+1. **Opt-in GET gateway adapter (protocol card):** a separate, disabled-by-default
+   adapter that maps one declared-safe unary method to HTTP `GET` with an
+   explicit query-serialization format, URL-length cap, and CORS/CSRF rules —
+   without touching the native kernel's POST-only `check_request`.
+2. **Caching-proxy fixture (client/server card):** a hermetic caching reverse
+   proxy plus `cache-control` emission/observation assertions reproducing the
+   pinned two-call procedure (`x-user-ip`, timestamp payload, cache-hit
+   discrimination).
+3. **Credential/cache-partitioning audit (security card):** proof that
+   authenticated responses are never served across sessions from the shared
+   cache (RFC 9111 §3.5), and that no PII/tokens leak into URLs, logs, or
+   `Referer` headers.
+
+Until all such cards land with independent proof, the case must stay
+`unsupported`, never `passed`.
+
+---
+
+## 8. Verification Record (2026-09-29, base `fd4500c6`)
+
+Method: read-only raw-file and API reads of the exact pinned revisions
+(`third_party/grpc` is absent from this worktree, so nothing was
+fetched or cloned). Each item below was re-verified on 2026-09-29:
+
+| # | Claim | Result |
+|---|---|---|
+| 1 | Pinned `doc/interop-test-descriptions.md@d1487957` describes `cacheable_unary` (GET, caching proxy, `x-user-ip`, cacheable flag, unsettled signaling) | ✅ Verified verbatim |
+| 2 | Pinned `doc/PROTOCOL-HTTP2.md@d1487957` mandates `Method → ":method POST"` with no GET provision | ✅ Verified verbatim |
+| 3 | Pinned `tools/run_tests/run_interop_tests.py@d1487957` omits the case (no language pair runs it) | ✅ Verified: 0 `cacheable` matches in the complete 60,739-byte file; `_TEST_CASES` enumerated |
+| 4 | Pinned C++ `http_server_filter.cc@d1487957` rejects GET | ✅ Verified: `case HttpMethodMetadata::kGet: return MalformedRequest("Bad method header")` |
+| 5 | Pinned `grpc-go@dd51b1c9` interop client omits the case | ✅ Verified: 0 `cacheable` matches in `interop/client/client.go` |
+| 6 | Upstream issue #18230 maintainer statement (experimental, untested, POST is the spec) | ✅ Verified verbatim via API (lidizheng, CONTRIBUTOR, 2019-09-05) |
+| 7 | PR #8101 provenance (experimental C++ origin, 2016) | ✅ Verified via API: "Add interop test for Cacheable Unary Calls", makdharma, opened 2016-09-14, merged 2016-10-12 |
+| 8 | `grpc-java` "THIS TEST IS BROKEN" | ⚠️ Verified on `grpc-java` master only — this repo pins no grpc-java revision, so this is supporting evidence, not pinned proof. Channel-builder internals not re-verified. |
+| 9 | No GET-mapping gRFC in `grpc/proposal` | ⚠️ No such proposal is cited by any pinned source; exhaustive absence over the whole proposal repo was not proven. |
+| 10 | `pbrs-grpc` POST-only kernel + POST-only `cacheable_unary_call` handler | ✅ Verified in-tree: `wire/headers.rs::check_request` → 405, called from `server/connection.rs`; `testing.rs` delegates to `unary_call_impl`; no GET procedure in `interop_cases.rs` or CLI binaries |
+
+Limitations: upstream reads went over the network to GitHub raw/API rather
+than a local pinned checkout; SHAs in the URLs above are the control against
+drift. The `grpc-java` row and the gRFC-absence statement are explicitly
+weaker than the pinned rows and are not load-bearing for the verdict: rows
+1–7 plus 10 suffice.
+
+---
+
+## 9. Open Questions for Maintainer
+
+The `not_applicable` verdict is gated on maintainer approval. Please rule on:
+
+1. **Verdict approval:** Do you approve `not_applicable` for `cacheable_unary`
+   in the standard gRPC over HTTP/2 full profile on the cited upstream
+   status (spec mandates POST; case absent from the pinned runner; C++ core
+   rejects GET; Go omits it; upstream maintainer calls it experimental and
+   untested)? If yes, this card's approval evidence closes the EX-20 gate.
+2. **Registry wording:** Is the recommended `justification`/`notes` text in
+   `tests/interop/cases.json` (which now says "pending maintainer approval")
+   acceptable as the final record once you approve, or do you want it
+   reworded?
+3. **Applicability alternative:** If you rule the case applicable instead,
+   do you want the three conditional follow-up cards in §7 filed as written,
+   or rescoped (e.g. a single Connect-adapter track instead of a native GET
+   path)?
+4. **grpc-java pin:** Should a future GT-06 drift pass add a `grpc-java` pin
+   so the "broken" peer evidence becomes pinned proof, or is the current
+   pinned C++/Go/runner/spec evidence sufficient permanently?

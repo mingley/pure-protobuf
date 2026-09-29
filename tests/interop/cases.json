@@ -669,12 +669,12 @@
       "profile": "full",
       "owner": "EX-20",
       "disposition": "not_applicable",
-      "justification": "Unratified experimental procedure not included in gRPC over HTTP/2 specification (doc/PROTOCOL-HTTP2.md mandates :method POST). Omitted from active upstream test runner (run_interop_tests.py), rejected in C++ core (HttpServerFilter), broken in grpc-java, and unimplemented in grpc-go. Excluded with maintainer approval due to CSRF and query-string credential disclosure hazards (see docs/cacheable-rpc.md).",
+      "justification": "Unratified experimental procedure not included in gRPC over HTTP/2 specification (doc/PROTOCOL-HTTP2.md mandates :method POST). Omitted from active upstream test runner (run_interop_tests.py), rejected in C++ core (HttpServerFilter), self-declared broken in grpc-java (unpinned), and unimplemented in grpc-go. Recommended for exclusion pending maintainer approval (EX-20 gate) due to CSRF and query-string credential disclosure hazards (see docs/cacheable-rpc.md).",
       "present_coverage": {
         "status": "not_applicable",
         "evidence_file": "docs/cacheable-rpc.md",
         "passing_directions": [],
-        "notes": "Resolved as not_applicable in EX-20. The baseline native gRPC kernel strictly enforces POST. See docs/cacheable-rpc.md."
+        "notes": "Recommended as not_applicable in EX-20; final on maintainer approval. The baseline native gRPC kernel strictly enforces POST. See docs/cacheable-rpc.md."
       }
     },
     {
