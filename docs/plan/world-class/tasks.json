@@ -6568,8 +6568,12 @@
     "F4"
    ],
    "relates": [],
-   "status": "in_progress",
-   "notes": "2026-09-29 coordinator re-scope: tests go in src/tls.rs mod tests (pbrs-grpc/tests/ is owned by in-flight TC-23); fixtures inline or under existing tls_data/."
+   "status": "done",
+   "notes": "Closed 2026-09-29: coordinator security-reviewed (DER walk fail-closed, verifiers delegate-then-constrain). Gaps: expired-CRL rejection untested (needs expired fixture; rustls API behavior), no optional_mtls/CRL+SPIFFE combos, no kernel TCP_INFO (needs unsafe getsockopt outside tls.rs).",
+   "evidence": [
+    "pbrs-grpc/src/tls.rs: CRL+SPIFFE+telemetry+PQ, 19 new tests",
+    "docs/grfc.md: A69/A87/A118 shipped, A80 partial, A120 boundary"
+   ]
   },
   {
    "id": "GF-07",
