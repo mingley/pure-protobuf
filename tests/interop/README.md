@@ -267,7 +267,7 @@ These cases come from `run_interop_tests.py`.
 | Case group | Cases | Status |
 |---|---|---|
 | Cloud identity and call credentials | `compute_engine_creds`, `jwt_token_creds`, `oauth2_auth_token`, `per_rpc_creds`, `google_default_credentials`, `compute_engine_channel_credentials` | `blocked_external` pending an approved GCP environment in task `EX-17`. |
-| Application Layer Transport Security (ALTS) | `alts_credentials` | `unsupported` pending provider review in tasks `EX-18` and `EX-19`. |
+| Application Layer Transport Security (ALTS) | `alts_credentials` | `unsupported` per the `EX-18` boundary decision; blocked on leaf cards `EX-18a`/`EX-18b` (see `docs/alts-contract.md`). |
 
 ### 9. ORCA (`orca`, 2 cases)
 

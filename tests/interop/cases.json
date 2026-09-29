@@ -1241,14 +1241,14 @@
       "peer_direction": "both",
       "transport": "alts",
       "profile": "extended",
-      "owner": "EX-18",
+      "owner": "EX-18a",
       "disposition": "unsupported",
-      "justification": "ALTS (Application Layer Transport Security) requires local handshaker daemon communication and pure-Rust record layer. Evaluation scheduled in EX-18 / EX-19.",
+      "justification": "ALTS (Application Layer Transport Security) requires local handshaker daemon communication and pure-Rust record layer. EX-18 decided the boundary (docs/alts-contract.md): no approved Rust provider exists and the pinned runner has no Rust ALTS procedure; blocked on leaf cards EX-18a/EX-18b.",
       "present_coverage": {
         "status": "unsupported",
         "evidence_file": null,
         "passing_directions": [],
-        "notes": "Scheduled for provider review in EX-18."
+        "notes": "EX-18 decided; blocked on EX-18a (record-layer review) and EX-18b (platform proof)."
       }
     },
     {
