@@ -564,8 +564,6 @@ dependencies = [
  "socket2",
  "tokio",
  "tokio-rustls",
- "tonic",
- "tonic-prost",
  "tower",
  "webpki-roots",
 ]

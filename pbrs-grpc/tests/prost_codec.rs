@@ -15,10 +15,8 @@ mod common;
 use common::ServerGuard;
 use pbrs_grpc::codec::prost::{Message as ProstMessage, Streaming as ProstStreaming};
 use pbrs_grpc::{Channel, Request, Response, Router, Rpc, Service, Status};
-use std::convert::TryFrom;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio::net::TcpListener;
-use tonic::codegen::http::uri::PathAndQuery;
 
 #[derive(Clone, PartialEq, prost::Message)]
 struct ProstRequest {
@@ -228,47 +226,4 @@ async fn prost_codec_works_for_all_four_rpc_shapes() {
             },
         ]
     );
-}
-
-#[tokio::test]
-async fn tonic_prost_client_interops_with_native_prost_server() {
-    let (addr, _channel, _guard) = spawn_prost().await.expect("prost service");
-    let endpoint = tonic::transport::Endpoint::try_from(format!("http://{addr}"))
-        .expect("endpoint")
-        .connect()
-        .await
-        .expect("connect tonic");
-    let mut grpc = tonic::client::Grpc::new(endpoint);
-    grpc.ready().await.expect("ready");
-
-    let unary = grpc
-        .unary(
-            tonic::Request::new(ProstRequest {
-                value: "tonic".to_owned(),
-            }),
-            PathAndQuery::from_static("/prost.Echo/Unary"),
-            tonic_prost::ProstCodec::<ProstRequest, ProstReply>::default(),
-        )
-        .await
-        .expect("tonic unary")
-        .into_inner();
-    assert_eq!(unary.value, "unary:tonic");
-
-    grpc.ready().await.expect("ready for stream");
-    let mut server_stream = grpc
-        .server_streaming(
-            tonic::Request::new(ProstRequest {
-                value: "x,y".to_owned(),
-            }),
-            PathAndQuery::from_static("/prost.Echo/ServerStream"),
-            tonic_prost::ProstCodec::<ProstRequest, ProstReply>::default(),
-        )
-        .await
-        .expect("tonic server streaming")
-        .into_inner();
-    let mut values = Vec::new();
-    while let Some(message) = server_stream.message().await.expect("tonic message") {
-        values.push(message.value);
-    }
-    assert_eq!(values, ["server:x", "server:y"]);
 }

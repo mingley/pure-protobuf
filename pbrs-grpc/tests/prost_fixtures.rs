@@ -35,6 +35,15 @@ fn prost_routeguide_native_stubs_compile() {
     );
 }
 
+#[test]
+fn tonic_prost_client_interops_with_native_prost_server() {
+    run_manual_fixture(
+        "prost-tonic-client-interop",
+        include_str!("fixtures/prost/tonic_client_native.rs"),
+        "tonic interop ok",
+    );
+}
+
 fn run_fixture(package: &str, proto_rel: &str, main_rs: &str, want_stdout: &str) {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo = manifest.parent().expect("repo root");
@@ -87,6 +96,45 @@ prost-build = "0.14"
     .unwrap();
     std::fs::write(dir.join("src/main.rs"), main_rs).unwrap();
 
+    let output = cargo_run(&dir);
+    assert!(
+        output.status.success(),
+        "fixture {package} failed:\n{}",
+        dump(&output)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains(want_stdout), "{stdout}");
+}
+
+fn run_manual_fixture(package: &str, main_rs: &str, want_stdout: &str) {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = manifest.parent().expect("repo root");
+    let dir = manifest
+        .join("target")
+        .join(format!("prost-fixture-{package}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::write(dir.join("build.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(
+        dir.join("Cargo.toml"),
+        format!(
+            r#"[package]
+name = "{package}"
+version = "0.0.1"
+edition = "2021"
+[workspace]
+[dependencies]
+pbrs-grpc = {{ path = "{repo}/pbrs-grpc", features = ["prost"] }}
+prost = "0.14"
+tokio = {{ version = "1", features = ["rt-multi-thread", "macros", "net"] }}
+tonic = {{ version = "0.14", default-features = false, features = ["transport", "codegen"] }}
+tonic-prost = "0.14"
+"#,
+            repo = repo.display(),
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("src/main.rs"), main_rs).unwrap();
     let output = cargo_run(&dir);
     assert!(
         output.status.success(),
