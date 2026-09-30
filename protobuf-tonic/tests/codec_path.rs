@@ -18,6 +18,10 @@ mod messages {
     pub use protobuf_tonic::hello::{HelloReply, HelloRequest};
 }
 
+#[allow(
+    clippy::allow_attributes_without_reason,
+    reason = "unmodified tonic-prost-build output owns its lint attributes"
+)]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/external-tonic/helloworld.rs"));
 }
