@@ -3499,6 +3499,325 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
+    #[derive(Clone)]
+    struct BackoffPeer {
+        calls: Arc<std::sync::atomic::AtomicUsize>,
+        retry_entered: Arc<tokio::sync::Notify>,
+        release_retry: Arc<tokio::sync::Notify>,
+    }
+
+    impl BackoffPeer {
+        async fn execute(
+            &self,
+            request: &crate::Request<crate::HelloRequest>,
+        ) -> Result<(), crate::Status> {
+            let execution = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if execution == 0 {
+                return Err(crate::Status::unavailable("eligible rejection"));
+            }
+            if request.get_ref().name() == "retrying" {
+                self.retry_entered.notify_one();
+                self.release_retry.notified().await;
+            }
+            Ok(())
+        }
+    }
+
+    impl crate::Greeter for BackoffPeer {
+        async fn say_hello(
+            &self,
+            request: crate::Request<crate::HelloRequest>,
+        ) -> Result<crate::Response<crate::HelloReply>, crate::Status> {
+            self.execute(&request).await?;
+            Ok(crate::Response::new(crate::HelloReply::new()))
+        }
+
+        async fn server_hello(
+            &self,
+            request: crate::Request<crate::HelloRequest>,
+        ) -> Result<crate::Response<crate::Streaming<crate::HelloReply>>, crate::Status> {
+            self.execute(&request).await?;
+            let (tx, stream) = crate::Streaming::channel(1);
+            drop(tx);
+            Ok(crate::Response::new(stream))
+        }
+    }
+
+    struct BackoffObserver(Arc<tokio::sync::Notify>);
+
+    impl crate::LifecycleObserver for BackoffObserver {
+        fn on_attempt_end(
+            &self,
+            _: &crate::AttemptLabels<'_>,
+            status: &crate::Status,
+            _: Duration,
+        ) {
+            if status.code() == Code::Unavailable {
+                self.0.notify_one();
+            }
+        }
+    }
+
+    struct BackoffDns(std::net::SocketAddr);
+
+    impl crate::resolver::DnsLookup for BackoffDns {
+        fn lookup(
+            &self,
+            _: &str,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<Vec<std::net::SocketAddr>, std::io::Error>>
+                    + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async { Ok(vec![self.0]) })
+        }
+    }
+
+    struct BackoffTxt(&'static str);
+
+    impl crate::resolver::TxtLookup for BackoffTxt {
+        fn fetch_txt(
+            &self,
+            _: &str,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Vec<String>, std::io::Error>> + Send + '_>,
+        > {
+            Box::pin(async { Ok(vec![self.0.to_owned()]) })
+        }
+    }
+
+    struct AbortBackoffPeer(tokio::task::JoinHandle<()>);
+
+    impl Drop for AbortBackoffPeer {
+        fn drop(&mut self) {
+            self.0.abort();
+        }
+    }
+
+    async fn attempt_loads(channel: &Channel) -> (usize, usize, u64) {
+        let pool = channel
+            .inner
+            .loads
+            .iter()
+            .map(|load| load.snapshot().0)
+            .sum();
+        let mut busy = 0;
+        if let Some(table) = &channel.inner.rr {
+            for slot in table.conns.lock().await.values() {
+                busy += slot
+                    .lock()
+                    .await
+                    .busy
+                    .as_ref()
+                    .map_or(0, |busy| busy.count());
+            }
+        } else {
+            for slot in &channel.inner.slots {
+                busy += slot
+                    .lock()
+                    .await
+                    .busy
+                    .as_ref()
+                    .map_or(0, |busy| busy.count());
+            }
+        }
+        let least_request =
+            if let super::Endpoint::Resolved { lb: Some(lb), .. } = &channel.inner.endpoint {
+                let crate::lb::LbPolicy::LeastRequest(policy) = lb else {
+                    panic!("expected least_request")
+                };
+                policy
+                    .loads_snapshot()
+                    .await
+                    .iter()
+                    .map(|(_, load)| load)
+                    .sum()
+            } else {
+                0
+            };
+        (pool, busy, least_request)
+    }
+
+    async fn qualify_backoff_load(server_stream: bool, resolved: bool, scheme: &'static str) {
+        use std::sync::atomic::Ordering;
+        for exit in ["cancel", "deadline", "retry"] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("address");
+            let peer = BackoffPeer {
+                calls: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+                retry_entered: Arc::new(tokio::sync::Notify::new()),
+                release_retry: Arc::new(tokio::sync::Notify::new()),
+            };
+            let service = peer.clone();
+            let _server = AbortBackoffPeer(tokio::spawn(async move {
+                crate::GreeterServer::new(service)
+                    .serve_listener(listener)
+                    .await
+                    .expect("serve");
+            }));
+            let config = crate::ChannelConfig::new()
+                .connections(1)
+                .max_concurrent_rpcs(1)
+                .max_connection_idle(Duration::from_secs(30));
+            let policy = r#"{"loadBalancingConfig":[{"least_request":{"choiceCount":2}}],
+                "methodConfig":[{"name":[{}],"retryPolicy":{"maxAttempts":3,
+                "initialBackoff":"1s","maxBackoff":"1s","backoffMultiplier":1,
+                "retryableStatusCodes":["UNAVAILABLE"]}}]}"#;
+            let channel = if resolved {
+                let bounds = crate::resolver::DnsConfig::new(
+                    Duration::from_millis(50),
+                    Duration::from_secs(1),
+                    Duration::from_millis(100),
+                    Duration::from_millis(50),
+                    Duration::from_millis(200),
+                    Duration::from_secs(1),
+                )
+                .expect("DNS bounds");
+                let resolver = crate::resolver::ResolverConfig::with_dns_provider(
+                    bounds,
+                    Arc::new(BackoffDns(addr)),
+                )
+                .with_txt_provider(Arc::new(BackoffTxt(policy)));
+                Channel::connect_uri_with(&format!("dns:///{scheme}.invalid:443"), config, resolver)
+                    .await
+                    .unwrap_or_else(|status| panic!("resolved channel: {status}"))
+            } else {
+                Channel::connect_with(addr, config)
+                    .await
+                    .expect("channel")
+                    .service_config(policy)
+                    .expect("policy")
+            };
+            let ended = Arc::new(tokio::sync::Notify::new());
+            let channel = channel
+                .byte_budget(1024)
+                .observer(BackoffObserver(ended.clone()));
+            let mut message = crate::HelloRequest::new();
+            message.set_name("retrying");
+            let mut request = crate::Request::new(message);
+            request.set_timeout(if exit == "deadline" {
+                Duration::from_millis(200)
+            } else {
+                Duration::from_secs(5)
+            });
+            let (handle, task) = if server_stream {
+                let call = channel.server_streaming::<_, crate::HelloReply>(
+                    "/helloworld.Greeter/ServerHello",
+                    request,
+                );
+                (
+                    call.handle(),
+                    tokio::spawn(
+                        async move { call.await.map(|response| Some(response.into_inner())) },
+                    ),
+                )
+            } else {
+                let call =
+                    channel.unary::<_, crate::HelloReply>("/helloworld.Greeter/SayHello", request);
+                (
+                    call.handle(),
+                    tokio::spawn(async move { call.await.map(|_| None) }),
+                )
+            };
+            tokio::time::timeout(Duration::from_secs(2), ended.notified())
+                .await
+                .expect("first attempt ended");
+            assert_eq!(peer.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                attempt_loads(&channel).await,
+                (0, 0, 0),
+                "{scheme}, {exit}: completed attempt must release routing and connection load before backoff"
+            );
+            assert_eq!(channel.byte_budget_allocated(), 0);
+            let blocked = channel
+                .unary::<_, crate::HelloReply>(
+                    "/helloworld.Greeter/SayHello",
+                    crate::Request::new(crate::HelloRequest::new()),
+                )
+                .await
+                .expect_err("backoff retains RPC-level admission");
+            assert_eq!(blocked.code(), Code::ResourceExhausted);
+            if exit == "cancel" {
+                handle.cancel();
+            }
+            if exit == "retry" {
+                tokio::time::timeout(Duration::from_secs(2), peer.retry_entered.notified())
+                    .await
+                    .expect("retry entered handler");
+                assert_eq!(
+                    attempt_loads(&channel).await,
+                    if resolved {
+                        (0, 1, u64::from(!server_stream))
+                    } else {
+                        (1, 1, 0)
+                    },
+                    "next attempt reacquires load"
+                );
+                peer.release_retry.notify_one();
+            }
+            let result = tokio::time::timeout(Duration::from_secs(2), task)
+                .await
+                .expect("call ended")
+                .expect("call task");
+            if exit == "retry" {
+                if let Some(mut stream) = result.expect("retry success") {
+                    assert_eq!(
+                        attempt_loads(&channel).await.1,
+                        1,
+                        "successful stream owns connection lease"
+                    );
+                    assert!(stream.message().await.expect("EOF").is_none());
+                    drop(stream);
+                }
+                assert_eq!(peer.calls.load(Ordering::SeqCst), 2);
+            } else {
+                assert_eq!(
+                    result.expect_err("terminal signal").code(),
+                    if exit == "cancel" {
+                        Code::Cancelled
+                    } else {
+                        Code::DeadlineExceeded
+                    }
+                );
+                assert_eq!(peer.calls.load(Ordering::SeqCst), 1);
+            }
+            assert_eq!(attempt_loads(&channel).await, (0, 0, 0));
+            channel
+                .unary::<_, crate::HelloReply>(
+                    "/helloworld.Greeter/SayHello",
+                    crate::Request::new(crate::HelloRequest::new()),
+                )
+                .await
+                .expect("follow-up after admission release");
+            assert_eq!(attempt_loads(&channel).await, (0, 0, 0));
+            assert_eq!(channel.byte_budget_allocated(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn unary_backoff_releases_pool_load_and_connection_lease() {
+        qualify_backoff_load(false, false, "qgpoolunary").await;
+    }
+
+    #[tokio::test]
+    async fn server_stream_backoff_releases_pool_load_and_connection_lease() {
+        qualify_backoff_load(true, false, "qgpoolstream").await;
+    }
+
+    #[tokio::test]
+    async fn unary_backoff_releases_least_request_and_connection_lease() {
+        qualify_backoff_load(false, true, "qglrunary").await;
+    }
+
+    #[tokio::test]
+    async fn server_stream_backoff_releases_resolved_connection_lease() {
+        qualify_backoff_load(true, true, "qglrstream").await;
+    }
+
     #[tokio::test]
     async fn per_core_channels_own_independent_pools() {
         let channels = Channel::connect_per_core("127.0.0.1:1", 4).expect("channels");

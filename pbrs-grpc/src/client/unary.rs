@@ -475,7 +475,7 @@ impl super::Channel {
                     if let Some(socket) = live_socket {
                         crate::channelz::Registry::global().note_stream_started(socket, true);
                     }
-                    match run_unary_frame(
+                    let result = run_unary_frame(
                         live.send,
                         &channel.authority,
                         path,
@@ -491,8 +491,14 @@ impl super::Channel {
                         byte_permit,
                         tap.as_ref(),
                     )
-                    .await
-                    {
+                    .await;
+                    // This HTTP/2 attempt has ended. Backoff retains the
+                    // encoded frame and RPC admission, not connection load.
+                    drop(_load);
+                    drop(_lr);
+                    drop(live.lease);
+                    drop(live.driver);
+                    match result {
                         Err(UnaryFailure {
                             status,
                             response_committed: false,

@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "a28c78294b85ac2bf9d11619a1cc74a715a66cac",
+  "source_blobs": {
+    "pbrs-grpc/src/client/unary.rs": "6976c7cdba0c82ebf0031eff811e6dd85e993862",
+    "pbrs-grpc/src/client/streaming.rs": "58104f6afe554e9371233f0264e7cfe215505a16",
+    "pbrs-grpc/src/client/pool.rs": "60fa466daca80a288486cf183cc9642460ca6b61"
+  },
+  "before_command": "cargo test -p pbrs-grpc --lib backoff_releases",
+  "before_stdout": "    Blocking waiting for file lock on package cache\n   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\nwarning: unused import: `crate::wire::frame_reader::FrameReader`\n   --> pbrs-grpc/src/copy_counts.rs:184:9\n    |\n184 |     use crate::wire::frame_reader::FrameReader;\n    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    |\n    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\n\nwarning: `pbrs-grpc` (lib test) generated 1 warning (run `cargo fix --lib -p pbrs-grpc --tests` to apply 1 suggestion)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.70s\n     Running unittests src/lib.rs (/tmp/pbrs-ad03c-target/debug/deps/pbrs_grpc-9f160e6e15cd621b)\n\nrunning 4 tests\ntest client::pool::tests::server_stream_backoff_releases_pool_load_and_connection_lease ... FAILED\ntest client::pool::tests::unary_backoff_releases_pool_load_and_connection_lease ... FAILED\ntest client::pool::tests::server_stream_backoff_releases_resolved_connection_lease ... FAILED\ntest client::pool::tests::unary_backoff_releases_least_request_and_connection_lease ... FAILED\n\nfailures:\n\n---- client::pool::tests::server_stream_backoff_releases_pool_load_and_connection_lease stdout ----\n\nthread 'client::pool::tests::server_stream_backoff_releases_pool_load_and_connection_lease' (5677293) panicked at pbrs-grpc/src/client/pool.rs:3730:13:\nassertion `left == right` failed: qgpoolstream, cancel: completed attempt must release routing and connection load before backoff\n  left: (1, 1, 0)\n right: (0, 0, 0)\n\n---- client::pool::tests::unary_backoff_releases_pool_load_and_connection_lease stdout ----\n\nthread 'client::pool::tests::unary_backoff_releases_pool_load_and_connection_lease' (5677296) panicked at pbrs-grpc/src/client/pool.rs:3730:13:\nassertion `left == right` failed: qgpoolunary, cancel: completed attempt must release routing and connection load before backoff\n  left: (1, 1, 0)\n right: (0, 0, 0)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- client::pool::tests::server_stream_backoff_releases_resolved_connection_lease stdout ----\n\nthread 'client::pool::tests::server_stream_backoff_releases_resolved_connection_lease' (5677294) panicked at pbrs-grpc/src/client/pool.rs:3730:13:\nassertion `left == right` failed: qglrstream, cancel: completed attempt must release routing and connection load before backoff\n  left: (0, 1, 0)\n right: (0, 0, 0)\n\n---- client::pool::tests::unary_backoff_releases_least_request_and_connection_lease stdout ----\n\nthread 'client::pool::tests::unary_backoff_releases_least_request_and_connection_lease' (5677295) panicked at pbrs-grpc/src/client/pool.rs:3730:13:\nassertion `left == right` failed: qglrunary, cancel: completed attempt must release routing and connection load before backoff\n  left: (0, 1, 1)\n right: (0, 0, 0)\n\n\nfailures:\n    client::pool::tests::server_stream_backoff_releases_pool_load_and_connection_lease\n    client::pool::tests::server_stream_backoff_releases_resolved_connection_lease\n    client::pool::tests::unary_backoff_releases_least_request_and_connection_lease\n    client::pool::tests::unary_backoff_releases_pool_load_and_connection_lease\n\ntest result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 432 filtered out; finished in 0.01s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --lib`\n",
+  "before_result": "4 failed: direct unary/server-streaming retained (pool=1,busy=1); resolved server-streaming retained busy=1; resolved unary retained busy=1 and least_request=1 after the first attempt ended.",
+  "after_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --lib backoff_releases",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.86s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 432 filtered out; finished in 1.23s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --lib --test retry_safety --test policy_retry --test rpc --test gaps --test serving --test lb_ring_hash",
+      "status": "passed",
+      "passed": 1614,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 58.90s",
+        "test result: ok. 447 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1099 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.63s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --test rpc --test gaps --test serving",
+      "status": "passed",
+      "passed": 1116,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 02s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1098 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.45s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.90s"
+      ]
+    }
+  ],
+  "qualified_cases": [
+    {
+      "shape": "unary",
+      "route": "direct_pool",
+      "exit": "cancel"
+    },
+    {
+      "shape": "unary",
+      "route": "direct_pool",
+      "exit": "deadline"
+    },
+    {
+      "shape": "unary",
+      "route": "direct_pool",
+      "exit": "retry"
+    },
+    {
+      "shape": "unary",
+      "route": "resolved_least_request",
+      "exit": "cancel"
+    },
+    {
+      "shape": "unary",
+      "route": "resolved_least_request",
+      "exit": "deadline"
+    },
+    {
+      "shape": "unary",
+      "route": "resolved_least_request",
+      "exit": "retry"
+    },
+    {
+      "shape": "server_stream",
+      "route": "direct_pool",
+      "exit": "cancel"
+    },
+    {
+      "shape": "server_stream",
+      "route": "direct_pool",
+      "exit": "deadline"
+    },
+    {
+      "shape": "server_stream",
+      "route": "direct_pool",
+      "exit": "retry"
+    },
+    {
+      "shape": "server_stream",
+      "route": "resolved_least_request",
+      "exit": "cancel"
+    },
+    {
+      "shape": "server_stream",
+      "route": "resolved_least_request",
+      "exit": "deadline"
+    },
+    {
+      "shape": "server_stream",
+      "route": "resolved_least_request",
+      "exit": "retry"
+    }
+  ],
+  "assertions": [
+    "A lifecycle on_attempt_end notification observes the first eligible rejection without depending on RetryStats. Pool, busy-connection and least-request counts are zero during the one-second backoff; the byte budget is zero and the logical call still holds its one-RPC admission.",
+    "Cancellation/deadline after that boundary produces one execution and zero retained attempt load. A permitted retry reacquires the appropriate pool/busy/least-request counts while its handler is deliberately held.",
+    "Successful server-streaming retains its connection lease after Call resolves and releases it after EOF/drop. Terminal calls permit a subsequent unary and leave every observed count and byte budget at zero."
+  ],
+  "limits": [
+    "This bounded matrix uses a native loopback peer plus injected DNS/TXT providers for the resolved least-request cases, with existing 30-second client idle policy. It does not qualify long-duration idle/age/overload campaigns.",
+    "No public API, dependency, cap or retry default changed. No full workspace, performance, release or production qualification is claimed.",
+    "QG-16 still owns dispatch-time retry statistics; FL-08 remains open until that observation gap is qualified."
+  ]
+}

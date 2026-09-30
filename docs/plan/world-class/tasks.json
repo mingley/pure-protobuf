@@ -10969,7 +10969,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "pending",
+   "status": "done",
    "depends_on": [
     "QG-14"
    ],
@@ -10979,7 +10979,10 @@
     "pbrs-grpc/src/client/streaming.rs",
     "pbrs-grpc/src/client/retry.rs",
     "pbrs-grpc/src/client/pool.rs",
-    "pbrs-grpc/tests/policy_retry.rs"
+    "pbrs-grpc/tests/policy_retry.rs",
+    "pbrs-grpc/src/keepalive.rs",
+    "pbrs-grpc/src/lb/least_request.rs",
+    "pbrs-grpc/src/telemetry.rs"
    ],
    "write": [
     "pbrs-grpc/src/client/unary.rs",
@@ -11005,7 +11008,13 @@
    "relates": [
     "FL-08"
    ],
-   "notes": "Source audit after QG-14: unary _load/_lr and server-streaming _load live through policy first_of(backoff), although the transport attempt has finished. Service-config section 6.3 permits a retained frame but no connection slot/stream/byte permit during backoff. Reproduce before private lifetime changes; no public API, dependencies, caps, defaults or performance claim."
+   "notes": "Delivered from a28c7829 after all four live-peer load regressions failed. Unary completion releases pool/least-request load and the busy lease/driver reference before outcome/retry handling. Server-streaming releases failed-attempt connection ownership before transparent/policy retry while success retains its existing stream handoff. Twelve shape/route/exit cases now prove zero backoff load, positive next-attempt load, logical RPC-admission retention, cancellation/deadline/follow-up balance and successful-stream lease ownership. All-feature unit/RPC/retry/serving/LB 1614 passed; default RPC/serving 1116 passed; strict workspace all-target/all-feature Clippy passed. No public API, dependency, cap, default or performance claim.",
+   "implementer": "Codex",
+   "reviewer": "Codex",
+   "evidence": [
+    "docs/evidence/retry-backoff-routing-load.json",
+    "pbrs-grpc/src/client/pool.rs#qualify_backoff_load"
+   ]
   },
   {
    "id": "QG-16",

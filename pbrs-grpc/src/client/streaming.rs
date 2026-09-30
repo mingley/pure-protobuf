@@ -873,6 +873,9 @@ impl super::Channel {
                                 && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
+                            drop(_load);
+                            drop(lease);
+                            drop(driver);
                             finish_attempt(&mut attempt_guard, &status);
                             // The peer proved non-processing; replay the retained frame.
                             retried = true;
@@ -884,6 +887,12 @@ impl super::Channel {
                             attempt_idx += 1;
                         }
                         Err(status) => {
+                            // Failed attempts own no live response stream.
+                            // Release connection occupancy before any retry
+                            // decision or sleep; success transfers its lease.
+                            drop(_load);
+                            drop(lease);
+                            drop(driver);
                             let cancelled = *cancel_rx.borrow();
                             let per_attempt_timeout = status.code() == Code::DeadlineExceeded
                                 && retry_policy.as_ref().is_some_and(|policy| {
