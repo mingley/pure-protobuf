@@ -9040,6 +9040,12 @@
   },
   {
    "id": "GN-10",
+   "status": "done",
+   "evidence": [
+    "src/codegen/naming.rs reserves generated runtime/trait/helper method names with the deterministic `_field` suffix; src/codegen/messages.rs and impl_typed_message use qualified trait calls.",
+    "tests/pbrs_build.rs generated_accessors_escape_runtime_and_helper_method_names compiles a proto2 downstream consumer and exercises presence/getter/setter/clear plus binary round trips for default, clone, and serialize; it also compiles representative inherent-helper collisions.",
+    "Focused command passed: cargo test --test pbrs_build generated_accessors_escape_runtime_and_helper_method_names -- --nocapture."
+   ],
    "title": "Escape generated accessors that collide with trait methods",
    "lane": "GN",
    "milestone": "M1",
@@ -9118,6 +9124,10 @@
   },
   {
    "id": "PK-26",
+   "status": "in_progress",
+   "evidence": [
+    "Partial 2026-09-30: generated hot and cold singular-message getters now lazily initialize per-type OnceLock defaults, removing the global Mutex and TypeId hash from present reads and the global Mutex from absent reads. Regenerated src/generated output and 96 core library tests plus focused generated tests pass. The >=2% nested parse-then-touch instruction improvement and no-allocation-regression measurement remain open; the pinned protobuf source tree required by scripts/regen-generated.sh is absent from this checkout, so a clean-source regen-check also remains open."
+   ],
    "title": "Stop eager default-instance lookups in message getters",
    "lane": "PK",
    "milestone": "M1",
@@ -9348,6 +9358,11 @@
   },
   {
    "id": "TC-28",
+   "status": "done",
+   "evidence": [
+    "protobuf-tonic/tests/codec_path.rs",
+    "docs/guides/migration.md"
+   ],
    "title": "Document the codec_path route for existing tonic-build pipelines",
    "lane": "TC",
    "milestone": "M5",
@@ -9362,6 +9377,7 @@
    ],
    "write": [
     "protobuf-tonic/tests/",
+    "protobuf-tonic/Cargo.toml",
     "protobuf-tonic/build.rs",
     "docs/guides/migration.md"
    ],

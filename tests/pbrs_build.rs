@@ -236,6 +236,118 @@ fn main() {
 }
 
 #[test]
+fn generated_accessors_escape_runtime_and_helper_method_names() {
+    let tmp = repo_root()
+        .join("target")
+        .join("pbrs-build-colliding-accessors");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("collisions.proto"),
+        r#"syntax = "proto2";
+package collisions;
+message DefaultField { optional string default = 1; }
+message CloneField { optional string clone = 1; }
+message SerializeField { optional string serialize = 1; }
+message HelperFields {
+  optional string new = 1;
+  optional string clear = 2;
+  optional string parse = 3;
+  optional string compute_size = 4;
+  optional string write_to = 5;
+  optional string to_json = 6;
+  optional string from_json = 7;
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        r#"fn main() {
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(&["collisions.proto"], &["."])
+        .expect("compile collision schema");
+}
+"#,
+    )
+    .unwrap();
+    let root = repo_root();
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-colliding-accessors\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n[build-dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            root.display(),
+            root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/collisions.rs"));
+
+fn round_trip_default() {
+    let mut value = DefaultField::new();
+    assert!(!value.has_default_field());
+    value.set_default_field("default");
+    assert!(value.has_default_field());
+    assert_eq!(value.default_field(), "default");
+    let wire = pbrs::Serialize::serialize(&value).unwrap();
+    let parsed = <DefaultField as pbrs::Parse>::parse(&wire).unwrap();
+    assert_eq!(parsed.default_field(), "default");
+    value.clear_default_field();
+    assert!(!value.has_default_field());
+}
+
+fn round_trip_clone() {
+    let mut value = CloneField::new();
+    assert!(!value.has_clone_field());
+    value.set_clone_field("clone");
+    assert_eq!(value.clone_field(), "clone");
+    let parsed = <CloneField as pbrs::Parse>::parse(&pbrs::Serialize::serialize(&value).unwrap()).unwrap();
+    assert_eq!(parsed.clone_field(), "clone");
+    value.clear_clone_field();
+    assert!(!value.has_clone_field());
+}
+
+fn round_trip_serialize() {
+    let mut value = SerializeField::new();
+    assert!(!value.has_serialize_field());
+    value.set_serialize_field("serialize");
+    assert_eq!(value.serialize_field(), "serialize");
+    let parsed = <SerializeField as pbrs::Parse>::parse(&pbrs::Serialize::serialize(&value).unwrap()).unwrap();
+    assert_eq!(parsed.serialize_field(), "serialize");
+    value.clear_serialize_field();
+    assert!(!value.has_serialize_field());
+}
+
+fn main() {
+    round_trip_default();
+    round_trip_clone();
+    round_trip_serialize();
+    let mut helpers = HelperFields::new();
+    helpers.set_new_field("n");
+    helpers.set_clear_field("c");
+    helpers.set_parse_field("p");
+    helpers.set_compute_size_field("s");
+    helpers.set_write_to_field("w");
+    helpers.set_to_json_field("j");
+    helpers.set_from_json_field("f");
+    assert_eq!(helpers.new_field(), "n");
+}
+"#,
+    )
+    .unwrap();
+
+    let run = cargo_run(&tmp, None, true);
+    assert!(
+        run.status.success(),
+        "collision consumer failed:\n{}",
+        dump(&run)
+    );
+}
+
+#[test]
 fn compile_protos_defaults_to_kernel_stubs() {
     assert_eq!(
         pbrs::codegen::Stubs::default(),

@@ -313,6 +313,52 @@ pub(crate) fn field_name_with_collision_avoidance(
     f: &FieldDescriptor,
 ) -> String {
     let name = f.name.as_str();
+    // Field accessors are inherent methods on the generated message.  Keep
+    // legal protobuf names from shadowing trait methods used by the runtime or
+    // colliding with helpers emitted into the same inherent impl.  The
+    // deterministic `_field` suffix is part of the generated Rust naming
+    // convention (the protobuf descriptor name remains unchanged).
+    if matches!(
+        name,
+        "new"
+            | "default"
+            | "clone"
+            | "eq"
+            | "hash"
+            | "fmt"
+            | "parse"
+            | "serialize"
+            | "serialized_len"
+            | "encode"
+            | "clear"
+            | "clear_and_parse"
+            | "clear_and_parse_dont_enforce_required"
+            | "merge_from_bytes"
+            | "merge_from_bytes_shared"
+            | "merge_from_bytes_dont_enforce_required"
+            | "merge_from"
+            | "copy_from"
+            | "take_from"
+            | "as_view"
+            | "as_mut"
+            | "into_view"
+            | "into_mut"
+            | "check_required"
+            | "merge_bytes"
+            | "merge_bytes_dont_enforce"
+            | "merge_inner"
+            | "write_to"
+            | "compute_size"
+            | "to_json"
+            | "from_json"
+            | "from_json_ignore"
+            | "to_text"
+            | "to_text_with_unknown"
+            | "from_text"
+            | "cold_mut"
+    ) {
+        return format!("{name}_field");
+    }
     for prefix in ["clear_", "has_", "set_"] {
         if let Some(rest) = name.strip_prefix(prefix) {
             if desc.fields.values().any(|o| o.name == rest) {

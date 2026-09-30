@@ -73,6 +73,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 This generates `#[tonic::async_trait]` service stubs. They use `pbrs` message
 types through `protobuf-tonic::ProtobufCodec` instead of `prost::Message`.
 
+#### Keep an existing `tonic-prost-build` pipeline
+
+Projects that already configure `tonic-prost-build` can keep that service
+generator and redirect its messages and codec to pbrs:
+
+```rust
+tonic_prost_build::configure()
+    .codec_path("::protobuf_tonic::ProtobufCodec")
+    .extern_path(".my.api.v1", "crate::generated::my_api_v1")
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+Generate `crate::generated::my_api_v1` with `pbrs::codegen` first. Add one
+`extern_path` mapping for every protobuf package used by the services,
+including imported packages. `codec_path` is global for a generation run, so
+every request and response type in that run must be a pbrs type; do not mix
+prost and pbrs messages in the same configured run. The
+`protobuf-tonic/tests/codec_path.rs` fixture verifies unary and bidirectional
+streaming calls generated this way with `tonic-prost-build` 0.14.6.
+
+This route changes integration cost, not codec performance. Current PK-27
+evidence shows that when handlers read every field, pbrs messages cost more CPU
+than prost: +10% to +60% instructions per RPC in the measured public profiles,
+with larger parse-then-touch gaps for deeply nested and `Any`-heavy messages.
+See the [adoption evidence and qualification status](../plan/adoption/README.md)
+before choosing a production workload.
+
 ### Tonic-shaped API over the native transport
 
 If you want Tonic-shaped handlers but not Tonic's transport stack, generate the

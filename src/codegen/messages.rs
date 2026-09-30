@@ -575,7 +575,10 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         src,
         "    /// Creates a new, default instance of [`{name}`]."
     );
-    let _ = writeln!(src, "    pub fn new() -> Self {{ Self::default() }}");
+    let _ = writeln!(
+        src,
+        "    pub fn new() -> Self {{ <Self as Default>::default() }}"
+    );
     if use_cold {
         let _ = writeln!(
             src,
@@ -727,7 +730,7 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or(pbrs::gen_support::default_instance_of()) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: std::sync::OnceLock<{t}> = std::sync::OnceLock::new(); self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
@@ -743,7 +746,7 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ self.{id}.as_deref().unwrap_or(pbrs::gen_support::default_instance_of()) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: std::sync::OnceLock<{t}> = std::sync::OnceLock::new(); self.{id}.as_deref().unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(

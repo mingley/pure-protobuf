@@ -2,18 +2,24 @@
 #![allow(
     clippy::disallowed_types,
     clippy::unwrap_used,
-    reason = "default_instance_of uses a short std Mutex; never held across await"
+    reason = "legacy default_instance_of uses a short std Mutex; generated code uses per-type OnceLock"
 )]
 
 use std::any::TypeId;
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
+use std::sync::OnceLock;
 
 struct SyncPtr(*const ());
 unsafe impl Send for SyncPtr {}
 unsafe impl Sync for SyncPtr {}
 
 /// Process-lifetime default instance (Google `View::default()`).
+pub fn default_instance<T: Default>(slot: &'static OnceLock<T>) -> &'static T {
+    slot.get_or_init(T::default)
+}
+
+/// Compatibility fallback for handwritten and previously generated code.
 pub fn default_instance_of<T: Default + Send + Sync + 'static>() -> &'static T {
     static MAP: OnceLock<Mutex<HashMap<TypeId, SyncPtr>>> = OnceLock::new();
     let map = MAP.get_or_init(|| Mutex::new(HashMap::new()));
@@ -766,7 +772,8 @@ macro_rules! impl_typed_message {
         }
         impl Default for $View<'_> {
             fn default() -> Self {
-                $View($crate::gen_support::default_instance_of::<$Owned>())
+                static DEFAULT: std::sync::OnceLock<$Owned> = std::sync::OnceLock::new();
+                $View($crate::gen_support::default_instance(&DEFAULT))
             }
         }
         impl $crate::rt::MergeBytes for $Owned {
@@ -856,40 +863,40 @@ macro_rules! impl_typed_message {
         }
         impl $crate::Serialize for $View<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
-                self.0.serialize()
+                $crate::Serialize::serialize(self.0)
             }
             fn serialized_len(&self) -> usize {
-                self.0.serialized_len()
+                $crate::Serialize::serialized_len(self.0)
             }
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
             ) -> Result<(), $crate::SerializeError> {
-                self.0.encode(out)
+                $crate::Serialize::encode(self.0, out)
             }
         }
         impl $crate::Serialize for $Mut<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
-                self.0.serialize()
+                $crate::Serialize::serialize(self.0)
             }
             fn serialized_len(&self) -> usize {
-                self.0.serialized_len()
+                $crate::Serialize::serialized_len(self.0)
             }
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
             ) -> Result<(), $crate::SerializeError> {
-                self.0.encode(out)
+                $crate::Serialize::encode(self.0, out)
             }
         }
         impl $crate::Clear for $Owned {
             fn clear(&mut self) {
-                *self = Self::default();
+                *self = <Self as Default>::default();
             }
         }
         impl $crate::Clear for $Mut<'_> {
             fn clear(&mut self) {
-                *self.0 = $Owned::default();
+                *self.0 = <$Owned as Default>::default();
             }
         }
         impl $crate::ClearAndParse for $Owned {
@@ -943,26 +950,26 @@ macro_rules! impl_typed_message {
         }
         impl $crate::ClearAndParse for $Mut<'_> {
             fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
-                self.0.clear_and_parse(data)
+                $crate::ClearAndParse::clear_and_parse(self.0, data)
             }
             fn clear_and_parse_dont_enforce_required(
                 &mut self,
                 data: &[u8],
             ) -> Result<(), $crate::ParseError> {
-                self.0.clear_and_parse_dont_enforce_required(data)
+                $crate::ClearAndParse::clear_and_parse_dont_enforce_required(self.0, data)
             }
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
-                self.0.merge_from_bytes(data)
+                $crate::ClearAndParse::merge_from_bytes(self.0, data)
             }
         }
         impl $crate::CopyFrom for $Owned {
             fn copy_from(&mut self, src: impl $crate::AsView<Proxied = Self>) {
-                *self = src.as_view().0.clone();
+                *self = Clone::clone(src.as_view().0);
             }
         }
         impl $crate::CopyFrom for $Mut<'_> {
             fn copy_from(&mut self, src: impl $crate::AsView<Proxied = $Owned>) {
-                *self.0 = src.as_view().0.clone();
+                *self.0 = Clone::clone(src.as_view().0);
             }
         }
         impl $crate::TakeFrom for $Owned {
