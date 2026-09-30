@@ -273,6 +273,89 @@ async fn read_request_body(
 // Scenario A: Failure before headers -> transparent retry is safe and works
 // ============================================================================
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_unary_policy_cannot_replay_after_response_headers() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let executions = Arc::new(AtomicUsize::new(0));
+    let seen = executions.clone();
+    let server = tokio::spawn(async move {
+        let mut connections = tokio::task::JoinSet::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            let seen = seen.clone();
+            connections.spawn(async move {
+                let mut conn = h2::server::handshake(socket).await.expect("handshake");
+                while let Some(Ok((request, mut respond))) = conn.accept().await {
+                    let mut body = request.into_body();
+                    let _ = read_request_body(&mut conn, &mut body).await;
+                    let execution = seen.fetch_add(1, Ordering::SeqCst);
+                    let response = http::Response::builder()
+                        .status(StatusCode::OK)
+                        .header(CONTENT_TYPE, "application/grpc")
+                        .body(())
+                        .expect("response");
+                    let mut send = respond.send_response(response, false).expect("headers");
+                    if execution == 0 {
+                        // Drive the connection so headers reach the awaiting
+                        // client before the later reset interrupts the body.
+                        let pending =
+                            tokio::time::timeout(Duration::from_millis(100), conn.accept()).await;
+                        assert!(pending.is_err(), "no second RPC before the first ends");
+                        send.send_reset(h2::Reason::CANCEL);
+                    } else {
+                        let payload = reply("follow-up").serialize().expect("serialize");
+                        let frame = codec::encode(&payload, false).expect("encode frame");
+                        send.send_data(frame, false).expect("DATA");
+                        let mut trailers = http::HeaderMap::new();
+                        trailers.insert("grpc-status", HeaderValue::from_static("0"));
+                        send.send_trailers(trailers).expect("trailers");
+                    }
+                }
+            });
+        }
+    });
+    let _guard = common::ServerGuard(server);
+    let channel = Channel::connect_with(
+        addr,
+        ChannelConfig::new().connections(1).max_concurrent_rpcs(1),
+    )
+    .await
+    .expect("connect")
+    .byte_budget(1024)
+    .service_config(
+        r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+            "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+            "backoffMultiplier":1,"retryableStatusCodes":["CANCELLED"]}}]}"#,
+    )
+    .expect("policy");
+    let client = GreeterClient::new(channel.clone());
+    let mut request = Request::new(req("side-effect"));
+    request.set_timeout(Duration::from_secs(3));
+    let status = client
+        .say_hello(request)
+        .await
+        .expect_err("committed reset is terminal");
+    assert_eq!(status.code(), Code::Cancelled);
+    assert_eq!(
+        executions.load(Ordering::SeqCst),
+        1,
+        "policy must not duplicate execution"
+    );
+    assert_eq!(channel.retry_stats().policy_retries, 0);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+
+    let follow_up = tokio::time::timeout(
+        Duration::from_secs(3),
+        client.say_hello(Request::new(req("next call"))),
+    )
+    .await
+    .expect("RPC admission slot must be reclaimed")
+    .expect("follow-up");
+    assert_eq!(name_of(follow_up.get_ref()), "follow-up");
+    assert_eq!(executions.load(Ordering::SeqCst), 2);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+}
+
 /// Scenario A1: Connection refused on initial dial. With wait-for-ready, the client
 /// retries connection until the listener starts, and executes the RPC exactly once.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

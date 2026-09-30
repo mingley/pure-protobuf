@@ -10752,6 +10752,55 @@
     "pbrs-grpc/tests/hostile.rs#a_non_grpc_content_type_is_http_415",
     "tests/interop/tonic/src/main.rs#tonic_web_client_talks_to_pbrs_grpc_web_server"
    ]
+  },
+  {
+   "id": "QG-11",
+   "title": "Retain unary response commitment when evaluating retry policies",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "done",
+   "implementer": "Codex",
+   "depends_on": [
+    "FL-07",
+    "OB-01"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/tests/retry_safety.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/tests/retry_safety.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/unary-policy-commitment.json"
+   ],
+   "deliverable": "For completed unary request uploads, retain response-reader commitment through attempt errors and decline both transparent and explicit-policy replay after initial response headers. Keep valid trailers-only application failures retryable. The parent FL-08 retains early-response/send-failure and seeded-history qualification.",
+   "accept": [
+    "A real HTTP/2 peer flushes initial response headers then resets the stream; an explicit policy listing the reset status still causes exactly one execution and zero policy retries.",
+    "The regression checks byte admission returns to zero, and a subsequent call reuses the bounded RPC admission slot.",
+    "Existing eligible policy retries, transparent pre-dispatch retries, cancellation and absolute deadlines remain green; no public API or dependency changes."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Claimed from 71ef9936. The existing no-policy response-headers regression does not cover explicit policy retries. Preserve the private attempt commitment at the policy boundary and do not broaden the retryable status set. The peer flush barrier makes RST_STREAM(CANCEL) arrive after headers, so the client reports CANCELLED rather than the pre-header UNAVAILABLE mapping in the older test. With CANCELLED explicitly listed, the regression fails because a second execution is returned as success. This is a commitment guard, not a change to the configured retryable status set. The bounded repair covers the ordinary response-reader path after a completed request upload; early-response/send-failure commitment remains part of the parent FL-08 qualification. The regression failed before the guard because the client returned the second execution as success. It passes after the private UnaryFailure preserves response_committed. Retry and policy suites pass 35 tests, native RPC/gaps pass 18, the complete serving suite passes 1098, the all-feature native unit suite passes 443, and strict workspace all-target/all-feature Clippy passes. The test verifies one execution, zero policy retries, zero allocated transport bytes and a successful follow-up under a one-RPC limit. No public API or dependencies changed; FL-08 remains in progress for its wider acceptance matrix.",
+   "evidence": [
+    "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers",
+    "docs/evidence/unary-policy-commitment.json"
+   ]
   }
  ],
  "last_audit": {

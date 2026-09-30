@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "71ef9936c1a80e2e80c8c255e1655c74f99a394c",
+  "source_blobs": {
+    "pbrs-grpc/src/client/unary.rs": "93fb7d4a2161da9475fec0949634b8dde90b07b2",
+    "pbrs-grpc/tests/retry_safety.rs": "a105e6c6a2f7124935b244f6827606df980b72c7"
+  },
+  "before_command": "cargo test -p pbrs-grpc --test retry_safety explicit_unary_policy_cannot_replay_after_response_headers",
+  "before_result": "failed: the committed reset was replayed and returned a second execution as success",
+  "before_stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.71s\n     Running tests/retry_safety.rs (/tmp/pbrs-ad03c-target/debug/deps/retry_safety-fcd476633eedc994)\n\nrunning 1 test\ntest explicit_unary_policy_cannot_replay_after_response_headers ... FAILED\n\nfailures:\n\n---- explicit_unary_policy_cannot_replay_after_response_headers stdout ----\n\nthread 'explicit_unary_policy_cannot_replay_after_response_headers' (5160079) panicked at pbrs-grpc/tests/retry_safety.rs:337:10:\ncommitted reset is terminal: Response { message: \"[REDACTED]\", metadata: {}, trailers: {}, compress: Some(false), encoding: None, path: Some(\"[REDACTED]\"), service: Some(\"[REDACTED]\"), method: Some(\"[REDACTED]\"), gzip_level: 1, compresses_outbound: false, accepts_gzip: false, accepts_compressed: false, deadline: None, timeout: None, peer_timeout: None, rpc_timeout: None, limits: None, send_buffer_size: None, extensions: 0 }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    explicit_unary_policy_cannot_replay_after_response_headers\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.12s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --test retry_safety`\n",
+  "after_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test retry_safety --test policy_retry",
+      "status": "passed",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.62s",
+        "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --test rpc --test gaps --test serving",
+      "status": "passed",
+      "passed": 1116,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 08s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 1098 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.45s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --lib",
+      "status": "passed",
+      "passed": 443,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.76s",
+        "test result: ok. 443 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.91s"
+      ]
+    }
+  ],
+  "limits": [
+    "The peer drives response headers for 100 ms before sending RST_STREAM(CANCEL); the test explicitly configures CANCELLED as retryable.",
+    "This repair covers the response reader after a completed request upload. Early-response/send-failure commitment and the broader seeded history/resource matrix remain with FL-08.",
+    "No full release, performance or production qualification is claimed."
+  ]
+}

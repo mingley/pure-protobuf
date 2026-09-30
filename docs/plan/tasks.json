@@ -1212,7 +1212,7 @@
         "Partial 2026-09-24 (supersedes missing reference for the six-message cell only): explicit --reference-protoc opts into genuine pinned protobuf v35.1 built-in Rust generator (vendor/google/SHA 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03; binary SHA-256 e2b116ef44d4b7f3246945ceb1938c72f04e16040020e321ac601869135ab940) and checksum-locked independent protobuf/protobuf-macros 4.35.1-release C/upb runtime. The seed-190019 local pbrs-first paired run, target/codegen-bench/20260924T205157Z-28795/summary.json, used the same six proto3 messages, normal reflection, all six parse/serialize calls, separate empty check targets, serial two-job Cargo, and retained 36 phase logs. Both release binaries were manually executed after that run; the original harness did not retain runtime-smoke proof. Pbrs no-change preserved all three Rust output mtimes, reference bytes stayed identical but all three mtimes changed. All 12 raw metrics and all seven pbrs-losing metrics are reported, including generation time, clean/incremental check time and RSS, and release build time and RSS. Python-only harness tests 20/20; this historical reference run is unqualified local full-consumer evidence, not independent pinned-host or repeated randomized evidence. Default pbrs-only cells and missing-reference/null-loss contract remain unchanged; 100/1000 paired cells, statistical uncertainty, cache/host qualification, review of losses and published comparable raw data remain open. CG-19 stays pending; no performance leadership, release or publisher claim.",
         "Partial correction 2026-09-24: after release build and hash, each consumer now has a separate raw-output release_smoke phase from its own directory, with at most 15 seconds, exit zero, stdout exactly 1 followed by newline and empty stderr required. Status, command, cwd, timeout, output hashes and raw logs persist; smoke time/RSS are excluded from all 12 cost metrics, and wrong output or nonzero exit fails closed. The first attempt target/codegen-bench/20260924T211311Z-57833/summary.json stopped before reference execution because /usr/bin/time put its resource report in stderr; no comparison was reported. The corrected single new paired run target/codegen-bench/20260924T211609Z-63179/summary.json has 40 raw logs, both smoke phases passed, 12 paired cost metrics and all eight pbrs-losing rows: the previous seven plus generation RSS. Both consumers used the same seed-190019 six-message corpus, independent cold targets and serial two-job Cargo with the pinned protobuf v35.1 generator and independent 4.35.1-release C/upb runtime. Python-only tests 22/22, including deterministic wrong-stdout, unexpected-stderr, nonzero-exit and timeout cases. Default pbrs-only missing-reference/null-loss behavior remains; CG-19 and qualification.qualified=false remain pending larger paired cells, independent pinned hosts, randomized repeats/uncertainty, loss review and published raw data. No leadership, version or publisher claim.",
         "Partial 2026-09-25 (larger pinned reference wiring, no timed consumer proof): --reference-protoc now accepts one explicit --case small|100|1000 with default seed 190019 and two Cargo jobs, rejecting implicit/all-case runs before creating compiler artifacts. The 100/1000 reference consumer sources invoke every generated type with the same parse/serialize work as pbrs; default pbrs-only mode and fail-before-work --require-qualified remain unchanged. Genuine hash-verified libprotoc 35.1 produced and byte-verified all 6 Rust output files/5 module links for 100 messages and 21 files/20 links for 1000 (generated tree SHA-256 1c91b8a07095e3d1a5972933ec6ffda40be5b9c0a067303196c48cba2be19ee4 and 2727bb5aa3979c1e6e085d480dbfa1b4e0fc2290c46384d2f03daa43604001d4). Python harness 25/25 passed with that opt-in compiler, while no-compiler CI mode passed 24 with one optional pinned test skipped; documentation tests 14/14. No 100/1000 reference consumer was compiled, release-smoked or timed; there is no larger paired loss table, dedicated-host uncertainty, or published performance proof. CG-19 and qualification.qualified=false remain pending; no release claim.",
-   "Partial 2026-09-29: pinned-protoc genuineness no longer depends on a machine-specific binary hash (fe5de7e9): the opt-in larger-corpora test verifies libprotoc 35.1 plus --rust_out support via resolve_pinned_protoc(candidate) and keeps the generated-byte digests as the stable semantic pins. Harness tests 62 passed, 1 skipped (opt-in pinned compiler absent). 100/1000 paired consumer timing, uncertainty, and published raw data remain open; CG-19 stays pending."
+        "Partial 2026-09-29: pinned-protoc genuineness no longer depends on a machine-specific binary hash (fe5de7e9): the opt-in larger-corpora test verifies libprotoc 35.1 plus --rust_out support via resolve_pinned_protoc(candidate) and keeps the generated-byte digests as the stable semantic pins. Harness tests 62 passed, 1 skipped (opt-in pinned compiler absent). 100/1000 paired consumer timing, uncertainty, and published raw data remain open; CG-19 stays pending."
       ]
     },
     {
@@ -2166,7 +2166,7 @@
         "Partial 2026-09-24 (generated Person parity): tonic-bench now generates pbrs Person from proto/person.proto and separately labels handwritten/generated rows for the same 62-byte Person fixture. Each row independently times pbrs/prost/v4 first and repeated encode, parse-only, partial parse-and-touch and id-mutation; mismatched output, incomplete comparison work or invalid report values fail closed. Handwritten Person lacks typed extras, so nonempty extras are excluded rather than claimed equivalent. Serial shared-cache tonic-bench unit tests passed 7/7 with genuine pinned protoc35.1 and 7/7 with checked v4 mode, plus checked-binding Python tests 2/2 and documentation tests 14/14. No release-mode paired timing, retained memory, exhaustive touch, holdouts, or independent-host raw data/uncertainty was obtained. Historical benchmark gates and losses remain unchanged; BM-03 remains pending.",
         "Partial 2026-09-25 (non-ID mutation parity): The separate tonic-bench Person diagnostic now measures four independently timed rows: handwritten/generated pbrs against prost/v4 on the same 62-byte fixture, alternating both ID 42/43 and a short/long name before every encode. All four representations byte-match both states per field and reparse; invalid or mislabeled rows fail closed, with identical iteration/sample counts and explicit field labels. Serial shared-cache two-job standalone correctness tests passed 8/8 with genuine pinned protoc35.1 and 8/8 with checked v4 mode; documentation tests passed 18/18. No new release-mode timing, retained-memory accounting, nonempty extras, other field mutations, holdout schemas or independent-host paired results were obtained. BM-03 and its qualification remain pending.",
         "Partial 2026-09-25 (typed extras without a handwritten comparator): A separate generated-only pbrs Person row contains one typed map entry at tag 16 and matches prost/v4 on full wire, parsing and touched fields before timing. The original two layout rows still share the same empty-extras input; handwritten pbrs lacks typed extras and is explicitly excluded from the new row. Report geometry enforces the same iteration/sample budget while distinguishing its larger payload; invalid map values and mislabeled rows fail closed. Serial shared-cache standalone correctness tests passed 9/9 in both checked-v4 and genuine pinned protoc35.1 modes, docs 18/18, and scoped Clippy with known standalone baseline exclusions. No new release-mode benchmark, nonempty handwritten parity, retained memory, holdout schema or independent-host paired performance evidence was obtained. BM-03 remains pending.",
-   "Partial 2026-09-29 (fb7c31e0): both harnesses now report per-case retained Rust-heap bytes/allocs via a counting global allocator (v4 C-arena explicitly excluded and labeled); tonic-bench adds holdout-schema rows (nest_d8/oneof_err/rpc_sparse_path/headers_1), byte-exhaustive parse-and-touch, per-codec fresh-construction columns, and publishable raw paired samples with fail-closed holdout labeling. Coordinator fix: a process-wide serial guard around all 12 tonic-bench tests cures a parallel-run flake where cross-thread frees shrank a retained window to zero. Tests: tonic-bench 12/12 x6 runs (PURE_PROTOBUF_CHECKED_V4=1), bench 4/4, fmt clean, tonic-bench clippy warnings pre-existing/ungated. No paired pinned-host release timing yet; historical gates unchanged; BM-03 stays pending."
+        "Partial 2026-09-29 (fb7c31e0): both harnesses now report per-case retained Rust-heap bytes/allocs via a counting global allocator (v4 C-arena explicitly excluded and labeled); tonic-bench adds holdout-schema rows (nest_d8/oneof_err/rpc_sparse_path/headers_1), byte-exhaustive parse-and-touch, per-codec fresh-construction columns, and publishable raw paired samples with fail-closed holdout labeling. Coordinator fix: a process-wide serial guard around all 12 tonic-bench tests cures a parallel-run flake where cross-thread frees shrank a retained window to zero. Tests: tonic-bench 12/12 x6 runs (PURE_PROTOBUF_CHECKED_V4=1), bench 4/4, fmt clean, tonic-bench clippy warnings pre-existing/ungated. No paired pinned-host release timing yet; historical gates unchanged; BM-03 stays pending."
       ]
     },
     {
@@ -3322,17 +3322,22 @@
       "wave": 4,
       "depends_on": [
         "FL-07",
-        "OB-01"
+        "OB-01",
+        "QG-11"
       ],
       "read": [
         "docs/service-config.md",
         "pbrs-grpc/src/client.rs",
-        "pbrs-grpc/src/service_config.rs"
+        "pbrs-grpc/src/service_config.rs",
+        "pbrs-grpc/src/client/unary.rs",
+        "pbrs-grpc/src/client/retry.rs",
+        "pbrs-grpc/tests/policy_retry.rs"
       ],
       "write": [
         "pbrs-grpc/src/client.rs",
         "pbrs-grpc/src/service_config.rs",
-        "pbrs-grpc/tests/retry_safety.rs"
+        "pbrs-grpc/tests/retry_safety.rs",
+        "pbrs-grpc/src/client/unary.rs"
       ],
       "deliverable": "Implement the approved unary retry attempt state machine with original deadlines, bounded replay bytes and per-attempt observation.",
       "accept": [
@@ -3343,6 +3348,13 @@
         "native-rpc",
         "native-serving",
         "interop"
+      ],
+      "status": "in_progress",
+      "implementer": "Codex",
+      "notes": "Claimed from 71ef9936. The existing GF-07 executor handles explicit unary policy retries, but FL-08 still requires the approved safety/side-effect qualification. A focused commitment audit found run_unary_frame drops its response-commitment state before the policy decision, which consults only the status code. Split the transport-error-after-headers regression and repair to QG-11 before qualifying the full seeded history/resource matrix. No new API, dependency, default, or performance claim. QG-11 closes the completed-request/response-reader commitment defect with before/after reproduction and resource reuse checks. The larger seeded unknown-outcome, early-response/send-error, cancellation/oversize and full-interop qualification remains outstanding; do not mark FL-08 done from this bounded repair.",
+      "evidence": [
+        "docs/evidence/unary-policy-commitment.json",
+        "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers"
       ]
     },
     {
@@ -3908,7 +3920,7 @@
       ],
       "checks": [],
       "status": "done",
-      "notes": "2026-09-29 coordinator: BLOCKER verdict integrated (43f658a5) — no maintained pure-Rust ALTS provider (15 probes 404, sole candidate rejected); no dependency, no rewrite. EX-18b/EX-19 stay gated on a re-survey trigger, not launched.",
+      "notes": "2026-09-29 coordinator: BLOCKER verdict integrated (43f658a5) \u2014 no maintained pure-Rust ALTS provider (15 probes 404, sole candidate rejected); no dependency, no rewrite. EX-18b/EX-19 stay gated on a re-survey trigger, not launched.",
       "evidence": [
         "docs/evidence/alts-record-review.md"
       ]

@@ -16,12 +16,31 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
+use crate::transport::RecvStream as _;
 use crate::transport::h2 as backend;
 use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
 use http::uri::Authority;
 use std::time::Duration;
 use tokio::sync::watch;
+
+// A configured retryable status cannot authorize replay after response
+// headers committed the call. Retain that state through the attempt error.
+struct UnaryFailure {
+    status: Status,
+    frame: Option<SegFrame>,
+    response_committed: bool,
+}
+
+impl UnaryFailure {
+    fn uncommitted(status: Status, frame: Option<SegFrame>) -> Self {
+        Self {
+            status,
+            frame,
+            response_committed: false,
+        }
+    }
+}
 
 #[allow(
     clippy::too_many_arguments,
@@ -51,7 +70,7 @@ where
         user_agent, https, permit, tap,
     )
     .await
-    .map_err(|(status, _)| status)
+    .map_err(|failure| failure.status)
 }
 
 /// [`run_unary`] that hands the request frame back when the open fails.
@@ -78,7 +97,7 @@ async fn run_unary_frame<Resp>(
     https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
-) -> Result<Response<Resp>, (Status, Option<SegFrame>)>
+) -> Result<Response<Resp>, UnaryFailure>
 where
     Resp: CodecMessage,
 {
@@ -87,8 +106,8 @@ where
         user_agent, https, permit, tap,
     )
     .await;
-    if let (Some(tap), Err((status, _))) = (tap, &outcome) {
-        if status.code() == Code::Cancelled {
+    if let (Some(tap), Err(failure)) = (tap, &outcome) {
+        if failure.status.code() == Code::Cancelled {
             tap.log_cancel();
         }
     }
@@ -114,7 +133,7 @@ async fn run_unary_inner<Resp>(
     https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
-) -> Result<Response<Resp>, (Status, Option<SegFrame>)>
+) -> Result<Response<Resp>, UnaryFailure>
 where
     Resp: CodecMessage,
 {
@@ -140,7 +159,12 @@ where
         Ok(opened) => opened,
         // HEADERS never went out: hand the frame back so a transparent
         // retry reuses it instead of cloning up front.
-        Err(status) => return Err((commitment.classify(status), Some(frame))),
+        Err(status) => {
+            return Err(UnaryFailure::uncommitted(
+                commitment.classify(status),
+                Some(frame),
+            ));
+        }
     };
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
@@ -155,7 +179,7 @@ where
     drop(permit);
     if let Err(status) = sent {
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
-            return Err((status, None));
+            return Err(UnaryFailure::uncommitted(status, None));
         }
         return race(
             prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
@@ -164,7 +188,7 @@ where
             Some(&mut send_stream),
         )
         .await
-        .map_err(|status| (status, None));
+        .map_err(|status| UnaryFailure::uncommitted(status, None));
     }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Unary sends with end-of-stream set: message and half-close together.
@@ -173,9 +197,22 @@ where
         }
         tap.log_half_close();
     }
+    let mut response_committed = false;
     race(
         async {
             let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
+            // A valid trailers-only application failure remains eligible.
+            // Headers followed by a body or trailers commit the response,
+            // including a subsequent transport reset or attempt timeout.
+            let trailers_only_error = response.status() == http::StatusCode::OK
+                && response.body().is_end_stream()
+                && response
+                    .headers()
+                    .get("grpc-status")
+                    .and_then(|code| code.to_str().ok())
+                    .and_then(|code| code.parse::<i32>().ok())
+                    .is_some_and(|code| matches!(code, 1..=16));
+            response_committed = !trailers_only_error;
             commitment = AttemptCommitment::ResponseCommitted;
             finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap)
                 .await
@@ -186,7 +223,11 @@ where
         Some(&mut send_stream),
     )
     .await
-    .map_err(|status| (status, None))
+    .map_err(|status| UnaryFailure {
+        status,
+        frame: None,
+        response_committed,
+    })
 }
 
 impl super::Channel {
@@ -445,10 +486,13 @@ impl super::Channel {
                     )
                     .await
                     {
-                        Err((status, frame_back))
-                            if !retried
-                                && status.is_transparent_retryable()
-                                && channel.inner.endpoint.can_redial() =>
+                        Err(UnaryFailure {
+                            status,
+                            frame: frame_back,
+                            response_committed: false,
+                        }) if !retried
+                            && status.is_transparent_retryable()
+                            && channel.inner.endpoint.can_redial() =>
                         {
                             finish_attempt(&mut attempt_guard, &status);
                             // The open-failure path hands the untouched frame
@@ -486,8 +530,13 @@ impl super::Channel {
                         result => {
                             // A consumed frame (or a retry that is not
                             // transparent) lands here for terminal handling.
-                            let result: Result<Response<Resp>, Status> =
-                                result.map_err(|(status, _)| status);
+                            let (result, response_committed): (
+                                Result<Response<Resp>, Status>,
+                                bool,
+                            ) = match result {
+                                Ok(response) => (Ok(response), false),
+                                Err(failure) => (Err(failure.status), failure.response_committed),
+                            };
                             // Channelz: the attempt's stream ends here. A
                             // completed unary claims one message each way;
                             // failed attempts claim none (the write may
@@ -534,16 +583,20 @@ impl super::Channel {
                                     })
                                     && remaining_timeout(deadline).is_ok()
                                     && !cancelled;
-                                match policy_retry_delay(
-                                    &channel,
-                                    retry_policy.as_ref(),
-                                    status,
-                                    policy_attempts,
-                                    per_attempt_timeout,
-                                    cancelled,
-                                )
-                                .await
-                                {
+                                let decision = if response_committed {
+                                    PolicyDecision::Declined
+                                } else {
+                                    policy_retry_delay(
+                                        &channel,
+                                        retry_policy.as_ref(),
+                                        status,
+                                        policy_attempts,
+                                        per_attempt_timeout,
+                                        cancelled,
+                                    )
+                                    .await
+                                };
+                                match decision {
                                     PolicyDecision::Proceed {
                                         delay,
                                         via_pushback,
@@ -616,13 +669,15 @@ impl super::Channel {
                                         channel.retry_stats.record_pushback_refusal();
                                     }
                                     PolicyDecision::Declined => {
-                                        if retry_exhausted(
-                                            retry_policy.as_ref(),
-                                            status,
-                                            policy_attempts,
-                                            per_attempt_timeout,
-                                            cancelled,
-                                        ) {
+                                        if !response_committed
+                                            && retry_exhausted(
+                                                retry_policy.as_ref(),
+                                                status,
+                                                policy_attempts,
+                                                per_attempt_timeout,
+                                                cancelled,
+                                            )
+                                        {
                                             channel.retry_stats.record_exhausted();
                                         }
                                     }
