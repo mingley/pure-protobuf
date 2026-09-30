@@ -9276,7 +9276,10 @@
     "pbrs-grpc/Cargo.toml",
     "docs/decisions/",
     "docs/grpc.md",
-    "pbrs-grpc/tests/"
+    "pbrs-grpc/tests/",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/caller-rustls-config.json",
+    "docs/credentials-contract.md"
    ],
    "deliverable": "pbrs-grpc hard-wires rustls-graviola (pbrs-grpc/src/tls.rs provider()) and accepts only PEM identities, CA PEM, CRL or SPIFFE constructors. Deployments that mandate a provider (ring, aws-lc-rs, FIPS) or their own verifier, certificate resolver or rotation cannot use pbrs TLS.",
    "accept": [
@@ -9296,7 +9299,9 @@
    "relates": [
     "RX-04"
    ],
-   "notes": "Adoption blocker: the target fleet standardizes rustls with ring and builds rustls configs in a shared authn library."
+   "notes": "Adoption blocker: the target fleet standardizes rustls with ring and builds rustls configs in a shared authn library. Claimed at 1cfbcd9a82a21568b7c17428ed0a3104a82b4872. Record the explicit caller-config trust boundary and ALPN rules before implementation. Constructors preserve the supplied Arc/configuration/provider/verifier/resolvers/session settings, reject configs not advertising h2, and retain negotiated-h2 enforcement after TLS; configured verifier errors must propagate before any RPC. Built-in constructors keep Graviola and their WebPKI verification. Opaque rustls verifier semantics cannot be introspected or certified by this wrapper; caller-provided configs are a trusted application integration boundary, and disabling peer verification is unsupported. Ring/tonic compatibility lives in an excluded consumer fixture under pbrs-grpc/tests with its own lockfile, so alternate-provider features do not unify into shipping profiles. Review the exact test-consumer manifest before resolving/building; no shipping dependency, public insecure mode, numeric limit, or unsafe change.",
+   "status": "in_progress",
+   "implementer": "Codex"
   },
   {
    "id": "TC-26",
