@@ -241,7 +241,7 @@ The sections below summarize what ships and point to the detailed guides.
 <a id="in-process-connections"></a>
 ### 1. Transport security and topologies
 
-- **TLS and mutual TLS (mTLS)**: powered by `rustls` + Graviola. It enforces ALPN `h2`. Certificate verification is not optional. Inspect peer certificates through `Rpc::peer_identity`.
+- **TLS and mutual TLS (mTLS)**: built-in constructors use `rustls` + Graviola and verifying WebPKI policies. `ServerTls::from_rustls` and `ClientTls::from_rustls` accept trusted application-owned `Arc<rustls::ServerConfig>` / `Arc<rustls::ClientConfig>` values, retaining their provider, verifier, certificate resolver and session policy. Configs must advertise `h2`, and the negotiated protocol must be `h2`. Callers own custom verifier security and rotation/ticket policy; see the [caller-config contract](decisions/caller-rustls-config.md). Inspect peer certificates through `Rpc::peer_identity`.
 - **Unix Domain Sockets (UDS)**: low-latency local inter-process communication (IPC) with `serve_unix_unlink` and peer credentials through `Rpc::peer_cred`.
 - **In-process channels (`from_io`)**: in-memory channels using `tokio::io::duplex`. In-process `from_io` connections have no transparent retry.
 - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT when the target is not bypassed. TLS still runs end-to-end above the tunnel.

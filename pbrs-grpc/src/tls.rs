@@ -1,7 +1,10 @@
-//! TLS for the kernel: rustls over Graviola, ALPN `h2`, no C compiler.
+//! TLS for the kernel: rustls, ALPN `h2`, and Graviola by default.
 //!
-//! Certificate verification is not optional. There is no "insecure" constructor.
-//! Trust either Mozilla's WebPKI roots or a CA you pass in.
+//! Built-in constructors verify certificates using Mozilla's WebPKI roots or
+//! a CA you pass in. [`ServerTls::from_rustls`] and [`ClientTls::from_rustls`]
+//! preserve trusted application configs, including their verification policy
+//! and crypto provider. Callers own that policy; opaque custom verifiers
+//! cannot be certified by this wrapper. Disabling verification is unsupported.
 //!
 //! Hardening (GF-06): pinned-CA constructors accept CRLs for revocation
 //! checking (A69) and SPIFFE IDs as an additional leaf constraint (A87).
@@ -112,6 +115,16 @@ fn require_h2(alpn: Option<&[u8]>) -> Result<(), Status> {
     } else {
         Err(Status::unauthenticated(
             "tls: peer did not negotiate ALPN h2",
+        ))
+    }
+}
+
+fn require_h2_advertisement(protocols: &[Vec<u8>]) -> Result<(), Status> {
+    if protocols.iter().any(|protocol| protocol == ALPN_H2) {
+        Ok(())
+    } else {
+        Err(Status::invalid_argument(
+            "rustls config must advertise ALPN h2",
         ))
     }
 }
@@ -645,10 +658,10 @@ impl fmt::Debug for Identity {
     }
 }
 
-/// Server-side TLS: a rustls acceptor with ALPN `h2` and TLS 1.3 session
-/// tickets, so repeat clients resume instead of re-doing a full handshake.
-/// Ticket keys are per-`ServerTls` and rotate every 6 h; restarting the
-/// server (or building a second `ServerTls`) invalidates outstanding tickets.
+/// Server-side TLS: a rustls acceptor requiring negotiated ALPN `h2`.
+/// Built-in constructors enable TLS 1.3 session tickets with keys that rotate
+/// every 6 h; rebuilding them invalidates outstanding tickets. Caller configs
+/// supplied to [`Self::from_rustls`] retain their own ticket and session policy.
 ///
 /// There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only
 /// timeout on the tonic acceptor. This type has no timeout setter; the bound is
@@ -691,6 +704,34 @@ impl fmt::Debug for ServerTls {
 }
 
 impl ServerTls {
+    /// Use a trusted application-owned rustls server configuration.
+    ///
+    /// The config must advertise `h2`; the negotiated protocol is checked
+    /// again after the handshake. This retains the supplied [`Arc`], crypto
+    /// provider, certificate resolver, client-auth verifier and session policy.
+    /// A shared [`rustls::server::ResolvesServerCert`] can rotate certificates
+    /// for new full handshakes without rebuilding the server. Callers own
+    /// ticket invalidation and the security of any custom verifier; this
+    /// wrapper cannot certify an opaque verifier's policy. No settings or
+    /// process-wide provider are replaced.
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{ServerTls, Status};
+    /// # use std::sync::Arc;
+    /// # fn example(config: Arc<rustls::ServerConfig>) -> Result<ServerTls, Status> {
+    /// let tls = ServerTls::from_rustls(config)?;
+    /// # Ok(tls)
+    /// # }
+    /// ```
+    pub fn from_rustls(config: Arc<RustlsServerConfig>) -> Result<Self, Status> {
+        require_h2_advertisement(&config.alpn_protocols)?;
+        Ok(Self {
+            acceptor: TlsAcceptor::from(Arc::clone(&config)),
+            config,
+            observer: None,
+        })
+    }
+
     /// Serve with `identity`. Clients are not asked for a certificate.
     ///
     /// This constructor does not enable rustls key logging; call
@@ -906,9 +947,10 @@ fn build_server(
     })
 }
 
-/// Client-side TLS: a rustls connector with ALPN `h2` and a session cache
-/// (up to 256 server names), so reconnected or pooled sockets covered by one
-/// `ClientTls` value resume via TLS 1.3 tickets instead of a full handshake.
+/// Client-side TLS: a rustls connector requiring negotiated ALPN `h2`.
+/// Built-in constructors keep a session cache for up to 256 server names.
+/// Caller configs supplied to [`Self::from_rustls`] retain their own session
+/// policy. Clones share the underlying config and session store.
 ///
 /// `server_name` is both SNI and the name verified against the certificate.
 /// It is independent of the TCP address, so you can dial `127.0.0.1` while
@@ -949,14 +991,52 @@ impl fmt::Debug for ClientTls {
 }
 
 impl ClientTls {
+    /// Use a trusted application-owned rustls client configuration.
+    ///
+    /// The config must advertise `h2`; the negotiated protocol is checked
+    /// again after the handshake. `server_name` is passed to rustls for SNI
+    /// and the configured verifier. The supplied [`Arc`], crypto provider,
+    /// verifier, client-certificate resolver and resumption policy are retained.
+    ///
+    /// The caller must configure peer authentication, including appropriate
+    /// trust, identity and signature checks. Rustls stores its verifier
+    /// privately, so this wrapper cannot validate an arbitrary custom policy.
+    /// Verification errors propagate before a channel becomes usable;
+    /// disabling verification is unsupported. Use [`Self::ca`] or
+    /// [`Self::webpki`] when the kernel should construct the verifying policy.
+    /// No settings or process-wide provider are replaced.
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{ClientTls, Status};
+    /// # use std::sync::Arc;
+    /// # fn example(config: Arc<rustls::ClientConfig>) -> Result<ClientTls, Status> {
+    /// let tls = ClientTls::from_rustls("api.example.com", config)?;
+    /// # Ok(tls)
+    /// # }
+    /// ```
+    pub fn from_rustls(
+        server_name: impl Into<String>,
+        config: Arc<RustlsClientConfig>,
+    ) -> Result<Self, Status> {
+        require_h2_advertisement(&config.alpn_protocols)?;
+        let server_name = crate::tls::server_name(&server_name.into())?;
+        Ok(Self {
+            connector: TlsConnector::from(Arc::clone(&config)),
+            config,
+            server_name,
+            observer: None,
+        })
+    }
+
     /// Trust Mozilla's CA set ([`webpki_roots`]) and verify `server_name`.
     ///
-    /// There is no tonic `Endpoint::tls_config_with_verifier`: that replaces
-    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor
-    /// always verifies against Mozilla's CA set. Distinct from
-    /// `ClientTls::native_roots` (operating-system roots, when the
-    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).
-    /// Distinct from a skip-verify constructor (there is none).
+    /// tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom
+    /// rustls `ServerCertVerifier`. This constructor always verifies against
+    /// Mozilla's CA set. [`Self::from_rustls`] retains a trusted application's
+    /// configuration and verification policy; it cannot certify a custom
+    /// verifier's security. `ClientTls::native_roots` uses operating-system
+    /// roots with the `native-roots` feature, and [`Self::ca`] pins a CA.
+    /// Disabling verification is unsupported.
     pub fn webpki(server_name: impl Into<String>) -> Result<Self, Status> {
         build_client(server_name.into(), webpki_roots(), None, Vec::new(), None)
     }

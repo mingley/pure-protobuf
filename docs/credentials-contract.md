@@ -42,8 +42,13 @@ already holds; it MUST NOT fetch, refresh, or cache tokens.
 
 - *Channel credentials* establish transport security. Only the existing
   reviewed `ClientTls` constructors (`webpki`, `native_roots`, `ca`, and
-  the `*_mtls` variants) qualify. There is no skip-verification option
-  (IO-02), and this contract adds none.
+  the `*_mtls` variants) construct the verification policy themselves.
+  `ClientTls::from_rustls` retains a trusted application-owned configuration;
+  its caller must provide peer authentication and owns any custom verifier's
+  security. An opaque caller verifier cannot be certified by the TLS wrapper;
+  see the [TC-25 trust boundary](decisions/caller-rustls-config.md).
+  Disabling verification is unsupported (IO-02), and this contract adds no
+  skip-verification option.
 - *Call (per-RPC) credentials* supply per-call metadata (e.g.
   `authorization: Bearer ...`). They are async: acquisition can await
   network I/O and fail independently of the RPC.

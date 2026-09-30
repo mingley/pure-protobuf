@@ -1,0 +1,23 @@
+[package]
+name = "pbrs-caller-rustls-tests"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+# Provider features belong to this consuming application. They must not
+# unify into any shipping workspace profile.
+[workspace]
+
+[dependencies]
+pbrs = { path = "../../.." }
+pbrs-grpc = { path = "../..", features = ["tonic"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["std", "tls12", "ring"] }
+rustls-graviola = "=0.2.1"
+rustls-pemfile = "2"
+socket2 = "0.6"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "=0.14.6", default-features = false, features = ["transport", "codegen", "router", "tls-ring"] }
+protobuf-tonic = { path = "../../../protobuf-tonic" }

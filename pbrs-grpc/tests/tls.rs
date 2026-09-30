@@ -40,6 +40,129 @@ fn client_identity() -> Identity {
     Identity::from_pem(CLIENT_CERT, CLIENT_KEY).expect("client identity")
 }
 
+fn caller_roots(pem: &str) -> rustls::RootCertStore {
+    let mut roots = rustls::RootCertStore::empty();
+    for cert in rustls_pemfile::certs(&mut pem.as_bytes()) {
+        roots
+            .add(cert.expect("CA certificate"))
+            .expect("trust anchor");
+    }
+    roots
+}
+
+fn caller_server_config() -> rustls::ServerConfig {
+    let provider = std::sync::Arc::new(rustls_graviola::default_provider());
+    let verifier = rustls::server::WebPkiClientVerifier::builder_with_provider(
+        std::sync::Arc::new(caller_roots(CA)),
+        provider.clone(),
+    )
+    .build()
+    .expect("client verifier");
+    let certs = rustls_pemfile::certs(&mut SERVER_CERT.as_bytes())
+        .collect::<Result<Vec<_>, _>>()
+        .expect("server certificates");
+    let key = rustls_pemfile::private_key(&mut SERVER_KEY.as_bytes())
+        .expect("server key")
+        .expect("private key");
+    let mut config = rustls::ServerConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .expect("protocol versions")
+        .with_client_cert_verifier(verifier)
+        .with_single_cert(certs, key)
+        .expect("server config");
+    config.alpn_protocols = vec![b"h2".to_vec()];
+    config
+}
+
+fn caller_client_config(ca: &str, identity: bool) -> rustls::ClientConfig {
+    let builder = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
+        rustls_graviola::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()
+    .expect("protocol versions")
+    .with_root_certificates(caller_roots(ca));
+    let mut config = if identity {
+        let certs = rustls_pemfile::certs(&mut CLIENT_CERT.as_bytes())
+            .collect::<Result<Vec<_>, _>>()
+            .expect("client certificates");
+        let key = rustls_pemfile::private_key(&mut CLIENT_KEY.as_bytes())
+            .expect("client key")
+            .expect("private key");
+        builder
+            .with_client_auth_cert(certs, key)
+            .expect("client config")
+    } else {
+        builder.with_no_client_auth()
+    };
+    config.alpn_protocols = vec![b"h2".to_vec()];
+    config
+}
+
+#[test]
+fn caller_configs_require_h2_and_a_valid_server_name() {
+    for protocols in [vec![], vec![b"http/1.1".to_vec()]] {
+        let mut server = caller_server_config();
+        server.alpn_protocols = protocols.clone();
+        let err = ServerTls::from_rustls(std::sync::Arc::new(server))
+            .expect_err("server must advertise h2");
+        assert_eq!(err.code(), Code::InvalidArgument);
+        let mut client = caller_client_config(CA, true);
+        client.alpn_protocols = protocols;
+        let err = ClientTls::from_rustls("localhost", std::sync::Arc::new(client))
+            .expect_err("client must advertise h2");
+        assert_eq!(err.code(), Code::InvalidArgument);
+    }
+    let err = ClientTls::from_rustls(
+        "invalid name",
+        std::sync::Arc::new(caller_client_config(CA, true)),
+    )
+    .expect_err("invalid server name");
+    assert_eq!(err.code(), Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn caller_configs_preserve_required_mtls_on_every_shape() {
+    let server = ServerTls::from_rustls(std::sync::Arc::new(caller_server_config()))
+        .expect("caller server config");
+    let client = ClientTls::from_rustls(
+        "localhost",
+        std::sync::Arc::new(caller_client_config(CA, true)),
+    )
+    .expect("caller client config");
+    let (addr, _guard) = serve_tls(server).await;
+    echo_every_shape(&tls_client(addr, client).await, "caller-owned").await;
+}
+
+#[tokio::test]
+async fn caller_configs_propagate_wrong_trust_and_name_failures() {
+    let (addr, _guard) = serve_tls(ServerTls::new(server_identity()).expect("server")).await;
+    for (name, ca) in [("localhost", OTHER_CA), ("elsewhere.example", CA)] {
+        let client =
+            ClientTls::from_rustls(name, std::sync::Arc::new(caller_client_config(ca, false)))
+                .expect("caller client config");
+        let err = Channel::connect_tls(addr, client)
+            .await
+            .expect_err("peer authentication failed");
+        assert_eq!(err.code(), Code::Unauthenticated);
+    }
+}
+
+#[tokio::test]
+async fn caller_configs_reject_missing_required_client_identity() {
+    let server = ServerTls::from_rustls(std::sync::Arc::new(caller_server_config()))
+        .expect("caller server config");
+    let (addr, _guard) = serve_tls(server).await;
+    let client = ClientTls::from_rustls(
+        "localhost",
+        std::sync::Arc::new(caller_client_config(CA, false)),
+    )
+    .expect("anonymous caller client config");
+    let err = Channel::connect_tls(addr, client)
+        .await
+        .expect_err("client authentication required");
+    assert_eq!(err.code(), Code::Unauthenticated);
+}
+
 async fn bind() -> (SocketAddr, TcpListener) {
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await

@@ -19,7 +19,7 @@ The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
 
 ## What it provides
 
-- **Pure Rust**: no C or C++ compiler is required in the build tree.
+- **Pure Rust**: the default shipping graph requires no C or C++ compiler. Applications that select another TLS provider own its build prerequisites.
 - **Mostly safe Rust kernel**: gRPC framing, dispatch, transport, TLS, codec, resolver, load-balancer, authz, binlog, and service-config modules forbid unsafe. Two Linux-only OS helpers use scoped `SAFETY`-documented unsafe for `TCP_USER_TIMEOUT` and per-core CPU pinning.
 - **Independent transport**: runs directly on prior-knowledge HTTP/2 (`h2`), `rustls`, and Graviola.
 - **Native pbrs messages**: generated stubs use the `pbrs` `Parse` and `Serialize` traits.
@@ -176,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](../docs/guides/rpc-shapes.md). |
 | gRPC-Web | Optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web, including `grpc-web-text` and explicit CORS preflight policy. |
 | Message codec | The `CodecMessage` trait abstracts native messages. pbrs messages use the default fast path: direct encode into frames, `Bytes` parsing, and shared large `bytes` segments. |
-| TLS and mTLS | `rustls` + Graviola with enforced ALPN `h2`; verified client identities are available through `Rpc::peer_identity`. See the [production service guide](../docs/guides/production-service.md). |
+| TLS and mTLS | Built-in constructors use `rustls` + Graviola and WebPKI verification. Caller-owned rustls configs/providers/resolvers are supported through `ServerTls::from_rustls` / `ClientTls::from_rustls`, with enforced ALPN `h2`; callers own custom verifier security and rotation/session policy. See the [caller-config contract](../docs/decisions/caller-rustls-config.md) and [production service guide](../docs/guides/production-service.md). |
 | Routing | `Router` composes multiple services on one TCP/TLS port. With the optional `tower` feature it can also be mounted as a tower service next to REST routes. |
 | Local IPC | Unix Domain Sockets (`serve_unix`, `connect_unix`) and in-memory duplex channels (`Channel::from_io`). |
 | HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, and oversize frames. |

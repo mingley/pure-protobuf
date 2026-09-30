@@ -6428,12 +6428,12 @@ fn client_tls_webpki_documents_tls_config_with_verifier() {
     let src = include_str!("../src/tls.rs");
     assert!(
         src.contains(
-            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from\n    /// `ClientTls::native_roots` (operating-system roots, when the\n    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).\n    /// Distinct from a skip-verify constructor (there is none)."
+            "tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom\n    /// rustls `ServerCertVerifier`. This constructor always verifies against\n    /// Mozilla's CA set. [`Self::from_rustls`] retains a trusted application's\n    /// configuration and verification policy; it cannot certify a custom\n    /// verifier's security. `ClientTls::native_roots` uses operating-system\n    /// roots with the `native-roots` feature, and [`Self::ca`] pins a CA.\n    /// Disabling verification is unsupported."
         ),
         "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
     );
     assert_eq!(
-        src.matches("There is no tonic `Endpoint::tls_config_with_verifier`")
+        src.matches("tonic `Endpoint::tls_config_with_verifier` replaces WebPKI")
             .count(),
         1,
         "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
@@ -7043,12 +7043,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         tls.contains(
-            "There is no tonic `Endpoint::tls_config_with_verifier`: that replaces\n    /// WebPKI with a custom rustls `ServerCertVerifier`. This constructor\n    /// always verifies against Mozilla's CA set. Distinct from\n    /// `ClientTls::native_roots` (operating-system roots, when the\n    /// `native-roots` feature is enabled) and [`Self::ca`] (pin a CA, still verifies).\n    /// Distinct from a skip-verify constructor (there is none)."
+            "tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom\n    /// rustls `ServerCertVerifier`. This constructor always verifies against\n    /// Mozilla's CA set. [`Self::from_rustls`] retains a trusted application's\n    /// configuration and verification policy; it cannot certify a custom\n    /// verifier's security. `ClientTls::native_roots` uses operating-system\n    /// roots with the `native-roots` feature, and [`Self::ca`] pins a CA.\n    /// Disabling verification is unsupported."
         ),
         "ClientTls::webpki rustdoc must Distinct WebPKI verify from tonic tls_config_with_verifier"
     );
     assert_eq!(
-        tls.matches("There is no tonic `Endpoint::tls_config_with_verifier`")
+        tls.matches("tonic `Endpoint::tls_config_with_verifier` replaces WebPKI")
             .count(),
         1,
         "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
@@ -8531,7 +8531,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
     );
     assert!(
-        crate_src.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
+        crate_src.contains("tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom rustls `ServerCertVerifier`. [`ClientTls::webpki`] always verifies against Mozilla's CA set, and [`ClientTls::ca`] pins a CA. [`ClientTls::from_rustls`] retains a trusted application configuration and its verifier; callers own that policy's security, which this wrapper cannot certify. Disabling verification is unsupported."),
         "crate-map must Distinct ClientTls::webpki WebPKI verify from tonic tls_config_with_verifier"
     );
     assert!(

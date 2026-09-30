@@ -6,14 +6,16 @@
 //! transport, TLS, and codec modules forbid `unsafe`; two Linux-only OS helper
 //! paths use scoped, documented `unsafe` for syscalls.
 //!
-//! No C or C++ is compiled into the build. Nothing in the dependency graph
+//! No C or C++ is compiled into the shipping build. Nothing in its dependency graph
 //! pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`, `ring`, or a vendored
 //! zlib. gzip goes through `miniz_oxide`. TLS goes through rustls with the
 //! [Graviola](https://crates.io/crates/graviola) provider, which builds with
 //! `rustc` only. The FFI crates present are `libc` and `socket2` (a safe
 //! wrapper around socket syscalls). Tokio already used both; this crate takes
 //! a direct `socket2` dependency so TCP keepalive can be set. Neither compiles
-//! C.
+//! C. Applications may supply their own rustls configurations and crypto
+//! providers through [`ServerTls::from_rustls`] / [`ClientTls::from_rustls`];
+//! those providers belong to the application graph and may require C.
 //!
 //! # Quickstart
 //!
@@ -728,7 +730,7 @@
 //! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |
 //! | Truncated or malformed frames | Rejected as a protocol error, never treated as an empty message | always on |
 //! | Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata | always on |
-//! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required, certificate verification is not optional | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
+//! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required; built-in constructors configure certificate verification, caller configs retain their trusted application policy | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
 //! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`]; verified client chain on [`Rpc::peer_identity`] | opt-in |
 //! | Unauthenticated Unix peer | Connecting process uid/gid/pid on [`Rpc::peer_cred`] from `SO_PEERCRED` / `LOCAL_PEERCRED` | Unix accept loop |
 //! | Long-lived connection hold | GOAWAY (server) or close (client) after age or idle; keepalive PINGs do not reset idle and do not postpone age | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] / [`ChannelConfig::max_connection_age`] / [`ChannelConfig::max_connection_idle`] |
@@ -753,9 +755,11 @@
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not
 //! behind a sidecar should call [`Server::serve_tls`] / [`Channel::connect_tls`].
-//! There is no constructor that skips certificate verification.
+//! Built-in TLS constructors configure peer verification. Caller-owned rustls
+//! configs are trusted application inputs: custom verifier security and ticket
+//! invalidation belong to the caller. Disabling peer verification is unsupported.
 //!
-//! There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none).
+//! tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom rustls `ServerCertVerifier`. [`ClientTls::webpki`] always verifies against Mozilla's CA set, and [`ClientTls::ca`] pins a CA. [`ClientTls::from_rustls`] retains a trusted application configuration and its verifier; callers own that policy's security, which this wrapper cannot certify. Disabling verification is unsupported.
 //!
 //! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count is [`ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`).
 //!
