@@ -38208,46 +38208,74 @@ impl Greeter for EncodingRecorder {
 
 #[tokio::test]
 async fn deflate_codec_round_trips_both_directions_every_shape() {
+    assert_codec_round_trips_both_directions_every_shape(
+        ServerConfig::new()
+            .send_compressed(true)
+            .compression_codec(Codec::Deflate),
+        ChannelConfig::new()
+            .send_compressed(true)
+            .compression_codec(Codec::Deflate),
+        "deflate",
+    )
+    .await;
+}
+
+#[cfg(feature = "zstd")]
+#[tokio::test]
+async fn zstd_algorithm_round_trips_both_directions_every_shape() {
+    use pbrs_grpc::CompressionAlgorithm;
+
+    assert_codec_round_trips_both_directions_every_shape(
+        ServerConfig::new()
+            .send_compressed(true)
+            .compression_algorithm(CompressionAlgorithm::Zstd),
+        ChannelConfig::new()
+            .send_compressed(true)
+            .compression_algorithm(CompressionAlgorithm::Zstd),
+        "zstd",
+    )
+    .await;
+}
+
+async fn assert_codec_round_trips_both_directions_every_shape(
+    server_config: ServerConfig,
+    channel_config: ChannelConfig,
+    encoding: &'static str,
+) {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let recorder = EncodingRecorder { seen: seen.clone() };
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         Server::new(GreeterServer::new(recorder))
-            .config(
-                ServerConfig::new()
-                    .send_compressed(true)
-                    .compression_codec(Codec::Deflate),
-            )
+            .config(server_config)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(
-        channel_cfg(
-            addr,
-            ChannelConfig::new()
-                .send_compressed(true)
-                .compression_codec(Codec::Deflate),
-        )
-        .await,
-    );
+    let client = GreeterClient::new(channel_cfg(addr, channel_config).await);
 
     let reply = client
         .say_hello(Request::new(req("ada")))
         .await
         .expect("unary");
-    assert!(reply.compressed(), "deflate unary reply must set the flag");
-    assert_eq!(reply.encoding(), Some("deflate"));
+    assert!(
+        reply.compressed(),
+        "compressed unary reply must set the flag"
+    );
+    assert_eq!(reply.encoding(), Some(encoding));
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
         .server_hello(Request::new(req("ada")))
         .await
         .expect("server-stream");
-    assert_eq!(reply.encoding(), Some("deflate"));
+    assert_eq!(reply.encoding(), Some(encoding));
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
-    assert!(framed.compressed, "deflate stream frames must set the flag");
+    assert!(
+        framed.compressed,
+        "compressed stream frames must set the flag"
+    );
     assert_eq!(name_of(&framed.message), "ada");
 
     let (tx, call) = client.client_hello(Request::new(()));
@@ -38255,14 +38283,14 @@ async fn deflate_codec_round_trips_both_directions_every_shape() {
     tx.close();
     let reply = call.await.expect("client-stream");
     assert!(reply.compressed());
-    assert_eq!(reply.encoding(), Some("deflate"));
+    assert_eq!(reply.encoding(), Some(encoding));
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.close();
     let reply = call.await.expect("bidi");
-    assert_eq!(reply.encoding(), Some("deflate"));
+    assert_eq!(reply.encoding(), Some(encoding));
     let mut inbound = reply.into_inner();
     let framed = inbound
         .next_framed()
@@ -38272,13 +38300,13 @@ async fn deflate_codec_round_trips_both_directions_every_shape() {
     assert!(framed.compressed);
     assert_eq!(name_of(&framed.message), "ada");
 
-    // The client half: every request arrived deflate-coded. The unary
+    // The client half: every request arrived with the configured coding. The unary
     // shapes also expose the first frame's Compressed-Flag; streaming
     // requests always report `false` there (each flag rides its `Framed`).
     let seen = seen.lock().expect("seen");
     assert_eq!(seen.len(), 4, "one recording per shape");
-    for (encoding, _) in seen.iter() {
-        assert_eq!(*encoding, Some("deflate".to_string()));
+    for (observed, _) in seen.iter() {
+        assert_eq!(*observed, Some(encoding.to_string()));
     }
     assert!(seen[0].1, "unary request must be flagged");
     assert!(seen[1].1, "server-streaming request must be flagged");

@@ -10574,7 +10574,8 @@
     "tests/codegen_compat.rs",
     "docs/support-policy.md",
     "docs/plan/world-class/tasks.json",
-    ".github/workflows/ci.yml"
+    ".github/workflows/ci.yml",
+    "docs/evidence/alpha-api-compatibility.json"
    ],
    "deliverable": "Keep the published exhaustive Stubs enum and discriminants unchanged while retaining tonic_compat generation through its existing builder, plugin and environment selectors. Correct the stable Tower API inventory.",
    "accept": [
@@ -10592,7 +10593,7 @@
     "TC-21",
     "TC-27"
    ],
-   "notes": "The new semver gate in run 36744677768 caught Stubs::Kernel changing from 2 to 3 and a fourth variant on the exhaustive published enum. Restore the published API by keeping the richer generator selection private, without changing versions or weakening checks. Local tool output also showed that unchanged alpha versions infer a major release and skip all 254 lints; use explicit --release-type minor to enforce the already documented stable integration contract. Explicit alpha checks expose two additional native compatibility failures: RetryThrottler was made private and optional Codec::Zstd extends an exhaustive published enum. Split those repairs as AD-03b/AD-03c; the full compatibility gate remains open. The public selector regression failed before the private StubStyle split and passes afterward. The external tonic_compat consumer runs all four shapes. Local workspace validation passes 3224 tests across 119 suites (five existing ignores), strict workspace Clippy, format and 24 documentation contracts. Explicit minor-policy checks pass all 196 applicable lints for pbrs and protobuf-tonic. Native compatibility follow-ups remain required before closure; no version bump or suppressed lint.",
+   "notes": "The new semver gate in run 36744677768 caught Stubs::Kernel changing from 2 to 3 and a fourth variant on the exhaustive published enum. Restore the published API by keeping the richer generator selection private, without changing versions or weakening checks. Local tool output also showed that unchanged alpha versions infer a major release and skip all 254 lints; use explicit --release-type minor to enforce the already documented stable integration contract. Explicit alpha checks expose two additional native compatibility failures: RetryThrottler was made private and optional Codec::Zstd extends an exhaustive published enum. Split those repairs as AD-03b/AD-03c; the full compatibility gate remains open. The public selector regression failed before the private StubStyle split and passes afterward. The external tonic_compat consumer runs all four shapes. Local workspace validation passes 3224 tests across 119 suites (five existing ignores), strict workspace Clippy, format and 24 documentation contracts. Explicit minor-policy checks pass all 196 applicable lints for pbrs and protobuf-tonic. Native compatibility follow-ups remain required before closure; no version bump or suppressed lint. All three shipping crates now pass 196 applicable strict minor-policy semver lints with all features; the native default profile also passes. Await the current-source workspace check before closing this parent card.",
    "evidence": [
     "tests/codegen_compat.rs#published_stub_selector_remains_exhaustive_with_original_discriminants",
     "tests/pbrs_build.rs#tonic_compat_consumer_runs_all_four_shapes",
@@ -10650,7 +10651,7 @@
    "priority": "P0",
    "executor": "coordinator",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "depends_on": [
     "AD-03"
    ],
@@ -10675,7 +10676,8 @@
     "tests/interop/tonic/src/main.rs",
     "examples/tonic-ports/src/lib.rs",
     "docs/decisions/",
-    "docs/grpc.md"
+    "docs/grpc.md",
+    "docs/evidence/alpha-api-compatibility.json"
    ],
    "deliverable": "Choose and implement an additive compression selection surface that retains published exhaustive Codec matches and keeps opt-in Zstd functional. Preserve truthful effective-codec reporting and all legacy configuration methods.",
    "accept": [
@@ -10693,12 +10695,56 @@
     "AD-03a",
     "RX-06"
    ],
-   "notes": "Claimed from 04a44c0484ca002f0f1fc8dde2d7a5729a16046c. The former alpha-version inference skipped all lints. Enforcing the existing stable compatibility policy catches Codec::Zstd as a new variant on an exhaustive enum. Keep the failure visible until the additive API is implemented; do not suppress the lint or drop Zstd support. Bounded compatibility proposal: keep published Codec exhaustive with Gzip/Deflate, add a non-exhaustive CompressionAlgorithm registry, preserve compression_codec/send_codec signatures and their legacy selection, and expose compression_algorithm/send_algorithm for the actual configured wire preference. Transport dispatch and existing zstd peers move to the richer registry; no dependency, default, or wire negotiation changes. Expanded write scope explicitly includes private dispatch sites and existing peer/hostile tests. The downstream exhaustive-match regression failed before the repair and passes with zstd enabled afterward. All 443 all-feature unit tests, four compression API/unary tests, the existing config documentation contract, 24 repository documentation contracts, strict workspace all-target/all-feature Clippy, and all 196 applicable native minor-policy semver checks pass. Four-shape native and mixed-peer qualification remains open for the next bounded validation commit.",
+   "notes": "Claimed from 04a44c0484ca002f0f1fc8dde2d7a5729a16046c. The former alpha-version inference skipped all lints. Enforcing the existing stable compatibility policy catches Codec::Zstd as a new variant on an exhaustive enum. Keep the failure visible until the additive API is implemented; do not suppress the lint or drop Zstd support. Bounded compatibility proposal: keep published Codec exhaustive with Gzip/Deflate, add a non-exhaustive CompressionAlgorithm registry, preserve compression_codec/send_codec signatures and their legacy selection, and expose compression_algorithm/send_algorithm for the actual configured wire preference. Transport dispatch and existing zstd peers move to the richer registry; no dependency, default, or wire negotiation changes. Expanded write scope explicitly includes private dispatch sites and existing peer/hostile tests. The downstream exhaustive-match regression failed before the repair and passes with zstd enabled afterward. All 443 all-feature unit tests, four compression API/unary tests, the existing config documentation contract, 24 repository documentation contracts, strict workspace all-target/all-feature Clippy, and all 196 applicable native minor-policy semver checks pass. Four-shape native and mixed-peer qualification remains open for the next bounded validation commit. Final focused qualification: both deflate and Zstd round-trip every RPC shape in both directions; the standalone peer decodes Zstd with C zstd in both directions and proves a gzip-only tonic client receives a gzip fallback. The zstd-enabled native RPC/gaps/hostile/message-size/lifecycle/compression suites pass, as do all 22 TLS tests serially and strict all-target/all-feature workspace Clippy. Native semver passes all 196 applicable lints in both default and all-feature profiles. The unrelated all-feature hostile content-type expectation is explicitly split to QG-10; it rejected an enabled gRPC-Web content type and is not hidden as a passing run.",
    "evidence": [
     "pbrs-grpc/tests/compression.rs#published_codec_remains_exhaustive_with_original_discriminants",
     "pbrs-grpc/tests/compression.rs#extended_compression_selection_reports_and_restores_legacy_settings",
-    "docs/decisions/compression.md#preserve-the-published-compression-selector-ad-03c"
+    "docs/decisions/compression.md#preserve-the-published-compression-selector-ad-03c",
+    "pbrs-grpc/tests/serving.rs#zstd_algorithm_round_trips_both_directions_every_shape",
+    "tests/interop/tonic/src/main.rs#zstd_server_falls_back_for_gzip_only_tonic_peer",
+    "docs/evidence/alpha-api-compatibility.json"
    ]
+  },
+  {
+   "id": "QG-10",
+   "title": "Keep hostile content-type checks valid across optional profiles",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "TC-20"
+   ],
+   "read": [
+    "pbrs-grpc/tests/hostile.rs",
+    "pbrs-grpc/src/web/frame.rs",
+    "pbrs-grpc/src/server/rpc.rs"
+   ],
+   "write": [
+    "pbrs-grpc/tests/hostile.rs",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Keep invalid media types rejected with HTTP 415 in all feature profiles while testing gRPC-Web opt-in behavior without expecting enabled valid types to be rejected.",
+   "accept": [
+    "Hostile and message-size suites pass with default features, zstd, and all features.",
+    "Invalid gRPC-Web JSON variants are rejected in every profile; supported gRPC-Web types remain rejected when the feature is off.",
+    "Existing tonic-web mixed-peer acceptance still passes; no shipping behavior or dependency changes."
+   ],
+   "checks": [
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F3"
+   ],
+   "relates": [
+    "AD-03c",
+    "TC-20"
+   ],
+   "notes": "Claimed from b11c6f578d4495b481d09a806fd1eead26f01b9f after an all-feature qualification exposed an existing expectation: a_non_grpc_content_type_is_http_415 includes application/grpc-web and application/grpc-web+proto unconditionally even though the optional feature enables them. The zstd-only hostile suite passes. Preserve rejection coverage by checking unsupported web JSON variants in all profiles and all four supported web types when the feature is off. Test-only correction; no transport policy changes."
   }
  ],
  "last_audit": {

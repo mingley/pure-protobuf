@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "shipping_source_revision": "b11c6f578d4495b481d09a806fd1eead26f01b9f",
+  "qualification_test_blobs": {
+    "pbrs-grpc/tests/serving.rs": "9328a10a913b0852f1cbbdaaf38014958c46921e",
+    "tests/interop/tonic/src/main.rs": "f260f6e0507b045c8eccf8a49e19434a0361e7e4"
+  },
+  "tool": "cargo-semver-checks 0.50.0",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "platform": "aarch64-apple-darwin",
+  "semver_reports": [
+    {
+      "package": "pbrs",
+      "baseline_version": "0.2.0",
+      "features": "all",
+      "command": "cargo semver-checks check-release --all-features --release-type minor --package pbrs --baseline-version 0.2.0",
+      "applicable_checks": 196,
+      "passed": 196,
+      "skipped": 58,
+      "stdout": "    Building pbrs v0.2.0 (current)\n       Built [   5.401s] (current)\n     Parsing pbrs v0.2.0 (current)\n      Parsed [   0.067s] (current)\n    Building pbrs v0.2.0 (baseline)\n       Built [   4.670s] (baseline)\n     Parsing pbrs v0.2.0 (baseline)\n      Parsed [   0.070s] (baseline)\n    Checking pbrs v0.2.0 -> v0.2.0 (assume minor change)\n     Checked [   0.117s] 196 checks: 196 pass, 58 skip\n     Summary no semver update required\n    Finished [  16.016s] pbrs\n"
+    },
+    {
+      "package": "pbrs-grpc",
+      "baseline_version": "0.1.0-alpha.2",
+      "features": "all",
+      "command": "cargo semver-checks check-release --all-features --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2",
+      "applicable_checks": 196,
+      "passed": 196,
+      "skipped": 58,
+      "stdout": "    Building pbrs-grpc v0.1.0-alpha.2 (current)\n       Built [  14.658s] (current)\n     Parsing pbrs-grpc v0.1.0-alpha.2 (current)\n      Parsed [   0.073s] (current)\n    Building pbrs-grpc v0.1.0-alpha.2 (baseline)\n       Built [  10.184s] (baseline)\n     Parsing pbrs-grpc v0.1.0-alpha.2 (baseline)\n      Parsed [   0.061s] (baseline)\n    Checking pbrs-grpc v0.1.0-alpha.2 -> v0.1.0-alpha.2 (assume minor change)\n     Checked [   0.132s] 196 checks: 196 pass, 58 skip\n     Summary no semver update required\n    Finished [  31.003s] pbrs-grpc\n"
+    },
+    {
+      "package": "protobuf-tonic",
+      "baseline_version": "0.1.0-alpha.2",
+      "features": "all",
+      "command": "cargo semver-checks check-release --all-features --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.2",
+      "applicable_checks": 196,
+      "passed": 196,
+      "skipped": 58,
+      "stdout": "    Building protobuf-tonic v0.1.0-alpha.2 (current)\n       Built [  11.663s] (current)\n     Parsing protobuf-tonic v0.1.0-alpha.2 (current)\n      Parsed [   0.003s] (current)\n    Building protobuf-tonic v0.1.0-alpha.2 (baseline)\n       Built [   8.315s] (baseline)\n     Parsing protobuf-tonic v0.1.0-alpha.2 (baseline)\n      Parsed [   0.003s] (baseline)\n    Checking protobuf-tonic v0.1.0-alpha.2 -> v0.1.0-alpha.2 (assume minor change)\n     Checked [   0.007s] 196 checks: 196 pass, 58 skip\n     Summary no semver update required\n    Finished [  25.897s] protobuf-tonic\n"
+    },
+    {
+      "package": "pbrs-grpc",
+      "baseline_version": "0.1.0-alpha.2",
+      "features": "default",
+      "command": "cargo semver-checks check-release --default-features --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2",
+      "applicable_checks": 196,
+      "passed": 196,
+      "skipped": 58,
+      "stdout": "    Building pbrs-grpc v0.1.0-alpha.2 (current)\n       Built [  11.376s] (current)\n     Parsing pbrs-grpc v0.1.0-alpha.2 (current)\n      Parsed [   0.068s] (current)\n    Building pbrs-grpc v0.1.0-alpha.2 (baseline)\n       Built [   9.390s] (baseline)\n     Parsing pbrs-grpc v0.1.0-alpha.2 (baseline)\n      Parsed [   0.060s] (baseline)\n    Checking pbrs-grpc v0.1.0-alpha.2 -> v0.1.0-alpha.2 (assume minor change)\n     Checked [   0.136s] 196 checks: 196 pass, 58 skip\n     Summary no semver update required\n    Finished [  24.890s] pbrs-grpc\n"
+    }
+  ],
+  "local_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --test serving round_trips_both_directions_every_shape",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 11s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1097 filtered out; finished in 0.04s"
+      ]
+    },
+    {
+      "command": "cargo test --manifest-path tests/interop/tonic/Cargo.toml --locked zstd",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.32s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --features zstd --test rpc --test gaps --test hostile --test message_size --test lifecycle --test compression",
+      "status": "passed",
+      "passed": 83,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.58s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s",
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.44s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --test tls -- --test-threads=1",
+      "status": "passed",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.75s",
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 28.93s"
+      ]
+    }
+  ],
+  "limits": [
+    "196 lints apply to minor policy; 58 registered lints are skipped by that policy.",
+    "These checks preserve published APIs, not release or production qualification.",
+    "Zstd C-peer proof tests frame compatibility; gzip-only tonic fallback is a real unary RPC. There is no official Zstd interop case.",
+    "The all-feature hostile suite exposed an existing web-content-type expectation failure, tracked by QG-10. The recorded zstd-only hostile suite passes.",
+    "Current-source full workspace validation and complete CI are still pending."
+  ]
+}

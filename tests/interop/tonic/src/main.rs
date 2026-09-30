@@ -1218,12 +1218,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::{Grpc, HttpRequest, HttpResponse, Pin, ProtobufCodec};
     use pbrs_grpc::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
-    use pbrs_grpc::{Request as PbrsRequest, Response as PbrsResponse, Status as PbrsStatus};
     use pbrs_grpc::{CompressionAlgorithm, MessageLimits};
+    use pbrs_grpc::{Request as PbrsRequest, Response as PbrsResponse, Status as PbrsStatus};
     use std::future::Future;
     use std::task::{Context, Poll};
-    use tonic::body::Body;
     use tonic::Request;
+    use tonic::body::Body;
     use tonic::transport::Channel;
     use tonic_web::GrpcWebCall;
     use tonic_web::GrpcWebClientService;
@@ -1232,7 +1232,9 @@ mod tests {
     #[test]
     fn zstd_codec_interops_with_c_zstd_peer() {
         let payload = b"tonic zstd interop payload".repeat(256);
-        let ours = CompressionAlgorithm::Zstd.encode(&payload).expect("pbrs zstd encode");
+        let ours = CompressionAlgorithm::Zstd
+            .encode(&payload)
+            .expect("pbrs zstd encode");
         let decoded_by_c = zstd::stream::decode_all(ours.as_slice()).expect("C zstd decode");
         assert_eq!(decoded_by_c, payload);
 
@@ -1254,6 +1256,60 @@ mod tests {
             reply.set_message(request.get_ref().name().to_string());
             Ok(PbrsResponse::new(reply))
         }
+    }
+
+    struct ServerGuard(tokio::task::JoinHandle<()>);
+
+    impl Drop for ServerGuard {
+        fn drop(&mut self) {
+            self.0.abort();
+        }
+    }
+
+    #[tokio::test]
+    async fn zstd_server_falls_back_for_gzip_only_tonic_peer() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let server = tokio::spawn(async move {
+            GreeterServer::new(EchoGreeter)
+                .config(
+                    pbrs_grpc::ServerConfig::new()
+                        .send_compressed(true)
+                        .compression_algorithm(CompressionAlgorithm::Zstd),
+                )
+                .serve_listener(listener)
+                .await
+                .expect("serve");
+        });
+        let _guard = ServerGuard(server);
+        let channel = Channel::from_shared(format!("http://{addr}"))
+            .expect("uri")
+            .connect()
+            .await
+            .expect("connect");
+        let mut grpc =
+            Grpc::new(channel).accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+        grpc.ready().await.expect("ready");
+        let mut request = HelloRequest::new();
+        request.set_name("gzip-only peer");
+        let response = grpc
+            .unary(
+                Request::new(request),
+                "/helloworld.Greeter/SayHello".parse().expect("path"),
+                ProtobufCodec::<HelloRequest, HelloReply>::default(),
+            )
+            .await
+            .expect("gzip fallback unary");
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("gzip")
+        );
+        assert_eq!(response.into_inner().message(), "gzip-only peer");
     }
 
     #[derive(Clone)]
