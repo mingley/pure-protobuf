@@ -183,15 +183,32 @@ Policy retry replays the already-encoded request frame; it never
 re-serializes the message:
 
 - Unary and server-streaming calls encode once (`encode_msg` under the
-  method's `wire_for` caps) and hold one `Bytes` frame across attempts.
+  method's `wire_for` caps). Eligible requests retain one segmented frame
+  across attempts.
 - Each attempt acquires a byte-budget permit for the frame length before
   sending; permits release on every exit path (success, failure,
   cancellation, encode error, peer reset). Oversized frames fail locally
   with `RESOURCE_EXHAUSTED` before any send and are not retryable outcomes.
-- The replay buffer is bounded by the outbound encoding cap (default 4 MiB),
-  already accounted in the per-RPC term of
-  [resource-budgets.md](resource-budgets.md) §3.2. Backoff sleeps hold the
-  frame but no connection slot, stream, or byte permit.
+- A configured retry policy uses the selected finite method/channel outbound
+  encoding cap as its per-call replay budget, or **4 MiB** when outbound
+  encoding is unlimited. The published `MessageLimits` default remains
+  **4 MiB inbound, unlimited outbound**. Replay accounting measures the
+  actual encoded payload, including compressed bytes; the fixed five-byte
+  gRPC header is additional. The encoding cap separately checks the original
+  uncompressed payload before sending.
+- A frame exceeding the replay budget still gets its first send, subject to
+  the existing encoding and byte-admission checks. The call becomes committed:
+  ownership transfers to that attempt without a retained replay clone, and
+  no policy or transparent replacement follows its failure. Upload and binary
+  logging release their frame owners before waiting for the response. Gzip
+  expansion can exhaust replay storage without rejecting a valid first send.
+- Bounded policy backoff holds the frame and RPC admission but no connection
+  slot, stream, or byte permit. This is logical payload accounting, not an
+  allocator/RSS cap: shared slices can retain larger backing allocations,
+  and segment metadata and logging sinks have separate costs. See
+  [resource-budgets.md](resource-budgets.md) §3.2. Calls without a retry policy
+  and hedging retain their existing replay behavior; this policy bound does
+  not establish a default memory bound for those calls.
 
 ## 7. Commitment: what may and may not retry
 

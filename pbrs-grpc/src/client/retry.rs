@@ -181,6 +181,53 @@ impl<'a> PolicyRetryDispatch<'a> {
     }
 }
 
+/// Policy replay's existing service-config §6.3 fallback. This does not
+/// change the unlimited outbound message-size default.
+const POLICY_REPLAY_BYTES: usize = 4 * 1024 * 1024;
+
+/// One encoded request, retained only while replay is authorized. Oversized
+/// policy requests move into their first attempt and commit against any
+/// replacement; the transport can then release storage during response wait.
+pub(crate) struct RequestReplay {
+    frame: crate::wire::SegFrame,
+    allowed: bool,
+}
+
+impl RequestReplay {
+    pub(crate) fn new(
+        frame: crate::wire::SegFrame,
+        policy: bool,
+        limits: crate::limits::MessageLimits,
+    ) -> Self {
+        let payload = frame.total_len().saturating_sub(crate::codec::HEADER_LEN);
+        let budget = limits.max_encoding().unwrap_or(POLICY_REPLAY_BYTES);
+        Self {
+            frame,
+            allowed: !policy || payload <= budget,
+        }
+    }
+
+    pub(crate) fn allowed(&self) -> bool {
+        self.allowed
+    }
+
+    pub(crate) fn total_len(&self) -> usize {
+        self.frame.total_len()
+    }
+
+    /// Called once for a committed request, or once per eligible attempt.
+    pub(crate) fn next_attempt(&mut self) -> crate::wire::SegFrame {
+        if self.allowed {
+            self.frame.clone()
+        } else {
+            std::mem::replace(
+                &mut self.frame,
+                crate::wire::SegFrame::single(bytes::Bytes::new()),
+            )
+        }
+    }
+}
+
 /// A6 policy-retry decision: whether and how long to wait for the next attempt.
 ///
 /// Distinct from a bare delay: the variants tell the caller which

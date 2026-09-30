@@ -74,7 +74,8 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Up to 4 MiB (chunk-straddling) | `MessageLimits::max_decoding` (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`) | Freed on frame yield |
 | **Decompression Expansion Buffer** | Transport (`gzip::decode_limited`) | Up to 4 MiB + 1 byte | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Freed after protobuf decode |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
-| **Transparent Retry Replay Buffer** | Transport / Client (`Call` future) | 1 request frame (`Bytes`) | `encode_msg(&msg)` in `pbrs-grpc/src/client.rs` | Dropped on attempt commit or final status |
+| **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
+| **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
 | **Deserialized Message Struct** | Application (`T: Parse + Default`) | Domain dependent | Rust allocator / struct lifetime | Dropped by application handler |
 | **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original chunk size | Application holding sub-slice of transport `Bytes` | Dropped when last `Bytes` clone drops |
@@ -200,7 +201,12 @@ For each simultaneously active RPC, allow for the following lifetimes:
 - Outbound encoding can keep a whole message frame alive while flow control
   permits only smaller chunks to be queued.
 - Unary and server-streaming retries can retain the encoded request across
-  attempts. Retry and hedging limits determine how many attempt states coexist.
+  attempts. Configured retry policies use the finite payload retention budget
+  in [service-config §6.3](service-config.md#63-replay-byte-budget-rt-06).
+  Over-budget requests keep their valid first send but commit against replay;
+  their upload/logging frame owners release before waiting for a response.
+  Unconfigured transparent retry and hedging have no added default retention
+  cap. Retry and hedging limits determine how many attempt states coexist.
 - A queue bounded to 16 items is not bounded to 16 bytes: count the retained
   size of every item, including any shared backing allocation.
 - Handler futures and decoded messages belong to the application budget even
@@ -210,7 +216,9 @@ The default inbound decoding cap is 4 MiB. Outbound encoding has no finite
 default cap; set `MessageLimits::with_max_encoding` when a deployment needs one.
 An encoded protobuf message also includes field tags and lengths, and the gRPC
 frame adds five bytes. Budget for the actual encoded size, not only the largest
-`bytes` field.
+`bytes` field. A policy replay budget measures the transmitted payload (compressed
+when applicable); it does not bound allocator capacity, the full backing
+allocation of a shared slice, or memory owned by a binary logging sink.
 
 ### Adaptive receive windows
 

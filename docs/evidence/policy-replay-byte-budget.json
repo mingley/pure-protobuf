@@ -1,0 +1,906 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "card": "QG-17",
+  "base_revision": "711074afdbc388b89f04d2016313afb0114693e1",
+  "source_blobs": {
+    "pbrs-grpc/src/client/retry.rs": "5045308d11be57eb6377fec09267d3709ec944ed",
+    "pbrs-grpc/src/client/unary.rs": "ccc95f192304e75af51e5d17f3e59d315383cf7e",
+    "pbrs-grpc/src/client/streaming.rs": "2444eca29ac5d4ce534f1cf861e3626533e2d8e6",
+    "pbrs-grpc/tests/policy_retry.rs": "8b785622c8b44e47fc37f1d6b07bf4754572c563",
+    "pbrs-grpc/src/wire/encode.rs": "62e6a2f57e887a9411b499017152f1406bff36ea",
+    "pbrs-grpc/src/limits.rs": "0ea10745100424677b2160e0a956d9452c130b9d",
+    "pbrs-grpc/src/client/config_glue.rs": "921414832f7bae7fe382038be1f90d53ba594e0f",
+    "Cargo.lock": "9aec1fb84d7af058f9742951347de653a64e63c3"
+  },
+  "environment": {
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "target_dir": "/tmp/pbrs-ad03c-target",
+    "go": "go1.25.3",
+    "protoc": "Homebrew protoc on /opt/homebrew/bin:$PATH"
+  },
+  "frozen_contract": {
+    "record": "QG-17 notes frozen before implementation at base_revision",
+    "scope": "Configured unary/server-streaming retry policies only. Public outbound message-size default and unconfigured/hedging behavior remain unchanged.",
+    "precedence": "Selected finite method/channel max_encoding; otherwise the already documented 4 MiB replay fallback.",
+    "accounting": "Actual encoded, possibly compressed payload bytes. Five-byte fixed gRPC framing is additional. Encoding limits still check the original uncompressed payload before dispatch.",
+    "overflow": "First send remains subject to existing message and byte-admission checks. Move the frame to that attempt without retaining a replay clone; decline policy and transparent replacements and release logging/upload frame ownership before response wait.",
+    "allocation_limit": "Logical payload accounting does not bound shared-slice backing capacity, segment metadata, allocator overhead/RSS, or logging-sink copies.",
+    "a6_source": "https://github.com/grpc/proposal/blob/6342be729b96478a2897ceb208a8cddcd832a17b/A6-client-retries.md#memory-management-buffering",
+    "a6_source_sha256": "1e91cf4afc1e900d4cbe88f6cd0e3642db9c0b06fd1599ff360459dcc97de657"
+  },
+  "before_checks": [
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --test policy_retry policy_replay_budget",
+      "status": "failed",
+      "passed": 1,
+      "failed": 4,
+      "stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.44s\n     Running tests/policy_retry.rs (/tmp/pbrs-ad03c-target/debug/deps/policy_retry-7ccac5b9fe087cb1)\n\nrunning 5 tests\ntest policy_replay_budget_preserves_unconfigured_large_refusal ... ok\ntest policy_replay_budget_preserves_boundaries_and_compression ... FAILED\ntest policy_replay_budget_preserves_large_first_success ... FAILED\ntest policy_replay_budget_commits_large_policy_refusal ... FAILED\ntest policy_replay_budget_releases_large_shared_owner_before_response ... FAILED\n\nfailures:\n\n---- policy_replay_budget_preserves_boundaries_and_compression stdout ----\n\nthread 'policy_replay_budget_preserves_boundaries_and_compression' (6245344) panicked at pbrs-grpc/tests/policy_retry.rs:334:9:\nover-budget call must surface its first failure\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- policy_replay_budget_preserves_large_first_success stdout ----\n\nthread 'policy_replay_budget_preserves_large_first_success' (6245345) panicked at pbrs-grpc/tests/policy_retry.rs:328:20:\nrequest storage released before response: Elapsed(())\n\n---- policy_replay_budget_commits_large_policy_refusal stdout ----\n\nthread 'policy_replay_budget_commits_large_policy_refusal' (6245343) panicked at pbrs-grpc/tests/policy_retry.rs:328:20:\nrequest storage released before response: Elapsed(())\n\n---- policy_replay_budget_releases_large_shared_owner_before_response stdout ----\n\nthread 'policy_replay_budget_releases_large_shared_owner_before_response' (6245347) panicked at pbrs-grpc/tests/policy_retry.rs:328:20:\nrequest storage released before response: Elapsed(())\n\n\nfailures:\n    policy_replay_budget_commits_large_policy_refusal\n    policy_replay_budget_preserves_boundaries_and_compression\n    policy_replay_budget_preserves_large_first_success\n    policy_replay_budget_releases_large_shared_owner_before_response\n\ntest result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 30 filtered out; finished in 1.06s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --test policy_retry`\n",
+      "scope": "After correcting the fixture byte-admission configuration, before production changes. Four test functions failed: three real shared-owner lifetime checks and compressed-expansion forbidden replay. The unconfigured large REFUSED_STREAM control passed. Looping test functions stop at their first failure."
+    }
+  ],
+  "after_checks": [
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --test policy_retry policy_replay_budget",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "stdout_sha256": "4da45dc0148cd48665819c315ea91d741a3c6440a453f035d91d1759bd1aca2d",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.68s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 1.18s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --all-features --lib --test gaps --test lb_ring_hash --test policy_retry --test retry_safety --test rpc --test serving --test binlog",
+      "status": "passed",
+      "passed": 1656,
+      "failed": 0,
+      "ignored": 0,
+      "stdout_sha256": "42b554431d49b1c6e0b93ad36fd5b9234ece1914d94e64a0a19c36c90adda60f",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 22s",
+        "test result: ok. 447 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s",
+        "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s",
+        "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1099 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.48s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --test rpc --test gaps --test serving",
+      "status": "passed",
+      "passed": 1116,
+      "failed": 0,
+      "ignored": 0,
+      "stdout_sha256": "b88647304e6a3fcd415cb479fd455a10bc9e6e569fc2ca3db35bf6509fea2396",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 13s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1098 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --test policy_retry --test retry_safety",
+      "status": "passed",
+      "passed": 53,
+      "failed": 0,
+      "ignored": 0,
+      "stdout_sha256": "06cc625d9621c80adc48984bdfe07e993e1bd2dd22d4b714f8b4242294094248",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.59s",
+        "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test -p pbrs-grpc --all-features --test hostile --test message_size",
+      "status": "passed",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0,
+      "stdout_sha256": "eef6aa082946798fbb22ff33d9b24731806fc7e7b8606c1c75c0fd8848321ac9",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.49s",
+        "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "stdout_sha256": "280de9be257f2918ee61f01f04ec1fd7a89947026768cc2df7665b42b6608fb6",
+      "result_lines": [
+        "    Blocking waiting for file lock on package cache",
+        "    Blocking waiting for file lock on package cache",
+        "    Blocking waiting for file lock on package cache",
+        "    Blocking waiting for file lock on build directory",
+        "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)",
+        "   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)",
+        "   Compiling pbrs-grpc-example-tonic-ports v0.1.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930/examples/tonic-ports)",
+        "   Compiling protobuf-tonic v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/protobuf-tonic)",
+        "   Compiling pbrs-grpc-example-greeter v0.1.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930/examples/greeter)",
+        "    Checking pbrs-grpc-example-axum-cohost v0.1.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930/examples/axum-cohost)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 43s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo build -p pbrs-grpc --bin pbrs-grpc-interop-server --bin pbrs-grpc-interop-client",
+      "status": "passed",
+      "result_lines": [
+        "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)",
+        "   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)",
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.09s"
+      ]
+    }
+  ],
+  "qualification_status": "passed",
+  "qualified_cases": {
+    "shape_case_count": 18,
+    "shapes": [
+      "unary",
+      "server-streaming"
+    ],
+    "owner_probe": "Bytes::from_owner over a dedicated Vec with Drop counter and Notify. The raw HTTP/2 peer drains all DATA into its own receive-copy storage, then withholds the first response. Over-budget client shared owner must drop while the call remains pending; bounded identity requests keep it until terminal outcome.",
+    "matrix": [
+      {
+        "cases": 4,
+        "scenario": "Default unlimited encoding, 4 MiB + 1 identity bytes, retryable trailers-only UNAVAILABLE, logging disabled/enabled: one first send, owner released before response, zero retries."
+      },
+      {
+        "cases": 2,
+        "scenario": "Exactly 4 MiB identity payload: three identical wire frames, one encoding, retained owner until terminal success."
+      },
+      {
+        "cases": 2,
+        "scenario": "Explicit outbound cap 4 MiB + 1 permits retention and three attempts for that payload."
+      },
+      {
+        "cases": 2,
+        "scenario": "Compressible 4 MiB + 1 original payload, unlimited outbound: gzip frame fits the actual replay budget and retries three times without re-encoding."
+      },
+      {
+        "cases": 2,
+        "scenario": "Deterministic incompressible 4 MiB original payload, explicit 4 MiB outbound cap: gzip wire payload exceeds the cap, first send accepted and committed against replay."
+      },
+      {
+        "cases": 2,
+        "scenario": "Over-budget configured identity frame followed by REFUSED_STREAM: one attempt, no transparent replacement, shared owner released before reset."
+      },
+      {
+        "cases": 2,
+        "scenario": "Unconfigured 4 MiB + 1 identity payload followed by REFUSED_STREAM: existing transparent replacement remains, two identical frames and one encoding."
+      },
+      {
+        "cases": 2,
+        "scenario": "Over-budget configured identity first send succeeds normally and releases shared owner before the response."
+      }
+    ],
+    "common_assertions": [
+      "Actual encoded payload versus frozen budget checked at the held-response boundary.",
+      "Compression flag/header and complete wire bytes agree across attempts.",
+      "No re-encoding, no phantom/exhausted retry counters; transport byte permits return to zero.",
+      "A follow-up call succeeds with max_concurrent_rpcs=1 after every case."
+    ]
+  },
+  "interop": {
+    "command": "PATH=/opt/homebrew/bin:$PATH GRPC_INTEROP_KERNEL_SERVER=/tmp/pbrs-ad03c-target/debug/pbrs-grpc-interop-server GRPC_INTEROP_KERNEL_CLIENT=/tmp/pbrs-ad03c-target/debug/pbrs-grpc-interop-client GRPC_INTEROP_GO_SERVER=/tmp/pbrs-qg17-go-peer/go-interop-server GRPC_INTEROP_GO_CLIENT=/tmp/pbrs-qg17-go-peer/go-interop-client scripts/grpc-interop.sh --skip-build --log-dir /tmp/pbrs-qg17-go-interop",
+    "status": "passed",
+    "native_build": "Fresh default-feature debug build recorded above.",
+    "go_build": "go build -mod=readonly for google.golang.org/grpc/interop/server and interop/client in tests/interop/go; exact binary module provenance below.",
+    "go_binary_provenance": "/tmp/pbrs-qg17-go-peer/go-interop-server: go1.25.3\n\tpath\tgoogle.golang.org/grpc/interop/server\n\tmod\tgoogle.golang.org/grpc\tv1.85.0-dev.0.20260917225854-dd51b1c90aaf\th1:aNWCQW0cskyI0ydi4gmqXoohWwbFb8LTer/y6Mu2fFs=\n\tdep\tcloud.google.com/go/compute/metadata\tv0.9.0\th1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdBtwLoEkH9Zs=\n\tdep\tgithub.com/cncf/xds/go\tv0.0.0-20260202195803-dba9d589def2\th1:aBangftG7EVZoUb69Os8IaYg++6uMOdKK83QtkkvJik=\n\tdep\tgithub.com/envoyproxy/protoc-gen-validate\tv1.3.3\th1:MVQghNeW+LZcmXe7SY1V36Z+WFMDjpqGAGacLe2T0ds=\n\tdep\tgolang.org/x/net\tv0.58.0\th1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=\n\tdep\tgolang.org/x/oauth2\tv0.36.0\th1:peZ/1z27fi9hUOFCAZaHyrpWG5lwe0RJEEEeH0ThlIs=\n\tdep\tgolang.org/x/sync\tv0.22.0\th1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=\n\tdep\tgolang.org/x/sys\tv0.47.0\th1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=\n\tdep\tgolang.org/x/text\tv0.41.0\th1:vz/seA0lnX87Othu2f/0L24RcgrXD9/YFTSuGjj3rH8=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260817212433-ac3dfec99bb1\th1:utmqiUzZAEINbLmRyAt1QjVkMyLQ+lvIwCpLaB1rZfw=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n",
+    "report_sha256": "d5a9ae1cb5859875907260a4800c24b14a8f57a5a4fb684cf93a35f02a4ca28b",
+    "scope": "registry",
+    "counts": {
+      "total_evaluated": 54,
+      "passed": 46,
+      "failed": 0,
+      "not_run": 0,
+      "unsupported": 8,
+      "blocked_external": 0,
+      "not_applicable": 0,
+      "flaky_or_retried": 0,
+      "total_duration_ms": 1865.82
+    },
+    "upstream_pins": {
+      "protobuf": {
+        "repository": "protocolbuffers/protobuf",
+        "version": "v35.1",
+        "commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+        "conformance_doc": "conformance/README.md",
+        "rust_shared_doc": "rust/test/shared"
+      },
+      "grpc": {
+        "repository": "grpc/grpc",
+        "commit": "d1487957db6658bc532b72871775148229836627",
+        "interop_doc": "doc/interop-test-descriptions.md",
+        "http2_negative_doc": "doc/http2-interop-test-descriptions.md",
+        "backoff_doc": "doc/connection-backoff-interop-test-description.md",
+        "xds_doc": "doc/xds-test-descriptions.md",
+        "runner": "tools/run_tests/run_interop_tests.py",
+        "performance_doc": "tools/run_tests/performance/README.md",
+        "worker_service_proto": "src/proto/grpc/testing/worker_service.proto",
+        "benchmark_service_proto": "src/proto/grpc/testing/benchmark_service.proto"
+      },
+      "grpc_go": {
+        "repository": "grpc/grpc-go",
+        "commit": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef",
+        "interop_client": "interop/client/client.go",
+        "interop_server": "interop/server/server.go"
+      },
+      "grpc_proposal": {
+        "repository": "grpc/proposal",
+        "commit": "6342be729b96478a2897ceb208a8cddcd832a17b",
+        "retry_a6": "A6-client-retries.md"
+      }
+    },
+    "rows": [
+      {
+        "case": "empty_unary",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "large_unary",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_streaming",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "server_streaming",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "ping_pong",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "empty_stream",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_begin",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_first_response",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "timeout_on_sleeping_server",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "custom_metadata",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "status_code_and_message",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "special_status_message",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_method",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_service",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_unary",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_unary",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_streaming",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_streaming",
+        "status": "passed",
+        "peer": "pbrs-grpc",
+        "direction": "kernel_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "empty_unary",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "large_unary",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_streaming",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "server_streaming",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "ping_pong",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "empty_stream",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_begin",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_first_response",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "timeout_on_sleeping_server",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "custom_metadata",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "status_code_and_message",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "special_status_message",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_method",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_service",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_unary",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_unary",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_streaming",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_streaming",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "kernel_client_to_go_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "empty_unary",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "large_unary",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_streaming",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "server_streaming",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "ping_pong",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "empty_stream",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_begin",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "cancel_after_first_response",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "timeout_on_sleeping_server",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "custom_metadata",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "status_code_and_message",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "special_status_message",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_method",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "unimplemented_service",
+        "status": "passed",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "passed",
+        "is_flaky": false,
+        "notes": null,
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_unary",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_unary",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "client_compressed_streaming",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      },
+      {
+        "case": "server_compressed_streaming",
+        "status": "unsupported",
+        "peer": "grpc-go",
+        "direction": "go_client_to_kernel_server",
+        "transport": "http2_cleartext",
+        "attempt_count": 1,
+        "first_attempt_status": "unsupported",
+        "is_flaky": false,
+        "notes": "grpc-go does not implement compression flags",
+        "error_message": null
+      }
+    ]
+  },
+  "parent_acceptance_review": {
+    "FL-08": "QG-11 through QG-17 jointly cover response commitment during completed/stalled uploads, encode-once frames, explicit policy/unknown side-effect histories, terminal admission reclamation, released routing load during backoff, dispatch-based retry counting and finite policy replay payload retention.",
+    "seeded_scope": "QG-14 retains 32 seeded histories (16 seeds with/without policy), rerun by both default/all-feature retry_safety here. This does not qualify a fleet retry storm, the full upstream profile, or exactly-once execution.",
+    "remaining_owner": "FL-09 remains pending for outage amplification/recovery-load and jitter/throttling qualification; this card does not satisfy its rpc-bench check."
+  },
+  "limits": [
+    "No new public API, dependencies, unsafe code, numeric limit values or global outbound defaults.",
+    "The owner probe qualifies the dedicated shared payload allocation in identity requests. Compressed requests release the original source before upload; their encoded budget and forbidden/eligible replay are checked by observed wire length and actual attempt counts, not a global allocator probe.",
+    "The focused five-test run precedes the final compression-header and observed-budget assertion tightening; both complete default/all-feature retry suites qualify those final assertions.",
+    "Interop covers the pinned registry plaintext cases. Eight Go compression rows are explicitly unsupported; no full release, cloud, performance or production qualification is claimed.",
+    "Unconfigured transparent retry and hedging still have no finite default replay retention cap. Shared backing allocations/segment metadata are outside the logical payload bound."
+  ]
+}

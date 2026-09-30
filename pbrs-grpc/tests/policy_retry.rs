@@ -105,6 +105,463 @@ struct ObservableRequest {
     message: HelloRequest,
 }
 
+struct OwnedRequestBytes {
+    bytes: Vec<u8>,
+    released: Arc<tokio::sync::Notify>,
+    drops: Arc<AtomicUsize>,
+}
+
+impl AsRef<[u8]> for OwnedRequestBytes {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+impl Drop for OwnedRequestBytes {
+    fn drop(&mut self) {
+        self.drops.fetch_add(1, Ordering::SeqCst);
+        self.released.notify_one();
+    }
+}
+
+struct SharedRequest {
+    bytes: bytes::Bytes,
+    encodings: Arc<AtomicUsize>,
+}
+
+impl CodecMessage for SharedRequest {
+    fn encoded_len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+        self.encodings.fetch_add(1, Ordering::SeqCst);
+        out.put_shared(&self.bytes);
+        Ok(())
+    }
+
+    fn decode_payload(_: bytes::Bytes) -> Result<Self, Status> {
+        Err(Status::unimplemented("outbound-only shared codec"))
+    }
+
+    fn empty() -> Self {
+        Self {
+            bytes: bytes::Bytes::new(),
+            encodings: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ReplayPeerFailure {
+    Unavailable,
+    Refused,
+    None,
+}
+
+// The raw peer accepts opaque CodecMessage payloads, drains every DATA byte,
+// then withholds the first response. Its receive buffers are separate socket
+// copies: dropping the Bytes owner proves client storage release, not merely
+// release of a transport byte permit.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "explicit shape, compression, ownership and replay matrix"
+)]
+async fn replay_budget_case(
+    server_stream: bool,
+    payload: Vec<u8>,
+    encoding_cap: Option<usize>,
+    compressed: bool,
+    policy: bool,
+    binlog: bool,
+    failure: ReplayPeerFailure,
+    expected_attempts: usize,
+    retain_identity: bool,
+) {
+    let payload_len = payload.len();
+    let uploaded = Arc::new(tokio::sync::Notify::new());
+    let respond_now = Arc::new(tokio::sync::Notify::new());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let progress = Arc::new(AtomicUsize::new(0));
+    let received = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let server_uploaded = uploaded.clone();
+    let server_respond = respond_now.clone();
+    let server_calls = calls.clone();
+    let server_progress = progress.clone();
+    let server_received = received.clone();
+    let server = tokio::spawn(async move {
+        let mut connections = tokio::task::JoinSet::new();
+        loop {
+            tokio::select! {
+                socket = listener.accept() => {
+                    let (socket, _) = socket.expect("accept");
+                    let uploaded = server_uploaded.clone();
+                    let respond_now = server_respond.clone();
+                    let calls = server_calls.clone();
+                    let progress = server_progress.clone();
+                    let received = server_received.clone();
+                    connections.spawn(async move {
+                        let mut conn = h2::server::handshake(socket)
+                            .await.expect("handshake");
+                        let mut requests = tokio::task::JoinSet::new();
+                        loop {
+                            tokio::select! {
+                                request = conn.accept() => {
+                                    let Some(request) = request else { break };
+                                    let (request, mut respond) = request.expect("request headers");
+                                    let uploaded = uploaded.clone();
+                                    let respond_now = respond_now.clone();
+                                    let calls = calls.clone();
+                                    let progress = progress.clone();
+                                    let received = received.clone();
+                                    requests.spawn(async move {
+                                        let index = calls.fetch_add(1, Ordering::SeqCst) + 1;
+                                        if index <= expected_attempts {
+                                            assert_eq!(request.headers().get("grpc-encoding")
+                                                .and_then(|value| value.to_str().ok()), compressed.then_some("gzip"));
+                                        }
+                                        let mut body = request.into_body();
+                                        let mut data = Vec::new();
+                                        while let Some(chunk) = body.data().await {
+                                            let chunk = chunk.expect("DATA");
+                                            data.extend_from_slice(&chunk);
+                                            progress.fetch_add(chunk.len(), Ordering::SeqCst);
+                                            body.flow_control().release_capacity(chunk.len())
+                                                .expect("flow credit");
+                                        }
+                                        received.lock().await.push(data);
+                                        if index == 1 {
+                                            uploaded.notify_one();
+                                            respond_now.notified().await;
+                                        }
+                                        let failures = if expected_attempts > 1 {
+                                            expected_attempts - 1
+                                        } else { 1 };
+                                        if index <= failures && !matches!(failure, ReplayPeerFailure::None) {
+                                            if matches!(failure, ReplayPeerFailure::Refused) {
+                                                respond.send_reset(h2::Reason::REFUSED_STREAM);
+                                            } else {
+                                                respond.send_response(http::Response::builder()
+                                                    .header("content-type", "application/grpc")
+                                                    .header("grpc-status", "14").body(()).unwrap(), true)
+                                                    .expect("rejection");
+                                            }
+                                        } else {
+                                            let mut send = respond.send_response(http::Response::builder()
+                                                .header("content-type", "application/grpc").body(()).unwrap(), false)
+                                                .expect("response headers");
+                                            let reply = common::reply("recovered").encode_to_vec().expect("encode");
+                                            let mut framed = vec![0];
+                                            framed.extend_from_slice(&(reply.len() as u32).to_be_bytes());
+                                            framed.extend_from_slice(&reply);
+                                            send.send_data(bytes::Bytes::from(framed), false).expect("reply");
+                                            let mut trailers = http::HeaderMap::new();
+                                            trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+                                            send.send_trailers(trailers).expect("trailers");
+                                        }
+                                    });
+                                }
+                                joined = requests.join_next(), if !requests.is_empty() => {
+                                    joined.expect("request task").expect("request completed");
+                                }
+                            }
+                        }
+                    });
+                }
+                joined = connections.join_next(), if !connections.is_empty() => {
+                    joined.expect("connection task").expect("connection completed");
+                }
+            }
+        }
+    });
+    let _guard = common::ServerGuard(server);
+    let mut config = pbrs_grpc::ChannelConfig::new()
+        .connections(1)
+        .max_concurrent_rpcs(1);
+    if let Some(cap) = encoding_cap {
+        config = config.max_encoding_message_size(cap);
+    }
+    let mut channel = Channel::connect_with(addr, config).await.expect("connect");
+    if policy {
+        channel = channel
+            .service_config(
+                r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+            "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+            "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+            )
+            .expect("policy");
+    }
+    let sink = Arc::new(pbrs_grpc::binlog::VecSink::new());
+    if binlog {
+        channel = channel.binary_logger(pbrs_grpc::binlog::BinaryLogger::new(
+            pbrs_grpc::binlog::BinaryLogFilter::parse("*{h:0;m:0}").expect("filter"),
+            sink.clone(),
+        ));
+    }
+    let released = Arc::new(tokio::sync::Notify::new());
+    let drops = Arc::new(AtomicUsize::new(0));
+    let encodings = Arc::new(AtomicUsize::new(0));
+    let mut request = Request::new(SharedRequest {
+        bytes: bytes::Bytes::from_owner(OwnedRequestBytes {
+            bytes: payload,
+            released: released.clone(),
+            drops: drops.clone(),
+        }),
+        encodings: encodings.clone(),
+    });
+    request.set_compress(compressed);
+    request.set_timeout(CALL_BUDGET);
+    let task = if server_stream {
+        let call = channel.server_streaming::<_, HelloReply>(SERVER_HELLO, request);
+        tokio::spawn(async move {
+            let mut stream = call.await?.into_inner();
+            assert_eq!(
+                name_of(&stream.message().await?.expect("reply")),
+                "recovered"
+            );
+            assert!(stream.message().await?.is_none());
+            Ok::<_, Status>(())
+        })
+    } else {
+        let call = channel.unary::<_, HelloReply>(SAY_HELLO, request);
+        tokio::spawn(async move {
+            assert_eq!(name_of(call.await?.get_ref()), "recovered");
+            Ok::<_, Status>(())
+        })
+    };
+    let upload = tokio::time::timeout(CALL_BUDGET, uploaded.notified()).await;
+    if upload.is_err() && task.is_finished() {
+        panic!(
+            "upload: calls={} bytes={} result={:?}",
+            calls.load(Ordering::SeqCst),
+            progress.load(Ordering::SeqCst),
+            task.await
+        );
+    }
+    assert!(upload.is_ok(), "upload completed");
+    assert_eq!(encodings.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(!task.is_finished(), "peer still withholds its response");
+    if policy {
+        let received = received.lock().await;
+        let wire_payload = received[0].len() - 5;
+        assert_eq!(
+            wire_payload <= encoding_cap.unwrap_or(4 * 1024 * 1024),
+            retain_identity,
+            "actual encoded replay-budget boundary"
+        );
+    }
+    if retain_identity && !compressed {
+        assert_eq!(
+            drops.load(Ordering::SeqCst),
+            0,
+            "eligible replay storage retained"
+        );
+    } else {
+        tokio::time::timeout(Duration::from_secs(1), released.notified())
+            .await
+            .expect("request storage released before response");
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+    }
+    respond_now.notify_one();
+    let result = tokio::time::timeout(CALL_BUDGET, task)
+        .await
+        .expect("call completes")
+        .expect("call task");
+    if expected_attempts == 1 && !matches!(failure, ReplayPeerFailure::None) {
+        assert!(
+            result.is_err(),
+            "over-budget call must surface its first failure"
+        );
+    } else {
+        result.expect("valid first send or bounded retry succeeds");
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), expected_attempts);
+    assert_eq!(encodings.load(Ordering::SeqCst), 1);
+    assert_eq!(drops.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        channel.retry_stats().policy_retries,
+        if policy {
+            (expected_attempts - 1) as u64
+        } else {
+            0
+        }
+    );
+    assert_eq!(
+        channel.retry_stats().transparent_retries,
+        if matches!(failure, ReplayPeerFailure::Refused) {
+            (expected_attempts - 1) as u64
+        } else {
+            0
+        }
+    );
+    assert_eq!(channel.retry_stats().exhausted, 0);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    let received = received.lock().await;
+    assert_eq!(received.len(), expected_attempts);
+    assert!(
+        received.iter().all(|frame| frame == &received[0]),
+        "exact frame replay"
+    );
+    assert_eq!(received[0][0], u8::from(compressed));
+    let wire_len = u32::from_be_bytes(received[0][1..5].try_into().unwrap()) as usize;
+    assert_eq!(wire_len + 5, received[0].len());
+    if !compressed {
+        assert_eq!(wire_len, payload_len);
+    }
+    drop(received);
+    let follow_up: Response<HelloReply> = channel
+        .unary(SAY_HELLO, Request::new(req("follow-up")))
+        .await
+        .expect("RPC admission recovered");
+    assert_eq!(name_of(follow_up.get_ref()), "recovered");
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    if binlog {
+        assert!(!sink.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn policy_replay_budget_releases_large_shared_owner_before_response() {
+    for server_stream in [false, true] {
+        for binlog in [false, true] {
+            replay_budget_case(
+                server_stream,
+                vec![b'x'; 4 * 1024 * 1024 + 1],
+                None,
+                false,
+                true,
+                binlog,
+                ReplayPeerFailure::Unavailable,
+                1,
+                false,
+            )
+            .await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn policy_replay_budget_preserves_boundaries_and_compression() {
+    for server_stream in [false, true] {
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024],
+            None,
+            false,
+            true,
+            false,
+            ReplayPeerFailure::Unavailable,
+            3,
+            true,
+        )
+        .await;
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+            Some(4 * 1024 * 1024 + 1),
+            false,
+            true,
+            false,
+            ReplayPeerFailure::Unavailable,
+            3,
+            true,
+        )
+        .await;
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+            None,
+            true,
+            true,
+            false,
+            ReplayPeerFailure::Unavailable,
+            3,
+            true,
+        )
+        .await;
+        let mut seed = 0x1234_5678u32;
+        let noise: Vec<u8> = (0..4 * 1024 * 1024)
+            .map(|_| {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                seed as u8
+            })
+            .collect();
+        replay_budget_case(
+            server_stream,
+            noise,
+            Some(4 * 1024 * 1024),
+            true,
+            true,
+            false,
+            ReplayPeerFailure::Unavailable,
+            1,
+            false,
+        )
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn policy_replay_budget_commits_large_policy_refusal() {
+    for server_stream in [false, true] {
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+            None,
+            false,
+            true,
+            false,
+            ReplayPeerFailure::Refused,
+            1,
+            false,
+        )
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn policy_replay_budget_preserves_unconfigured_large_refusal() {
+    for server_stream in [false, true] {
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+            None,
+            false,
+            false,
+            false,
+            ReplayPeerFailure::Refused,
+            2,
+            true,
+        )
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn policy_replay_budget_preserves_large_first_success() {
+    for server_stream in [false, true] {
+        replay_budget_case(
+            server_stream,
+            vec![b'x'; 4 * 1024 * 1024 + 1],
+            None,
+            false,
+            true,
+            false,
+            ReplayPeerFailure::None,
+            1,
+            false,
+        )
+        .await;
+    }
+}
+
 impl CodecMessage for ObservableRequest {
     fn encoded_len(&self) -> usize {
         CodecMessage::encoded_len(&self.message)

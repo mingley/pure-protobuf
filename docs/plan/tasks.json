@@ -3358,9 +3358,9 @@
         "native-serving",
         "interop"
       ],
-      "status": "in_progress",
+      "status": "done",
       "implementer": "Codex",
-      "notes": "The existing GF-07 executor supplies opt-in unary policy retries. QG-11/QG-12 preserve commitment through completed and failed/stalled uploads; QG-13 enforces encoded-frame replay; QG-14 retains 32 seeded histories and qualifies terminal admission exits plus inert caller-driven stream policy. QG-15 releases completed-attempt connection/routing load before backoff. QG-16 now counts policy retries and their causes only after HEADERS open, once across transparent replacement, with live dispatch and pre-dispatch failure tests. FL-08 remains open for QG-17: service-config section 6.3 assumes a default 4 MiB outbound cap, but the published MessageLimits default has unlimited outbound encoding. Existing retained-frame ownership therefore lacks the required finite default policy replay bound. Preserve that message-size API while reconciling and qualifying the already documented replay budget. All recorded checks certify their exact scope/snapshot; no general performance, release or production qualification is claimed.",
+      "notes": "Acceptance reviewed through QG-11 to QG-17. Opt-in unary/server-streaming retries preserve response commitment even during stalled uploads, replay one original encoded frame, retain original deadlines and reclaim terminal admission. QG-14 qualifies 32 seeded side-effect histories and caller-driven streaming policy remains inert. QG-15 releases completed-attempt connection/routing load before backoff; QG-16 counts only dispatched HEADERS once across transparent replacement. QG-17 enforces the documented finite policy payload replay budget without changing the unlimited outbound message-size default, commits over-budget requests after their valid first send, and proves actual shared-owner release before a held response, including binary logging. Final snapshot checks: 1656 all-feature regression passes, 1116 default native RPC/serving passes, 53 default retry passes, 48 all-feature hostile/message-size passes, strict workspace Clippy clean and fresh native/pinned-Go plaintext interop 46 passed with 8 explicitly unsupported Go compression rows. Evidence records exact source blobs and matrix limits. FL-09 owns outage amplification/recovery-load qualification; no exactly-once, full upstream release, performance or production claim.",
       "evidence": [
         "docs/evidence/unary-policy-commitment.json",
         "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers",
@@ -3368,8 +3368,10 @@
         "docs/evidence/encoded-request-replay.json",
         "docs/evidence/retry-side-effect-histories.json",
         "docs/evidence/retry-backoff-routing-load.json",
-        "docs/evidence/policy-retry-dispatch-counts.json"
-      ]
+        "docs/evidence/policy-retry-dispatch-counts.json",
+        "docs/evidence/policy-replay-byte-budget.json"
+      ],
+      "reviewer": "Codex"
     },
     {
       "id": "FL-09",

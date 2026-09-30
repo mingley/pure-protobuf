@@ -208,7 +208,7 @@
   "limits": [
     "Two test matrices cover unary/server-streaming and uncompressed/gzip sends. Policy peers see three identical decoded requests with expected compression flag/header; explicit refusal makes one eventual handler execution and one transparent retry.",
     "Before repair each policy matrix cell serialized three times, and each transparent-refusal cell serialized twice. Both now serialize once.",
-    "Retained request buffers remain governed by the existing encoding caps and per-attempt byte admission. Shared Bytes payloads are cloned for attempts; no performance claim is made.",
+    "Historical QG-13 qualification proves encode-once replay and per-attempt byte-permit reclamation for its tested small/configured-cap requests. It does not prove a finite default retained-byte bound: MessageLimits defaults to unlimited outbound encoding, and releasing an upload byte permit does not release the retained replay owner. QG-17 adds the policy-only payload budget and a real shared-owner drop probe; see docs/evidence/policy-replay-byte-budget.json. No performance or allocator/RSS bound is claimed.",
     "FL-08 seeded side-effect histories and its remaining cancellation/oversize resource qualification remain open. The 46 passed interop cases and 8 explicitly unsupported Go compression cases do not certify the full advertised peer/profile matrix."
   ],
   "interop": {
@@ -547,5 +547,6 @@
         "status": "unsupported"
       }
     ]
-  }
+  },
+  "follow_up_qualification": "docs/evidence/policy-replay-byte-budget.json"
 }

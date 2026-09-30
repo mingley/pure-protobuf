@@ -11080,7 +11080,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "pending",
+   "status": "done",
    "depends_on": [
     "QG-16"
    ],
@@ -11093,7 +11093,8 @@
     "pbrs-grpc/src/client/retry.rs",
     "pbrs-grpc/src/wire/encode.rs",
     "pbrs-grpc/tests/policy_retry.rs",
-    "docs/evidence/encoded-request-replay.json"
+    "docs/evidence/encoded-request-replay.json",
+    "pbrs-grpc/src/binlog.rs"
    ],
    "write": [
     "pbrs-grpc/src/client/unary.rs",
@@ -11105,7 +11106,8 @@
     "docs/resource-budgets.md",
     "docs/evidence/encoded-request-replay.json",
     "docs/plan/world-class/tasks.json",
-    "docs/evidence/policy-replay-byte-budget.json"
+    "docs/evidence/policy-replay-byte-budget.json",
+    "docs/plan/tasks.json"
    ],
    "deliverable": "Implement the finite replay-retention bound required by service-config section 6.3, reconciling its documented 4 MiB budget with the published unlimited-outbound MessageLimits default. Preserve existing outbound message acceptance and unconfigured behavior; buffer-budget exhaustion commits the policy call instead of retaining/replaying an oversized request.",
    "accept": [
@@ -11126,7 +11128,17 @@
    "relates": [
     "FL-08"
    ],
-   "notes": "Discovered in the QG-16 parent audit. limits.rs defaults decoding to 4 MiB and encoding to None, with published tests/docs asserting that unlimited-outbound API. service-config section 6.3 instead calls the outbound cap default 4 MiB and the existing unary/server-streaming loops retain the frame for every failed attempt. Previous small-message/cap-configured tests do not establish the required default policy replay bound. Preserve the shipped message-size API and already documented budget values; scope/qualify ownership before implementing and correct the unsupported bound in prior evidence. No dependencies, unsafe code, performance or production claim."
+   "notes": "Discovered in the QG-16 parent audit. limits.rs defaults decoding to 4 MiB and encoding to None, with published tests/docs asserting that unlimited-outbound API. service-config section 6.3 instead calls the outbound cap default 4 MiB and the existing unary/server-streaming loops retain the frame for every failed attempt. Previous small-message/cap-configured tests do not establish the required default policy replay bound. Preserve the shipped message-size API and already documented budget values; scope/qualify ownership before implementing and correct the unsupported bound in prior evidence. No dependencies, unsafe code, performance or production claim. Claimed at 711074afdbc388b89f04d2016313afb0114693e1. Frozen accounting before implementation: retry-policy-only replay budget is the selected method/channel max_encoding when finite, otherwise the already documented 4 MiB fallback; measure actual encoded (possibly compressed) payload bytes, excluding the fixed five-byte gRPC header. The first send keeps existing message/admission checks, transfers over-budget frame ownership to the attempt without retaining a replay clone, and commits that call against policy or transparent replay. Unconfigured calls and hedging retain their existing semantics. Explicit finite outbound caps still reject oversized uncompressed payloads before dispatch. Compressed expansion exceeding the replay budget commits without rejecting a valid first send. Shared-slice backing allocation size and segment metadata are outside logical payload accounting; ownership probes prove release, not RSS or an allocator capacity bound. Audit binlog frame ownership as part of the upload lifetime; no public API, new numeric value, dependency, or unsafe change. Reviewed complete: four authentic pre-fix test failures, 18 final shape/phase ownership-budget cases, all-feature regression 1656 passed, default native RPC/serving 1116 passed, default retry 53 passed, all-feature hostile/message-size 48 passed and strict workspace/all-target/all-feature Clippy clean. Fresh debug native/pinned Go interop 46 passed, 8 Go compression rows explicitly unsupported. Private RequestReplay preserves first sends, selected cap/fallback precedence and unconfigured behavior; upload and binary logging frame clones release before response wait. Historical QG-13 evidence now states its retention-proof limit. No global allocator/RSS, fleet-outage, performance, release or production claim.",
+   "implementer": "Codex",
+   "reviewer": "Codex",
+   "evidence": [
+    "docs/evidence/policy-replay-byte-budget.json",
+    "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_releases_large_shared_owner_before_response",
+    "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_preserves_boundaries_and_compression",
+    "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_commits_large_policy_refusal",
+    "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_preserves_unconfigured_large_refusal",
+    "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_preserves_large_first_success"
+   ]
   }
  ],
  "last_audit": {

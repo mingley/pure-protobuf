@@ -5,7 +5,9 @@ use super::call::{
     prefer_peer_rejection_after_send, race, reject_attempt, send_request_frame,
 };
 use super::pool;
-use super::retry::{PolicyDecision, PolicyRetryDispatch, policy_retry_delay, retry_exhausted};
+use super::retry::{
+    PolicyDecision, PolicyRetryDispatch, RequestReplay, policy_retry_delay, retry_exhausted,
+};
 use crate::binlog::CallLogger;
 use crate::codec::CodecMessage;
 use crate::config::Wire;
@@ -174,6 +176,16 @@ where
     )
     .await;
     drop(permit);
+    if sent.is_ok() {
+        if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
+            // Server-streaming sends one request with end-of-stream set.
+            for seg in log_frame.segments() {
+                tap.log_written(seg);
+            }
+            tap.log_half_close();
+        }
+    }
+    drop(log_frame);
     if let Err(status) = sent {
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
             return Err(status);
@@ -190,13 +202,6 @@ where
     // none, like unary).
     if let Some(sock) = socket {
         crate::channelz::Registry::global().note_messages(sock, true, 1);
-    }
-    if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
-        // Server-streaming sends one request with end-of-stream set.
-        for seg in log_frame.segments() {
-            tap.log_written(seg);
-        }
-        tap.log_half_close();
     }
     let response = race(
         async {
@@ -708,7 +713,7 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                // Keep only the bounded encoded frame across attempts.
+                // The original message is no longer needed after encoding.
                 drop(msg);
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
@@ -727,6 +732,7 @@ impl super::Channel {
                 let retry_policy = channel
                     .method_config_for(path)
                     .and_then(|method| method.retry_policy);
+                let mut replay = RequestReplay::new(frame, retry_policy.is_some(), wire.limits);
                 let mut attempt_idx = 1u32;
                 let mut policy_attempts = 1u32;
                 let mut policy_dispatch = retry_policy
@@ -804,7 +810,7 @@ impl super::Channel {
                         live.channelz_socket,
                     );
                     let _load = live.load;
-                    let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
+                    let byte_permit = match channel.byte_budget.acquire(replay.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
                             reject_attempt(
@@ -822,7 +828,7 @@ impl super::Channel {
                         }
                     };
                     if let Some(obs) = &observer {
-                        obs.on_bytes_sent(&labels(), frame.total_len());
+                        obs.on_bytes_sent(&labels(), replay.total_len());
                     }
                     let attempt_deadline = retry_policy
                         .as_ref()
@@ -840,7 +846,7 @@ impl super::Channel {
                         req_timeout,
                         attempt_deadline,
                         compress,
-                        frame.clone(),
+                        replay.next_attempt(),
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
@@ -893,6 +899,7 @@ impl super::Channel {
                         }
                         Err(status)
                             if !retried
+                                && replay.allowed()
                                 && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
@@ -923,16 +930,20 @@ impl super::Channel {
                                 })
                                 && remaining_timeout(deadline).is_ok()
                                 && !cancelled;
-                            match policy_retry_delay(
-                                &channel,
-                                retry_policy.as_ref(),
-                                &status,
-                                policy_attempts,
-                                per_attempt_timeout,
-                                cancelled,
-                            )
-                            .await
-                            {
+                            let decision = if replay.allowed() {
+                                policy_retry_delay(
+                                    &channel,
+                                    retry_policy.as_ref(),
+                                    &status,
+                                    policy_attempts,
+                                    per_attempt_timeout,
+                                    cancelled,
+                                )
+                                .await
+                            } else {
+                                PolicyDecision::Declined
+                            };
+                            match decision {
                                 PolicyDecision::Proceed {
                                     delay,
                                     via_pushback,
@@ -978,13 +989,15 @@ impl super::Channel {
                                     channel.retry_stats.record_pushback_refusal();
                                 }
                                 PolicyDecision::Declined => {
-                                    if retry_exhausted(
-                                        retry_policy.as_ref(),
-                                        &status,
-                                        policy_attempts,
-                                        per_attempt_timeout,
-                                        cancelled,
-                                    ) {
+                                    if replay.allowed()
+                                        && retry_exhausted(
+                                            retry_policy.as_ref(),
+                                            &status,
+                                            policy_attempts,
+                                            per_attempt_timeout,
+                                            cancelled,
+                                        )
+                                    {
                                         channel.retry_stats.record_exhausted();
                                     }
                                 }
