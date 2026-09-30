@@ -18,16 +18,230 @@
 
 mod common;
 
-use common::{name_of, req, serve};
+use common::{name_of, name_of_request, req, serve};
+use pbrs_grpc::codec::CodecMessage;
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
 use pbrs_grpc::{Channel, Code, Pushback, Request, Response, ServerConfig, Status, Streaming};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
 const CALL_BUDGET: Duration = Duration::from_secs(15);
+
+struct ObservableRequest {
+    encoded: Arc<AtomicUsize>,
+    message: HelloRequest,
+}
+
+impl CodecMessage for ObservableRequest {
+    fn encoded_len(&self) -> usize {
+        CodecMessage::encoded_len(&self.message)
+    }
+
+    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+        self.encoded.fetch_add(1, Ordering::SeqCst);
+        self.message.encode_payload(out)
+    }
+
+    fn decode_payload(_payload: bytes::Bytes) -> Result<Self, Status> {
+        Err(Status::unimplemented("outbound-only test codec"))
+    }
+
+    fn empty() -> Self {
+        Self {
+            encoded: Arc::new(AtomicUsize::new(0)),
+            message: HelloRequest::new(),
+        }
+    }
+}
+
+struct RecordingRetryPeer {
+    requests: Arc<Mutex<Vec<(String, bool)>>>,
+}
+
+impl RecordingRetryPeer {
+    fn record(&self, request: &Request<HelloRequest>) -> usize {
+        let mut requests = self.requests.lock().expect("history");
+        let compressed = request.compressed();
+        assert_eq!(request.encoding(), compressed.then_some("gzip"));
+        requests.push((name_of_request(request.get_ref()), compressed));
+        requests.len()
+    }
+}
+
+impl Greeter for RecordingRetryPeer {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if self.record(&request) < 3 {
+            return Err(Status::unavailable("retry eligible rejection"));
+        }
+        Ok(Response::new(common::reply("recovered")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        if self.record(&request) < 3 {
+            return Err(Status::unavailable("retry eligible rejection"));
+        }
+        let (tx, stream) = Streaming::channel(1);
+        tx.send(common::reply("recovered")).await.expect("message");
+        drop(tx);
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::test]
+async fn policy_attempts_encode_single_request_once() {
+    let mut encodings = Vec::new();
+    for shape in ["unary", "server_stream"] {
+        for compressed in [false, true] {
+            let requests = Arc::new(Mutex::new(Vec::new()));
+            let (addr, _guard) = serve(
+                RecordingRetryPeer {
+                    requests: requests.clone(),
+                },
+                ServerConfig::new().accept_compressed(true),
+            )
+            .await
+            .expect("serve");
+            let channel =
+                Channel::connect_with(addr, pbrs_grpc::ChannelConfig::new().max_concurrent_rpcs(1))
+                    .await
+                    .expect("connect")
+                    .byte_budget(1024)
+                    .service_config(
+                        r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+                    )
+                    .expect("policy");
+            let encoded = Arc::new(AtomicUsize::new(0));
+            let mut request = Request::new(ObservableRequest {
+                encoded: encoded.clone(),
+                message: req("same encoded request"),
+            });
+            request.set_compress(compressed);
+            request.set_timeout(Duration::from_secs(3));
+            if shape == "unary" {
+                let response: Response<HelloReply> =
+                    channel.unary(SAY_HELLO, request).await.expect("unary");
+                assert_eq!(name_of(response.get_ref()), "recovered");
+            } else {
+                let mut stream = channel
+                    .server_streaming::<_, HelloReply>(SERVER_HELLO, request)
+                    .await
+                    .expect("stream")
+                    .into_inner();
+                assert_eq!(
+                    name_of(&stream.message().await.expect("receive").expect("message")),
+                    "recovered"
+                );
+                assert!(stream.message().await.expect("EOF").is_none());
+                drop(stream);
+            }
+            encodings.push((shape, compressed, encoded.load(Ordering::SeqCst)));
+            assert_eq!(
+                *requests.lock().expect("history"),
+                vec![("same encoded request".to_owned(), compressed); 3]
+            );
+            assert_eq!(channel.retry_stats().policy_retries, 2);
+            assert_eq!(channel.byte_budget_allocated(), 0);
+            let follow_up = tokio::time::timeout(Duration::from_secs(3), say_hello(&channel))
+                .await
+                .expect("admission reclaimed")
+                .expect("follow-up");
+            assert_eq!(name_of(follow_up.get_ref()), "recovered");
+            assert_eq!(channel.byte_budget_allocated(), 0);
+        }
+    }
+    assert!(
+        encodings.iter().all(|(_, _, count)| *count == 1),
+        "{encodings:?}"
+    );
+}
+
+#[tokio::test]
+async fn transparent_refusal_replays_single_request_without_encoding_again() {
+    let mut encodings = Vec::new();
+    for shape in ["unary", "server_stream"] {
+        for compressed in [false, true] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("address");
+            let service = Scripted::new(vec![Step::Ok("recovered")])
+                .with_streams(vec![StreamStep::Messages(&["recovered"])]);
+            let seen = service.clone();
+            let server = tokio::spawn(async move {
+                let (socket, _) = listener.accept().await.expect("connection");
+                let mut conn = h2::server::Builder::new()
+                    .initial_window_size(1024)
+                    .handshake::<_, bytes::Bytes>(socket)
+                    .await
+                    .expect("handshake");
+                let (_request, mut respond) =
+                    conn.accept().await.expect("request").expect("headers");
+                respond.send_reset(h2::Reason::REFUSED_STREAM);
+                let _driver = common::ServerGuard(tokio::spawn(async move {
+                    while let Some(Ok(_)) = conn.accept().await {}
+                }));
+                let _native = common::serve_on(listener, service, ServerConfig::new());
+                std::future::pending::<()>().await;
+            });
+            let _guard = common::ServerGuard(server);
+            let channel = Channel::connect_with(
+                addr,
+                pbrs_grpc::ChannelConfig::new()
+                    .connections(1)
+                    .max_concurrent_rpcs(1)
+                    .max_send_buffer_size(1024),
+            )
+            .await
+            .expect("connect")
+            .byte_budget(64 * 1024);
+            let encoded = Arc::new(AtomicUsize::new(0));
+            let mut request = Request::new(ObservableRequest {
+                encoded: encoded.clone(),
+                message: req(&"x".repeat(32 * 1024)),
+            });
+            request.set_compress(compressed);
+            request.set_timeout(Duration::from_secs(3));
+            if shape == "unary" {
+                let response: Response<HelloReply> =
+                    channel.unary(SAY_HELLO, request).await.expect("unary");
+                assert_eq!(name_of(response.get_ref()), "recovered");
+                assert_eq!(seen.calls(), 1);
+            } else {
+                let mut stream = channel
+                    .server_streaming::<_, HelloReply>(SERVER_HELLO, request)
+                    .await
+                    .expect("stream")
+                    .into_inner();
+                assert_eq!(
+                    name_of(&stream.message().await.expect("receive").expect("message")),
+                    "recovered"
+                );
+                assert!(stream.message().await.expect("EOF").is_none());
+                drop(stream);
+                assert_eq!(seen.stream_calls(), 1);
+            }
+            encodings.push((shape, compressed, encoded.load(Ordering::SeqCst)));
+            assert_eq!(channel.retry_stats().transparent_retries, 1);
+            assert_eq!(channel.retry_stats().policy_retries, 0);
+            assert_eq!(channel.byte_budget_allocated(), 0);
+        }
+    }
+    assert!(
+        encodings.iter().all(|(_, _, count)| *count == 1),
+        "{encodings:?}"
+    );
+}
 
 #[tokio::test]
 async fn published_retry_throttler_remains_available_at_both_paths() {

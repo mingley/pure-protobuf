@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "3f4ef8d60bd806b7b21ceec75e78337e44ce3922",
+  "source_blobs": {
+    "pbrs-grpc/src/client/unary.rs": "a374bcfed713aef88dd87b6c388ff7f79755a1b3",
+    "pbrs-grpc/src/client/streaming.rs": "967a93251ce56ceef372bb3388eec167d18b32c2",
+    "pbrs-grpc/tests/policy_retry.rs": "2e7552516c19530a83f883e1c4571d6d46d159bd"
+  },
+  "before_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test policy_retry policy_attempts_encode_single_request_once",
+      "status": "failed",
+      "stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.08s\n     Running tests/policy_retry.rs (/tmp/pbrs-ad03c-target/debug/deps/policy_retry-7ccac5b9fe087cb1)\n\nrunning 1 test\ntest policy_attempts_encode_single_request_once ... FAILED\n\nfailures:\n\n---- policy_attempts_encode_single_request_once stdout ----\n\nthread 'policy_attempts_encode_single_request_once' (5256120) panicked at pbrs-grpc/tests/policy_retry.rs:161:5:\n[(\"unary\", false, 3), (\"unary\", true, 3), (\"server_stream\", false, 3), (\"server_stream\", true, 3)]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    policy_attempts_encode_single_request_once\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.03s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --test policy_retry`\n"
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --test policy_retry transparent_refusal_replays_single_request_without_encoding_again",
+      "status": "failed",
+      "stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.19s\n     Running tests/policy_retry.rs (/tmp/pbrs-ad03c-target/debug/deps/policy_retry-7ccac5b9fe087cb1)\n\nrunning 1 test\ntest transparent_refusal_replays_single_request_without_encoding_again ... FAILED\n\nfailures:\n\n---- transparent_refusal_replays_single_request_without_encoding_again stdout ----\n\nthread 'transparent_refusal_replays_single_request_without_encoding_again' (5259162) panicked at pbrs-grpc/tests/policy_retry.rs:238:5:\n[(\"unary\", false, 2), (\"unary\", true, 2), (\"server_stream\", false, 2), (\"server_stream\", true, 2)]\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    transparent_refusal_replays_single_request_without_encoding_again\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.04s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --test policy_retry`\n"
+    }
+  ],
+  "after_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test policy_retry --test retry_safety",
+      "status": "passed",
+      "passed": 39,
+      "failed": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.33s",
+        "test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s"
+      ]
+    }
+  ],
+  "qualification_status": "broader workspace and all-feature validation in progress",
+  "limits": [
+    "Two test matrices cover unary/server-streaming and uncompressed/gzip sends. Policy peers see three identical decoded requests with expected compression flag/header; explicit refusal makes one eventual handler execution and one transparent retry.",
+    "Before repair each policy matrix cell serialized three times, and each transparent-refusal cell serialized twice. Both now serialize once.",
+    "Retained request buffers remain governed by the existing encoding caps and per-attempt byte admission. Shared Bytes payloads are cloned for attempts; no performance claim is made.",
+    "FL-08 seeded histories and full resource/interop qualification remain open."
+  ]
+}

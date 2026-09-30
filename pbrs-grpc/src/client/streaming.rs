@@ -57,15 +57,9 @@ where
         user_agent, https, permit, tap, socket,
     )
     .await
-    .map_err(|(status, _)| status)
 }
 
-/// [`run_server_stream`] that hands the request frame back when the open
-/// fails.
-///
-/// A transparent retry reuses the returned frame instead of cloning up
-/// front; `None` means the frame was consumed (send started) and only a
-/// re-encode can replay.
+/// [`run_server_stream`] with cancellation logging around one attempt.
 #[allow(
     clippy::too_many_arguments,
     reason = "thin cancel-logging wrapper over run_server_stream_inner"
@@ -86,7 +80,7 @@ async fn run_server_stream_frame<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
-) -> Result<Response<Streaming<Resp>>, (Status, Option<SegFrame>)>
+) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
 {
@@ -95,7 +89,7 @@ where
         user_agent, https, permit, tap, socket,
     )
     .await;
-    if let (Some(tap), Err((status, _))) = (tap, &outcome) {
+    if let (Some(tap), Err(status)) = (tap, &outcome) {
         if status.code() == Code::Cancelled {
             tap.log_cancel();
         }
@@ -123,7 +117,7 @@ async fn run_server_stream_inner<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
-) -> Result<Response<Streaming<Resp>>, (Status, Option<SegFrame>)>
+) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
 {
@@ -147,9 +141,8 @@ where
     .await
     {
         Ok(opened) => opened,
-        // HEADERS never went out: hand the frame back so a transparent
-        // retry reuses it instead of cloning up front.
-        Err(status) => return Err((commitment.classify(status), Some(frame))),
+        // HEADERS never went out; the caller retains the encoded frame.
+        Err(status) => return Err(commitment.classify(status)),
     };
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
@@ -164,7 +157,7 @@ where
     drop(permit);
     if let Err(status) = sent {
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
-            return Err((status, None));
+            return Err(status);
         }
         return race(
             prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
@@ -172,8 +165,7 @@ where
             deadline,
             Some(&mut send_stream),
         )
-        .await
-        .map_err(|status| (status, None));
+        .await;
     }
     // Channelz: the single request message went out (failed sends claim
     // none, like unary).
@@ -226,7 +218,7 @@ where
                 global.note_stream_started(sock, true);
                 global.note_stream_end(sock, false);
             }
-            Err((status, None))
+            Err(status)
         }
     }
 }
@@ -685,7 +677,7 @@ impl super::Channel {
                 };
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let mut frame = match encode_msg(
+                let frame = match encode_msg(
                     &msg,
                     compress.then_some(wire.send_codec),
                     wire.limits,
@@ -697,6 +689,8 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
+                // Keep only the bounded encoded frame across attempts.
+                drop(msg);
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let permit = match channel.take_rpc_slot() {
@@ -824,7 +818,7 @@ impl super::Channel {
                         req_timeout,
                         attempt_deadline,
                         compress,
-                        frame,
+                        frame.clone(),
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
@@ -874,33 +868,13 @@ impl super::Channel {
                                 }
                             }
                         }
-                        Err((status, frame_back))
+                        Err(status)
                             if !retried
                                 && status.is_transparent_retryable()
                                 && channel.inner.endpoint.can_redial() =>
                         {
                             finish_attempt(&mut attempt_guard, &status);
-                            // The open-failure path hands the untouched frame
-                            // back; a send that already started consumed it,
-                            // so re-encode from the retained message. The
-                            // server guaranteed non-processing, so replay is
-                            // safe either way.
-                            frame = match frame_back {
-                                Some(f) => f,
-                                None => match encode_msg(
-                                    &msg,
-                                    compress.then_some(wire.send_codec),
-                                    wire.limits,
-                                    wire.gzip_level,
-                                ) {
-                                    Ok(f) => f,
-                                    Err(status) => {
-                                        call_guard.reject(RejectionReason::MessageEncode, &status);
-                                        channel.retry_stats.record_committed(false);
-                                        return Err(status);
-                                    }
-                                },
-                            };
+                            // The peer proved non-processing; replay the retained frame.
                             retried = true;
                             channel.retry_stats.record_transparent_retry();
                             channel
@@ -909,7 +883,7 @@ impl super::Channel {
                                 .await;
                             attempt_idx += 1;
                         }
-                        Err((status, _)) => {
+                        Err(status) => {
                             let cancelled = *cancel_rx.borrow();
                             let per_attempt_timeout = status.code() == Code::DeadlineExceeded
                                 && retry_policy.as_ref().is_some_and(|policy| {
@@ -965,25 +939,6 @@ impl super::Channel {
                                         call_guard.finish(&sleep_status);
                                         return Err(sleep_status);
                                     }
-                                    // The attempt consumed the frame; re-encode
-                                    // for the next one. The inputs are
-                                    // unchanged since the first encode
-                                    // succeeded, so this cannot fail, but
-                                    // handle it rather than panic.
-                                    frame = match encode_msg(
-                                        &msg,
-                                        compress.then_some(wire.send_codec),
-                                        wire.limits,
-                                        wire.gzip_level,
-                                    ) {
-                                        Ok(f) => f,
-                                        Err(status) => {
-                                            call_guard
-                                                .reject(RejectionReason::MessageEncode, &status);
-                                            channel.retry_stats.record_committed(false);
-                                            return Err(status);
-                                        }
-                                    };
                                     policy_attempts += 1;
                                     attempt_idx += 1;
                                     continue;

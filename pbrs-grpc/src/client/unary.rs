@@ -28,15 +28,13 @@ use tokio::sync::watch;
 // headers committed the call. Retain that state through the attempt error.
 struct UnaryFailure {
     status: Status,
-    frame: Option<SegFrame>,
     response_committed: bool,
 }
 
 impl UnaryFailure {
-    fn uncommitted(status: Status, frame: Option<SegFrame>) -> Self {
+    fn uncommitted(status: Status) -> Self {
         Self {
             status,
-            frame,
             response_committed: false,
         }
     }
@@ -73,11 +71,7 @@ where
     .map_err(|failure| failure.status)
 }
 
-/// [`run_unary`] that hands the request frame back when the open fails.
-///
-/// A transparent retry reuses the returned frame instead of cloning up
-/// front; `None` means the frame was consumed (send started) and only a
-/// re-encode can replay.
+/// [`run_unary`] with private commitment information for retry decisions.
 #[allow(
     clippy::too_many_arguments,
     reason = "thin cancel-logging wrapper over run_unary_inner"
@@ -157,13 +151,9 @@ where
     .await
     {
         Ok(opened) => opened,
-        // HEADERS never went out: hand the frame back so a transparent
-        // retry reuses it instead of cloning up front.
+        // HEADERS never went out; the caller retains the encoded frame.
         Err(status) => {
-            return Err(UnaryFailure::uncommitted(
-                commitment.classify(status),
-                Some(frame),
-            ));
+            return Err(UnaryFailure::uncommitted(commitment.classify(status)));
         }
     };
     commitment = AttemptCommitment::BodyStarted;
@@ -190,7 +180,6 @@ where
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
             return Err(UnaryFailure {
                 status,
-                frame: None,
                 response_committed,
             });
         }
@@ -212,7 +201,6 @@ where
         .await
         .map_err(|status| UnaryFailure {
             status,
-            frame: None,
             response_committed,
         });
     }
@@ -243,7 +231,6 @@ where
     .await
     .map_err(|status| UnaryFailure {
         status,
-        frame: None,
         response_committed,
     })
 }
@@ -326,7 +313,7 @@ impl super::Channel {
                 };
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let mut frame = match encode_msg(
+                let frame = match encode_msg(
                     &msg,
                     compress.then_some(wire.send_codec),
                     wire.limits,
@@ -338,6 +325,8 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
+                // Keep only the bounded encoded frame across attempts.
+                drop(msg);
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let _permit = match channel.take_rpc_slot() {
@@ -494,7 +483,7 @@ impl super::Channel {
                         req_timeout,
                         attempt_deadline,
                         compress,
-                        frame,
+                        frame.clone(),
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
@@ -506,34 +495,13 @@ impl super::Channel {
                     {
                         Err(UnaryFailure {
                             status,
-                            frame: frame_back,
                             response_committed: false,
                         }) if !retried
                             && status.is_transparent_retryable()
                             && channel.inner.endpoint.can_redial() =>
                         {
                             finish_attempt(&mut attempt_guard, &status);
-                            // The open-failure path hands the untouched frame
-                            // back; a send that already started consumed it,
-                            // so re-encode from the retained message. The
-                            // server guaranteed non-processing, so replay is
-                            // safe either way.
-                            frame = match frame_back {
-                                Some(f) => f,
-                                None => match encode_msg(
-                                    &msg,
-                                    compress.then_some(wire.send_codec),
-                                    wire.limits,
-                                    wire.gzip_level,
-                                ) {
-                                    Ok(f) => f,
-                                    Err(status) => {
-                                        call_guard.reject(RejectionReason::MessageEncode, &status);
-                                        channel.retry_stats.record_committed(false);
-                                        return Err(status);
-                                    }
-                                },
-                            };
+                            // The peer proved non-processing; replay the retained frame.
                             retried = true;
                             channel.retry_stats.record_transparent_retry();
                             if let Some(socket) = live_socket {
@@ -546,8 +514,8 @@ impl super::Channel {
                             attempt_idx += 1;
                         }
                         result => {
-                            // A consumed frame (or a retry that is not
-                            // transparent) lands here for terminal handling.
+                            // Handle success or a failure that cannot use
+                            // the one transparent retry.
                             let (result, response_committed): (
                                 Result<Response<Resp>, Status>,
                                 bool,
@@ -655,27 +623,6 @@ impl super::Channel {
                                             call_guard.finish(&sleep_status);
                                             return Err(sleep_status);
                                         }
-                                        // The attempt consumed the frame; re-encode
-                                        // for the next one. The inputs are
-                                        // unchanged since the first encode
-                                        // succeeded, so this cannot fail, but
-                                        // handle it rather than panic.
-                                        frame = match encode_msg(
-                                            &msg,
-                                            compress.then_some(wire.send_codec),
-                                            wire.limits,
-                                            wire.gzip_level,
-                                        ) {
-                                            Ok(f) => f,
-                                            Err(status) => {
-                                                call_guard.reject(
-                                                    RejectionReason::MessageEncode,
-                                                    &status,
-                                                );
-                                                channel.retry_stats.record_committed(false);
-                                                return Err(status);
-                                            }
-                                        };
                                         policy_attempts += 1;
                                         attempt_idx += 1;
                                         continue;

@@ -10810,7 +10810,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [
     "QG-11"
@@ -10845,7 +10845,66 @@
    "relates": [
     "FL-08"
    ],
-   "notes": "Claimed from 0cd445737c2e0a9ec44fc96811301dc670df9f57. QG-11 qualifies the completed-upload response reader. The send-failure path still returns an uncommitted UnaryFailure and the cancellation/timeout path does not inspect response headers that may already be queued. Use private commitment bookkeeping only; no public API, dependency, default, or performance changes."
+   "notes": "Delivered in 3f4ef8d6 after both upload regressions observed duplicate execution before repair. Queued headers are observed before failure races, and commitment survives peer-rejection handling. Both cases execute once, decline policy retry, release bytes and allow a follow-up under a one-RPC limit. All-feature RPC/retry/serving 1154 passed; strict workspace all-target/all-feature Clippy passed. Broader FL-08 replay/history qualification remains open. No public API, dependency, default or performance changes.",
+   "reviewer": "Codex",
+   "evidence": [
+    "docs/evidence/unary-upload-commitment.json",
+    "pbrs-grpc/tests/retry_safety.rs#response_headers_during_upload_prevent_policy_replay_after_reset",
+    "pbrs-grpc/tests/retry_safety.rs#response_headers_during_upload_prevent_policy_replay_after_attempt_timeout"
+   ]
+  },
+  {
+   "id": "QG-13",
+   "title": "Replay originally encoded single-request frames",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "QG-12"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "pbrs-grpc/tests/retry_safety.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "pbrs-grpc/tests/retry_safety.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/encoded-request-replay.json"
+   ],
+   "deliverable": "Enforce service-config section 6.3: encode unary and server-streaming requests once and replay the same bounded frame for eligible policy and transparent retries. Release the source message after encoding; retain existing per-attempt byte admission and original deadline behavior.",
+   "accept": [
+    "An observable encoder runs once across multiple unary and server-streaming policy attempts, with identical decoded requests and original compression settings.",
+    "Explicit pre-processing refusal transparently retries without re-encoding; committed-response and no-policy safety regressions remain green.",
+    "Request frames stay bounded by existing method encoding limits and byte/admission permits return on terminal outcomes and follow-up calls."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Claimed from 3f4ef8d6. Both single-request policy loops currently re-run encode_msg after each failed attempt, violating the approved encode-once contract; transparent REFUSED_STREAM after sending can also re-encode. Private frame ownership only; no new API, dependencies, caps, retry defaults or performance claim. Reproduced 3 encodes per 3 policy attempts and 2 per transparent refusal across all four shape/compression cells. Retaining the bounded frame and dropping the source message repairs both; focused retry tests 39 passed. Workspace/package-consumer and all-feature qualification remain running before closure.",
+   "evidence": [
+    "docs/evidence/encoded-request-replay.json",
+    "pbrs-grpc/tests/policy_retry.rs#policy_attempts_encode_single_request_once",
+    "pbrs-grpc/tests/policy_retry.rs#transparent_refusal_replays_single_request_without_encoding_again"
+   ]
   }
  ],
  "last_audit": {

@@ -3324,7 +3324,8 @@
         "FL-07",
         "OB-01",
         "QG-11",
-        "QG-12"
+        "QG-12",
+        "QG-13"
       ],
       "read": [
         "docs/service-config.md",
@@ -3333,7 +3334,8 @@
         "pbrs-grpc/src/client/unary.rs",
         "pbrs-grpc/src/client/retry.rs",
         "pbrs-grpc/tests/policy_retry.rs",
-        "pbrs-grpc/src/client/call.rs"
+        "pbrs-grpc/src/client/call.rs",
+        "pbrs-grpc/src/client/streaming.rs"
       ],
       "write": [
         "pbrs-grpc/src/client.rs",
@@ -3354,10 +3356,11 @@
       ],
       "status": "in_progress",
       "implementer": "Codex",
-      "notes": "Claimed from 71ef9936. The existing GF-07 executor handles explicit unary policy retries, but FL-08 still requires the approved safety/side-effect qualification. A focused commitment audit found run_unary_frame drops its response-commitment state before the policy decision, which consults only the status code. Split the transport-error-after-headers regression and repair to QG-11 before qualifying the full seeded history/resource matrix. No new API, dependency, default, or performance claim. QG-11 closes the completed-request/response-reader commitment defect with before/after reproduction and resource reuse checks. The larger seeded unknown-outcome, early-response/send-error, cancellation/oversize and full-interop qualification remains outstanding; do not mark FL-08 done from this bounded repair. Early-response/upload-failure commitment is now explicitly split to QG-12 before expanding transport helper edits.",
+      "notes": "Claimed from 71ef9936. The existing GF-07 executor handles explicit unary policy retries, but FL-08 still requires the approved safety/side-effect qualification. A focused commitment audit found run_unary_frame drops its response-commitment state before the policy decision, which consults only the status code. Split the transport-error-after-headers regression and repair to QG-11 before qualifying the full seeded history/resource matrix. No new API, dependency, default, or performance claim. QG-11 closes the completed-request/response-reader commitment defect with before/after reproduction and resource reuse checks. The larger seeded unknown-outcome, early-response/send-error, cancellation/oversize and full-interop qualification remains outstanding; do not mark FL-08 done from this bounded repair. Early-response/upload-failure commitment is now explicitly split to QG-12 before expanding transport helper edits. QG-12 closes queued-header commitment on failed/stalled uploads. Section 6.3 encode-once replay violations in unary and server-streaming are split to QG-13 before editing frame ownership; seeded histories and full interop qualification remain open.",
       "evidence": [
         "docs/evidence/unary-policy-commitment.json",
-        "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers"
+        "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers",
+        "docs/evidence/unary-upload-commitment.json"
       ]
     },
     {
