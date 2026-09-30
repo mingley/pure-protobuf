@@ -1219,7 +1219,7 @@ mod tests {
     use super::{Grpc, HttpRequest, HttpResponse, Pin, ProtobufCodec};
     use pbrs_grpc::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
     use pbrs_grpc::{Request as PbrsRequest, Response as PbrsResponse, Status as PbrsStatus};
-    use pbrs_grpc::{Codec, MessageLimits};
+    use pbrs_grpc::{CompressionAlgorithm, MessageLimits};
     use std::future::Future;
     use std::task::{Context, Poll};
     use tonic::body::Body;
@@ -1232,12 +1232,12 @@ mod tests {
     #[test]
     fn zstd_codec_interops_with_c_zstd_peer() {
         let payload = b"tonic zstd interop payload".repeat(256);
-        let ours = Codec::Zstd.encode(&payload).expect("pbrs zstd encode");
+        let ours = CompressionAlgorithm::Zstd.encode(&payload).expect("pbrs zstd encode");
         let decoded_by_c = zstd::stream::decode_all(ours.as_slice()).expect("C zstd decode");
         assert_eq!(decoded_by_c, payload);
 
         let c = zstd::stream::encode_all(payload.as_slice(), 1).expect("C zstd encode");
-        let decoded = Codec::Zstd
+        let decoded = CompressionAlgorithm::Zstd
             .decode_limited(&c, MessageLimits::unlimited())
             .expect("pbrs zstd decode");
         assert_eq!(decoded, payload);

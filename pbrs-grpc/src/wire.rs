@@ -37,7 +37,7 @@ mod tests {
         preferred_codec, select_outbound_codec, select_stream_codec, soonest,
     };
     use crate::codec;
-    use crate::compression::Codec;
+    use crate::compression::CompressionAlgorithm;
     use crate::gzip;
     use crate::limits::MessageLimits;
     use crate::metadata::Metadata;
@@ -219,7 +219,7 @@ mod tests {
             headers.insert("grpc-encoding", HeaderValue::from_static(identity));
             assert_eq!(grpc_encoding(&headers), None, "{identity}");
         }
-        let gzip = Some(Codec::Gzip);
+        let gzip = Some(CompressionAlgorithm::Gzip);
         assert_eq!(select_outbound_codec(Some(true), true, None), None);
         assert_eq!(select_outbound_codec(None, true, gzip), gzip);
         assert_eq!(select_outbound_codec(Some(true), false, gzip), gzip);
@@ -237,37 +237,37 @@ mod tests {
         // Negotiation prefers the configured coding and falls back.
         assert_eq!(
             preferred_codec(
-                Codec::Gzip,
+                CompressionAlgorithm::Gzip,
                 true,
                 true,
                 #[cfg(feature = "zstd")]
                 true,
             ),
-            Some(Codec::Gzip)
+            Some(CompressionAlgorithm::Gzip)
         );
         assert_eq!(
             preferred_codec(
-                Codec::Deflate,
+                CompressionAlgorithm::Deflate,
                 true,
                 true,
                 #[cfg(feature = "zstd")]
                 true,
             ),
-            Some(Codec::Deflate)
+            Some(CompressionAlgorithm::Deflate)
         );
         assert_eq!(
             preferred_codec(
-                Codec::Deflate,
+                CompressionAlgorithm::Deflate,
                 true,
                 false,
                 #[cfg(feature = "zstd")]
                 false,
             ),
-            Some(Codec::Gzip)
+            Some(CompressionAlgorithm::Gzip)
         );
         assert_eq!(
             preferred_codec(
-                Codec::Gzip,
+                CompressionAlgorithm::Gzip,
                 false,
                 false,
                 #[cfg(feature = "zstd")]
@@ -278,12 +278,12 @@ mod tests {
         #[cfg(feature = "zstd")]
         {
             assert_eq!(
-                preferred_codec(Codec::Zstd, false, false, true),
-                Some(Codec::Zstd)
+                preferred_codec(CompressionAlgorithm::Zstd, false, false, true),
+                Some(CompressionAlgorithm::Zstd)
             );
             assert_eq!(
-                preferred_codec(Codec::Gzip, false, false, true),
-                Some(Codec::Zstd)
+                preferred_codec(CompressionAlgorithm::Gzip, false, false, true),
+                Some(CompressionAlgorithm::Zstd)
             );
         }
     }

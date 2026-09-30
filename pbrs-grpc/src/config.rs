@@ -1,6 +1,6 @@
 //! Transport tuning and resource caps for servers and channels.
 
-use crate::compression::Codec;
+use crate::compression::{Codec, CompressionAlgorithm};
 use crate::limits::MessageLimits;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -120,7 +120,7 @@ pub(crate) struct Wire {
     /// Coding for outbound compressed frames. From
     /// [`ServerConfig::compression_codec`] /
     /// [`ChannelConfig::compression_codec`]; default gzip.
-    pub(crate) send_codec: Codec,
+    pub(crate) send_codec: CompressionAlgorithm,
     /// Deflate effort for outbound compressed frames. Default 1.
     pub(crate) gzip_level: u32,
 }
@@ -172,6 +172,7 @@ pub struct ServerConfig {
     accept_compressed: bool,
     gzip_compression_level: u32,
     compression_codec: Codec,
+    compression_algorithm: CompressionAlgorithm,
     #[cfg(feature = "grpc-web")]
     grpc_web_cors: crate::web::CorsPolicy,
 }
@@ -211,6 +212,7 @@ impl Default for ServerConfig {
             accept_compressed: true,
             gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
             compression_codec: Codec::default(),
+            compression_algorithm: CompressionAlgorithm::default(),
             #[cfg(feature = "grpc-web")]
             grpc_web_cors: crate::web::CorsPolicy::DenyAll,
         }
@@ -817,6 +819,28 @@ impl ServerConfig {
     #[must_use]
     pub fn compression_codec(mut self, codec: Codec) -> Self {
         self.compression_codec = codec;
+        self.compression_algorithm = codec.into();
+        self
+    }
+
+    /// Preferred coding for outbound compressed messages, including optional
+    /// Zstd. Default gzip. Applies to every call shape.
+    ///
+    /// This selects the coding without enabling compression; use
+    /// [`Self::send_compressed`] to enable it. Servers fall back to a coding
+    /// the peer accepts. [`Self::send_algorithm`] reports this preference;
+    /// the response's encoding reports the negotiated coding.
+    ///
+    /// Selecting gzip or deflate also updates [`Self::send_codec`]. Selecting
+    /// an optional coding retains the last legacy selection, which remains
+    /// available through that getter. [`Self::compression_codec`] replaces
+    /// this preference with the supplied legacy codec.
+    #[must_use]
+    pub fn compression_algorithm(mut self, algorithm: CompressionAlgorithm) -> Self {
+        if let Some(codec) = algorithm.legacy_codec() {
+            self.compression_codec = codec;
+        }
+        self.compression_algorithm = algorithm;
         self
     }
 
@@ -896,12 +920,23 @@ impl ServerConfig {
         self.gzip_compression_level
     }
 
-    /// Configured outbound compression coding. See [`Self::compression_codec`].
+    /// Last configured gzip/deflate selection. See [`Self::compression_codec`].
     /// Applies to every call shape.
     /// Distinct from [`Self::compression_codec`], which sets it.
+    /// An optional coding selected by [`Self::compression_algorithm`] cannot
+    /// be represented by [`Codec`]; use [`Self::send_algorithm`] to inspect
+    /// the current outbound preference.
     #[must_use]
     pub fn send_codec(self) -> Codec {
         self.compression_codec
+    }
+
+    /// Current outbound compression preference, including optional codings.
+    /// See [`Self::compression_algorithm`]. Applies to every call shape.
+    /// Servers negotiate this preference against the peer's accepted codings.
+    #[must_use]
+    pub fn send_algorithm(self) -> CompressionAlgorithm {
+        self.compression_algorithm
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -1104,7 +1139,7 @@ impl ServerConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
-            send_codec: self.compression_codec,
+            send_codec: self.compression_algorithm,
             gzip_level: self.gzip_compression_level,
         }
     }
@@ -1204,6 +1239,7 @@ pub struct ChannelConfig {
     accept_compressed: bool,
     gzip_compression_level: u32,
     compression_codec: Codec,
+    compression_algorithm: CompressionAlgorithm,
     timeout: Option<Duration>,
     wait_for_ready: bool,
     max_concurrent_rpcs: Option<usize>,
@@ -1245,6 +1281,7 @@ impl Default for ChannelConfig {
             accept_compressed: true,
             gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
             compression_codec: Codec::default(),
+            compression_algorithm: CompressionAlgorithm::default(),
             timeout: None,
             wait_for_ready: false,
             max_concurrent_rpcs: None,
@@ -1808,6 +1845,28 @@ impl ChannelConfig {
     #[must_use]
     pub fn compression_codec(mut self, codec: Codec) -> Self {
         self.compression_codec = codec;
+        self.compression_algorithm = codec.into();
+        self
+    }
+
+    /// Preferred coding for outbound compressed messages, including optional
+    /// Zstd. Default gzip. Applies to every call shape.
+    ///
+    /// This selects the coding without enabling compression; use
+    /// [`Self::send_compressed`] to enable it. Servers fall back to a coding
+    /// the peer accepts. [`Self::send_algorithm`] reports this preference;
+    /// the response's encoding reports the negotiated coding.
+    ///
+    /// Selecting gzip or deflate also updates [`Self::send_codec`]. Selecting
+    /// an optional coding retains the last legacy selection, which remains
+    /// available through that getter. [`Self::compression_codec`] replaces
+    /// this preference with the supplied legacy codec.
+    #[must_use]
+    pub fn compression_algorithm(mut self, algorithm: CompressionAlgorithm) -> Self {
+        if let Some(codec) = algorithm.legacy_codec() {
+            self.compression_codec = codec;
+        }
+        self.compression_algorithm = algorithm;
         self
     }
 
@@ -2125,12 +2184,23 @@ impl ChannelConfig {
         self.gzip_compression_level
     }
 
-    /// Configured outbound compression coding. See [`Self::compression_codec`].
+    /// Last configured gzip/deflate selection. See [`Self::compression_codec`].
     /// Applies to every call shape.
     /// Distinct from [`Self::compression_codec`], which sets it.
+    /// An optional coding selected by [`Self::compression_algorithm`] cannot
+    /// be represented by [`Codec`]; use [`Self::send_algorithm`] to inspect
+    /// the current outbound preference.
     #[must_use]
     pub fn send_codec(self) -> Codec {
         self.compression_codec
+    }
+
+    /// Current outbound compression preference, including optional codings.
+    /// See [`Self::compression_algorithm`]. Applies to every call shape.
+    /// Servers negotiate this preference against the peer's accepted codings.
+    #[must_use]
+    pub fn send_algorithm(self) -> CompressionAlgorithm {
+        self.compression_algorithm
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -2201,7 +2271,7 @@ impl ChannelConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
-            send_codec: self.compression_codec,
+            send_codec: self.compression_algorithm,
             gzip_level: self.gzip_compression_level,
         }
     }

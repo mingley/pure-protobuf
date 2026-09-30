@@ -16,7 +16,7 @@ use super::drain::{
 use super::drain::{send_web_stream_response, send_web_unary_response};
 use super::router::split_path;
 use crate::codec::CodecMessage;
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::config::ServerConfig;
 use crate::limits::{ByteBudgetTracker, MessageLimits};
 use crate::metadata::Metadata;
@@ -1180,9 +1180,10 @@ impl Rpc {
         let peer_timeout = self.peer_timeout();
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
-        let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        let peer_accepts_deflate =
+            accepts_codec(self.request.headers(), CompressionAlgorithm::Deflate);
         #[cfg(feature = "zstd")]
-        let peer_accepts_zstd = accepts_codec(self.request.headers(), Codec::Zstd);
+        let peer_accepts_zstd = accepts_codec(self.request.headers(), CompressionAlgorithm::Zstd);
         let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();
@@ -1362,9 +1363,10 @@ impl Rpc {
         let peer_timeout = self.peer_timeout();
         let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
-        let peer_accepts_deflate = accepts_codec(self.request.headers(), Codec::Deflate);
+        let peer_accepts_deflate =
+            accepts_codec(self.request.headers(), CompressionAlgorithm::Deflate);
         #[cfg(feature = "zstd")]
-        let peer_accepts_zstd = accepts_codec(self.request.headers(), Codec::Zstd);
+        let peer_accepts_zstd = accepts_codec(self.request.headers(), CompressionAlgorithm::Zstd);
         let request_codec = inbound_codec(self.request.headers());
         let encoding = self.encoding().map(str::to_owned);
         let observer = self.observer.clone();

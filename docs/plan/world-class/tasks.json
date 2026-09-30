@@ -10650,7 +10650,7 @@
    "priority": "P0",
    "executor": "coordinator",
    "size": "M",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "AD-03"
    ],
@@ -10663,7 +10663,17 @@
     "pbrs-grpc/src/compression/",
     "pbrs-grpc/src/config.rs",
     "pbrs-grpc/src/wire/",
+    "pbrs-grpc/src/wire.rs",
+    "pbrs-grpc/src/lib.rs",
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/src/server/rpc.rs",
+    "pbrs-grpc/src/web/frame.rs",
+    "pbrs-grpc/src/interop_cases.rs",
     "pbrs-grpc/tests/compression.rs",
+    "pbrs-grpc/tests/hostile.rs",
+    "pbrs-grpc/tests/serving.rs",
+    "tests/interop/tonic/src/main.rs",
+    "examples/tonic-ports/src/lib.rs",
     "docs/decisions/",
     "docs/grpc.md"
    ],
@@ -10683,7 +10693,12 @@
     "AD-03a",
     "RX-06"
    ],
-   "notes": "The former alpha-version inference skipped all lints. Enforcing the existing stable compatibility policy catches Codec::Zstd as a new variant on an exhaustive enum. Keep the failure visible until the additive API is implemented; do not suppress the lint or drop Zstd support."
+   "notes": "Claimed from 04a44c0484ca002f0f1fc8dde2d7a5729a16046c. The former alpha-version inference skipped all lints. Enforcing the existing stable compatibility policy catches Codec::Zstd as a new variant on an exhaustive enum. Keep the failure visible until the additive API is implemented; do not suppress the lint or drop Zstd support. Bounded compatibility proposal: keep published Codec exhaustive with Gzip/Deflate, add a non-exhaustive CompressionAlgorithm registry, preserve compression_codec/send_codec signatures and their legacy selection, and expose compression_algorithm/send_algorithm for the actual configured wire preference. Transport dispatch and existing zstd peers move to the richer registry; no dependency, default, or wire negotiation changes. Expanded write scope explicitly includes private dispatch sites and existing peer/hostile tests. The downstream exhaustive-match regression failed before the repair and passes with zstd enabled afterward. All 443 all-feature unit tests, four compression API/unary tests, the existing config documentation contract, 24 repository documentation contracts, strict workspace all-target/all-feature Clippy, and all 196 applicable native minor-policy semver checks pass. Four-shape native and mixed-peer qualification remains open for the next bounded validation commit.",
+   "evidence": [
+    "pbrs-grpc/tests/compression.rs#published_codec_remains_exhaustive_with_original_discriminants",
+    "pbrs-grpc/tests/compression.rs#extended_compression_selection_reports_and_restores_legacy_settings",
+    "docs/decisions/compression.md#preserve-the-published-compression-selector-ad-03c"
+   ]
   }
  ],
  "last_audit": {

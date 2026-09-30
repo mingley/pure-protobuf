@@ -1191,7 +1191,7 @@ pub async fn run_compression() -> ExampleResult {
         let handle = tokio::spawn(async move {
             let config = pbrs_grpc::ServerConfig::new()
                 .send_compressed(true)
-                .compression_codec(pbrs_grpc::Codec::Zstd);
+                .compression_algorithm(pbrs_grpc::CompressionAlgorithm::Zstd);
             Server::new(compat_gen::helloworld::GreeterServer::new(CompatGreeter))
                 .config(config)
                 .serve_listener(listener)
@@ -1202,7 +1202,7 @@ pub async fn run_compression() -> ExampleResult {
             addr,
             pbrs_grpc::ChannelConfig::new()
                 .send_compressed(true)
-                .compression_codec(pbrs_grpc::Codec::Zstd),
+                .compression_algorithm(pbrs_grpc::CompressionAlgorithm::Zstd),
         )
         .await?;
         let mut client = compat_gen::helloworld::GreeterClient::new(channel);

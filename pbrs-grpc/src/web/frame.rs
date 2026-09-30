@@ -2,7 +2,7 @@
 
 use crate::binlog::{CallLogger, Logger};
 use crate::codec::CodecMessage;
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::Status;
@@ -211,7 +211,7 @@ pub(crate) fn send_ok_headers(
     respond: &mut backend::SendResponse,
     mode: Mode,
     md: &Metadata,
-    send_codec: Option<Codec>,
+    send_codec: Option<CompressionAlgorithm>,
     accept_gzip: bool,
 ) -> Result<backend::SendStream, Status> {
     let mut res = Response::new(());
@@ -338,7 +338,7 @@ pub(crate) async fn read_one_text_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: Codec,
+    codec: CompressionAlgorithm,
     tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
     let mut encoded = BytesMut::new();

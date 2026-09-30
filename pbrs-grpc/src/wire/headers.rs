@@ -1,6 +1,6 @@
 //! Request/response headers: grpc-* parsing, timeouts, content checks.
 
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::metadata::Metadata;
 use crate::status::Status;
 use crate::transport::h2::RecvStream;
@@ -58,12 +58,12 @@ pub(crate) fn accept_encoding_value(gzip: bool) -> HeaderValue {
 }
 
 /// `grpc-encoding` value for an outbound `codec`.
-pub(crate) fn encoding_value(codec: Codec) -> HeaderValue {
+pub(crate) fn encoding_value(codec: CompressionAlgorithm) -> HeaderValue {
     match codec {
-        Codec::Gzip => GZIP,
-        Codec::Deflate => DEFLATE,
+        CompressionAlgorithm::Gzip => GZIP,
+        CompressionAlgorithm::Deflate => DEFLATE,
         #[cfg(feature = "zstd")]
-        Codec::Zstd => ZSTD,
+        CompressionAlgorithm::Zstd => ZSTD,
     }
 }
 
@@ -81,7 +81,7 @@ pub(crate) fn grpc_request(
     path: &'static str,
     md: &Metadata,
     timeout: Option<Duration>,
-    send_codec: Option<Codec>,
+    send_codec: Option<CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
     https: bool,
@@ -147,7 +147,7 @@ pub(crate) fn grpc_encoding(headers: &HeaderMap) -> Option<&str> {
 /// Tokens are comma-separated; a `q=` parameter is ignored. Missing or
 /// unreadable header means identity only — never compress for a peer that
 /// did not ask for it.
-pub(crate) fn accepts_codec(headers: &HeaderMap, codec: Codec) -> bool {
+pub(crate) fn accepts_codec(headers: &HeaderMap, codec: CompressionAlgorithm) -> bool {
     let Some(value) = headers.get(GRPC_ACCEPT_ENCODING) else {
         return false;
     };
@@ -158,7 +158,10 @@ pub(crate) fn accepts_codec(headers: &HeaderMap, codec: Codec) -> bool {
         #[cfg(feature = "zstd")]
         return true;
         #[cfg(not(feature = "zstd"))]
-        return matches!(codec, Codec::Gzip | Codec::Deflate);
+        return matches!(
+            codec,
+            CompressionAlgorithm::Gzip | CompressionAlgorithm::Deflate
+        );
     }
     let want = codec.name();
     value.to_str().is_ok_and(|raw| {
@@ -172,25 +175,27 @@ pub(crate) fn accepts_codec(headers: &HeaderMap, codec: Codec) -> bool {
 
 /// Whether the peer advertised gzip in `grpc-accept-encoding`.
 pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
-    accepts_codec(headers, Codec::Gzip)
+    accepts_codec(headers, CompressionAlgorithm::Gzip)
 }
 
 /// The coding compressed inbound frames on this RPC use.
 ///
 /// Parsed from the peer's `grpc-encoding` token. Missing, empty, or
-/// `identity` is [`Codec::Gzip`]: a Compressed-Flag with no usable token
+/// `identity` is [`CompressionAlgorithm::Gzip`]: a Compressed-Flag with no usable token
 /// inflates as gzip, matching the pre-deflate behavior. Callers admit the
 /// token first ([`check_request`] on the server,
 /// [`super::frame_reader::refuse_encoding_reply`] on the client), so an
 /// unknown coding never reaches the decoder.
-pub(crate) fn inbound_codec(headers: &HeaderMap) -> Codec {
+pub(crate) fn inbound_codec(headers: &HeaderMap) -> CompressionAlgorithm {
     inbound_codec_from_token(grpc_encoding(headers))
 }
 
 /// [`inbound_codec`] when the caller already fetched the token, so one
 /// header lookup serves the refuse check, the decode, and the envelope.
-pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> Codec {
-    token.and_then(Codec::parse).unwrap_or_default()
+pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> CompressionAlgorithm {
+    token
+        .and_then(CompressionAlgorithm::parse)
+        .unwrap_or_default()
 }
 
 /// The best coding the peer accepts, preferring `configured`.
@@ -200,25 +205,25 @@ pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> Codec {
 /// vice versa) instead of silently sending identity. `None` means the peer
 /// accepts neither.
 pub(crate) fn preferred_codec(
-    configured: Codec,
+    configured: CompressionAlgorithm,
     peer_gzip: bool,
     peer_deflate: bool,
     #[cfg(feature = "zstd")] peer_zstd: bool,
-) -> Option<Codec> {
+) -> Option<CompressionAlgorithm> {
     let accepts = |codec| match codec {
-        Codec::Gzip => peer_gzip,
-        Codec::Deflate => peer_deflate,
+        CompressionAlgorithm::Gzip => peer_gzip,
+        CompressionAlgorithm::Deflate => peer_deflate,
         #[cfg(feature = "zstd")]
-        Codec::Zstd => peer_zstd,
+        CompressionAlgorithm::Zstd => peer_zstd,
     };
     if accepts(configured) {
         return Some(configured);
     }
     [
-        Codec::Gzip,
-        Codec::Deflate,
+        CompressionAlgorithm::Gzip,
+        CompressionAlgorithm::Deflate,
         #[cfg(feature = "zstd")]
-        Codec::Zstd,
+        CompressionAlgorithm::Zstd,
     ]
     .into_iter()
     .find(|&fallback| fallback != configured && accepts(fallback))
@@ -232,8 +237,8 @@ pub(crate) fn preferred_codec(
 pub(crate) fn select_outbound_codec(
     handler: Option<bool>,
     send: bool,
-    negotiated: Option<Codec>,
-) -> Option<Codec> {
+    negotiated: Option<CompressionAlgorithm>,
+) -> Option<CompressionAlgorithm> {
     negotiated.filter(|_| handler.unwrap_or(send))
 }
 
@@ -249,8 +254,8 @@ pub(crate) fn select_stream_codec(
     framed: bool,
     envelope: Option<bool>,
     send: bool,
-    negotiated: Option<Codec>,
-) -> Option<Codec> {
+    negotiated: Option<CompressionAlgorithm>,
+) -> Option<CompressionAlgorithm> {
     select_outbound_codec(
         if framed {
             Some(true)
@@ -314,7 +319,7 @@ pub(crate) fn grpc_encoding_supported(value: &str) -> bool {
 /// Admit identity always, gzip and deflate only when `gzip` is true.
 pub(crate) fn grpc_encoding_admitted(value: &str, gzip: bool) -> bool {
     let token = encoding_token(value);
-    token.eq_ignore_ascii_case("identity") || (gzip && Codec::parse(token).is_some())
+    token.eq_ignore_ascii_case("identity") || (gzip && CompressionAlgorithm::parse(token).is_some())
 }
 
 /// Trailers-only status for an encoding this process will not inflate.

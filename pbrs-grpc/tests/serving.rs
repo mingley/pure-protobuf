@@ -7551,9 +7551,21 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Configured outbound compression coding. See [`Self::compression_codec`].\n    /// Applies to every call shape.\n    /// Distinct from [`Self::compression_codec`], which sets it.\n    #[must_use]\n    pub fn send_codec(self) -> Codec {\n        self.compression_codec\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`Self::accept_compressed`], which sets it.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
+            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }"
         ),
         "ServerConfig::gzip_level must Distinct the setter"
+    );
+    assert_eq!(
+        src.matches("Last configured gzip/deflate selection. See [`Self::compression_codec`].")
+            .count(),
+        2,
+        "both legacy getters must describe their gzip/deflate selection"
+    );
+    assert_eq!(
+        src.matches("be represented by [`Codec`]; use [`Self::send_algorithm`] to inspect")
+            .count(),
+        2,
+        "both legacy getters must direct optional-coding users to the current preference"
     );
     assert!(
         src.contains(

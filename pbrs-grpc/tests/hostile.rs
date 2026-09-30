@@ -207,7 +207,9 @@ fn deflate(payload: &[u8]) -> Vec<u8> {
 
 #[cfg(feature = "zstd")]
 fn zstd(payload: &[u8]) -> Vec<u8> {
-    pbrs_grpc::Codec::Zstd.encode(payload).expect("zstd")
+    pbrs_grpc::CompressionAlgorithm::Zstd
+        .encode(payload)
+        .expect("zstd")
 }
 
 /// A valid `HelloRequest { name: "ada" }`.

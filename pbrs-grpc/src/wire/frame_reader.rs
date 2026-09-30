@@ -6,7 +6,7 @@ use super::headers::{
 };
 use crate::binlog::{CallLogger, Logger};
 use crate::codec::{self, CodecMessage, Frame};
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
@@ -178,7 +178,7 @@ pub(crate) fn decode_frame<T: CodecMessage>(
     frame: Frame,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: Codec,
+    codec: CompressionAlgorithm,
 ) -> Result<Framed<T>, Status> {
     let message = if frame.compressed {
         if !accept_gzip {
@@ -203,7 +203,7 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: Codec,
+    codec: CompressionAlgorithm,
     tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
@@ -250,9 +250,9 @@ pub(crate) struct WireStream<T> {
     limits: MessageLimits,
     /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
-    decode: fn(Frame, MessageLimits, bool, Codec) -> Result<Framed<T>, Status>,
+    decode: fn(Frame, MessageLimits, bool, CompressionAlgorithm) -> Result<Framed<T>, Status>,
     accept_gzip: bool,
-    codec: Codec,
+    codec: CompressionAlgorithm,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not
     /// just the call setup: a server that answers with headers and then goes
     /// quiet would otherwise hang the reader forever.
@@ -270,7 +270,7 @@ impl<T: CodecMessage> WireStream<T> {
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
         accept_gzip: bool,
-        codec: Codec,
+        codec: CompressionAlgorithm,
         tap: Option<CallLogger>,
     ) -> Self {
         Self {
@@ -444,7 +444,7 @@ pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> R
     let Some(token) = token else {
         return Ok(());
     };
-    if Codec::parse(token).is_none() {
+    if CompressionAlgorithm::parse(token).is_none() {
         #[cfg(feature = "zstd")]
         let accepted = "identity, gzip, deflate, and zstd";
         #[cfg(not(feature = "zstd"))]

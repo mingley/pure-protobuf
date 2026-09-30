@@ -1,4 +1,4 @@
-//! `zstd` coding (RFC 8878) for [`Codec`](super::Codec).
+//! `zstd` coding (RFC 8878) for [`CompressionAlgorithm`](super::CompressionAlgorithm).
 //!
 //! Backed by `ruzstd`, a pure-Rust encoder/decoder with broad adoption. The
 //! dependency is optional behind the `zstd` feature so default builds keep

@@ -1161,7 +1161,7 @@ pub mod codegen_support {
 
 pub use client::{Channel, Endpoint, RetryStats, Target};
 pub use codec::CodecMessage;
-pub use compression::Codec;
+pub use compression::{Codec, CompressionAlgorithm};
 pub use config::{
     ChannelConfig, DEFAULT_ADAPTIVE_WINDOW_INITIAL_SIZE, DEFAULT_ADAPTIVE_WINDOW_MAX_SIZE,
     DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET, DEFAULT_GZIP_COMPRESSION_LEVEL,

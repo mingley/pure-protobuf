@@ -8,7 +8,7 @@ use super::headers::{
 };
 use super::out_batch::{OutBatch, let_producer_catch_up};
 use crate::codec::CodecMessage;
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::config::Wire;
 use crate::metadata::Metadata;
 use crate::status::{Code, Pushback, Status};
@@ -216,7 +216,7 @@ pub(crate) fn send_http(respond: &mut backend::SendResponse, status: StatusCode)
 pub(crate) fn send_ok_headers(
     respond: &mut backend::SendResponse,
     md: &Metadata,
-    send_codec: Option<Codec>,
+    send_codec: Option<CompressionAlgorithm>,
     accept_gzip: bool,
 ) -> Result<backend::SendStream, Status> {
     let mut res = Response::new(());

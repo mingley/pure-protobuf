@@ -2,7 +2,7 @@
 
 use crate::codec;
 use crate::codec::CodecMessage;
-use crate::compression::Codec;
+use crate::compression::CompressionAlgorithm;
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
@@ -213,7 +213,7 @@ pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<Seg
 
 pub(crate) fn encode_msg<T: CodecMessage>(
     msg: &T,
-    codec: Option<Codec>,
+    codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
 ) -> Result<SegFrame, Status> {
@@ -268,7 +268,7 @@ pub(crate) const STREAM_BATCH_BYTES: usize = 32 * 1024;
 pub(crate) fn append_frame<T: CodecMessage>(
     sink: &mut SegSink,
     msg: &T,
-    codec: Option<Codec>,
+    codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
 ) -> Result<(), Status> {

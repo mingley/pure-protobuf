@@ -55,7 +55,7 @@ one-line feature change plus this doc.
 intermediate `Vec`, then copy into the framed buffer. That cost 3 allocations
 and 2 full copies per compressed message.
 
-The encoder now writes through `Codec::encode_into` directly into the frame
+The encoder now writes through `CompressionAlgorithm::encode_into` directly into the frame
 `BytesMut`. The 5-byte header goes out first with a zero length and is patched
 once the stream ends. This saves 1 allocation and 1 bulk copy per message on
 every call shape in both directions. Byte-identical output is pinned by
@@ -128,7 +128,7 @@ pbrs-grpc 1.85 profile. `ruzstd` 0.9 does provide an encoder:
 `ruzstd::encoding::compress_to_vec(source, CompressionLevel::Fastest)`.
 Only `Fastest` is implemented; `Default`, `Better`, and `Best` are explicitly
 unimplemented. Therefore every pbrs-grpc zstd compression-level request maps
-to Fastest, roughly zstd level 1. The feature adds `Codec::Zstd`, advertises
+to Fastest, roughly zstd level 1. The feature adds `CompressionAlgorithm::Zstd`, advertises
 `identity,gzip,deflate,zstd`, parses `grpc-encoding: zstd`, and negotiates
 zstd through the same registry as gzip and deflate. A zstd-configured server
 still falls back to gzip or deflate when the peer does not advertise zstd.
@@ -143,10 +143,35 @@ frame cap; the server rejects it at the uncompressed message limit.
 
 The C `zstd` crate is not in `pbrs-grpc`'s dev-dependencies. C-backed zstd
 interop proof lives in the standalone `tests/interop/tonic` workspace, which
-already allows tonic/C-backed peer tooling. Its test verifies `Codec::Zstd`
+already allows tonic/C-backed peer tooling. Its test verifies `CompressionAlgorithm::Zstd`
 frames decode with the C zstd crate and C zstd frames decode with pbrs-grpc.
 `pbrs-grpc/tests/compression.rs` keeps the pure-Rust in-crate proof that a
 real unary RPC negotiates zstd in both directions.
 
 Remaining limits: there is still no official gRPC interop procedure for zstd,
 so this is a tonic-compatible proof rather than an upstream interop case.
+
+## Preserve the published compression selector (AD-03c)
+
+The published `Codec` enum has two exhaustive variants, `Gzip` and `Deflate`.
+Adding `Zstd` to it broke downstream exhaustive matches when the optional
+feature was enabled. An explicit minor-policy semver check exposed this;
+unchanged alpha versions had previously caused the checker to skip its lints.
+
+Keep `Codec`, its discriminants and its public methods unchanged. Optional
+codings use the new non-exhaustive `CompressionAlgorithm` enum. Native and
+gRPC-Web framing, negotiation and decoding use that registry; the compression
+backends, limits, wire tokens and defaults stay as before. `From<Codec>` and
+`CompressionAlgorithm::legacy_codec()` connect the two surfaces.
+
+Both config types retain `compression_codec(Codec)` and `send_codec() -> Codec`.
+The additive `compression_algorithm(CompressionAlgorithm)` selects the wire
+preference, and `send_algorithm()` reports it even for Zstd. Selecting gzip or
+deflate updates both getters. Selecting an optional coding keeps the previous
+legacy selection for `send_codec()`, documented as such. Calling the legacy
+setter again replaces the wire preference. A configured server preference
+may fall back after peer negotiation; `Response::encoding()` reports that
+actual coding.
+
+This separates an existing exhaustive contract from future registry additions
+without suppressing the semver check or changing crate versions.

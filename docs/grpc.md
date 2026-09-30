@@ -267,6 +267,16 @@ See the [production service configuration guide](guides/production-service.md).
 
 See the [production service configuration guide](guides/production-service.md).
 
+Select gzip or deflate with `compression_codec(Codec::Gzip)` or
+`compression_codec(Codec::Deflate)`. With the optional `zstd` feature,
+use `compression_algorithm(CompressionAlgorithm::Zstd)` on `ChannelConfig`
+or `ServerConfig`, and enable outbound compression with `send_compressed(true)`.
+`send_algorithm()` reports the configured wire preference; servers negotiate
+against the peer's accepted codings, so inspect `Response::encoding()` for
+the actual response coding. The legacy `send_codec()` getter keeps the last
+gzip/deflate selection. Calling `compression_codec` again replaces the current
+preference. `Codec` remains exhaustive; `CompressionAlgorithm` is extensible.
+
 <a id="metadata"></a>
 <a id="interceptors-and-middleware"></a>
 ### 3. Interceptors and metadata
