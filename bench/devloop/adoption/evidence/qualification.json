@@ -1,0 +1,447 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "card": "SB-26a",
+  "parent": "SB-26",
+  "base_revision": "34fffc29dbf872f642b38baafb8e2ed90f518832",
+  "contract_revision": "2ac07df288373f80f93cd8c6e25a27ea5ef8bb4d",
+  "contract": "bench/devloop/ADOPTION.md",
+  "source_blobs": {
+    "bench/devloop/adoption/Cargo.lock": "a84fa42ee36f24983ab8d12dddd112c20be596ce",
+    "bench/devloop/adoption/Cargo.toml": "231f037dcaee11d4dd62817c6928bfb4d772a16d",
+    "bench/devloop/adoption/README.md": "094102db6427a02a7d6580ed14510b3495b9a4d2",
+    "bench/devloop/adoption/build.rs": "cb694bb9124317e535e8ab9dc97c020ba80a06c4",
+    "bench/devloop/adoption/generate.py": "d1580a1b6b915a945e3c7fad8686a89a1323f963",
+    "bench/devloop/adoption/proto/adoption.proto": "9d2fa6b06656bff8979aab97f7554f61e1bcca3c",
+    "bench/devloop/adoption/proto/options/definitions.proto": "fb511253a6b7e7d7823d82250082247d92c1f56c",
+    "bench/devloop/adoption/proto/options/part_00.proto": "5c17bfdf0d238c1e0481fbec49f9ec521a14cc83",
+    "bench/devloop/adoption/proto/options/part_01.proto": "f9b76396f9c83f5768838912bfb58961d0eee648",
+    "bench/devloop/adoption/proto/options/part_02.proto": "d4a3a2558cb3cc74cdf1aa3113e2a648bbf874eb",
+    "bench/devloop/adoption/proto/options/part_03.proto": "edc088978e1d8435f70f922e92f33e917cc6c5b6",
+    "bench/devloop/adoption/proto/options/part_04.proto": "f06f02651e24906f8b397bf7712c7dbca068e20d",
+    "bench/devloop/adoption/proto/options/part_05.proto": "2aa69cddb8bf7901e9a32b34ac2a072a93a2cf17",
+    "bench/devloop/adoption/proto/options/part_06.proto": "d1bf8dda2ee179e180f7ee39487fb9844e17c45c",
+    "bench/devloop/adoption/proto/options/part_07.proto": "099c299cd44facf3a692de586ac6e0d2202e40f9",
+    "bench/devloop/adoption/proto/options/part_08.proto": "700d537b8bfe0b354655e4aa575d24603c3a103c",
+    "bench/devloop/adoption/proto/options/part_09.proto": "ed375e0776dc73e020a29194025a3a678b874d56",
+    "bench/devloop/adoption/proto/options/part_10.proto": "57d8d118408b0b56401f29aa7667b16eb887b244",
+    "bench/devloop/adoption/proto/options/part_11.proto": "8f0922660f6fd12b821762194c2495e7dafd0503",
+    "bench/devloop/adoption/proto/options/part_12.proto": "a8815a5b53ee2b94214cb6ae1969bce77751637e",
+    "bench/devloop/adoption/proto/options/part_13.proto": "fa42dc035d96c18ffc9ce8d24fcc3ffffd6324d7",
+    "bench/devloop/adoption/proto/options/part_14.proto": "92904c87a6d575e1c6f99c0f595582160b287528",
+    "bench/devloop/adoption/proto/options/part_15.proto": "d982a7a046051d0e25197844a9b2b405a262f662",
+    "bench/devloop/adoption/proto/options/part_16.proto": "449fbbc47ae8fc9cb0744a4ee76aa2f3105ef40b",
+    "bench/devloop/adoption/proto/options/part_17.proto": "0b22aa744d636d6ff3237f6941623b941d622a7a",
+    "bench/devloop/adoption/proto/options/part_18.proto": "6ec651f82ce345b811808abb949193447e827a44",
+    "bench/devloop/adoption/proto/options/part_19.proto": "01f42832356d14a33dfb1cb776349b326de22571",
+    "bench/devloop/adoption/proto/sparse.proto": "a521a2a428ba2135ff3179c1a0d854e18bba81ca",
+    "bench/devloop/adoption/src/bin/inventory.rs": "3d30256327521393f19ca398cdd7f25d0d0abde9",
+    "bench/devloop/adoption/src/corpus.rs": "6c933bc820dc1f83d5ec53188bf09590ea3c1937",
+    "bench/devloop/adoption/src/lib.rs": "8321e91aa7fb5152931effd86d9475eb6a7f0e29",
+    "bench/devloop/adoption/src/option_tests.rs": "6ff92fcf00ba930d7b6d53a8b5d724d77d91e854",
+    "bench/devloop/adoption/src/sparse_walks.rs": "2456b6702cf9b7612a1252ae7e52449e7a40ff29"
+  },
+  "environment": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "rustfmt": "rustfmt 1.9.0-stable (48a229ceae 2026-09-01)",
+    "protoc": "libprotoc 36.2",
+    "consumer_target": "/tmp/pbrs-ad03c-target/adoption",
+    "declared_rust_floor": "1.88; qualification was run on 1.98.1, not an MSRV campaign"
+  },
+  "manifest_review": "Standalone excluded corpus consumer uses only the existing pbrs path plus prost/prost-build 0.14 and serde_json from established benchmark graphs. Manifest reviewed before resolution/building; its own lockfile pins prost/prost-build 0.14.4. No shipping dependency, unsafe code, numeric threshold or production code is changed.",
+  "corpus": {
+    "inventory": "bench/devloop/adoption/evidence/inventory.json",
+    "inventory_sha256": "c543b872083c6366892450f7b7d03c82916badd04bc1446e9644c8f7f68f8207",
+    "specimens": 64,
+    "queries": {
+      "variants": 48,
+      "depths": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "wire_bytes_min": 187,
+      "wire_bytes_max": 605,
+      "typed_variants": [
+        "boolean",
+        "signed_integer",
+        "double",
+        "string",
+        "bytes"
+      ],
+      "features": [
+        "boolean_operators",
+        "recursive_children",
+        "typed_predicates",
+        "subqueries",
+        "edge_traversals"
+      ]
+    },
+    "entities": {
+      "counts": [
+        10,
+        100,
+        1000
+      ],
+      "encoded_payload_bytes": [
+        256,
+        320,
+        384,
+        448,
+        512
+      ],
+      "list_wire_bytes": [
+        5626,
+        56398,
+        564598
+      ],
+      "read_work": "Every record key, revision, optional-description presence/content, nested edge kind/targets/children, Any type URL and byte contents, plus decode and complete read of every generated Payload field."
+    },
+    "sparse": {
+      "fields": 128,
+      "presence_patterns": 10,
+      "present_fields_per_specimen": [
+        12,
+        13
+      ],
+      "read_work": "Read every declared optional field, including presence and explicitly present defaults, string/bytes contents and nested SparseSlot fields. Separate pbrs/prost builders and complete field walks are generated from the public schema recipe."
+    },
+    "maps": {
+      "entries_per_counts_and_typed_values_map": [
+        8,
+        64,
+        512
+      ],
+      "entities_entries": 8,
+      "read_work": "Read every key and scalar/message value. Per-entry hashes sum independently of iteration order; full equality uses generated prost maps."
+    },
+    "options": {
+      "input_files": 20,
+      "fields_per_message": 16,
+      "support_files": [
+        "proto/options/definitions.proto"
+      ],
+      "custom_options": [
+        "FileOptions.domain",
+        "MessageOptions.audited",
+        "FieldOptions.classification",
+        "FieldOptions.retention_days"
+      ],
+      "compilation": "Build script compiles every generated pbrs/prost options module, and the tests cross-decode all 16 fields in each of the 20 consumers."
+    }
+  },
+  "oracles": {
+    "full_equality": "Build a generated prost specimen, encode it, parse it into generated pbrs, re-encode and compare the decoded prost value to the original using full PartialEq. Wire order is not an equality requirement.",
+    "read_equivalence": "Independent generated pbrs and prost field walks must match, including a second native parse after re-encoding. Shared allocation-free digest consumes presence, field values, lengths and every byte. Any inner payloads decode through each codec separately.",
+    "read_sensitivity": "All 128 sparse fields are checked individually with present defaults, all five typed oneof defaults and absence are checked, the final data byte of the final entity is changed, and reordered/mutated maps are checked. Query depth and every predicate kind are separately verified.",
+    "reproducibility": "generate.py --check reproduces the checked-in synthetic schemas and formatted field walks. Two complete inventory runs before/after formatting/lint corrections produce identical JSON bytes."
+  },
+  "checks": [
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target/adoption cargo test --manifest-path bench/devloop/adoption/Cargo.toml --locked",
+      "status": "passed",
+      "stdout_sha256": "1493a19cc90954290f2d4779140f2ba244094504dbdfd9ae1ad8b63e641a3016",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.14s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ],
+      "tests": [
+        "corpus::tests::recursive_query_matrix_keeps_depth_and_all_typed_variants",
+        "corpus::tests::typed_oneofs_read_present_defaults_and_absence",
+        "corpus::tests::option_consumers_cross_decode_all_fields",
+        "corpus::tests::map_read_walk_is_independent_of_entry_order",
+        "corpus::tests::every_sparse_field_preserves_and_reads_present_defaults",
+        "corpus::tests::every_corpus_cross_decodes_and_reads_equally",
+        "corpus::tests::any_sizes_and_nested_payload_fields_are_observed"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target/adoption cargo clippy --manifest-path bench/devloop/adoption/Cargo.toml --locked --all-targets -- -D warnings",
+      "status": "passed",
+      "stdout_sha256": "2334b299b4cd2be5053c27ad84c95283e6b58b81b6c7043377b3549c5a9b8a04",
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.29s"
+      ],
+      "tests": []
+    },
+    {
+      "command": "python3 bench/devloop/adoption/generate.py --check",
+      "status": "passed"
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH cargo fmt --manifest-path bench/devloop/adoption/Cargo.toml -- --check",
+      "status": "passed"
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target/adoption cargo run --manifest-path bench/devloop/adoption/Cargo.toml --locked --bin inventory",
+      "status": "passed",
+      "specimens": 64,
+      "stdout_sha256": "c543b872083c6366892450f7b7d03c82916badd04bc1446e9644c8f7f68f8207",
+      "reproducibility_match": true
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target/codec-bench cargo build --locked --release --manifest-path bench/Cargo.toml && /tmp/pbrs-ad03c-target/codec-bench/release/bench",
+      "status": "passed",
+      "scope": "Existing codec-bench gate: 21 legacy specimens at the default nominal 40000 iterations, with existing workload-specific iteration/sample caps recorded per case. Fixed-order sampling. This is a compatibility/benchmark execution check, not the new adoption baseline or a performance-improvement qualification.",
+      "stdout_sha256": "96e84428f12c5bf02049248a617368325f1b9c18406dbd9aa8582aa28a6c86c1",
+      "bench_lock_blob": "db89feb331586dd1f19b006b0246b947028171bf",
+      "bench_source_blob": "2f764a6b4bc47ad1220098484f45ee9db39d85eb",
+      "cases": [
+        "empty",
+        "person",
+        "person_generated",
+        "tat_populated",
+        "packed_256",
+        "map_64",
+        "nested_8",
+        "strings",
+        "unpacked_256",
+        "packed_fixed_256",
+        "bytes",
+        "scalars",
+        "packed_fixed64_256",
+        "packed_float_256",
+        "unpacked_fixed_256",
+        "oneof",
+        "repeated_nested_8",
+        "bytes_1mb",
+        "bytes_5mb",
+        "packed_fixed_1mb",
+        "packed_fixed_5mb"
+      ],
+      "peer_pins": [
+        {
+          "id": "prost13",
+          "package": "prost",
+          "version": "0.13.5",
+          "role": "current",
+          "checksum": "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5",
+          "note": "historical prost column via the prost_tat path crate"
+        },
+        {
+          "id": "prost14",
+          "package": "prost",
+          "version": "0.14.4",
+          "role": "current",
+          "checksum": "528ac67416ff8646872a3c02cad9cc4ee5dc9f9540c9b10771855c95cb2e5ae1",
+          "note": "refreshed prost column, checked-in gencode"
+        },
+        {
+          "id": "buffa092",
+          "package": "buffa",
+          "version": "0.9.2",
+          "role": "current",
+          "checksum": "a92f2f5df67a9d5ccfc65237bfc954c56328aee40a04a9b92381ecba370be246",
+          "note": "owned + eager view + lazy view columns, checked-in gencode"
+        },
+        {
+          "id": "g36",
+          "package": "google-protobuf",
+          "version": "0.36.2-release",
+          "role": "current",
+          "checksum": "eb6a2d5d79f0041702be6081437d082721099677d4a708e80bca4e6a831df343",
+          "note": "Google runtime, upb kernel, checked-in gencode"
+        },
+        {
+          "id": "qp",
+          "package": "quick-protobuf",
+          "version": "0.8.1",
+          "role": "current",
+          "checksum": "9d6da84cc204722a989e01ba2f6e1e276e190f22263d0cb6ce8526fcdb0d2e1f",
+          "note": "person-shaped cells only; pb-rs rejects the TAT schema"
+        },
+        {
+          "id": "v4",
+          "package": "protobuf",
+          "version": "4.35.1-release",
+          "role": "historical",
+          "checksum": "a169648cc34d6f327fea8919ca63f38261fb26405fde8879745dc0a483db328e",
+          "note": "kept in tonic-bench and devloop codec.v4 cells; cannot link beside google-protobuf (links=upb)"
+        },
+        {
+          "id": "buffa091",
+          "package": "buffa",
+          "version": "0.9.1",
+          "role": "historical",
+          "checksum": "cf9e6224bc4ee1f189ad257120c156fb05f95b826f5369d620b24984476c200a",
+          "note": "retired by SB-08; same-track unification forbids 0.9.1 beside 0.9.2"
+        }
+      ],
+      "source_prerequisite": {
+        "protobuf": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+        "repair": "Initial legacy benchmark build failed because this isolated worktree lacked third_party/protobuf. Linked the already verified main-worktree v35.1 checkout under the existing ignored path, then built and ran successfully. No upstream checkout or tracked source was changed.",
+        "initial_stderr_excerpt": "rotobuf v0.8.1\n   Compiling thiserror-impl v2.0.20\n   Compiling prost-derive v0.13.5\n   Compiling prost-derive v0.14.4\n   Compiling protobuf-macros v0.36.2-release\n   Compiling prost v0.13.5\n   Compiling prost v0.14.4\n   Compiling prost-types v0.13.5\n   Compiling prost-types v0.14.4\n   Compiling prost-build v0.13.5\n   Compiling prost_tat v0.0.1 (/Users/mingley/dev/pure-protobuf-tc27-20260930/prost_tat)\nerror: failed to run custom build command for `prost_tat v0.0.1 (/Users/mingley/dev/pure-protobuf-tc27-20260930/prost_tat)`\n\nCaused by:\n  process didn't exit successfully: `/tmp/pbrs-ad03c-target/codec-bench/release/build/prost_tat-e1e16ef10afc4000/build-script-build` (exit status: 101)\n  --- stdout\n  cargo:rerun-if-changed=/Users/mingley/dev/pure-protobuf-tc27-20260930/prost_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto\n\n  --- stderr\n\n  thread 'main' (6723161) panicked at /Users/mingley/dev/pure-protobuf-tc27-20260930/prost_tat/build.rs:11:10:\n  prost-build TestAllTypesProto3: Custom { kind: Other, error: \"protoc failed: Could not make proto path relative: /Users/mingley/dev/pure-protobuf-tc27-20260930/prost_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto: No such file or directory\\n\" }\n  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nwarning: build failed, waiting for other jobs to finish...\n"
+      },
+      "case_workloads": [
+        {
+          "name": "empty",
+          "payload_bytes": 0,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "person",
+          "payload_bytes": 62,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "person_generated",
+          "payload_bytes": 62,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "tat_populated",
+          "payload_bytes": 87,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "packed_256",
+          "payload_bytes": 388,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "map_64",
+          "payload_bytes": 500,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "nested_8",
+          "payload_bytes": 26,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "strings",
+          "payload_bytes": 163,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "unpacked_256",
+          "payload_bytes": 896,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "packed_fixed_256",
+          "payload_bytes": 1028,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "bytes",
+          "payload_bytes": 315,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "scalars",
+          "payload_bytes": 77,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "packed_fixed64_256",
+          "payload_bytes": 2052,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "packed_float_256",
+          "payload_bytes": 1028,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "unpacked_fixed_256",
+          "payload_bytes": 1536,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "oneof",
+          "payload_bytes": 23,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "repeated_nested_8",
+          "payload_bytes": 38,
+          "iters": 40000,
+          "fresh_encode_iters": 10000,
+          "samples": 15
+        },
+        {
+          "name": "bytes_1mb",
+          "payload_bytes": 1000004,
+          "iters": 120,
+          "fresh_encode_iters": 33,
+          "samples": 9
+        },
+        {
+          "name": "bytes_5mb",
+          "payload_bytes": 5000005,
+          "iters": 40,
+          "fresh_encode_iters": 6,
+          "samples": 7
+        },
+        {
+          "name": "packed_fixed_1mb",
+          "payload_bytes": 1000005,
+          "iters": 120,
+          "fresh_encode_iters": 33,
+          "samples": 9
+        },
+        {
+          "name": "packed_fixed_5mb",
+          "payload_bytes": 5000006,
+          "iters": 40,
+          "fresh_encode_iters": 6,
+          "samples": 7
+        }
+      ]
+    }
+  ],
+  "review": {
+    "reviewer": "Codex acceptance audit",
+    "status": "passed",
+    "findings": "All five requested public corpus families exist and compile through both generators. Full-message equality and separate complete read walks cover all 64 inventory specimens. Generated wide-field/default oracles and all 20 options consumers pass. Contract, source, ownership, manifest, lockfile and exact-result evidence reviewed.",
+    "limits": [
+      "This is corpus qualification only. No adoption instruction, allocation, cold-RPC, codegen/check-time or P1-P5 result is claimed.",
+      "SB-26b must register all codec and four-profile RPC cells, execute Linux N/2N instructions and exact allocations, and record every P1-P5 value and limit. Parent SB-26 remains in progress.",
+      "Synthetic sizes and shapes define this public workload model; they do not certify private production services.",
+      "MSRV, hardware leadership and official upstream suites are separate qualifications."
+    ]
+  },
+  "qualification_status": "passed",
+  "measurement_status": "not_run"
+}

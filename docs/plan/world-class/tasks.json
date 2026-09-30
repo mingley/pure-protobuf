@@ -11195,9 +11195,16 @@
    "relates": [
     "SB-26"
    ],
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
-   "notes": "Claimed at 34fffc29dbf872f642b38baafb8e2ed90f518832. Implements corpus/oracle prerequisites; no performance claim and parent SB-26 remains open."
+   "notes": "Claimed at 34fffc29dbf872f642b38baafb8e2ed90f518832. Implements corpus/oracle prerequisites; no performance claim and parent SB-26 remains open. Closed 2026-09-30: all five generated public/synthetic families delivered. 64 inventory specimens pass full generated-prost semantic equality and complete pbrs/prost read walks. Queries span depths 3-8 and 187-605 bytes; lists span 10/100/1000 records with exact 256-512 byte generated Any payloads. Seven tests also qualify all 128 sparse present defaults, all typed oneof defaults/absence, map order/value changes, last-record byte changes and all twenty options consumers. Strict standalone Clippy, formatting, generator reproducibility and the 21-specimen legacy codec-bench gate pass. Two inventory runs match exactly. No adoption performance or MSRV campaign is claimed; SB-26 and SB-26b retain the complete measurement remainder.",
+   "reviewer": "Codex acceptance audit",
+   "evidence": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/adoption/README.md",
+    "bench/devloop/adoption/evidence/inventory.json",
+    "bench/devloop/adoption/evidence/qualification.json"
+   ]
   },
   {
    "id": "SB-26b",

@@ -1,0 +1,550 @@
+{
+  "any_payload_bytes": [
+    256,
+    320,
+    384,
+    448,
+    512
+  ],
+  "case_count": 64,
+  "cases": [
+    {
+      "id": "query.d3.v0",
+      "pbrs_bytes": 187,
+      "prost_bytes": 187,
+      "read_all": "passed",
+      "read_checksum": 17673035775268601779,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v1",
+      "pbrs_bytes": 196,
+      "prost_bytes": 196,
+      "read_all": "passed",
+      "read_checksum": 9007456813890436065,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v2",
+      "pbrs_bytes": 206,
+      "prost_bytes": 206,
+      "read_all": "passed",
+      "read_checksum": 5166985595186441804,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v3",
+      "pbrs_bytes": 196,
+      "prost_bytes": 196,
+      "read_all": "passed",
+      "read_checksum": 15984391777524233817,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v4",
+      "pbrs_bytes": 204,
+      "prost_bytes": 204,
+      "read_all": "passed",
+      "read_checksum": 1310568484690924747,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v5",
+      "pbrs_bytes": 213,
+      "prost_bytes": 213,
+      "read_all": "passed",
+      "read_checksum": 7871843948829321325,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v6",
+      "pbrs_bytes": 231,
+      "prost_bytes": 231,
+      "read_all": "passed",
+      "read_checksum": 11528206674038370355,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d3.v7",
+      "pbrs_bytes": 234,
+      "prost_bytes": 234,
+      "read_all": "passed",
+      "read_checksum": 8142155186338385768,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v0",
+      "pbrs_bytes": 249,
+      "prost_bytes": 249,
+      "read_all": "passed",
+      "read_checksum": 15556968429202335264,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v1",
+      "pbrs_bytes": 256,
+      "prost_bytes": 256,
+      "read_all": "passed",
+      "read_checksum": 5989507785071506005,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v2",
+      "pbrs_bytes": 277,
+      "prost_bytes": 277,
+      "read_all": "passed",
+      "read_checksum": 80788021770190166,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v3",
+      "pbrs_bytes": 288,
+      "prost_bytes": 288,
+      "read_all": "passed",
+      "read_checksum": 11239361648066611483,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v4",
+      "pbrs_bytes": 288,
+      "prost_bytes": 288,
+      "read_all": "passed",
+      "read_checksum": 12849212444429922019,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v5",
+      "pbrs_bytes": 275,
+      "prost_bytes": 275,
+      "read_all": "passed",
+      "read_checksum": 3141143546034839752,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v6",
+      "pbrs_bytes": 293,
+      "prost_bytes": 293,
+      "read_all": "passed",
+      "read_checksum": 14413289389457652653,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d4.v7",
+      "pbrs_bytes": 306,
+      "prost_bytes": 306,
+      "read_all": "passed",
+      "read_checksum": 7758272262320479329,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v0",
+      "pbrs_bytes": 342,
+      "prost_bytes": 342,
+      "read_all": "passed",
+      "read_checksum": 10480780455167418465,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v1",
+      "pbrs_bytes": 336,
+      "prost_bytes": 336,
+      "read_all": "passed",
+      "read_checksum": 17987033488194239551,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v2",
+      "pbrs_bytes": 341,
+      "prost_bytes": 341,
+      "read_all": "passed",
+      "read_checksum": 8392890358823971705,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v3",
+      "pbrs_bytes": 352,
+      "prost_bytes": 352,
+      "read_all": "passed",
+      "read_checksum": 11254537619568633626,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v4",
+      "pbrs_bytes": 366,
+      "prost_bytes": 366,
+      "read_all": "passed",
+      "read_checksum": 3005057669145525120,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v5",
+      "pbrs_bytes": 368,
+      "prost_bytes": 368,
+      "read_all": "passed",
+      "read_checksum": 12101302036942268555,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v6",
+      "pbrs_bytes": 372,
+      "prost_bytes": 372,
+      "read_all": "passed",
+      "read_checksum": 10110337601716551077,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d5.v7",
+      "pbrs_bytes": 369,
+      "prost_bytes": 369,
+      "read_all": "passed",
+      "read_checksum": 12006539796877663467,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v0",
+      "pbrs_bytes": 410,
+      "prost_bytes": 410,
+      "read_all": "passed",
+      "read_checksum": 3023498803650616453,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v1",
+      "pbrs_bytes": 413,
+      "prost_bytes": 413,
+      "read_all": "passed",
+      "read_checksum": 14131518665395384024,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v2",
+      "pbrs_bytes": 425,
+      "prost_bytes": 425,
+      "read_all": "passed",
+      "read_checksum": 14726774636673700279,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v3",
+      "pbrs_bytes": 426,
+      "prost_bytes": 426,
+      "read_all": "passed",
+      "read_checksum": 4926908065213140439,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v4",
+      "pbrs_bytes": 428,
+      "prost_bytes": 428,
+      "read_all": "passed",
+      "read_checksum": 14063232175965257963,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v5",
+      "pbrs_bytes": 436,
+      "prost_bytes": 436,
+      "read_all": "passed",
+      "read_checksum": 6695912682848346212,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v6",
+      "pbrs_bytes": 449,
+      "prost_bytes": 449,
+      "read_all": "passed",
+      "read_checksum": 376621836473303606,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d6.v7",
+      "pbrs_bytes": 451,
+      "prost_bytes": 451,
+      "read_all": "passed",
+      "read_checksum": 17237119905577766526,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v0",
+      "pbrs_bytes": 488,
+      "prost_bytes": 488,
+      "read_all": "passed",
+      "read_checksum": 17329302925935396484,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v1",
+      "pbrs_bytes": 483,
+      "prost_bytes": 483,
+      "read_all": "passed",
+      "read_checksum": 17132489420393722685,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v2",
+      "pbrs_bytes": 492,
+      "prost_bytes": 492,
+      "read_all": "passed",
+      "read_checksum": 9916094205207592122,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v3",
+      "pbrs_bytes": 497,
+      "prost_bytes": 497,
+      "read_all": "passed",
+      "read_checksum": 16134681190140240219,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v4",
+      "pbrs_bytes": 512,
+      "prost_bytes": 512,
+      "read_all": "passed",
+      "read_checksum": 4333962931710588078,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v5",
+      "pbrs_bytes": 514,
+      "prost_bytes": 514,
+      "read_all": "passed",
+      "read_checksum": 13784303428909870748,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v6",
+      "pbrs_bytes": 517,
+      "prost_bytes": 517,
+      "read_all": "passed",
+      "read_checksum": 10535480020762726067,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d7.v7",
+      "pbrs_bytes": 520,
+      "prost_bytes": 520,
+      "read_all": "passed",
+      "read_checksum": 13170604277166382030,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v0",
+      "pbrs_bytes": 558,
+      "prost_bytes": 558,
+      "read_all": "passed",
+      "read_checksum": 17091856854397118898,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v1",
+      "pbrs_bytes": 566,
+      "prost_bytes": 566,
+      "read_all": "passed",
+      "read_checksum": 17156985081605655746,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v2",
+      "pbrs_bytes": 577,
+      "prost_bytes": 577,
+      "read_all": "passed",
+      "read_checksum": 3623182866679429505,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v3",
+      "pbrs_bytes": 567,
+      "prost_bytes": 567,
+      "read_all": "passed",
+      "read_checksum": 16223853345291276257,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v4",
+      "pbrs_bytes": 574,
+      "prost_bytes": 574,
+      "read_all": "passed",
+      "read_checksum": 11677166586897780202,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v5",
+      "pbrs_bytes": 582,
+      "prost_bytes": 582,
+      "read_all": "passed",
+      "read_checksum": 590005149581918327,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v6",
+      "pbrs_bytes": 602,
+      "prost_bytes": 602,
+      "read_all": "passed",
+      "read_checksum": 12157741790846053537,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "query.d8.v7",
+      "pbrs_bytes": 605,
+      "prost_bytes": 605,
+      "read_all": "passed",
+      "read_checksum": 14654305640537854503,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "entities.10",
+      "pbrs_bytes": 5626,
+      "prost_bytes": 5626,
+      "read_all": "passed",
+      "read_checksum": 15247385977393515352,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "entities.100",
+      "pbrs_bytes": 56398,
+      "prost_bytes": 56398,
+      "read_all": "passed",
+      "read_checksum": 8435010447339593356,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "entities.1000",
+      "pbrs_bytes": 564598,
+      "prost_bytes": 564598,
+      "read_all": "passed",
+      "read_checksum": 9530641928282539567,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v0",
+      "pbrs_bytes": 88,
+      "prost_bytes": 88,
+      "read_all": "passed",
+      "read_checksum": 9777144318171898183,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v1",
+      "pbrs_bytes": 105,
+      "prost_bytes": 105,
+      "read_all": "passed",
+      "read_checksum": 16652561227195011389,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v2",
+      "pbrs_bytes": 84,
+      "prost_bytes": 84,
+      "read_all": "passed",
+      "read_checksum": 39533241347761586,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v3",
+      "pbrs_bytes": 109,
+      "prost_bytes": 109,
+      "read_all": "passed",
+      "read_checksum": 8672734157028769381,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v4",
+      "pbrs_bytes": 88,
+      "prost_bytes": 88,
+      "read_all": "passed",
+      "read_checksum": 2297626016502855224,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v5",
+      "pbrs_bytes": 121,
+      "prost_bytes": 121,
+      "read_all": "passed",
+      "read_checksum": 17582554086864061024,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v6",
+      "pbrs_bytes": 95,
+      "prost_bytes": 95,
+      "read_all": "passed",
+      "read_checksum": 16140518591611789695,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v7",
+      "pbrs_bytes": 114,
+      "prost_bytes": 114,
+      "read_all": "passed",
+      "read_checksum": 3751981030991365352,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v8",
+      "pbrs_bytes": 98,
+      "prost_bytes": 98,
+      "read_all": "passed",
+      "read_checksum": 11998104548201901893,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "sparse.v9",
+      "pbrs_bytes": 108,
+      "prost_bytes": 108,
+      "read_all": "passed",
+      "read_checksum": 1988894425758786647,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "maps.8",
+      "pbrs_bytes": 4682,
+      "prost_bytes": 4678,
+      "read_all": "passed",
+      "read_checksum": 2887280963743123263,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "maps.64",
+      "pbrs_bytes": 6835,
+      "prost_bytes": 6831,
+      "read_all": "passed",
+      "read_checksum": 17947857089684271558,
+      "semantic_equality": "passed"
+    },
+    {
+      "id": "maps.512",
+      "pbrs_bytes": 24651,
+      "prost_bytes": 24647,
+      "read_all": "passed",
+      "read_checksum": 8561840737218517528,
+      "semantic_equality": "passed"
+    }
+  ],
+  "entity_counts": [
+    10,
+    100,
+    1000
+  ],
+  "map_entries": [
+    8,
+    64,
+    512
+  ],
+  "measurement_status": "not_run",
+  "option_files": 20,
+  "qualification_status": "passed",
+  "query_depths": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "query_variants": 48,
+  "schema": "adoption-corpus/1",
+  "sparse_field_count": 128,
+  "sparse_presence_patterns": 10,
+  "tier": "fixture-qualification"
+}

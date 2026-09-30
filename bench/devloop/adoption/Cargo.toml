@@ -1,0 +1,20 @@
+[package]
+name = "pbrs-adoption-corpus"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "MIT OR Apache-2.0"
+
+# A small independently runnable corpus/oracle consumer. The parent devloop
+# harness consumes this library when registering SB-26b measurements.
+[workspace]
+
+[dependencies]
+pbrs = { path = "../../.." }
+prost = "0.14"
+serde_json = "1"
+
+[build-dependencies]
+pbrs = { path = "../../.." }
+prost-build = "0.14"

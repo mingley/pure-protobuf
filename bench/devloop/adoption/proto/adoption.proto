@@ -1,0 +1,44 @@
+syntax = "proto3";
+package adoption;
+import "google/protobuf/any.proto";
+
+// All data is synthetic; this is a public workload model, not a service schema.
+enum BooleanOperator { UNSPECIFIED = 0; ALL = 1; ANY = 2; NOT = 3; }
+message TypedValue {
+  oneof kind {
+    bool boolean = 1;
+    sint64 integer = 2;
+    double real = 3;
+    string text = 4;
+    bytes binary = 5;
+  }
+}
+message Predicate { string field = 1; uint32 comparison = 2; TypedValue value = 3; }
+message Query {
+  BooleanOperator operator = 1;
+  repeated Query children = 2;
+  repeated Predicate predicates = 3;
+  repeated Query subqueries = 4;
+  repeated EdgeTraversal traversals = 5;
+}
+message EdgeTraversal { string label = 1; bool reverse = 2; Query target = 3; }
+message Payload {
+  uint64 sequence = 1;
+  string label = 2;
+  bytes data = 3;
+  repeated sint64 measurements = 4;
+}
+message Edge { string kind = 1; repeated string targets = 2; repeated Edge nested = 3; }
+message Entity {
+  string key = 1;
+  uint64 revision = 2;
+  google.protobuf.Any payload = 3;
+  repeated Edge edges = 4;
+  optional string description = 5;
+}
+message EntityList { repeated Entity records = 1; }
+message MapHeavy {
+  map<string, sint64> counts = 1;
+  map<string, TypedValue> values = 2;
+  map<int64, Entity> entities = 3;
+}
