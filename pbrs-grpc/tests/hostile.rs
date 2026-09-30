@@ -420,8 +420,16 @@ async fn a_non_grpc_content_type_is_http_415() {
         "application/json",
         "application/grpc+json",
         "application/grpc+thrift",
+        "application/grpc-web+json",
+        "application/grpc-web-text+json",
+        #[cfg(not(feature = "grpc-web"))]
         "application/grpc-web",
+        #[cfg(not(feature = "grpc-web"))]
         "application/grpc-web+proto",
+        #[cfg(not(feature = "grpc-web"))]
+        "application/grpc-web-text",
+        #[cfg(not(feature = "grpc-web"))]
+        "application/grpc-web-text+proto",
     ] {
         let request = peer.request(SAY_HELLO, content_type);
         peer.call_with(request, frame(&hello_request()))

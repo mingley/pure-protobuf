@@ -10556,7 +10556,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [
     "AD-03",
@@ -10593,11 +10593,12 @@
     "TC-21",
     "TC-27"
    ],
-   "notes": "The new semver gate in run 36744677768 caught Stubs::Kernel changing from 2 to 3 and a fourth variant on the exhaustive published enum. Restore the published API by keeping the richer generator selection private, without changing versions or weakening checks. Local tool output also showed that unchanged alpha versions infer a major release and skip all 254 lints; use explicit --release-type minor to enforce the already documented stable integration contract. Explicit alpha checks expose two additional native compatibility failures: RetryThrottler was made private and optional Codec::Zstd extends an exhaustive published enum. Split those repairs as AD-03b/AD-03c; the full compatibility gate remains open. The public selector regression failed before the private StubStyle split and passes afterward. The external tonic_compat consumer runs all four shapes. Local workspace validation passes 3224 tests across 119 suites (five existing ignores), strict workspace Clippy, format and 24 documentation contracts. Explicit minor-policy checks pass all 196 applicable lints for pbrs and protobuf-tonic. Native compatibility follow-ups remain required before closure; no version bump or suppressed lint. All three shipping crates now pass 196 applicable strict minor-policy semver lints with all features; the native default profile also passes. Await the current-source workspace check before closing this parent card.",
+   "notes": "The new semver gate in run 36744677768 caught Stubs::Kernel changing from 2 to 3 and a fourth variant on the exhaustive published enum. Restore the published API by keeping the richer generator selection private, without changing versions or weakening checks. Local tool output also showed that unchanged alpha versions infer a major release and skip all 254 lints; use explicit --release-type minor to enforce the already documented stable integration contract. Explicit alpha checks expose two additional native compatibility failures: RetryThrottler was made private and optional Codec::Zstd extends an exhaustive published enum. Split those repairs as AD-03b/AD-03c; the full compatibility gate remains open. The public selector regression failed before the private StubStyle split and passes afterward. The external tonic_compat consumer runs all four shapes. Local workspace validation passes 3224 tests across 119 suites (five existing ignores), strict workspace Clippy, format and 24 documentation contracts. Explicit minor-policy checks pass all 196 applicable lints for pbrs and protobuf-tonic. Native compatibility follow-ups remain required before closure; no version bump or suppressed lint. All three shipping crates now pass 196 applicable strict minor-policy semver lints with all features; the native default profile also passes. Await the current-source workspace check before closing this parent card. Final current-source workspace check passes 3227 tests across 119 suites, with zero failures and five existing ignores. The strict all-target/all-feature workspace Clippy check passes. Remote Public API semver jobs pass in runs 36752785223 and 36754179052; overall workflows are independently recorded as cancelled/incomplete, not claimed green. AD-03b and AD-03c prerequisites are done; no version bump or suppressed lint.",
    "evidence": [
     "tests/codegen_compat.rs#published_stub_selector_remains_exhaustive_with_original_discriminants",
     "tests/pbrs_build.rs#tonic_compat_consumer_runs_all_four_shapes",
-    ".github/workflows/ci.yml#Public API semver"
+    ".github/workflows/ci.yml#Public API semver",
+    "docs/evidence/alpha-api-compatibility.json"
    ]
   },
   {
@@ -10713,7 +10714,7 @@
    "priority": "P1",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [
     "TC-20"
@@ -10725,7 +10726,8 @@
    ],
    "write": [
     "pbrs-grpc/tests/hostile.rs",
-    "docs/plan/world-class/tasks.json"
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/alpha-api-compatibility.json"
    ],
    "deliverable": "Keep invalid media types rejected with HTTP 415 in all feature profiles while testing gRPC-Web opt-in behavior without expecting enabled valid types to be rejected.",
    "accept": [
@@ -10744,7 +10746,12 @@
     "AD-03c",
     "TC-20"
    ],
-   "notes": "Claimed from b11c6f578d4495b481d09a806fd1eead26f01b9f after an all-feature qualification exposed an existing expectation: a_non_grpc_content_type_is_http_415 includes application/grpc-web and application/grpc-web+proto unconditionally even though the optional feature enables them. The zstd-only hostile suite passes. Preserve rejection coverage by checking unsupported web JSON variants in all profiles and all four supported web types when the feature is off. Test-only correction; no transport policy changes."
+   "notes": "Claimed from b11c6f578d4495b481d09a806fd1eead26f01b9f after an all-feature qualification exposed an existing expectation: a_non_grpc_content_type_is_http_415 includes application/grpc-web and application/grpc-web+proto unconditionally even though the optional feature enables them. The zstd-only hostile suite passes. Preserve rejection coverage by checking unsupported web JSON variants in all profiles and all four supported web types when the feature is off. Test-only correction; no transport policy changes. The corrected test keeps all four supported web media types in the rejection list only while the feature is disabled, and adds unsupported binary/text JSON variants in every profile. All 48 hostile/message-size tests pass with zstd and all features; default-profile hostile/message-size tests also pass in the full 3227-test workspace run. All three standalone tonic binary tests pass, including the existing real tonic-web acceptance RPC. Strict workspace Clippy passes; transport source and dependencies are unchanged.",
+   "evidence": [
+    "docs/evidence/alpha-api-compatibility.json",
+    "pbrs-grpc/tests/hostile.rs#a_non_grpc_content_type_is_http_415",
+    "tests/interop/tonic/src/main.rs#tonic_web_client_talks_to_pbrs_grpc_web_server"
+   ]
   }
  ],
  "last_audit": {
