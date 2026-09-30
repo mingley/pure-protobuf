@@ -9448,7 +9448,10 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "depends_on": [],
+   "depends_on": [
+    "SB-26a",
+    "SB-26b"
+   ],
    "read": [
     "docs/plan/adoption/README.md",
     "docs/benchmark-contract.md",
@@ -9458,7 +9461,8 @@
    ],
    "write": [
     "bench/devloop/",
-    "docs/evidence/sb-26.md"
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
    ],
    "deliverable": "Public corpora for common service shapes, and dev-loop cells that measure what adopters run. Codec cells cover fresh encode, decode, parse-then-read-all and clone for prost 0.14 vs pbrs. RPC cells cover unary and server-streaming across four profiles (prost or pbrs messages \u00d7 tonic or pbrs-grpc), with the server reading the whole request and the client reading the whole response. A report scores every adoption target (P1-P5).",
    "accept": [
@@ -9487,7 +9491,9 @@
     "TC-24",
     "PK-27"
    ],
-   "notes": "Phase 0 of the adoption program. Every adoption performance card measures against this matrix."
+   "notes": "Phase 0 of the adoption program. Every adoption performance card measures against this matrix. Claimed at 34fffc29dbf872f642b38baafb8e2ed90f518832. Freeze public corpus/equivalence and timing contracts in bench/devloop/ADOPTION.md before implementation. Land generated corpora and independent equality/read-all oracles first, then register every codec and four-profile RPC cell and gather baseline/target evidence. The parent remains open until the complete P1-P5 matrix is measured with missing metrics visible. Reuse existing generated pbrs/prost pipelines and the counting allocator/N-2N collectors; no shipping dependency or threshold change. Option-heavy fixtures and every measured runtime message are public/synthetic and generated from the same schema. Split before implementation into SB-26a (all generated public corpora plus complete semantic/read-all equality oracles) and SB-26b (registered codec/RPC matrix and P1-P5 baseline measurements). The full parent acceptance contract is retained. The corpus consumer reuses only pbrs, prost/prost-build 0.14 and serde_json from established benchmark graphs; its isolated manifest will be reviewed before resolution/building.",
+   "status": "in_progress",
+   "implementer": "Codex"
   },
   {
    "id": "TC-29",
@@ -11153,6 +11159,96 @@
     "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_preserves_unconfigured_large_refusal",
     "pbrs-grpc/tests/policy_retry.rs#policy_replay_budget_preserves_large_first_success"
    ]
+  },
+  {
+   "id": "SB-26a",
+   "title": "Generate adoption corpora and prove read-all equivalence",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "depends_on": [],
+   "read": [
+    "docs/plan/adoption/README.md",
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/build.rs",
+    "bench/devloop/Cargo.toml"
+   ],
+   "write": [
+    "bench/devloop/adoption/",
+    "bench/devloop/ADOPTION.md",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/sb-26.md"
+   ],
+   "deliverable": "All five public/synthetic SB-26 corpus families generated from shared schemas, independent prost full-message equality and complete pbrs/prost read checksums, with qualified fixture inventory JSON.",
+   "accept": [
+    "48 recursive typed query variants cover depth 3-8 and encoded sizes 100-800 bytes, with subqueries and edge traversals.",
+    "Entity lists cover 10/100/1000 records and 256-512 byte generated Any payloads; 128-field sparse and map-heavy specimens preserve presence and read every declared field.",
+    "Twenty option-heavy synthetic files import descriptor.proto through custom-options definitions and compile through both generators.",
+    "Every specimen cross-decodes to full semantic equality and the independent complete read walks agree before any timing. Fixtures and generator are reproducible; no private schema or payload is committed."
+   ],
+   "checks": [
+    "codec-bench"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "SB-26"
+   ],
+   "status": "in_progress",
+   "implementer": "Codex",
+   "notes": "Claimed at 34fffc29dbf872f642b38baafb8e2ed90f518832. Implements corpus/oracle prerequisites; no performance claim and parent SB-26 remains open."
+  },
+  {
+   "id": "SB-26b",
+   "title": "Measure the adoption codec and four-profile RPC matrix",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "L",
+   "depends_on": [
+    "SB-26a"
+   ],
+   "read": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/adoption/",
+    "bench/devloop/src/main.rs",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Registered fresh-encode/decode/read-all/clone codec cells and identical-work unary/server-streaming RPC cells for the four codec/transport profiles, with differential Linux instructions, exact allocations, cold-first-RPC/codegen metrics, baseline JSON and every P1-P5 status.",
+   "accept": [
+    "The full SB-26 codec and four-profile RPC matrix appears in devloop list and consumes equivalent outputs, request/response bytes, counts and whole-message checksums.",
+    "Existing exact allocator and identical-preparation N/2N instruction accounting measure every compared pair.",
+    "A pinned baseline JSON and docs/evidence/sb-26.md record every P1-P5 target, measured losses and unavailable metrics without a pass substitution."
+   ],
+   "checks": [
+    "codec-bench",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "A1",
+    "A3",
+    "A5",
+    "A8",
+    "A13",
+    "B3",
+    "B5",
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "SB-26",
+    "TC-29",
+    "TC-30"
+   ],
+   "status": "pending",
+   "notes": "Retains the complete measurement remainder of SB-26. Split into bounded implementation/qualification children before execution if needed; no arbitrary new budgets or thresholds."
   }
  ],
  "last_audit": {
