@@ -153,9 +153,53 @@ pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
   `tower::Service<http::Request<B>>`, suitable for axum/hyper co-hosting next
   to REST routes. The same adapter serves regular handlers, health, and
   reflection; see `examples/axum-cohost`.
-- `Channel::tower_unary()` exposes one unary method as a tower service. Apply
-  caller-selected layers such as timeouts, concurrency limits, load shedding,
-  and tracing there; the ordinary `Channel` path stays unbuffered.
+- `Channel::tower_unary()`, `tower_server_streaming()`,
+  `tower_client_streaming()` and `tower_bidi()` expose individual methods as
+  Tower services. Apply caller-selected balancing, timeouts, concurrency
+  limits, load shedding and tracing there.
+
+Unary and server-streaming services accept `Request<Req>`. Client-streaming
+and bidirectional services accept `Request<S>` where `S` is a sendable stream
+of `Result<Req, Status>`. `Streaming::channel()` provides a bounded input:
+
+```rust,no_run
+use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request, Streaming};
+use tower::ServiceExt;
+
+# async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {
+let (tx, input) = Streaming::channel(4);
+let service = channel.tower_bidi::<HelloRequest, HelloReply>(
+    "/helloworld.Greeter/StreamHello",
+);
+let mut replies = service.oneshot(Request::new(input)).await?.into_inner();
+let mut message = HelloRequest::new();
+message.set_name("hello");
+tx.send(message).await?;
+tx.close();
+while let Some(reply) = replies.message().await? {
+    println!("{}", reply.message());
+}
+let trailers = replies.trailers().await?;
+# let _ = trailers;
+# Ok(())
+# }
+```
+
+Request metadata, compression settings and gRPC deadlines are preserved.
+Returned futures are native `Call`s, including their cancellation handles.
+Response streams retain native trailers and deadline enforcement; dropping
+one before EOF cancels the RPC. Client-streaming and bidirectional adapters
+use one forwarding task per RPC with the channel's bounded stream buffer.
+That task stops on cancellation or a closed native sender, including while
+the input producer is idle. Bidirectional forwarding continues after the
+Tower future resolves at response headers.
+
+A live request stream cannot be replayed by a retry layer. Configure the
+policy's `clone_request` to return `None` for these streams, or supply a
+deliberately replayable source for an application-approved retry. Tower
+timeouts and concurrency limits wrap the service future; for server-streaming
+and bidirectional calls that future ends at response headers. Use
+`Request::set_timeout` or a channel timeout to cover the whole streaming RPC.
 
 ## gRPC-Web
 
