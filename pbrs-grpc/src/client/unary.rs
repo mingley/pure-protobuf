@@ -1,8 +1,9 @@
 //! Unary call shape.
 
 use super::call::{
-    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open,
-    prefer_peer_rejection_after_send, race, reject_attempt, send_request_frame,
+    AttemptCommitment, cancel_attempt, finish_attempt, first_of, open, poll_now,
+    prefer_peer_rejection_with_commitment, race, reject_attempt, response_commits,
+    send_request_frame,
 };
 use super::retry::{HedgeUnary, PolicyDecision, policy_retry_delay, retry_exhausted};
 use crate::binlog::CallLogger;
@@ -16,7 +17,6 @@ use crate::telemetry::{
     LifecycleObserver, RejectionReason,
 };
 use crate::timeout::{deadline_from, remaining_timeout};
-use crate::transport::RecvStream as _;
 use crate::transport::h2 as backend;
 use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
@@ -178,17 +178,43 @@ where
     .await;
     drop(permit);
     if let Err(status) = sent {
+        let mut response_committed = false;
+        // The upload may have waited for flow credit while initial
+        // response headers arrived. Observe queued headers before another
+        // cancellation/deadline race can discard that commitment evidence.
+        let mut response = std::pin::pin!(resp_fut);
+        let ready = poll_now(response.as_mut());
+        if let Some(Ok(response)) = &ready {
+            response_committed = response_commits(response);
+        }
         if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded) {
-            return Err(UnaryFailure::uncommitted(status, None));
+            return Err(UnaryFailure {
+                status,
+                frame: None,
+                response_committed,
+            });
         }
         return race(
-            prefer_peer_rejection_after_send(resp_fut, commitment.classify(status)),
+            prefer_peer_rejection_with_commitment(
+                async move {
+                    match ready {
+                        Some(result) => result,
+                        None => response.await,
+                    }
+                },
+                commitment.classify(status),
+                &mut response_committed,
+            ),
             cancel_rx,
             deadline,
             Some(&mut send_stream),
         )
         .await
-        .map_err(|status| UnaryFailure::uncommitted(status, None));
+        .map_err(|status| UnaryFailure {
+            status,
+            frame: None,
+            response_committed,
+        });
     }
     if let (Some(tap), Some(log_frame)) = (tap, &log_frame) {
         // Unary sends with end-of-stream set: message and half-close together.
@@ -204,15 +230,7 @@ where
             // A valid trailers-only application failure remains eligible.
             // Headers followed by a body or trailers commit the response,
             // including a subsequent transport reset or attempt timeout.
-            let trailers_only_error = response.status() == http::StatusCode::OK
-                && response.body().is_end_stream()
-                && response
-                    .headers()
-                    .get("grpc-status")
-                    .and_then(|code| code.to_str().ok())
-                    .and_then(|code| code.parse::<i32>().ok())
-                    .is_some_and(|code| matches!(code, 1..=16));
-            response_committed = !trailers_only_error;
+            response_committed = response_commits(&response);
             commitment = AttemptCommitment::ResponseCommitted;
             finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap)
                 .await

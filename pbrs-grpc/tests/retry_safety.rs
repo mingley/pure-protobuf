@@ -356,6 +356,124 @@ async fn explicit_unary_policy_cannot_replay_after_response_headers() {
     assert_eq!(channel.byte_budget_allocated(), 0);
 }
 
+async fn committed_response_during_stalled_upload(attempt_timeout: bool) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let executions = Arc::new(AtomicUsize::new(0));
+    let seen = executions.clone();
+    let server = tokio::spawn(async move {
+        let mut connections = tokio::task::JoinSet::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            let seen = seen.clone();
+            connections.spawn(async move {
+                let mut conn = h2::server::Builder::new()
+                    .initial_window_size(1024)
+                    .handshake::<_, Bytes>(socket)
+                    .await
+                    .expect("handshake");
+                let mut held = Vec::new();
+                while let Some(Ok((request, mut respond))) = conn.accept().await {
+                    let execution = seen.fetch_add(1, Ordering::SeqCst);
+                    let mut body = request.into_body();
+                    let response = http::Response::builder()
+                        .status(StatusCode::OK)
+                        .header(CONTENT_TYPE, "application/grpc")
+                        .body(())
+                        .expect("response");
+                    if execution == 0 {
+                        let mut send = respond.send_response(response, false).expect("headers");
+                        // Withhold request credit, but drive response HEADERS
+                        // before either resetting or letting the attempt expire.
+                        let pending =
+                            tokio::time::timeout(Duration::from_millis(100), conn.accept()).await;
+                        assert!(pending.is_err(), "upload must still be stalled");
+                        if attempt_timeout {
+                            held.push((body, send));
+                        } else {
+                            send.send_reset(h2::Reason::CANCEL);
+                        }
+                    } else {
+                        let _ = read_request_body(&mut conn, &mut body).await;
+                        let mut send = respond.send_response(response, false).expect("headers");
+                        let payload = reply("follow-up").serialize().expect("serialize");
+                        send.send_data(codec::encode(&payload, false).expect("frame"), false)
+                            .expect("DATA");
+                        let mut trailers = http::HeaderMap::new();
+                        trailers.insert("grpc-status", HeaderValue::from_static("0"));
+                        send.send_trailers(trailers).expect("trailers");
+                    }
+                }
+            });
+        }
+    });
+    let _guard = common::ServerGuard(server);
+    let attempt_limit = if attempt_timeout {
+        r#", "perAttemptRecvTimeout":"0.3s""#
+    } else {
+        ""
+    };
+    let config = format!(
+        r#"{{"methodConfig":[{{"name":[{{}}],"retryPolicy":{{
+            "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+            "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","CANCELLED"]
+            {attempt_limit}}}}}]}}"#
+    );
+    let channel = Channel::connect_with(
+        addr,
+        ChannelConfig::new()
+            .connections(1)
+            .max_concurrent_rpcs(1)
+            .max_send_buffer_size(1024),
+    )
+    .await
+    .expect("connect")
+    .byte_budget(256 * 1024)
+    .service_config(&config)
+    .expect("policy");
+    let client = GreeterClient::new(channel.clone());
+    let mut request = Request::new(req(&"x".repeat(128 * 1024)));
+    request.set_timeout(Duration::from_secs(2));
+    let result = tokio::time::timeout(Duration::from_secs(3), client.say_hello(request))
+        .await
+        .expect("stalled upload must terminate");
+    assert_eq!(
+        executions.load(Ordering::SeqCst),
+        1,
+        "response headers must prevent policy replay during upload"
+    );
+    let status = result.expect_err("committed upload failure is terminal");
+    assert_eq!(
+        status.code(),
+        if attempt_timeout {
+            Code::DeadlineExceeded
+        } else {
+            Code::Unavailable
+        }
+    );
+    assert_eq!(channel.retry_stats().policy_retries, 0);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    let follow_up = tokio::time::timeout(
+        Duration::from_secs(3),
+        client.say_hello(Request::new(req("next call"))),
+    )
+    .await
+    .expect("RPC admission slot must be reclaimed")
+    .expect("follow-up");
+    assert_eq!(name_of(follow_up.get_ref()), "follow-up");
+    assert_eq!(executions.load(Ordering::SeqCst), 2);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_headers_during_upload_prevent_policy_replay_after_reset() {
+    committed_response_during_stalled_upload(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_headers_during_upload_prevent_policy_replay_after_attempt_timeout() {
+    committed_response_during_stalled_upload(true).await;
+}
+
 /// Scenario A1: Connection refused on initial dial. With wait-for-ready, the client
 /// retries connection until the listener starts, and executes the RPC exactly once.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

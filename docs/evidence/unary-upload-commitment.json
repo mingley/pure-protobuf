@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "0cd445737c2e0a9ec44fc96811301dc670df9f57",
+  "source_blobs": {
+    "pbrs-grpc/src/client/unary.rs": "a8a45a0fdf181755f5fbad89ffdebbae122b9437",
+    "pbrs-grpc/src/client/call.rs": "bd1bc79a47a5fcb3ce9ae6c9c9e6988ca5b54457",
+    "pbrs-grpc/tests/retry_safety.rs": "e260d349c5e6949d49ac02b50076abc1015b966b"
+  },
+  "before_command": "cargo test -p pbrs-grpc --test retry_safety response_headers_during_upload",
+  "before_result": "Both reset and per-attempt-timeout cases failed: response headers must prevent policy replay during upload; observed 2 executions instead of 1. 0 passed; 2 failed; 14 filtered out; 2.01s.",
+  "after_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test retry_safety --test policy_retry --test rpc --test gaps --test serving --all-features",
+      "status": "passed",
+      "passed": 1154,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 55.72s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 1099 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.48s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 13.40s"
+      ]
+    }
+  ],
+  "limits": [
+    "The peer grants only 1024 bytes of request flow credit, sends positive response headers, and drives the connection for 100 ms before reset or a 300 ms attempt timeout.",
+    "Both cases assert exactly one initial execution, zero policy retries, zero retained byte budget and successful follow-up under max_concurrent_rpcs(1).",
+    "Queued response headers are observed without waiting past cancellation or deadlines; existing trailers-only rejection precedence is preserved.",
+    "FL-08 still owns encoded-frame replay, seeded side-effect histories and remaining resource/interop qualification. No performance or release qualification is claimed."
+  ]
+}

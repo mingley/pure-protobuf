@@ -57,9 +57,32 @@ pub(crate) async fn prefer_peer_rejection_after_send<T>(
     response: backend::ResponseFuture,
     send_error: Status,
 ) -> Result<T, Status> {
+    prefer_peer_rejection_with_commitment(response, send_error, &mut false).await
+}
+
+pub(crate) fn response_commits(response: &http::Response<backend::RecvStream>) -> bool {
+    // A valid trailers-only application rejection remains retry eligible.
+    !(response.status() == http::StatusCode::OK
+        && response.body().is_end_stream()
+        && response
+            .headers()
+            .get("grpc-status")
+            .and_then(|code| code.to_str().ok())
+            .and_then(|code| code.parse::<i32>().ok())
+            .is_some_and(|code| matches!(code, 1..=16)))
+}
+
+pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
+    response: impl std::future::Future<
+        Output = Result<http::Response<backend::RecvStream>, TransportError>,
+    >,
+    send_error: Status,
+    response_committed: &mut bool,
+) -> Result<T, Status> {
     if send_error.is_transport() {
         match response.await {
             Ok(response) => {
+                *response_committed = response_commits(&response);
                 let grpc_code = response
                     .headers()
                     .get("grpc-status")
@@ -99,7 +122,7 @@ pub(crate) fn send_request_frame(
 /// Poll `fut` once without arming cancellation. Callers fall back to
 /// [`first_of_in`] on `None`, so the race (and its waiter registration)
 /// is paid only when the operation actually waits.
-fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Output> {
+pub(crate) fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Output> {
     let waker = std::task::Waker::noop();
     let mut cx = std::task::Context::from_waker(waker);
     match fut.poll(&mut cx) {

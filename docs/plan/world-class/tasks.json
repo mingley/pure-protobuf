@@ -10801,6 +10801,51 @@
     "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers",
     "docs/evidence/unary-policy-commitment.json"
    ]
+  },
+  {
+   "id": "QG-12",
+   "title": "Retain unary commitment when request uploads fail",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "QG-11"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/tests/retry_safety.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/tests/retry_safety.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/unary-upload-commitment.json"
+   ],
+   "deliverable": "Carry response commitment through early-response/request-send failures and attempt timeouts, including headers queued while an upload stalls. Preserve trailers-only peer rejection precedence and existing cancellation/deadline behavior.",
+   "accept": [
+    "A peer withholds request flow credit, sends positive response headers, then resets the upload; explicit policy causes exactly one execution and zero policy retries.",
+    "The same header/flow-credit case with an attempt timeout does not re-execute even when per-attempt timeout retry is configured.",
+    "Both cases release byte admission and allow a follow-up RPC under a one-RPC limit; eligible trailers-only failures and pre-dispatch transparent retries remain green."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Claimed from 0cd445737c2e0a9ec44fc96811301dc670df9f57. QG-11 qualifies the completed-upload response reader. The send-failure path still returns an uncommitted UnaryFailure and the cancellation/timeout path does not inspect response headers that may already be queued. Use private commitment bookkeeping only; no public API, dependency, default, or performance changes."
   }
  ],
  "last_audit": {
