@@ -467,6 +467,119 @@ async fn retry_recovers_after_transient_unavailable() {
 }
 
 #[tokio::test]
+async fn cancellation_and_original_deadline_interrupt_policy_backoff() {
+    for cancelled in [false, true] {
+        let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("follow-up")]);
+        let (addr, _guard) = serve(service.clone(), ServerConfig::new())
+            .await
+            .expect("serve");
+        let channel = Channel::connect_with(addr, pbrs_grpc::ChannelConfig::new()
+            .connections(1).max_concurrent_rpcs(1)).await.expect("connect")
+            .byte_budget(1024)
+            .service_config(r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"5s","maxBackoff":"5s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","CANCELLED","DEADLINE_EXCEEDED"]}}]}"#)
+            .expect("policy");
+        let mut request = Request::new(req("first attempt"));
+        request.set_timeout(if cancelled {
+            Duration::from_secs(3)
+        } else {
+            Duration::from_millis(150)
+        });
+        let call = channel.unary::<_, HelloReply>(SAY_HELLO, request);
+        let handle = call.handle();
+        let started = Instant::now();
+        let task = tokio::spawn(call);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while channel.retry_stats().policy_retries == 0 {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("first rejection must enter backoff");
+        assert_eq!(service.calls(), 1);
+        assert_eq!(
+            channel.byte_budget_allocated(),
+            0,
+            "backoff holds no byte permit"
+        );
+        if cancelled {
+            handle.cancel();
+        }
+        let status = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("backoff interrupted")
+            .expect("call task")
+            .expect_err("terminal signal");
+        assert_eq!(
+            status.code(),
+            if cancelled {
+                Code::Cancelled
+            } else {
+                Code::DeadlineExceeded
+            }
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "do not wait for five-second backoff"
+        );
+        assert_eq!(service.calls(), 1, "no execution after terminal signal");
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        let response = tokio::time::timeout(Duration::from_secs(2), say_hello(&channel))
+            .await
+            .expect("RPC admission reclaimed")
+            .expect("follow-up");
+        assert_eq!(name_of(response.get_ref()), "follow-up");
+        assert_eq!(service.calls(), 2);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
+}
+
+#[tokio::test]
+async fn oversized_policy_request_never_dispatches_or_debits_throttling() {
+    let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("recovered")]);
+    let (addr, _guard) = serve(service.clone(), ServerConfig::new())
+        .await
+        .expect("serve");
+    let channel = Channel::connect_with(
+        addr,
+        pbrs_grpc::ChannelConfig::new()
+            .connections(1)
+            .max_concurrent_rpcs(1),
+    )
+    .await
+    .expect("connect")
+    .max_encoding_message_size(32)
+    .byte_budget(1024)
+    .service_config(
+        r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+            "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+            "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","RESOURCE_EXHAUSTED"]}}],
+            "retryThrottling":{"maxTokens":2,"tokenRatio":1}}"#,
+    )
+    .expect("policy");
+    let status = channel
+        .unary::<_, HelloReply>(SAY_HELLO, Request::new(req(&"x".repeat(128))))
+        .await
+        .expect_err("oversize request");
+    assert_eq!(status.code(), Code::ResourceExhausted);
+    assert_eq!(service.calls(), 0);
+    assert_eq!(channel.retry_stats(), pbrs_grpc::RetryStats::default());
+    assert_eq!(channel.byte_budget_allocated(), 0);
+    // With maxTokens=2, a debit would leave the bucket at its refusal
+    // threshold. This eligible failure can retry only if encode rejection
+    // left the shared throttler intact.
+    let response = tokio::time::timeout(Duration::from_secs(2), say_hello(&channel))
+        .await
+        .expect("RPC admission reclaimed")
+        .expect("throttler was not debited");
+    assert_eq!(name_of(response.get_ref()), "recovered");
+    assert_eq!(service.calls(), 2);
+    assert_eq!(channel.retry_stats().policy_retries, 1);
+    assert_eq!(channel.byte_budget_allocated(), 0);
+}
+
+#[tokio::test]
 async fn retry_exhausts_attempts() {
     let json = r#"{"methodConfig": [{"name": [{"service": "helloworld.Greeter", "method": "SayHello"}],
         "retryPolicy": {

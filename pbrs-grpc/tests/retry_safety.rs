@@ -33,7 +33,7 @@ use bytes::Bytes;
 use common::{name_of, name_of_request, reply, req, reserve_loopback, serve, serve_on};
 use http::header::CONTENT_TYPE;
 use http::{HeaderValue, StatusCode};
-use pbrs::Serialize;
+use pbrs::{Parse, Serialize};
 use pbrs_grpc::hello::{Greeter, GreeterClient, HelloReply, HelloRequest};
 use pbrs_grpc::timeout::parse_timeout;
 use pbrs_grpc::{
@@ -267,6 +267,294 @@ async fn read_request_body(
     .await
     .expect("request body stalled while driving HTTP/2");
     received
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HistoryStep {
+    Success,
+    Unavailable,
+    Internal,
+    Unknown,
+}
+
+fn history_script(seed: u64) -> Vec<HistoryStep> {
+    let mut state = 0xa6f1_0000_u64.wrapping_add(seed);
+    let mut script = Vec::new();
+    for _ in 0..5 {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        script.push(match state % 4 {
+            0 => HistoryStep::Success,
+            1 => HistoryStep::Unavailable,
+            2 => HistoryStep::Internal,
+            _ => HistoryStep::Unknown,
+        });
+    }
+    // Include boundary histories alongside the generated combinations.
+    match seed {
+        0 => script.fill(HistoryStep::Success),
+        1 => script.fill(HistoryStep::Unavailable),
+        2 => script.fill(HistoryStep::Internal),
+        3 => script.fill(HistoryStep::Unknown),
+        _ => {}
+    }
+    script
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn seeded_unary_side_effect_histories_preserve_unknown_outcomes() {
+    for seed in 0..16 {
+        let script = history_script(seed);
+        for configured in [false, true] {
+            // Model the approved contract independently of the client:
+            // success/internal stop; unknown/unavailable need an explicit
+            // policy and may execute at most three times.
+            let mut expected = Vec::new();
+            for step in script.iter().take(if configured { 3 } else { 1 }) {
+                expected.push(*step);
+                if matches!(step, HistoryStep::Success | HistoryStep::Internal) {
+                    break;
+                }
+            }
+            let expected_code = match expected.last().expect("nonempty script") {
+                HistoryStep::Success => Code::Ok,
+                HistoryStep::Internal => Code::Internal,
+                HistoryStep::Unavailable | HistoryStep::Unknown => Code::Unavailable,
+            };
+            let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+            let addr = listener.local_addr().expect("address");
+            let history = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+            let seen = history.clone();
+            let peer_script = script.clone();
+            let server = tokio::spawn(async move {
+                let mut connections = tokio::task::JoinSet::new();
+                while let Ok((socket, _)) = listener.accept().await {
+                    let seen = seen.clone();
+                    let script = peer_script.clone();
+                    connections.spawn(async move {
+                        let mut conn = h2::server::handshake(socket).await.expect("handshake");
+                        while let Some(Ok((request, mut respond))) = conn.accept().await {
+                            let mut body = request.into_body();
+                            let received = read_request_body(&mut conn, &mut body).await;
+                            let mut bytes = bytes::BytesMut::from(received.as_slice());
+                            let frame = codec::pop(&mut bytes)
+                                .expect("decode frame")
+                                .expect("frame");
+                            assert!(bytes.is_empty());
+                            assert!(!frame.compressed);
+                            let request =
+                                HelloRequest::parse_bytes(frame.payload).expect("request");
+                            let key = name_of_request(&request);
+                            let step = if key == "follow-up" {
+                                HistoryStep::Success
+                            } else {
+                                // Record the side effect before any response or
+                                // TCP loss, so an unknown result cannot hide it.
+                                let mut history = seen.lock().await;
+                                let step = script
+                                    .get(history.len())
+                                    .copied()
+                                    .unwrap_or(HistoryStep::Success);
+                                history.push((key, step));
+                                step
+                            };
+                            if step == HistoryStep::Unknown {
+                                // Drop the connection after execution, before
+                                // response headers: outcome is unknown to client.
+                                break;
+                            }
+                            let response = http::Response::builder()
+                                .status(StatusCode::OK)
+                                .header(CONTENT_TYPE, "application/grpc");
+                            if step == HistoryStep::Success {
+                                let mut send = respond
+                                    .send_response(response.body(()).expect("headers"), false)
+                                    .expect("response");
+                                let payload = reply("success").serialize().expect("serialize");
+                                send.send_data(
+                                    codec::encode(&payload, false).expect("frame"),
+                                    false,
+                                )
+                                .expect("DATA");
+                                let mut trailers = http::HeaderMap::new();
+                                trailers.insert("grpc-status", HeaderValue::from_static("0"));
+                                send.send_trailers(trailers).expect("trailers");
+                            } else {
+                                respond
+                                    .send_response(
+                                        response
+                                            .header(
+                                                "grpc-status",
+                                                if step == HistoryStep::Internal {
+                                                    "13"
+                                                } else {
+                                                    "14"
+                                                },
+                                            )
+                                            .body(())
+                                            .expect("rejection"),
+                                        true,
+                                    )
+                                    .expect("trailers-only");
+                            }
+                        }
+                    });
+                }
+            });
+            let _guard = common::ServerGuard(server);
+            let mut channel = Channel::connect_with(
+                addr,
+                ChannelConfig::new().connections(1).max_concurrent_rpcs(1),
+            )
+            .await
+            .expect("connect")
+            .byte_budget(1024);
+            if configured {
+                channel = channel
+                    .service_config(
+                        r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                    "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+                    "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+                    )
+                    .expect("policy");
+            }
+            let client = GreeterClient::new(channel.clone());
+            let key = format!("operation-{seed}");
+            let mut request = Request::new(req(&key));
+            request.set_timeout(Duration::from_secs(2));
+            let result = client.say_hello(request).await;
+            let code = result
+                .as_ref()
+                .map_or_else(|status| status.code(), |_| Code::Ok);
+            assert_eq!(code, expected_code, "seed={seed}, configured={configured}");
+            let actual = history.lock().await.clone();
+            assert_eq!(
+                actual,
+                expected
+                    .iter()
+                    .map(|step| (key.clone(), *step))
+                    .collect::<Vec<_>>(),
+                "seed={seed}, configured={configured}"
+            );
+            let stats = channel.retry_stats();
+            assert_eq!(
+                stats.transparent_retries, 0,
+                "an unknown outcome is not a refusal"
+            );
+            assert_eq!(
+                stats.policy_retries as usize,
+                if configured { expected.len() - 1 } else { 0 }
+            );
+            assert_eq!(stats.committed_ok, u64::from(expected_code == Code::Ok));
+            assert_eq!(channel.byte_budget_allocated(), 0);
+            println!(
+                "RETRY_HISTORY {}",
+                serde_json::json!({
+                    "seed":seed,"configured":configured,
+                    "script":script.iter().map(|step| format!("{step:?}")).collect::<Vec<_>>(),
+                    "executions":actual.iter().map(|(key,step)| serde_json::json!({"operation":key,"outcome":format!("{step:?}")})).collect::<Vec<_>>(),
+                    "client_code":format!("{code:?}"),"policy_retries":stats.policy_retries,
+                    "transparent_retries":stats.transparent_retries,"byte_budget_allocated":channel.byte_budget_allocated()
+                })
+            );
+            let follow_up = tokio::time::timeout(
+                Duration::from_secs(3),
+                client.say_hello(Request::new(req("follow-up"))),
+            )
+            .await
+            .expect("RPC admission reclaimed")
+            .expect("follow-up");
+            assert_eq!(name_of(follow_up.get_ref()), "success");
+            assert_eq!(channel.byte_budget_allocated(), 0);
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn caller_driven_streams_keep_method_retry_policy_inert_after_send() {
+    for shape in ["client_stream", "bidi"] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("address");
+        let executions = Arc::new(AtomicUsize::new(0));
+        let seen = executions.clone();
+        let server = tokio::spawn(async move {
+            let mut connections = tokio::task::JoinSet::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                let seen = seen.clone();
+                connections.spawn(async move {
+                    let mut conn = h2::server::handshake(socket).await.expect("handshake");
+                    while let Some(Ok((request, mut respond))) = conn.accept().await {
+                        let mut body = request.into_body();
+                        let received = read_request_body(&mut conn, &mut body).await;
+                        assert!(
+                            received.len() > codec::HEADER_LEN,
+                            "request DATA preceded execution"
+                        );
+                        let execution = seen.fetch_add(1, Ordering::SeqCst);
+                        if execution == 0 {
+                            respond.send_reset(h2::Reason::CANCEL);
+                        } else {
+                            let response = http::Response::builder()
+                                .status(StatusCode::OK)
+                                .header(CONTENT_TYPE, "application/grpc")
+                                .body(())
+                                .expect("response");
+                            let mut send = respond.send_response(response, false).expect("headers");
+                            let payload = reply("follow-up").serialize().expect("serialize");
+                            send.send_data(codec::encode(&payload, false).expect("frame"), false)
+                                .expect("DATA");
+                            let mut trailers = http::HeaderMap::new();
+                            trailers.insert("grpc-status", HeaderValue::from_static("0"));
+                            send.send_trailers(trailers).expect("trailers");
+                        }
+                    }
+                });
+            }
+        });
+        let _guard = common::ServerGuard(server);
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::new().connections(1).max_concurrent_rpcs(1),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(1024)
+        .service_config(
+            r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","CANCELLED"]}}]}"#,
+        )
+        .expect("policy");
+        let client = GreeterClient::new(channel.clone());
+        let mut request = Request::new(());
+        request.set_timeout(Duration::from_secs(2));
+        let status = if shape == "client_stream" {
+            let (tx, call) = client.client_hello(request);
+            tx.send(req("side-effect")).await.expect("send");
+            tx.close();
+            call.await.expect_err("reset is terminal")
+        } else {
+            let (tx, call) = client.stream_hello(request);
+            tx.send(req("side-effect")).await.expect("send");
+            tx.close();
+            call.await.expect_err("reset is terminal")
+        };
+        assert_eq!(status.code(), Code::Unavailable, "{shape}");
+        assert_eq!(executions.load(Ordering::SeqCst), 1, "{shape}: no replay");
+        assert_eq!(channel.retry_stats().policy_retries, 0);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        let follow_up = tokio::time::timeout(
+            Duration::from_secs(3),
+            client.say_hello(Request::new(req("next call"))),
+        )
+        .await
+        .expect("RPC admission reclaimed")
+        .expect("follow-up");
+        assert_eq!(name_of(follow_up.get_ref()), "follow-up");
+        assert_eq!(executions.load(Ordering::SeqCst), 2);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
 }
 
 // ============================================================================

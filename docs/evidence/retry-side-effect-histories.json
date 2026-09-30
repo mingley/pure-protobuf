@@ -1,0 +1,788 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "7fd2530d4cdf40015cd6da04e7d3209ea767f825",
+  "source_blobs": {
+    "pbrs-grpc/src/client/unary.rs": "a374bcfed713aef88dd87b6c388ff7f79755a1b3",
+    "pbrs-grpc/src/client/streaming.rs": "967a93251ce56ceef372bb3388eec167d18b32c2",
+    "pbrs-grpc/src/client/retry.rs": "71ec247194138ca53f33ad4757652bc08a3b28d1",
+    "pbrs-grpc/tests/policy_retry.rs": "cdb756532aeba2a91eca21370fcce77ee91daca2",
+    "pbrs-grpc/tests/retry_safety.rs": "267dd231f82a8ceafcaffd4433b6a7319078faba"
+  },
+  "checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test retry_safety --test policy_retry -- --nocapture",
+      "status": "passed",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.03s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --test retry_safety --test policy_retry --test rpc --test gaps --test serving",
+      "status": "passed",
+      "passed": 1160,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.18s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1099 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.41s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.14s"
+      ]
+    }
+  ],
+  "histories": [
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-0",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Success",
+        "Success",
+        "Success",
+        "Success"
+      ],
+      "seed": 0,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-0",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Success",
+        "Success",
+        "Success",
+        "Success"
+      ],
+      "seed": 0,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-1",
+          "outcome": "Unavailable"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unavailable",
+        "Unavailable",
+        "Unavailable",
+        "Unavailable",
+        "Unavailable"
+      ],
+      "seed": 1,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-1",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-1",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-1",
+          "outcome": "Unavailable"
+        }
+      ],
+      "policy_retries": 2,
+      "script": [
+        "Unavailable",
+        "Unavailable",
+        "Unavailable",
+        "Unavailable",
+        "Unavailable"
+      ],
+      "seed": 1,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-2",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Internal",
+        "Internal",
+        "Internal",
+        "Internal"
+      ],
+      "seed": 2,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-2",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Internal",
+        "Internal",
+        "Internal",
+        "Internal"
+      ],
+      "seed": 2,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-3",
+          "outcome": "Unknown"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unknown",
+        "Unknown",
+        "Unknown",
+        "Unknown",
+        "Unknown"
+      ],
+      "seed": 3,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-3",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-3",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-3",
+          "outcome": "Unknown"
+        }
+      ],
+      "policy_retries": 2,
+      "script": [
+        "Unknown",
+        "Unknown",
+        "Unknown",
+        "Unknown",
+        "Unknown"
+      ],
+      "seed": 3,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-4",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Internal",
+        "Unknown",
+        "Success",
+        "Unknown"
+      ],
+      "seed": 4,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-4",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Internal",
+        "Unknown",
+        "Success",
+        "Unknown"
+      ],
+      "seed": 4,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-5",
+          "outcome": "Unavailable"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unavailable",
+        "Unknown",
+        "Internal",
+        "Unavailable",
+        "Internal"
+      ],
+      "seed": 5,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-5",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-5",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-5",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 2,
+      "script": [
+        "Unavailable",
+        "Unknown",
+        "Internal",
+        "Unavailable",
+        "Internal"
+      ],
+      "seed": 5,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-6",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unavailable"
+      ],
+      "seed": 6,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-6",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unavailable"
+      ],
+      "seed": 6,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-7",
+          "outcome": "Unknown"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unknown",
+        "Success",
+        "Success",
+        "Unknown",
+        "Success"
+      ],
+      "seed": 7,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-7",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-7",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 1,
+      "script": [
+        "Unknown",
+        "Success",
+        "Success",
+        "Unknown",
+        "Success"
+      ],
+      "seed": 7,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-8",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Success",
+        "Unknown",
+        "Success",
+        "Success"
+      ],
+      "seed": 8,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-8",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Success",
+        "Unknown",
+        "Success",
+        "Success"
+      ],
+      "seed": 8,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-9",
+          "outcome": "Unavailable"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unavailable",
+        "Unavailable"
+      ],
+      "seed": 9,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-9",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-9",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-9",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 2,
+      "script": [
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unavailable",
+        "Unavailable"
+      ],
+      "seed": 9,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-10",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unknown",
+        "Unavailable",
+        "Internal",
+        "Internal"
+      ],
+      "seed": 10,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-10",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unknown",
+        "Unavailable",
+        "Internal",
+        "Internal"
+      ],
+      "seed": 10,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-11",
+          "outcome": "Unknown"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unknown",
+        "Internal",
+        "Success",
+        "Unknown",
+        "Unknown"
+      ],
+      "seed": 11,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-11",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-11",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 1,
+      "script": [
+        "Unknown",
+        "Internal",
+        "Success",
+        "Unknown",
+        "Unknown"
+      ],
+      "seed": 11,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-12",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Internal",
+        "Unknown",
+        "Success",
+        "Unavailable"
+      ],
+      "seed": 12,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-12",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Success",
+        "Internal",
+        "Unknown",
+        "Success",
+        "Unavailable"
+      ],
+      "seed": 12,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-13",
+          "outcome": "Unavailable"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unavailable",
+        "Unknown",
+        "Internal",
+        "Unavailable",
+        "Success"
+      ],
+      "seed": 13,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-13",
+          "outcome": "Unavailable"
+        },
+        {
+          "operation": "operation-13",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-13",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 2,
+      "script": [
+        "Unavailable",
+        "Unknown",
+        "Internal",
+        "Unavailable",
+        "Success"
+      ],
+      "seed": 13,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-14",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unknown"
+      ],
+      "seed": 14,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Internal",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-14",
+          "outcome": "Internal"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Internal",
+        "Unavailable",
+        "Unavailable",
+        "Internal",
+        "Unknown"
+      ],
+      "seed": 14,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Unavailable",
+      "configured": false,
+      "executions": [
+        {
+          "operation": "operation-15",
+          "outcome": "Unknown"
+        }
+      ],
+      "policy_retries": 0,
+      "script": [
+        "Unknown",
+        "Success",
+        "Success",
+        "Unknown",
+        "Internal"
+      ],
+      "seed": 15,
+      "transparent_retries": 0
+    },
+    {
+      "byte_budget_allocated": 0,
+      "client_code": "Ok",
+      "configured": true,
+      "executions": [
+        {
+          "operation": "operation-15",
+          "outcome": "Unknown"
+        },
+        {
+          "operation": "operation-15",
+          "outcome": "Success"
+        }
+      ],
+      "policy_retries": 1,
+      "script": [
+        "Unknown",
+        "Success",
+        "Success",
+        "Unknown",
+        "Internal"
+      ],
+      "seed": 15,
+      "transparent_retries": 0
+    }
+  ],
+  "terminal_budget_cases": [
+    "Cancellation and original deadline interrupt five-second backoff in under one second, keep one initial execution, release byte budget and allow a follow-up under max_concurrent_rpcs(1).",
+    "An oversized request with RESOURCE_EXHAUSTED configured as retryable returns locally, records no call/attempt and no server execution. A subsequent eligible failure can retry in a maxTokens=2 bucket, proving the encode rejection did not debit throttling.",
+    "Client-streaming and bidi with retry policy each send request DATA, execute once, then return UNAVAILABLE after RST_STREAM(CANCEL). Zero policy retries, zero retained byte budget and successful follow-up under one-RPC admission."
+  ],
+  "limits": [
+    "Unknown means a peer records the execution and drops its TCP connection before response headers. It is returned as UNAVAILABLE unless explicit policy authorizes another counted attempt; the test does not assert exactly-once execution.",
+    "Fixed seeds 0..15 include deterministic boundary scripts plus xorshift-generated combinations; this is a bounded history corpus, not a model checker or long-running soak.",
+    "QG-15 still owns routing-load guard retention across backoff. QG-16 owns policy_retries incrementing on a decision before a subsequent attempt is dispatched; the backoff tests currently use that decision counter as their readiness signal.",
+    "Full workspace 3232-test and 46-case native/Go interop qualification was recorded for the unchanged transport implementation in encoded-request-replay.json. This tests-only follow-up does not claim a new full workspace/interop run or full release/performance qualification."
+  ]
+}

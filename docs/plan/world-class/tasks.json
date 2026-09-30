@@ -10906,6 +10906,152 @@
     "pbrs-grpc/tests/policy_retry.rs#transparent_refusal_replays_single_request_without_encoding_again"
    ],
    "reviewer": "Codex"
+  },
+  {
+   "id": "QG-14",
+   "title": "Qualify retry side effects and terminal budget exits",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "done",
+   "implementer": "Codex",
+   "depends_on": [
+    "QG-13"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/tests/retry_safety.rs",
+    "pbrs-grpc/tests/policy_retry.rs"
+   ],
+   "write": [
+    "pbrs-grpc/tests/retry_safety.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/retry-side-effect-histories.json"
+   ],
+   "deliverable": "Retain deterministic side-effect histories for explicit-policy and unconfigured unary calls, distinguishing post-dispatch connection loss from success; qualify cancellation, deadline and oversize exits plus inert retry policy on caller-driven streams.",
+   "accept": [
+    "Seeded scripts containing success, trailers-only UNAVAILABLE/INTERNAL and post-dispatch TCP loss agree with independently computed execution/status/attempt limits; unknown outcomes never silently become success or transparent replay.",
+    "Cancellation and original deadline interrupt backoff without another execution; oversized requests fail before any attempt. Byte admission returns to zero and a follow-up can reuse one-RPC admission.",
+    "Client-streaming and bidi with a method retry policy execute once after request DATA and a subsequent reset; no replay is added."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Delivered from 7fd2530d with 32 retained unary histories over fixed seeds, policy/unconfigured profiles and success/rejection/unknown TCP-loss outcomes. Expected terminal codes, execution histories and policy bounds agree; unknown never becomes silent success or transparent replay. Backoff cancellation/deadline and oversize/throttler tests prove terminal resource reuse. Caller-driven client-streaming/bidi policy remains inert after DATA/reset. Default retry 43 passed; all-feature RPC/retry/serving 1160 passed; strict workspace all-target/all-feature Clippy passed. QG-15/QG-16 keep routing-load backoff retention and premature retry statistics open under FL-08. No API, dependency, cap, default, release or performance claim.",
+   "reviewer": "Codex",
+   "evidence": [
+    "docs/evidence/retry-side-effect-histories.json",
+    "pbrs-grpc/tests/retry_safety.rs#seeded_unary_side_effect_histories_preserve_unknown_outcomes",
+    "pbrs-grpc/tests/retry_safety.rs#caller_driven_streams_keep_method_retry_policy_inert_after_send",
+    "pbrs-grpc/tests/policy_retry.rs#cancellation_and_original_deadline_interrupt_policy_backoff",
+    "pbrs-grpc/tests/policy_retry.rs#oversized_policy_request_never_dispatches_or_debits_throttling"
+   ]
+  },
+  {
+   "id": "QG-15",
+   "title": "Release routing load before retry backoff",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "pending",
+   "depends_on": [
+    "QG-14"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/tests/policy_retry.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/retry-backoff-routing-load.json"
+   ],
+   "deliverable": "Release completed-attempt connection/least-request load guards before policy sleeps, preserving RPC-level admission and existing successful-stream ownership.",
+   "accept": [
+    "A real peer rejection enters retry backoff with no active HTTP/2 attempt; private pool load and unary least-request counts are zero during the sleep.",
+    "Cancellation/deadline exits and a later eligible retry or follow-up keep counts balanced, with existing load-balancing/streaming tests green."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Source audit after QG-14: unary _load/_lr and server-streaming _load live through policy first_of(backoff), although the transport attempt has finished. Service-config section 6.3 permits a retained frame but no connection slot/stream/byte permit during backoff. Reproduce before private lifetime changes; no public API, dependencies, caps, defaults or performance claim."
+  },
+  {
+   "id": "QG-16",
+   "title": "Count policy retries when another attempt starts",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "status": "pending",
+   "depends_on": [
+    "QG-14"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/tests/policy_retry.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/policy-retry-dispatch-counts.json"
+   ],
+   "deliverable": "Align RetryStats policy_retries with its documented dispatched-attempt meaning, rather than the retry decision preceding an interruptible backoff.",
+   "accept": [
+    "Cancellation/deadline during retry backoff leaves one peer execution and zero policy retries; wait for an actual attempt-completion observation rather than the premature retry counter.",
+    "Eligible unary/server-streaming retries still count each additional attempt once; transparent retry, throttle, pushback and exhaustion statistics keep their existing distinctions."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "QG-14 observed policy_retries=1 during backoff while only the original execution existed. Both executors record_policy_retry before first_of(backoff), contrary to the published actually-sent definition. Qualify the proper dispatch boundary including admission/open failures before moving counters; no public API, dependencies, caps, retry defaults or performance claim."
   }
  ],
  "last_audit": {
