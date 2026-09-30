@@ -14,14 +14,20 @@
     "bench/devloop/adoption/src/bin/codec-inventory.rs": "b60f8187558a00bffefbae55810fd51231c66cda",
     "bench/devloop/adoption/Cargo.toml": "231f037dcaee11d4dd62817c6928bfb4d772a16d",
     "bench/devloop/adoption/Cargo.lock": "a84fa42ee36f24983ab8d12dddd112c20be596ce",
-    "bench/devloop/adoption/evidence/codec-inventory.json": "922ba1a0df00819325108855f400584c145a686a"
+    "bench/devloop/adoption/evidence/codec-inventory.json": "922ba1a0df00819325108855f400584c145a686a",
+    "bench/devloop/adoption/build.rs": "93ec21a1204000354b0ebe0e9a14daca65e37b9d",
+    "bench/devloop/Cargo.toml": "09dc58479a789ce1764eced02d0e3ed3c9044854",
+    "bench/devloop/Cargo.lock": "8fc602087e60e5f1ec472ac051f0024e9d0b2de0",
+    "bench/devloop/src/main.rs": "50f6209ecec46790738257a8de2ff8774ca19dab",
+    "bench/devloop/adoption/measure.sh": "1f280e9e8bdb27ebec4453aab1eb469a4ecaa521"
   },
   "pins": {
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
     "rustfmt": "rustfmt 1.9.0-stable (48a229ceae 2026-09-01)",
     "corpus_protoc": "libprotoc 36.2",
     "prost": "0.14.4",
-    "prost-build": "0.14.4"
+    "prost-build": "0.14.4",
+    "well_known_include_source": "optional pinned checkout 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03; explicit for both generators when present"
   },
   "checks": [
     {
@@ -47,6 +53,18 @@
       "result": "passed; 21 actual cases",
       "log": "/tmp/pbrs-sb26c-codec-bench.txt",
       "sha256": "017062b13547a4d45355d2cf20f5bfbc569f5f45162f366f8f47e5cb03e4b96b"
+    },
+    {
+      "command": "cargo test --locked --manifest-path bench/devloop/adoption/Cargo.toml",
+      "result": "8 passed; 0 failed after pinned include wiring",
+      "log": "/tmp/pbrs-sb26c-wkt-tests.txt",
+      "sha256": "9b0053e1308a1486a691da70a6ed72237ea732880e93049013ebac09a768f660"
+    },
+    {
+      "command": "cargo clippy --locked --manifest-path bench/devloop/adoption/Cargo.toml --all-targets -- -D warnings",
+      "result": "passed after pinned include wiring",
+      "log": "/tmp/pbrs-sb26c-wkt-clippy.txt",
+      "sha256": "47aceff754e5e5db4efef778efe4609271a32231b1701e63938d8fda5d658296"
     }
   ],
   "legacy_cases": [
@@ -202,11 +220,52 @@
     "any_payload": "each codec constructs/encodes its own exact-size generated Payload",
     "map_native_extra_wire_bytes": 4
   },
-  "measurement_status": "pending; existing devloop collector integration and Linux release build in progress",
+  "measurement_status": "512 cells registered; release build and N/2N/allocation preflight passed; frozen N=16 three-repeat full matrix remains open",
   "limits": [
     "Qualification is not a performance result.",
     "Exact allocator and N/2N instruction evidence remains open.",
     "Declared Rust 1.88 corpus floor has not been separately tested.",
     "SB-26d RPC profiles and SB-26e startup/codegen/P1-P5 synthesis remain pending."
-  ]
+  ],
+  "manifest_review": {
+    "graph": "excluded devloop consumer",
+    "delta": "only existing local pbrs-adoption-corpus package; no third-party version changes",
+    "workspace": "explicit adoption exclusion preserves standalone consumer",
+    "shipping_changes": false
+  },
+  "collector_preflight": {
+    "status": "passed",
+    "command": "existing scripts/devloop.sh in pinned Linux image; offline release build then one N=16, 3-repeat adoption read-all cell",
+    "report": "target/devloop/sb26c-linux-preflight-wkt.json",
+    "report_sha256": "b335837efccc6631d76eb9a8c0d26f3ea6d3d830e79fe8d7f1158a9ed065499c",
+    "reported_commit": "fd47c688 (integration/build wiring was uncommitted; this is preflight only)",
+    "source_bindings": {
+      "bench/devloop/adoption/generate.py": "0ca561ee1cb37b480d45b3ead220745bfe5cfedb",
+      "bench/devloop/adoption/src/fresh.rs": "a9a303bef72e3b3b173eb86362669fc6ac411008",
+      "bench/devloop/adoption/src/workloads.rs": "faa24257d1164bbc74c0a29e0a4d15eae303d1dc",
+      "bench/devloop/adoption/src/cells.rs": "0038a02ac8ad59ea3ba3bbb1f6866b7f2c43ebaf",
+      "bench/devloop/adoption/src/corpus.rs": "52b0b99e628649f1ec42eba8f3719b4b00b561f0",
+      "bench/devloop/adoption/src/lib.rs": "cb1f4ea77a16ca2c28c8946e3710cc713457d0d0",
+      "bench/devloop/adoption/src/bin/codec-inventory.rs": "b60f8187558a00bffefbae55810fd51231c66cda",
+      "bench/devloop/adoption/Cargo.toml": "231f037dcaee11d4dd62817c6928bfb4d772a16d",
+      "bench/devloop/adoption/Cargo.lock": "a84fa42ee36f24983ab8d12dddd112c20be596ce",
+      "bench/devloop/adoption/evidence/codec-inventory.json": "922ba1a0df00819325108855f400584c145a686a",
+      "bench/devloop/adoption/build.rs": "93ec21a1204000354b0ebe0e9a14daca65e37b9d",
+      "bench/devloop/Cargo.toml": "09dc58479a789ce1764eced02d0e3ed3c9044854",
+      "bench/devloop/Cargo.lock": "8fc602087e60e5f1ec472ac051f0024e9d0b2de0",
+      "bench/devloop/src/main.rs": "50f6209ecec46790738257a8de2ff8774ca19dab",
+      "bench/devloop/adoption/measure.sh": "1f280e9e8bdb27ebec4453aab1eb469a4ecaa521"
+    },
+    "instructions": "differential_callgrind_2n_minus_n measured",
+    "allocations": "exact measured",
+    "list": "actual built devloop list matches all 512 qualified IDs",
+    "fixture_build_failure_before_fix": "/tmp/pbrs-sb26c-linux-preflight-ready.txt; MissingImport google/protobuf/any.proto with source-built protoc",
+    "tools_setup": [
+      "Existing scripts/devloop-linux.sh built pinned protoc 35.1 in the named Cargo volume.",
+      "System Bash 3 launch failed on empty arrays; Bash 5 passed launch.",
+      "Container DNS failed for crates.io; reused only public locked registry cache in the isolated benchmark volume.",
+      "Downloaded missing pulldown-cmark-to-cmark 22.0.1 from crates.io and verified lockfile SHA256.",
+      "Full build succeeded offline despite fetch warning for unused target-specific wasi archive."
+    ]
+  }
 }

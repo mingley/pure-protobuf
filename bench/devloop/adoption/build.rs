@@ -4,19 +4,27 @@ fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let proto = root.join("proto");
+    let mut includes = vec![proto.clone()];
+    // A protoc built from source has no installed well-known-type directory.
+    // The parent harness already requires this pinned checkout for v4_tat.
+    // Standalone users can still rely on their installed protoc's includes.
+    let pinned_wkt = root.join("../../../third_party/protobuf/src");
+    if pinned_wkt.join("google/protobuf/any.proto").is_file() {
+        includes.push(pinned_wkt);
+    }
     let core = [proto.join("adoption.proto"), proto.join("sparse.proto")];
     let pbrs_out = out.join("pbrs");
     pbrs::codegen::Config::new()
         .out_dir(&pbrs_out)
         .emit_deps(true)
-        .compile_protos(&core, &[&proto])
+        .compile_protos(&core, &includes)
         .expect("generate pbrs adoption messages");
     let prost_out = out.join("prost");
     std::fs::create_dir_all(&prost_out).unwrap();
     prost_build::Config::new()
         .out_dir(&prost_out)
         .compile_well_known_types()
-        .compile_protos(&core, &[&proto])
+        .compile_protos(&core, &includes)
         .expect("generate prost adoption messages");
 
     let option_protos: Vec<_> = (0..20)
@@ -25,13 +33,13 @@ fn main() {
     let pbrs_options = out.join("pbrs_options");
     pbrs::codegen::Config::new()
         .out_dir(&pbrs_options)
-        .compile_protos(&option_protos, &[&proto])
+        .compile_protos(&option_protos, &includes)
         .expect("generate pbrs option-heavy messages");
     let prost_options = out.join("prost_options");
     std::fs::create_dir_all(&prost_options).unwrap();
     prost_build::Config::new()
         .out_dir(&prost_options)
-        .compile_protos(&option_protos, &[&proto])
+        .compile_protos(&option_protos, &includes)
         .expect("generate prost option-heavy messages");
     // Compile all generated option-heavy outputs, rather than merely proving
     // that the generators returned success.

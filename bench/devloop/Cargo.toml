@@ -6,10 +6,12 @@ publish = false
 license = "MIT OR Apache-2.0"
 
 [workspace]
+exclude = ["adoption"]
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
 pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts", "prost"] }
+pbrs-adoption-corpus = { path = "adoption" }
 prost = "0.14"
 prost013 = { package = "prost", version = "0.13" }
 prost_tat = { path = "../../prost_tat" }

@@ -131,6 +131,7 @@ name = "devloop"
 version = "0.1.0"
 dependencies = [
  "pbrs",
+ "pbrs-adoption-corpus",
  "pbrs-grpc",
  "prost 0.13.5",
  "prost 0.14.4",
@@ -568,6 +569,16 @@ dependencies = [
  "serde",
  "serde_json",
  "simdutf8",
+]
+
+[[package]]
+name = "pbrs-adoption-corpus"
+version = "0.0.0"
+dependencies = [
+ "pbrs",
+ "prost 0.14.4",
+ "prost-build 0.14.4",
+ "serde_json",
 ]
 
 [[package]]

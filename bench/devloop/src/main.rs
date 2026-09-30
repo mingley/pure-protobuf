@@ -1716,10 +1716,33 @@ fn run_blob_cell(cell: &str, iters: u64, warmup: u64) {
     black_box(sink);
 }
 
+fn run_adoption_codec_cell(cell: &str, iters: u64, warmup: u64) {
+    // Preparation is independent of N: full equivalence/read/clone validation
+    // and the same owned inputs precede both differential collector runs.
+    let case = pbrs_adoption_corpus::workloads::CodecCase::prepare(cell);
+    for _ in 0..warmup {
+        black_box(case.work());
+    }
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        sink = sink.wrapping_add(case.work());
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    eprintln!("__CHILD__ {}", child_json(cell, iters, allocs, bytes, wall));
+    black_box(sink);
+}
+
 fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
     let mut out = Vec::new();
     for (id, codec) in codec_cells() {
         out.push((id, "codec", codec));
+    }
+    for cell in pbrs_adoption_corpus::workloads::CELLS {
+        out.push((cell.id, "codec", cell.codec.name()));
     }
     for (id, codec) in rpc_cells() {
         out.push((id, "rpc", codec));
@@ -2146,6 +2169,8 @@ fn cmd_run_cell(args: &[String]) {
     let id = id.expect("run-cell <id>");
     if blob::is_blob_cell(&id) {
         run_blob_cell(&id, iters, warmup);
+    } else if id.starts_with("codec.adoption.") {
+        run_adoption_codec_cell(&id, iters, warmup);
     } else if id.starts_with("codec.") {
         run_codec_cell(&id, iters, warmup, prepare_iters.unwrap_or(iters));
     } else if id.starts_with("lb.") {

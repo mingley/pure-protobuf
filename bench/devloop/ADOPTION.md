@@ -81,6 +81,11 @@ The existing allocator and N/2N collector also count output destruction.
 Preparation, validation and warmup are identical at N and 2N. Initial full
 matrix runs may use an explicit small iteration count; retain that count and
 each collector's measured or unavailable status without changing thresholds.
+The initial full codec run is frozen at N=16, 2N=32 and three repeats, with
+the collector's unchanged 100-operation warmup. It retains eight 64-cell
+reports (one per codec/operation), whose union must match all 512 registered
+IDs. Fixed-order dev-loop samples and wall time under instrumentation do not
+satisfy claim-grade statistics or establish native wall-time speed.
 
 The reviewed SB-26c manifest change is a local path dependency on the existing
 `pbrs-adoption-corpus` library from the excluded devloop consumer. Its graph

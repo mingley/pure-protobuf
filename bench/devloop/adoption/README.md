@@ -69,6 +69,19 @@ requires genuine pinned `protoc 35.1` with Google's Rust generator. On macOS,
 `/opt/homebrew/bin/bash scripts/devloop-linux.sh` can build that toolchain and
 run the collector in Linux; use Bash 4+ for the wrapper's empty arrays under
 `set -u`. Missing instruction counters remain unavailable measurements.
+When the existing pinned source checkout is present, both fixture generators
+receive its well-known-type include directory; this also supports protoc
+built from source without an installed include directory. The standalone
+consumer still works with an ordinary installed compiler and no checkout.
+
+After building the parent release binary, `bash
+bench/devloop/adoption/measure.sh` runs all 512 cells at the frozen initial
+N=16 and three repeats. Set `PBRS_ADOPTION_DEVLOOP_BIN` for a different
+target directory and `PBRS_ADOPTION_OUT` for the eight 64-cell reports. The
+runner uses the parent's collector, with its unchanged preparation, warmup,
+allocator, missing-counter states and N/2N protocol. On Linux use the pinned
+image/toolchain recorded with the result. The reports include every variant;
+the runner stops on a failed cell and preserves completed earlier reports.
 The [codec inventory](evidence/codec-inventory.json) and
 [qualification](evidence/codec-qualification.json) retain the operation checks;
 the allocation/instruction matrix remains separate SB-26c evidence.
