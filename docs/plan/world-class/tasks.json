@@ -10861,7 +10861,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [
     "QG-12"
@@ -10899,12 +10899,13 @@
    "relates": [
     "FL-08"
    ],
-   "notes": "Claimed from 3f4ef8d6. Both single-request policy loops currently re-run encode_msg after each failed attempt, violating the approved encode-once contract; transparent REFUSED_STREAM after sending can also re-encode. Private frame ownership only; no new API, dependencies, caps, retry defaults or performance claim. Reproduced 3 encodes per 3 policy attempts and 2 per transparent refusal across all four shape/compression cells. Retaining the bounded frame and dropping the source message repairs both; focused retry tests 39 passed. Workspace/package-consumer and all-feature qualification remain running before closure.",
+   "notes": "Delivered in 81c89ab6 plus the recorded Tokio test-mutex correction. Policy attempts encoded three times and transparent refusal encoded twice before repair, across unary/server-streaming and identity/gzip cells. Both matrices now encode once, retain the original request and compression metadata, release byte admission and permit follow-up calls. Full workspace 3232 passed / 0 failed / 5 existing ignored; all-feature unit/retry 482 passed; final-fixture retry 39 passed; strict workspace all-target/all-feature Clippy passed. Fresh native/Go interop: 46 passed, 8 Go compression cases explicitly unsupported. FL-08 seeded histories and remaining budget qualification stay open. No public API, dependency, cap, default or performance changes.",
    "evidence": [
     "docs/evidence/encoded-request-replay.json",
     "pbrs-grpc/tests/policy_retry.rs#policy_attempts_encode_single_request_once",
     "pbrs-grpc/tests/policy_retry.rs#transparent_refusal_replays_single_request_without_encoding_again"
-   ]
+   ],
+   "reviewer": "Codex"
   }
  ],
  "last_audit": {

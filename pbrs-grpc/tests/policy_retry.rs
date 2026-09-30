@@ -22,9 +22,10 @@ use common::{name_of, name_of_request, req, serve};
 use pbrs_grpc::codec::CodecMessage;
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
 use pbrs_grpc::{Channel, Code, Pushback, Request, Response, ServerConfig, Status, Streaming};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tokio::sync::Mutex;
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
@@ -62,8 +63,8 @@ struct RecordingRetryPeer {
 }
 
 impl RecordingRetryPeer {
-    fn record(&self, request: &Request<HelloRequest>) -> usize {
-        let mut requests = self.requests.lock().expect("history");
+    async fn record(&self, request: &Request<HelloRequest>) -> usize {
+        let mut requests = self.requests.lock().await;
         let compressed = request.compressed();
         assert_eq!(request.encoding(), compressed.then_some("gzip"));
         requests.push((name_of_request(request.get_ref()), compressed));
@@ -76,7 +77,7 @@ impl Greeter for RecordingRetryPeer {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        if self.record(&request) < 3 {
+        if self.record(&request).await < 3 {
             return Err(Status::unavailable("retry eligible rejection"));
         }
         Ok(Response::new(common::reply("recovered")))
@@ -86,7 +87,7 @@ impl Greeter for RecordingRetryPeer {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        if self.record(&request) < 3 {
+        if self.record(&request).await < 3 {
             return Err(Status::unavailable("retry eligible rejection"));
         }
         let (tx, stream) = Streaming::channel(1);
@@ -147,7 +148,7 @@ async fn policy_attempts_encode_single_request_once() {
             }
             encodings.push((shape, compressed, encoded.load(Ordering::SeqCst)));
             assert_eq!(
-                *requests.lock().expect("history"),
+                *requests.lock().await,
                 vec![("same encoded request".to_owned(), compressed); 3]
             );
             assert_eq!(channel.retry_stats().policy_retries, 2);
