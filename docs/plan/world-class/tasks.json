@@ -11215,7 +11215,10 @@
    "executor": "coordinator",
    "size": "L",
    "depends_on": [
-    "SB-26a"
+    "SB-26a",
+    "SB-26c",
+    "SB-26d",
+    "SB-26e"
    ],
    "read": [
     "bench/devloop/ADOPTION.md",
@@ -11254,8 +11257,9 @@
     "TC-29",
     "TC-30"
    ],
-   "status": "pending",
-   "notes": "Retains the complete measurement remainder of SB-26. Split into bounded implementation/qualification children before execution if needed; no arbitrary new budgets or thresholds."
+   "status": "in_progress",
+   "notes": "Retains the complete measurement remainder of SB-26. Split into bounded implementation/qualification children before execution if needed; no arbitrary new budgets or thresholds. Claimed at 8d89f5cf after the TC-25 documentation CI repair. Split this L card before implementation into SB-26c (complete codec cells and baseline), SB-26d (identical-work four-profile RPC cells and baseline), and SB-26e (cold-RPC/codegen/check costs and P1-P5 synthesis). All parent requirements retained. Reuse the existing counting allocator and identical-preparation N/2N collectors; review the local corpus dependency before resolution. No shipping graph, protocol behavior or performance threshold change.",
+   "implementer": "Codex"
   },
   {
    "id": "TC-25a",
@@ -11301,6 +11305,126 @@
     "docs/grpc.md#tls",
     "tests/documentation.rs"
    ]
+  },
+  {
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "read": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/adoption/",
+    "bench/devloop/src/main.rs",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "SB-26",
+    "SB-26b"
+   ],
+   "id": "SB-26c",
+   "title": "Register and measure the complete adoption codec cells",
+   "depends_on": [
+    "SB-26a"
+   ],
+   "deliverable": "Individual fresh-encode/decode/read-all/fully-read-clone cells for every runtime SB-26 specimen in pbrs and prost, using the established allocator and N/2N instruction collector, with exact corpus equivalence prechecks and retained baseline JSON.",
+   "accept": [
+    "devloop list exposes all 64 runtime specimens \u00d7 two codecs \u00d7 four workloads, without pooling away a losing variant.",
+    "Fresh encode constructs the matching generated message inside the window; decode starts from equivalent borrowed wire inputs, read-all visits every field/byte and Any payload, clone starts from fully read messages, and every output is consumed.",
+    "Full semantic equality and read checksums qualify native fresh constructors and all cell outputs before timing. Exact allocator and identical-preparation N/2N collectors execute the matrix and retain measured or explicitly unavailable metrics."
+   ],
+   "checks": [
+    "codec-bench"
+   ],
+   "status": "in_progress",
+   "implementer": "Codex",
+   "notes": "Claimed at 8d89f5cf. Add the reviewed local pbrs-adoption-corpus dependency only to the excluded devloop manifest. Keep default shipping manifests and existing gates unchanged. Preserve individual variants and fixture source pins. No performance-improvement claim."
+  },
+  {
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "read": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/adoption/",
+    "bench/devloop/src/main.rs",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "SB-26",
+    "SB-26b"
+   ],
+   "id": "SB-26d",
+   "title": "Measure identical-work adoption RPC profiles",
+   "depends_on": [
+    "SB-26a"
+   ],
+   "deliverable": "Unary/server-streaming cells for all four pbrs/prost codec \u00d7 pbrs-grpc/tonic transport profiles, with equivalent whole-message work and retained allocation/instruction baseline.",
+   "accept": [
+    "All four profiles appear in devloop list for the SB-26 workloads and all handlers/clients consume complete request/response fields.",
+    "Before timing, request/response bytes, counts, full decoded equality and read checksums agree across profiles; workload-required caps apply equally and defaults otherwise remain intact.",
+    "Existing exact allocator and identical-preparation N/2N collectors measure each profile and retain measured losses and unavailable metrics."
+   ],
+   "checks": [
+    "rpc-bench-tests"
+   ],
+   "status": "pending",
+   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered."
+  },
+  {
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "read": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/adoption/",
+    "bench/devloop/src/main.rs",
+    "docs/benchmark-contract.md"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "SB-26",
+    "SB-26b"
+   ],
+   "id": "SB-26e",
+   "title": "Measure adoption startup and codegen costs and score targets",
+   "depends_on": [
+    "SB-26c",
+    "SB-26d"
+   ],
+   "deliverable": "Cold first-RPC (h2c and TLS) and option-heavy fresh/incremental codegen/check cost measurements, with pinned baseline JSON and a complete P1-P5 synthesis.",
+   "accept": [
+    "P4 startup measurements include cold first RPC and TLS with equivalent peers/settings and explicit limits.",
+    "P5 source-size and fresh/incremental consumer checks use the same twenty public option-heavy files and both compiling generated consumers.",
+    "docs/evidence/sb-26.md and baseline JSON record every P1-P5 value, measured losses, available/unavailable metrics and pins, with no aggregate hiding a losing corpus or unsupported profile."
+   ],
+   "checks": [
+    "codec-bench",
+    "rpc-bench-tests"
+   ],
+   "status": "pending",
+   "notes": "Retains all remaining P4/P5 and synthesis requirements; no new target threshold or claim-grade qualification."
   }
  ],
  "last_audit": {

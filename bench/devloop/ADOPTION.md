@@ -6,8 +6,9 @@ The matrix compares generated messages from the same public, synthetic
 schemas. It measures every field that the schema declares, including string
 and bytes contents, optional presence, selected oneof variants, repeated
 elements, map keys/values, recursive queries and the decoded public payloads
-inside `google.protobuf.Any`. Fixture construction and equivalence checks
-happen before the timing and allocation window.
+inside `google.protobuf.Any`. Input preparation and equivalence checks happen
+before the timing and allocation window. Fresh-encode construction happens
+inside that window.
 
 ## Corpora
 
@@ -62,10 +63,29 @@ Do not change the benchmark-contract thresholds or claim-grade requirements.
 
 ## Execution
 
-SB-26a lands and qualifies all five generated corpora and equality/read-all
-oracles. SB-26b registers codec/RPC cells, executes the baseline, and records
-P1-P5 measurements and limits. SB-26 stays open until both children and every
-parent acceptance requirement have evidence.
+SB-26a qualifies all five generated corpora and equality/read-all oracles.
+SB-26b coordinates three bounded measurement cards: SB-26c registers and
+measures codecs, SB-26d measures identical-work RPC profiles, and SB-26e
+measures startup/codegen costs and scores P1-P5. SB-26 stays open until all
+children and every parent acceptance requirement have evidence.
+
+SB-26c registers each of the 64 runtime specimens separately for pbrs and
+prost and all four workloads: 512 cells, without pooling variants. Native
+fresh construction uses generated setters and containers directly; it does
+not convert a prost message. Each codec builds and encodes its own nested Any
+payload inside the fresh window. Decode starts from the same borrowed wire
+slice and returns an owned message. Read-all consumes every declared field
+and decoded Any payload. Clone starts from a fully read owned message and
+consumes the cloned output without adding a field walk to the clone window.
+The existing allocator and N/2N collector also count output destruction.
+Preparation, validation and warmup are identical at N and 2N. Initial full
+matrix runs may use an explicit small iteration count; retain that count and
+each collector's measured or unavailable status without changing thresholds.
+
+The reviewed SB-26c manifest change is a local path dependency on the existing
+`pbrs-adoption-corpus` library from the excluded devloop consumer. Its graph
+already uses the benchmark's pbrs, prost/prost-build 0.14 and serde_json.
+Review the lockfile delta before building; shipping manifests stay unchanged.
 
 The standalone corpus consumer reuses `pbrs`, prost/prost-build 0.14 and
 serde_json, all already in the established benchmark graphs. Its manifest
