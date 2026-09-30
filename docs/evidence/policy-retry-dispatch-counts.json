@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "base_revision": "383323bac91ab3fd2fde4012546f4f41bb8b805c",
+  "source_blobs": {
+    "pbrs-grpc/src/client/retry.rs": "e3566c5a3c87ef1041a8a83b9a1ef67c88f75454",
+    "pbrs-grpc/src/client/unary.rs": "71bec6003a333bcbf5ca2b53552ce493dd372ffd",
+    "pbrs-grpc/src/client/streaming.rs": "a912ef3b58164854b54fe3855af5e2bd64d356e4",
+    "pbrs-grpc/tests/policy_retry.rs": "c05bfad426ddc2dfc6917872795219a33dc55a4b"
+  },
+  "before_command": "cargo test -p pbrs-grpc --test policy_retry",
+  "before_stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\n   Compiling pbrs-grpc v0.1.0-alpha.2 (/Users/mingley/dev/pure-protobuf-tc27-20260930/pbrs-grpc)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.97s\n     Running tests/policy_retry.rs (/tmp/pbrs-ad03c-target/debug/deps/policy_retry-7ccac5b9fe087cb1)\n\nrunning 30 tests\ntest published_retry_throttler_remains_available_at_both_paths ... ok\ntest invalid_service_config_leaves_channel_unchanged ... ok\ntest non_retryable_code_fails_fast ... ok\ntest hedging_fatal_status_commits ... ok\ntest cancelled_pushback_records_no_dispatched_retry_cause ... FAILED\ntest cancellation_and_original_deadline_interrupt_policy_backoff ... FAILED\ntest hedging_returns_last_nonfatal_when_exhausted ... ok\ntest pushback_do_not_retry_stops_after_one_attempt ... ok\ntest oversized_policy_request_never_dispatches_or_debits_throttling ... ok\ntest streaming_never_retries_after_first_message ... ok\ntest streaming_non_retryable_code_fails_fast ... ok\ntest retry_cancelled_after_connection_ready_records_no_dispatch ... FAILED\ntest pushback_delay_still_retries ... ok\ntest policy_attempts_encode_single_request_once ... ok\ntest retry_stats_count_policy_decisions ... ok\ntest throttling_refills_on_success ... ok\ntest retry_recovers_after_transient_unavailable ... ok\ntest transparent_replacement_does_not_count_the_policy_dispatch_twice ... ok\ntest throttling_disables_retries_when_drained ... ok\ntest retry_exhausts_attempts ... ok\ntest streaming_retry_recovers_before_headers ... ok\ntest transparent_refusal_replays_single_request_without_encoding_again ... ok\ntest streaming_retry_exhausts_attempts ... ok\ntest method_config_timeout_applies_without_request_overlay ... ok\ntest cancelled_attempt_timeout_backoff_records_no_retry_cause ... FAILED\ntest hedging_first_ok_wins ... ok\ntest retry_stats_count_hedged_sends ... ok\ntest per_attempt_timeout_retries_without_listing_deadline ... ok\ntest streaming_per_attempt_timeout_retries_slow_headers ... ok\ntest retry_byte_admission_failure_records_no_dispatched_retry ... FAILED\n\nfailures:\n\n---- cancelled_pushback_records_no_dispatched_retry_cause stdout ----\n\nthread 'cancelled_pushback_records_no_dispatched_retry_cause' (6037070) panicked at pbrs-grpc/tests/policy_retry.rs:814:9:\nassertion `left == right` failed: an interrupted retry cause is not a dispatched attempt\n  left: (1, 1, 0)\n right: (0, 0, 0)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- cancellation_and_original_deadline_interrupt_policy_backoff stdout ----\n\nthread 'cancellation_and_original_deadline_interrupt_policy_backoff' (6037068) panicked at pbrs-grpc/tests/policy_retry.rs:575:13:\nassertion `left == right` failed: backoff is not a dispatched retry\n  left: 1\n right: 0\n\n---- retry_cancelled_after_connection_ready_records_no_dispatch stdout ----\n\nthread 'retry_cancelled_after_connection_ready_records_no_dispatch' (6037084) panicked at pbrs-grpc/tests/policy_retry.rs:736:9:\nassertion `left == right` failed: cancellation before HEADERS is not a dispatch\n  left: 1\n right: 0\n\n---- cancelled_attempt_timeout_backoff_records_no_retry_cause stdout ----\n\nthread 'cancelled_attempt_timeout_backoff_records_no_retry_cause' (6037069) panicked at pbrs-grpc/tests/policy_retry.rs:814:9:\nassertion `left == right` failed: an interrupted retry cause is not a dispatched attempt\n  left: (1, 0, 1)\n right: (0, 0, 0)\n\n---- retry_byte_admission_failure_records_no_dispatched_retry stdout ----\n\nthread 'retry_byte_admission_failure_records_no_dispatched_retry' (6037083) panicked at pbrs-grpc/tests/policy_retry.rs:673:9:\nassertion `left == right` failed: byte rejection is not a dispatch\n  left: 1\n right: 0\n\n\nfailures:\n    cancellation_and_original_deadline_interrupt_policy_backoff\n    cancelled_attempt_timeout_backoff_records_no_retry_cause\n    cancelled_pushback_records_no_dispatched_retry_cause\n    retry_byte_admission_failure_records_no_dispatched_retry\n    retry_cancelled_after_connection_ready_records_no_dispatch\n\ntest result: FAILED. 25 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s\n\nerror: test failed, to rerun pass `-p pbrs-grpc --test policy_retry`\n",
+  "before_result": "5 regressions failed: interrupted backoff, denied byte admission and cancellation after connection readiness each reported a policy retry without another dispatched request; interrupted pushback/attempt-timeout causes also reported phantom counters.",
+  "after_checks": [
+    {
+      "command": "cargo test -p pbrs-grpc --test policy_retry --test retry_safety",
+      "status": "passed",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.20s",
+        "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --all-features --lib --test policy_retry --test retry_safety --test rpc --test gaps --test serving --test lb_ring_hash",
+      "status": "passed",
+      "passed": 1619,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 11s",
+        "test result: ok. 447 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s",
+        "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1099 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.45s"
+      ]
+    },
+    {
+      "command": "cargo test -p pbrs-grpc --test rpc --test gaps --test serving",
+      "status": "passed",
+      "passed": 1116,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 56.26s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 1098 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.43s"
+      ]
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.94s"
+      ]
+    }
+  ],
+  "dispatch_boundary": "Successful transport request HEADERS open. A pending policy attempt and its cause are consumed at that boundary, once even if REFUSED_STREAM triggers a transparent replacement. Unconfigured calls and the hedging executor pass no policy dispatch recorder.",
+  "qualified_cases": [
+    "Unary/server-streaming: cancellation and original deadline during five-second backoff leave one execution and zero policy retries, then permit a follow-up under one-RPC admission.",
+    "Unary/server-streaming: an externally held byte-budget permit rejects the next attempt before transport open; the terminal RESOURCE_EXHAUSTED result leaves one execution and zero policy retries. Releasing that permit enables a follow-up.",
+    "Unary/server-streaming: a lifecycle queue-readiness callback cancels the retry after connection acquisition but before request HEADERS open. The open returns CANCELLED with one execution and zero policy retries; follow-up admission is reusable.",
+    "Unary/server-streaming: interrupted server pushback and attempt-timeout backoff leave policy_retries, pushback_delays and per_attempt_timeouts at zero. Eligible dispatched retry causes remain covered by the existing successful retry tests.",
+    "Unary/server-streaming: an eligible rejection, then explicit REFUSED_STREAM, then a deliberately held success response produces three peer requests but exactly one policy retry and one transparent retry. Counters are checked before the response completes, excluding both late recording and double-counted replacements."
+  ],
+  "limits": [
+    "These 16 negative/positive shape and dispatch cases qualify the stated counter boundaries, not arbitrary transport schedules or a long-running fleet campaign.",
+    "No public fields, methods, dependency, cap or retry default changed. No new full workspace/interop/performance/production qualification is claimed.",
+    "Parent FL-08 remains open for QG-17: service-config section 6.3 incorrectly assumes default outbound encoding has a finite 4 MiB cap. MessageLimits::default actually caps only decoding; unlimited outbound encoding permits unbounded retained replay bytes."
+  ]
+}

@@ -22,14 +22,83 @@ use common::{name_of, name_of_request, req, serve};
 use pbrs_grpc::codec::CodecMessage;
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
 use pbrs_grpc::{Channel, Code, Pushback, Request, Response, ServerConfig, Status, Streaming};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
 const CALL_BUDGET: Duration = Duration::from_secs(15);
+
+struct AttemptObserver {
+    ended: Arc<tokio::sync::Notify>,
+    ready: AtomicUsize,
+    cancel_on_retry_ready: Option<Arc<OnceLock<pbrs_grpc::CallHandle>>>,
+}
+
+impl pbrs_grpc::LifecycleObserver for AttemptObserver {
+    fn on_attempt_end(&self, _: &pbrs_grpc::AttemptLabels<'_>, status: &Status, _: Duration) {
+        if status.code() != Code::Ok {
+            self.ended.notify_one();
+        }
+    }
+
+    fn on_queue_wait(&self, _: &pbrs_grpc::CallLabels<'_>, _: Duration) {
+        if let Some(handle) = &self.cancel_on_retry_ready {
+            if self.ready.fetch_add(1, Ordering::SeqCst) == 1 {
+                handle.get().expect("call handle registered").cancel();
+            }
+        }
+    }
+}
+
+type SingleRequestResult = Result<Option<Streaming<HelloReply>>, Status>;
+
+fn begin_single_request(
+    channel: &Channel,
+    request: Request<HelloRequest>,
+    server_stream: bool,
+) -> (
+    pbrs_grpc::CallHandle,
+    tokio::task::JoinHandle<SingleRequestResult>,
+) {
+    if server_stream {
+        let call = channel.server_streaming::<_, HelloReply>(SERVER_HELLO, request);
+        (
+            call.handle(),
+            tokio::spawn(async move { call.await.map(|response| Some(response.into_inner())) }),
+        )
+    } else {
+        let call = channel.unary::<_, HelloReply>(SAY_HELLO, request);
+        (
+            call.handle(),
+            tokio::spawn(async move { call.await.map(|_| None) }),
+        )
+    }
+}
+
+fn single_request_calls(service: &Scripted, server_stream: bool) -> usize {
+    if server_stream {
+        service.stream_calls()
+    } else {
+        service.calls()
+    }
+}
+
+async fn follow_up_single_request(channel: &Channel, server_stream: bool) {
+    if server_stream {
+        assert_eq!(
+            collect_stream(channel).await.expect("stream follow-up"),
+            ["follow-up"]
+        );
+    } else {
+        assert_eq!(
+            name_of(say_hello(channel).await.expect("unary follow-up").get_ref()),
+            "follow-up"
+        );
+    }
+}
 
 struct ObservableRequest {
     encoded: Arc<AtomicUsize>,
@@ -275,6 +344,7 @@ enum StreamStep {
     Messages(&'static [&'static str]),
     FailAfter(&'static [&'static str], Code),
     Fail(Code),
+    FailPushback(Code, Pushback),
     SleepFail(Duration, Code),
 }
 
@@ -364,6 +434,9 @@ impl Greeter for Scripted {
             .unwrap();
         match *step {
             StreamStep::Fail(code) => Err(Status::new(code, "scripted")),
+            StreamStep::FailPushback(code, pushback) => {
+                Err(Status::new(code, "scripted").with_retry_pushback(pushback))
+            }
             StreamStep::Messages(messages) => {
                 let (tx, rx) = Streaming::channel(8);
                 drop(tokio::spawn(async move {
@@ -468,69 +541,439 @@ async fn retry_recovers_after_transient_unavailable() {
 
 #[tokio::test]
 async fn cancellation_and_original_deadline_interrupt_policy_backoff() {
-    for cancelled in [false, true] {
-        let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("follow-up")]);
+    for server_stream in [false, true] {
+        for cancelled in [false, true] {
+            let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("follow-up")])
+                .with_streams(vec![
+                    StreamStep::Fail(Code::Unavailable),
+                    StreamStep::Messages(&["follow-up"]),
+                ]);
+            let (addr, _guard) = serve(service.clone(), ServerConfig::new())
+                .await
+                .expect("serve");
+            let ended = Arc::new(tokio::sync::Notify::new());
+            let channel = Channel::connect_with(addr, pbrs_grpc::ChannelConfig::new()
+                .connections(1).max_concurrent_rpcs(1)).await.expect("connect")
+                .byte_budget(1024)
+                .service_config(r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                    "maxAttempts":3,"initialBackoff":"5s","maxBackoff":"5s",
+                    "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","CANCELLED","DEADLINE_EXCEEDED"]}}]}"#)
+                .expect("policy")
+                .observer(AttemptObserver { ended: ended.clone(), ready: AtomicUsize::new(0), cancel_on_retry_ready: None });
+            let mut request = Request::new(req("first attempt"));
+            request.set_timeout(if cancelled {
+                Duration::from_secs(3)
+            } else {
+                Duration::from_millis(150)
+            });
+            let started = Instant::now();
+            let (handle, task) = begin_single_request(&channel, request, server_stream);
+            tokio::time::timeout(Duration::from_secs(1), ended.notified())
+                .await
+                .expect("first attempt ended");
+            assert_eq!(single_request_calls(&service, server_stream), 1);
+            assert_eq!(
+                channel.retry_stats().policy_retries,
+                0,
+                "backoff is not a dispatched retry"
+            );
+            assert_eq!(
+                channel.byte_budget_allocated(),
+                0,
+                "backoff holds no byte permit"
+            );
+            if cancelled {
+                handle.cancel();
+            }
+            let status = tokio::time::timeout(Duration::from_secs(1), task)
+                .await
+                .expect("backoff interrupted")
+                .expect("call task")
+                .expect_err("terminal signal");
+            assert_eq!(
+                status.code(),
+                if cancelled {
+                    Code::Cancelled
+                } else {
+                    Code::DeadlineExceeded
+                }
+            );
+            assert!(
+                started.elapsed() < Duration::from_secs(1),
+                "do not wait for five-second backoff"
+            );
+            assert_eq!(
+                single_request_calls(&service, server_stream),
+                1,
+                "no execution after terminal signal"
+            );
+            assert_eq!(channel.retry_stats().policy_retries, 0);
+            assert_eq!(channel.byte_budget_allocated(), 0);
+            tokio::time::timeout(
+                Duration::from_secs(2),
+                follow_up_single_request(&channel, server_stream),
+            )
+            .await
+            .expect("RPC admission reclaimed");
+            assert_eq!(single_request_calls(&service, server_stream), 2);
+            assert_eq!(channel.byte_budget_allocated(), 0);
+        }
+    }
+}
+
+#[tokio::test]
+async fn retry_byte_admission_failure_records_no_dispatched_retry() {
+    for server_stream in [false, true] {
+        let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("follow-up")])
+            .with_streams(vec![
+                StreamStep::Fail(Code::Unavailable),
+                StreamStep::Messages(&["follow-up"]),
+            ]);
         let (addr, _guard) = serve(service.clone(), ServerConfig::new())
             .await
             .expect("serve");
-        let channel = Channel::connect_with(addr, pbrs_grpc::ChannelConfig::new()
-            .connections(1).max_concurrent_rpcs(1)).await.expect("connect")
-            .byte_budget(1024)
-            .service_config(r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
-                "maxAttempts":3,"initialBackoff":"5s","maxBackoff":"5s",
-                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE","CANCELLED","DEADLINE_EXCEEDED"]}}]}"#)
-            .expect("policy");
-        let mut request = Request::new(req("first attempt"));
-        request.set_timeout(if cancelled {
-            Duration::from_secs(3)
-        } else {
-            Duration::from_millis(150)
-        });
-        let call = channel.unary::<_, HelloReply>(SAY_HELLO, request);
-        let handle = call.handle();
-        let started = Instant::now();
-        let task = tokio::spawn(call);
-        tokio::time::timeout(Duration::from_secs(1), async {
-            while channel.retry_stats().policy_retries == 0 {
-                tokio::time::sleep(Duration::from_millis(1)).await;
-            }
-        })
+        let ended = Arc::new(tokio::sync::Notify::new());
+        let channel = Channel::connect_with(
+            addr,
+            pbrs_grpc::ChannelConfig::new()
+                .connections(1)
+                .max_concurrent_rpcs(1),
+        )
         .await
-        .expect("first rejection must enter backoff");
-        assert_eq!(service.calls(), 1);
+        .expect("connect")
+        .byte_budget(1024)
+        .service_config(
+            r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"0.1s","maxBackoff":"0.1s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+        )
+        .expect("policy")
+        .observer(AttemptObserver {
+            ended: ended.clone(),
+            ready: AtomicUsize::new(0),
+            cancel_on_retry_ready: None,
+        });
+        let mut request = Request::new(req("first attempt"));
+        request.set_timeout(Duration::from_secs(2));
+        let (_, task) = begin_single_request(&channel, request, server_stream);
+        tokio::time::timeout(Duration::from_secs(1), ended.notified())
+            .await
+            .expect("first attempt ended");
+        let held = channel
+            .byte_budget_tracker()
+            .acquire(1024)
+            .expect("occupy admission during backoff");
+        let status = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("admission refusal returned")
+            .expect("call task")
+            .expect_err("no send capacity");
+        assert_eq!(status.code(), Code::ResourceExhausted);
+        assert_eq!(single_request_calls(&service, server_stream), 1);
         assert_eq!(
-            channel.byte_budget_allocated(),
+            channel.retry_stats().policy_retries,
             0,
-            "backoff holds no byte permit"
+            "byte rejection is not a dispatch"
         );
-        if cancelled {
-            handle.cancel();
-        }
+        drop(held);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            follow_up_single_request(&channel, server_stream),
+        )
+        .await
+        .expect("RPC admission reclaimed");
+        assert_eq!(single_request_calls(&service, server_stream), 2);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
+}
+
+#[tokio::test]
+async fn retry_cancelled_after_connection_ready_records_no_dispatch() {
+    for server_stream in [false, true] {
+        let service = Scripted::new(vec![Step::Fail(Code::Unavailable), Step::Ok("follow-up")])
+            .with_streams(vec![
+                StreamStep::Fail(Code::Unavailable),
+                StreamStep::Messages(&["follow-up"]),
+            ]);
+        let (addr, _guard) = serve(service.clone(), ServerConfig::new())
+            .await
+            .expect("serve");
+        let handle = Arc::new(OnceLock::new());
+        let channel = Channel::connect_with(
+            addr,
+            pbrs_grpc::ChannelConfig::new()
+                .connections(1)
+                .max_concurrent_rpcs(1),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(1024)
+        .service_config(
+            r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+        )
+        .expect("policy")
+        .observer(AttemptObserver {
+            ended: Arc::new(tokio::sync::Notify::new()),
+            ready: AtomicUsize::new(0),
+            cancel_on_retry_ready: Some(handle.clone()),
+        });
+        let mut request = Request::new(req("first attempt"));
+        request.set_timeout(Duration::from_secs(2));
+        let (call_handle, task) = begin_single_request(&channel, request, server_stream);
+        handle
+            .set(call_handle)
+            .expect("register handle before polling the call");
+        let status = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("cancel returned")
+            .expect("call task")
+            .expect_err("HEADERS open cancelled");
+        assert_eq!(status.code(), Code::Cancelled);
+        assert_eq!(single_request_calls(&service, server_stream), 1);
+        assert_eq!(
+            channel.retry_stats().policy_retries,
+            0,
+            "cancellation before HEADERS is not a dispatch"
+        );
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            follow_up_single_request(&channel, server_stream),
+        )
+        .await
+        .expect("RPC admission reclaimed");
+        assert_eq!(single_request_calls(&service, server_stream), 2);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
+}
+
+async fn interrupted_retry_cause_is_not_counted(per_attempt_timeout: bool) {
+    for server_stream in [false, true] {
+        let service = if per_attempt_timeout {
+            Scripted::new(vec![
+                Step::SleepOk(Duration::from_secs(5), "late"),
+                Step::Ok("follow-up"),
+            ])
+            .with_streams(vec![
+                StreamStep::SleepFail(Duration::from_secs(5), Code::Unavailable),
+                StreamStep::Messages(&["follow-up"]),
+            ])
+        } else {
+            Scripted::new(vec![
+                Step::FailPushback(Code::Unavailable, Pushback::Delay(Duration::from_secs(5))),
+                Step::Ok("follow-up"),
+            ])
+            .with_streams(vec![
+                StreamStep::FailPushback(
+                    Code::Unavailable,
+                    Pushback::Delay(Duration::from_secs(5)),
+                ),
+                StreamStep::Messages(&["follow-up"]),
+            ])
+        };
+        let (addr, _guard) = serve(service.clone(), ServerConfig::new())
+            .await
+            .expect("serve");
+        let ended = Arc::new(tokio::sync::Notify::new());
+        let attempt_limit = if per_attempt_timeout {
+            r#", "perAttemptRecvTimeout":"0.05s""#
+        } else {
+            ""
+        };
+        let config = format!(
+            r#"{{"methodConfig":[{{"name":[{{}}],"retryPolicy":{{
+            "maxAttempts":3,"initialBackoff":"5s","maxBackoff":"5s",
+            "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]{attempt_limit}}}}}]}}"#
+        );
+        let channel = Channel::connect_with(
+            addr,
+            pbrs_grpc::ChannelConfig::new()
+                .connections(1)
+                .max_concurrent_rpcs(1),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(1024)
+        .service_config(&config)
+        .expect("policy")
+        .observer(AttemptObserver {
+            ended: ended.clone(),
+            ready: AtomicUsize::new(0),
+            cancel_on_retry_ready: None,
+        });
+        let mut request = Request::new(req("first attempt"));
+        request.set_timeout(Duration::from_secs(2));
+        let (handle, task) = begin_single_request(&channel, request, server_stream);
+        tokio::time::timeout(Duration::from_secs(1), ended.notified())
+            .await
+            .expect("first attempt ended");
+        let stats = channel.retry_stats();
+        assert_eq!(
+            (
+                stats.policy_retries,
+                stats.pushback_delays,
+                stats.per_attempt_timeouts
+            ),
+            (0, 0, 0),
+            "an interrupted retry cause is not a dispatched attempt"
+        );
+        handle.cancel();
         let status = tokio::time::timeout(Duration::from_secs(1), task)
             .await
             .expect("backoff interrupted")
             .expect("call task")
-            .expect_err("terminal signal");
-        assert_eq!(
-            status.code(),
-            if cancelled {
-                Code::Cancelled
-            } else {
-                Code::DeadlineExceeded
-            }
-        );
-        assert!(
-            started.elapsed() < Duration::from_secs(1),
-            "do not wait for five-second backoff"
-        );
-        assert_eq!(service.calls(), 1, "no execution after terminal signal");
+            .expect_err("cancelled");
+        assert_eq!(status.code(), Code::Cancelled);
+        assert_eq!(single_request_calls(&service, server_stream), 1);
         assert_eq!(channel.byte_budget_allocated(), 0);
-        let response = tokio::time::timeout(Duration::from_secs(2), say_hello(&channel))
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            follow_up_single_request(&channel, server_stream),
+        )
+        .await
+        .expect("RPC admission reclaimed");
+        assert_eq!(single_request_calls(&service, server_stream), 2);
+        let stats = channel.retry_stats();
+        assert_eq!(
+            (
+                stats.policy_retries,
+                stats.pushback_delays,
+                stats.per_attempt_timeouts
+            ),
+            (0, 0, 0)
+        );
+        assert_eq!(channel.byte_budget_allocated(), 0);
+    }
+}
+
+#[tokio::test]
+async fn cancelled_pushback_records_no_dispatched_retry_cause() {
+    interrupted_retry_cause_is_not_counted(false).await;
+}
+
+#[tokio::test]
+async fn cancelled_attempt_timeout_backoff_records_no_retry_cause() {
+    interrupted_retry_cause_is_not_counted(true).await;
+}
+
+#[tokio::test]
+async fn transparent_replacement_does_not_count_the_policy_dispatch_twice() {
+    use pbrs::Serialize;
+    for server_stream in [false, true] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
-            .expect("RPC admission reclaimed")
-            .expect("follow-up");
-        assert_eq!(name_of(response.get_ref()), "follow-up");
-        assert_eq!(service.calls(), 2);
+            .expect("bind");
+        let addr = listener.local_addr().expect("address");
+        let requests = Arc::new(AtomicUsize::new(0));
+        let seen = requests.clone();
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let third_entered = entered.clone();
+        let release = Arc::new(tokio::sync::Notify::new());
+        let third_release = release.clone();
+        let server = tokio::spawn(async move {
+            let mut connections = tokio::task::JoinSet::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                let seen = seen.clone();
+                let entered = third_entered.clone();
+                let release = third_release.clone();
+                connections.spawn(async move {
+                    let mut conn = h2::server::handshake(socket).await.expect("handshake");
+                    while let Some(Ok((_request, mut respond))) = conn.accept().await {
+                        let request = seen.fetch_add(1, Ordering::SeqCst);
+                        if request == 1 {
+                            respond.send_reset(h2::Reason::REFUSED_STREAM);
+                            continue;
+                        }
+                        if request == 2 {
+                            entered.notify_one();
+                            release.notified().await;
+                        }
+                        let response = http::Response::builder()
+                            .status(200)
+                            .header("content-type", "application/grpc");
+                        if request == 0 {
+                            respond
+                                .send_response(
+                                    response
+                                        .header("grpc-status", "14")
+                                        .body(())
+                                        .expect("rejection"),
+                                    true,
+                                )
+                                .expect("trailers-only");
+                        } else {
+                            let mut send = respond
+                                .send_response(response.body(()).expect("headers"), false)
+                                .expect("response");
+                            let payload =
+                                common::reply("follow-up").serialize().expect("serialize");
+                            send.send_data(
+                                pbrs_grpc::codec::encode(&payload, false).expect("frame"),
+                                false,
+                            )
+                            .expect("DATA");
+                            let mut trailers = http::HeaderMap::new();
+                            trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+                            send.send_trailers(trailers).expect("trailers");
+                        }
+                    }
+                });
+            }
+        });
+        let _guard = common::ServerGuard(server);
+        let channel = Channel::connect_with(
+            addr,
+            pbrs_grpc::ChannelConfig::new()
+                .connections(1)
+                .max_concurrent_rpcs(1),
+        )
+        .await
+        .expect("connect")
+        .byte_budget(1024)
+        .service_config(
+            r#"{"methodConfig":[{"name":[{}],"retryPolicy":{
+                "maxAttempts":3,"initialBackoff":"0s","maxBackoff":"0s",
+                "backoffMultiplier":1,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#,
+        )
+        .expect("policy");
+        let mut request = Request::new(req("side-effect"));
+        request.set_timeout(Duration::from_secs(2));
+        let (_, task) = begin_single_request(&channel, request, server_stream);
+        tokio::time::timeout(Duration::from_secs(1), entered.notified())
+            .await
+            .expect("transparent replacement entered");
+        assert_eq!(requests.load(Ordering::SeqCst), 3);
+        let stats = channel.retry_stats();
+        assert_eq!(
+            stats.policy_retries, 1,
+            "policy dispatch counted once before terminal response"
+        );
+        assert_eq!(stats.transparent_retries, 1);
+        release.notify_one();
+        let result = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("response returned")
+            .expect("call task")
+            .expect("success");
+        if let Some(mut stream) = result {
+            assert_eq!(
+                name_of(&stream.message().await.expect("receive").expect("message")),
+                "follow-up"
+            );
+            assert!(stream.message().await.expect("EOF").is_none());
+            drop(stream);
+        }
+        assert_eq!(channel.retry_stats().policy_retries, 1);
+        assert_eq!(channel.byte_budget_allocated(), 0);
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            follow_up_single_request(&channel, server_stream),
+        )
+        .await
+        .expect("RPC admission reclaimed");
         assert_eq!(channel.byte_budget_allocated(), 0);
     }
 }
@@ -877,7 +1320,7 @@ async fn streaming_per_attempt_timeout_retries_slow_headers() {
 }
 
 #[tokio::test]
-async fn retry_stats_count_policy_decisions() {
+async fn retry_stats_count_dispatched_policy_attempts() {
     let json = r#"{"methodConfig": [{"name": [{}], "retryPolicy": {
         "maxAttempts": 3, "initialBackoff": "0.005s", "maxBackoff": "0.01s",
         "backoffMultiplier": 1.0, "retryableStatusCodes": ["UNAVAILABLE"]}}]}"#;

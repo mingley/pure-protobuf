@@ -5,7 +5,7 @@ use super::call::{
     prefer_peer_rejection_after_send, race, reject_attempt, send_request_frame,
 };
 use super::pool;
-use super::retry::{PolicyDecision, policy_retry_delay, retry_exhausted};
+use super::retry::{PolicyDecision, PolicyRetryDispatch, policy_retry_delay, retry_exhausted};
 use crate::binlog::CallLogger;
 use crate::codec::CodecMessage;
 use crate::config::Wire;
@@ -54,7 +54,7 @@ where
 {
     run_server_stream_frame(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, https, permit, tap, socket,
+        user_agent, https, permit, tap, socket, None,
     )
     .await
 }
@@ -80,13 +80,28 @@ async fn run_server_stream_frame<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
+    policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
 {
     let outcome = run_server_stream_inner(
-        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, https, permit, tap, socket,
+        send_req,
+        authority,
+        path,
+        md,
+        timeout,
+        deadline,
+        compress,
+        frame,
+        cancel_rx,
+        wire,
+        user_agent,
+        https,
+        permit,
+        tap,
+        socket,
+        policy_dispatch,
     )
     .await;
     if let (Some(tap), Err(status)) = (tap, &outcome) {
@@ -117,6 +132,7 @@ async fn run_server_stream_inner<Resp>(
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
+    policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Resp: CodecMessage + Send + 'static,
@@ -144,6 +160,9 @@ where
         // HEADERS never went out; the caller retains the encoded frame.
         Err(status) => return Err(commitment.classify(status)),
     };
+    if let Some(dispatch) = policy_dispatch {
+        dispatch.on_headers_opened();
+    }
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
     let sent = send_request_frame(
@@ -710,6 +729,9 @@ impl super::Channel {
                     .and_then(|method| method.retry_policy);
                 let mut attempt_idx = 1u32;
                 let mut policy_attempts = 1u32;
+                let mut policy_dispatch = retry_policy
+                    .as_ref()
+                    .map(|_| PolicyRetryDispatch::new(&channel.retry_stats));
                 let mut retried = false;
                 loop {
                     let _ = match remaining_timeout(deadline) {
@@ -826,6 +848,7 @@ impl super::Channel {
                         byte_permit,
                         tap.as_ref(),
                         live_socket,
+                        policy_dispatch.as_mut(),
                     )
                     .await
                     {
@@ -914,13 +937,6 @@ impl super::Channel {
                                     delay,
                                     via_pushback,
                                 } => {
-                                    channel.retry_stats.record_policy_retry();
-                                    if via_pushback {
-                                        channel.retry_stats.record_pushback_delay();
-                                    }
-                                    if per_attempt_timeout {
-                                        channel.retry_stats.record_per_attempt_timeout();
-                                    }
                                     if status.is_transport() {
                                         channel
                                             .inner
@@ -947,6 +963,9 @@ impl super::Channel {
                                         channel.retry_stats.record_committed(false);
                                         call_guard.finish(&sleep_status);
                                         return Err(sleep_status);
+                                    }
+                                    if let Some(dispatch) = policy_dispatch.as_mut() {
+                                        dispatch.arm(via_pushback, per_attempt_timeout);
                                     }
                                     policy_attempts += 1;
                                     attempt_idx += 1;

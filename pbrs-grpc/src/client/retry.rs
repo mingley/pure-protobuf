@@ -29,7 +29,8 @@ use tokio::sync::{OwnedSemaphorePermit, mpsc, watch};
 pub struct RetryStats {
     /// Calls entering the unary or server-streaming executors.
     pub calls: u64,
-    /// Policy retries actually sent (per-attempt timeouts included).
+    /// Additional policy attempts whose request HEADERS were opened.
+    /// A retry decision or interrupted backoff alone does not increment this.
     pub policy_retries: u64,
     /// Transparent redials on raced connection deaths (never policy-gated).
     pub transparent_retries: u64,
@@ -37,11 +38,11 @@ pub struct RetryStats {
     pub hedged_sends: u64,
     /// Retries or hedged sends refused by the throttling bucket.
     pub throttled: u64,
-    /// Retries honoring a server pushback delay.
+    /// Dispatched retries that completed a server pushback delay.
     pub pushback_delays: u64,
     /// Retries refused by a server `DoNotRetry` pushback.
     pub pushback_refusals: u64,
-    /// Per-attempt recv timeouts that triggered a retry.
+    /// Per-attempt recv timeouts that led to a dispatched policy retry.
     pub per_attempt_timeouts: u64,
     /// Calls failing with a retryable outcome after attempts ran out.
     pub exhausted: u64,
@@ -144,6 +145,38 @@ impl RetryStatsRecorder {
             self.committed_ok.fetch_add(1, Ordering::Relaxed);
         } else {
             self.committed_err.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+/// Pending policy-attempt accounting, consumed only after request HEADERS
+/// open. A transparent replacement of that attempt must not count it again.
+pub(crate) struct PolicyRetryDispatch<'a> {
+    stats: &'a RetryStatsRecorder,
+    pending: Option<(bool, bool)>,
+}
+
+impl<'a> PolicyRetryDispatch<'a> {
+    pub(crate) fn new(stats: &'a RetryStatsRecorder) -> Self {
+        Self {
+            stats,
+            pending: None,
+        }
+    }
+
+    pub(crate) fn arm(&mut self, via_pushback: bool, per_attempt_timeout: bool) {
+        self.pending = Some((via_pushback, per_attempt_timeout));
+    }
+
+    pub(crate) fn on_headers_opened(&mut self) {
+        if let Some((via_pushback, per_attempt_timeout)) = self.pending.take() {
+            self.stats.record_policy_retry();
+            if via_pushback {
+                self.stats.record_pushback_delay();
+            }
+            if per_attempt_timeout {
+                self.stats.record_per_attempt_timeout();
+            }
         }
     }
 }

@@ -3328,7 +3328,8 @@
         "QG-13",
         "QG-14",
         "QG-15",
-        "QG-16"
+        "QG-16",
+        "QG-17"
       ],
       "read": [
         "docs/service-config.md",
@@ -3359,14 +3360,15 @@
       ],
       "status": "in_progress",
       "implementer": "Codex",
-      "notes": "The existing GF-07 executor supplies opt-in unary policy retries. QG-11/QG-12 now preserve commitment through completed and failed/stalled uploads; QG-13 enforces encoded-frame replay; QG-14 retains 32 seeded side-effect histories and qualifies cancellation/deadline/oversize admission exits plus inert caller-driven stream policies. QG-15 now releases completed-attempt pool/least-request load and connection leases before backoff, with a 12-case live-peer matrix including positive retry load and successful-stream ownership. The recorded full workspace, focused optional-feature/default checks, strict Clippy and partial native/Go interop cover their stated snapshots and scopes. FL-08 remains open for QG-16: retry statistics currently count an accepted decision before a retry is dispatched. No general performance, release or production qualification is claimed.",
+      "notes": "The existing GF-07 executor supplies opt-in unary policy retries. QG-11/QG-12 preserve commitment through completed and failed/stalled uploads; QG-13 enforces encoded-frame replay; QG-14 retains 32 seeded histories and qualifies terminal admission exits plus inert caller-driven stream policy. QG-15 releases completed-attempt connection/routing load before backoff. QG-16 now counts policy retries and their causes only after HEADERS open, once across transparent replacement, with live dispatch and pre-dispatch failure tests. FL-08 remains open for QG-17: service-config section 6.3 assumes a default 4 MiB outbound cap, but the published MessageLimits default has unlimited outbound encoding. Existing retained-frame ownership therefore lacks the required finite default policy replay bound. Preserve that message-size API while reconciling and qualifying the already documented replay budget. All recorded checks certify their exact scope/snapshot; no general performance, release or production qualification is claimed.",
       "evidence": [
         "docs/evidence/unary-policy-commitment.json",
         "pbrs-grpc/tests/retry_safety.rs#explicit_unary_policy_cannot_replay_after_response_headers",
         "docs/evidence/unary-upload-commitment.json",
         "docs/evidence/encoded-request-replay.json",
         "docs/evidence/retry-side-effect-histories.json",
-        "docs/evidence/retry-backoff-routing-load.json"
+        "docs/evidence/retry-backoff-routing-load.json",
+        "docs/evidence/policy-retry-dispatch-counts.json"
       ]
     },
     {

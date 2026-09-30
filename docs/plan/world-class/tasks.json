@@ -11024,7 +11024,7 @@
    "priority": "P1",
    "executor": "small",
    "size": "S",
-   "status": "pending",
+   "status": "done",
    "depends_on": [
     "QG-14"
    ],
@@ -11034,7 +11034,9 @@
     "pbrs-grpc/src/client/streaming.rs",
     "pbrs-grpc/src/client/retry.rs",
     "pbrs-grpc/src/client/pool.rs",
-    "pbrs-grpc/tests/policy_retry.rs"
+    "pbrs-grpc/tests/policy_retry.rs",
+    "pbrs-grpc/src/telemetry.rs",
+    "pbrs-grpc/src/limits.rs"
    ],
    "write": [
     "pbrs-grpc/src/client/unary.rs",
@@ -11060,7 +11062,71 @@
    "relates": [
     "FL-08"
    ],
-   "notes": "QG-14 observed policy_retries=1 during backoff while only the original execution existed. Both executors record_policy_retry before first_of(backoff), contrary to the published actually-sent definition. Qualify the proper dispatch boundary including admission/open failures before moving counters; no public API, dependencies, caps, retry defaults or performance claim."
+   "notes": "Delivered from 383323ba after five real-peer counter regressions failed. A private pending dispatcher records policy retry/pushback/attempt-timeout cause only after successful request HEADERS open and consumes the marker once across transparent replacements. Sixteen shape/phase cases now distinguish decisions from dispatch, including byte admission and pre-HEADERS cancellation, and test live counters before a held success response completes. Default focused retry 48 passed; all-feature unit/RPC/retry/serving/LB 1619 passed; default RPC/serving 1116 passed; strict workspace all-target/all-feature Clippy passed. Public fields/methods, dependencies, caps and retry defaults remain unchanged. QG-17 retains the independently discovered replay-bound/default-cap mismatch under FL-08.",
+   "implementer": "Codex",
+   "reviewer": "Codex",
+   "evidence": [
+    "docs/evidence/policy-retry-dispatch-counts.json",
+    "pbrs-grpc/tests/policy_retry.rs#retry_cancelled_after_connection_ready_records_no_dispatch",
+    "pbrs-grpc/tests/policy_retry.rs#retry_byte_admission_failure_records_no_dispatched_retry",
+    "pbrs-grpc/tests/policy_retry.rs#transparent_replacement_does_not_count_the_policy_dispatch_twice"
+   ]
+  },
+  {
+   "id": "QG-17",
+   "title": "Enforce a finite retained-byte budget for policy replay",
+   "lane": "QG",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "QG-16"
+   ],
+   "read": [
+    "docs/service-config.md",
+    "docs/resource-budgets.md",
+    "pbrs-grpc/src/limits.rs",
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "docs/evidence/encoded-request-replay.json"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/unary.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/client/retry.rs",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/tests/policy_retry.rs",
+    "docs/service-config.md",
+    "docs/resource-budgets.md",
+    "docs/evidence/encoded-request-replay.json",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/policy-replay-byte-budget.json"
+   ],
+   "deliverable": "Implement the finite replay-retention bound required by service-config section 6.3, reconciling its documented 4 MiB budget with the published unlimited-outbound MessageLimits default. Preserve existing outbound message acceptance and unconfigured behavior; buffer-budget exhaustion commits the policy call instead of retaining/replaying an oversized request.",
+   "accept": [
+    "Freeze the precise retained-byte/payload accounting and budget precedence from the existing approved 4 MiB contract before source changes; no new numeric limit values or global outbound defaults are introduced.",
+    "Configured unary/server-streaming policy calls release over-budget replay ownership after upload and do not re-execute on eligible failures; ordinary large first sends and unconfigured calls retain their published semantics.",
+    "A real ownership/allocation probe verifies release of over-budget replay storage while the peer withholds its response; byte-permit counters alone are insufficient proof. Eligible bounded requests still encode once and preserve identity/gzip behavior.",
+    "Service-config/resource-budget prose and historical qualification limits accurately state the inbound-only default, configured policy retention and what the ownership tests prove."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-serving",
+    "interop",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2"
+   ],
+   "relates": [
+    "FL-08"
+   ],
+   "notes": "Discovered in the QG-16 parent audit. limits.rs defaults decoding to 4 MiB and encoding to None, with published tests/docs asserting that unlimited-outbound API. service-config section 6.3 instead calls the outbound cap default 4 MiB and the existing unary/server-streaming loops retain the frame for every failed attempt. Previous small-message/cap-configured tests do not establish the required default policy replay bound. Preserve the shipped message-size API and already documented budget values; scope/qualify ownership before implementing and correct the unsupported bound in prior evidence. No dependencies, unsafe code, performance or production claim."
   }
  ],
  "last_audit": {
