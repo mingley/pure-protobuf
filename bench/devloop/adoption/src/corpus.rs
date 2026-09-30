@@ -100,11 +100,14 @@ pub fn payload(sequence: usize, bytes: usize) -> prost_types::Payload {
     let mut payload = prost_types::Payload {
         sequence: sequence as u64,
         label: format!("payload-{sequence:04}"),
-        data: vec![sequence as u8; bytes],
+        data: Vec::new(),
         measurements: vec![-(sequence as i64), 0, sequence as i64 + 17],
     };
-    let overhead = payload.encoded_len() - payload.data.len();
-    payload.data.truncate(bytes - overhead);
+    // These exact-size fixtures need a two-byte data length and one-byte tag.
+    // Both codecs compute their own other-field size before allocating data.
+    let data_len = bytes - payload.encoded_len() - 3;
+    assert!((128..16384).contains(&data_len));
+    payload.data = vec![sequence as u8; data_len];
     assert_eq!(payload.encoded_len(), bytes);
     payload
 }

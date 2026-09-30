@@ -24,6 +24,10 @@ cargo clippy --locked --manifest-path bench/devloop/adoption/Cargo.toml \
 # Run all equality/read checks and emit the deterministic inventory JSON.
 cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
   --bin inventory
+
+# Qualify all fresh/decode/read-all/fully-read-clone cell implementations.
+cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
+  --bin codec-inventory
 ```
 
 Use an external `CARGO_TARGET_DIR` when building this excluded consumer.
@@ -48,3 +52,23 @@ options-file consumer also cross-decodes all sixteen fields. Compiling and
 testing these fixtures establishes semantic equivalence, not a performance
 result. SB-26b still owns the registered codec/RPC measurements, cold first RPC,
 codegen/check timings and P1-P5 baseline. See [evidence](evidence/qualification.json).
+
+SB-26c adds 512 separately named codec cells in `workloads::CELLS`, generated
+from the 64-specimen contract by the same fixture script. Native fresh
+constructors populate generated messages directly. Each codec constructs and
+encodes its own Any Payload, computing non-data wire size with its own size
+API before allocating the exact-length data field. Both recipes produce the
+previously qualified bytes/values. Preparation checks full fresh/decode/clone
+equality and every read checksum; the additional test also executes every
+cell. Fresh encoding of map messages produces four extra bytes in pbrs for
+default-valued entries. Both lengths are retained, and decoded values agree.
+
+The parent devloop harness uses these operations with its existing exact
+allocator and N/2N instruction collector. Its broader comparator graph still
+requires genuine pinned `protoc 35.1` with Google's Rust generator. On macOS,
+`/opt/homebrew/bin/bash scripts/devloop-linux.sh` can build that toolchain and
+run the collector in Linux; use Bash 4+ for the wrapper's empty arrays under
+`set -u`. Missing instruction counters remain unavailable measurements.
+The [codec inventory](evidence/codec-inventory.json) and
+[qualification](evidence/codec-qualification.json) retain the operation checks;
+the allocation/instruction matrix remains separate SB-26c evidence.

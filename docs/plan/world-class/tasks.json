@@ -11344,7 +11344,7 @@
    ],
    "status": "in_progress",
    "implementer": "Codex",
-   "notes": "Claimed at 8d89f5cf. Add the reviewed local pbrs-adoption-corpus dependency only to the excluded devloop manifest. Keep default shipping manifests and existing gates unchanged. Preserve individual variants and fixture source pins. No performance-improvement claim."
+   "notes": "Claimed at 8d89f5cf. Add the reviewed local pbrs-adoption-corpus dependency only to the excluded devloop manifest. Keep default shipping manifests and existing gates unchanged. Preserve individual variants and fixture source pins. No performance-improvement claim. Standalone codec operations qualified: 512 generated cells, direct native fresh builders, full fresh/decode/clone equality and independent read checks before timing, 8 corpus tests and strict Clippy pass, two deterministic codec inventories, unchanged 64-specimen corpus inventory. Exact allocator/N/2N measurements remain open; Linux collector build is in progress. Reviewed devloop lock delta adds only the existing local corpus package, with no third-party version changes."
   },
   {
    "lane": "SB",

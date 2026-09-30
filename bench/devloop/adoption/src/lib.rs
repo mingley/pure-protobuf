@@ -23,3 +23,6 @@ pub mod options {
 
 mod corpus;
 pub use corpus::*;
+mod fresh;
+pub use fresh::*;
+pub mod workloads;

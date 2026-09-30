@@ -1,0 +1,212 @@
+{
+  "schema": "pbrs-adoption-codec-qualification/1",
+  "card": "SB-26c",
+  "tier": "fixture-qualification",
+  "base_commit": "8d89f5cfa7a3fc2701babebd9378a98f92406d59",
+  "frozen_cell_contract_commit": "4f9b7c025c169d34961fe1a2b94ff97249ca7b9b",
+  "sources": {
+    "bench/devloop/adoption/generate.py": "0ca561ee1cb37b480d45b3ead220745bfe5cfedb",
+    "bench/devloop/adoption/src/fresh.rs": "a9a303bef72e3b3b173eb86362669fc6ac411008",
+    "bench/devloop/adoption/src/workloads.rs": "faa24257d1164bbc74c0a29e0a4d15eae303d1dc",
+    "bench/devloop/adoption/src/cells.rs": "0038a02ac8ad59ea3ba3bbb1f6866b7f2c43ebaf",
+    "bench/devloop/adoption/src/corpus.rs": "52b0b99e628649f1ec42eba8f3719b4b00b561f0",
+    "bench/devloop/adoption/src/lib.rs": "cb1f4ea77a16ca2c28c8946e3710cc713457d0d0",
+    "bench/devloop/adoption/src/bin/codec-inventory.rs": "b60f8187558a00bffefbae55810fd51231c66cda",
+    "bench/devloop/adoption/Cargo.toml": "231f037dcaee11d4dd62817c6928bfb4d772a16d",
+    "bench/devloop/adoption/Cargo.lock": "a84fa42ee36f24983ab8d12dddd112c20be596ce",
+    "bench/devloop/adoption/evidence/codec-inventory.json": "922ba1a0df00819325108855f400584c145a686a"
+  },
+  "pins": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "rustfmt": "rustfmt 1.9.0-stable (48a229ceae 2026-09-01)",
+    "corpus_protoc": "libprotoc 36.2",
+    "prost": "0.14.4",
+    "prost-build": "0.14.4"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --manifest-path bench/devloop/adoption/Cargo.toml",
+      "result": "8 passed; 0 failed",
+      "log": "/tmp/pbrs-sb26c-tests-final.txt",
+      "sha256": "da6b5718350661bfe72ec5347e9360e07ad327def9d014d6c20999584ee0b164"
+    },
+    {
+      "command": "cargo clippy --locked --manifest-path bench/devloop/adoption/Cargo.toml --all-targets -- -D warnings",
+      "result": "passed",
+      "log": "/tmp/pbrs-sb26c-clippy-final.txt",
+      "sha256": "cbc3e84eb503a08ac1866ec9cc4c50e4c7e04df4fcf809e106c1cffaa7605acf"
+    },
+    {
+      "command": "cargo test --locked --test documentation",
+      "result": "24 passed; 0 failed",
+      "log": "/tmp/pbrs-sb26c-doc-checks.txt",
+      "sha256": "c5fe81671a072dbca5e7843ab2705268d31b99997181c2d99fc45da1874b93b8"
+    },
+    {
+      "command": "cargo build --locked --release --manifest-path bench/Cargo.toml && /tmp/pbrs-ad03c-target/codec-bench/release/bench",
+      "result": "passed; 21 actual cases",
+      "log": "/tmp/pbrs-sb26c-codec-bench.txt",
+      "sha256": "017062b13547a4d45355d2cf20f5bfbc569f5f45162f366f8f47e5cb03e4b96b"
+    }
+  ],
+  "legacy_cases": [
+    {
+      "name": "empty",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "person",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "person_generated",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "tat_populated",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "packed_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "map_64",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "nested_8",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "strings",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "unpacked_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "packed_fixed_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "bytes",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "scalars",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "packed_fixed64_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "packed_float_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "unpacked_fixed_256",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "oneof",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "repeated_nested_8",
+      "iters": 40000,
+      "samples": 15,
+      "fresh_encode_iters": 10000
+    },
+    {
+      "name": "bytes_1mb",
+      "iters": 120,
+      "samples": 9,
+      "fresh_encode_iters": 33
+    },
+    {
+      "name": "bytes_5mb",
+      "iters": 40,
+      "samples": 7,
+      "fresh_encode_iters": 6
+    },
+    {
+      "name": "packed_fixed_1mb",
+      "iters": 120,
+      "samples": 9,
+      "fresh_encode_iters": 33
+    },
+    {
+      "name": "packed_fixed_5mb",
+      "iters": 40,
+      "samples": 7,
+      "fresh_encode_iters": 6
+    }
+  ],
+  "operation_inventory": {
+    "cells": 512,
+    "specimens": 64,
+    "codecs": [
+      "pbrs",
+      "prost"
+    ],
+    "operations": [
+      "fresh_encode",
+      "owned_decode",
+      "read_all",
+      "fully_read_clone"
+    ],
+    "two_runs_byte_identical": true,
+    "original_corpus_inventory_unchanged": true
+  },
+  "equivalence": {
+    "full_generated_prost_equality": "passed",
+    "independent_complete_reads": "passed",
+    "native_fresh_construction": "direct generated APIs; no prost conversion",
+    "clone_input": "owned, parsed and completely read",
+    "decode_input": "same borrowed prost wire slice; each decoder produces owned output",
+    "any_payload": "each codec constructs/encodes its own exact-size generated Payload",
+    "map_native_extra_wire_bytes": 4
+  },
+  "measurement_status": "pending; existing devloop collector integration and Linux release build in progress",
+  "limits": [
+    "Qualification is not a performance result.",
+    "Exact allocator and N/2N instruction evidence remains open.",
+    "Declared Rust 1.88 corpus floor has not been separately tested.",
+    "SB-26d RPC profiles and SB-26e startup/codegen/P1-P5 synthesis remain pending."
+  ]
+}
