@@ -123,6 +123,19 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
     },
     CaveatRequirement {
         category: "security_tls",
+        title: "caller_rustls_trust_boundary",
+        doc_path: "docs/grpc.md",
+        required_all: &[
+            "Certificate verification is not optional for built-in constructors",
+            "trusted application-owned",
+            "Callers own custom verifier security",
+            "an opaque custom verifier cannot be certified by this wrapper",
+            "Disabling verification is unsupported",
+        ],
+        description: "Caller rustls configs require the application to own verifier security; the wrapper's built-in verification guarantee must remain scoped and disabling verification unsupported.",
+    },
+    CaveatRequirement {
+        category: "security_tls",
         title: "tls_no_skip_verify",
         doc_path: "docs/status.md",
         required_all: &["skip-verify constructor", "ClientTls::webpki"],

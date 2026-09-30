@@ -11256,6 +11256,51 @@
    ],
    "status": "pending",
    "notes": "Retains the complete measurement remainder of SB-26. Split into bounded implementation/qualification children before execution if needed; no arbitrary new budgets or thresholds."
+  },
+  {
+   "id": "TC-25a",
+   "title": "Restore explicit ALPN and scoped verification caveats",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "depends_on": [
+    "TC-25"
+   ],
+   "read": [
+    "docs/grpc.md",
+    "docs/decisions/caller-rustls-config.md",
+    "tests/documentation.rs"
+   ],
+   "write": [
+    "docs/grpc.md",
+    "tests/documentation.rs",
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/caller-rustls-doc-caveats.json"
+   ],
+   "deliverable": "Repair the TC-25 guide wording that fails CI documentation contracts, preserving built-in peer verification and the trusted opaque caller-config boundary.",
+   "accept": [
+    "The existing alpn_h2_required contract is unchanged and passes with explicit ALPN h2 and certificate verification mandatory for built-in constructors.",
+    "An additional caller-config documentation contract requires the trusted application boundary, caller-owned custom-verifier security and unsupported disabling of verification; existing mutation tests reject removed caveats.",
+    "All root documentation tests pass, including new corpus links and snippets."
+   ],
+   "checks": [
+    "docs"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-25"
+   ],
+   "status": "done",
+   "implementer": "Codex",
+   "notes": "Claimed at b393586ae7db655324509566e2901d1f20622625 after CI 36784151039 (contract revision 2ac07df288373f80f93cd8c6e25a27ea5ef8bb4d) failed three documentation checks. Preserve the original critical ALPN/verification patterns, qualify the verification guarantee to built-in constructors in prose, and add only a stricter caller-config caveat entry. No TLS behavior, verifier, parser, safety default or existing gate relaxation. Closed 2026-09-30: reproduced 21 passes/3 failures, then restored the existing caveat wording with its guarantee scoped to built-in constructors and added the stronger caller-config trust contract. Final 24 documentation tests, strict workspace rustdoc and focused Clippy pass. Original alpn_h2_required patterns unchanged; no runtime or security-policy change.",
+   "reviewer": "Codex acceptance audit",
+   "evidence": [
+    "docs/evidence/caller-rustls-doc-caveats.json",
+    "docs/grpc.md#tls",
+    "tests/documentation.rs"
+   ]
   }
  ],
  "last_audit": {

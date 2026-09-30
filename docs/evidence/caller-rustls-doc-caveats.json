@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "card": "TC-25a",
+  "base_revision": "b393586ae7db655324509566e2901d1f20622625",
+  "source_blobs": {
+    "docs/grpc.md": "6a06490ebaa5afab5e8dae2a6e3c617802f2fec5",
+    "tests/documentation.rs": "2314213ee8834bd3f04e44a5a26c4c857f525293"
+  },
+  "ci_regression": {
+    "run": "https://github.com/mingley/pure-protobuf/actions/runs/36784151039",
+    "revision": "2ac07df288373f80f93cd8c6e25a27ea5ef8bb4d",
+    "failed_step": "Documentation contract checks (links, anchors, snippets, caveats)",
+    "passed": 21,
+    "failed": 3,
+    "reason": "TC-25 removed literal ALPN and the certificate-verification caveat from the guide while documenting caller configs."
+  },
+  "local_before": {
+    "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test --test documentation",
+    "passed": 21,
+    "failed": 3,
+    "stdout": "   Compiling pbrs v0.2.0 (/Users/mingley/dev/pure-protobuf-tc27-20260930)\nwarning: pbrs@0.2.0: wrote conformance descriptor set\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.81s\n     Running tests/documentation.rs (/tmp/pbrs-ad03c-target/debug/deps/documentation-bce1d257122c68b9)\n\nrunning 24 tests\ntest test_documentation_map_rejects_repository_escape ... ok\ntest test_link_checker_detects_broken_link_and_anchor ... ok\ntest test_anchor_cache_never_treats_unreadable_targets_as_empty ... ok\ntest test_local_link_checker_rejects_repository_escape ... ok\ntest test_documentation_map_references_and_anchors_are_valid ... ok\ntest test_link_checker_rejects_missing_examples_and_stale_generated_references ... ok\ntest test_http2_transport_mapping_caveats_contract ... ok\ntest test_markdown_discovery_rejects_out_of_repo_directory_links ... ok\ntest test_security_tls_verifier_and_alpn_contract ... FAILED\ntest test_license_and_crate_naming_notes_contract ... ok\ntest test_claim_provenance_contract ... ok\ntest test_unsupported_and_untested_boundaries_contract ... ok\ntest test_evidence_links_and_rustdoc_navigation_contract ... ok\ntest test_transparent_retry_boundaries_contract ... ok\ntest test_removing_or_altering_critical_caveat_fails ... FAILED\ntest test_all_critical_caveats_pass_on_repository_docs ... FAILED\ntest test_documented_versions_match_cargo_manifests ... ok\ntest test_tonic_support_boundary_matches_manifest ... ok\ntest test_published_prose_has_no_unqualified_superlatives ... ok\ntest test_named_recipe_fences_still_receive_negative_syntax_checks ... ok\ntest test_protobuf_snippet_syntax_validator_detects_errors ... ok\ntest test_rust_snippet_syntax_validator_detects_errors ... ok\ntest test_documentation_links_and_anchors_are_valid ... ok\ntest test_guide_code_blocks_are_syntactically_valid ... ok\n\nfailures:\n\n---- test_security_tls_verifier_and_alpn_contract stdout ----\n\nthread 'test_security_tls_verifier_and_alpn_contract' (6797205) panicked at tests/documentation.rs:1001:58:\nCaveat contract 'alpn_h2_required' failed in 'docs/grpc.md': missing required pattern 'ALPN' (gRPC TLS documentation must mandate ALPN h2 and state that certificate verification is not optional.)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- test_removing_or_altering_critical_caveat_fails stdout ----\n\nthread 'test_removing_or_altering_critical_caveat_fails' (6797173) panicked at tests/documentation.rs:1064:9:\nAuthentic document for 'alpn_h2_required' must satisfy requirement\n\n---- test_all_critical_caveats_pass_on_repository_docs stdout ----\n\nthread 'test_all_critical_caveats_pass_on_repository_docs' (6797118) panicked at tests/documentation.rs:1048:9:\nCritical documentation caveat verification failed:\nCaveat contract 'alpn_h2_required' failed in 'docs/grpc.md': missing required pattern 'ALPN' (gRPC TLS documentation must mandate ALPN h2 and state that certificate verification is not optional.)\n\n\nfailures:\n    test_all_critical_caveats_pass_on_repository_docs\n    test_removing_or_altering_critical_caveat_fails\n    test_security_tls_verifier_and_alpn_contract\n\ntest result: FAILED. 21 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.91s\n\nerror: test failed, to rerun pass `--test documentation`\n"
+  },
+  "change": "Restore explicit advertised/negotiated ALPN h2 and the unchanged original alpn_h2_required patterns. Scope the built-in verification guarantee to built-in constructors. Add a separate caller-config contract requiring trusted application input, caller-owned custom-verifier security, inability to certify opaque verifiers and unsupported disabling of verification. Existing mutation tests reject removal of every old and new caveat.",
+  "after_checks": [
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo test --test documentation",
+      "status": "passed",
+      "stdout_sha256": "c67fb3f55902efc1866b0f19211a9e86ea68841d330396a3834a67249fdfcd2e",
+      "result_lines": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.06s",
+        "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps",
+      "status": "passed",
+      "stdout_sha256": "f98f7170d3940d823ff1881356b0c1847ae956513ba62a0f2a71f4729c91e00a",
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 34.70s"
+      ]
+    },
+    {
+      "command": "PATH=/opt/homebrew/bin:$PATH CARGO_TARGET_DIR=/tmp/pbrs-ad03c-target cargo clippy -p pbrs --test documentation -- -D warnings",
+      "status": "passed",
+      "stdout_sha256": "2a8d62e94d5c903bde9705fa346d243405395f10c0d3c5cd2f1294b56c14ebbb",
+      "result_lines": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.59s"
+      ]
+    }
+  ],
+  "review": {
+    "reviewer": "Codex acceptance audit",
+    "status": "passed",
+    "findings": "The original required_all entry is byte-for-byte unchanged. The new entry only adds requirements and applies to the existing security/whole-doc/mutation tests. All 24 documentation tests, strict workspace rustdoc and focused Clippy pass. No TLS code, authentication policy, threshold or gate relaxation."
+  },
+  "qualification_status": "passed"
+}
