@@ -113,6 +113,30 @@ There are now two verified corrected-parser pairs, but one is Intel and one
 AMD. They are separate host cohorts, with one retained pair in each; neither
 has the 30 comparable measurements needed for threshold calibration.
 
+## Standalone lockfile recovery — 2026-09-30
+
+[Run 36744553856](https://github.com/mingley/pure-protobuf/actions/runs/36744553856)
+failed both builds because the standalone dev-loop lockfile still referenced
+the removed native dependency on `protobuf-tonic`. Its
+[retained validation](perf-ci/36744553856/validation.json) rejects both empty
+reports with `qualified_for_noise: false`. The RPC benchmark, tonic benchmark
+and tonic peer also had stale path dependency edges. SB-30 refreshes those
+four lockfiles and checks their locked resolution in ordinary CI.
+
+[Run 36746154592](https://github.com/mingley/pure-protobuf/actions/runs/36746154592)
+then built and measured exact source
+`59ea5ef7f7c9e62e1436346bb70525f09b0302aa` twice, in isolated worktrees with
+the pinned compiler. Both [retained reports](perf-ci/36746154592/) contain
+98 cells on Linux x86_64, AMD EPYC 9V74, rustc 1.98.1. Independent revalidation
+reproduces the downloaded validator result byte for byte: no errors,
+98 common cells, `qualified_for_noise: true`.
+
+This identical-source pair verifies pipeline recovery; it does not measure a
+code improvement. Allocations, allocated bytes, syscalls, futex-family calls
+and wall time are eligible. Instructions remain `not_run` and excluded.
+The 98-cell matrix and new CPU are a separate cohort from the older 88-cell
+runs. Neither this pair nor a green workflow establishes calibrated thresholds.
+
 ## Qualification still required
 
 SB-20 needs at least 30 comparable successful measurements, grouped by available

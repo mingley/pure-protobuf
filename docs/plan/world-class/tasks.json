@@ -10508,7 +10508,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [],
    "read": [
@@ -10523,7 +10523,9 @@
     "tonic-bench/Cargo.lock",
     "tests/interop/tonic/Cargo.lock",
     ".github/workflows/ci.yml",
-    "docs/plan/world-class/tasks.json"
+    "docs/plan/world-class/tasks.json",
+    "docs/evidence/perf-ci/",
+    "docs/evidence/sb23-perf-ci.md"
    ],
    "deliverable": "Refresh excluded benchmark/peer lockfile edges after approved path dependency changes and gate their locked resolution in ordinary CI, preserving exact-revision performance validation.",
    "accept": [
@@ -10537,7 +10539,14 @@
     "SB-23",
     "SB-20"
    ],
-   "notes": "Run 36744553856 at b571cbbe failed both exact source builds because bench/devloop/Cargo.lock retained the removed pbrs-grpc -> protobuf-tonic edge. The stale standalone protobuf-tonic dependency edges also reproduce under --locked in rpc-bench, tonic-bench and the tonic peer. Minimal offline Cargo resolution refreshes these graphs without changing manifests or peer versions. CI acceptance remains open until corrected-revision measurements complete."
+   "notes": "Minimal lockfile refreshes retain peer versions and resolve all four standalone harnesses with cargo fetch --locked --offline. Ordinary CI now gates those graphs before tests. Run 36744553856 retains rejected stale-lock reports; qualified_for_noise=false, no measured cells. Corrected-revision dispatch 36746154592 completed with 98 measured cells per report at exact source 59ea5ef7f7c9e62e1436346bb70525f09b0302aa, AMD EPYC 9V74, rustc 1.98.1; downloaded artifacts independently revalidate byte-identically with qualified_for_noise=true and no errors. This identical-source pair proves pipeline recovery, not a code speedup. Instructions remain not_run and excluded; only allocations, bytes, syscalls, futex calls and wall time are eligible. This is a separate 98-cell host cohort; SB-20 thresholds remain advisory.",
+   "reviewer": "Codex acceptance audit",
+   "evidence": [
+    ".github/workflows/ci.yml#Check standalone benchmark and interop lockfiles",
+    "docs/evidence/perf-ci/36744553856/validation.json",
+    "docs/evidence/perf-ci/36746154592/validation.json",
+    "https://github.com/mingley/pure-protobuf/actions/runs/36746154592"
+   ]
   },
   {
    "id": "AD-03a",

@@ -1,0 +1,19 @@
+{
+  "schema": "devloop-ci/1",
+  "base_sha": "c9e931fce3eedc5315ba929d2309ef0903a45e1d",
+  "head_sha": "b571cbbe116bfcb6f3ab6f5bdd3a58a9ad8651c0",
+  "qualified_for_noise": false,
+  "errors": [
+    "base: build: error: cannot update the lock file /home/runner/work/_temp/devloop-base/bench/devloop/Cargo.lock because --locked was passed to prevent this",
+    "base: missing host cpu",
+    "base: no measured cells",
+    "head: build: error: cannot update the lock file /home/runner/work/pure-protobuf/pure-protobuf/bench/devloop/Cargo.lock because --locked was passed to prevent this",
+    "head: missing host cpu",
+    "head: no measured cells",
+    "no common measured cells"
+  ],
+  "common_cells": [],
+  "new_cells": [],
+  "removed_cells": [],
+  "eligible_metrics": {}
+}

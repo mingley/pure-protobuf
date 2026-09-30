@@ -1,0 +1,15 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "Linux",
+    "arch": "x86_64",
+    "cpu": "unknown",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": true,
+    "strace": true,
+    "valgrind": false
+  },
+  "devloop_commit": "b571cbbe116bfcb6f3ab6f5bdd3a58a9ad8651c0",
+  "cells": [],
+  "error": "build: error: cannot update the lock file /home/runner/work/pure-protobuf/pure-protobuf/bench/devloop/Cargo.lock because --locked was passed to prevent this"
+}

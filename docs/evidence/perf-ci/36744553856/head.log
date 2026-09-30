@@ -1,0 +1,8 @@
+devloop: warning: cargo fetch failed (offline?); trying offline build with cached deps
+error: cannot update the lock file /home/runner/work/pure-protobuf/pure-protobuf/bench/devloop/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+devloop: harness build failed (offline release build of bench/devloop/Cargo.toml)
+error: cannot update the lock file /home/runner/work/pure-protobuf/pure-protobuf/bench/devloop/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+devloop: wrote error report to perf-artifacts/head.json
+devloop: reported build failure; not running cells

@@ -1,0 +1,15 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "Linux",
+    "arch": "x86_64",
+    "cpu": "unknown",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": true,
+    "strace": true,
+    "valgrind": false
+  },
+  "devloop_commit": "c9e931fce3eedc5315ba929d2309ef0903a45e1d",
+  "cells": [],
+  "error": "build: error: cannot update the lock file /home/runner/work/_temp/devloop-base/bench/devloop/Cargo.lock because --locked was passed to prevent this"
+}

@@ -1,0 +1,6287 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": true,
+    "strace": true,
+    "valgrind": false
+  },
+  "devloop_commit": "59ea5ef7f7c9e62e1436346bb70525f09b0302aa",
+  "cells": [
+    {
+      "id": "codec.pbrs.fresh_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 6.7,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 193.4,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.068,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1075.22,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02438387363211186,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 13.0,
+        "emit_bytes": 55.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.cached_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100.4815,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0047021797456795736,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 12.0,
+        "emit_bytes": 53.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 7.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1072.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 434.932,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.045589052011916965,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 87.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 12.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1216.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 653.9635,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.013358753995515626,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 87.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.packed_256_owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1104.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0835,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 199.5115,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016311967818721258,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 388.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.packed_256_parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 8.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3088.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0835,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 419.92,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01673196554542831,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 388.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.unpacked_256_owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1104.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0835,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 211.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010172027401306943,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 388.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.unpacked_256_parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 8.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3088.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0835,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 399.5485,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.025978693840023707,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 388.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.tags_32_owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1544.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0925,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 845.182,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007404486242002381,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.tags_32_parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1544.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0925,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 941.2125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015460629124371293,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_empty_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6.56,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1315155671897918,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_empty_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 5.8635,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01229180705708415,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_id_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8.3925,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016396966631834323,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_id_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8.2125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01199219956908352,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_name80_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 12.2735,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03238134619586693,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 1.0,
+        "emit_bytes": 80.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.small_name80_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 80.4265,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016322089020826,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.fresh_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 248.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 603.332,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06351709227246045,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.cached_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 248.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 410.9965,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010769037565399556,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.owned_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 277.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 681.0545,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.14337826963117978,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.parse_touch",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 277.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 670.809,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.011929001381404262,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_empty_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6.595,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0258392031833571,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_empty_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 9.5795,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009820689116750065,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_id_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8.848,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.08884035333781018,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_id_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8.1575,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.011141118623632975,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_name80_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 11.6075,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009772879978336053,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.small_name80_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 39.775,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.029612615575826583,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.fresh_encode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1120.6635,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0033131396035451137,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.cached_encode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 87.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 533.1155,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0015524820819776705,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.owned_decode",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 665.27,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.012375465234430083,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.v4.parse_touch",
+      "kind": "codec",
+      "codec": "v4-upb",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.067,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 941.713,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014856288433037901,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_8_parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 6.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 368.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0535,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 429.414,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02433565778001584,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 56.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_8_get",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0535,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4.0865,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009016989278898928,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_8_iter",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 144.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0535,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 72.259,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04156660299619027,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_64_parse_touch",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 13.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4080.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.1435,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2485.0155,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009525204093213278,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 500.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_64_get",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.1435,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 11.1715,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.049225799637967,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.map_64_iter",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1488.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.1435,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 555.5095,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007865547684825606,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.text.tat_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 20.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 5846.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0815,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2928.5055,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015263416747186086,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 12.0,
+        "emit_bytes": 53.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.text.tat_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 136.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 9264.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0815,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8915.644,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.028175733553542238,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 87.0,
+        "emit_calls": 30.0,
+        "emit_bytes": 126.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.text.otlp_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 21.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4909.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0815,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1795.949,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.023348186634628648,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 6.0,
+        "emit_bytes": 94.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.text.otlp_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 76.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 7152.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0815,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4354.806,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.10351839537082459,
+      "copy_counts": {
+        "wire_calls": 2.0,
+        "wire_bytes": 181.0,
+        "emit_calls": 17.0,
+        "emit_bytes": 487.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65584.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1457.212,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007985220381422917,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 65562.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 135.56,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06273134391069515,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65584.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 32886.011,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04943258613722498,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 65562.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131096.9305,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2131.511,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0164328516942864,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 4.9355,
+        "emit_bytes": 65555.868,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_64kib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65562.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1402.184,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007240052018231943,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 65557.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131080.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2761.926,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007243036378652798,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131080.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 32051.28,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004833656983522897,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_64kib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 131103.9305,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0395,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2125.427,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006689303954198926,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048624.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3671875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 25054.97265625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.019088919106242743,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 1048602.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.36328125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 120.45703125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009731194785614686,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048624.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3671875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 492868.2421875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03811876686507886,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 1048602.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097176.45703125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 4.53515625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 811998.00390625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03580004791477852,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 4.49609375,
+        "emit_bytes": 1048594.96875,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_1mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1048602.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3671875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 25313.17578125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015729679749591528,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 1048597.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 4.53515625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 841986.9140625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02956173678263381,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 4.53515625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1274393.421875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.019231713727720198,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_1mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2097183.45703125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 4.53515625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 823093.6640625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.033559484349068996,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194352.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 1.46875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 106149.484375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010584529592806428,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 4194331.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 1.453125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 121.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.019062273992375627,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194352.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 1.46875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1969041.640625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015810047501903263,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 4194331.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388632.828125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 7.453125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1824878.78125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010099509535773444,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 3.984375,
+        "emit_bytes": 4194322.875,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_4mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 4194331.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 1.46875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 124091.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.055616472338560825,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 4194326.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388616.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 7.453125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2031186.03125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.025498198211180805,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388616.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 7.453125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3648790.390625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.013932963363590102,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_4mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 64,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388639.828125,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 7.453125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1839433.234375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.017323389261772716,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388656.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 2.9375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 217289.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00813120286232361,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 8388635.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 2.90625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 129.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.025643325417726213,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388656.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 2.9375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3855253.34375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016944142447756997,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 8388635.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777240.65625,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 8.90625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2378685.96875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.013010458261946889,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 3.96875,
+        "emit_bytes": 8388626.75,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_8mib",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8388635.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 2.9375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 380875.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01005074147376456,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 5.0,
+        "emit_bytes": 8388630.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777224.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 8.90625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2753064.28125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014270832077004903,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777224.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 8.90625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6179443.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.023499021793028898,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_8mib",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 32,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 16777247.65625,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 8.90625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2237346.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.017690781564745666,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 33160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1010.572,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010558205577916556,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 32796.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_parse_shared_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 344.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 331.08,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.045212466045469725,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_touch_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 3.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 33160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 15416.7815,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07634600381478929,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 32796.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 19.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 98674.935,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2090.0985,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03478932769292941,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 16.936,
+        "emit_bytes": 32785.872,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.pbrs.blob_encode_shared_mixed",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 32796.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 768.1705,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01934841462488855,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 17.0,
+        "emit_bytes": 32787.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_parse_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 18.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65824.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1782.3935,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.005533048501305216,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_touch_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 18.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65824.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 16270.076,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02033096939929057,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.prost.blob_encode_mixed",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 10.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65754.935,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.04,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1508.139,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.021866018633338386,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.unary",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 38.01,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 44418.68,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 17.955,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 6.275,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 84431.985,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03313130962218229,
+      "copy_counts": {
+        "wire_calls": 2.0,
+        "wire_bytes": 2048.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 2.0,
+        "chunk_slice_bytes": 2054.0,
+        "encode_calls": 2.0,
+        "encode_bytes": 2054.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.server_stream",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.025,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 55213.64,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 31.945,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 16.53,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 121110.215,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.022659160522007882,
+      "copy_counts": {
+        "wire_calls": 1.0,
+        "wire_bytes": 1027.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2066.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 1030.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.unary_compressed",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 68.015,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1473027.6,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 35.68,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 10.92,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1599058.69,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01432563820441305,
+      "copy_counts": {
+        "wire_calls": 2.0,
+        "wire_bytes": 89646.0,
+        "emit_calls": 4.0,
+        "emit_bytes": 89652.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 2.0,
+        "chunk_slice_bytes": 30552.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 2.0,
+        "serialize_bytes": 89654.0
+      }
+    },
+    {
+      "id": "rpc.pbrs.server_stream_compressed",
+      "kind": "rpc",
+      "codec": "pbrs-grpc",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 916.025,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 25072857.84,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 145.08,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 39.34,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7506535.585,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.008254720782461587,
+      "copy_counts": {
+        "wire_calls": 41.0,
+        "wire_bytes": 87663.0,
+        "emit_calls": 106.0,
+        "emit_bytes": 89610.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 57.0,
+        "chunk_slice_bytes": 24875.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 57.0,
+        "serialize_bytes": 89675.0
+      }
+    },
+    {
+      "id": "rpc.prost.unary",
+      "kind": "rpc",
+      "codec": "pbrs-grpc-prost",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 38.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 41953.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 18.68,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 6.92,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 78424.81,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007946944744925404,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 2.0,
+        "chunk_slice_bytes": 2054.0,
+        "encode_calls": 2.0,
+        "encode_bytes": 2054.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.prost.server_stream",
+      "kind": "rpc",
+      "codec": "pbrs-grpc-prost",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 57.025,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 65208.64,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 32.7,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 16.715,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 120112.685,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.017907781127982463,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 5137.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 1029.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.tonic_prost.unary",
+      "kind": "rpc",
+      "codec": "tonic-prost",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 71.405,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 49186.525,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 30.05,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 11.075,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 41000310.34,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 3.939421014113181e-6,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.tonic_prost.server_stream",
+      "kind": "rpc",
+      "codec": "tonic-prost",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 81.465,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 58071.53,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 37.46,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 15.865,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 41000263.31,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00005648907397059813,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.tonic.unary",
+      "kind": "rpc",
+      "codec": "tonic",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 71.385,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 49185.995,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 29.835,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 10.865,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 41000163.615,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 6.304522425661458e-6,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.tonic.server_stream",
+      "kind": "rpc",
+      "codec": "tonic",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 81.465,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 58071.53,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 37.71,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 16.045,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 41000431.28,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00011414816442416881,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.pick_first.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0575,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 45.8695,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.014059419958241053,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.round_robin.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0575,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 72.835,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00390113978180381,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.weighted_round_robin.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.058,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 81.318,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.022019175528305384,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.ring_hash.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0575,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 94.433,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016258380789921936,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.least_request.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 2.0575,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 486.235,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09752375414359062,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.priority.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.0885,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 315.8875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010305408795088457,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.outlier_detection.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.073,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 156.777,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.054377495120875564,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "lb.random_subsetting_experimental.pick",
+      "kind": "lb",
+      "codec": "pbrs-grpc",
+      "iters": 2000,
+      "repeats": 3,
+      "instructions": {
+        "status": "not_run",
+        "data": {
+          "reason": "instruction counter output missing or invalid in one or more repeats"
+        }
+      },
+      "instruction_method": "not_run",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.058,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0005,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 80.016,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007744887096186136,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}
