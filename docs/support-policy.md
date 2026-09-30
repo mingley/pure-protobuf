@@ -58,7 +58,8 @@ constructors, builder methods, trait methods, and public associated types:
 - **Interception:** `Interceptor`, `ResponseInterceptor`,
   `ClientInterceptor`, `Intercepted`, `ServiceExt`, `Outgoing`, and the
   `intercept`/`on_response` entry points on channels, services, and servers.
-- **Tower adapters:** `pbrs_grpc::tower_client::{UnaryService, ServiceExt}`,
+- **Tower adapters:** `pbrs_grpc::tower_client::{UnaryService,
+  ServerStreamingService, ClientStreamingService, BidiService}`,
   `pbrs_grpc::tower_server::{RouterService, TowerBody}`, and their conversion
   entry points.
 - **Codec contracts:** `pbrs_grpc::codec::CodecMessage`, the optional
@@ -75,7 +76,10 @@ The CI comparison covers all public APIs of `pbrs`, `pbrs-grpc`, and
 `protobuf-tonic`, which is deliberately stricter than the named minimum. It
 compares against the last published releases (`0.2.0`, `0.1.0-alpha.2`, and
 `0.1.0-alpha.2`, respectively), so deleting or incompatibly changing any
-listed API fails before merge. The maintainer approved installing pinned
+listed API fails before merge. CI explicitly selects the tool's `minor`
+release policy: additive APIs are allowed, and an unchanged alpha version
+cannot infer a major release that skips all compatibility checks.
+The maintainer approved installing pinned
 `cargo-semver-checks` 0.50.0 for this purpose on 2026-09-30; changing that pin
 requires renewed review.
 

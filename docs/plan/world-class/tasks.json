@@ -10538,6 +10538,137 @@
     "SB-20"
    ],
    "notes": "Run 36744553856 at b571cbbe failed both exact source builds because bench/devloop/Cargo.lock retained the removed pbrs-grpc -> protobuf-tonic edge. The stale standalone protobuf-tonic dependency edges also reproduce under --locked in rpc-bench, tonic-bench and the tonic peer. Minimal offline Cargo resolution refreshes these graphs without changing manifests or peer versions. CI acceptance remains open until corrected-revision measurements complete."
+  },
+  {
+   "id": "AD-03a",
+   "title": "Restore the published stub selector compatibility contract",
+   "lane": "AD",
+   "milestone": "M8",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "AD-03",
+    "AD-03b",
+    "AD-03c"
+   ],
+   "read": [
+    "src/codegen/config.rs",
+    "src/codegen/descriptors.rs",
+    "docs/support-policy.md"
+   ],
+   "write": [
+    "src/codegen/config.rs",
+    "src/codegen/descriptors.rs",
+    "tests/codegen_compat.rs",
+    "docs/support-policy.md",
+    "docs/plan/world-class/tasks.json",
+    ".github/workflows/ci.yml"
+   ],
+   "deliverable": "Keep the published exhaustive Stubs enum and discriminants unchanged while retaining tonic_compat generation through its existing builder, plugin and environment selectors. Correct the stable Tower API inventory.",
+   "accept": [
+    "A downstream exhaustive match over None/Tonic/Kernel compiles and their numeric discriminants remain 0/1/2.",
+    "tonic_compat(true) still generates and runs all four RPC shapes; ordinary selector precedence is preserved.",
+    "Pinned cargo-semver-checks runs nonzero checks for all three shipping crates under an explicit minor compatibility policy and passes against their published baseline versions."
+   ],
+   "checks": [
+    "workspace",
+    "docs-contract"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "AD-03",
+    "TC-21",
+    "TC-27"
+   ],
+   "notes": "The new semver gate in run 36744677768 caught Stubs::Kernel changing from 2 to 3 and a fourth variant on the exhaustive published enum. Restore the published API by keeping the richer generator selection private, without changing versions or weakening checks. Local tool output also showed that unchanged alpha versions infer a major release and skip all 254 lints; use explicit --release-type minor to enforce the already documented stable integration contract. Explicit alpha checks expose two additional native compatibility failures: RetryThrottler was made private and optional Codec::Zstd extends an exhaustive published enum. Split those repairs as AD-03b/AD-03c; the full compatibility gate remains open. The public selector regression failed before the private StubStyle split and passes afterward. The external tonic_compat consumer runs all four shapes. Local workspace validation passes 3224 tests across 119 suites (five existing ignores), strict workspace Clippy, format and 24 documentation contracts. Explicit minor-policy checks pass all 196 applicable lints for pbrs and protobuf-tonic. Native compatibility follow-ups remain required before closure; no version bump or suppressed lint.",
+   "evidence": [
+    "tests/codegen_compat.rs#published_stub_selector_remains_exhaustive_with_original_discriminants",
+    "tests/pbrs_build.rs#tonic_compat_consumer_runs_all_four_shapes",
+    ".github/workflows/ci.yml#Public API semver"
+   ]
+  },
+  {
+   "id": "AD-03b",
+   "title": "Restore the published RetryThrottler API and re-export",
+   "lane": "AD",
+   "milestone": "M8",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "AD-03"
+   ],
+   "read": [
+    "pbrs-grpc/src/service_config.rs",
+    "pbrs-grpc/src/lib.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/service_config.rs",
+    "pbrs-grpc/src/lib.rs",
+    "pbrs-grpc/tests/policy_retry.rs"
+   ],
+   "deliverable": "Restore both published RetryThrottler import paths and its constructor, token accounting and observation methods without changing retry policy behavior.",
+   "accept": [
+    "A downstream test imports both published paths and exercises every published method.",
+    "The strict native semver report no longer reports RetryThrottler as removed."
+   ],
+   "checks": [
+    "native-rpc",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "AD-03a"
+   ],
+   "notes": "Discovered by explicit minor-policy semver checks; current type/method visibility regressed from the published alpha baseline."
+  },
+  {
+   "id": "AD-03c",
+   "title": "Preserve exhaustive Codec compatibility while supporting optional Zstd",
+   "lane": "AD",
+   "milestone": "M8",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "AD-03"
+   ],
+   "read": [
+    "pbrs-grpc/src/compression/mod.rs",
+    "pbrs-grpc/src/config.rs",
+    "docs/support-policy.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/compression/",
+    "pbrs-grpc/src/config.rs",
+    "pbrs-grpc/src/wire/",
+    "pbrs-grpc/tests/compression.rs",
+    "docs/decisions/",
+    "docs/grpc.md"
+   ],
+   "deliverable": "Choose and implement an additive compression selection surface that retains published exhaustive Codec matches and keeps opt-in Zstd functional. Preserve truthful effective-codec reporting and all legacy configuration methods.",
+   "accept": [
+    "Strict minor-policy semver checks pass with every supported native feature enabled.",
+    "An exhaustive match on the published Gzip/Deflate Codec remains valid.",
+    "Zstd mixed-peer and native streaming compression tests still pass; no shipping dependency or security default changes."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-tls",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "AD-03a",
+    "RX-06"
+   ],
+   "notes": "The former alpha-version inference skipped all lints. Enforcing the existing stable compatibility policy catches Codec::Zstd as a new variant on an exhaustive enum. Keep the failure visible until the additive API is implemented; do not suppress the lint or drop Zstd support."
   }
  ],
  "last_audit": {

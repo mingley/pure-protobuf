@@ -471,8 +471,8 @@ use pbrs::UnknownFields;\n\n"
         }
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
         match resolved.stubs {
-            Stubs::None => {}
-            Stubs::Tonic
+            StubStyle::None => {}
+            StubStyle::Tonic
                 if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
             {
                 src.push_str("\n// --- gRPC stubs (protobuf-tonic, not tonic-prost) ---\n");
@@ -488,7 +488,7 @@ use pbrs::UnknownFields;\n\n"
                     emit_service(&mut src, svc);
                 }
             }
-            Stubs::Kernel
+            StubStyle::Kernel
                 if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
             {
                 src.push_str("\n// --- gRPC stubs (pbrs-grpc kernel) ---\n");
@@ -496,7 +496,7 @@ use pbrs::UnknownFields;\n\n"
                     emit_kernel_service(&mut src, svc);
                 }
             }
-            Stubs::TonicCompat
+            StubStyle::TonicCompat
                 if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
             {
                 src.push_str("\n// --- gRPC stubs (tonic-shaped pbrs-grpc compat) ---\n");
@@ -504,7 +504,7 @@ use pbrs::UnknownFields;\n\n"
                     emit_compat_service(&mut src, svc);
                 }
             }
-            Stubs::Tonic | Stubs::Kernel | Stubs::TonicCompat => {}
+            StubStyle::Tonic | StubStyle::Kernel | StubStyle::TonicCompat => {}
         }
         src.push_str(&format!(
             "}}\n#[allow(unused_imports, reason = \"generated re-exports may not all be used\")]\npub use {gen_mod}::*;\n"

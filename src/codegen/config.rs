@@ -238,7 +238,7 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     pub(crate) static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
-    pub(crate) static STUBS: Cell<Stubs> = const { Cell::new(Stubs::Kernel) };
+    pub(crate) static STUBS: Cell<StubStyle> = const { Cell::new(StubStyle::Kernel) };
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
@@ -290,7 +290,7 @@ impl CodegenStateGuard {
         IDENTS.with(|c| c.borrow_mut().clear());
         FIELD_IDENTS.with(|c| c.borrow_mut().clear());
         FIELD_RAWS.with(|c| c.borrow_mut().clear());
-        STUBS.with(|c| c.set(Stubs::Kernel));
+        STUBS.with(|c| c.set(StubStyle::Kernel));
         EMIT_DEPS.with(|c| c.set(false));
         NO_WKT.with(|c| c.set(false));
         SHARED_POOL.with(|c| c.set(false));
@@ -337,10 +337,6 @@ pub enum Stubs {
     /// `tonic` 0.14 stubs over `protobuf_tonic::ProtobufCodec`.
     /// Select with [`Config::emit_tonic_stubs`].
     Tonic,
-    /// Tonic-shaped API over the native `pbrs-grpc` transport.
-    ///
-    /// Select with [`Config::tonic_compat`].
-    TonicCompat,
     /// Native `pbrs-grpc` stubs. The default. Requires the generating crate
     /// to depend on `pbrs-grpc`. `FooClient` dials with `connect` /
     /// `connect_tls` / `connect_unix` / `from_io`; `FooServer` serves with
@@ -351,15 +347,36 @@ pub enum Stubs {
     Kernel,
 }
 
+// The public Stubs selector is exhaustive in pbrs 0.2.0. New generator
+// surfaces must not add variants or change discriminants on that API.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum StubStyle {
+    None,
+    Tonic,
+    TonicCompat,
+    #[default]
+    Kernel,
+}
+
+impl From<Stubs> for StubStyle {
+    fn from(stubs: Stubs) -> Self {
+        match stubs {
+            Stubs::None => Self::None,
+            Stubs::Tonic => Self::Tonic,
+            Stubs::Kernel => Self::Kernel,
+        }
+    }
+}
+
 /// Resolve the stub flavour from the active thread-local config.
 #[allow(dead_code, reason = "helper for inspecting current stub flavour")]
-pub(crate) fn stubs_setting() -> Stubs {
+pub(crate) fn stubs_setting() -> StubStyle {
     STUBS.with(Cell::get)
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ExplicitOptions {
-    stubs: Option<Stubs>,
+    stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
@@ -389,7 +406,7 @@ pub(crate) struct ExplicitOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ResolvedConfig {
-    pub(crate) stubs: Stubs,
+    pub(crate) stubs: StubStyle,
     pub(crate) emit_deps: bool,
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
@@ -442,10 +459,10 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
         match key {
             "stubs" => {
                 let s = match val {
-                    Some("kernel") => Stubs::Kernel,
-                    Some("tonic") => Stubs::Tonic,
-                    Some("none") => Stubs::None,
-                    Some("compat" | "tonic_compat" | "tonic-compat") => Stubs::TonicCompat,
+                    Some("kernel") => StubStyle::Kernel,
+                    Some("tonic") => StubStyle::Tonic,
+                    Some("none") => StubStyle::None,
+                    Some("compat" | "tonic_compat" | "tonic-compat") => StubStyle::TonicCompat,
                     Some(other) => {
                         return Err(CodegenError::InvalidParameter {
                             key: "stubs".to_string(),
@@ -720,11 +737,11 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         s
     } else {
         match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
-            Ok("kernel") => Stubs::Kernel,
-            Ok("tonic") => Stubs::Tonic,
-            Ok("compat" | "tonic_compat" | "tonic-compat") => Stubs::TonicCompat,
-            Ok("none") => Stubs::None,
-            _ => Stubs::Kernel,
+            Ok("kernel") => StubStyle::Kernel,
+            Ok("tonic") => StubStyle::Tonic,
+            Ok("compat" | "tonic_compat" | "tonic-compat") => StubStyle::TonicCompat,
+            Ok("none") => StubStyle::None,
+            _ => StubStyle::Kernel,
         }
     };
     let emit_deps = if let Some(d) = explicit.emit_deps {
@@ -966,7 +983,7 @@ pub(crate) fn emit_server_attributes(src: &mut String, fq_path: &str, indent: &s
 pub struct Config {
     protoc_path: Option<PathBuf>,
     out_dir: Option<PathBuf>,
-    stubs: Option<Stubs>,
+    stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
@@ -1093,7 +1110,7 @@ impl Config {
 
     /// Choose which gRPC stub flavour to emit. Default [`Stubs::Kernel`].
     pub fn stubs(&mut self, stubs: Stubs) -> &mut Self {
-        self.stubs = Some(stubs);
+        self.stubs = Some(stubs.into());
         self
     }
 
@@ -1103,16 +1120,20 @@ impl Config {
     /// messages only. Mutually exclusive with [`Self::emit_kernel_stubs`];
     /// the last call wins.
     pub fn emit_tonic_stubs(&mut self, enable: bool) -> &mut Self {
-        self.stubs = Some(if enable { Stubs::Tonic } else { Stubs::None });
+        self.stubs = Some(if enable {
+            StubStyle::Tonic
+        } else {
+            StubStyle::None
+        });
         self
     }
 
     /// Emit tonic-shaped service stubs over the native `pbrs-grpc` transport.
     pub fn tonic_compat(&mut self, enable: bool) -> &mut Self {
         self.stubs = Some(if enable {
-            Stubs::TonicCompat
+            StubStyle::TonicCompat
         } else {
-            Stubs::Kernel
+            StubStyle::Kernel
         });
         self
     }
@@ -1138,7 +1159,11 @@ impl Config {
     ///     .expect("codegen");
     /// ```
     pub fn emit_kernel_stubs(&mut self, enable: bool) -> &mut Self {
-        self.stubs = Some(if enable { Stubs::Kernel } else { Stubs::None });
+        self.stubs = Some(if enable {
+            StubStyle::Kernel
+        } else {
+            StubStyle::None
+        });
         self
     }
 
@@ -1406,10 +1431,10 @@ impl Config {
         let mut opts = Vec::new();
         if let Some(stubs) = self.stubs {
             match stubs {
-                Stubs::Kernel => opts.push("stubs=kernel".to_string()),
-                Stubs::Tonic => opts.push("stubs=tonic".to_string()),
-                Stubs::TonicCompat => opts.push("stubs=compat".to_string()),
-                Stubs::None => opts.push("stubs=none".to_string()),
+                StubStyle::Kernel => opts.push("stubs=kernel".to_string()),
+                StubStyle::Tonic => opts.push("stubs=tonic".to_string()),
+                StubStyle::TonicCompat => opts.push("stubs=compat".to_string()),
+                StubStyle::None => opts.push("stubs=none".to_string()),
             }
         }
         if let Some(emit_deps) = self.emit_deps {

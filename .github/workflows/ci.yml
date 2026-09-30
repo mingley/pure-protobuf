@@ -39,9 +39,11 @@ jobs:
         run: cargo install cargo-semver-checks --version 0.50.0 --locked
       - name: Compare public APIs with the published releases
         run: |
-          cargo semver-checks check-release --package pbrs --baseline-version 0.2.0
-          cargo semver-checks check-release --package pbrs-grpc --baseline-version 0.1.0-alpha.2
-          cargo semver-checks check-release --package protobuf-tonic --baseline-version 0.1.0-alpha.2
+          # Unchanged alpha versions infer a major release and skip every
+          # compatibility lint. Our stable surface permits additive changes.
+          cargo semver-checks check-release --release-type minor --package pbrs --baseline-version 0.2.0
+          cargo semver-checks check-release --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2
+          cargo semver-checks check-release --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.2
 
   test:
     runs-on: ubuntu-latest

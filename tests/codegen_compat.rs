@@ -29,6 +29,20 @@ use pbrs::{Clear, Message, Parse, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+#[test]
+fn published_stub_selector_remains_exhaustive_with_original_discriminants() {
+    fn published_match(stubs: Stubs) -> isize {
+        match stubs {
+            Stubs::None => 0,
+            Stubs::Tonic => 1,
+            Stubs::Kernel => 2,
+        }
+    }
+    for stubs in [Stubs::None, Stubs::Tonic, Stubs::Kernel] {
+        assert_eq!(stubs as isize, published_match(stubs));
+    }
+}
+
 // Keep frozen generated consumers as evidence of their original output.
 #[rustfmt::skip]
 #[path = "fixtures/codegen-compat/v1_generated.rs"]
