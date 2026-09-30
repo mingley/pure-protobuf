@@ -45,6 +45,20 @@ let msg = MyMessage::parse(&bytes)?;
 let out = msg.serialize()?;
 ```
 
+### Serialized byte order
+
+Generated `pbrs` messages emit known fields in ascending field-number order,
+including messages whose implementation moves some fields into cold storage.
+Current generated output therefore matches Prost's known-field ordering for
+the same schema and values. Older `pbrs` generator output emitted inline fields
+before cold fields; after regenerating, byte-keyed caches, fingerprints, and
+golden files can change even though both byte strings decode to the same
+message. Invalidate or version those artifacts when migrating or regenerating.
+
+Unknown fields are emitted after known fields in capture order. Do not treat
+cross-runtime serialization as a canonical fingerprint when unknown fields or
+map iteration order can differ.
+
 ---
 
 ## 2. Using pbrs with Existing Tonic Services
@@ -130,6 +144,34 @@ Mechanical rewrite table:
 | `client.unary(Request::new(msg)).await?` | unchanged, with compat `Request` |
 | `client.client_stream(tokio_stream::iter(items)).await?` | `client.client_stream(pbrs_grpc::compat::iter(items)).await?` or pass any `futures_core::Stream<Item = T> + Send + 'static` |
 | `Response::new(stream)` where `stream: Stream<Item = Result<T, Status>>` | unchanged; generated server stubs convert that stream to native `Streaming<T>` |
+
+### Behavior differences from Tonic 0.14
+
+The table below covers wire and call outcomes that migration code commonly
+branches on. “Tonic” means the 0.14.x transport and Prost codec defaults. Test
+names are repository integration tests; the `tonic_behavior` documentation
+contract fails if a row or its evidence is removed. No compatibility switch is
+needed for the current differences, so pbrs-grpc does not expose one.
+
+| Behavior | pbrs-grpc | Tonic 0.14 | Test that pins pbrs-grpc |
+|---|---|---|---|
+| Inbound message exceeds the decoding limit | Returns `RESOURCE_EXHAUSTED`; the handler does not receive the oversized message. | Returns `RESOURCE_EXHAUSTED`. | `message_size::server_oversize_decode_is_resource_exhausted` |
+| Outbound message exceeds the encoding/response decoding limit | The endpoint enforcing its configured limit returns `RESOURCE_EXHAUSTED`. | Returns `RESOURCE_EXHAUSTED` for configured encode/decode limits. | `message_size::server_oversize_encode_is_resource_exhausted` and `message_size::channel_oversize_outbound_is_resource_exhausted` |
+| Client timeout | Expiry returns `DEADLINE_EXCEEDED`, including while request flow control is stalled. | Expiry returns `DEADLINE_EXCEEDED`. | `retry_safety::request_send_window_stall_obeys_deadline_for_both_single_request_shapes` |
+| Explicit client cancellation | `CallHandle::cancel` returns `CANCELLED`; it is not reported as a deadline. | Dropping/cancelling the request reports `CANCELLED` when a status is observable. | `retry_safety::request_send_window_stall_obeys_cancellation` |
+| Empty or missing unary request message | A zero-byte body is accepted as the protobuf default message. A framed zero-length protobuf message is also the default. | A framed zero-length message is the protobuf default, but a body containing no message is rejected as an internal “Missing request message” error. | `hostile::an_empty_body_decodes_to_a_default_message` |
+| Trailers-only error | Reads `grpc-status` and percent-decodes `grpc-message` from the initial headers, even when the peer resets the request body early. | Reads trailers-only status from the initial headers. | `retry_safety::trailers_only_rejection_survives_early_request_body_reset` |
+| Metadata key normalization | Valid ASCII metadata keys are normalized to lowercase HTTP/2 names; invalid, reserved, or incorrectly suffixed binary keys return `INVALID_ARGUMENT`. | Metadata keys are lowercase on the wire; its typed metadata API likewise rejects invalid names. | `tonic_behavior::metadata_keys_follow_lowercase_http2_rules` and `regress_metadata::regression_bad_metadata_encodings_safely_rejected` |
+| `grpc-message` encoding | Emits percent-encoded bytes and decodes percent escapes; spaces therefore arrive as spaces rather than literal `%20`. | Uses the same gRPC percent-encoding rules. | `retry_safety::trailers_only_rejection_survives_early_request_body_reset` |
+| Keepalive and GOAWAY | Keepalive PING interval/timeout are explicit channel/server settings. Graceful GOAWAY stops new streams on that connection; a safe unary or server-streaming attempt can redial, while an ambiguous committed attempt is not replayed. | Keepalive is configured on `Endpoint`/`Server`; GOAWAY drains the connection and reconnects for later calls, without replaying a committed request. | `tls::h2c_keepalive_still_serves` and `retry_safety::scenario_c_unary_response_headers_committed_no_retry_on_stream_error` |
+
+The missing-body row is the only semantic difference in this table that can
+change an application branch. During a staged migration, validate required
+request fields in the handler rather than relying on transport rejection; that
+works identically for a default message produced by an empty frame and by a
+missing body. Timeout and cancellation remain distinct: use
+`Code::DeadlineExceeded` for elapsed deadlines and `Code::Cancelled` for an
+explicit caller cancellation.
 
 The repository keeps self-contained ports of Tonic 0.14's examples in
 `pbrs-grpc/tests/compat_fixtures.rs`, with copied protos under

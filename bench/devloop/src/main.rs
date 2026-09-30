@@ -27,6 +27,8 @@ use std::time::{Duration, Instant};
 
 mod blob;
 mod counters;
+#[path = "../cells/map.rs"]
+mod map_cells;
 use counters::{parse_callgrind_instructions, parse_perf_instructions, parse_strace_summary};
 
 /// Report schema version. Bump on any breaking JSON change.
@@ -467,6 +469,9 @@ fn pbrs_tags_32() -> PbrsTat {
 }
 
 fn pbrs_specimen_for_cell(cell: &str) -> PbrsTat {
+    if let Some(size) = map_cells::size_for_cell(cell) {
+        return map_cells::specimen(size);
+    }
     match cell {
         "codec.pbrs.packed_256_owned_decode" | "codec.pbrs.packed_256_parse_touch" => {
             pbrs_packed_256()
@@ -646,6 +651,9 @@ impl CodecCase {
 
 /// Run one codec work unit; returns a sink to defeat DCE.
 fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
+    if let Some(value) = map_cells::work(cell, &case.wire, &case.pbrs_msg) {
+        return black_box(value);
+    }
     match cell {
         "codec.pbrs.fresh_encode" => black_box(
             pbrs::Serialize::serialize(&case.pbrs_fresh[i])
@@ -815,6 +823,7 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
         ("codec.v4.owned_decode", "v4-upb"),
         ("codec.v4.parse_touch", "v4-upb"),
     ];
+    out.extend_from_slice(map_cells::CELLS);
     out.extend(blob::blob_cells());
     out
 }

@@ -348,6 +348,69 @@ fn main() {
 }
 
 #[test]
+fn generated_serialization_uses_field_number_order_across_storage_classes() {
+    let tmp = repo_root().join("target").join("pbrs-build-field-order");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("order.proto"),
+        r#"syntax = "proto3";
+package order;
+message InterleavedStorage {
+  repeated int32 records = 1;
+  string label = 2;
+  sint64 total = 3;
+  bytes payload = 4;
+  repeated int64 samples = 5;
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("build.rs"),
+        r#"fn main() {
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(false)
+        .compile_protos(&["order.proto"], &["."])
+        .expect("compile field-order schema");
+}
+"#,
+    )
+    .unwrap();
+    let root = repo_root();
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-field-order\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n[build-dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            root.display(),
+            root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("OUT_DIR"), "/order.rs"));
+
+fn main() {
+    // Field 1 is cold-stored and field 3 is inline. Feed them in the old
+    // inline-before-cold order and pin the canonical generated output.
+    let value = <InterleavedStorage as pbrs::Parse>::parse(&[0x18, 0x0e, 0x0a, 0x01, 0x01]).unwrap();
+    let encoded = pbrs::Serialize::serialize(&value).unwrap();
+    assert_eq!(encoded, [0x0a, 0x01, 0x01, 0x18, 0x0e]);
+}
+"#,
+    )
+    .unwrap();
+
+    let run = cargo_run(&tmp, None, true);
+    assert!(
+        run.status.success(),
+        "field-order consumer failed:\n{}",
+        dump(&run)
+    );
+}
+
+#[test]
 fn compile_protos_defaults_to_kernel_stubs() {
     assert_eq!(
         pbrs::codegen::Stubs::default(),

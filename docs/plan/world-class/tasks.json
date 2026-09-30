@@ -8544,6 +8544,12 @@
   },
   {
    "id": "PK-23",
+   "status": "in_progress",
+   "evidence": [
+    "bench/devloop/cells/map.rs: generated TestAllTypesProto3 map_8/map_64 fixtures and parse+touch/get/iter workloads",
+    "bench/devloop/src/main.rs: six cells registered on the existing codec child path",
+    "cargo test --manifest-path bench/devloop/Cargo.toml map_cells::tests: blocked before tests because third_party/protobuf source fixture is absent"
+   ],
    "title": "Add map_8/map_64 cells to the dev-loop harness",
    "lane": "PK",
    "milestone": "M1",
@@ -9209,6 +9215,7 @@
   },
   {
    "id": "PK-28",
+   "status": "in_progress",
    "title": "Define and document serialized field order",
    "lane": "PK",
    "milestone": "M1",
@@ -9607,6 +9614,11 @@
   },
   {
    "id": "TC-31",
+   "status": "done",
+   "evidence": [
+    "docs/guides/migration.md#behavior-differences-from-tonic-014",
+    "pbrs-grpc/tests/tonic_behavior.rs"
+   ],
    "title": "Publish and test behavior differences from tonic",
    "lane": "TC",
    "milestone": "M5",
@@ -9637,7 +9649,8 @@
    "scoreboard": [],
    "relates": [
     "TC-08"
-   ]
+   ],
+   "notes": "The behavior table and its documentation contract are implemented. Focused check passed: cargo test -p pbrs-grpc --test tonic_behavior (2 tests)."
   },
   {
    "id": "TC-32",

@@ -73,6 +73,15 @@ Ordinary encoding writes to `WireOut`. Native, uncompressed gRPC can carry
 shared `bytes` fields of at least 32 KiB in separate segments. The
 [zero-copy guide](zero-copy.md) gives the conditions and copy accounting.
 
+Generated messages serialize known fields in ascending protobuf field-number
+order, regardless of whether a field is stored inline or in the cold sidecar.
+This is the same ordering used by the supported reference generators and is
+stable for byte-keyed caches and golden files. Unknown fields follow the known
+fields and retain the order in which the runtime captured them. Protobuf
+decoders must accept fields in any order, so applications must still compare
+messages semantically unless their producer and unknown-field policy are also
+pinned.
+
 ## API and compatibility boundaries
 
 Generated accessors follow the Google Rust application model: nested getters

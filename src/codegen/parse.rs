@@ -231,16 +231,22 @@ pub(crate) fn emit_codec(
     );
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
-    } else {
+    } else if cold.uses_cold_storage() {
+        // Keep the wire order independent of the storage layout.  Duplicate
+        // the hot-field emission in the two arms so encoding still pays for
+        // only one cold-storage presence check.
+        let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
+        for f in desc.fields.values() {
+            emit_write(src, f, if cold.stored_cold(f) { "c" } else { "self" });
+        }
+        let _ = writeln!(src, "        }} else {{");
         for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
             emit_write(src, f, "self");
         }
-        if cold.uses_cold_storage() {
-            let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
-            for f in desc.fields.values().filter(|f| cold.stored_cold(f)) {
-                emit_write(src, f, "c");
-            }
-            let _ = writeln!(src, "        }}");
+        let _ = writeln!(src, "        }}");
+    } else {
+        for f in desc.fields.values() {
+            emit_write(src, f, "self");
         }
     }
     let _ = writeln!(src, "        self.unknown.encode(out);");
