@@ -67,6 +67,10 @@ LICENSE_OK = {
 LINKS_ALLOW = {
     # wasm32 import namespace; no build script, no C compilation.
     ("wasm-bindgen-shared", "wasm_bindgen"),
+    # Rust source formatter version namespace. Its build script only exports
+    # the crate version through Cargo metadata; it does not compile or link
+    # native code. tonic-prost-build uses it while generating Rust stubs.
+    ("prettyplease", "prettyplease02"),
 }
 
 
