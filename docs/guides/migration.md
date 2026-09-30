@@ -107,6 +107,29 @@ prost and pbrs messages in the same configured run. The
 `protobuf-tonic/tests/codec_path.rs` fixture verifies unary and bidirectional
 streaming calls generated this way with `tonic-prost-build` 0.14.6.
 
+An application may still use both representations. Run the generator once for
+each package or message set: retain the default tonic/prost codec for existing
+packages, and set `codec_path` only for pbrs-backed packages. Both generated
+service modules can be mounted on the same tonic server. Native services use
+the same pattern by combining the normal pbrs generator with
+`pbrs::codegen::prost_stubs` (and the `pbrs-grpc/prost` feature).
+
+At a migration boundary, convert wire-compatible representations without a
+generated field-by-field adapter:
+
+```rust
+let pbrs_request: new_api::Request =
+    protobuf_tonic::prost_to_pbrs(&prost_request)?;
+let prost_request: old_api::Request =
+    protobuf_tonic::pbrs_to_prost(&pbrs_request)?;
+```
+
+Each conversion performs one source encode, one target decode, and one owned
+wire-buffer allocation. The buffer is moved—not copied—into the decoder; on
+the prost-to-pbrs path it becomes pbrs' shared lazy backing storage. See the
+[coexistence evidence](../evidence/tc32-coexistence.md) for coverage and current
+qualification limits.
+
 This route changes integration cost, not codec performance. Current PK-27
 evidence shows that when handlers read every field, pbrs messages cost more CPU
 than prost: +10% to +60% instructions per RPC in the measured public profiles,

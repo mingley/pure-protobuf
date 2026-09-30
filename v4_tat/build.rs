@@ -31,9 +31,8 @@ fn main() {
     }
     let gen_dir = out.join("google/protobuf");
     let gen = gen_dir.join("generated.rs");
-    let mut src = std::fs::read_to_string(&gen).unwrap_or_else(|_| {
-        panic!("missing {}", gen.display())
-    });
+    let mut src =
+        std::fs::read_to_string(&gen).unwrap_or_else(|_| panic!("missing {}", gen.display()));
     let dir = gen_dir.display().to_string();
     src = src.replace("#[path=\"", &format!("#[path=\"{dir}/"));
     std::fs::write(out.join("generated.rs"), src).expect("write generated.rs");

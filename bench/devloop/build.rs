@@ -31,4 +31,18 @@ fn main() {
         .out_dir(&cases_out)
         .compile_protos(&[&cases], &[&manifest.join("../../proto")])
         .expect("pbrs codec_cases.proto codegen");
+
+    // Keep the text-format performance fixture tied to the public OTLP
+    // corpus rather than a hand-written approximation. `emit_deps` makes the
+    // imported common/resource messages available in the generated unit.
+    let otlp_root = manifest.join("../corpora/otlp/protos");
+    let otlp_trace = otlp_root.join("opentelemetry/proto/trace/v1/trace.proto");
+    let otlp_out = out.join("pbrs_otlp");
+    std::fs::create_dir_all(&otlp_out).expect("create OTLP output directory");
+    println!("cargo:rerun-if-changed={}", otlp_trace.display());
+    pbrs::codegen::Config::new()
+        .out_dir(&otlp_out)
+        .emit_deps(true)
+        .compile_protos(&[&otlp_trace], &[&otlp_root])
+        .expect("pbrs OTLP trace.proto codegen");
 }

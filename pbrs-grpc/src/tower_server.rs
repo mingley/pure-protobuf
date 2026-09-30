@@ -11,6 +11,8 @@ use http::{HeaderMap, Request, Response, Uri};
 use http_body::{Body, Frame};
 use std::convert::Infallible;
 use std::future::Future;
+#[cfg(feature = "tonic")]
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tower::Service;
@@ -51,6 +53,70 @@ impl Router {
     #[must_use]
     pub fn into_tower_service(self) -> RouterService {
         RouterService::new(self)
+    }
+}
+
+/// A native generated service exposed with tonic's server type contract.
+///
+/// `N` supplies the generated service name at compile time. The request and
+/// response bodies are tonic's own [`tonic::body::Body`], while payload chunks
+/// remain `Bytes` throughout the bridge.
+#[cfg(feature = "tonic")]
+#[derive(Clone, Debug)]
+pub struct TonicService<N> {
+    inner: RouterService,
+    service: PhantomData<fn() -> N>,
+}
+
+#[cfg(feature = "tonic")]
+impl<N> TonicService<N> {
+    fn new(inner: RouterService) -> Self {
+        Self {
+            inner,
+            service: PhantomData,
+        }
+    }
+}
+
+/// Convert a generated native service into a service accepted by
+/// `tonic::transport::Server::add_service`.
+#[cfg(feature = "tonic")]
+pub trait TonicServiceExt: crate::Service + Sized {
+    /// Mount this service in a tonic transport stack.
+    fn into_tonic_service(self) -> TonicService<Self> {
+        TonicService::new(Router::new().add_service(self).into_tower_service())
+    }
+}
+
+#[cfg(feature = "tonic")]
+impl<S: crate::Service> TonicServiceExt for S {}
+
+#[cfg(feature = "tonic")]
+impl<N: crate::Service> tonic::server::NamedService for TonicService<N> {
+    const NAME: &'static str = N::NAME;
+}
+
+#[cfg(feature = "tonic")]
+impl<N> Service<Request<tonic::body::Body>> for TonicService<N>
+where
+    N: crate::Service,
+{
+    type Response = Response<tonic::body::Body>;
+    type Error = Infallible;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        <RouterService as Service<Request<tonic::body::Body>>>::poll_ready(&mut self.inner, cx)
+    }
+
+    fn call(&mut self, request: Request<tonic::body::Body>) -> Self::Future {
+        let future = self.inner.call(request);
+        Box::pin(async move {
+            future.await.map(|response| {
+                let (parts, body) = response.into_parts();
+                Response::from_parts(parts, tonic::body::Body::new(body))
+            })
+        })
     }
 }
 

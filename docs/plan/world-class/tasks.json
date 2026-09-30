@@ -8618,7 +8618,13 @@
     "PK-21",
     "SB-08"
    ],
-   "notes": "Split from PK-21 2026-09-29: cell claim currently rests on a /tmp probe with exact allocs."
+   "notes": "Split from PK-21 2026-09-29: cell claim currently rests on a /tmp probe with exact allocs. 2026-09-30: cells implemented and registered; measurement remains blocked locally by missing protoc-gen-rust required by the existing v4_tat peer build.",
+   "status": "in_progress",
+   "evidence": [
+    "bench/devloop/cells/text.rs: four generated TAT/OTLP encode/decode cells with pre-timing semantic round-trip checks",
+    "bench/devloop/build.rs: OTLP trace v1 generated from checked-in public corpus with dependencies",
+    "docs/evidence/pk24-text-cells.md: cell contract and verification limitation"
+   ]
   },
   {
    "id": "SB-23",
@@ -9294,6 +9300,7 @@
   },
   {
    "id": "TC-26",
+   "status": "in_progress",
    "title": "Mount pbrs-grpc services in tonic-typed stacks",
    "lane": "TC",
    "milestone": "M5",
@@ -9331,7 +9338,12 @@
    "relates": [
     "TC-13"
    ],
-   "notes": "Needed to adopt pbrs-grpc behind existing tonic-based service frameworks without rewriting their ACL, observability and request-context layers."
+   "notes": "Needed to adopt pbrs-grpc behind existing tonic-based service frameworks without rewriting their ACL, observability and request-context layers. 2026-09-30: optional tonic adapter and integration test implemented; focused compilation was timeboxed while rustc was still compiling the large pbrs-grpc library, so completion awaits a finished test/clippy run and migration documentation.",
+   "evidence": [
+    "pbrs-grpc/src/tower_server.rs adds TonicService and TonicServiceExt: generated native service names drive tonic::server::NamedService and tonic Body wraps the existing Bytes-backed response body.",
+    "pbrs-grpc/tests/tonic_server.rs mounts GreeterServer in tonic::transport::Server::add_service, calls it with the native generated client, checks tonic TcpConnectInfo in an unmodified Tower service boundary, and compiles the TLS peer-certificate accessor contract.",
+    "pbrs-grpc/Cargo.toml keeps tonic behind an optional feature including tls-connect-info."
+   ]
   },
   {
    "id": "TC-27",
@@ -9691,7 +9703,15 @@
    "relates": [
     "TC-28",
     "AD-02"
-   ]
+   ],
+   "status": "in_progress",
+   "evidence": [
+    "protobuf-tonic/src/lib.rs",
+    "protobuf-tonic/tests/coexist.rs",
+    "docs/evidence/tc32-coexistence.md",
+    "docs/guides/migration.md#keep-an-existing-tonic-prost-build-pipeline"
+   ],
+   "notes": "Conversion APIs and mixed-runtime tests are implemented and pass. Static bridge cost is one encode, one decode and one owned wire allocation with no intermediate buffer copy. Full SB-26 corpus measurements remain pending because SB-26 has not landed its generated corpora or baseline JSON."
   },
   {
    "id": "AD-01",
@@ -9771,6 +9791,7 @@
   },
   {
    "id": "AD-03",
+   "status": "done",
    "title": "Stabilize and semver-check the integration surface",
    "lane": "AD",
    "milestone": "M8",
@@ -9803,6 +9824,11 @@
    "relates": [
     "QL-05",
     "OB-05"
+   ],
+   "evidence": [
+    "docs/support-policy.md names the stable TLS, resolver/LB, interceptor, Tower, codec, and generated-runtime integration surface and establishes pre-1.0 deprecation rules.",
+    ".github/workflows/ci.yml installs maintainer-approved pinned cargo-semver-checks 0.50.0 and checks pbrs, pbrs-grpc, and protobuf-tonic against their last published versions.",
+    "docs/RELEASE.md makes the public API semver job a required release gate."
    ]
   },
   {

@@ -29,6 +29,8 @@ mod blob;
 mod counters;
 #[path = "../cells/map.rs"]
 mod map_cells;
+#[path = "../cells/text.rs"]
+mod text_cells;
 use counters::{parse_callgrind_instructions, parse_perf_instructions, parse_strace_summary};
 
 /// Report schema version. Bump on any breaking JSON change.
@@ -409,6 +411,11 @@ mod pbrs_cases {
     include!(concat!(env!("OUT_DIR"), "/pbrs_cases/codec_cases.rs"));
 }
 
+mod otlp {
+    #![allow(dead_code, unused, non_snake_case, clippy::all)]
+    include!(concat!(env!("OUT_DIR"), "/pbrs_otlp/trace.rs"));
+}
+
 #[derive(Clone, PartialEq, prost::Message)]
 struct ProstEmpty {}
 
@@ -580,11 +587,15 @@ struct CodecCase {
     pbrs_fresh: Vec<PbrsTat>,
     prost_fresh: Vec<prost_tat::TestAllTypesProto3>,
     v4_fresh: Vec<v4_tat::TestAllTypesProto3>,
+    text: Option<text_cells::TextCase>,
 }
 
 impl CodecCase {
     fn prepare(cell: &str, iters: u64) -> Self {
         let pbrs_msg = pbrs_specimen_for_cell(cell);
+        let text = cell
+            .starts_with("codec.pbrs.text.")
+            .then(|| text_cells::TextCase::prepare(&pbrs_msg));
         let wire = pbrs::Serialize::serialize(&pbrs_msg).expect("pbrs wire");
         let prost_msg =
             prost_tat::TestAllTypesProto3::decode(wire.as_slice()).expect("prost cross-parse");
@@ -645,6 +656,7 @@ impl CodecCase {
             pbrs_fresh,
             prost_fresh,
             v4_fresh,
+            text,
         }
     }
 }
@@ -653,6 +665,11 @@ impl CodecCase {
 fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
     if let Some(value) = map_cells::work(cell, &case.wire, &case.pbrs_msg) {
         return black_box(value);
+    }
+    if let Some(text) = &case.text {
+        if let Some(value) = text_cells::work(cell, text) {
+            return black_box(value);
+        }
     }
     match cell {
         "codec.pbrs.fresh_encode" => black_box(
@@ -824,6 +841,7 @@ fn codec_cells() -> Vec<(&'static str, &'static str)> {
         ("codec.v4.parse_touch", "v4-upb"),
     ];
     out.extend_from_slice(map_cells::CELLS);
+    out.extend_from_slice(text_cells::CELLS);
     out.extend(blob::blob_cells());
     out
 }
@@ -1871,9 +1889,8 @@ fn run_child(
             .expect("spawn strace");
         if sout.status.success() {
             let text = String::from_utf8_lossy(&sout.stderr);
-            parse_strace_summary(&text).map_or((None, None), |(calls, futex)| {
-                (Some(calls), Some(futex))
-            })
+            parse_strace_summary(&text)
+                .map_or((None, None), |(calls, futex)| (Some(calls), Some(futex)))
         } else {
             (None, None)
         }
@@ -1999,7 +2016,10 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                     "no strace on PATH"
                 })
             } else {
-                Metric::measured(median(locks), "futex-family syscalls per op (includes wakes)")
+                Metric::measured(
+                    median(locks),
+                    "futex-family syscalls per op (includes wakes)",
+                )
             },
             wall_ns: Metric::measured(median(walls.clone()), "ns per op (secondary)"),
             wall_cv: wall_cv(&walls),
@@ -2164,9 +2184,7 @@ fn cmd_run_cell(args: &[String]) {
                 "rpc.prost.unary" => rpc_prost_unary(iters, &payload).await,
                 "rpc.prost.server_stream" => rpc_prost_server_stream(iters, &payload).await,
                 "rpc.tonic_prost.unary" => rpc_tonic_unary(iters, &payload).await,
-                "rpc.tonic_prost.server_stream" => {
-                    rpc_tonic_server_stream(iters, &payload).await
-                }
+                "rpc.tonic_prost.server_stream" => rpc_tonic_server_stream(iters, &payload).await,
                 "rpc.tonic.unary" => rpc_tonic_unary(iters, &payload).await,
                 "rpc.tonic.server_stream" => rpc_tonic_server_stream(iters, &payload).await,
                 _ => panic!("unknown rpc cell {id}"),

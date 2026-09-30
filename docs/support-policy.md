@@ -25,13 +25,59 @@ table, and the release notes together.
 
 ## Deprecation
 
-Stable (`>=1.0`) deprecations, once 1.0 exists, keep the old API
-working for at least one minor version with migration notes before
-removal. `0.x` minors and all alphas may change or remove APIs per
-release; each removal must still be called out in the release notes.
+The integration surface listed below is stable now, including in the current
+`0.x` and alpha releases. Additive changes are allowed. A removal, rename, or
+incompatible signature/trait change must first be deprecated in a published
+release, remain usable through at least the next published release, and have
+migration notes. Removing it then requires a version increment that Cargo
+semver treats as breaking. Other public APIs follow normal Cargo semver:
+stable (`>=1.0`) deprecations, once 1.0 exists, keep the old API working for
+at least one minor version with migration notes before removal; APIs outside
+the integration surface may change in a `0.x` minor or alpha, with every
+removal called out in the release notes.
 Protobuf Edition support is qualified separately (see
 [the Edition 2024 contract](edition-2024.md)) and must never be
 inferred from crate versions or Rust editions.
+
+## Stable integration surface
+
+The following adopter-facing contracts are covered by the deprecation rule
+above and by the `Public API semver` CI job. Paths include their documented
+constructors, builder methods, trait methods, and public associated types:
+
+- **TLS injection:** `pbrs_grpc::{Identity, ServerTls, ClientTls,
+  TlsHandshakeInfo, PeerIdentity}`, the `serve_tls*` entry points on `Server`,
+  `Router`, and `Incoming`, and the `connect_tls*` entry points on `Channel`.
+  This stabilizes today's TLS-value injection contract; caller-supplied rustls
+  configuration and crypto-provider support remains explicitly out of scope
+  until TC-25 lands.
+- **Resolution and load balancing:** public items under
+  `pbrs_grpc::resolver`, public policies and factory traits under
+  `pbrs_grpc::lb`, `Target`, and the resolver/LB configuration methods on
+  `Channel` and `ChannelConfig`.
+- **Interception:** `Interceptor`, `ResponseInterceptor`,
+  `ClientInterceptor`, `Intercepted`, `ServiceExt`, `Outgoing`, and the
+  `intercept`/`on_response` entry points on channels, services, and servers.
+- **Tower adapters:** `pbrs_grpc::tower_client::{UnaryService, ServiceExt}`,
+  `pbrs_grpc::tower_server::{RouterService, TowerBody}`, and their conversion
+  entry points.
+- **Codec contracts:** `pbrs_grpc::codec::CodecMessage`, the optional
+  `pbrs_grpc::codec::prost` adapters, and
+  `protobuf_tonic::{ProtobufCodec, ProtobufEncoder, ProtobufDecoder}`.
+- **Generated-code runtime:** the `pbrs` traits and types referenced by emitted
+  source (`Message`, `Parse`, `Serialize`, `WireOut`, `RawMessage`, proxy,
+  repeated/map/string/unknown-field types, and the public `runtime`, `rt`,
+  `prelude`, and `gen_support` paths). Generator output and runtime from the
+  same supported release line are a compatibility pair; generated source may
+  use only public paths in this contract.
+
+The CI comparison covers all public APIs of `pbrs`, `pbrs-grpc`, and
+`protobuf-tonic`, which is deliberately stricter than the named minimum. It
+compares against the last published releases (`0.2.0`, `0.1.0-alpha.2`, and
+`0.1.0-alpha.2`, respectively), so deleting or incompatibly changing any
+listed API fails before merge. The maintainer approved installing pinned
+`cargo-semver-checks` 0.50.0 for this purpose on 2026-09-30; changing that pin
+requires renewed review.
 
 ## Patch and rollback per crate
 

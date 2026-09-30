@@ -6,7 +6,11 @@
 extern crate self as protobuf_tonic;
 
 use bytes::Buf;
+use bytes::Bytes;
 use pbrs::{ClearAndParse, Parse, Serialize};
+use prost::Message as ProstMessage;
+use std::error::Error;
+use std::fmt;
 use std::marker::PhantomData;
 use tonic::Status;
 use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
@@ -70,3 +74,51 @@ impl<T: Parse + Default + ClearAndParse> Decoder for ProtobufDecoder<T> {
 }
 
 pub mod hello;
+
+/// Failure while converting between wire-compatible prost and pbrs messages.
+///
+/// Conversion deliberately goes through protobuf wire bytes. This keeps the
+/// API schema-agnostic. The encoded buffer is moved into the decoder: neither
+/// direction copies that buffer after encoding, and the prost-to-pbrs
+/// direction retains it as pbrs' shared backing storage.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConversionError(String);
+
+impl fmt::Display for ConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl Error for ConversionError {}
+
+/// Convert a prost message to its wire-compatible pbrs representation.
+///
+/// This allocates exactly one wire buffer. [`Bytes::from`] takes ownership of
+/// prost's `Vec`, and pbrs parses from that shared buffer without copying it.
+pub fn prost_to_pbrs<P, R>(message: &P) -> Result<R, ConversionError>
+where
+    P: ProstMessage,
+    R: Parse,
+{
+    let mut wire = Vec::with_capacity(message.encoded_len());
+    message
+        .encode(&mut wire)
+        .map_err(|error| ConversionError(error.to_string()))?;
+    R::parse_bytes(Bytes::from(wire)).map_err(|error| ConversionError(error.to_string()))
+}
+
+/// Convert a pbrs message to its wire-compatible prost representation.
+///
+/// This allocates one wire buffer for pbrs serialization. Prost consumes the
+/// owned buffer directly through its [`bytes::Buf`] decoder interface.
+pub fn pbrs_to_prost<P, R>(message: &P) -> Result<R, ConversionError>
+where
+    P: Serialize,
+    R: ProstMessage + Default,
+{
+    let wire = message
+        .serialize()
+        .map_err(|error| ConversionError(error.to_string()))?;
+    R::decode(Bytes::from(wire)).map_err(|error| ConversionError(error.to_string()))
+}
