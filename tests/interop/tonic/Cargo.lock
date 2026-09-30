@@ -743,9 +743,11 @@ dependencies = [
  "bytes",
  "http",
  "pbrs",
+ "prost",
  "tokio",
  "tokio-stream",
  "tonic",
+ "tonic-prost-build",
 ]
 
 [[package]]

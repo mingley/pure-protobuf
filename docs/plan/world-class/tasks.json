@@ -10499,6 +10499,45 @@
     "pbrs-grpc/src/client/streaming.rs",
     "pbrs-grpc/src/stream.rs"
    ]
+  },
+  {
+   "id": "SB-30",
+   "title": "Keep standalone benchmark lockfiles consistent with path dependencies",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [],
+   "read": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/perf.yml",
+    "pbrs-grpc/Cargo.toml",
+    "protobuf-tonic/Cargo.toml"
+   ],
+   "write": [
+    "bench/devloop/Cargo.lock",
+    "rpc-bench/Cargo.lock",
+    "tonic-bench/Cargo.lock",
+    "tests/interop/tonic/Cargo.lock",
+    ".github/workflows/ci.yml",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Refresh excluded benchmark/peer lockfile edges after approved path dependency changes and gate their locked resolution in ordinary CI, preserving exact-revision performance validation.",
+   "accept": [
+    "cargo fetch --locked succeeds for devloop, rpc-bench, tonic-bench and the tonic interop peer.",
+    "Ordinary CI checks these standalone lockfiles before expensive tests.",
+    "A real pinned-compiler performance CI run on the corrected revision produces nonempty, valid measurement artifacts; stale-baseline error reports remain rejected."
+   ],
+   "checks": [],
+   "scoreboard": [],
+   "relates": [
+    "SB-23",
+    "SB-20"
+   ],
+   "notes": "Run 36744553856 at b571cbbe failed both exact source builds because bench/devloop/Cargo.lock retained the removed pbrs-grpc -> protobuf-tonic edge. The stale standalone protobuf-tonic dependency edges also reproduce under --locked in rpc-bench, tonic-bench and the tonic peer. Minimal offline Cargo resolution refreshes these graphs without changing manifests or peer versions. CI acceptance remains open until corrected-revision measurements complete."
   }
  ],
  "last_audit": {

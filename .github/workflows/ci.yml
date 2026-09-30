@@ -65,6 +65,15 @@ jobs:
           rustc --edition=2024 --test bench/devloop/src/counters.rs \
             -o "$RUNNER_TEMP/devloop-counter-tests"
           "$RUNNER_TEMP/devloop-counter-tests"
+      - name: Check standalone benchmark and interop lockfiles
+        run: |
+          for manifest in \
+            bench/devloop/Cargo.toml \
+            rpc-bench/Cargo.toml \
+            tonic-bench/Cargo.toml \
+            tests/interop/tonic/Cargo.toml; do
+            cargo fetch --locked --manifest-path "$manifest"
+          done
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Lint native gRPC, tonic adapter, and example libraries
         run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
