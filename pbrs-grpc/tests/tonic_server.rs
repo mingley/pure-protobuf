@@ -7,8 +7,7 @@ mod common;
 
 use common::{Echo, name_of, req};
 use http::{Request as HttpRequest, Response as HttpResponse};
-use pbrs_grpc::Request;
-use pbrs_grpc::hello::{GreeterClient, GreeterServer};
+use pbrs_grpc::hello::{GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::tower_server::{TonicService, TonicServiceExt};
 use std::convert::Infallible;
 use std::future::Future;
@@ -81,9 +80,19 @@ async fn generated_service_mounts_in_tonic_and_exposes_tonic_connect_info() {
             .expect("tonic server");
     });
 
-    let client = GreeterClient::connect(addr).await.expect("native client");
+    let channel = tonic::transport::Endpoint::from_shared(format!("http://{addr}"))
+        .expect("endpoint")
+        .connect()
+        .await
+        .expect("tonic client");
+    let mut client = tonic::client::Grpc::new(channel);
+    client.ready().await.expect("ready");
     let response = client
-        .say_hello(Request::new(req("tonic mount")))
+        .unary(
+            tonic::Request::new(req("tonic mount")),
+            http::uri::PathAndQuery::from_static("/helloworld.Greeter/SayHello"),
+            protobuf_tonic::ProtobufCodec::<HelloRequest, HelloReply>::default(),
+        )
         .await
         .expect("say hello");
     assert_eq!(name_of(response.get_ref()), "tonic mount");

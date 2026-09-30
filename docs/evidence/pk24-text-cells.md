@@ -17,7 +17,7 @@ a handwritten stand-in. Fixture creation and semantic round-trip checks run
 before the timing/allocation window. The existing dev-loop child-process
 protocol reports exact allocation count and allocated bytes for every cell.
 
-## Verification status
+## Verification
 
 Source-level OTLP text round-trip coverage passes:
 
@@ -26,16 +26,26 @@ cargo test --test generated_text generated_otlp_text_round_trips_nested_enums
 # 1 passed
 ```
 
-A local dev-loop build currently stops in the existing `v4_tat` peer build
-before compiling the dev-loop binary because `protoc-gen-rust` is not installed
-on this host. This is independent of the pbrs text cells, but means no honest
-PK-21 performance/allocation reproduction can be recorded yet:
+The dev-loop unit contract passes with the pinned protobuf 35.1 compiler:
 
 ```text
-cargo test --manifest-path bench/devloop/Cargo.toml text_cells::tests --no-run
-# v4_tat build.rs: protoc-gen-rust: program not found or is not executable
+cargo test --manifest-path bench/devloop/Cargo.toml text_cells::tests -- --nocapture
+# 1 passed
 ```
 
-PK-24 remains in progress until the four registered cells are run on a host
-with the SB-08 peer toolchain and their exact allocation results are compared
-with the PK-21 probe.
+Two consecutive 20-iteration, three-repeat harness runs returned identical
+exact allocation results (setup and semantic validation remain outside the
+measurement window):
+
+| Cell | allocations/op | allocated bytes/op |
+|---|---:|---:|
+| TAT encode | 20 | 5,846 |
+| TAT decode | 136 | 9,264 |
+| OTLP encode | 21 | 4,909 |
+| OTLP decode | 76 | 7,152 |
+
+The identical rerun makes the PK-21 allocation result CI-legible and
+reproducible rather than leaving it in the original ad-hoc probe. The JSON
+reports are local measurement artifacts (`target/pk24-text.json` and
+`target/pk24-text-rerun.json`); the stable commands and exact results above are
+the retained evidence.

@@ -1,9 +1,8 @@
 # The only crates.io publisher. Incremental main pushes do not publish
 # (release-plz.yml and first-publish.yml are disabled).
 #
-# Credentials: repository secret CRATES_IO_TOKEN, mapped to CARGO_REGISTRY_TOKEN.
-# There is no Trusted Publishing here: this workflow does not set
-# `id-token: write` and does not use OIDC.
+# Credentials: crates.io Trusted Publishing exchanges this workflow's OIDC
+# identity for a short-lived registry token. No long-lived registry secret.
 name: Release
 
 on:
@@ -41,8 +40,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -59,10 +62,10 @@ jobs:
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$DRY_RUN_INPUT" == "true" ]]; then
               echo "mode=dry-run" >> "$GITHUB_OUTPUT"
-            elif [[ "$CONFIRM" == "publish" ]]; then
+            elif [[ "$CONFIRM" == "publish" && "$REF" == refs/tags/v* ]]; then
               echo "mode=publish" >> "$GITHUB_OUTPUT"
             else
-              echo "::error::dispatch upload requires dry_run=false and confirm=publish"
+              echo "::error::dispatch upload requires a v* tag ref, dry_run=false and confirm=publish"
               exit 1
             fi
           elif [[ "$EVENT_NAME" == "push" && "$REF" == refs/tags/v* ]]; then
@@ -76,15 +79,64 @@ jobs:
         if: steps.mode.outputs.mode == 'dry-run'
         run: cargo fetch --locked
 
+      - name: Require a signed and GitHub-verified release tag
+        if: steps.mode.outputs.mode == 'publish'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          object="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object')"
+          if [[ "$(jq -r .type <<<"$object")" != "tag" ]]; then
+            echo "::error::release tags must be annotated and signed (lightweight tag refused)"
+            exit 1
+          fi
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/$(jq -r .sha <<<"$object")" --jq '.verification.verified')"
+          if [[ "$verified" != "true" ]]; then
+            echo "::error::GitHub did not verify the release tag signature"
+            exit 1
+          fi
+
+      - name: Authenticate to crates.io with OIDC
+        if: steps.mode.outputs.mode == 'publish'
+        id: crates-io
+        uses: rust-lang/crates-io-auth-action@v1
+
       - name: Publish crates
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.mode.outputs.mode == 'publish' && secrets.CRATES_IO_TOKEN || '' }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io.outputs.token }}
           DRY_RUN: ${{ steps.mode.outputs.mode == 'dry-run' && '1' || '0' }}
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
         run: ./scripts/publish-crates.sh
+
+      - name: Collect packaged crates
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/package/*.crate dist/
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: dist/pure-protobuf-${{ github.sha }}.cdx.json
+          upload-artifact: false
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/*
+
+      - name: Retain dry-run and release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-provenance-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
 
       - name: Create GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/v') && steps.mode.outputs.mode == 'publish' }}
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          files: dist/*

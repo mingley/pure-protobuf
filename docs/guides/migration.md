@@ -156,6 +156,30 @@ The generated client/server names stay familiar, but they run on
 `pbrs_grpc::compat::{Request, Response, Status, Streaming}` and accepts
 `impl IntoRequest<T>` / `impl IntoStreamingRequest<T>` on client methods.
 
+#### Mount a native service in a Tonic transport
+
+Enable `pbrs-grpc`'s `tonic` feature when an existing framework requires
+Tonic's `NamedService`, `Body`, or connection-info types. Convert a generated
+native server with `TonicServiceExt` and register it normally:
+
+```rust
+use pbrs_grpc::tower_server::TonicServiceExt;
+
+let service = GreeterServer::new(handler).into_tonic_service();
+tonic::transport::Server::builder()
+    .add_service(service)
+    .serve(address)
+    .await?;
+```
+
+The adapter wraps the existing bytes-backed response body without copying
+protobuf payloads. Because Tonic owns the listening transport in this mode,
+its unmodified `TcpConnectInfo` is present in request extensions. Applications
+that enable one of Tonic's TLS provider features also receive Tonic's
+`TlsConnectInfo` and peer-certificate API. The native pbrs-grpc transport keeps
+its own connection-info types; choose this adapter specifically when existing
+middleware keys extension values by Tonic's concrete types.
+
 Mechanical rewrite table:
 
 | Tonic code | Native compat rewrite |

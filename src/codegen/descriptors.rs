@@ -347,11 +347,11 @@ use pbrs::UnknownFields;\n\n"
                 let is_target_file = target_matcher.matches(&facts.file);
                 let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
                 let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
-                if !is_target_file
-                    && !emit_wkt
-                    && !(emit_deps && !facts.is_wkt)
-                    && !is_pub_import
-                    && !is_same_stem_non_target
+                if !(is_target_file
+                    || emit_wkt
+                    || (emit_deps && !facts.is_wkt)
+                    || is_pub_import
+                    || is_same_stem_non_target)
                 {
                     continue;
                 }
@@ -379,11 +379,11 @@ use pbrs::UnknownFields;\n\n"
                 let is_target_file = target_matcher.matches(&facts.file);
                 let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
                 let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
-                if !is_target_file
-                    && !emit_wkt
-                    && !(emit_deps && !facts.is_wkt)
-                    && !is_pub_import
-                    && !is_same_stem_non_target
+                if !(is_target_file
+                    || emit_wkt
+                    || (emit_deps && !facts.is_wkt)
+                    || is_pub_import
+                    || is_same_stem_non_target)
                 {
                     continue;
                 }

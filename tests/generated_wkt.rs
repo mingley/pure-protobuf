@@ -22,6 +22,7 @@
     unreachable_pub,
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
+use pbrs::gencode::FieldMask as GenFieldMask;
 use pbrs::gencode::{
     BoolValue as GenBoolValue, BytesValue as GenBytesValue, DoubleValue as GenDoubleValue,
     Duration as GenDuration, Empty as GenEmpty, FloatValue as GenFloatValue,
@@ -41,6 +42,33 @@ fn timestamp_desc() -> Arc<pbrs::MessageDescriptor> {
     pbrs::gencode::conformance_pool()
         .get_message("google.protobuf.Timestamp")
         .expect("timestamp desc")
+}
+
+#[test]
+fn checked_in_field_mask_uses_official_json_and_field_wise_text() {
+    let source = checked_in("field_mask.rs");
+    assert_wkt_json_field_wise(&source, "FieldMask", "field_mask");
+    assert_wkt_text_field_wise(&source, "FieldMask");
+
+    let mut mask = GenFieldMask::new();
+    mask.paths_mut().push("foo_bar");
+    mask.paths_mut().push("parent.child_name");
+    assert_eq!(mask.to_json().unwrap(), r#""fooBar,parent.childName""#);
+    assert_eq!(
+        GenFieldMask::from_json(r#""fooBar,parent.childName""#)
+            .unwrap()
+            .paths()
+            .iter()
+            .map(|path| path.to_str().unwrap().to_owned())
+            .collect::<Vec<_>>(),
+        ["foo_bar".to_owned(), "parent.child_name".to_owned()]
+    );
+    assert!(GenFieldMask::from_json(r#""foo_bar""#).is_err());
+    assert!(GenFieldMask::from_json(r#""a,,b""#).is_err());
+    assert_eq!(
+        mask.to_text().unwrap(),
+        "paths: \"foo_bar\"\npaths: \"parent.child_name\"\n"
+    );
 }
 
 fn duration_desc() -> Arc<pbrs::MessageDescriptor> {

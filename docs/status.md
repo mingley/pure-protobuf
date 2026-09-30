@@ -300,7 +300,8 @@ Only [`.github/workflows/release.yml`](../.github/workflows/release.yml)
 publishes crates. It runs on `v*` tags or confirmed dispatch after required CI
 on that SHA. `main` pushes do not publish.
 
-Credential: repository secret `CRATES_IO_TOKEN` (`CARGO_REGISTRY_TOKEN`). This
-is not Trusted Publishing because `id-token: write` is not set. See
-[RELEASE.md](RELEASE.md). Do not publish as `protobuf`. Nearby name `pb-rs` is
-quick-protobuf.
+Crates.io Trusted Publishing exchanges the release workflow's GitHub OIDC
+identity for a short-lived `CARGO_REGISTRY_TOKEN`; no long-lived registry
+secret is used. External publisher configuration and the hosted provenance
+rehearsal remain tracked by QG-09. See [RELEASE.md](RELEASE.md). Do not publish
+as `protobuf`. Nearby name `pb-rs` is quick-protobuf.

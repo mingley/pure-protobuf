@@ -97,6 +97,7 @@ pub(crate) fn is_fieldwise_wkt(name: &str) -> bool {
             | "google.protobuf.DoubleValue"
             | "google.protobuf.StringValue"
             | "google.protobuf.BytesValue"
+            | "google.protobuf.FieldMask"
     )
 }
 
@@ -331,9 +332,10 @@ pub(crate) fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
                 let (encode, decode, value_expr) = wrapper_json_spec(name).expect("wrapper");
                 emit_wkt_wrapper_json(src, encode, decode, value_expr);
             }
+            "google.protobuf.FieldMask" => emit_wkt_field_mask_json(src),
             name if name.starts_with("google.protobuf.") => {
                 if emit_reflection_enabled() {
-                    // Struct / Value / ListValue / Any / FieldMask keep official
+                    // Struct / Value / ListValue / Any keep official
                     // JSON via DynamicMessage. Field-wise object JSON for those
                     // would disagree with the official mapping.
                     emit_dynamic_json(src, &desc.full_name);
@@ -353,6 +355,7 @@ pub(crate) fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
                 emit_typed_text(src, desc);
             }
             name if wrapper_json_spec(name).is_some() => emit_typed_text(src, desc),
+            "google.protobuf.FieldMask" => emit_typed_text(src, desc),
             name if name.starts_with("google.protobuf.") => {
                 if emit_reflection_enabled() {
                     emit_dynamic_text(src, &desc.full_name);
@@ -481,6 +484,37 @@ pub(crate) fn emit_wkt_wrapper_json(
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        msg.set_value(pbrs::json::{decode}(v)?);");
+    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "    }}");
+}
+
+/// Emit the allocation-light official FieldMask JSON mapping.
+pub(crate) fn emit_wkt_field_mask_json(src: &mut String) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_json(&self) -> Result<String, SerializeError> {{ Ok(self.to_json_value()?.to_string()) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{ let v = pbrs::json::parse(json)?; Self::from_json_value(&v, ignore) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{ pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes())) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(
+        src,
+        "        for path in pbrs::json::as_field_mask(v)? {{ msg.paths_mut().push(path); }}"
+    );
     let _ = writeln!(src, "        Ok(msg)");
     let _ = writeln!(src, "    }}");
 }

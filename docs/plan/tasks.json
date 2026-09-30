@@ -2580,6 +2580,7 @@
     },
     {
       "id": "OP-04",
+      "status": "in_progress",
       "title": "Reconcile and qualify FieldMask specialization",
       "wave": 3,
       "depends_on": [
@@ -2607,6 +2608,11 @@
         "json-text",
         "codegen",
         "conformance"
+      ],
+      "evidence": [
+        "PR #68 was closed without merge; its reviewed FieldMask helper/emitter design was reconciled into src/json.rs and src/codegen/json.rs rather than independently reinvented.",
+        "src/generated/field_mask.rs now performs direct official JSON conversion and field-wise streaming text without DynamicMessage; tests/generated_wkt.rs covers lowerCamel nested paths and invalid underscore/empty-segment input.",
+        "Focused test execution was blocked on the shared Cargo artifact lock. Full regeneration, containing-message execution, conformance, and before/after format profiles remain outstanding, so this card is not done."
       ]
     },
     {

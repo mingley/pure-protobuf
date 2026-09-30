@@ -8,10 +8,20 @@ publish on every `main` push when `CRATES_IO_TOKEN` was set. It is disabled.
 [`.github/workflows/first-publish.yml`](../.github/workflows/first-publish.yml) is
 obsolete (the crates already exist on crates.io) and will not publish.
 
-This repository does **not** use crates.io Trusted Publishing. The workflow does
-not set `id-token: write` and does not authenticate with OIDC. Uploads use the
-repository secret **`CRATES_IO_TOKEN`**, mapped to `CARGO_REGISTRY_TOKEN` for
-`cargo publish`.
+The publisher uses [crates.io Trusted Publishing](https://crates.io/docs/trusted-publishing/).
+`rust-lang/crates-io-auth-action` exchanges the workflow's GitHub OIDC identity
+for a short-lived `CARGO_REGISTRY_TOKEN`; the repository must not store a
+long-lived crates.io API token. The workflow also emits a CycloneDX JSON SBOM,
+creates a GitHub build-provenance attestation over the SBOM and packaged crate
+archives, retains them as a workflow artifact, and attaches them to tagged
+GitHub Releases.
+
+An owner must configure a trusted publisher separately for **each** of `pbrs`,
+`protobuf-tonic`, and `pbrs-grpc` in that crate's crates.io settings. Select
+GitHub Actions and enter this repository's owner/name and workflow filename
+`release.yml` (leave the environment blank unless the workflow is later moved
+to a protected GitHub environment). The crates.io configuration is an external
+operator prerequisite: source configuration alone cannot enable publication.
 
 ## Support and security policy
 
@@ -121,18 +131,25 @@ development push; the publisher still requires every job on its exact SHA.
    core, and never claim a skipped adapter gained unpublished source changes.
 2. Land that change on `main` (CI must be green; that still does **not**
    publish).
-3. Tag the SHA with `v` plus a version that **matches at least one** crate
+3. Sign an annotated tag on the SHA with `v` plus a version that **matches at least one** crate
    manifest (for example `v0.2.0` for `pbrs` `0.2.0`, or
    `v0.1.0-alpha.2` for an adapter). Push the tag:
    ```bash
-   git tag v0.2.0
+   git tag -s v0.2.0 -m 'Release v0.2.0'
    git push origin v0.2.0
    ```
-4. The tag run re-executes required CI, then `./scripts/publish-crates.sh`
+   The workflow rejects lightweight tags, unsigned tags, and signatures that
+   GitHub does not mark verified.
+4. The tag run re-executes required CI, obtains a short-lived crates.io token
+   through OIDC, then runs `./scripts/publish-crates.sh`
    in order `pbrs`, `protobuf-tonic`, `pbrs-grpc`. Already-published
    name/version pairs are skipped. After a new `pbrs` upload it waits for the
    crates.io index before the adapters.
-5. On a successful tag publish it also creates a GitHub Release.
+5. It packages all three crates, generates a CycloneDX JSON SBOM, and requests
+   a GitHub build-provenance attestation for those artifacts. On a successful
+   tag publish it creates a GitHub Release containing the `.crate` archives and
+   SBOM. The attestation remains independently verifiable through GitHub's
+   artifact-attestation API and CLI.
 
 Publishers are serialized (`concurrency: crates-io-publish`) so two tags cannot
 upload at once.
@@ -147,11 +164,30 @@ upload at once.
   rewriting the source lockfile; the patch does not change packaged manifests
   or real uploads. A fresh runner first fetches cached dependencies (network
   required), but the rehearsal never queries the crates.io **version-status
-  API**, uses a registry token, uploads crates or creates a GitHub Release.
+  API**, uses a registry token, uploads crates or creates a GitHub Release. It
+  does generate and retain the same SBOM, `.crate` archives, and provenance
+  attestation as the publish path, making dispatch the release rehearsal.
   Uncommitted crate sources fail rather than rehearsing stale code; isolated
   package consumers are checked in CI.
-- To upload: set `dry_run` to **false** and type `publish` in `confirm`.
-  Anything else fails without publishing.
+- To upload, dispatch the workflow **on a signed `v*` tag**, set `dry_run` to
+  **false**, and type `publish` in `confirm`. Anything else fails without
+  publishing. This preserves signed-tag provenance during partial retries.
+
+### Provenance rehearsal and verification
+
+Run a dry dispatch from the candidate commit. After it succeeds, download the
+`release-provenance-<sha>` workflow artifact and confirm that it contains three
+`.crate` archives and `pure-protobuf-<sha>.cdx.json`. Verify any downloaded
+file against GitHub's attestation service with:
+
+```bash
+gh attestation verify pbrs-<version>.crate --repo mingley/pure-protobuf
+gh attestation verify pure-protobuf-<sha>.cdx.json --repo mingley/pure-protobuf
+```
+
+The attestation binds each artifact digest to the workflow identity and source
+SHA. It does not sign the Git tag; tag signature verification is the separate,
+fail-closed check before an upload.
 
 ## Recovery
 
@@ -171,13 +207,17 @@ the retry idempotent.
 
 ## Local packing check
 
-For the coordinated three-crate release, rehearse the existing publisher on a
-committed SHA without a registry token or upload:
+For a fast local packaging-only check, rehearse on a committed SHA without a
+registry token or upload:
 
 ```bash
 DRY_RUN=1 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=target \
   ./scripts/publish-crates.sh
 ```
+
+This local command does not have a GitHub OIDC identity and therefore cannot
+produce the hosted attestation. Use the dry workflow dispatch for the required
+provenance rehearsal.
 
 It packs `pbrs`, `protobuf-tonic`, and `pbrs-grpc` in a disposable checkout,
 reusing the root Cargo target. This does not query crates.io or verify that

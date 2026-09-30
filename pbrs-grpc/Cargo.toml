@@ -25,6 +25,7 @@ futures-core = { version = "0.3", default-features = false }
 flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = "0.4.18"
 http = "1"
+protobuf-tonic = { path = "../protobuf-tonic" }
 http-body = { version = "1", optional = true }
 http-body-util = { version = "0.1", optional = true }
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
@@ -48,7 +49,7 @@ socket2 = { version = "0.6", features = ["all"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 tower = { version = "0.5", default-features = false, features = ["buffer", "limit", "load-shed", "timeout", "util"], optional = true }
-tonic = { version = "0.14.6", default-features = false, features = ["codegen", "transport", "tls-connect-info"], optional = true }
+tonic = { version = "0.14.6", default-features = false, features = ["codegen", "transport", "router", "_tls-any"], optional = true }
 webpki-roots = "1"
 ruzstd = { version = "0.9", optional = true }
 
