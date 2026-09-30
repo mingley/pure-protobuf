@@ -9353,7 +9353,9 @@
    "priority": "P1",
    "executor": "small",
    "size": "S",
-   "depends_on": [],
+   "depends_on": [
+    "TC-27a"
+   ],
    "read": [
     "pbrs-grpc/src/tower_client.rs",
     "pbrs-grpc/src/client.rs"
@@ -9373,7 +9375,10 @@
     "clippy"
    ],
    "scoreboard": [],
-   "relates": []
+   "relates": [],
+   "status": "in_progress",
+   "implementer": "Codex",
+   "notes": "Executing from 2e4da9c792324fed72c238dece4fa29ab28f3121 in an isolated worktree; preserve native call lifecycle through optional Tower adapters."
   },
   {
    "id": "TC-28",
@@ -10445,6 +10450,48 @@
    "relates": [
     "PK-27",
     "PK-07"
+   ]
+  },
+  {
+   "id": "TC-27a",
+   "title": "Stop native bidi request pumps when response streams terminate",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P1",
+   "executor": "small",
+   "size": "S",
+   "status": "done",
+   "implementer": "Codex",
+   "depends_on": [],
+   "read": [
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/stream.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/stream.rs",
+    "pbrs-grpc/tests/bidi_completion.rs"
+   ],
+   "deliverable": "Release an idle outbound bidi request pump when the received response reaches clean EOF, trailing error, trailers-only drain or drop, preserving the received status and caller cancellation state.",
+   "accept": [
+    "Direct native bidi tests prove that an idle request sender closes after clean EOF and non-OK trailing status, through both message and trailers reads.",
+    "Ordinary response completion does not mark the CallHandle as explicitly cancelled."
+   ],
+   "checks": [
+    "native-rpc",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [],
+   "relates": [
+    "TC-27"
+   ],
+   "notes": "Native regression failed on the pre-change source, then passed all four EOF/error and message/trailers combinations. Verified cargo test -p pbrs-grpc --features tower --lib (432); native rpc/gaps/hostile/message_size/lifecycle plus bidi_completion and tower_client; TLS serial (22); all-feature bidi_completion/tower_client/tonic_server; workspace all-target/all-feature Clippy -D warnings. Pinned grpc-go dd51b1c90aaf with Go 1.25.3: 18 self cases and 14 cases in each Go direction passed; eight Go compression rows remain explicitly unsupported. Completion uses a distinct oneshot notification, preserving CallHandle cancellation state and releasing the parked half-close task; no performance claim is made.",
+   "reviewer": "Codex acceptance audit",
+   "evidence": [
+    "pbrs-grpc/tests/bidi_completion.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/stream.rs"
    ]
   }
  ],

@@ -459,12 +459,20 @@ where
     // Call does not leave SendStream parked on a watch that never fires.
     let (fail_tx, mut fail_rx) = tokio::sync::oneshot::channel();
     let (hold_tx, hold_rx) = tokio::sync::oneshot::channel::<()>();
+    let (completed_tx, mut completed_rx) = tokio::sync::oneshot::channel::<()>();
     let pump_tap = tap.clone();
     drop(tokio::spawn({
-        let cancel_rx = cancel_rx.clone();
+        let mut cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
             let tap = pump_tap;
+            let until_deadline = async {
+                match deadline {
+                    Some(at) => tokio::time::sleep_until(at).await,
+                    None => std::future::pending().await,
+                }
+            };
+            tokio::pin!(until_deadline);
             let end = {
                 let pump = pump_outbound_budget(
                     &mut send,
@@ -476,15 +484,9 @@ where
                     socket,
                 );
                 tokio::pin!(pump);
-                let until_deadline = async {
-                    match deadline {
-                        Some(at) => tokio::time::sleep_until(at).await,
-                        None => std::future::pending().await,
-                    }
-                };
-                tokio::pin!(until_deadline);
                 tokio::select! {
                     biased;
+                    _ = &mut completed_rx => None,
                     () = &mut until_deadline => None,
                     end = &mut pump => Some(end),
                 }
@@ -499,7 +501,20 @@ where
                     hold_rx.await.ok();
                     send.send_reset(Reason::CANCEL);
                 }
-                Some(PumpEnd::HalfClosed) => reset_on_cancel(send, cancel_rx, deadline),
+                Some(PumpEnd::HalfClosed) => {
+                    // Preserve cancellation before response completion, but
+                    // release the parked send half after terminal trailers.
+                    tokio::select! {
+                        biased;
+                        _ = &mut completed_rx => {},
+                        result = cancel_rx.wait_for(|v| *v) => {
+                            if result.is_ok() {
+                                send.send_reset(Reason::CANCEL);
+                            }
+                        }
+                        () = &mut until_deadline => send.send_reset(Reason::CANCEL),
+                    }
+                }
                 Some(PumpEnd::Reset) => {}
             }
         }
@@ -559,7 +574,11 @@ where
             if let Some(sock) = socket {
                 crate::channelz::Registry::global().note_stream_started(sock, true);
             }
-            Ok(response.map(|stream| stream.bind_channelz_socket(socket)))
+            Ok(response.map(|stream| {
+                stream
+                    .bind_channelz_socket(socket)
+                    .with_outbound_completion(completed_tx)
+            }))
         }
         Err(status) => {
             if let Some(sock) = socket {

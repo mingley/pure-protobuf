@@ -124,6 +124,9 @@ pub struct Streaming<T> {
     /// resets the RPC, including bidi while the send half is still held.
     /// `None` on application channels and server-inbound streams.
     reset: Option<watch::Sender<bool>>,
+    /// Ends a bidi request pump when its response ends or is dropped. Separate
+    /// from caller cancellation so clean EOF leaves CallHandle state intact.
+    outbound_completion: Option<tokio::sync::oneshot::Sender<()>>,
     /// Client [`crate::Channel::max_concurrent_rpcs`] permit. Held until this
     /// received stream is dropped so a server-streaming or bidi RPC stays in
     /// the cap after headers. `None` on application channels, server-inbound
@@ -198,6 +201,7 @@ impl<T> Streaming<T> {
                 lease: None,
                 driver: None,
                 reset: None,
+                outbound_completion: None,
                 rpc_slot: None,
                 terminated: false,
                 channelz: None,
@@ -220,10 +224,19 @@ impl<T> Streaming<T> {
             lease: None,
             driver: None,
             reset: None,
+            outbound_completion: None,
             rpc_slot: None,
             terminated: false,
             channelz: None,
         }
+    }
+
+    pub(crate) fn with_outbound_completion(
+        mut self,
+        completion: tokio::sync::oneshot::Sender<()>,
+    ) -> Self {
+        self.outbound_completion = Some(completion);
+        self
     }
 
     /// Keep the client HTTP/2 driver (and idle lease) alive while this stream
@@ -335,6 +348,7 @@ impl<T> Streaming<T> {
         };
         if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
             self.terminated = true;
+            self.outbound_completion.take();
         }
         match &poll {
             Poll::Ready(Ok(Some(_))) => {
@@ -397,6 +411,7 @@ impl<T> Streaming<T> {
             }
         };
         self.terminated = true;
+        self.outbound_completion.take();
         self.channelz_end(result.is_ok());
         result
     }
