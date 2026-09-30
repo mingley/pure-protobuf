@@ -5,12 +5,14 @@
 
 mod common;
 
+use bytes::Buf;
 use common::{Echo, name_of, req};
 use http::{Request as HttpRequest, Response as HttpResponse};
 use pbrs_grpc::hello::{GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::tower_server::{TonicService, TonicServiceExt};
 use std::convert::Infallible;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,8 +20,52 @@ use std::task::{Context, Poll};
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::body::Body;
+use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::server::NamedService;
 use tower::Service;
+
+#[derive(Clone, Copy, Default)]
+struct PbrsCodec<E, D>(PhantomData<fn() -> (E, D)>);
+
+impl<E, D> Codec for PbrsCodec<E, D>
+where
+    E: pbrs::Serialize + Send + 'static,
+    D: pbrs::Parse + pbrs::ClearAndParse + Default + Send + 'static,
+{
+    type Encode = E;
+    type Decode = D;
+    type Encoder = PbrsEncoder<E>;
+    type Decoder = PbrsDecoder<D>;
+    fn encoder(&mut self) -> Self::Encoder {
+        PbrsEncoder(PhantomData)
+    }
+    fn decoder(&mut self) -> Self::Decoder {
+        PbrsDecoder(PhantomData)
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct PbrsEncoder<T>(PhantomData<fn() -> T>);
+impl<T: pbrs::Serialize> Encoder for PbrsEncoder<T> {
+    type Item = T;
+    type Error = tonic::Status;
+    fn encode(&mut self, item: T, dst: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
+        pbrs::Serialize::encode(&item, dst)
+            .map_err(|error| tonic::Status::internal(error.to_string()))
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct PbrsDecoder<T>(PhantomData<fn() -> T>);
+impl<T: pbrs::Parse + pbrs::ClearAndParse + Default> Decoder for PbrsDecoder<T> {
+    type Item = T;
+    type Error = tonic::Status;
+    fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<T>, Self::Error> {
+        pbrs::Parse::parse_bytes(src.copy_to_bytes(src.remaining()))
+            .map(Some)
+            .map_err(|error| tonic::Status::internal(error.to_string()))
+    }
+}
 
 #[derive(Clone)]
 struct ConnectInfoProbe<S> {
@@ -91,7 +137,7 @@ async fn generated_service_mounts_in_tonic_and_exposes_tonic_connect_info() {
         .unary(
             tonic::Request::new(req("tonic mount")),
             http::uri::PathAndQuery::from_static("/helloworld.Greeter/SayHello"),
-            protobuf_tonic::ProtobufCodec::<HelloRequest, HelloReply>::default(),
+            PbrsCodec::<HelloRequest, HelloReply>::default(),
         )
         .await
         .expect("say hello");

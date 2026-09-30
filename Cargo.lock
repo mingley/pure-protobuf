@@ -625,7 +625,6 @@ dependencies = [
  "opentelemetry_sdk",
  "pbrs",
  "prost",
- "protobuf-tonic",
  "rustls",
  "rustls-graviola",
  "rustls-native-certs",
