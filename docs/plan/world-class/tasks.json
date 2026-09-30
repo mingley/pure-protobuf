@@ -10598,7 +10598,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
    "depends_on": [
     "AD-03"
@@ -10625,7 +10625,13 @@
    "relates": [
     "AD-03a"
    ],
-   "notes": "Discovered by explicit minor-policy semver checks; current type/method visibility regressed from the published alpha baseline."
+   "notes": "The downstream regression failed with missing root import and a private service_config type before restoration. All 21 policy-retry tests pass afterward, including both import paths and all original methods. Strict workspace Clippy passes. Native minor-policy semver now passes 195 of 196 applicable checks and no longer reports either RetryThrottler path as removed; the sole remaining Codec::Zstd lint belongs to AD-03c, not a qualification pass.",
+   "reviewer": "Codex acceptance audit",
+   "evidence": [
+    "pbrs-grpc/tests/policy_retry.rs#published_retry_throttler_remains_available_at_both_paths",
+    "pbrs-grpc/src/service_config.rs",
+    "pbrs-grpc/src/lib.rs"
+   ]
   },
   {
    "id": "AD-03c",

@@ -29,6 +29,22 @@ const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const SERVER_HELLO: &str = "/helloworld.Greeter/ServerHello";
 const CALL_BUDGET: Duration = Duration::from_secs(15);
 
+#[tokio::test]
+async fn published_retry_throttler_remains_available_at_both_paths() {
+    let config = pbrs_grpc::RetryThrottling {
+        max_tokens: 4.0,
+        token_ratio: 1.0,
+    };
+    let bucket: pbrs_grpc::service_config::RetryThrottler = pbrs_grpc::RetryThrottler::new(&config);
+    assert_eq!(bucket.tokens().await, 4.0);
+    assert_eq!(bucket.on_failure().await, 3.0);
+    assert!(bucket.retry_allowed().await);
+    assert_eq!(bucket.on_failure().await, 2.0);
+    assert!(!bucket.retry_allowed().await);
+    assert_eq!(bucket.on_success().await, 3.0);
+    assert!(bucket.retry_allowed().await);
+}
+
 /// One scripted unary outcome. `Copy` so the script stays shareable.
 #[derive(Clone, Copy)]
 enum Step {

@@ -268,10 +268,11 @@ pub struct RetryThrottling {
 /// a hedged send past the first) is allowed only while more than half the
 /// bucket remains.
 ///
-/// Deliberately crate-internal: callers observe throttling through
-/// [`crate::Channel::retry_stats`], never through the bucket itself.
+/// Retained as a public API for consumers of the published alpha release.
+/// Channel-level observations are also available through
+/// [`crate::Channel::retry_stats`].
 #[derive(Debug)]
-pub(crate) struct RetryThrottler {
+pub struct RetryThrottler {
     max_tokens: f64,
     token_ratio: f64,
     tokens: Mutex<f64>,
@@ -280,7 +281,7 @@ pub(crate) struct RetryThrottler {
 impl RetryThrottler {
     /// Build a full bucket from the config.
     #[must_use]
-    pub(crate) fn new(config: &RetryThrottling) -> Self {
+    pub fn new(config: &RetryThrottling) -> Self {
         Self {
             max_tokens: config.max_tokens,
             token_ratio: config.token_ratio,
@@ -289,27 +290,26 @@ impl RetryThrottler {
     }
 
     /// Record a failed call. Returns the remaining tokens.
-    pub(crate) async fn on_failure(&self) -> f64 {
+    pub async fn on_failure(&self) -> f64 {
         let mut tokens = self.tokens.lock().await;
         *tokens -= 1.0;
         *tokens
     }
 
     /// Record a successful call. Returns the remaining tokens.
-    pub(crate) async fn on_success(&self) -> f64 {
+    pub async fn on_success(&self) -> f64 {
         let mut tokens = self.tokens.lock().await;
         *tokens = (*tokens + self.token_ratio).min(self.max_tokens);
         *tokens
     }
 
     /// Whether another retry or hedged send is allowed right now.
-    pub(crate) async fn retry_allowed(&self) -> bool {
+    pub async fn retry_allowed(&self) -> bool {
         *self.tokens.lock().await > self.max_tokens / 2.0
     }
 
-    /// Current token balance, for unit tests.
-    #[cfg(test)]
-    pub(crate) async fn tokens(&self) -> f64 {
+    /// Current token balance, for tests and telemetry.
+    pub async fn tokens(&self) -> f64 {
         *self.tokens.lock().await
     }
 }
