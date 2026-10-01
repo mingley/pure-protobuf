@@ -1,0 +1,4047 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "aarch64",
+    "cpu": "unknown",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": false,
+    "strace": false,
+    "valgrind": true
+  },
+  "devloop_commit": "11c9870314559643999eaca0499b535e333a468e",
+  "cells": [
+    {
+      "id": "codec.adoption.pbrs.query.d3.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11091.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 33.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1888.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 62859.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0050114105314575524,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11597.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 35.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1974.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 65598.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02057725061844102,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11610.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 35.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1980.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 73127.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03478416155017705,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11349.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 34.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1946.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 65080.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1066921286830988,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11103.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 33.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1912.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 64385.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07274006474047573,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11091.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 33.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 1918.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 63013.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.00434921107470912,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11601.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 35.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2004.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 68367.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1348212050739574,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d3.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 11614.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 35.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2010.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 67268.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03797630855729398,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13101.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 40.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2280.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 73408.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004980982107878309,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 12856.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 39.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2246.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 72260.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.020141218600837604,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13090.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 40.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2292.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 72328.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.021055767738652954,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13611.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 42.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2378.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 75966.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016735009963397687,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13364.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 41.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2344.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 73778.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.023448872214267617,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13613.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 40.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2310.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 77005.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.015034694707035648,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13368.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 39.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2276.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 73544.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010244268935869194,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d4.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 13092.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 40.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2322.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 72507.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.012653009737081352,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 16379.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 48.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2712.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 85263.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09325209801153103,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 16134.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 47.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2678.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100906.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11212038832850887,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 15364.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 46.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2644.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 82447.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.011869370408455739,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 15373.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 46.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2650.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 89231.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0271998746983453,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 16130.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 47.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2696.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 85546.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.028960595233755226,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 16389.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 48.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2742.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 86781.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0544415490361914,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 16142.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 47.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2708.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 89320.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.024575414802112165,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d5.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 15372.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 46.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2674.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 85625.0625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.05692552948803349,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18401.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3024.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 93442.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.028764839173370374,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18388.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3030.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 93401.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09914847885122917,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18647.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 54.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3076.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 93924.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.2547320577077687,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18401.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3042.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 94169.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06424308789516561,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18387.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3048.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 96604.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.027884010364649194,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18401.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3054.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 99367.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03537043745636918,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18396.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 53.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3060.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 106794.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07552177281352239,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d6.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 18655.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 54.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3106.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 94010.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11454835058387604,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20914.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 60.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3416.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 118966.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07891426549433461,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20913.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 60.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3422.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 105492.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02994500525645303,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20667.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 59.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3388.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100518.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03853830063114546,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20654.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 59.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3394.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 102763.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04133358990397824,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20914.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 60.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3440.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 104440.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04005866879091742,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20914.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 60.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3446.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 105244.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.05584645623031732,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20688.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 59.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3192.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 100609.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01514484647394825,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d7.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 20442.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 58.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3152.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 97052.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0015675556976704557,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 22178.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 64.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3456.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 106364.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.020332598934583817,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 23194.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 66.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3536.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 109752.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07138673359712791,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 23207.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 66.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3536.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 108924.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04530642725292397,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 22436.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 65.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3496.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 107724.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07356449140181373,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 22190.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 64.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3456.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 109330.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010076528127097178,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 22178.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 64.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3456.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 108343.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.023733634723066218,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 23194.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 66.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3536.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 115338.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.009781109941156116,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.query.d8.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 23207.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 66.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 3536.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 109796.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006555737413953169,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n10.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 45869.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 128.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8424.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 187187.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02256072133673182,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n100.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 671134.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1268.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 84264.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2434148.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03994509607123492,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.entities.n1000.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 6675094.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 12668.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 842664.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 23984854.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0021687572465574744,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v0.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2081.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 4.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 16200.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09424595936758731,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v1.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 3978.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 8.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 608.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 26953.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04336741641575171,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v2.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2080.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 4.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 15864.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1480973054417923,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v3.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 3980.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 8.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 608.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 25888.0625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02636227468664403,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v4.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2079.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 4.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 15799.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07557407190089437,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v5.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 4450.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 9.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 720.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 27325.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06535348289692201,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v6.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2083.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 4.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 160.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 15466.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.018455923840858934,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v7.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 4238.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 9.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 648.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 25661.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03582161247670695,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v8.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2327.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 5.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 200.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 16684.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03893201004508996,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.sparse.v9.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 3981.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 8.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 608.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 29515.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.20193265738979377,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n8.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 40509.9375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 109.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8320.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 169237.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03248445143270408,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n64.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 72684.9375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 132.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 18200.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 288955.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.01147853365944597,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 243864.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 311.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97040.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "locks": {
+        "status": "not_run",
+        "data": {
+          "reason": "no strace on PATH"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 894171.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016013148984572904,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}

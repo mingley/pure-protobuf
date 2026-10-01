@@ -85,3 +85,10 @@ the runner stops on a failed cell and preserves completed earlier reports.
 The [codec inventory](evidence/codec-inventory.json) and
 [qualification](evidence/codec-qualification.json) retain the operation checks;
 the allocation/instruction matrix remains separate SB-26c evidence.
+The [combined codec baseline](evidence/codec-baseline.json) and
+[measurement record](evidence/codec-measurement.json) now retain all 512
+measured cells, eight original reports and 256 comparisons. Run
+`python3 bench/devloop/adoption/check-evidence.py` to audit report hashes,
+coverage, raw/combined row equality, ratios and target counts without changing
+the artifacts. P1/P2 remain unmet in this instrumented dev-loop diagnostic;
+RPC, startup and codegen measurement remain open.

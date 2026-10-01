@@ -2,7 +2,7 @@
   "schema": "pbrs-adoption-codec-measurement/1",
   "card": "SB-26c",
   "tier": "dev-loop",
-  "status": "in_progress",
+  "status": "complete_codec_measurement",
   "runtime_source": {
     "commit": "11c9870314559643999eaca0499b535e333a468e",
     "worktree_clean": true,
@@ -60,7 +60,17 @@
     "allocator": "existing devloop CountingAlloc over System; exact operation window",
     "preparation": "identical; corpus equivalence and fully read clone inputs before timing; independent of measured iteration count",
     "parts": 8,
-    "cells_per_part": 64
+    "cells_per_part": 64,
+    "features": {
+      "pbrs": [
+        "copy-counts"
+      ],
+      "pbrs-grpc": [
+        "copy-counts",
+        "prost"
+      ],
+      "source": "unchanged existing devloop manifest"
+    }
   },
   "pins": {
     "image": "pbrs-devloop-linux:rust-1.98-bookworm",
@@ -75,7 +85,10 @@
     "protoc": "libprotoc 35.1",
     "protobuf_source": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
     "protoc_sha256": "37b3fc2cb927e173032a2ece349091db23e0a002459e6d52cb1137d22c0ba9b9",
-    "devloop_binary_sha256": "9ae40996418d911796dc7c430caeaa36d4014020a465a8cd7e7420859f0e711c"
+    "devloop_binary_sha256": "9ae40996418d911796dc7c430caeaa36d4014020a465a8cd7e7420859f0e711c",
+    "container_processors_visible": 14,
+    "container_cpu_max": "max 100000; no per-container quota",
+    "container_memory_max": "max; no per-container limit"
   },
   "command": "bash bench/devloop/adoption/measure.sh in the pinned Linux image, with PBRS_DEVLOOP_COMMIT=11c9870314559643999eaca0499b535e333a468e and the established release binary",
   "completed_parts": [
@@ -83,11 +96,46 @@
       "path": "codec-baseline/pbrs-fresh_encode.json",
       "cells": 64,
       "sha256": "619267b1fc308887b63f88b9c848937509ba37b7df8aaced105c720414518ed8"
+    },
+    {
+      "path": "codec-baseline/pbrs-owned_decode.json",
+      "cells": 64,
+      "sha256": "642c447b0ccd10ed5850f2e360553213282a61a589892b11851105626af0c5c1"
+    },
+    {
+      "path": "codec-baseline/pbrs-read_all.json",
+      "cells": 64,
+      "sha256": "43c90a918fd37aa889a36b9a3fc8167ced1f2bca218b16305fbc1be0092b985a"
+    },
+    {
+      "path": "codec-baseline/pbrs-fully_read_clone.json",
+      "cells": 64,
+      "sha256": "f9c1ca91a180af17d7336be258271e04e5e18159ae266455a296952ff7bc54bd"
+    },
+    {
+      "path": "codec-baseline/prost-fresh_encode.json",
+      "cells": 64,
+      "sha256": "fab27c2a1e07e9d3abbcc4d4ba869dd0d3e9e8ce2fdcf795738217c232884408"
+    },
+    {
+      "path": "codec-baseline/prost-owned_decode.json",
+      "cells": 64,
+      "sha256": "9e3a001fb43b804aa71b935121c7d097a2ef84d224bcc098131d1b02dff14890"
+    },
+    {
+      "path": "codec-baseline/prost-read_all.json",
+      "cells": 64,
+      "sha256": "e1debefce872b6a8ddadeb3ad185d9fd40a87a8b09f378215d5ba0810c0e8ea8"
+    },
+    {
+      "path": "codec-baseline/prost-fully_read_clone.json",
+      "cells": 64,
+      "sha256": "1003736fe54c6a81d59934a77879813f8616d31066d65b29313d3509811810e0"
     }
   ],
-  "completed_cells": 64,
+  "completed_cells": 512,
   "expected_cells": 512,
-  "comparison_status": "awaiting complete prost/reference reports",
+  "comparison_status": "all 256 semantic-equivalent codec pairs reviewed; individual losses retained",
   "checks": "See codec-qualification.json: 8 corpus tests, strict Clippy, documentation 24 tests and actual 21-case codec benchmark passed; built devloop list matches 512 qualified IDs.",
   "limits": [
     "Linux Docker VM on one Apple M4 Pro host, without dedicated-host or pinned-core claim qualification.",
@@ -95,7 +143,4329 @@
     "Wall time is under Callgrind instrumentation; it is not uninstrumented native latency.",
     "Hardware perf, strace syscall and lock metrics unavailable; per-cell not_run retained.",
     "Copy counters instrument pbrs paths, not total comparable prost memcpy activity.",
-    "Completed measurements are not a codec win; all remaining cells and pairwise comparisons stay open.",
-    "SB-26d RPC and SB-26e startup/codegen/P1-P5 synthesis remain pending."
-  ]
+    "SB-26d RPC and SB-26e startup/codegen/P1-P5 synthesis remain pending.",
+    "P1/P2 are observed comparisons to proposed adoption targets, not changed binding gates; no confidence interval or performance-win qualification.",
+    "Existing copy-counts instrumentation is enabled on pbrs paths; instruction results include those hooks and are not an uninstrumented shipping comparison."
+  ],
+  "baseline": {
+    "path": "codec-baseline.json",
+    "sha256": "91375ad9b7c6946ab34b6c45d39870e867ae97e76e1ffcd25792fb7f138e8e4d"
+  },
+  "unavailable_metrics": {
+    "syscalls": "no strace on PATH",
+    "locks": "no strace on PATH",
+    "hardware_perf": "not installed; Callgrind IR measured"
+  },
+  "pairs": [
+    {
+      "specimen": "query.d3.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6475366988136895,
+        "allocs": 2.15,
+        "alloc_bytes": 1.1595330739299612
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4512354077817542,
+        "allocs": 1.7777777777777777,
+        "alloc_bytes": 1.06717123935667
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7992071272879566,
+        "allocs": 2.2222222222222223,
+        "alloc_bytes": 1.261431725007884
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.032469763606377,
+        "allocs": 1.8333333333333333,
+        "alloc_bytes": 2.0455037919826653
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6245552123250175,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.1952153110047847
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3280581335732895,
+        "allocs": 1.5238095238095237,
+        "alloc_bytes": 1.04
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7227011431348427,
+        "allocs": 2.0,
+        "alloc_bytes": 1.259375
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9576616306549628,
+        "allocs": 1.75,
+        "alloc_bytes": 2.0933191940615057
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.654330204778157,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.1941932413136602
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.2935828199082173,
+        "allocs": 1.4545454545454546,
+        "alloc_bytes": 0.9909741674447556
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6808904194245433,
+        "allocs": 1.9090909090909092,
+        "alloc_bytes": 1.2113289760348585
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9591946506918663,
+        "allocs": 1.75,
+        "alloc_bytes": 2.0864067439409903
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6473889167293077,
+        "allocs": 2.142857142857143,
+        "alloc_bytes": 1.1760765550239234
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3710767536519797,
+        "allocs": 1.6,
+        "alloc_bytes": 0.9912609238451935
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7388225974154576,
+        "allocs": 2.05,
+        "alloc_bytes": 1.1991260923845193
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9938839599437808,
+        "allocs": 1.7894736842105263,
+        "alloc_bytes": 2.0527426160337554
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.649872170264837,
+        "allocs": 2.15,
+        "alloc_bytes": 1.1567877629063097
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4065365375402477,
+        "allocs": 1.6842105263157894,
+        "alloc_bytes": 1.0168644597126795
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7449272018274533,
+        "allocs": 2.1052631578947367,
+        "alloc_bytes": 1.2142410993129293
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0350416972140764,
+        "allocs": 1.8333333333333333,
+        "alloc_bytes": 2.0190073917634637
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6542013520607677,
+        "allocs": 2.15,
+        "alloc_bytes": 1.1553030303030303
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4506852147542302,
+        "allocs": 1.7777777777777777,
+        "alloc_bytes": 1.0671665104654795
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7874835857273768,
+        "allocs": 2.2222222222222223,
+        "alloc_bytes": 1.2689784442361762
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.032469763606377,
+        "allocs": 1.8333333333333333,
+        "alloc_bytes": 2.012591815320042
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.618913871304179,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.1893271461716937
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3229637365705365,
+        "allocs": 1.5238095238095237,
+        "alloc_bytes": 1.0823529411764705
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7106480985078851,
+        "allocs": 2.0,
+        "alloc_bytes": 1.3089783281733747
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9573456217310612,
+        "allocs": 1.75,
+        "alloc_bytes": 2.0574948665297743
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d3.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6529936292809608,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.188976377952756
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d3.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.2887049535209474,
+        "allocs": 1.4545454545454546,
+        "alloc_bytes": 1.0138760407030527
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d3.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d3.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6674966440963621,
+        "allocs": 1.9090909090909092,
+        "alloc_bytes": 1.2414431082331174
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d3.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d3.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d3.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.958547639123103,
+        "allocs": 1.75,
+        "alloc_bytes": 2.0531154239019407
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5892375464163104,
+        "allocs": 2.1666666666666665,
+        "alloc_bytes": 1.2141946451338717
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4086630059778766,
+        "allocs": 1.6956521739130435,
+        "alloc_bytes": 1.021972406745018
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7528941560273819,
+        "allocs": 2.0869565217391304,
+        "alloc_bytes": 1.199795605518651
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.008980170786172,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.9774501300954033
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6169374259039715,
+        "allocs": 2.1739130434782608,
+        "alloc_bytes": 1.1971112999150382
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.459902797639231,
+        "allocs": 1.7727272727272727,
+        "alloc_bytes": 1.0265848670756645
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7491831542903993,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.1958077709611452
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0451079229675586,
+        "allocs": 1.8571428571428572,
+        "alloc_bytes": 1.9496527777777777
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6277444673635633,
+        "allocs": 2.1666666666666665,
+        "alloc_bytes": 1.2101751459549626
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.433329692612344,
+        "allocs": 1.7727272727272727,
+        "alloc_bytes": 1.0819086501658586
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7471555436266673,
+        "allocs": 2.1818181818181817,
+        "alloc_bytes": 1.264608318448584
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0079091928788504,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.9640102827763497
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6188517119087866,
+        "allocs": 2.1538461538461537,
+        "alloc_bytes": 1.240428159736517
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3101306777960662,
+        "allocs": 1.5,
+        "alloc_bytes": 1.0761061946902655
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.696572967429385,
+        "allocs": 1.9230769230769231,
+        "alloc_bytes": 1.2788874841972186
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9477073327788361,
+        "allocs": 1.75,
+        "alloc_bytes": 2.003369839932603
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6335194606083836,
+        "allocs": 2.16,
+        "alloc_bytes": 1.2245150639702849
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3395814141845677,
+        "allocs": 1.56,
+        "alloc_bytes": 1.0402226157348848
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7015311647644884,
+        "allocs": 1.96,
+        "alloc_bytes": 1.234505438907159
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9774444434169032,
+        "allocs": 1.7826086956521738,
+        "alloc_bytes": 1.9780590717299578
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6394830420642579,
+        "allocs": 2.1666666666666665,
+        "alloc_bytes": 1.2092154420921544
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4121375316548221,
+        "allocs": 1.6956521739130435,
+        "alloc_bytes": 1.0223123732251522
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7522214903918374,
+        "allocs": 2.0869565217391304,
+        "alloc_bytes": 1.2063894523326573
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0871719194687466,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.9510135135135136
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6422794800371403,
+        "allocs": 2.1739130434782608,
+        "alloc_bytes": 1.1916563403552252
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4468204431508869,
+        "allocs": 1.7727272727272727,
+        "alloc_bytes": 1.0431253170979198
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.763327532633845,
+        "allocs": 2.1363636363636362,
+        "alloc_bytes": 1.2186707255200406
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.125878365618757,
+        "allocs": 1.8571428571428572,
+        "alloc_bytes": 1.9255499153976312
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d4.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.628329837441007,
+        "allocs": 2.1666666666666665,
+        "alloc_bytes": 1.205128205128205
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d4.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4331288811365446,
+        "allocs": 1.7727272727272727,
+        "alloc_bytes": 1.1182577867814636
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d4.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d4.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7393043632863985,
+        "allocs": 2.1818181818181817,
+        "alloc_bytes": 1.3071663712332235
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d4.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d4.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d4.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0076962889127437,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.9398496240601504
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.64565582141815,
+        "allocs": 2.1724137931034484,
+        "alloc_bytes": 1.2673598217601187
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3447180055573424,
+        "allocs": 1.5862068965517242,
+        "alloc_bytes": 1.1198285101822079
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6940710280849385,
+        "allocs": 1.9655172413793103,
+        "alloc_bytes": 1.2981779206859592
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.095781518653285,
+        "allocs": 1.7777777777777777,
+        "alloc_bytes": 1.9482758620689655
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.642406407378193,
+        "allocs": 2.1785714285714284,
+        "alloc_bytes": 1.2536367027228645
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3801442494657798,
+        "allocs": 1.6428571428571428,
+        "alloc_bytes": 1.0431052970190864
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7310203185854622,
+        "allocs": 2.0,
+        "alloc_bytes": 1.2142397598112802
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1270300333704117,
+        "allocs": 1.8076923076923077,
+        "alloc_bytes": 1.9266187050359713
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5979473039215686,
+        "allocs": 2.185185185185185,
+        "alloc_bytes": 1.2383612662942272
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4268779105499574,
+        "allocs": 1.7692307692307692,
+        "alloc_bytes": 1.045122475290073
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7590348514678804,
+        "allocs": 2.1153846153846154,
+        "alloc_bytes": 1.207563386334336
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.090276773946686,
+        "allocs": 1.84,
+        "alloc_bytes": 1.9035277177825773
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5969637610186092,
+        "allocs": 2.185185185185185,
+        "alloc_bytes": 1.236861584011843
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.43285213711806,
+        "allocs": 1.7692307692307692,
+        "alloc_bytes": 1.0454935622317596
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.762350779296395,
+        "allocs": 2.1153846153846154,
+        "alloc_bytes": 1.2090128755364806
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.089511285540746,
+        "allocs": 1.84,
+        "alloc_bytes": 1.8996415770609318
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6106435936944412,
+        "allocs": 2.1785714285714284,
+        "alloc_bytes": 1.248719824433065
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.454699697339733,
+        "allocs": 1.7037037037037037,
+        "alloc_bytes": 1.1382113821138211
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8153851184539673,
+        "allocs": 2.074074074074074,
+        "alloc_bytes": 1.3127941805733847
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1248219593120425,
+        "allocs": 1.8076923076923077,
+        "alloc_bytes": 1.9134137686302342
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.64890093015093,
+        "allocs": 2.1724137931034484,
+        "alloc_bytes": 1.261913423062932
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3451070591846328,
+        "allocs": 1.5862068965517242,
+        "alloc_bytes": 1.104153354632588
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7139251635919706,
+        "allocs": 1.9655172413793103,
+        "alloc_bytes": 1.2877529286474974
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0943812148077154,
+        "allocs": 1.7777777777777777,
+        "alloc_bytes": 1.9282700421940928
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.634264555361551,
+        "allocs": 2.1785714285714284,
+        "alloc_bytes": 1.247542773935202
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.369088556402819,
+        "allocs": 1.6428571428571428,
+        "alloc_bytes": 1.0585979117835074
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7158669569439844,
+        "allocs": 2.0,
+        "alloc_bytes": 1.2350308970807586
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1258426411398186,
+        "allocs": 1.8076923076923077,
+        "alloc_bytes": 1.9070422535211267
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d5.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5976775537716772,
+        "allocs": 2.185185185185185,
+        "alloc_bytes": 1.2333211811884797
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d5.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4278767160139225,
+        "allocs": 1.7692307692307692,
+        "alloc_bytes": 1.0589239965841162
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d5.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d5.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7531552871703338,
+        "allocs": 2.1153846153846154,
+        "alloc_bytes": 1.226729291204099
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d5.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d5.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d5.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.089180144060886,
+        "allocs": 1.84,
+        "alloc_bytes": 1.8844256518675124
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6105081647900101,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.2741014444071213
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.415902140672783,
+        "allocs": 1.7096774193548387,
+        "alloc_bytes": 1.059238625812442
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6892291286238064,
+        "allocs": 2.032258064516129,
+        "alloc_bytes": 1.2137418755803158
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1861119567557936,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.881767268201618
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6171098212396868,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.2728184553660984
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.442908401305936,
+        "allocs": 1.7666666666666666,
+        "alloc_bytes": 1.1144130757800892
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7693685572631181,
+        "allocs": 2.1,
+        "alloc_bytes": 1.2715453194650816
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.184308018976487,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.8773234200743494
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6085462495535758,
+        "allocs": 2.1875,
+        "alloc_bytes": 1.2838196286472148
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3869128937949124,
+        "allocs": 1.65625,
+        "alloc_bytes": 1.111563367252544
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7540659615571708,
+        "allocs": 2.0,
+        "alloc_bytes": 1.2765957446808511
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.155666341533904,
+        "allocs": 1.8,
+        "alloc_bytes": 1.8905961893054701
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6278750670960815,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.2710063101959481
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4154142718189053,
+        "allocs": 1.7096774193548387,
+        "alloc_bytes": 1.0586711086433462
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.684673485579746,
+        "allocs": 2.032258064516129,
+        "alloc_bytes": 1.2174717749398483
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1855926478557484,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.872
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6066081925055107,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.2698412698412698
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4321609827401636,
+        "allocs": 1.7666666666666666,
+        "alloc_bytes": 1.0721954831543872
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7000313125712792,
+        "allocs": 2.1,
+        "alloc_bytes": 1.2306553128470936
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1844487180439125,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.8676470588235294
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6140300385521524,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.2690405539070226
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4159521393390166,
+        "allocs": 1.7096774193548387,
+        "alloc_bytes": 1.0592797783933519
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6814357967884843,
+        "allocs": 2.032258064516129,
+        "alloc_bytes": 1.2184672206832872
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1861119567557936,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.8656078191814294
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.6099272622236227,
+        "allocs": 2.193548387096774,
+        "alloc_bytes": 1.266928361138371
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4410740465955036,
+        "allocs": 1.7666666666666666,
+        "alloc_bytes": 1.1407462135205024
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7681785024672818,
+        "allocs": 2.1,
+        "alloc_bytes": 1.3025489471739933
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1831836286631905,
+        "allocs": 1.8275862068965518,
+        "alloc_bytes": 1.8613138686131387
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d6.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.612849896189526,
+        "allocs": 2.1875,
+        "alloc_bytes": 1.2786458333333333
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d6.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3991263644112066,
+        "allocs": 1.65625,
+        "alloc_bytes": 1.1363385464581417
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d6.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d6.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7570234034817986,
+        "allocs": 2.0,
+        "alloc_bytes": 1.3059797608095676
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d6.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d6.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d6.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1545985433073707,
+        "allocs": 1.8,
+        "alloc_bytes": 1.8744719372359686
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.563791854384098,
+        "allocs": 2.2,
+        "alloc_bytes": 1.301062215477997
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3773235559236972,
+        "allocs": 1.7142857142857142,
+        "alloc_bytes": 1.0704133311550401
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6602906378919462,
+        "allocs": 2.0285714285714285,
+        "alloc_bytes": 1.2220225453357294
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0921822637923273,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.8585418933623503
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5565838031198351,
+        "allocs": 2.2,
+        "alloc_bytes": 1.3009708737864079
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4120500438981562,
+        "allocs": 1.7142857142857142,
+        "alloc_bytes": 1.057613840378652
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7007031814208067,
+        "allocs": 2.0285714285714285,
+        "alloc_bytes": 1.2087481638648605
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.092291531189035,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.8557483731019522
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.560044481706607,
+        "allocs": 2.2058823529411766,
+        "alloc_bytes": 1.2885722946347378
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4322424551126958,
+        "allocs": 1.7647058823529411,
+        "alloc_bytes": 1.0710204081632653
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.700933931829906,
+        "allocs": 2.0588235294117645,
+        "alloc_bytes": 1.21665306122449
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1170294494238155,
+        "allocs": 1.84375,
+        "alloc_bytes": 1.8393051031487513
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.557508078747737,
+        "allocs": 2.2058823529411766,
+        "alloc_bytes": 1.2871794871794873
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.508772497734041,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.1299804049640758
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8035562598225767,
+        "allocs": 2.121212121212121,
+        "alloc_bytes": 1.2779229261920313
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.1159145623111204,
+        "allocs": 1.84375,
+        "alloc_bytes": 1.8355868036776637
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5565770143519042,
+        "allocs": 2.2,
+        "alloc_bytes": 1.2967394555788214
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4497451586371906,
+        "allocs": 1.7142857142857142,
+        "alloc_bytes": 1.163873067534581
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7746498666218309,
+        "allocs": 2.0285714285714285,
+        "alloc_bytes": 1.3187957689178194
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0926009305117814,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.8474758324382385
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.555947728658881,
+        "allocs": 2.2,
+        "alloc_bytes": 1.2960310355117874
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3718986429686562,
+        "allocs": 1.7142857142857142,
+        "alloc_bytes": 1.0703950577141927
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6424802592653014,
+        "allocs": 2.0285714285714285,
+        "alloc_bytes": 1.2261420907169567
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0921822637923273,
+        "allocs": 1.8181818181818181,
+        "alloc_bytes": 1.8447537473233404
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5466775171175215,
+        "allocs": 2.2,
+        "alloc_bytes": 1.2952380952380953
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.3968171852289804,
+        "allocs": 1.7142857142857142,
+        "alloc_bytes": 1.069351957121975
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6730816489143845,
+        "allocs": 2.0285714285714285,
+        "alloc_bytes": 1.2278707162579179
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.069781401630734,
+        "allocs": 1.7878787878787878,
+        "alloc_bytes": 1.7033084311632871
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d7.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5590722944830957,
+        "allocs": 2.2058823529411766,
+        "alloc_bytes": 1.2835865355972595
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d7.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4628292078575624,
+        "allocs": 1.7647058823529411,
+        "alloc_bytes": 1.0813972380178716
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d7.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d7.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.720508106643075,
+        "allocs": 2.0588235294117645,
+        "alloc_bytes": 1.2347684809098294
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d7.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d7.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d7.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 2.0939820742637645,
+        "allocs": 1.8125,
+        "alloc_bytes": 1.6837606837606838
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v0",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5254775425916365,
+        "allocs": 2.2162162162162162,
+        "alloc_bytes": 1.3034021193530396
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v0",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.5745209462138232,
+        "allocs": 1.8611111111111112,
+        "alloc_bytes": 1.1553994732221247
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v0",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v0.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8603529145828035,
+        "allocs": 2.138888888888889,
+        "alloc_bytes": 1.2947029558091894
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v0",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9984962829466095,
+        "allocs": 1.8285714285714285,
+        "alloc_bytes": 1.6825705939629991
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v1",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5013651576536904,
+        "allocs": 2.2051282051282053,
+        "alloc_bytes": 1.3227410886985356
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v1",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4723358656976824,
+        "allocs": 1.7179487179487178,
+        "alloc_bytes": 1.131866530671718
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v1",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v1.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8126748927324574,
+        "allocs": 2.0256410256410255,
+        "alloc_bytes": 1.2834037592889407
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v1",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.919820593469354,
+        "allocs": 1.7837837837837838,
+        "alloc_bytes": 1.7040963855421687
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v2",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5681198506312608,
+        "allocs": 2.2051282051282053,
+        "alloc_bytes": 1.3216744698430185
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v2",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4498939247310378,
+        "allocs": 1.675,
+        "alloc_bytes": 1.0785340314136125
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v2",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v2.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7687553021225981,
+        "allocs": 1.975,
+        "alloc_bytes": 1.2309482257126236
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v2",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9204197525756135,
+        "allocs": 1.7837837837837838,
+        "alloc_bytes": 1.7
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v3",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5252034064330409,
+        "allocs": 2.210526315789474,
+        "alloc_bytes": 1.3116022099447513
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v3",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4357108037716402,
+        "allocs": 1.763157894736842,
+        "alloc_bytes": 1.0671326634629388
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v3",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v3.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.6969566194650483,
+        "allocs": 2.0526315789473686,
+        "alloc_bytes": 1.2139216542886269
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v3",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.8932798194169023,
+        "allocs": 1.8055555555555556,
+        "alloc_bytes": 1.6815776815776815
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v4",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.554692546519139,
+        "allocs": 2.2162162162162162,
+        "alloc_bytes": 1.300469483568075
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v4",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.5289427694519233,
+        "allocs": 1.8108108108108107,
+        "alloc_bytes": 1.0895848506919155
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v4",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v4.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8191332424082167,
+        "allocs": 2.081081081081081,
+        "alloc_bytes": 1.2305899490167516
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v4",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9981371842780604,
+        "allocs": 1.8285714285714285,
+        "alloc_bytes": 1.6639383726528647
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v5",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5321530215842283,
+        "allocs": 2.2162162162162162,
+        "alloc_bytes": 1.298901098901099
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v5",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.5742136637820314,
+        "allocs": 1.8611111111111112,
+        "alloc_bytes": 1.1445221445221445
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v5",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v5.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.8454268837533039,
+        "allocs": 2.138888888888889,
+        "alloc_bytes": 1.2878787878787878
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v5",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9970566386024942,
+        "allocs": 1.8285714285714285,
+        "alloc_bytes": 1.6583493282149713
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v6",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.4964894342194957,
+        "allocs": 2.2051282051282053,
+        "alloc_bytes": 1.3169606512890095
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v6",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4688633014352763,
+        "allocs": 1.7179487179487178,
+        "alloc_bytes": 1.1524735238647903
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v6",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v6.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.800652877839887,
+        "allocs": 2.0256410256410255,
+        "alloc_bytes": 1.307993616712607
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v6",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.919820593469354,
+        "allocs": 1.7837837837837838,
+        "alloc_bytes": 1.6798099762470309
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v7",
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.query.d8.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.5174623090754609,
+        "allocs": 2.2051282051282053,
+        "alloc_bytes": 1.3166169693683925
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v7",
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.query.d8.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.4442825908939811,
+        "allocs": 1.675,
+        "alloc_bytes": 1.0877497827975673
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "query.d8.v7",
+      "corpus": "query",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v7.read_all",
+      "prost_id": "codec.adoption.prost.query.d8.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.7769190532234864,
+        "allocs": 1.975,
+        "alloc_bytes": 1.2441355343179843
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "query.d8.v7",
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.query.d8.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.query.d8.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.9204197525756135,
+        "allocs": 1.7837837837837838,
+        "alloc_bytes": 1.675829383886256
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n10",
+      "corpus": "entities",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n10.fresh_encode",
+      "prost_id": "codec.adoption.prost.entities.n10.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1141817826974052,
+        "allocs": 1.3890909090909092,
+        "alloc_bytes": 1.378826895565093
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n10",
+      "corpus": "entities",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n10.owned_decode",
+      "prost_id": "codec.adoption.prost.entities.n10.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.7932108883580843,
+        "allocs": 0.7419354838709677,
+        "alloc_bytes": 0.9725667042465239
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n10",
+      "corpus": "entities",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.entities.n10.read_all",
+      "prost_id": "codec.adoption.prost.entities.n10.read_all",
+      "pbrs_over_prost": {
+        "instructions": 0.9431982921358518,
+        "allocs": 0.7876106194690266,
+        "alloc_bytes": 0.9312871560901425
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "entities.n10",
+      "corpus": "entities",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.entities.n10.fully_read_clone",
+      "prost_id": "codec.adoption.prost.entities.n10.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.5923716124866315,
+        "allocs": 0.735632183908046,
+        "alloc_bytes": 0.833729216152019
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n100",
+      "corpus": "entities",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n100.fresh_encode",
+      "prost_id": "codec.adoption.prost.entities.n100.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.181772435153012,
+        "allocs": 1.3901279707495429,
+        "alloc_bytes": 1.3788076692059072
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n100",
+      "corpus": "entities",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n100.owned_decode",
+      "prost_id": "codec.adoption.prost.entities.n100.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.8241327844901463,
+        "allocs": 0.7438825448613376,
+        "alloc_bytes": 0.9891951277764509
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n100",
+      "corpus": "entities",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.entities.n100.read_all",
+      "prost_id": "codec.adoption.prost.entities.n100.read_all",
+      "pbrs_over_prost": {
+        "instructions": 0.9567470733816792,
+        "allocs": 0.7896382313532827,
+        "alloc_bytes": 0.9436581249255895
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "entities.n100",
+      "corpus": "entities",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.entities.n100.fully_read_clone",
+      "prost_id": "codec.adoption.prost.entities.n100.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.8016873283661439,
+        "allocs": 0.7312572087658593,
+        "alloc_bytes": 0.8335212772271351
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n1000",
+      "corpus": "entities",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n1000.fresh_encode",
+      "prost_id": "codec.adoption.prost.entities.n1000.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1874572731299329,
+        "allocs": 1.3902323029083592,
+        "alloc_bytes": 1.379042805587593
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n1000",
+      "corpus": "entities",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.entities.n1000.owned_decode",
+      "prost_id": "codec.adoption.prost.entities.n1000.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.8249445512127178,
+        "allocs": 0.7451750081779522,
+        "alloc_bytes": 1.019968262494552
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "entities.n1000",
+      "corpus": "entities",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.entities.n1000.read_all",
+      "prost_id": "codec.adoption.prost.entities.n1000.read_all",
+      "pbrs_over_prost": {
+        "instructions": 0.9561811301326102,
+        "allocs": 0.7907976009309821,
+        "alloc_bytes": 0.9663646687516345
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "entities.n1000",
+      "corpus": "entities",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.entities.n1000.fully_read_clone",
+      "prost_id": "codec.adoption.prost.entities.n1000.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.795751954722474,
+        "allocs": 0.73081804545979,
+        "alloc_bytes": 0.8332532379308094
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v0",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v0.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v0.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.153221649484536,
+        "allocs": 2.3333333333333335,
+        "alloc_bytes": 2.230769230769231
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v0",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v0.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v0.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0926167793484942,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v0",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v0.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v0.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0841719136496515,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v0",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v0.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v0.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.1563541666666666,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v1",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v1.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v1.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.3313321726601428,
+        "allocs": 2.142857142857143,
+        "alloc_bytes": 4.286486486486487
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v1",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v1.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v1.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0533164969110036,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v1",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v1.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v1.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.3412109196784816,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v1",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v1.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v1.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.4622788881231334,
+        "allocs": 1.3333333333333333,
+        "alloc_bytes": 11.92156862745098
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v2",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v2.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v2.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1551804604853764,
+        "allocs": 2.3333333333333335,
+        "alloc_bytes": 2.3114754098360657
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v2",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v2.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v2.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.1122894820463933,
+        "allocs": 2.0,
+        "alloc_bytes": 7.619047619047619
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v2",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v2.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v2.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0970698614318706,
+        "allocs": 2.0,
+        "alloc_bytes": 7.619047619047619
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v2",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v2.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v2.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.1557986111111112,
+        "allocs": 2.0,
+        "alloc_bytes": 7.619047619047619
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v3",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v3.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v3.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.3259418438396264,
+        "allocs": 2.142857142857143,
+        "alloc_bytes": 4.216931216931217
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v3",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v3.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v3.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0467388083340996,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v3",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v3.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v3.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.3306477183112333,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v3",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v3.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v3.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.4635519602886427,
+        "allocs": 1.3333333333333333,
+        "alloc_bytes": 11.92156862745098
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v4",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v4.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v4.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1549002468120115,
+        "allocs": 2.3333333333333335,
+        "alloc_bytes": 2.25
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v4",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v4.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v4.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0963749233599018,
+        "allocs": 2.0,
+        "alloc_bytes": 7.2727272727272725
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v4",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v4.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v4.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.085688202247191,
+        "allocs": 2.0,
+        "alloc_bytes": 7.2727272727272725
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v4",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v4.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v4.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.1546016102165464,
+        "allocs": 2.0,
+        "alloc_bytes": 7.2727272727272725
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v5",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v5.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v5.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.3586800021558527,
+        "allocs": 2.125,
+        "alloc_bytes": 4.348837209302325
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v5",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v5.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v5.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0574418408394048,
+        "allocs": 1.1111111111111112,
+        "alloc_bytes": 11.52
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v5",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v5.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v5.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.3845864350391774,
+        "allocs": 1.1111111111111112,
+        "alloc_bytes": 11.52
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v5",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v5.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v5.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.508890160425541,
+        "allocs": 1.2857142857142858,
+        "alloc_bytes": 12.203389830508474
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v6",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v6.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v6.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1584416254125414,
+        "allocs": 2.3333333333333335,
+        "alloc_bytes": 2.167883211678832
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v6",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v6.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v6.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0956336939721794,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v6",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v6.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v6.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0844886618769645,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v6",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v6.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v6.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.1574652777777779,
+        "allocs": 2.0,
+        "alloc_bytes": 6.956521739130435
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v7",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v7.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v7.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.3529174054678157,
+        "allocs": 2.125,
+        "alloc_bytes": 4.223880597014926
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v7",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v7.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v7.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.9816893035167147,
+        "allocs": 1.0,
+        "alloc_bytes": 9.560975609756097
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v7",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v7.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v7.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.2345895413380077,
+        "allocs": 1.0,
+        "alloc_bytes": 9.560975609756097
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v7",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v7.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v7.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.437981126073587,
+        "allocs": 1.2857142857142858,
+        "alloc_bytes": 11.172413793103448
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v8",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v8.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v8.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1889581417526651,
+        "allocs": 2.25,
+        "alloc_bytes": 2.2658227848101267
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v8",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v8.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v8.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0808888586401688,
+        "allocs": 1.6666666666666667,
+        "alloc_bytes": 6.0606060606060606
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v8",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v8.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v8.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0754674049072774,
+        "allocs": 1.6666666666666667,
+        "alloc_bytes": 6.0606060606060606
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v8",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v8.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v8.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.1474748097248328,
+        "allocs": 1.6666666666666667,
+        "alloc_bytes": 6.0606060606060606
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v9",
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v9.fresh_encode",
+      "prost_id": "codec.adoption.prost.sparse.v9.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.3303946013564687,
+        "allocs": 2.142857142857143,
+        "alloc_bytes": 4.23404255319149
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v9",
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v9.owned_decode",
+      "prost_id": "codec.adoption.prost.sparse.v9.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 1.0400118735669832,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "sparse.v9",
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v9.read_all",
+      "prost_id": "codec.adoption.prost.sparse.v9.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.3235239048851768,
+        "allocs": 1.125,
+        "alloc_bytes": 10.985074626865671
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "sparse.v9",
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.sparse.v9.fully_read_clone",
+      "prost_id": "codec.adoption.prost.sparse.v9.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 1.4644581360062532,
+        "allocs": 1.3333333333333333,
+        "alloc_bytes": 11.92156862745098
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n8",
+      "corpus": "maps",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n8.fresh_encode",
+      "prost_id": "codec.adoption.prost.maps.n8.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.1121534335340377,
+        "allocs": 1.3875,
+        "alloc_bytes": 1.3147317978049158
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n8",
+      "corpus": "maps",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n8.owned_decode",
+      "prost_id": "codec.adoption.prost.maps.n8.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.7978824521552251,
+        "allocs": 0.7011494252873564,
+        "alloc_bytes": 1.1477902584980626
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n8",
+      "corpus": "maps",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.maps.n8.read_all",
+      "prost_id": "codec.adoption.prost.maps.n8.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0023494974307305,
+        "allocs": 0.7766990291262136,
+        "alloc_bytes": 1.1090776829128222
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "maps.n8",
+      "corpus": "maps",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.maps.n8.fully_read_clone",
+      "prost_id": "codec.adoption.prost.maps.n8.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.6043570165141071,
+        "allocs": 0.6855345911949685,
+        "alloc_bytes": 0.7780063587058164
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n64",
+      "corpus": "maps",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n64.fresh_encode",
+      "prost_id": "codec.adoption.prost.maps.n64.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 1.71446743237001,
+        "allocs": 1.3253333333333333,
+        "alloc_bytes": 1.4477638909802741
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n64",
+      "corpus": "maps",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n64.owned_decode",
+      "prost_id": "codec.adoption.prost.maps.n64.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.5390697452422484,
+        "allocs": 0.49693251533742333,
+        "alloc_bytes": 1.065942443300934
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n64",
+      "corpus": "maps",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.maps.n64.read_all",
+      "prost_id": "codec.adoption.prost.maps.n64.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.0618742119010447,
+        "allocs": 0.5810055865921788,
+        "alloc_bytes": 1.2960509767753836
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": false
+    },
+    {
+      "specimen": "maps.n64",
+      "corpus": "maps",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.maps.n64.fully_read_clone",
+      "prost_id": "codec.adoption.prost.maps.n64.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.5216370381633781,
+        "allocs": 0.4489795918367347,
+        "alloc_bytes": 0.8247983322758996
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n512",
+      "corpus": "maps",
+      "operation": "fresh_encode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n512.fresh_encode",
+      "prost_id": "codec.adoption.prost.maps.n512.fresh_encode",
+      "pbrs_over_prost": {
+        "instructions": 10.739702084723874,
+        "allocs": 1.2117241379310344,
+        "alloc_bytes": 1.5880744703735314
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": false,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n512",
+      "corpus": "maps",
+      "operation": "owned_decode",
+      "pbrs_id": "codec.adoption.pbrs.maps.n512.owned_decode",
+      "prost_id": "codec.adoption.prost.maps.n512.owned_decode",
+      "pbrs_over_prost": {
+        "instructions": 0.4551736607629775,
+        "allocs": 0.29191716766867065,
+        "alloc_bytes": 1.0072385358755271
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    },
+    {
+      "specimen": "maps.n512",
+      "corpus": "maps",
+      "operation": "read_all",
+      "pbrs_id": "codec.adoption.pbrs.maps.n512.read_all",
+      "prost_id": "codec.adoption.prost.maps.n512.read_all",
+      "pbrs_over_prost": {
+        "instructions": 1.4298451951991704,
+        "allocs": 0.3211249182472204,
+        "alloc_bytes": 1.6726446806577633
+      },
+      "observed_p1_instruction_floor": false,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": false,
+      "observed_p2_read_all_allocation_target": true
+    },
+    {
+      "specimen": "maps.n512",
+      "corpus": "maps",
+      "operation": "fully_read_clone",
+      "pbrs_id": "codec.adoption.pbrs.maps.n512.fully_read_clone",
+      "prost_id": "codec.adoption.prost.maps.n512.fully_read_clone",
+      "pbrs_over_prost": {
+        "instructions": 0.35664316424741466,
+        "allocs": 0.22717311906501095,
+        "alloc_bytes": 0.8580776372800425
+      },
+      "observed_p1_instruction_floor": true,
+      "observed_p1_allocation_floor": true,
+      "observed_p2_instruction_target": null,
+      "observed_p2_read_all_allocation_target": null
+    }
+  ],
+  "corpus_operation_summary": [
+    {
+      "corpus": "query",
+      "operation": "fresh_encode",
+      "pairs": 48,
+      "instruction_losses": 48,
+      "allocation_losses": 48,
+      "instruction_ratio_min": 1.4964894342194957,
+      "instruction_ratio_max": 1.654330204778157,
+      "worst_instruction_specimen": "query.d3.v2",
+      "allocation_ratio_min": 2.1363636363636362,
+      "allocation_ratio_max": 2.2162162162162162
+    },
+    {
+      "corpus": "query",
+      "operation": "owned_decode",
+      "pairs": 48,
+      "instruction_losses": 48,
+      "allocation_losses": 48,
+      "instruction_ratio_min": 1.2887049535209474,
+      "instruction_ratio_max": 1.5745209462138232,
+      "worst_instruction_specimen": "query.d8.v0",
+      "allocation_ratio_min": 1.4545454545454546,
+      "allocation_ratio_max": 1.8611111111111112
+    },
+    {
+      "corpus": "query",
+      "operation": "read_all",
+      "pairs": 48,
+      "instruction_losses": 48,
+      "allocation_losses": 48,
+      "instruction_ratio_min": 1.6424802592653014,
+      "instruction_ratio_max": 1.8603529145828035,
+      "worst_instruction_specimen": "query.d8.v0",
+      "allocation_ratio_min": 1.9090909090909092,
+      "allocation_ratio_max": 2.2222222222222223
+    },
+    {
+      "corpus": "query",
+      "operation": "fully_read_clone",
+      "pairs": 48,
+      "instruction_losses": 48,
+      "allocation_losses": 48,
+      "instruction_ratio_min": 1.8932798194169023,
+      "instruction_ratio_max": 2.1861119567557936,
+      "worst_instruction_specimen": "query.d6.v0",
+      "allocation_ratio_min": 1.75,
+      "allocation_ratio_max": 1.8571428571428572
+    },
+    {
+      "corpus": "entities",
+      "operation": "fresh_encode",
+      "pairs": 3,
+      "instruction_losses": 3,
+      "allocation_losses": 3,
+      "instruction_ratio_min": 1.1141817826974052,
+      "instruction_ratio_max": 1.1874572731299329,
+      "worst_instruction_specimen": "entities.n1000",
+      "allocation_ratio_min": 1.3890909090909092,
+      "allocation_ratio_max": 1.3902323029083592
+    },
+    {
+      "corpus": "entities",
+      "operation": "owned_decode",
+      "pairs": 3,
+      "instruction_losses": 0,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 0.7932108883580843,
+      "instruction_ratio_max": 0.8249445512127178,
+      "worst_instruction_specimen": "entities.n1000",
+      "allocation_ratio_min": 0.7419354838709677,
+      "allocation_ratio_max": 0.7451750081779522
+    },
+    {
+      "corpus": "entities",
+      "operation": "read_all",
+      "pairs": 3,
+      "instruction_losses": 0,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 0.9431982921358518,
+      "instruction_ratio_max": 0.9567470733816792,
+      "worst_instruction_specimen": "entities.n100",
+      "allocation_ratio_min": 0.7876106194690266,
+      "allocation_ratio_max": 0.7907976009309821
+    },
+    {
+      "corpus": "entities",
+      "operation": "fully_read_clone",
+      "pairs": 3,
+      "instruction_losses": 0,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 0.5923716124866315,
+      "instruction_ratio_max": 0.8016873283661439,
+      "worst_instruction_specimen": "entities.n100",
+      "allocation_ratio_min": 0.73081804545979,
+      "allocation_ratio_max": 0.735632183908046
+    },
+    {
+      "corpus": "sparse",
+      "operation": "fresh_encode",
+      "pairs": 10,
+      "instruction_losses": 10,
+      "allocation_losses": 10,
+      "instruction_ratio_min": 1.153221649484536,
+      "instruction_ratio_max": 1.3586800021558527,
+      "worst_instruction_specimen": "sparse.v5",
+      "allocation_ratio_min": 2.125,
+      "allocation_ratio_max": 2.3333333333333335
+    },
+    {
+      "corpus": "sparse",
+      "operation": "owned_decode",
+      "pairs": 10,
+      "instruction_losses": 9,
+      "allocation_losses": 9,
+      "instruction_ratio_min": 0.9816893035167147,
+      "instruction_ratio_max": 1.1122894820463933,
+      "worst_instruction_specimen": "sparse.v2",
+      "allocation_ratio_min": 1.0,
+      "allocation_ratio_max": 2.0
+    },
+    {
+      "corpus": "sparse",
+      "operation": "read_all",
+      "pairs": 10,
+      "instruction_losses": 10,
+      "allocation_losses": 9,
+      "instruction_ratio_min": 1.0754674049072774,
+      "instruction_ratio_max": 1.3845864350391774,
+      "worst_instruction_specimen": "sparse.v5",
+      "allocation_ratio_min": 1.0,
+      "allocation_ratio_max": 2.0
+    },
+    {
+      "corpus": "sparse",
+      "operation": "fully_read_clone",
+      "pairs": 10,
+      "instruction_losses": 10,
+      "allocation_losses": 10,
+      "instruction_ratio_min": 1.1474748097248328,
+      "instruction_ratio_max": 1.508890160425541,
+      "worst_instruction_specimen": "sparse.v5",
+      "allocation_ratio_min": 1.2857142857142858,
+      "allocation_ratio_max": 2.0
+    },
+    {
+      "corpus": "maps",
+      "operation": "fresh_encode",
+      "pairs": 3,
+      "instruction_losses": 3,
+      "allocation_losses": 3,
+      "instruction_ratio_min": 1.1121534335340377,
+      "instruction_ratio_max": 10.739702084723874,
+      "worst_instruction_specimen": "maps.n512",
+      "allocation_ratio_min": 1.2117241379310344,
+      "allocation_ratio_max": 1.3875
+    },
+    {
+      "corpus": "maps",
+      "operation": "owned_decode",
+      "pairs": 3,
+      "instruction_losses": 0,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 0.4551736607629775,
+      "instruction_ratio_max": 0.7978824521552251,
+      "worst_instruction_specimen": "maps.n8",
+      "allocation_ratio_min": 0.29191716766867065,
+      "allocation_ratio_max": 0.7011494252873564
+    },
+    {
+      "corpus": "maps",
+      "operation": "read_all",
+      "pairs": 3,
+      "instruction_losses": 3,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 1.0023494974307305,
+      "instruction_ratio_max": 1.4298451951991704,
+      "worst_instruction_specimen": "maps.n512",
+      "allocation_ratio_min": 0.3211249182472204,
+      "allocation_ratio_max": 0.7766990291262136
+    },
+    {
+      "corpus": "maps",
+      "operation": "fully_read_clone",
+      "pairs": 3,
+      "instruction_losses": 0,
+      "allocation_losses": 0,
+      "instruction_ratio_min": 0.35664316424741466,
+      "instruction_ratio_max": 0.6043570165141071,
+      "worst_instruction_specimen": "maps.n8",
+      "allocation_ratio_min": 0.22717311906501095,
+      "allocation_ratio_max": 0.6855345911949685
+    }
+  ],
+  "observed_targets": {
+    "P1_codec": {
+      "status": "not_met",
+      "pairs": 256,
+      "instruction_losses": 240,
+      "allocation_losses": 236
+    },
+    "P2_fresh_encode": {
+      "pairs": 64,
+      "instruction_target_met": 0
+    },
+    "P2_read_all": {
+      "pairs": 64,
+      "instruction_target_met": 0,
+      "allocation_target_met": 1
+    },
+    "P3": "pending SB-26d RPC matrix",
+    "P4": "pending SB-26e cold RPC matrix",
+    "P5": "pending SB-26e codegen/check matrix"
+  }
 }

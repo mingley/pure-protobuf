@@ -220,12 +220,12 @@
     "any_payload": "each codec constructs/encodes its own exact-size generated Payload",
     "map_native_extra_wire_bytes": 4
   },
-  "measurement_status": "512 cells registered; release build and N/2N/allocation preflight passed; frozen N=16 three-repeat full matrix remains open",
+  "measurement_status": "complete; all 512 actual devloop cells measured at N=16 with three repeats; see codec-measurement.json and codec-baseline.json",
   "limits": [
     "Qualification is not a performance result.",
-    "Exact allocator and N/2N instruction evidence remains open.",
     "Declared Rust 1.88 corpus floor has not been separately tested.",
-    "SB-26d RPC profiles and SB-26e startup/codegen/P1-P5 synthesis remain pending."
+    "SB-26d RPC profiles and SB-26e startup/codegen/P1-P5 synthesis remain pending.",
+    "All instruction/allocation codec measurements are dev-loop diagnostics, with measured losses retained and no performance-win qualification."
   ],
   "manifest_review": {
     "graph": "excluded devloop consumer",

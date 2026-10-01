@@ -11342,9 +11342,16 @@
    "checks": [
     "codec-bench"
    ],
-   "status": "in_progress",
+   "status": "done",
    "implementer": "Codex",
-   "notes": "Claimed at 8d89f5cf. Add the reviewed local pbrs-adoption-corpus dependency only to the excluded devloop manifest. Keep default shipping manifests and existing gates unchanged. Preserve individual variants and fixture source pins. No performance-improvement claim. Standalone codec operations qualified: 512 generated cells, direct native fresh builders, full fresh/decode/clone equality and independent read checks before timing, 8 corpus tests and strict Clippy pass, two deterministic codec inventories, unchanged 64-specimen corpus inventory. Exact allocator/N/2N measurements remain open; Linux collector build is in progress. Reviewed devloop lock delta adds only the existing local corpus package, with no third-party version changes. Parent release build now passes with genuine pinned Linux protoc 35.1 and explicit pinned well-known includes for both fixture generators. Actual devloop list matches all 512 IDs; preflight measures Linux callgrind N/2N instructions and exact allocations. Full N=16, three-repeat matrix is frozen in measure.sh before execution; card stays open until all rows are retained and reviewed."
+   "notes": "Claimed at 8d89f5cf; closed after reviewing every acceptance item. Registered all 64 specimens \u00d7 two codecs \u00d7 four operations (512 individual cells), with direct generated native fresh constructors and full fresh/decode/clone equality plus complete reads before timing. The reviewed excluded devloop dependency adds only the existing local corpus package, without third-party version or shipping graph changes. All cells executed successfully at runtime source 11c9870314559643999eaca0499b535e333a468e under pinned Linux protoc 35.1/Callgrind, with identical preparation, N=16/2N=32, three repeats and unchanged warmup. All instruction and exact allocation/byte metrics measured; eight raw reports, a combined devloop/1 baseline, 256 pairwise comparisons, 42 unchanged source bindings and binary/tool/image pins retained. P1 codec floor is unmet (240/256 instruction losses, 236/256 allocation losses); P2 fresh/read-all instruction targets met on 0/64 specimens each, read-all allocation target on 1/64. Existing copy-counts hooks are included; this is an instrumented dev-loop diagnostic, with no binding threshold change or performance-win claim. Eight corpus tests, strict Clippy, 24 documentation checks and actual 21-case codec-bench passed; read-only artifact audit verifies all rows, hashes, ratios and target counts. SB-26d/e and both parents remain open.",
+   "evidence": [
+    "bench/devloop/adoption/evidence/codec-inventory.json",
+    "bench/devloop/adoption/evidence/codec-qualification.json",
+    "bench/devloop/adoption/evidence/codec-baseline.json",
+    "bench/devloop/adoption/evidence/codec-measurement.json",
+    "docs/evidence/sb-26.md"
+   ]
   },
   {
    "lane": "SB",
