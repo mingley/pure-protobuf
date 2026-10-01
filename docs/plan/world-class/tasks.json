@@ -11565,7 +11565,9 @@
    "size": "S",
    "status": "in_progress",
    "implementer": "Codex",
-   "depends_on": [],
+   "depends_on": [
+    "GN-13"
+   ],
    "read": [
     "scripts/regen-generated.sh",
     "scripts/gen.sh",
@@ -11652,6 +11654,47 @@
     "SB-26"
    ],
    "notes": "Filed from identical-binary map replay under PK-31. Prost HashMap iteration produces process-dependent common wire order; warmup and preparation vary across N/2N even though full decoded values/read checksums agree. This repair preserves the corpus and unmodified codec/transport implementations, and does not retroactively qualify the old map instruction baselines."
+  },
+  {
+   "id": "GN-13",
+   "title": "Keep deprecated enum implementation warnings inside generated code",
+   "lane": "GN",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [],
+   "read": [
+    "src/codegen/messages.rs",
+    "tests/plugin.rs",
+    "tests/fixtures/codegen-lints/lint_cases.proto"
+   ],
+   "write": [
+    "src/codegen/messages.rs",
+    "tests/plugin.rs",
+    "tests/fixtures/codegen-lints/",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Generated implementations may refer to their own deprecated enum type under strict consumer linting, while the public type retains deprecation diagnostics for callers.",
+   "accept": [
+    "Reproduce the failure in a strict generated-code consumer with deprecated open and closed enums, aliases and unknown values before fixing the generator.",
+    "Scope any deprecated-lint allowance to generated enum implementation items, preserve public #[deprecated] annotations, and prove an external caller still fails deny(deprecated).",
+    "Strict plugin-consumer checks and regenerated bundled-code Clippy/rustdoc pass; no public API, dependency or wire-semantic change."
+   ],
+   "checks": [
+    "codegen",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "GN-12"
+   ],
+   "notes": "Split from GN-12 after current pinned generation exposes 56 deprecated-type/field warnings in AliasedEnum implementations. Strict Clippy rejects the candidate; stale bindings are not merged and the checks are not weakened."
   }
  ],
  "last_audit": {
