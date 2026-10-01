@@ -11512,11 +11512,12 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "blocked",
    "implementer": "Codex",
    "depends_on": [
     "PK-17",
-    "SB-26c"
+    "SB-26c",
+    "SB-31"
    ],
    "read": [
     "src/map.rs",
@@ -11551,7 +11552,8 @@
     "SB-26",
     "PK-30"
    ],
-   "notes": "Claimed from clean main 467a26bd66546fbe02cfd67cfbbe367587ccf2b2 under the direct-main execution authorization. Hypothesis: building the existing index once at the unchanged threshold, then updating it on insertion, removes repeated full-vector lookup scans. This is separate from PK-30: serialized map default omission remains pending review. No universal benchmark or production-readiness claim follows from this leaf. Two unmerged experiments retained locally: eager cloned-key and position-only indices cut 512-entry instructions by 83.32% and 83.59%, but increase allocated bytes by 42.28% and 7.05%, respectively, and both increase 64-entry allocations by 1.21%. Re-scoped before continuing: retain compact positions for lazy reads, and track a conservative ascending-order hint for missing-key append without constructing an index. Ordinary unordered/duplicate insertion retains the existing lookup policy; the threshold and wire policy stay unchanged."
+   "notes": "Claimed from clean main 467a26bd66546fbe02cfd67cfbbe367587ccf2b2 under the direct-main execution authorization. Hypothesis: building the existing index once at the unchanged threshold, then updating it on insertion, removes repeated full-vector lookup scans. This is separate from PK-30: serialized map default omission remains pending review. No universal benchmark or production-readiness claim follows from this leaf. Two unmerged experiments retained locally: eager cloned-key and position-only indices cut 512-entry instructions by 83.32% and 83.59%, but increase allocated bytes by 42.28% and 7.05%, respectively, and both increase 64-entry allocations by 1.21%. Re-scoped before continuing: retain compact positions for lazy reads, and track a conservative ascending-order hint for missing-key append without constructing an index. Ordinary unordered/duplicate insertion retains the existing lookup policy; the threshold and wire policy stay unchanged. Further candidates demonstrate a robust ~91.82% large fresh-build instruction reduction, but their controls cannot qualify on randomized common-wire preparation. A narrower ascending-append-only patch is retained locally; all shipping map edits were restored pending SB-31. No thresholds or wire-policy gates were changed.",
+   "blocked_reason": "The unchanged baseline binary fails map control comparisons: 512-entry decode changes -22.05% and read-all +7.80% between identical-binary runs. SB-31 must make N/2N common-wire preparation reproducible before the candidate can satisfy the existing 1% control rule. No runtime optimization is merged."
   },
   {
    "id": "GN-12",
@@ -11601,7 +11603,55 @@
     "PK-26",
     "CG-12"
    ],
-   "notes": "Reproduced on 2026-10-01 from bcba697dd8df43712fe290893e70614283d7f3db with source/protoc v35.1 pin 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03. The old per-file command overwrites the handwritten module registry with only the last file's generated hierarchy, omits FieldMask, creates three untracked hierarchy trees and exposes 13 stale binding diffs. Diagnostic preserved locally; all reproduction edits were restored. This is a correctness/reproducibility repair, not a performance optimization or permission to remove public APIs."
+   "notes": "Reproduced on 2026-10-01 from bcba697dd8df43712fe290893e70614283d7f3db with source/protoc v35.1 pin 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03. The old per-file command overwrites the handwritten module registry with only the last file's generated hierarchy, creates three untracked hierarchy trees and exposes 12 stale binding diffs plus the module-registry diff; FieldMask was already current. Diagnostic preserved locally; all reproduction edits were restored. This is a correctness/reproducibility repair, not a performance optimization or permission to remove public APIs."
+  },
+  {
+   "id": "SB-31",
+   "title": "Freeze adoption map input order across differential children",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "SB-26a",
+    "SB-26c"
+   ],
+   "read": [
+    "bench/devloop/adoption/src/workloads.rs",
+    "bench/devloop/adoption/src/rpc.rs",
+    "bench/devloop/src/main.rs"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Use deterministic common-wire ordering for the frozen unique-key MapHeavy specimens, retain full values/lengths and record/check identical input fingerprints across N/2N and repeats. Shipping serialization and frozen logical fixtures remain unchanged.",
+   "accept": [
+    "Independent preparations and child processes produce identical map input bytes for all three sizes, while full decoded equality, complete reads and the existing four-byte map RPC rejection remain intact.",
+    "The collector rejects missing or unequal adoption input fingerprints across differential runs/repeats; legacy reports remain readable and historical artifacts are preserved.",
+    "Two unchanged-binary replay reports quantify residual instruction variation before PK-31 resumes; use a larger common N to reduce preparation subtraction noise if needed, without changing thresholds or hiding failing cells.",
+    "Standalone corpus/collector tests and strict Clippy pass; commands, fingerprints, source and binary pins and historical map measurement limitations are documented."
+   ],
+   "checks": [
+    "codec-bench",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "A1",
+    "A3",
+    "A5",
+    "A8"
+   ],
+   "relates": [
+    "PK-31",
+    "SB-20",
+    "SB-26"
+   ],
+   "notes": "Filed from identical-binary map replay under PK-31. Prost HashMap iteration produces process-dependent common wire order; warmup and preparation vary across N/2N even though full decoded values/read checksums agree. This repair preserves the corpus and unmodified codec/transport implementations, and does not retroactively qualify the old map instruction baselines."
   }
  ],
  "last_audit": {
