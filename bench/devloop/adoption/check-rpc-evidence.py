@@ -22,9 +22,15 @@ def raw_report(directory, name):
 
 def audit(directory):
     record = json.loads((directory / "rpc-measurement.json").read_text())
-    inventory_path = ROOT / "bench/devloop/adoption/evidence/rpc-inventory.json"
-    assert hashlib.sha256(inventory_path.read_bytes()).hexdigest() == record["inventory_sha256"]
-    inventory = {row["specimen"]: row["qualification"] for row in json.loads(inventory_path.read_text())}
+    assert 1 <= record["iters"] <= 200 and record["repeats"] >= 1
+    # Later codec corrections can update the live inventory. Audit the exact
+    # inventory committed with this baseline rather than rewriting history.
+    inventory_bytes = subprocess.run(
+        ["git", "show", f"{record['source_commit']}:bench/devloop/adoption/evidence/rpc-inventory.json"],
+        cwd=ROOT, check=True, capture_output=True,
+    ).stdout
+    assert hashlib.sha256(inventory_bytes).hexdigest() == record["inventory_sha256"]
+    inventory = {row["specimen"]: row["qualification"] for row in json.loads(inventory_bytes)}
     assert len(inventory) == 64
     for path, checksum in record["source_sha256"].items():
         source = subprocess.run(["git", "show", f"{record['source_commit']}:{path}"],
@@ -34,14 +40,19 @@ def audit(directory):
     assert set(record["cells"]) == expected and len(expected) == 512
     blocked = {f"rpc.adoption.{p}.{s}.{k}" for p in PROFILES for s, q in inventory.items()
                if not q["equal_wire_work"] for k in SHAPES}
-    assert len(blocked) == 24
     for cell in blocked:
         state = record["cells"][cell]
         assert state["status"] == "not_run" and state["preflight_exit_code"] != 0
-        assert state["native_bytes"] == state["prost_bytes"] + 4
+        profile = cell.removeprefix("rpc.adoption.").split(".", 1)[0]
+        shape = next(k for k in SHAPES if cell.endswith(f".{k}"))
+        specimen = cell.removeprefix(f"rpc.adoption.{profile}.").removesuffix(f".{shape}")
+        oracle = inventory[specimen]
+        assert state["native_bytes"] == oracle["native_request_bytes"]
+        assert state["prost_bytes"] == oracle["request_bytes"]
+        assert state["native_bytes"] != state["prost_bytes"]
     combined = json.loads((directory / "rpc-baseline.json").read_text())
     rows = {row["id"]: row for row in combined["cells"]}
-    assert len(rows) == len(combined["cells"]) == 488
+    assert len(rows) == len(combined["cells"]) == len(expected - blocked)
     assert set(rows) == expected - blocked
     seen = set()
     expected_reports = {f"{p}-{k}.json" for p in PROFILES for k in SHAPES}
@@ -73,7 +84,7 @@ def audit(directory):
                                   "bench/devloop/adoption/Cargo.lock"], cwd=ROOT, check=True,
                                  capture_output=True, text=True).stdout.strip()
         assert not changed, f"runtime source changed during collection: {changed}"
-        assert len(report["cells"]) == 61
+        assert len(report["cells"]) == sum(q["equal_wire_work"] for q in inventory.values())
         profile, shape = name.removesuffix(".json").split("-")
         for row in report["cells"]:
             cell = row["id"]
@@ -109,7 +120,7 @@ def audit(directory):
     expected_pairs = {(s, k, p) for s, q in inventory.items() if q["equal_wire_work"]
                       for k in SHAPES for p in PROFILES[:-1]}
     pairs = {(c["specimen"], c["shape"], c["profile"]): c for c in record["comparisons"]}
-    assert len(pairs) == len(record["comparisons"]) == 366 and set(pairs) == expected_pairs
+    assert len(pairs) == len(record["comparisons"]) == len(expected_pairs) and set(pairs) == expected_pairs
     for (specimen, shape, profile), comparison in pairs.items():
         candidate = rows[f"rpc.adoption.{profile}.{specimen}.{shape}"]
         baseline = rows[f"rpc.adoption.tonic_prost.{specimen}.{shape}"]
