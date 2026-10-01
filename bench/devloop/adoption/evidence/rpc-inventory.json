@@ -1,0 +1,962 @@
+[
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 187,
+      "request_bytes": 187,
+      "request_read_checksum": 17673035775268601779,
+      "response_bytes_per_message": 187,
+      "response_read_checksum": 17673035775268601779,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 196,
+      "request_bytes": 196,
+      "request_read_checksum": 9007456813890436065,
+      "response_bytes_per_message": 196,
+      "response_read_checksum": 9007456813890436065,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 206,
+      "request_bytes": 206,
+      "request_read_checksum": 5166985595186441804,
+      "response_bytes_per_message": 206,
+      "response_read_checksum": 5166985595186441804,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 196,
+      "request_bytes": 196,
+      "request_read_checksum": 15984391777524233817,
+      "response_bytes_per_message": 196,
+      "response_read_checksum": 15984391777524233817,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 204,
+      "request_bytes": 204,
+      "request_read_checksum": 1310568484690924747,
+      "response_bytes_per_message": 204,
+      "response_read_checksum": 1310568484690924747,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 213,
+      "request_bytes": 213,
+      "request_read_checksum": 7871843948829321325,
+      "response_bytes_per_message": 213,
+      "response_read_checksum": 7871843948829321325,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 231,
+      "request_bytes": 231,
+      "request_read_checksum": 11528206674038370355,
+      "response_bytes_per_message": 231,
+      "response_read_checksum": 11528206674038370355,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 234,
+      "request_bytes": 234,
+      "request_read_checksum": 8142155186338385768,
+      "response_bytes_per_message": 234,
+      "response_read_checksum": 8142155186338385768,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d3.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 249,
+      "request_bytes": 249,
+      "request_read_checksum": 15556968429202335264,
+      "response_bytes_per_message": 249,
+      "response_read_checksum": 15556968429202335264,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 256,
+      "request_bytes": 256,
+      "request_read_checksum": 5989507785071506005,
+      "response_bytes_per_message": 256,
+      "response_read_checksum": 5989507785071506005,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 277,
+      "request_bytes": 277,
+      "request_read_checksum": 80788021770190166,
+      "response_bytes_per_message": 277,
+      "response_read_checksum": 80788021770190166,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 288,
+      "request_bytes": 288,
+      "request_read_checksum": 11239361648066611483,
+      "response_bytes_per_message": 288,
+      "response_read_checksum": 11239361648066611483,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 288,
+      "request_bytes": 288,
+      "request_read_checksum": 12849212444429922019,
+      "response_bytes_per_message": 288,
+      "response_read_checksum": 12849212444429922019,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 275,
+      "request_bytes": 275,
+      "request_read_checksum": 3141143546034839752,
+      "response_bytes_per_message": 275,
+      "response_read_checksum": 3141143546034839752,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 293,
+      "request_bytes": 293,
+      "request_read_checksum": 14413289389457652653,
+      "response_bytes_per_message": 293,
+      "response_read_checksum": 14413289389457652653,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 306,
+      "request_bytes": 306,
+      "request_read_checksum": 7758272262320479329,
+      "response_bytes_per_message": 306,
+      "response_read_checksum": 7758272262320479329,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d4.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 342,
+      "request_bytes": 342,
+      "request_read_checksum": 10480780455167418465,
+      "response_bytes_per_message": 342,
+      "response_read_checksum": 10480780455167418465,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 336,
+      "request_bytes": 336,
+      "request_read_checksum": 17987033488194239551,
+      "response_bytes_per_message": 336,
+      "response_read_checksum": 17987033488194239551,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 341,
+      "request_bytes": 341,
+      "request_read_checksum": 8392890358823971705,
+      "response_bytes_per_message": 341,
+      "response_read_checksum": 8392890358823971705,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 352,
+      "request_bytes": 352,
+      "request_read_checksum": 11254537619568633626,
+      "response_bytes_per_message": 352,
+      "response_read_checksum": 11254537619568633626,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 366,
+      "request_bytes": 366,
+      "request_read_checksum": 3005057669145525120,
+      "response_bytes_per_message": 366,
+      "response_read_checksum": 3005057669145525120,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 368,
+      "request_bytes": 368,
+      "request_read_checksum": 12101302036942268555,
+      "response_bytes_per_message": 368,
+      "response_read_checksum": 12101302036942268555,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 372,
+      "request_bytes": 372,
+      "request_read_checksum": 10110337601716551077,
+      "response_bytes_per_message": 372,
+      "response_read_checksum": 10110337601716551077,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 369,
+      "request_bytes": 369,
+      "request_read_checksum": 12006539796877663467,
+      "response_bytes_per_message": 369,
+      "response_read_checksum": 12006539796877663467,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d5.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 410,
+      "request_bytes": 410,
+      "request_read_checksum": 3023498803650616453,
+      "response_bytes_per_message": 410,
+      "response_read_checksum": 3023498803650616453,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 413,
+      "request_bytes": 413,
+      "request_read_checksum": 14131518665395384024,
+      "response_bytes_per_message": 413,
+      "response_read_checksum": 14131518665395384024,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 425,
+      "request_bytes": 425,
+      "request_read_checksum": 14726774636673700279,
+      "response_bytes_per_message": 425,
+      "response_read_checksum": 14726774636673700279,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 426,
+      "request_bytes": 426,
+      "request_read_checksum": 4926908065213140439,
+      "response_bytes_per_message": 426,
+      "response_read_checksum": 4926908065213140439,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 428,
+      "request_bytes": 428,
+      "request_read_checksum": 14063232175965257963,
+      "response_bytes_per_message": 428,
+      "response_read_checksum": 14063232175965257963,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 436,
+      "request_bytes": 436,
+      "request_read_checksum": 6695912682848346212,
+      "response_bytes_per_message": 436,
+      "response_read_checksum": 6695912682848346212,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 449,
+      "request_bytes": 449,
+      "request_read_checksum": 376621836473303606,
+      "response_bytes_per_message": 449,
+      "response_read_checksum": 376621836473303606,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 451,
+      "request_bytes": 451,
+      "request_read_checksum": 17237119905577766526,
+      "response_bytes_per_message": 451,
+      "response_read_checksum": 17237119905577766526,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d6.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 488,
+      "request_bytes": 488,
+      "request_read_checksum": 17329302925935396484,
+      "response_bytes_per_message": 488,
+      "response_read_checksum": 17329302925935396484,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 483,
+      "request_bytes": 483,
+      "request_read_checksum": 17132489420393722685,
+      "response_bytes_per_message": 483,
+      "response_read_checksum": 17132489420393722685,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 492,
+      "request_bytes": 492,
+      "request_read_checksum": 9916094205207592122,
+      "response_bytes_per_message": 492,
+      "response_read_checksum": 9916094205207592122,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 497,
+      "request_bytes": 497,
+      "request_read_checksum": 16134681190140240219,
+      "response_bytes_per_message": 497,
+      "response_read_checksum": 16134681190140240219,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 512,
+      "request_bytes": 512,
+      "request_read_checksum": 4333962931710588078,
+      "response_bytes_per_message": 512,
+      "response_read_checksum": 4333962931710588078,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 514,
+      "request_bytes": 514,
+      "request_read_checksum": 13784303428909870748,
+      "response_bytes_per_message": 514,
+      "response_read_checksum": 13784303428909870748,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 517,
+      "request_bytes": 517,
+      "request_read_checksum": 10535480020762726067,
+      "response_bytes_per_message": 517,
+      "response_read_checksum": 10535480020762726067,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 520,
+      "request_bytes": 520,
+      "request_read_checksum": 13170604277166382030,
+      "response_bytes_per_message": 520,
+      "response_read_checksum": 13170604277166382030,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d7.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 558,
+      "request_bytes": 558,
+      "request_read_checksum": 17091856854397118898,
+      "response_bytes_per_message": 558,
+      "response_read_checksum": 17091856854397118898,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 566,
+      "request_bytes": 566,
+      "request_read_checksum": 17156985081605655746,
+      "response_bytes_per_message": 566,
+      "response_read_checksum": 17156985081605655746,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 577,
+      "request_bytes": 577,
+      "request_read_checksum": 3623182866679429505,
+      "response_bytes_per_message": 577,
+      "response_read_checksum": 3623182866679429505,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 567,
+      "request_bytes": 567,
+      "request_read_checksum": 16223853345291276257,
+      "response_bytes_per_message": 567,
+      "response_read_checksum": 16223853345291276257,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 574,
+      "request_bytes": 574,
+      "request_read_checksum": 11677166586897780202,
+      "response_bytes_per_message": 574,
+      "response_read_checksum": 11677166586897780202,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 582,
+      "request_bytes": 582,
+      "request_read_checksum": 590005149581918327,
+      "response_bytes_per_message": 582,
+      "response_read_checksum": 590005149581918327,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 602,
+      "request_bytes": 602,
+      "request_read_checksum": 12157741790846053537,
+      "response_bytes_per_message": 602,
+      "response_read_checksum": 12157741790846053537,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 605,
+      "request_bytes": 605,
+      "request_read_checksum": 14654305640537854503,
+      "response_bytes_per_message": 605,
+      "response_read_checksum": 14654305640537854503,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "query.d8.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 5626,
+      "request_bytes": 5626,
+      "request_read_checksum": 15247385977393515352,
+      "response_bytes_per_message": 5626,
+      "response_read_checksum": 15247385977393515352,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "entities.n10"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 56398,
+      "request_bytes": 56398,
+      "request_read_checksum": 8435010447339593356,
+      "response_bytes_per_message": 56398,
+      "response_read_checksum": 8435010447339593356,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "entities.n100"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 564598,
+      "request_bytes": 564598,
+      "request_read_checksum": 9530641928282539567,
+      "response_bytes_per_message": 564598,
+      "response_read_checksum": 9530641928282539567,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "entities.n1000"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 88,
+      "request_bytes": 88,
+      "request_read_checksum": 9777144318171898183,
+      "response_bytes_per_message": 88,
+      "response_read_checksum": 9777144318171898183,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v0"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 105,
+      "request_bytes": 105,
+      "request_read_checksum": 16652561227195011389,
+      "response_bytes_per_message": 105,
+      "response_read_checksum": 16652561227195011389,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v1"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 84,
+      "request_bytes": 84,
+      "request_read_checksum": 39533241347761586,
+      "response_bytes_per_message": 84,
+      "response_read_checksum": 39533241347761586,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v2"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 109,
+      "request_bytes": 109,
+      "request_read_checksum": 8672734157028769381,
+      "response_bytes_per_message": 109,
+      "response_read_checksum": 8672734157028769381,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v3"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 88,
+      "request_bytes": 88,
+      "request_read_checksum": 2297626016502855224,
+      "response_bytes_per_message": 88,
+      "response_read_checksum": 2297626016502855224,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v4"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 121,
+      "request_bytes": 121,
+      "request_read_checksum": 17582554086864061024,
+      "response_bytes_per_message": 121,
+      "response_read_checksum": 17582554086864061024,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v5"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 95,
+      "request_bytes": 95,
+      "request_read_checksum": 16140518591611789695,
+      "response_bytes_per_message": 95,
+      "response_read_checksum": 16140518591611789695,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v6"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 114,
+      "request_bytes": 114,
+      "request_read_checksum": 3751981030991365352,
+      "response_bytes_per_message": 114,
+      "response_read_checksum": 3751981030991365352,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v7"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 98,
+      "request_bytes": 98,
+      "request_read_checksum": 11998104548201901893,
+      "response_bytes_per_message": 98,
+      "response_read_checksum": 11998104548201901893,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v8"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": true,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 108,
+      "request_bytes": 108,
+      "request_read_checksum": 1988894425758786647,
+      "response_bytes_per_message": 108,
+      "response_read_checksum": 1988894425758786647,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "sparse.v9"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": false,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 4682,
+      "request_bytes": 4678,
+      "request_read_checksum": 2887280963743123263,
+      "response_bytes_per_message": 4678,
+      "response_read_checksum": 2887280963743123263,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "maps.n8"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": false,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 6835,
+      "request_bytes": 6831,
+      "request_read_checksum": 17947857089684271558,
+      "response_bytes_per_message": 6831,
+      "response_read_checksum": 17947857089684271558,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "maps.n64"
+  },
+  {
+    "qualification": {
+      "equal_wire_work": false,
+      "full_decoded_equality": true,
+      "input": "both decoded from common prost wire, fully read, then cloned per RPC",
+      "native_request_bytes": 24651,
+      "request_bytes": 24647,
+      "request_read_checksum": 8561840737218517528,
+      "response_bytes_per_message": 24647,
+      "response_read_checksum": 8561840737218517528,
+      "stream_responses": 4,
+      "unary_responses": 1
+    },
+    "specimen": "maps.n512"
+  }
+]

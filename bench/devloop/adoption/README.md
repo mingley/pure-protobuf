@@ -92,3 +92,22 @@ measured cells, eight original reports and 256 comparisons. Run
 coverage, raw/combined row equality, ratios and target counts without changing
 the artifacts. P1/P2 remain unmet in this instrumented dev-loop diagnostic;
 RPC, startup and codegen measurement remain open.
+
+SB-26d's `rpc-inventory` binary qualifies the same 64 specimens for unary
+and four-message server streaming before transport timing. Both request
+templates are decoded from the same prost wire, completely read and cloned
+per RPC; fresh construction remains a separate codec operation. The oracle
+checks full decoded equality, complete reads and request/response byte counts,
+including response clones. Run it with the ordinary compiler and retain JSON:
+
+```sh
+cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
+  --bin rpc-inventory
+```
+
+The [RPC inventory](evidence/rpc-inventory.json) exposes three blocked map
+specimens: pbrs emits four extra bytes for default-valued map entries, even
+after parsing the common prost wire. All 64 specimens have equal decoded
+values and read checksums; 61 have equal encoded lengths. Unequal lengths
+must fail the RPC timing preflight. This qualification is not a transport
+measurement and does not close SB-26d.

@@ -25,4 +25,5 @@ mod corpus;
 pub use corpus::*;
 mod fresh;
 pub use fresh::*;
+pub mod rpc;
 pub mod workloads;
