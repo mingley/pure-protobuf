@@ -58,6 +58,38 @@ struct Pair<N, P> {
     native_fresh_bytes: usize,
 }
 
+/// Stabilize only the frozen MapHeavy message's unique-key map entries.
+/// Moving complete top-level chunks preserves every encoded subfield and
+/// length; nested/repeated message order is untouched. This is fixture
+/// preparation, not a shipping serialization policy or a peer codec change.
+pub(crate) fn stable_map_wire(wire: Vec<u8>) -> Vec<u8> {
+    let mut chunks = Vec::new();
+    let mut offset = 0;
+    while offset < wire.len() {
+        let start = offset;
+        let tag = pbrs::rt::decode_varint(&wire, &mut offset).unwrap();
+        assert!(matches!(tag, 10 | 18 | 26), "frozen MapHeavy map fields");
+        let length = usize::try_from(pbrs::rt::decode_varint(&wire, &mut offset).unwrap()).unwrap();
+        offset = offset.checked_add(length).unwrap();
+        chunks.push(wire.get(start..offset).unwrap());
+    }
+    chunks.sort_unstable();
+    let mut stable = Vec::with_capacity(wire.len());
+    for chunk in chunks {
+        stable.extend_from_slice(chunk);
+    }
+    assert_eq!(stable.len(), wire.len());
+    stable
+}
+
+fn wire_fingerprint(wire: &[u8]) -> String {
+    // Portable FNV-1a input identifier, not a security/integrity hash.
+    let hash = wire.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    });
+    format!("fnv1a64:{hash:016x}")
+}
+
 impl<N, P> Pair<N, P>
 where
     N: Parse + Serialize + Clone,
@@ -68,8 +100,14 @@ where
         fresh_prost: P,
         read_n: fn(&N) -> u64,
         read_p: fn(&P) -> u64,
+        map_wire: bool,
     ) -> Self {
         let wire = fresh_prost.encode_to_vec();
+        let wire = if map_wire {
+            stable_map_wire(wire)
+        } else {
+            wire
+        };
         let checksum = read_p(&fresh_prost);
         let native_wire = fresh_native.serialize().unwrap();
         let native_fresh_bytes = native_wire.len();
@@ -168,24 +206,28 @@ impl CodecCase {
                 query(depth, variant),
                 touch_query_native,
                 touch_query_prost,
+                false,
             )),
             Specimen::Entities(n) => Inputs::Entities(Pair::prepare(
                 entity_list_native(n),
                 entity_list(n),
                 touch_entity_list_native,
                 touch_entity_list_prost,
+                false,
             )),
             Specimen::Sparse(v) => Inputs::Sparse(Box::new(Pair::prepare(
                 sparse_native(v),
                 sparse_prost(v),
                 touch_sparse_native,
                 touch_sparse_prost,
+                false,
             ))),
             Specimen::Maps(n) => Inputs::Maps(Pair::prepare(
                 maps_native(n),
                 maps(n),
                 touch_maps_native,
                 touch_maps_prost,
+                true,
             )),
         };
         Self { cell, inputs }
@@ -226,6 +268,12 @@ impl CodecCase {
     }
 
     pub fn qualification(&self) -> Value {
+        let wire = match &self.inputs {
+            Inputs::Query(p) => &p.wire,
+            Inputs::Entities(p) => &p.wire,
+            Inputs::Sparse(p) => &p.wire,
+            Inputs::Maps(p) => &p.wire,
+        };
         let (wire_bytes, native_fresh_bytes, checksum) = match &self.inputs {
             Inputs::Query(p) => (p.wire.len(), p.native_fresh_bytes, p.checksum),
             Inputs::Entities(p) => (p.wire.len(), p.native_fresh_bytes, p.checksum),
@@ -237,6 +285,7 @@ impl CodecCase {
             "specimen": format!("{:?}", self.cell.specimen),
             "operation": format!("{:?}", self.cell.operation),
             "wire_bytes": wire_bytes, "read_checksum": checksum,
+            "wire_fingerprint": wire_fingerprint(wire),
             "fresh_wire_bytes": match self.cell.codec {
                 Codec::Pbrs => native_fresh_bytes,
                 Codec::Prost => wire_bytes,
@@ -263,6 +312,28 @@ pub fn codec_inventory() -> Value {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn map_input_order_is_stable_and_preserves_full_values_and_lengths() {
+        for n in [8, 64, 512] {
+            let specimen = maps(n);
+            let wire = specimen.encode_to_vec();
+            let stable = stable_map_wire(wire.clone());
+            assert_eq!(stable.len(), wire.len());
+            assert_eq!(
+                prost_types::MapHeavy::decode(stable.as_slice()).unwrap(),
+                specimen
+            );
+            for _ in 0..12 {
+                let independent = maps(n);
+                assert_eq!(independent, specimen);
+                assert_eq!(stable_map_wire(independent.encode_to_vec()), stable);
+            }
+            assert_eq!(stable_map_wire(stable.clone()), stable);
+            let native = native::MapHeavy::parse(&stable).unwrap();
+            assert_eq!(touch_maps_native(&native), touch_maps_prost(&specimen));
+        }
+    }
 
     #[test]
     fn every_cell_qualifies_fresh_decode_read_and_fully_read_clone() {

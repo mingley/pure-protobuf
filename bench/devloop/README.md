@@ -38,6 +38,15 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
+Adoption codec rows also retain `input_wire_fingerprint`. The collector
+requires it to match across N/2N children and repeats; comparison rejects a
+missing or different fingerprint when either report supplies one. Older
+reports without the field remain readable. Frozen adoption map inputs use
+deterministic entry ordering during preparation; see the
+[corpus documentation](adoption/README.md) for the historical measurement
+limit. The fingerprint does not make legacy randomized map measurements
+comparable with new ones.
+
 Local comparison defaults follow the scoreboard guidance: instructions or
 allocations fall ≥2% on targeted cells; no primary cell regresses
 >1% (2% for RPC cells). The CI lane is advisory. SB-20 must calibrate blocking

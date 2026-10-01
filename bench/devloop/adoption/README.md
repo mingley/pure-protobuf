@@ -45,6 +45,24 @@ read checksums are independent of map iteration order. Every byte of strings
 and bytes is consumed. Any values are also decoded as the generated public
 Payload type and all their inner fields are consumed by both codecs.
 
+Codec and RPC preparation now sorts complete top-level map-entry wire chunks
+for the three frozen, unique-key `MapHeavy` specimens. This preserves every
+entry byte, encoded length and decoded value while giving independent
+processes the same input order. Other repeated fields retain their order.
+The shipping serializers and prost's `HashMap` remain unchanged; this helper
+is not a general protobuf canonicalization policy. Codec qualification emits
+a portable FNV-1a input fingerprint, which identifies inputs rather than
+providing a cryptographic integrity check. The parent requires matching
+fingerprints across N/2N children, repeats and new report comparisons.
+
+Historical map instruction reports used randomized common-wire ordering.
+Replaying the same original binary changed 512-entry decode by −22.05% and
+read-all by +7.80%; those reports cannot qualify a map optimization against
+the 1% control rule. Historical artifacts and their source pins are retained.
+Allocation counts and semantic checks are separate evidence. SB-31 owns the
+reproducibility repair and replay measurements; shipping map changes remain
+subject to the unchanged performance and equal-wire gates.
+
 The tests cover all sparse fields with explicitly present defaults, every
 typed oneof's present default, exact query depths, all predicate kinds,
 modified bytes in the last entity and changed/reordered map entries. Every

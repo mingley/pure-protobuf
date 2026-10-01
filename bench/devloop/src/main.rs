@@ -139,6 +139,9 @@ struct CellResult {
     /// the schema version so older devloop/1 readers can ignore it.
     #[serde(default = "default_instruction_method")]
     instruction_method: String,
+    /// Common adoption input identifier, checked across differential children.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_wire_fingerprint: Option<String>,
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
@@ -238,6 +241,8 @@ struct ChildOutput {
     allocs: u64,
     alloc_bytes: u64,
     wall_ns: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_wire_fingerprint: Option<String>,
     /// Per-site user-space copy counts over the timed window (SB-13).
     /// Missing on outputs predating the metric; all zeros when the
     /// `copy-counts` features are off.
@@ -1665,12 +1670,24 @@ async fn rpc_tonic_server_stream(iters: u64, payload: &[u8]) -> u64 {
 // on stderr (stdout stays clean for tool wrappers that merge streams).
 
 fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -> String {
+    child_json_with_input(cell, iters, allocs, bytes, wall, None)
+}
+
+fn child_json_with_input(
+    cell: &str,
+    iters: u64,
+    allocs: u64,
+    bytes: u64,
+    wall: Duration,
+    input_wire_fingerprint: Option<String>,
+) -> String {
     serde_json::to_string(&ChildOutput {
         cell: cell.to_owned(),
         iters,
         allocs,
         alloc_bytes: bytes,
         wall_ns: wall.as_nanos() as u64,
+        input_wire_fingerprint,
         copy_counts: Some(read_copy_counts()),
     })
     .expect("child json")
@@ -1733,7 +1750,14 @@ fn run_adoption_codec_cell(cell: &str, iters: u64, warmup: u64) {
     let wall = start.elapsed();
     let (allocs, bytes) = guard.totals();
     drop(guard);
-    eprintln!("__CHILD__ {}", child_json(cell, iters, allocs, bytes, wall));
+    let fingerprint = case.qualification()["wire_fingerprint"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    eprintln!(
+        "__CHILD__ {}",
+        child_json_with_input(cell, iters, allocs, bytes, wall, Some(fingerprint))
+    );
     black_box(sink);
 }
 
@@ -1852,8 +1876,20 @@ fn run_cell_process(
     (child, stderr)
 }
 
-/// Run the child for one repeat, optionally under a wrapper. Returns
-/// the child output plus optional (instructions, syscalls).
+/// Reject differential measurements prepared from different adoption inputs.
+fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>) {
+    if cell.starts_with("codec.adoption.") {
+        assert!(
+            first.is_some() && second.is_some(),
+            "adoption input fingerprint missing"
+        );
+        assert_eq!(
+            first, second,
+            "adoption input fingerprint differs for {cell}"
+        );
+    }
+}
+
 fn run_child(
     exe: &std::path::Path,
     cell: &str,
@@ -1879,6 +1915,11 @@ fn run_child(
         let (double_child, double_stderr) =
             run_cell_process(exe, cell, double_iters, prepare_iters, &tool.wrapper);
         assert_eq!(double_child.iters, double_iters);
+        assert_adoption_input(
+            cell,
+            child.input_wire_fingerprint.as_deref(),
+            double_child.input_wire_fingerprint.as_deref(),
+        );
         parse_perf_instructions(&double_stderr)
             .or_else(|| parse_callgrind_instructions(&double_stderr))
             .map(|second| {
@@ -1955,9 +1996,24 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut locks = Vec::new();
         let mut copies = Vec::new();
         let mut instruction_method: Option<&'static str> = None;
+        let mut input_wire_fingerprint: Option<String> = None;
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
+            if cell.starts_with("codec.adoption.") {
+                assert!(
+                    child.input_wire_fingerprint.is_some(),
+                    "adoption input fingerprint missing"
+                );
+                if input_wire_fingerprint.is_some() {
+                    assert_adoption_input(
+                        cell,
+                        input_wire_fingerprint.as_deref(),
+                        child.input_wire_fingerprint.as_deref(),
+                    );
+                }
+                input_wire_fingerprint.clone_from(&child.input_wire_fingerprint);
+            }
             allocs.push(child.allocs as f64 / cell_iters as f64);
             alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
             walls.push(child.wall_ns as f64 / cell_iters as f64);
@@ -2008,6 +2064,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             codec: codec.to_string(),
             iters: cell_iters,
             repeats,
+            input_wire_fingerprint,
             instructions: if !complete_instructions {
                 Metric::not_run(if tools.perf || tools.valgrind {
                     "instruction counter output missing or invalid in one or more repeats"
@@ -2086,6 +2143,13 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             println!("{}: new cell, no baseline", cell.id);
             continue;
         };
+        if old.input_wire_fingerprint.is_some() || cell.input_wire_fingerprint.is_some() {
+            assert_adoption_input(
+                &cell.id,
+                old.input_wire_fingerprint.as_deref(),
+                cell.input_wire_fingerprint.as_deref(),
+            );
+        }
         for (name, o, n, lower_better) in [
             ("instructions", &old.instructions, &cell.instructions, true),
             ("allocs", &old.allocs, &cell.allocs, true),
@@ -2386,5 +2450,36 @@ fn main() {
             eprint!("{}", usage());
             std::process::exit(2);
         }
+    }
+}
+
+#[cfg(test)]
+mod input_tests {
+    use super::assert_adoption_input;
+
+    #[test]
+    fn matching_input_and_legacy_non_adoption_cells_are_accepted() {
+        assert_adoption_input(
+            "codec.adoption.pbrs.maps.n8.read_all",
+            Some("same"),
+            Some("same"),
+        );
+        assert_adoption_input("rpc.pbrs.unary", None, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "adoption input fingerprint differs")]
+    fn different_inputs_reject_differential_counts() {
+        assert_adoption_input(
+            "codec.adoption.pbrs.maps.n8.read_all",
+            Some("first"),
+            Some("second"),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "adoption input fingerprint missing")]
+    fn missing_input_identifier_rejects_differential_counts() {
+        assert_adoption_input("codec.adoption.pbrs.maps.n8.read_all", None, Some("second"));
     }
 }

@@ -26,11 +26,21 @@ where
     N: Parse + Serialize + Clone,
     P: Message + Default + Clone + PartialEq + Debug,
 {
-    fn prepare(prost: P, read_native: fn(&N) -> u64, read_prost: fn(&P) -> u64) -> Self {
+    fn prepare(
+        prost: P,
+        read_native: fn(&N) -> u64,
+        read_prost: fn(&P) -> u64,
+        map_wire: bool,
+    ) -> Self {
         // Match input ownership and preparation: both requests are decoded
         // from the same schema-qualified wire and completely read first.
         // Fresh construction remains a separate codec workload.
         let wire = prost.encode_to_vec();
+        let wire = if map_wire {
+            crate::workloads::stable_map_wire(wire)
+        } else {
+            wire
+        };
         let native = N::parse(&wire).expect("RPC native request");
         let prost = P::decode(wire.as_slice()).expect("RPC prost request");
         let checksum = read_prost(&prost);
@@ -103,20 +113,26 @@ impl Inputs {
                 query(depth, variant),
                 touch_query_native,
                 touch_query_prost,
+                false,
             )),
             Specimen::Entities(n) => Self::Entities(Pair::prepare(
                 entity_list(n),
                 touch_entity_list_native,
                 touch_entity_list_prost,
+                false,
             )),
             Specimen::Sparse(v) => Self::Sparse(Box::new(Pair::prepare(
                 sparse_prost(v),
                 touch_sparse_native,
                 touch_sparse_prost,
+                false,
             ))),
-            Specimen::Maps(n) => {
-                Self::Maps(Pair::prepare(maps(n), touch_maps_native, touch_maps_prost))
-            }
+            Specimen::Maps(n) => Self::Maps(Pair::prepare(
+                maps(n),
+                touch_maps_native,
+                touch_maps_prost,
+                true,
+            )),
         }
     }
 
