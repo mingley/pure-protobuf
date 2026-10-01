@@ -11503,6 +11503,54 @@
    "evidence": [
     "docs/decisions/map-entry-wire-parity.md"
    ]
+  },
+  {
+   "id": "PK-31",
+   "title": "Reuse the last-wins index while building large owned maps",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [
+    "PK-17",
+    "SB-26c"
+   ],
+   "read": [
+    "src/map.rs",
+    "bench/devloop/adoption/src/fresh.rs",
+    "docs/evidence/sb-26.md"
+   ],
+   "write": [
+    "src/map.rs",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Measure the quadratic insertion scan in fresh large owned maps and reuse the existing maintained last-wins index without changing the public API, wire policy, or index threshold.",
+   "accept": [
+    "Retain before/after differential instruction and exact allocation measurements for adoption maps at 8/64/512 entries, including prost reference cells and attribution of the insertion path.",
+    "Target large-map fresh encode improves by at least 2% instructions or allocations; measured primary control cells stay within the existing 1% codec regression rule, or the experiment is rejected.",
+    "Owned Map and MapMut preserve last-wins duplicates, insertion/iteration order, replacement return values and index invalidation after remove/push_entry/clear; no new unsafe or dependency.",
+    "Core/generated map tests, adoption full equality/read checks, strict Clippy and pinned conformance pass before merging the runtime change."
+   ],
+   "checks": [
+    "core-lib",
+    "codegen",
+    "conformance",
+    "devloop-compare"
+   ],
+   "scoreboard": [
+    "A1",
+    "A7"
+   ],
+   "relates": [
+    "PK-17",
+    "SB-26",
+    "PK-30"
+   ],
+   "notes": "Claimed from clean main 467a26bd66546fbe02cfd67cfbbe367587ccf2b2 under the direct-main execution authorization. Hypothesis: building the existing index once at the unchanged threshold, then updating it on insertion, removes repeated full-vector lookup scans. This is separate from PK-30: serialized map default omission remains pending review. No universal benchmark or production-readiness claim follows from this leaf."
   }
  ],
  "last_audit": {
