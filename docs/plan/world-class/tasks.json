@@ -11389,8 +11389,9 @@
    "checks": [
     "rpc-bench-tests"
    ],
-   "status": "pending",
-   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered."
+   "status": "in_progress",
+   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered. Claimed at bfa697f93d593b3f22ed7dbc52144c1a353cde99 for direct-main execution authorized by Michael Ingley. First qualify shared request/response semantics and equal encoded lengths for all 64 specimens, then add the four-profile unary/server-streaming matrix and retain measured/unavailable metrics. No shipping API, dependency, security-default or threshold change.",
+   "implementer": "Codex"
   },
   {
    "lane": "SB",
