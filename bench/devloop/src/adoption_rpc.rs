@@ -23,6 +23,12 @@ use tonic::{
 const UNARY: &str = "/adoption.Echo/Unary";
 const STREAM: &str = "/adoption.Echo/ServerStream";
 
+fn tonic_incoming(listener: tokio::net::TcpListener) -> tonic::transport::server::TcpIncoming {
+    // serve_with_incoming ignores Server::tcp_nodelay. Reproduce tonic's
+    // built-in listener default for our pre-bound ephemeral listener.
+    tonic::transport::server::TcpIncoming::from(listener).with_nodelay(Some(true))
+}
+
 trait BenchMessage: CodecMessage + Clone + Send + Sync + 'static {
     fn read_all(&self) -> u64;
     fn tonic_encode(self, dst: &mut EncodeBuf<'_>) -> Result<(), tonic::Status>;
@@ -277,7 +283,7 @@ async fn run_typed<M: BenchMessage>(
         let server = tokio::spawn(async move {
             tonic::transport::Server::builder()
                 .add_service(Echo::<M>::new(checksum))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .serve_with_incoming(tonic_incoming(listener))
                 .await
                 .unwrap();
         });
@@ -467,5 +473,25 @@ pub async fn run(id: &str, iters: u64, warmup: u64) {
         Inputs::Entities(pair) => run_pair(id, pair, iters, warmup).await,
         Inputs::Sparse(pair) => run_pair(id, *pair, iters, warmup).await,
         Inputs::Maps(pair) => run_pair(id, pair, iters, warmup).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tonic_incoming;
+    use tokio_stream::StreamExt;
+
+    #[tokio::test]
+    async fn tonic_listener_preserves_default_tcp_nodelay() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mut incoming = tonic_incoming(listener);
+        let client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let accepted = incoming.next().await.unwrap().unwrap();
+        assert!(
+            accepted.nodelay().unwrap(),
+            "tonic's default TCP_NODELAY must apply to accepted sockets"
+        );
+        drop(client);
     }
 }

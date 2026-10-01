@@ -1,0 +1,5083 @@
+{
+  "tier": "instrumented dev-loop diagnostic",
+  "source_commit": "3024b7e4c1bd922b12c149d809e128e3d700ee27",
+  "source_sha256": {
+    "bench/devloop/src/adoption_rpc.rs": "9f31436c77970b5e907277ef076a527cb7955dbd9269a82093c200a7a512d133",
+    "bench/devloop/src/main.rs": "e930698793e964f511b2df96a3f80d03f0eed9502f7f49a2649c0e2163d2b5ec",
+    "bench/devloop/adoption/src/rpc.rs": "0800ff937b03b88410d31424d580af5b0bafbc99ad52bcf4f8cea891993bd139",
+    "bench/devloop/adoption/src/corpus.rs": "217b10758f25a306095bfadde76e8157ed3adfa26b4b72792d1368a815ea2358",
+    "bench/devloop/adoption/src/sparse_walks.rs": "594e8cdae5d798fc4f14a6b9becc93c5492557b940c7fe2378db7192c98c080c",
+    "bench/devloop/adoption/measure-rpc.py": "9e330da42a07888eab24af9d92a8320ce80c6173d418bde1353ba7bf6f73e600",
+    "bench/devloop/Cargo.toml": "136513da6ad6a7738c0c6f9ba87918f0897022fca0e6f3c36cf6d5b49d3bb66e",
+    "bench/devloop/Cargo.lock": "971414022803d3c1a19e32ef4909d1ef897b2e800e6c3574554c31be978e504b"
+  },
+  "binary_sha256": "b5868ad45079b04ab42b0cd14f379fb401b45132979a3af0a11c0dbc423bacd9",
+  "tool_versions": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "protoc": "libprotoc 35.1",
+    "valgrind": "valgrind-3.24.0"
+  },
+  "inventory_sha256": "d19b3d6c2027add73f8aae83d0491b5d5b6b474708079988205f23ce60e7e8c6",
+  "iters": 16,
+  "repeats": 3,
+  "warmup": 100,
+  "runtime_workers": 2,
+  "report_parallelism": 3,
+  "work": "fully read parsed request cloned per RPC; handler reads every field and echoes entire message; client reads every field",
+  "caps": "default stack caps; largest qualified specimen fits both defaults",
+  "cells": {
+    "rpc.adoption.native_pbrs.query.d3.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n10.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n100.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n1000.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v8.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v9.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.maps.n8.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_pbrs.maps.n64.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_pbrs.maps.n512.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_pbrs.query.d3.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d3.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d4.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d5.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d6.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d7.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.query.d8.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n10.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n100.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.entities.n1000.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v0.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v1.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v2.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v3.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v4.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v5.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v6.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v7.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v8.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.sparse.v9.server_stream": {
+      "status": "measured",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_pbrs.maps.n8.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_pbrs.maps.n64.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_pbrs.maps.n512.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.query.d3.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d3.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d4.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d5.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d6.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d7.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.query.d8.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.entities.n10.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.entities.n100.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.entities.n1000.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v0.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v1.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v2.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v3.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v4.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v5.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v6.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v7.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v8.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.sparse.v9.unary": {
+      "status": "measured",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "measured"
+    },
+    "rpc.adoption.native_prost.maps.n8.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.maps.n64.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.maps.n512.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.query.d3.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d3.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d4.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d5.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d6.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d7.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.query.d8.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.entities.n10.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.entities.n100.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.entities.n1000.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v8.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.sparse.v9.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.native_prost.maps.n8.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.maps.n64.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.native_prost.maps.n512.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n10.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n100.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n1000.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v8.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v9.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.maps.n8.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.maps.n64.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.maps.n512.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d3.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d4.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d5.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d6.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d7.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.query.d8.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n10.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n100.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.entities.n1000.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v8.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.sparse.v9.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_pbrs.maps.n8.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.maps.n64.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_pbrs.maps.n512.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.query.d3.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n10.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n100.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n1000.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v0.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v1.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v2.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v3.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v4.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v5.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v6.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v7.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v8.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v9.unary": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.maps.n8.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.maps.n64.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.maps.n512.unary": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.query.d3.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17673035775268601779,
+        "request_bytes": 187,
+        "response_bytes": 187,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9007456813890436065,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5166985595186441804,
+        "request_bytes": 206,
+        "response_bytes": 206,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15984391777524233817,
+        "request_bytes": 196,
+        "response_bytes": 196,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1310568484690924747,
+        "request_bytes": 204,
+        "response_bytes": 204,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7871843948829321325,
+        "request_bytes": 213,
+        "response_bytes": 213,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11528206674038370355,
+        "request_bytes": 231,
+        "response_bytes": 231,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d3.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8142155186338385768,
+        "request_bytes": 234,
+        "response_bytes": 234,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15556968429202335264,
+        "request_bytes": 249,
+        "response_bytes": 249,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 5989507785071506005,
+        "request_bytes": 256,
+        "response_bytes": 256,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 80788021770190166,
+        "request_bytes": 277,
+        "response_bytes": 277,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11239361648066611483,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12849212444429922019,
+        "request_bytes": 288,
+        "response_bytes": 288,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3141143546034839752,
+        "request_bytes": 275,
+        "response_bytes": 275,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14413289389457652653,
+        "request_bytes": 293,
+        "response_bytes": 293,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d4.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 7758272262320479329,
+        "request_bytes": 306,
+        "response_bytes": 306,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10480780455167418465,
+        "request_bytes": 342,
+        "response_bytes": 342,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17987033488194239551,
+        "request_bytes": 336,
+        "response_bytes": 336,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8392890358823971705,
+        "request_bytes": 341,
+        "response_bytes": 341,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11254537619568633626,
+        "request_bytes": 352,
+        "response_bytes": 352,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3005057669145525120,
+        "request_bytes": 366,
+        "response_bytes": 366,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12101302036942268555,
+        "request_bytes": 368,
+        "response_bytes": 368,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10110337601716551077,
+        "request_bytes": 372,
+        "response_bytes": 372,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d5.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12006539796877663467,
+        "request_bytes": 369,
+        "response_bytes": 369,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3023498803650616453,
+        "request_bytes": 410,
+        "response_bytes": 410,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14131518665395384024,
+        "request_bytes": 413,
+        "response_bytes": 413,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14726774636673700279,
+        "request_bytes": 425,
+        "response_bytes": 425,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4926908065213140439,
+        "request_bytes": 426,
+        "response_bytes": 426,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14063232175965257963,
+        "request_bytes": 428,
+        "response_bytes": 428,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 6695912682848346212,
+        "request_bytes": 436,
+        "response_bytes": 436,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 376621836473303606,
+        "request_bytes": 449,
+        "response_bytes": 449,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d6.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17237119905577766526,
+        "request_bytes": 451,
+        "response_bytes": 451,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17329302925935396484,
+        "request_bytes": 488,
+        "response_bytes": 488,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17132489420393722685,
+        "request_bytes": 483,
+        "response_bytes": 483,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9916094205207592122,
+        "request_bytes": 492,
+        "response_bytes": 492,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16134681190140240219,
+        "request_bytes": 497,
+        "response_bytes": 497,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 4333962931710588078,
+        "request_bytes": 512,
+        "response_bytes": 512,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13784303428909870748,
+        "request_bytes": 514,
+        "response_bytes": 514,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 10535480020762726067,
+        "request_bytes": 517,
+        "response_bytes": 517,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d7.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 13170604277166382030,
+        "request_bytes": 520,
+        "response_bytes": 520,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17091856854397118898,
+        "request_bytes": 558,
+        "response_bytes": 558,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17156985081605655746,
+        "request_bytes": 566,
+        "response_bytes": 566,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3623182866679429505,
+        "request_bytes": 577,
+        "response_bytes": 577,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16223853345291276257,
+        "request_bytes": 567,
+        "response_bytes": 567,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11677166586897780202,
+        "request_bytes": 574,
+        "response_bytes": 574,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 590005149581918327,
+        "request_bytes": 582,
+        "response_bytes": 582,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 12157741790846053537,
+        "request_bytes": 602,
+        "response_bytes": 602,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.query.d8.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 14654305640537854503,
+        "request_bytes": 605,
+        "response_bytes": 605,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n10.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 15247385977393515352,
+        "request_bytes": 5626,
+        "response_bytes": 5626,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n100.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8435010447339593356,
+        "request_bytes": 56398,
+        "response_bytes": 56398,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.entities.n1000.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9530641928282539567,
+        "request_bytes": 564598,
+        "response_bytes": 564598,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v0.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 9777144318171898183,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v1.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16652561227195011389,
+        "request_bytes": 105,
+        "response_bytes": 105,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v2.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 39533241347761586,
+        "request_bytes": 84,
+        "response_bytes": 84,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v3.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 8672734157028769381,
+        "request_bytes": 109,
+        "response_bytes": 109,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v4.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 2297626016502855224,
+        "request_bytes": 88,
+        "response_bytes": 88,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v5.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 17582554086864061024,
+        "request_bytes": 121,
+        "response_bytes": 121,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v6.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 16140518591611789695,
+        "request_bytes": 95,
+        "response_bytes": 95,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v7.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 3751981030991365352,
+        "request_bytes": 114,
+        "response_bytes": 114,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v8.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 11998104548201901893,
+        "request_bytes": 98,
+        "response_bytes": 98,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.sparse.v9.server_stream": {
+      "status": "qualified",
+      "network": {
+        "checksum": 1988894425758786647,
+        "request_bytes": 108,
+        "response_bytes": 108,
+        "stream_replies": 4
+      },
+      "measurement_status": "not_run"
+    },
+    "rpc.adoption.tonic_prost.maps.n8.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 4682,
+      "prost_bytes": 4678,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.maps.n64.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 6835,
+      "prost_bytes": 6831,
+      "preflight_exit_code": 101
+    },
+    "rpc.adoption.tonic_prost.maps.n512.server_stream": {
+      "status": "not_run",
+      "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+      "native_bytes": 24651,
+      "prost_bytes": 24647,
+      "preflight_exit_code": 101
+    }
+  },
+  "reports": {
+    "native_pbrs-unary.json": "29605a80a2ba7bdc049a90a74333d40bb690ad09833c1ffac345e4d3595c9eb3",
+    "native_prost-unary.json": "d8d0e2c0ba7da1ebe69fe2601e76282505932a30aa3b9bce31a9ee3b067ddfe2",
+    "native_pbrs-server_stream.json": "bb2acdeed257921a7368f64e9af2d3d438d411243b9842957eb86851a6ebdbc2"
+  }
+}

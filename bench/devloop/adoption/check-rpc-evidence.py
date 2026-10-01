@@ -79,6 +79,7 @@ def audit(directory):
             cell = row["id"]
             assert cell not in seen and rows[cell] == row
             assert cell.startswith(f"rpc.adoption.{profile}.") and cell.endswith(f".{shape}")
+            assert row["kind"] == "rpc" and row["codec"] == profile
             seen.add(cell)
             assert row["iters"] == record["iters"] and row["repeats"] == record["repeats"]
             assert record["cells"][cell]["status"] == "measured"
@@ -93,9 +94,18 @@ def audit(directory):
             for metric in ("allocs", "alloc_bytes", "instructions", "syscalls", "locks"):
                 assert row[metric]["status"] in ("measured", "not_run")
             assert row["allocs"]["status"] == row["alloc_bytes"]["status"] == "measured"
+            if row["instructions"]["status"] == "measured":
+                assert row["instruction_method"] in (
+                    "differential_callgrind_2n_minus_n", "differential_perf_2n_minus_n"
+                )
     assert seen == set(rows)
     assert record["warmup"] == 100 and record["runtime_workers"] == 2
     assert 1 <= record["report_parallelism"] <= 4
+    assert record["socket_defaults"] == {
+        "tcp_nodelay": True, "tcp_keepalive": "unset",
+        "tonic_server_incoming": "TcpIncoming.with_nodelay(Some(true))",
+    }
+    assert record["allocation_summary"] == "median of exact per-run counts per RPC"
     expected_pairs = {(s, k, p) for s, q in inventory.items() if q["equal_wire_work"]
                       for k in SHAPES for p in PROFILES[:-1]}
     pairs = {(c["specimen"], c["shape"], c["profile"]): c for c in record["comparisons"]}

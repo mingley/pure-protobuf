@@ -129,3 +129,7 @@ CPUs; three collectors leave capacity for the host. Concurrent instrumented
 wall time is secondary and must not be presented as native latency evidence.
 The tonic/prost profile delegates encoding to the actual tonic-prost encoder;
 it must not add an extra encoded-length pass or a buffering policy of its own.
+Both stacks' TCP defaults enable TCP_NODELAY and leave TCP keepalive unset.
+Tonic's `serve_with_incoming` ignores the builder's TCP socket settings, so
+the pre-bound listener must use `TcpIncoming::with_nodelay(Some(true))`.
+An accepted-socket regression test verifies that default before collection.
