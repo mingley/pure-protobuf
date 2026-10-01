@@ -11378,7 +11378,8 @@
    "id": "SB-26d",
    "title": "Measure identical-work adoption RPC profiles",
    "depends_on": [
-    "SB-26a"
+    "SB-26a",
+    "PK-30"
    ],
    "deliverable": "Unary/server-streaming cells for all four pbrs/prost codec \u00d7 pbrs-grpc/tonic transport profiles, with equivalent whole-message work and retained allocation/instruction baseline.",
    "accept": [
@@ -11390,7 +11391,7 @@
     "rpc-bench-tests"
    ],
    "status": "in_progress",
-   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered. Claimed at bfa697f93d593b3f22ed7dbc52144c1a353cde99 for direct-main execution authorized by Michael Ingley. First qualify shared request/response semantics and equal encoded lengths for all 64 specimens, then add the four-profile unary/server-streaming matrix and retain measured/unavailable metrics. No shipping API, dependency, security-default or threshold change.",
+   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered. Claimed at bfa697f93d593b3f22ed7dbc52144c1a353cde99 for direct-main execution authorized by Michael Ingley. First qualify shared request/response semantics and equal encoded lengths for all 64 specimens, then add the four-profile unary/server-streaming matrix and retain measured/unavailable metrics. No shipping API, dependency, security-default or threshold change. Network qualification passes all 488 equal-wire cells; all 24 map combinations reject timing. PK-30 owns the encoding-policy decision and must file any implementation leaf before closure. The 61-specimen-per-profile dev-loop baseline is being collected with every map cell retained as blocked; this cannot close the full RPC contract.",
    "implementer": "Codex"
   },
   {
@@ -11433,6 +11434,52 @@
    ],
    "status": "pending",
    "notes": "Retains all remaining P4/P5 and synthesis requirements; no new target threshold or claim-grade qualification."
+  },
+  {
+   "id": "PK-30",
+   "title": "Decide default-valued map-entry wire parity for adoption RPCs",
+   "lane": "PK",
+   "milestone": "M1",
+   "priority": "P0",
+   "executor": "coordinator",
+   "size": "S",
+   "status": "pending",
+   "depends_on": [
+    "SB-26a"
+   ],
+   "read": [
+    "bench/devloop/adoption/src/rpc.rs",
+    "bench/devloop/adoption/evidence/rpc-inventory.json",
+    "bench/devloop/adoption/proto/adoption.proto",
+    "src/codegen/parse.rs",
+    "src/runtime/encode.rs",
+    "docs/guides/migration.md"
+   ],
+   "write": [
+    "docs/decisions/",
+    "docs/evidence/sb-26.md",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "A source-bound default-key/default-value map-entry reproducer and reviewed encoding-policy decision that resolves the four-byte pbrs/prost length gap without removing default-valued map fixtures or weakening SB-26d equal-wire qualification.",
+   "accept": [
+    "Identify the exact extra key/value fields and compare both encodings for scalar and message-valued maps; retain full decoded equality and complete reads.",
+    "Record maintainer review of the serialized-wire compatibility policy before changing the generated/runtime serializer; file a bounded implementation card with the affected codegen, runtime, migration and conformance checks before closing this decision.",
+    "All three map sizes and all 24 blocked RPC profile/shape cells stay visible until equal-wire qualification passes on the accepted implementation."
+   ],
+   "checks": [
+    "codegen",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "A1",
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "SB-26d",
+    "PK-28"
+   ],
+   "notes": "Filed from SB-26d qualification at ad0025e4. All 64 specimens have equal full decoded values and read checksums, but maps with 8/64/512 entries encode four extra pbrs bytes even after parsing common prost wire. This is a legal-wire compatibility decision, not evidence of lost values. Preserve the frozen corpus and default-valued entries; no silent byte padding or relaxed timing gate."
   }
  ],
  "last_audit": {
