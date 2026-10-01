@@ -1,0 +1,3980 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "perf": false,
+    "strace": true,
+    "valgrind": true
+  },
+  "devloop_commit": "ca9a20a7ead7",
+  "cells": [
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 284269.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 227.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 73736.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 208.1875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.1875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3752860.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.13913064690868032,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 935.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 187.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 285489.75,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 247.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74063.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 84.6875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3749908.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.13034744969742476,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 980.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 196.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 287438.75,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 247.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74253.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 207.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 75.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2993082.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.16043114562525246,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1030.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 206.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 274451.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 237.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74108.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 203.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 83.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3100990.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1411499740664939,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 980.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 196.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 278737.0625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 227.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74197.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.1875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3048710.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.10156862751669765,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1020.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 204.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 275319.75,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 227.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74374.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 75.625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3184871.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.10923884987580769,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1065.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 213.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 290207.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 247.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74823.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 78.3125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3424471.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09890109498722272,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1155.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 231.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d3.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 280099.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 247.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 74917.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 209.25,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 70.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2923120.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06433118708432967,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1170.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 234.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 316554.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 267.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 79372.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 207.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 73.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4035537.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1265932679192401,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1245.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 249.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 297347.75,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 257.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 79448.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 69.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3403921.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04533097979022897,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1280.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 256.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 322526.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 267.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 79866.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 208.0625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 87.1875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3465063.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03858711834997114,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1385.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 277.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 328907.25,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 287.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80219.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 213.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 78.0625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3401879.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.15955441959095257,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1440.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 288.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 312413.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 277.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80199.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 204.9375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3632884.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.16378462096900287,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1440.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 288.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 305675.9375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 267.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80015.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.0,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 73.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3520835.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07232427061725027,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1375.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 275.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 312161.4375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 257.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80229.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 84.6875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2900054.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09701772215579163,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1465.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 293.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d4.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 315291.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 267.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 80543.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 208.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.9375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3020071.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12312083505127652,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1530.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 306.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 350777.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 317.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 85496.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 202.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 74.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3858207.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02977813458084572,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1710.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 342.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 348317.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 307.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 85398.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 211.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 80.1875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3972068.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1243458516620762,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1680.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 336.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 342218.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 297.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 85448.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.0,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3252281.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.10302398841233071,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1705.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 341.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 333441.9375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 297.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 85651.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 211.9375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 88.3125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3072588.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07194096527891108,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1760.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 352.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 342847.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 307.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 85973.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 207.75,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 76.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3516924.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11571988945491524,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1830.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 366.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 350633.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 317.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 86134.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 81.5,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4038907.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07340493565570395,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1840.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 368.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 349854.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 307.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 86166.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 75.875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3753057.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.09119694999259205,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1860.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 372.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d5.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 343453.5625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 297.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 86112.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 212.8125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 83.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3534540.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.041716735191075105,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 1845.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 369.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 363266.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91055.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 217.0,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 90.25,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4076851.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07354779588332296,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2050.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 410.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 364391.6875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91159.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 221.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3437794.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.044904854537762016,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2065.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 413.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 381233.875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 347.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91450.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 65.6875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3455620.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1029215617860565,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2125.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 425.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 355746.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91443.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.25,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 85.875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3298745.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.039643563575439016,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2130.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 426.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 370395.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91534.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 195.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 69.0625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3371452.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.158861660090535,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2140.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 428.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 366586.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91693.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.75,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3981082.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07524413751593835,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2180.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 436.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 360904.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 337.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 91927.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 74.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4010504.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.056628649683200784,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2245.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 449.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d6.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 381406.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 347.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 92088.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 220.0625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 86.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3065846.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.031119712483683528,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2255.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 451.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 397915.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 377.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 96904.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 224.0625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 85.625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3740609.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12014754819665474,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2440.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 488.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 401994.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 377.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 96899.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 217.25,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3326741.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12551533934690895,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2415.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 483.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 389395.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 367.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 96996.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.1875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 76.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3870143.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0957888058881985,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2460.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 492.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 404093.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 367.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97126.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 212.5,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3958853.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02948456714661974,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2485.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 497.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 396913.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 377.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97456.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 218.125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 67.5625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2969786.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.057317544613502754,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2560.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 512.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 391599.6875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 377.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97542.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 209.875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 88.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3876533.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.05039421594803324,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2570.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 514.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 427390.1875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 377.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97641.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 75.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3013047.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.040376593043511017,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2585.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 517.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d7.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 393100.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 367.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97660.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 214.0625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3300475.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.08948802118829559,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2600.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 520.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 431529.625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 397.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 102494.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 87.8125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3745192.0625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.08519786485661135,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2790.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 558.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 438432.75,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 417.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 102813.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 208.875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 79.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4201171.6875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03872663488153892,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2830.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 566.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 440489.0625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 417.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 103011.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 211.75,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 91.0625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4185268.5625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.19221530699643355,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2885.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 577.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 434611.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 407.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 102866.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 202.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 77.125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3923751.0625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12310012642375898,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2835.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 567.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 424560.3125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 397.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 102937.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 210.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 74.5625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4140364.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11091893213178199,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2870.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 574.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 424068.6875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 397.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 103106.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.25,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 79.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4201493.0625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.029253966378946623,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2910.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 582.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 432477.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 417.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 103581.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 214.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 86.375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 4373012.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1374547389346562,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 3010.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 602.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 453585.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 417.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 103675.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 207.0625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 76.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3451396.4375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.021762538875684603,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 3025.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 605.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.entities.n10.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 1596412.0625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 2000.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 321572.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 239.125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 96.5625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 11646025.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.033273617965530064,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 28130.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 5626.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.entities.n100.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 15707475.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 19431.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 2670344.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 399.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 140.25,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 90797479.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.046075879682422285,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 281990.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 56398.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.entities.n1000.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 155004078.25,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 193446.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 25645509.6875,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 603.5625,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 109.3125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 847816212.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.010486768777203014,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 2822990.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 564598.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v0.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 423170.625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 67.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 317585.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.8125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 78.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6416331.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12183786300947522,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 440.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 88.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v1.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 436281.875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 107.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 318096.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 216.1875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 74.9375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7363777.8125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.07528858975278357,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 525.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 105.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v2.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 415230.8125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 67.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 317513.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 211.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 79.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6564610.25,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12256730767966113,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 420.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 84.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v3.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 443129.125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 107.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 318148.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 215.1875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 80.875,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6802317.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06304236648508318,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 545.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 109.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v4.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 417116.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 67.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 317575.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 217.25,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 76.4375,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6458936.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.030398765368533556,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 440.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 88.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v5.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 452918.0,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 117.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 318384.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 214.8125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 87.625,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7421748.5,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.06611579345442577,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 605.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 121.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v6.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 422145.6875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 67.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 317676.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 206.75,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 70.75,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7072346.625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.16635234658981848,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 475.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 95.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v7.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 446303.5,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 117.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 318288.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 205.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 71.8125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6348235.1875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.1522313573057504,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 570.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 114.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v8.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 415446.5625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 77.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 317815.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 209.4375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 78.5,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 6237446.0,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0620258027456317,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 490.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 98.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "rpc.adoption.native_prost.sparse.v9.server_stream",
+      "kind": "rpc",
+      "codec": "native_prost",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 442552.875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 107.0,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 318135.0,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 219.1875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 82.3125,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7614458.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.060800710918629895,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 540.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 108.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}
