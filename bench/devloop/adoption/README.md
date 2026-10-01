@@ -131,3 +131,7 @@ against tonic/prost without discarding losses. Missing instruction/syscall
 tools stay visible in the existing report format. Source/binary/tool pins
 and hashes accompany the results. The defaults are N=16 and three repeats;
 explicit iteration/repeat overrides are recorded, not silently substituted.
+Use `--jobs 3` on a host with sufficient resources to collect independent
+reports concurrently; the record retains this setting. Paired N/2N child runs
+within each cell remain sequential. Syscall/futex rows include setup and
+warmup under the existing collector and remain diagnostics.

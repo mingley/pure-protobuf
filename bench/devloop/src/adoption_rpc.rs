@@ -49,10 +49,7 @@ macro_rules! messages {
                 pbrs_adoption_corpus::$prost_read(&self.0)
             }
             fn tonic_encode(self, dst: &mut EncodeBuf<'_>) -> Result<(), tonic::Status> {
-                dst.reserve(self.0.encoded_len());
-                self.0
-                    .encode(dst)
-                    .map_err(|e| tonic::Status::internal(e.to_string()))
+                tonic_prost::ProstEncoder::default().encode(self.0, dst)
             }
             fn tonic_decode(src: &mut DecodeBuf<'_>) -> Result<Self, tonic::Status> {
                 prost_types::$name::decode(src)

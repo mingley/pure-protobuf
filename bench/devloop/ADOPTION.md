@@ -122,3 +122,10 @@ Map-heavy messages retain their original default-valued entries. Their four
 extra native bytes block all 24 map/profile/shape combinations until a
 separate codec correction makes their wire work equal. The other 488 cells
 can be measured, but this does not satisfy the complete SB-26d matrix.
+The runner can collect independent reports concurrently via `--jobs` (one
+by default, at most four), recording that count. N/2N and repeat order within
+each cell stay sequential. The current shared cloud host has five available
+CPUs; three collectors leave capacity for the host. Concurrent instrumented
+wall time is secondary and must not be presented as native latency evidence.
+The tonic/prost profile delegates encoding to the actual tonic-prost encoder;
+it must not add an extra encoded-length pass or a buffering policy of its own.

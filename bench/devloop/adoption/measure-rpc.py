@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = Path(__file__).resolve().parents[3]
 PROFILES = ("native_pbrs", "native_prost", "tonic_pbrs", "tonic_prost")
@@ -29,9 +30,11 @@ def main():
     parser.add_argument("--qualify-only", action="store_true")
     parser.add_argument("--iters", type=int, default=16)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--jobs", type=int, choices=range(1, 5), default=1,
+                        help="independent report collectors; paired runs within each cell stay sequential")
     args = parser.parse_args()
-    if args.iters < 1 or args.repeats < 1:
-        parser.error("iterations and repeats must be positive")
+    if not 1 <= args.iters <= 200 or args.repeats < 1:
+        parser.error("iterations must be 1..200 (the existing RPC collector cap); repeats must be positive")
     binary = args.binary.resolve()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -63,6 +66,7 @@ def main():
         "inventory_sha256": hashlib.sha256(inventory_path.read_bytes()).hexdigest(),
         "iters": args.iters, "repeats": args.repeats, "warmup": 100,
         "runtime_workers": 2,
+        "report_parallelism": args.jobs,
         "work": "fully read parsed request cloned per RPC; handler reads every field and echoes entire message; client reads every field",
         "caps": "default stack caps; largest qualified specimen fits both defaults",
         "cells": {}, "reports": {},
@@ -99,29 +103,36 @@ def main():
             print(f"Qualified {profile} {shape}", flush=True)
     if args.qualify_only:
         return
-    reports = []
-    for profile in PROFILES:
-        for shape in SHAPES:
-            ids = [cell for cell, state in record["cells"].items()
-                   if cell.startswith(f"rpc.adoption.{profile}.") and cell.endswith(f".{shape}")
-                   and state["status"] == "qualified"]
-            assert len(ids) == 61
-            path = out / f"{profile}-{shape}.json"
-            print(f"Measuring {profile} {shape}: {len(ids)} cells", flush=True)
-            run([str(binary), "run", "--cells", ",".join(ids), "--iters", str(args.iters),
-                 "--repeats", str(args.repeats), "--out", str(path)])
-            report = json.loads(path.read_text())
-            assert {cell["id"] for cell in report["cells"]} == set(ids)
+    def measure(profile, shape):
+        ids = [f"rpc.adoption.{profile}.{specimen}.{shape}"
+               for specimen, oracle in qualification.items() if oracle["equal_wire_work"]]
+        assert len(ids) == 61
+        path = out / f"{profile}-{shape}.json"
+        print(f"Measuring {profile} {shape}: {len(ids)} cells", flush=True)
+        run([str(binary), "run", "--cells", ",".join(ids), "--iters", str(args.iters),
+             "--repeats", str(args.repeats), "--out", str(path)])
+        report = json.loads(path.read_text())
+        assert {cell["id"] for cell in report["cells"]} == set(ids)
+        for cell in report["cells"]:
+            assert cell["iters"] == args.iters and cell["repeats"] == args.repeats
+            assert cell["allocs"]["status"] == "measured"
+            assert cell["alloc_bytes"]["status"] == "measured"
+        return path.name, report
+
+    reports = {}
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        pending = [pool.submit(measure, profile, shape) for profile in PROFILES for shape in SHAPES]
+        for future in as_completed(pending):
+            name, report = future.result()
             for cell in report["cells"]:
-                assert cell["iters"] == args.iters and cell["repeats"] == args.repeats
-                assert cell["allocs"]["status"] == "measured"
-                assert cell["alloc_bytes"]["status"] == "measured"
                 record["cells"][cell["id"]]["status"] = "measured"
                 record["cells"][cell["id"]]["measurement_status"] = "measured"
-            record["reports"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
-            reports.append(report)
+            record["reports"][name] = hashlib.sha256((out / name).read_bytes()).hexdigest()
+            reports[name] = report
             write(out / "rpc-measurement.json", record)
-    combined = {**reports[0], "cells": [cell for report in reports for cell in report["cells"]]}
+            print(f"Completed {name}", flush=True)
+    names = [f"{profile}-{shape}.json" for profile in PROFILES for shape in SHAPES]
+    combined = {**reports[names[0]], "cells": [cell for name in names for cell in reports[name]["cells"]]}
     assert len(combined["cells"]) == 488
     comparisons = []
     index = {cell["id"]: cell for cell in combined["cells"]}
@@ -147,6 +158,8 @@ def main():
         "copy-counts instrumentation is enabled; counters do not account for all prost copies",
         "one shared cloud host, fixed-order repeats; no claim-grade or native latency claim",
         "TC-29/30 unmodified tonic-codegen transport adapters are not measured",
+        "existing syscall/futex collector includes process setup and warmup; those rows are diagnostics",
+        "concurrent collectors share the host when report_parallelism > 1; instrumented wall time is secondary",
     ]
     write(out / "rpc-baseline.json", combined)
     write(out / "rpc-measurement.json", record)
