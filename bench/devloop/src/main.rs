@@ -25,6 +25,7 @@ use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+mod adoption_rpc;
 mod blob;
 mod counters;
 #[path = "../cells/map.rs"]
@@ -666,10 +667,10 @@ fn codec_work(cell: &str, case: &CodecCase, i: usize) -> u64 {
     if let Some(value) = map_cells::work(cell, &case.wire, &case.pbrs_msg) {
         return black_box(value);
     }
-    if let Some(text) = &case.text {
-        if let Some(value) = text_cells::work(cell, text) {
-            return black_box(value);
-        }
+    if let Some(text) = &case.text
+        && let Some(value) = text_cells::work(cell, text)
+    {
+        return black_box(value);
     }
     match cell {
         "codec.pbrs.fresh_encode" => black_box(
@@ -1744,6 +1745,7 @@ fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
     for cell in pbrs_adoption_corpus::workloads::CELLS {
         out.push((cell.id, "codec", cell.codec.name()));
     }
+    out.extend(adoption_rpc::cells());
     for (id, codec) in rpc_cells() {
         out.push((id, "rpc", codec));
     }
@@ -2192,6 +2194,13 @@ fn cmd_run_cell(args: &[String]) {
                 _ => panic!("unknown lb cell {id}"),
             }
         });
+    } else if id.starts_with("rpc.adoption.") {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("adoption runtime");
+        rt.block_on(adoption_rpc::run(&id, iters, warmup));
     } else if id.starts_with("rpc.") {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()

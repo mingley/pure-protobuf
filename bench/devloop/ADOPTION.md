@@ -96,3 +96,29 @@ The standalone corpus consumer reuses `pbrs`, prost/prost-build 0.14 and
 serde_json, all already in the established benchmark graphs. Its manifest
 is reviewed before resolution/building. It adds no shipping dependency,
 alternate TLS provider, unsafe code or benchmark-specific runtime behavior.
+
+SB-26d registers all 64 specimens for each of `native_pbrs`, `native_prost`,
+`tonic_pbrs` and `tonic_prost`, separately for unary and four-message server
+streaming: 512 RPC IDs. Both templates are decoded from common prost wire
+and fully read before measurement; each RPC clones its own template. Both
+handlers consume every request field, then return the complete request once
+or clone it into four complete responses. Each client consumes every field
+of every response and verifies the count. A separate network call before
+warmup verifies full decoded equality; preparation is identical at N and 2N.
+
+These use typed native calls and tonic's low-level Grpc client/server with
+the same message schemas. The tonic pbrs codec uses the existing adapter's
+direct encoding/shared decode recipe; tonic prost encodes directly into
+tonic's buffer and decodes using prost's Buf decoder. Native prost uses the
+shipping native wrapper, including its existing temporary encoding buffer.
+This measures both codec/transport layers without pretending TC-29/30's
+unmodified tonic-codegen transport adapters exist.
+
+Initial RPC measurements use N=16, 2N=32, three repeats, the unchanged
+100-RPC warmup, and the same two-worker Tokio runtime for every profile.
+No message caps are overridden: all qualified specimens fit both defaults.
+Exact allocator and the parent's instruction/syscall collectors are reused.
+Map-heavy messages retain their original default-valued entries. Their four
+extra native bytes block all 24 map/profile/shape combinations until a
+separate codec correction makes their wire work equal. The other 488 cells
+can be measured, but this does not satisfy the complete SB-26d matrix.

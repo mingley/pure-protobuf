@@ -111,3 +111,23 @@ after parsing the common prost wire. All 64 specimens have equal decoded
 values and read checksums; 61 have equal encoded lengths. Unequal lengths
 must fail the RPC timing preflight. This qualification is not a transport
 measurement and does not close SB-26d.
+
+The parent now registers 512 `rpc.adoption` cells. Build its existing release
+binary with pinned protoc 35.1, then run the complete qualification/collector:
+
+```sh
+python3 bench/devloop/adoption/measure-rpc.py \
+  --binary target/devloop/release/devloop --out target/adoption-rpc \
+  --qualify-only
+python3 bench/devloop/adoption/measure-rpc.py \
+  --binary target/devloop/release/devloop --out target/adoption-rpc
+```
+
+The runner checks that the registry covers all 512 IDs, exercises actual
+network replies for the 488 equal-wire cells and verifies that all 24 map
+cells reject timing. It saves progress before measurements, retains eight
+61-cell reports and a combined baseline, and compares every available metric
+against tonic/prost without discarding losses. Missing instruction/syscall
+tools stay visible in the existing report format. Source/binary/tool pins
+and hashes accompany the results. The defaults are N=16 and three repeats;
+explicit iteration/repeat overrides are recorded, not silently substituted.
