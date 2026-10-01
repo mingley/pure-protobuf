@@ -91,7 +91,7 @@ measured cells, eight original reports and 256 comparisons. Run
 `python3 bench/devloop/adoption/check-evidence.py` to audit report hashes,
 coverage, raw/combined row equality, ratios and target counts without changing
 the artifacts. P1/P2 remain unmet in this instrumented dev-loop diagnostic;
-RPC, startup and codegen measurement remain open.
+The complete RPC matrix, startup and codegen measurement remain open.
 
 SB-26d's `rpc-inventory` binary qualifies the same 64 specimens for unary
 and four-message server streaming before transport timing. Both request
@@ -147,3 +147,25 @@ The audit checks all 512 qualification states, 488 raw/combined measured rows,
 flat layout and the checked-in `rpc-raw/` layout. Evidence-only commits may
 advance main during collection; every report's commit must retain the pinned
 runtime source. A source change invalidates that combination of reports.
+The inventory is loaded from the baseline's source commit so later codec
+corrections leave historical qualification auditable.
+
+The final [RPC baseline](evidence/rpc-baseline.json) and
+[measurement record](evidence/rpc-measurement.json) retain 488 measured cells,
+24 blocked map cells, eight raw reports and all 366 comparisons. Runtime
+source is `48dff5ec4f13070c9c0930305b3d339273849130`; N=16/2N=32, three repeats,
+100-RPC warmup, two Tokio workers and three collectors were used. Both stacks
+enable TCP_NODELAY and leave TCP keepalive unset. RPC allocation metrics are
+medians of exact per-run counts. Audit the checked-in artifacts with:
+
+```sh
+python3 bench/devloop/adoption/check-rpc-evidence.py \
+  bench/devloop/adoption/evidence
+```
+
+The eligible RPC floor is unmet: 286/366 instruction and 217/366 allocation
+losses against tonic/prost. Neither native profile meets either proposed P3
+margin on any of its 122 measured pairs. The
+[evidence summary](../../../docs/evidence/sb-26.md) retains every corpus's
+cost ranges and limits. SB-26d remains blocked on the map equal-wire policy;
+these results do not close the parent program or establish native latency.

@@ -11390,9 +11390,28 @@
    "checks": [
     "rpc-bench-tests"
    ],
-   "status": "in_progress",
-   "notes": "Owns the complete RPC remainder. Optional unmodified tonic-codegen transport profiles remain TC-29/TC-30 work and must not be mislabeled as already delivered. Claimed at bfa697f93d593b3f22ed7dbc52144c1a353cde99 for direct-main execution authorized by Michael Ingley. First qualify shared request/response semantics and equal encoded lengths for all 64 specimens, then add the four-profile unary/server-streaming matrix and retain measured/unavailable metrics. No shipping API, dependency, security-default or threshold change. Network qualification passes all 488 equal-wire cells; all 24 map combinations reject timing. PK-30 owns the encoding-policy decision and must file any implementation leaf before closure. The 61-specimen-per-profile dev-loop baseline is being collected with every map cell retained as blocked; this cannot close the full RPC contract.",
-   "implementer": "Codex"
+   "status": "blocked",
+   "notes": "Owns the complete RPC remainder; TC-29/TC-30 unmodified tonic-codegen transport adapters remain separate work. Claimed at bfa697f93d593b3f22ed7dbc52144c1a353cde99 for direct-main execution authorized by Michael Ingley. All 512 IDs are registered. Full values/read checksums agree on all 64 specimens, and actual network equality/read/count qualification passes 488 equal-wire cells; all 24 map combinations reject timing for the four-byte pbrs length gap. Runtime source 48dff5ec4f13070c9c0930305b3d339273849130 uses the actual tonic-prost encoder and an accepted-socket-tested tonic TCP_NODELAY default. One release binary, N=16/2N=32, three repeats, warmup 100, two Tokio workers and three independent collectors retain eight 61-cell reports, all 512 states and 366 comparisons. Instructions, exact allocator count/bytes medians and syscall/futex diagnostics are available for all 488 measured cells. RPC floor is unmet (286/366 instruction losses, 217/366 allocation losses; allocated bytes lose on 238/366). Both native_prost and native_pbrs meet each proposed P3 margin on 0/122 measured pairs. The read-only archive audit verifies coverage, hashes, pinned inventory/source, network qualification, differential methods and every ratio/loss; five corrupt-copy checks reject hash/loss/checksum/blocked-state/method tampering. Eleven corpus tests, eight devloop tests, 189 RPC benchmark tests, 24 documentation checks, strict standalone/parent Clippy, format and plan lint pass. Earlier native checkpoints remain historical and are not mixed into the final baseline. PK-30 owns the policy review and implementation leaf; map fixtures and shipping serializer are unchanged. Copy-counts instrumentation, fixed-order shared-host results, whole-process syscall/futex rows and secondary instrumented wall time remain explicit limits; no binding threshold or performance claim change. Complete map qualification and SB-26e/P4/P5 remain open.",
+   "implementer": "Codex",
+   "blocked_reason": "PK-30 must record the reviewed default-valued map-entry encoding policy and its bounded implementation before all 24 map/profile/shape cells can pass equal-wire qualification. The other 488 cells are measured; this partial baseline does not close the complete RPC acceptance.",
+   "evidence": [
+    "bench/devloop/src/adoption_rpc.rs",
+    "bench/devloop/adoption/src/rpc.rs",
+    "bench/devloop/adoption/evidence/rpc-inventory.json",
+    "bench/devloop/adoption/evidence/rpc-baseline.json",
+    "bench/devloop/adoption/evidence/rpc-measurement.json",
+    "bench/devloop/adoption/check-rpc-evidence.py",
+    "bench/devloop/adoption/evidence/rpc-raw/native_pbrs-unary.json",
+    "bench/devloop/adoption/evidence/rpc-raw/native_pbrs-server_stream.json",
+    "bench/devloop/adoption/evidence/rpc-raw/native_prost-unary.json",
+    "bench/devloop/adoption/evidence/rpc-raw/native_prost-server_stream.json",
+    "bench/devloop/adoption/evidence/rpc-raw/tonic_pbrs-unary.json",
+    "bench/devloop/adoption/evidence/rpc-raw/tonic_pbrs-server_stream.json",
+    "bench/devloop/adoption/evidence/rpc-raw/tonic_prost-unary.json",
+    "bench/devloop/adoption/evidence/rpc-raw/tonic_prost-server_stream.json",
+    "docs/evidence/sb-26.md",
+    "docs/decisions/map-entry-wire-parity.md"
+   ]
   },
   {
    "lane": "SB",
