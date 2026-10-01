@@ -11543,7 +11543,8 @@
    ],
    "scoreboard": [
     "A1",
-    "A7"
+    "A13",
+    "A15"
    ],
    "relates": [
     "PK-17",
@@ -11551,6 +11552,56 @@
     "PK-30"
    ],
    "notes": "Claimed from clean main 467a26bd66546fbe02cfd67cfbbe367587ccf2b2 under the direct-main execution authorization. Hypothesis: building the existing index once at the unchanged threshold, then updating it on insertion, removes repeated full-vector lookup scans. This is separate from PK-30: serialized map default omission remains pending review. No universal benchmark or production-readiness claim follows from this leaf."
+  },
+  {
+   "id": "GN-12",
+   "title": "Make bundled binding regeneration reproducible and non-destructive",
+   "lane": "GN",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [],
+   "read": [
+    "scripts/regen-generated.sh",
+    "scripts/gen.sh",
+    "src/generated/mod.rs",
+    "src/codegen/config.rs",
+    "vendor/google/PIN",
+    "vendor/google/SHA"
+   ],
+   "write": [
+    "scripts/regen-generated.sh",
+    "src/generated/",
+    ".github/workflows/ci.yml",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json",
+    "docs/RELEASE.md"
+   ],
+   "deliverable": "Repair the bundled regeneration command so current pinned generator output updates only the intended bindings, preserves the handwritten public module registry, and can reject drift without editing the checkout.",
+   "accept": [
+    "Regenerate every registered bundled binding, including FieldMask, using the recorded protobuf source SHA and matching protoc; preserve src/generated/mod.rs and avoid untracked hierarchical output in src/generated.",
+    "A non-mutating --check passes on regenerated committed bindings, fails on intentional drift, and leaves tracked/untracked files unchanged; two normal generations are byte-identical.",
+    "Required conformance CI invokes the check after building pinned protoc; generated/core/WKT tests, strict rustdoc, strict Clippy, format and conformance pass.",
+    "Do not remove public module paths or weaken compatibility checks; record package-consumer and semver results with any remaining external limitations."
+   ],
+   "checks": [
+    "core-lib",
+    "codegen",
+    "conformance",
+    "regen-check",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "PK-26",
+    "CG-12"
+   ],
+   "notes": "Reproduced on 2026-10-01 from bcba697dd8df43712fe290893e70614283d7f3db with source/protoc v35.1 pin 35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03. The old per-file command overwrites the handwritten module registry with only the last file's generated hierarchy, omits FieldMask, creates three untracked hierarchy trees and exposes 13 stale binding diffs. Diagnostic preserved locally; all reproduction edits were restored. This is a correctness/reproducibility repair, not a performance optimization or permission to remove public APIs."
   }
  ],
  "last_audit": {
