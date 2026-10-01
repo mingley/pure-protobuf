@@ -135,3 +135,15 @@ Use `--jobs 3` on a host with sufficient resources to collect independent
 reports concurrently; the record retains this setting. Paired N/2N child runs
 within each cell remain sequential. Syscall/futex rows include setup and
 warmup under the existing collector and remain diagnostics.
+
+Audit a completed output directory without collecting new measurements:
+
+```sh
+python3 bench/devloop/adoption/check-rpc-evidence.py target/adoption-rpc
+```
+
+The audit checks all 512 qualification states, 488 raw/combined measured rows,
+366 comparisons, report hashes and source bindings. It accepts the collector's
+flat layout and the checked-in `rpc-raw/` layout. Evidence-only commits may
+advance main during collection; every report's commit must retain the pinned
+runtime source. A source change invalidates that combination of reports.

@@ -12,6 +12,14 @@ PROFILES = ("native_pbrs", "native_prost", "tonic_pbrs", "tonic_prost")
 SHAPES = ("unary", "server_stream")
 
 
+def raw_report(directory, name):
+    # Collector output is flat; checked-in artifacts keep the eight parts in
+    # rpc-raw. Accept either layout, but reject ambiguous duplicate reports.
+    paths = [p for p in (directory / name, directory / "rpc-raw" / name) if p.is_file()]
+    assert len(paths) == 1, f"expected one raw report: {name}"
+    return paths[0].read_bytes()
+
+
 def audit(directory):
     record = json.loads((directory / "rpc-measurement.json").read_text())
     inventory_path = ROOT / "bench/devloop/adoption/evidence/rpc-inventory.json"
@@ -39,11 +47,15 @@ def audit(directory):
     expected_reports = {f"{p}-{k}.json" for p in PROFILES for k in SHAPES}
     assert set(record["reports"]) == expected_reports
     for name, checksum in record["reports"].items():
-        raw = (directory / name).read_bytes()
+        raw = raw_report(directory, name)
         assert hashlib.sha256(raw).hexdigest() == checksum, f"raw report: {name}"
         report = json.loads(raw)
         assert report["schema"] == combined["schema"] == "devloop/1"
         assert report["host"] == combined["host"]
+        if name == "native_pbrs-unary.json":
+            assert {k: v for k, v in report.items() if k != "cells"} == {
+                k: v for k, v in combined.items() if k != "cells"
+            }
         full_commit = subprocess.run(["git", "rev-parse", report["devloop_commit"]],
                                      cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
         # Evidence-only checkpoints can advance main while the fixed binary
@@ -62,18 +74,28 @@ def audit(directory):
                                  capture_output=True, text=True).stdout.strip()
         assert not changed, f"runtime source changed during collection: {changed}"
         assert len(report["cells"]) == 61
+        profile, shape = name.removesuffix(".json").split("-")
         for row in report["cells"]:
             cell = row["id"]
             assert cell not in seen and rows[cell] == row
+            assert cell.startswith(f"rpc.adoption.{profile}.") and cell.endswith(f".{shape}")
             seen.add(cell)
             assert row["iters"] == record["iters"] and row["repeats"] == record["repeats"]
             assert record["cells"][cell]["status"] == "measured"
             assert record["cells"][cell]["measurement_status"] == "measured"
+            specimen = cell.removeprefix(f"rpc.adoption.{profile}.").removesuffix(f".{shape}")
+            oracle = inventory[specimen]
+            assert record["cells"][cell]["network"] == {
+                "request_bytes": oracle["request_bytes"],
+                "response_bytes": oracle["response_bytes_per_message"],
+                "checksum": oracle["request_read_checksum"], "stream_replies": 4,
+            }
             for metric in ("allocs", "alloc_bytes", "instructions", "syscalls", "locks"):
                 assert row[metric]["status"] in ("measured", "not_run")
             assert row["allocs"]["status"] == row["alloc_bytes"]["status"] == "measured"
     assert seen == set(rows)
     assert record["warmup"] == 100 and record["runtime_workers"] == 2
+    assert 1 <= record["report_parallelism"] <= 4
     expected_pairs = {(s, k, p) for s, q in inventory.items() if q["equal_wire_work"]
                       for k in SHAPES for p in PROFILES[:-1]}
     pairs = {(c["specimen"], c["shape"], c["profile"]): c for c in record["comparisons"]}
