@@ -11451,6 +11451,7 @@
     "bench/devloop/adoption/src/rpc.rs",
     "bench/devloop/adoption/evidence/rpc-inventory.json",
     "bench/devloop/adoption/proto/adoption.proto",
+    "src/codegen/encode.rs",
     "src/codegen/parse.rs",
     "src/runtime/encode.rs",
     "docs/guides/migration.md"
@@ -11479,7 +11480,10 @@
     "SB-26d",
     "PK-28"
    ],
-   "notes": "Filed from SB-26d qualification at ad0025e4. All 64 specimens have equal full decoded values and read checksums, but maps with 8/64/512 entries encode four extra pbrs bytes even after parsing common prost wire. This is a legal-wire compatibility decision, not evidence of lost values. Preserve the frozen corpus and default-valued entries; no silent byte padding or relaxed timing gate."
+   "notes": "Filed from SB-26d qualification at ad0025e4. All 64 specimens have equal full decoded values and read checksums, but maps with 8/64/512 entries encode four extra pbrs bytes even after parsing common prost wire. This is a legal-wire compatibility decision, not evidence of lost values. Preserve the frozen corpus and default-valued entries; no silent byte padding or relaxed timing gate. The proposal identifies explicit zero sint64 value bytes 10 00 and zero int64 key bytes 08 00, and records scalar/enum/message/default-entry compatibility requirements. Maintainer review and the scoped implementation leaf remain open; this proposal does not approve a serializer change.",
+   "evidence": [
+    "docs/decisions/map-entry-wire-parity.md"
+   ]
   }
  ],
  "last_audit": {
