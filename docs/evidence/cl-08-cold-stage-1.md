@@ -123,7 +123,7 @@ to build in 6m22s. Owned target bytes after release were 1,578,670,979 (<2 GiB).
 The coordinator granted a quiet single-row original-N primary capture, with
 other compiler trees paused. The unchanged frozen collector ran
 `rpc.prost.server_stream` at N=200/400, three repeats, identical preparation
-N=400 and immutable launch/post hashes. Every process succeeded; all raw
+N=400 and immutable launch/post hashes. Every CG process succeeded; all raw CG
 [before](cl-08-cold-stage-1/cold-primary/before.raw.jsonl)/
 [after](cl-08-cold-stage-1/cold-primary/after.raw.jsonl) records are retained.
 
@@ -176,3 +176,17 @@ qualification for this cold stage remain `not_run`; the earlier codec stage's
 58 losing byte rows and 12 blocked maps remain open. Optional-LB boxing is not
 implemented. The candidate source/binary stays isolated for a potential separate
 stable campaign; no runtime merge or source revert is performed by this worker.
+
+
+The subsequent [read-only collector audit](cl-08-cold-stage-1/collector-scope-audit.md)
+clarifies that syscall/futex medians come from separate whole-process strace
+children, not Callgrind or the allocator window. The six reports contain 36 CG
+children with raw evidence plus 18 strace children whose individual summaries
+were not retained. That raw trace provenance gap prevents independent breakdown
+or median reconstruction of those secondary counters. It does not erase their
+failed aggregate verdicts. The completed release cache was explicitly cleaned
+at the coordinator's request after verifying no active compiler used it;
+[848 fingerprint hashes](cl-08-cold-stage-1/cl08-cold-explicit-target-clean.json),
+source/gate/build/profile records, and both immutable executable hashes were
+preserved. [Cargo clean](cl-08-cold-stage-1/cl08-cold-explicit-target-clean.log)
+removed 1.6 GiB; the isolated candidate source remains unreverted.

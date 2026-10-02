@@ -49,5 +49,13 @@
   "unchanged_syscall_futex_control": "failed_absolute1percent_stability",
   "raw_cg_children": 36,
   "full20": "not_run",
-  "all_ledger_cold_stage": "not_run"
+  "all_ledger_cold_stage": "not_run",
+  "raw_trace_provenance": {
+    "benchmark_processes": 54,
+    "cg_children_raw": 36,
+    "strace_children_without_raw": 18,
+    "state": "gap",
+    "aggregate_failed_verdicts_preserved": true
+  },
+  "completed_target_cleaned": true
 }

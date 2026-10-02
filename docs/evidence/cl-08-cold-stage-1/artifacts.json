@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "docs/evidence/cl-08-cold-stage-1.md",
-      "bytes": 10380,
-      "sha256": "466888cc9f919556b3e7a6060dd54dc585fa2db4ef46000c8379f5780b75ca39"
+      "bytes": 11327,
+      "sha256": "1b8de40ac5e59b509962e30eb6517120d132c4cce20a252ab41f62be3f8f422a"
     },
     {
       "path": "docs/evidence/cl-08-cold-stage-1/after-size.log",
@@ -40,6 +40,16 @@
       "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-controls-summary.json",
       "bytes": 3721,
       "sha256": "85552634b0613999f177a7d9bb1b6dda5ae8298c0e56ba54bde7de2e436a1285"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-explicit-target-clean.json",
+      "bytes": 171466,
+      "sha256": "cabddfd7002b9deff18808aa924f517756ed52370216e0551d9f044f3a7a222b"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-explicit-target-clean.log",
+      "bytes": 38,
+      "sha256": "3b3c4e32a0999f977ba6ecd713be23107d028d247ee1e8e29de4418067392e32"
     },
     {
       "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-format.log",
@@ -182,6 +192,16 @@
       "sha256": "1417a4e10de1ccc930237d6f173745f61f713a07e64a7c5bde5431f978cc5ac5"
     },
     {
+      "path": "docs/evidence/cl-08-cold-stage-1/collector-scope-audit.md",
+      "bytes": 4067,
+      "sha256": "0ec699e3805040e490ffa160578eaccb798f9296f822b02039e6d0773732a2d8"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/collector-source-pins.json",
+      "bytes": 561,
+      "sha256": "5237e55f3608849276f7a61fc841fb0c977115d8adf815cf174f49c4ea643a21"
+    },
+    {
       "path": "docs/evidence/cl-08-cold-stage-1/full-graphs.tar.gz",
       "bytes": 1636925,
       "sha256": "fc7d4694e55ab678319da85ea0252352d50407afb461f9d6866be6551eda3eb0"
@@ -193,8 +213,8 @@
     },
     {
       "path": "docs/evidence/cl-08-cold-stage-1/qualification.json",
-      "bytes": 1776,
-      "sha256": "e9f98d12dea19bc25a6cb23be7fbb473b984803af2dca206a86f3cabe4071d16"
+      "bytes": 2010,
+      "sha256": "1a0a0519c14dc459a92735a3ca17fce6074d042afe42b970aa30481a60553c32"
     },
     {
       "path": "docs/evidence/cl-08-cold-stage-1/size-report.json",
