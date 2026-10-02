@@ -1,0 +1,17 @@
+{
+  "inventory": {
+    "retained_oracle_fields_equal": true,
+    "oracle": "bench/devloop/adoption/evidence/inventory.json",
+    "records": 64
+  },
+  "codec-inventory": {
+    "retained_oracle_fields_equal": true,
+    "oracle": "bench/devloop/adoption/evidence/codec-inventory.json",
+    "records": 512
+  },
+  "rpc-inventory": {
+    "retained_oracle_fields_equal": true,
+    "oracle": "bench/devloop/adoption/evidence/rpc-inventory.json",
+    "records": 64
+  }
+}

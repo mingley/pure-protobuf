@@ -1,0 +1,101 @@
+{
+  "cwd": "/workspace/scratch/work/gn11",
+  "environment_script": "/workspace/pure-protobuf/work/toolchain/env.sh",
+  "CARGO_BUILD_JOBS": 1,
+  "commands": [
+    {
+      "name": "before-check",
+      "command": "cargo check --locked --offline --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base",
+      "exit": 101,
+      "log": "before-check.log"
+    },
+    {
+      "name": "after-tests-missing-fds",
+      "command": "cargo test --locked --offline --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base",
+      "exit": 101,
+      "log": "after-tests-missing-fds.log"
+    },
+    {
+      "name": "after-tests-alias-test-types",
+      "command": "cargo test --locked --offline --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base",
+      "exit": 101,
+      "log": "after-tests-alias-test-types.log"
+    },
+    {
+      "name": "after-tests",
+      "command": "cargo test --locked --offline --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base",
+      "exit": 0,
+      "log": "after-tests.log"
+    },
+    {
+      "name": "clippy",
+      "command": "cargo clippy --locked --offline --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base --all-targets -- -D warnings",
+      "exit": 0,
+      "log": "clippy.log"
+    },
+    {
+      "name": "fixture-check",
+      "command": "python3 bench/devloop/adoption/generate.py --check",
+      "exit": 0,
+      "log": "fixture-check.log"
+    },
+    {
+      "name": "fmt",
+      "command": "cargo fmt --manifest-path bench/devloop/adoption/Cargo.toml --all --check",
+      "exit": 0,
+      "log": "fmt.log"
+    },
+    {
+      "name": "codegen-docs-target-name-error",
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test codegen_wkt_sharing --test documentation --test codegen_onboarding --test pbrs_build --test plugin",
+      "exit": 101,
+      "log": "codegen-docs-target-name-error.log"
+    },
+    {
+      "name": "codegen-docs-scratch-doc-links",
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test codegen_wkt_sharing --test codegen_compat --test documentation --test onboarding --test pbrs_build --test plugin",
+      "exit": 101,
+      "log": "codegen-docs-scratch-doc-links.log"
+    },
+    {
+      "name": "codegen-docs",
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test codegen_wkt_sharing --test codegen_compat --test documentation --test onboarding --test pbrs_build --test plugin",
+      "exit": 101,
+      "log": "codegen-docs.log"
+    },
+    {
+      "name": "inventory",
+      "command": "cargo run --locked --offline --quiet --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base --bin inventory",
+      "exit": 0,
+      "log": "inventory.log"
+    },
+    {
+      "name": "codec-inventory",
+      "command": "cargo run --locked --offline --quiet --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base --bin codec-inventory",
+      "exit": 0,
+      "log": "codec-inventory.log"
+    },
+    {
+      "name": "rpc-inventory",
+      "command": "cargo run --locked --offline --quiet --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/base --bin rpc-inventory",
+      "exit": 0,
+      "log": "rpc-inventory.log"
+    }
+  ],
+  "partial_codegen_outcome": {
+    "codegen_compat": 11,
+    "codegen_wkt_sharing": 6,
+    "documentation": 25,
+    "onboarding": {
+      "passed": 14,
+      "ignored": 1,
+      "failed": 1,
+      "failure": "ENOSPC"
+    },
+    "pbrs_build": "not reached",
+    "plugin": "not reached"
+  },
+  "full_codegen_pass_claimed": false,
+  "new_pinned_regen_run": false,
+  "shipping_codegen_runtime_bundled_source_changed": false
+}

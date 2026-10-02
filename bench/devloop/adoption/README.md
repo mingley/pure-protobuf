@@ -31,7 +31,13 @@ cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
 ```
 
 Use an external `CARGO_TARGET_DIR` when building this excluded consumer.
-Generated pbrs/prost messages remain in Cargo's output directory. The fixture
+Generated pbrs/prost messages remain in Cargo's output directory. Native
+application files keep their flat include layout and explicitly map Google
+types to `native_google::protobuf`; prost keeps `google::protobuf`. The build
+script generates native Any and descriptor types once from the application
+descriptor sets, so Any reflection retains the synthetic Payload schema.
+`native::Any`, `native::AnyView` and `native::AnyMut` remain compatibility aliases.
+The fixture
 script generates the wide schema, its two independent field walks and the
 options schemas/tests; their checked-in outputs must only change through that
 script. `--check` also verifies formatting using the installed rustfmt, whose
