@@ -16,6 +16,66 @@ import run as harness
 
 
 class CorpusTests(unittest.TestCase):
+    def test_pbrs_profile_preserves_raw_false_and_effective_defaults(self):
+        default = harness.pbrs_profile({})
+        self.assertEqual(default["kind"], "ordinary-default")
+        self.assertEqual(default["resolved"], {
+            "emit_reflection": True, "emit_json": True, "emit_text": True,
+            "shared_descriptor_set": False, "runtime_profile": "default", "stubs": "none",
+        })
+        for flag in ("0", "false", "FALSE"):
+            profile = harness.pbrs_profile({"SB09_PBRS_SHARED_DESCRIPTOR_SET": flag})
+            self.assertEqual(profile["raw"]["SB09_PBRS_SHARED_DESCRIPTOR_SET"], flag)
+            self.assertEqual(profile["resolved"], default["resolved"])
+            self.assertEqual(profile["kind"], "ordinary-default")
+        for flag in ("1", "true", "TRUE"):
+            profile = harness.pbrs_profile({"SB09_PBRS_SHARED_DESCRIPTOR_SET": flag})
+            self.assertEqual(profile["kind"], "nondefault-diagnostic")
+            self.assertTrue(profile["resolved"]["shared_descriptor_set"])
+
+    def test_pbrs_profile_records_lean_defaults_and_actual_stub_runtime(self):
+        env = {
+            "SB09_PBRS_EMIT_REFLECTION": "0", "SB09_PBRS_EMIT_TEXT": "1",
+            "SB09_PBRS_RUNTIME_PROFILE": "minimal",
+            "SB09_PBRS_SHARED_DESCRIPTOR_SET": "true",
+        }
+        profile = harness.pbrs_profile(env)
+        self.assertEqual(profile["kind"], "nondefault-diagnostic")
+        self.assertFalse(profile["resolved"]["emit_reflection"])
+        self.assertFalse(profile["resolved"]["emit_json"])
+        self.assertTrue(profile["resolved"]["emit_text"])
+        self.assertEqual(profile["resolved"]["runtime_profile"], "minimal")
+        for generator, stubs in harness.PBRS_STUB_ENV.items():
+            profile = harness.pbrs_profile(env, generator)
+            self.assertEqual(profile["resolved"]["stubs"], stubs)
+            self.assertEqual(profile["resolved"]["runtime_profile"], "default")
+            self.assertEqual(profile["raw"]["SB09_PBRS_RUNTIME_PROFILE"], "minimal")
+        for key in ("SB09_PBRS_SHARED_DESCRIPTOR_SET", "SB09_PBRS_EMIT_REFLECTION",
+                    "SB09_PBRS_EMIT_JSON", "SB09_PBRS_EMIT_TEXT"):
+            with self.subTest(key=key), self.assertRaisesRegex(harness.BenchmarkError, key):
+                harness.pbrs_profile({key: "invalid"})
+
+    def test_shared_helper_provenance_fails_on_missing_or_stale_output(self):
+        files = {"mod.rs": (1, "registry", 10), "part_00.rs": (1, "messages", 20)}
+        name = "__pbrs_shared_descriptors.rs"
+        ordinary = harness.pbrs_profile({})
+        shared = harness.pbrs_profile({"SB09_PBRS_SHARED_DESCRIPTOR_SET": "true"})
+        self.assertFalse(harness.pbrs_helper_provenance(files, ordinary, 2)["active"])
+        self.assertFalse(harness.pbrs_helper_provenance(files, shared, 1)["active"])
+        with self.assertRaisesRegex(harness.BenchmarkError, "shared descriptor helper"):
+            harness.pbrs_helper_provenance(files, shared, 2)
+        files[name] = (2, "helper", 30)
+        self.assertEqual(harness.pbrs_helper_provenance(files, shared, 2), {
+            "active": True, "path": name, "sha256": "helper", "bytes": 30,
+        })
+        with self.assertRaisesRegex(harness.BenchmarkError, "shared descriptor helper"):
+            harness.pbrs_helper_provenance(files, ordinary, 2)
+        lean = harness.pbrs_profile({
+            "SB09_PBRS_SHARED_DESCRIPTOR_SET": "true", "SB09_PBRS_EMIT_REFLECTION": "0",
+        })
+        with self.assertRaisesRegex(harness.BenchmarkError, "shared descriptor helper"):
+            harness.pbrs_helper_provenance(files, lean, 2)
+
     def test_seeded_multifile_corpora_have_exact_message_counts(self):
         default_hashes = {
             "small": "bc8f323ff561e0128d96453c1ed20dea33ee032f88b6decde4e8cd74ba2e18be",
@@ -541,6 +601,13 @@ class CorpusTests(unittest.TestCase):
                         self.assertIn("release smoke expected", smoke["error"])
 
     def test_pipeline_records_distinct_phases_and_binary_without_compilers(self):
+        self._assert_pbrs_pipeline_profile({})
+        self._assert_pbrs_pipeline_profile({"SB09_PBRS_SHARED_DESCRIPTOR_SET": "false"})
+
+    def test_shared_pipeline_records_diagnostic_profile_and_helper(self):
+        self._assert_pbrs_pipeline_profile({"SB09_PBRS_SHARED_DESCRIPTOR_SET": "true"}, True)
+
+    def _assert_pbrs_pipeline_profile(self, profile_env, expect_helper=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "repo"
             run_dir = Path(temporary) / "run"
@@ -587,6 +654,12 @@ class CorpusTests(unittest.TestCase):
                     harness.write_text(output / "mod.rs", 'include!("part_00.rs");\n')
                     for proto in command[4:]:
                         harness.write_text(output / proto.replace(".proto", ".rs"), "pub struct Message;\n")
+                    self.assertEqual(
+                        env.get("SB09_PBRS_SHARED_DESCRIPTOR_SET"),
+                        profile_env.get("SB09_PBRS_SHARED_DESCRIPTOR_SET"),
+                    )
+                    if expect_helper:
+                        harness.write_text(output / "__pbrs_shared_descriptors.rs", "pub const META: &[u8] = &[1];\n")
                 elif name == "check-clean":
                     self.assertEqual(env["CARGO_BUILD_JOBS"], "4")
                     target = run_dir / "cases" / "small" / "target-r0"
@@ -618,7 +691,7 @@ class CorpusTests(unittest.TestCase):
                 return {**result, "cwd": str(cwd), "timeout_seconds": timeout}
 
             with mock.patch.object(harness, "ROOT", root), mock.patch.dict(
-                os.environ, {"CARGO_INCREMENTAL": "1"}
+                os.environ, {"CARGO_INCREMENTAL": "1", **profile_env}
             ), mock.patch.object(harness, "provenance", return_value=environment), mock.patch.object(
                 harness, "timed_command", side_effect=fake_command
             ), mock.patch.object(
@@ -643,7 +716,19 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(shared_generator.read_text(), "replaced after copy")
             self.assertFalse((run_dir / "bootstrap-target").exists())
             self.assertEqual(cell["corpus"]["messages"], 6)
-            self.assertEqual(cell["output"]["unchanged_generation_verified_files"], 3)
+            self.assertEqual(cell["output"]["unchanged_generation_verified_files"], 4 if expect_helper else 3)
+            self.assertEqual(cell["profile"], saved["pbrs_profiles"]["pbrs"])
+            self.assertEqual(cell["shared_descriptor_helper"]["active"], expect_helper)
+            if expect_helper:
+                self.assertEqual(cell["profile"]["kind"], "nondefault-diagnostic")
+                self.assertIn("nondefault_pbrs_profile_diagnostic", saved["qualification"]["reasons"])
+                self.assertFalse(saved["qualification"]["qualified"])
+                self.assertEqual(cell["shared_descriptor_helper"]["sha256"], harness.sha256(
+                    run_dir / "cases" / "small" / "consumer" / "generated" / "__pbrs_shared_descriptors.rs",
+                ))
+            else:
+                self.assertEqual(cell["profile"]["kind"], "ordinary-default")
+                self.assertNotIn("nondefault_pbrs_profile_diagnostic", saved.get("qualification", {}).get("reasons", []))
             self.assertEqual(cell["release_binary"]["size_bytes"], len("compiled"))
             self.assertEqual(
                 set(cell["phases"]), {

@@ -49,6 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(enable) = bool_env("SB09_PBRS_EMIT_TEXT")? {
         config.emit_text(enable);
     }
+    if let Some(enable) = bool_env("SB09_PBRS_SHARED_DESCRIPTOR_SET")? {
+        config.shared_descriptor_set(enable);
+    }
     match stubs.as_str() {
         "" | "none" => {
             config.emit_kernel_stubs(false);
