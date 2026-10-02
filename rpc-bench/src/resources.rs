@@ -193,12 +193,12 @@ impl ProcessResources {
                 self.system_cpu_seconds
             )));
         }
-        if let Some(per_rpc) = self.cpu_seconds_per_rpc {
-            if per_rpc < 0.0 || per_rpc.is_nan() {
-                return Err(ResourceAttributionError::NegativeCpuSeconds(format!(
-                    "invalid cpu_seconds_per_rpc: {per_rpc}"
-                )));
-            }
+        if let Some(per_rpc) = self.cpu_seconds_per_rpc
+            && (per_rpc < 0.0 || per_rpc.is_nan())
+        {
+            return Err(ResourceAttributionError::NegativeCpuSeconds(format!(
+                "invalid cpu_seconds_per_rpc: {per_rpc}"
+            )));
         }
         Ok(())
     }
@@ -305,6 +305,10 @@ pub fn parse_cgroup_quota_v1_millicpus(quota_us: &str, period_us: &str) -> Optio
 }
 
 #[cfg(target_os = "linux")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "synchronous benchmark constraint API reads local procfs without adding runtime tasks"
+)]
 fn detect_platform_constraints() -> (Option<String>, Option<usize>, Option<u64>, String) {
     let mut affinity_cpus = None;
     let mut affinity_count = None;
@@ -332,6 +336,10 @@ fn detect_platform_constraints() -> (Option<String>, Option<usize>, Option<u64>,
 }
 
 #[cfg(target_os = "linux")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "synchronous benchmark constraint snapshot preserves cgroup v2 and v1 read order"
+)]
 fn detect_cgroup_quota_millicpus() -> Option<u64> {
     if let Ok(contents) = std::fs::read_to_string("/sys/fs/cgroup/cpu.max") {
         // cgroup v2 honors an explicit "max" (uncapped) without consulting v1.
@@ -837,10 +845,10 @@ fn parse_linux_status_rss(status: &str) -> std::io::Result<(u64, Option<u64>, u3
                 .strip_suffix("kB")
                 .and_then(|s| s.trim().parse::<u64>().ok())
                 .map(|v| v.saturating_mul(1024));
-        } else if let Some(rest) = line.strip_prefix("Threads:") {
-            if let Ok(val) = rest.trim().parse::<u32>() {
-                thread_count = val;
-            }
+        } else if let Some(rest) = line.strip_prefix("Threads:")
+            && let Ok(val) = rest.trim().parse::<u32>()
+        {
+            thread_count = val;
         }
     }
     current_rss_bytes
@@ -854,6 +862,10 @@ fn parse_linux_status_rss(status: &str) -> std::io::Result<(u64, Option<u64>, u3
 }
 
 #[cfg(target_os = "linux")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "synchronous benchmark resource snapshot preserves getrusage then procfs capture boundary"
+)]
 fn capture_platform() -> std::io::Result<ResourceSnapshot> {
     use linux_ffi::*;
     unsafe {

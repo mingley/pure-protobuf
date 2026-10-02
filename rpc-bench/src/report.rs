@@ -17,8 +17,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::SystemTime;
 
-#[path = "resources.rs"]
-pub mod resources;
+pub use crate::resources;
 pub use resources::{
     CombinedResourceMetrics, CpuConstraints, EndpointResourceAttribution, EndpointResources,
     EndpointRole, ProcessResources, ResourceAttributionError, ResourceSnapshot,
@@ -640,6 +639,10 @@ impl BenchmarkRun {
     }
 
     /// Save pretty-printed JSON record to a file on disk.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "synchronous report API writes after measurement and validation"
+    )]
     pub fn save_to_file(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
         let json = self
             .to_json_pretty()
@@ -706,20 +709,19 @@ impl BenchmarkRun {
         // Validate open-loop / scheduling lag metrics if present
         if let (Some(offered), Some(dispatched)) =
             (self.metrics.offered_rpcs, self.metrics.dispatched_rpcs)
+            && dispatched > offered
         {
-            if dispatched > offered {
-                return Err(ValidationError::InconsistentCounts(format!(
-                    "dispatched_rpcs ({dispatched}) exceeds offered_rpcs ({offered})"
-                )));
-            }
+            return Err(ValidationError::InconsistentCounts(format!(
+                "dispatched_rpcs ({dispatched}) exceeds offered_rpcs ({offered})"
+            )));
         }
-        if let Some(ref lag) = self.metrics.scheduling_lag_nanos {
-            if lag.p50 > lag.p99 || lag.p99 > lag.max {
-                return Err(ValidationError::InvalidLatencyDistribution(format!(
-                    "scheduling_lag_nanos percentiles not non-decreasing: p50={}, p99={}, max={}",
-                    lag.p50, lag.p99, lag.max
-                )));
-            }
+        if let Some(ref lag) = self.metrics.scheduling_lag_nanos
+            && (lag.p50 > lag.p99 || lag.p99 > lag.max)
+        {
+            return Err(ValidationError::InvalidLatencyDistribution(format!(
+                "scheduling_lag_nanos percentiles not non-decreasing: p50={}, p99={}, max={}",
+                lag.p50, lag.p99, lag.max
+            )));
         }
 
         // Validate latency distribution consistency
@@ -751,13 +753,13 @@ impl BenchmarkRun {
                     "percentiles not monotonically non-decreasing".to_string(),
                 ));
             }
-            if let Some(p999) = lat.p999_nanos {
-                if !(lat.p99_nanos <= p999 && p999 <= lat.max_nanos) {
-                    return Err(ValidationError::InvalidLatencyDistribution(format!(
-                        "p999_nanos ({p999}) must be >= p99 ({}) and <= max ({})",
-                        lat.p99_nanos, lat.max_nanos
-                    )));
-                }
+            if let Some(p999) = lat.p999_nanos
+                && !(lat.p99_nanos <= p999 && p999 <= lat.max_nanos)
+            {
+                return Err(ValidationError::InvalidLatencyDistribution(format!(
+                    "p999_nanos ({p999}) must be >= p99 ({}) and <= max ({})",
+                    lat.p99_nanos, lat.max_nanos
+                )));
             }
             if lat.histogram.unit != LATENCY_UNIT_NANOS {
                 return Err(ValidationError::InconsistentUnits(format!(
@@ -775,19 +777,19 @@ impl BenchmarkRun {
         }
 
         // Validate client and server resource attribution if present
-        if let Some(ref client_res) = self.metrics.client_resources {
-            if let Err(e) = client_res.validate() {
-                return Err(ValidationError::InvalidResourceMetrics(format!(
-                    "invalid client_resources: {e}"
-                )));
-            }
+        if let Some(ref client_res) = self.metrics.client_resources
+            && let Err(e) = client_res.validate()
+        {
+            return Err(ValidationError::InvalidResourceMetrics(format!(
+                "invalid client_resources: {e}"
+            )));
         }
-        if let Some(ref server_res) = self.metrics.server_resources {
-            if let Err(e) = server_res.validate() {
-                return Err(ValidationError::InvalidResourceMetrics(format!(
-                    "invalid server_resources: {e}"
-                )));
-            }
+        if let Some(ref server_res) = self.metrics.server_resources
+            && let Err(e) = server_res.validate()
+        {
+            return Err(ValidationError::InvalidResourceMetrics(format!(
+                "invalid server_resources: {e}"
+            )));
         }
 
         Ok(())
@@ -877,24 +879,28 @@ impl BenchmarkReport {
         for run in &self.runs {
             run.validate()?;
         }
-        if let Some(ref client_res) = self.client_resources {
-            if let Err(e) = client_res.validate() {
-                return Err(ValidationError::InvalidResourceMetrics(format!(
-                    "invalid report client_resources: {e}"
-                )));
-            }
+        if let Some(ref client_res) = self.client_resources
+            && let Err(e) = client_res.validate()
+        {
+            return Err(ValidationError::InvalidResourceMetrics(format!(
+                "invalid report client_resources: {e}"
+            )));
         }
-        if let Some(ref server_res) = self.server_resources {
-            if let Err(e) = server_res.validate() {
-                return Err(ValidationError::InvalidResourceMetrics(format!(
-                    "invalid report server_resources: {e}"
-                )));
-            }
+        if let Some(ref server_res) = self.server_resources
+            && let Err(e) = server_res.validate()
+        {
+            return Err(ValidationError::InvalidResourceMetrics(format!(
+                "invalid report server_resources: {e}"
+            )));
         }
         Ok(())
     }
 
     /// Save report to a file on disk.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "synchronous report API writes after measurement and validation"
+    )]
     pub fn save_to_file(&self, path: impl AsRef<Path>) -> std::io::Result<()> {
         let json = self
             .to_json_pretty()
@@ -1002,25 +1008,24 @@ fn is_leap_year(year: i64) -> bool {
 
 /// Detect git commit SHA from environment or git command.
 pub fn detect_git_commit() -> String {
-    if let Ok(val) = std::env::var("BENCH_GIT_COMMIT") {
-        if !val.trim().is_empty() {
-            return val.trim().to_string();
-        }
+    if let Ok(val) = std::env::var("BENCH_GIT_COMMIT")
+        && !val.trim().is_empty()
+    {
+        return val.trim().to_string();
     }
-    if let Ok(val) = std::env::var("GIT_COMMIT") {
-        if !val.trim().is_empty() {
-            return val.trim().to_string();
-        }
+    if let Ok(val) = std::env::var("GIT_COMMIT")
+        && !val.trim().is_empty()
+    {
+        return val.trim().to_string();
     }
     if let Ok(output) = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !sha.is_empty() {
-                return sha;
-            }
+        let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !sha.is_empty() {
+            return sha;
         }
     }
     "unknown".to_string()
@@ -1279,6 +1284,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "synchronous disk roundtrip test for the report file API"
+    )]
     fn test_benchmark_run_with_raw_samples_and_save_to_file() {
         let temp_dir = std::env::temp_dir();
         let path = temp_dir.join(format!(
