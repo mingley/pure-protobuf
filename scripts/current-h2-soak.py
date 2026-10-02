@@ -140,6 +140,8 @@ def validate_report(report):
         errors.append("24-hour qualification disposition must remain not_run")
     if report.get("exit_code") != 0:
         errors.append("resource test child failed")
+    if report.get("smoke", {}).get("status") == "failed" or report.get("smoke", {}).get("failures"):
+        errors.append("retained smoke has unresolved failures")
     events = report.get("events", [])
     if not events or events[0].get("phase") != "baseline" or events[0].get("cycle") != 0:
         return errors + ["missing baseline phase accounting"]

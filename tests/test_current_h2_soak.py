@@ -76,6 +76,11 @@ class CurrentH2EvidenceTest(unittest.TestCase):
         report["process_limits"]["file_descriptors"] = {"soft": 2048, "hard": 2048}
         self.assertIn("effective process limits differ from frozen requested limits", SOAK.validate_report(report))
 
+    def test_retained_failure_cannot_be_revalidated_as_a_pass(self):
+        report = complete_report()
+        report["smoke"] = {"status": "failed", "failures": ["source changed during execution"]}
+        self.assertIn("retained smoke has unresolved failures", SOAK.validate_report(report))
+
     def test_infinite_zero_negative_and_string_limits_rejected(self):
         for key in SOAK.LIMIT_NAMES:
             for invalid in (-1, 0, float("inf"), None, "unlimited", True):
