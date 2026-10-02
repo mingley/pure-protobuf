@@ -1,0 +1,604 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/verify-main)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Finished `test` profile [unoptimized] target(s) in 54.63s
+     Running unittests src/lib.rs (target/debug/deps/pbrs-944acf11dd0b875b)
+
+running 97 tests
+test codegen::descriptors::tests::file_matcher_matches_reference ... ok
+test codegen::descriptors::tests::multi_target_emission_is_deterministic ... ok
+test codegen::descriptors::tests::normalize_cow_matches_owned ... ok
+test codegen::prost_stubs::tests::prost_helloworld_stubs_cover_all_shapes ... ok
+test codegen::reflection::tests::fds_hex_block_roundtrips_bytes ... ok
+test codegen::tests::bytes_fields_encode_via_shared_helper ... ok
+test codegen::tests::missing_import_source_restores_requested_path_from_relative_protoc_error ... ok
+test codegen::tests::package_keyword_segments_escape_in_modules_and_paths ... ok
+test codegen::tests::test_emit_doc_line_code_fences ... ok
+test codegen::tests::test_sanitize_doc_line_backticks ... ok
+test codegen::tests::test_sanitize_doc_line_html_and_inequalities ... ok
+test codegen::tests::test_sanitize_doc_line_indentation ... ok
+test codegen::tests::test_sanitize_doc_line_links_and_urls ... ok
+test codegen::tests::test_starts_with_ignore_ascii_non_boundary ... ok
+test copy_counts::tests::counts_encode_payload_emissions ... ok
+test copy_counts::tests::counts_wire_backing_copies ... ok
+test dynamic::tests::debug_shape_is_stable ... ok
+test dynamic::tests::distinct_bytes_do_not_share_pools ... ok
+test dynamic::tests::identical_bytes_share_one_parsed_pool ... ok
+test dynamic::tests::malformed_bytes_still_fail_eagerly ... ok
+test dynamic::tests::shared_pool_mutation_is_copy_on_write ... ok
+test json::tests::duration_multibyte_fraction_is_error_not_panic ... ok
+test json::tests::timestamp_extremes_are_errors_not_panics ... ok
+test lazy::tests::dense_large_field_still_shares_parent_frame ... ok
+test lazy::tests::dense_medium_field_still_shares_parent_frame ... ok
+test lazy::tests::from_parse_span_empty_skips_parent_arc ... ok
+test lazy::tests::from_parse_span_large_near_whole_copies_payload_wire ... ok
+test lazy::tests::from_parse_span_medium_shares_parent_frame ... ok
+test lazy::tests::from_parse_span_near_whole_medium_owns_payload ... ok
+test lazy::tests::from_parse_span_rejects_invalid_utf8 ... ok
+test lazy::tests::from_parse_span_skips_parent_arc_when_inline ... ok
+test lazy::tests::from_parse_span_unchecked_keeps_non_utf8 ... ok
+test lazy::tests::from_span_still_inlines_after_ensure ... ok
+test lazy::tests::require_utf8_accepts_ascii_and_multibyte_rejects_invalid ... ok
+test lazy::tests::sparse_large_field_uses_payload_wire_not_parent ... ok
+test lazy::tests::sparse_short_field_does_not_pin_large_parent_frame ... ok
+test lazy::tests::u32_offset_add_overflow_fails_closed - should panic ... ok
+test lazy::tests::u32_offset_boundary ... ok
+test lazy::tests::u32_offset_over_u32_max_fails_closed - should panic ... ok
+test map::tests::arena_backed_map_iteration_does_not_leak_key_bytes ... ok
+test map::tests::arena_backed_map_values_are_reclaimed ... ok
+test map::tests::empty_eq_and_zeroed ... ok
+test map::tests::hybrid_hot_index_survives_insert_and_rebuilds_after_remove ... ok
+test map::tests::hybrid_matches_scan_across_threshold ... ok
+test map::tests::index_invalidates_on_insert_remove_clear_push ... ok
+test map::tests::insert_remove ... ok
+test map::tests::map_mut_uses_index_and_from_slice_still_scans ... ok
+test map::tests::push_entry_last_wins_and_pairs_keep_wire_order ... ok
+test packed::tests::append_bytes_fixed_decodes ... ok
+test packed::tests::append_keeps_wire_until_mut ... ok
+test packed::tests::empty_eq_and_zeroed ... ok
+test packed::tests::packed_byte_len_overflow_fails_closed - should panic ... ok
+test packed::tests::packed_byte_len_passthrough ... ok
+test packed::tests::simd_bulk_decode_matches_scalar ... ok
+test packed::tests::truncated_fixed_fails ... ok
+test packed::tests::truncated_varint_fails ... ok
+test repeated::tests::arena_backed_repeated_strings_are_reclaimed ... ok
+test repeated::tests::arena_backed_set_rejects_an_invalid_index - should panic ... ok
+test repeated::tests::empty_eq_and_zeroed ... ok
+test repeated::tests::push_then_clear ... ok
+test runtime::decode::tests::closed_enum_map_unknown_entries_do_not_replace_valid_keys ... ok
+test runtime::decode::tests::parsed_string_storage_is_owned_by_the_arena ... ok
+test runtime::layout::tests::cloned_repeated_strings_are_owned_by_the_new_arena ... ok
+test runtime::mini_table::tests::address_mini_table_one_string ... ok
+test runtime::mini_table::tests::closed_enum_descriptor_masks_skips_and_negative_values ... ok
+test runtime::mini_table::tests::mini_descriptor_distinguishes_open_and_closed_enums ... ok
+test table::tests::all_kinds_round_trip ... ok
+test table::tests::closed_enum_moves_to_unknown_open_keeps_value ... ok
+test table::tests::decode_scalar_vectors ... ok
+test table::tests::depth_limit ... ok
+test table::tests::dynamic_map_entry_direct_matches_temp ... ok
+test table::tests::dynamic_table_matches_inline_smoke ... ok
+test table::tests::eager_message_merges_across_occurrences ... ok
+test table::tests::find_entry_hits_and_misses ... ok
+test table::tests::group_shapes ... ok
+test table::tests::inner_table_matches_hand_inline ... ok
+test table::tests::last_wins_and_oneof_replacement ... ok
+test table::tests::lazy_field_semantics ... ok
+test table::tests::lazy_helpers_match_generated_thresholds ... ok
+test table::tests::map_last_wins_with_defaults ... ok
+test table::tests::messageset_default_preserves_items ... ok
+test table::tests::native_wire_matches_codegen_map ... ok
+test table::tests::packed_accepted_both_directions ... ok
+test table::tests::required_enforcement ... ok
+test table::tests::unknown_fields_and_wire_mismatches_preserved ... ok
+test table::tests::validate_packed_vectors ... ok
+test table::tests::validate_table_accepts_sorted_rejects_bad ... ok
+test wire::tests::bulk_varint_differential_campaign ... ok
+test wire::tests::huge_length_skip_is_error_not_panic ... ok
+test wire::tests::huge_length_span_is_error_not_panic ... ok
+test wire::tests::max_field_number_matches_spec_bound ... ok
+test wire::tests::max_u64_length_is_error_not_panic ... ok
+test wire::tests::put_shared_default_copies ... ok
+test wire::tests::shared_field_routes_by_threshold_and_backing ... ok
+test wire::tests::simd_chunk_edges_match_reference ... ok
+test wire::tests::simd_cont_mask_matches_scalar ... ok
+test wire::tests::validate_varints_matches_scalar_reference ... ok
+
+test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running unittests src/bin/conformance.rs (target/debug/deps/conformance-44978e706dda0662)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/protoc-gen-pbrs.rs (target/debug/deps/protoc_gen_pbrs-a782664357439e81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/codegen_compat.rs (target/debug/deps/codegen_compat-00aba17018c28498)
+
+running 11 tests
+test published_stub_selector_remains_exhaustive_with_original_discriminants ... ok
+test test_backward_compatibility_defaults_and_absence ... ok
+test test_codegen_stub_signatures_all_four_call_shapes ... ok
+test test_crate_names_and_application_level_v4_vs_universal_c_abi ... ok
+test test_enum_evolution_open_proto3_semantics ... ok
+test test_forward_compatibility_preserves_unknown_fields ... ok
+test test_incompatible_generated_runtime_pairs_fail_clearly ... ok
+test test_live_cross_version_stubs_and_unimplemented_behavior ... ok
+test test_mutation_and_cache_invalidation ... ok
+test test_oneof_evolution_across_versions ... ok
+test test_presence_semantics_across_versions ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.68s
+
+     Running tests/codegen_wkt_sharing.rs (target/debug/deps/codegen_wkt_sharing-ae6f1984c92c158b)
+
+running 6 tests
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... ok
+test exact_external_mapping_can_alias_an_existing_facade_type ... ok
+test explicitly_requested_mapped_google_file_is_rejected ... ok
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... ok
+test imported_owner_does_not_remove_an_explicit_unique_stem_alias ... ok
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.22s
+
+     Running tests/conformance_json_output.rs (target/debug/deps/conformance_json_output-d4694b9177e8d1c8)
+
+running 13 tests
+test build_rs_does_not_write_empty_conformance_fds ... ok
+test conformance_pool_has_test_all_types ... ok
+test edition2023_valid_data_scalar_int32_json_output ... ok
+test proto2_and_edition2023_float_double_json_parity ... ok
+test proto2_valid_data_scalar_int32_json_output ... ok
+test proto3_double_overflow_rejection ... ok
+test proto3_float_double_json_boundary_rounding ... ok
+test proto3_float_double_json_signed_zero ... ok
+test proto3_float_double_json_subnormals_and_exponents ... ok
+test proto3_float_double_nan_infinity_spellings ... ok
+test proto3_float_double_reject_invalid_and_trailing ... ok
+test proto3_float_range_rejection ... ok
+test proto3_valid_data_scalar_int32_json_output ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/depth.rs (target/debug/deps/depth-c8627e815985f2fe)
+
+running 2 tests
+test nest_at_limit_ok_and_over_limit_err ... ok
+test parse_trait_too_deep_is_err ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/differential_binary.rs (target/debug/deps/differential_binary-99dbff07515dd1c6)
+
+running 11 tests
+test test_extensions_proto2_dynamic ... ok
+test test_map_entries_last_wins ... ok
+test test_merge_semantics_differential ... ok
+test test_oneof_field_setting_and_overwriting ... ok
+test test_open_vs_closed_enums ... ok
+test test_packed_vs_unpacked_repeated ... ok
+test test_presence_proto2_differential ... ok
+test test_presence_proto3_differential ... ok
+test test_recursion_depth_limit ... ok
+test test_truncated_payload_boundaries ... ok
+test test_unknown_fields_roundtrip ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/differential_formats.rs (target/debug/deps/differential_formats-396e907752f7a0b0)
+
+running 19 tests
+test test_casing_and_duplicate_fields_differential ... ok
+test test_dynamic_vs_generated_format_parity ... ok
+test test_enums_string_name_vs_integer_number_differential ... ok
+test test_maps_duplicate_keys_json_rejection_vs_text_last_wins ... ok
+test test_maps_key_types_differential ... ok
+test test_numeric_float32_bounds_and_overflow_differential ... ok
+test test_numeric_nan_and_infinity_differential ... ok
+test test_numeric_signed_zero_differential ... ok
+test test_numeric_subnormals_and_large_exponents_differential ... ok
+test test_open_enum_unknown_integers_differential ... ok
+test test_roundtrip_json_canonical_equality ... ok
+test test_roundtrip_text_equality ... ok
+test test_unknown_enum_string_rejection_and_skip_differential ... ok
+test test_wkt_duration_s_suffix_differential ... ok
+test test_wkt_empty_differential ... ok
+test test_wkt_fieldmask_camel_case_differential ... ok
+test test_wkt_struct_value_listvalue_differential ... ok
+test test_wkt_timestamp_rfc3339_differential ... ok
+test test_wkt_wrappers_direct_value_differential ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/documentation.rs (target/debug/deps/documentation-174874838ba8d2f2)
+
+running 25 tests
+test documented_bundled_wkt_mapping_compiles ... ok
+test test_all_critical_caveats_pass_on_repository_docs ... ok
+test test_anchor_cache_never_treats_unreadable_targets_as_empty ... ok
+test test_claim_provenance_contract ... ok
+test test_documentation_links_and_anchors_are_valid ... ok
+test test_documentation_map_references_and_anchors_are_valid ... ok
+test test_documentation_map_rejects_repository_escape ... ok
+test test_documented_versions_match_cargo_manifests ... ok
+test test_evidence_links_and_rustdoc_navigation_contract ... ok
+test test_guide_code_blocks_are_syntactically_valid ... ok
+test test_http2_transport_mapping_caveats_contract ... ok
+test test_license_and_crate_naming_notes_contract ... ok
+test test_link_checker_detects_broken_link_and_anchor ... ok
+test test_link_checker_rejects_missing_examples_and_stale_generated_references ... ok
+test test_local_link_checker_rejects_repository_escape ... ok
+test test_markdown_discovery_rejects_out_of_repo_directory_links ... ok
+test test_named_recipe_fences_still_receive_negative_syntax_checks ... ok
+test test_protobuf_snippet_syntax_validator_detects_errors ... ok
+test test_published_prose_has_no_unqualified_superlatives ... ok
+test test_removing_or_altering_critical_caveat_fails ... ok
+test test_rust_snippet_syntax_validator_detects_errors ... ok
+test test_security_tls_verifier_and_alpn_contract ... ok
+test test_tonic_support_boundary_matches_manifest ... ok
+test test_transparent_retry_boundaries_contract ... ok
+test test_unsupported_and_untested_boundaries_contract ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+
+     Running tests/dynamic.rs (target/debug/deps/dynamic-b5908460a0247b5a)
+
+running 36 tests
+test bundled_reference_pool_preserves_supported_editions ... ok
+test codegen_config_include_source_info ... ok
+test dynamic_map ... ok
+test dynamic_matches_typed_wire ... ok
+test dynamic_message_trait_parse ... ok
+test dynamic_unknown_and_repeated ... ok
+test edition2023_and_proto_defaults_remain_unchanged ... ok
+test edition2024_cross_file_local_symbols_are_rejected ... ok
+test edition2024_extensions_match_pinned_wire_and_closed_enum ... ok
+test edition2024_field_and_enum_overrides_match_pinned_descriptors ... ok
+test edition2024_field_defaults_and_wire_match_pinned_fixture ... ok
+test edition2024_file_metadata_overrides_reach_nested_symbols ... ok
+test edition2024_metadata_matches_pinned_feature_inheritance ... ok
+test edition2024_naming_rejects_invalid_names_and_honors_inheritance ... ok
+test edition2024_packed_closed_enum_retains_unknown_numbers ... ok
+test edition2024_rejects_removed_field_constructs_and_unknown_types ... ok
+test edition2024_rejects_unresolved_features_and_invalid_targets ... ok
+test edition2024_resolved_descriptors_match_complete_fixture_oracles ... ok
+test edition2024_visibility_allows_transitive_public_imports_only ... ok
+test edition2024_visibility_matches_pinned_descriptor_oracle ... ok
+test edition2024_visibility_rejects_unknown_declarations ... ok
+test enum_deprecation_is_independent_of_alias_options ... ok
+test exhaustive_descriptor_literals_remain_external_source_compatible ... ok
+test file_descriptor_set_bootstrap ... ok
+test file_descriptor_set_keeps_custom_options ... ok
+test manual_registration_does_not_inherit_stale_descriptor_metadata ... ok
+test pk18_foreign_descriptor_mutation_visible_with_pool ... ok
+test pk18_hand_built_descriptor_mutation_visible_between_parses ... ok
+test pk18_map_entries_last_wins_with_defaults ... ok
+test pk18_pool_resolution_wins_over_descriptor_link ... ok
+test pk18_pool_tables_give_identical_results_across_parses ... ok
+test pk18_registered_message_parses_after_cache_built ... ok
+test pk18_replaced_message_parses_with_fresh_table ... ok
+test pk18_table_split_matches_inline_bytes ... ok
+test source_code_info_and_deprecation_preserved ... ok
+test source_code_info_codegen_doc_comments ... ok
+
+test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/fuzz_parse.rs (target/debug/deps/fuzz_parse-cbbb2768bac35562)
+
+running 1 test
+test fuzz_parse_short_campaign ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/generated_json.rs (target/debug/deps/generated_json-dc32d20d1da1ee1c)
+
+running 3 tests
+test generated_hello_json_is_free_with_same_mechanism ... ok
+test generated_person_json_is_field_wise_and_matches_proto3 ... ok
+test official_dynamic_json_goldens_for_person_shape ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+
+     Running tests/generated_oneof.rs (target/debug/deps/generated_oneof-53797702014c31c1)
+
+running 4 tests
+test generated_oneof_json_is_field_wise_and_matches_proto3 ... ok
+test generated_oneof_text_is_field_wise_and_matches_proto3 ... ok
+test official_dynamic_json_goldens_for_oneof_hole ... ok
+test official_dynamic_text_goldens_for_oneof_hole ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+     Running tests/generated_scalars.rs (target/debug/deps/generated_scalars-a2abe6d13e49f503)
+
+running 4 tests
+test generated_extra_scalars_json_is_field_wise_and_matches_proto3 ... ok
+test generated_extra_scalars_text_is_field_wise_and_matches_proto3 ... ok
+test official_dynamic_json_goldens_for_extra_scalars ... ok
+test official_dynamic_text_goldens_for_extra_scalars ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+
+     Running tests/generated_text.rs (target/debug/deps/generated_text-caa93c06043f4081)
+
+running 4 tests
+test generated_hello_text_is_free_with_same_mechanism ... ok
+test generated_otlp_text_round_trips_nested_enums ... ok
+test generated_person_text_is_field_wise_and_matches_proto3 ... ok
+test official_dynamic_text_goldens_for_person_shape ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+
+     Running tests/generated_wkt.rs (target/debug/deps/generated_wkt-008dc6d09a77f041)
+
+running 17 tests
+test checked_in_duration_json_text_is_field_wise ... ok
+test checked_in_empty_json_text_is_field_wise ... ok
+test checked_in_field_mask_uses_official_json_and_field_wise_text ... ok
+test checked_in_timestamp_json_text_is_field_wise ... ok
+test checked_in_wrappers_json_text_is_field_wise ... ok
+test gencode_empty_wrappers_match_dynamic_message ... ok
+test gencode_timestamp_duration_match_dynamic_message ... ok
+test generated_duration_json_is_field_wise_and_matches_proto3 ... ok
+test generated_duration_text_is_field_wise_and_matches_proto3 ... ok
+test generated_empty_json_is_field_wise_and_matches_proto3 ... ok
+test generated_empty_text_is_field_wise_and_matches_proto3 ... ok
+test generated_has_empty_wrappers_parent_is_field_wise ... ok
+test generated_has_wkt_parent_is_field_wise ... ok
+test generated_timestamp_json_is_field_wise_and_matches_proto3 ... ok
+test generated_timestamp_text_is_field_wise_and_matches_proto3 ... ok
+test generated_wrappers_json_is_field_wise_and_matches_proto3 ... ok
+test generated_wrappers_text_is_field_wise_and_matches_proto3 ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+
+     Running tests/google_shared.rs (target/debug/deps/google_shared-84591779dda4e410)
+
+running 38 tests
+test bad_names_keywords ... ok
+test child_parent_serialize ... ok
+test copy_take_merge ... ok
+test deserialize_empty_proto3 ... ok
+test deserialize_error_proto3 ... ok
+test deserialize_on_previously_allocated_message_proto3 ... ok
+test edition2023_presence ... ok
+test enums_closed_open_alias ... ok
+test imported_and_package_types_exist ... ok
+test maps_insert_get_keys ... ok
+test message_generics ... ok
+test nested_types_accessible ... ok
+test proto2_default_accessors ... ok
+test proto2_nested_message_opt ... ok
+test proto2_optional_and_default_opt ... ok
+test proto2_required_and_optional_parse ... ok
+test proto3_clear_and_parse_on_mut ... ok
+test proto3_optional_opt ... ok
+test proto3_optional_roundtrip ... ok
+test proto_macro_infer_and_spread ... ok
+test proto_macro_literals ... ok
+test repeated_bool_enum_message ... ok
+test repeated_numeric_set_and_iter ... ok
+test serialization_zero_length_proto2 ... ok
+test serialization_zero_length_proto3 ... ok
+test serialize_default_view ... ok
+test serialize_deserialize_message_proto3 ... ok
+test set_bytes_with_serialized_data_proto3 ... ok
+test test_bool_accessors ... ok
+test test_bytes_accessors ... ok
+test test_fixed32_accessors ... ok
+test test_int32_byte_size_proto3_optional ... ok
+test test_optional_bytes_accessors ... ok
+test test_required_field_enforced ... ok
+test test_required_field_not_enforced ... ok
+test test_string_accessors ... ok
+test threading_send ... ok
+test utf8_parse_rules ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/json_text_ext.rs (target/debug/deps/json_text_ext-a11c87d56c2ca279)
+
+running 7 tests
+test dynamic_message_float_double_json_roundtrip ... ok
+test editions_explicit_presence_zero ... ok
+test extension_get_set_roundtrip ... ok
+test json_float_double_shipped_helpers_pure_rust ... ok
+test json_roundtrip_shipped_api ... ok
+test text_map_entry_missing_value_defaults_by_type_and_reparses ... ok
+test text_roundtrip_shipped_api ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/onboarding.rs (target/debug/deps/onboarding-25bcc924f26dfc6c)
+
+running 16 tests
+test adapter_descriptor_sets_match_pinned_protoc_and_generated_output ... ignored, requires pinned protoc 35.1; required conformance CI runs this test explicitly
+test adapters_build_cold_from_descriptor_sets_without_protoc ... ok
+test codegen_stub_flavours_are_explicit ... ok
+test committed_hello_and_wkt_copies_match ... ok
+test core_builds_without_protoc ... ok
+test greeter_binary_production_recipe_runs_without_changing_default ... ok
+test greeter_example_binary_runs_and_prints_hello_world ... ok
+test native_grpc_consumer_exercises_all_four_rpc_shapes ... ok
+test native_grpc_consumer_says_hello_ada ... ok
+test operations_guide_recipes_compile_run_and_reject_api_drift ... ok
+test packaged_greeter_example_consumer_runs_all_four_shapes ... ok
+test packaged_production_recipe_exercises_tls_and_mtls_overload_and_drain ... ok
+test packed_core_and_both_adapters_build_cold_without_protoc ... ok
+test scratch_unique_does_not_reuse_a_cached_directory ... ok
+test tonic_consumer_says_hello_ada ... ok
+test tonic_readme_selects_stubs_explicitly ... ok
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 494.41s
+
+     Running tests/package_consumer.rs (target/debug/deps/package_consumer-ef8dbefeb41afbae)
+
+running 2 tests
+test core_package_contains_only_shipped_files ... ok
+test unpacked_crates_build_isolated_consumers ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.11s
+
+     Running tests/pbrs_build.rs (target/debug/deps/pbrs_build-18737e9018dd5a0c)
+
+running 32 tests
+test ambiguous_stem_request_fails_with_diagnostic ... ok
+test atomic_write_on_failure_preserves_prior_output ... ok
+test builder_option_parity_client_only_and_tonic_codec_path ... ok
+test builder_option_parity_controls_output_and_protoc ... ok
+test builder_option_parity_emit_rerun_if_changed_false_is_quiet ... ok
+test byte_stability_across_input_permutations_and_no_host_paths ... ok
+test changed_input_updates_only_affected_outputs ... ok
+test checked_descriptor_messages_consumer_builds_without_protoc ... ok
+test codegen_error_converts_to_parse_error ... ok
+test compile_protos_consumer_parses_ada ... ok
+test compile_protos_defaults_to_kernel_stubs ... ok
+test compile_protos_multi_file_stem_collision_and_cross_package_references ... ok
+test custom_protoc_path_configuration ... ok
+test descriptor_set_errors_identify_input_and_preserve_output ... ok
+test descriptor_set_matches_compile_protos_layout_and_stub_modes ... ok
+test descriptor_set_native_and_tonic_consumers_build_without_protoc ... FAILED
+test descriptor_set_tracks_transitive_source_provenance ... FAILED
+test encode_code_generator_response_error_wire_format ... ok
+test error_invalid_protoc_path_diagnostics ... FAILED
+test error_malformed_descriptor_identifies_cause ... ok
+test error_missing_import_identifies_cause_and_path ... FAILED
+test error_missing_out_dir_identifies_cause ... FAILED
+test error_syntax_error_identifies_cause_and_path ... FAILED
+test error_unwritable_output_identifies_cause_and_path ... FAILED
+test generated_accessors_escape_runtime_and_helper_method_names ... FAILED
+test generated_serialization_uses_field_number_order_across_storage_classes ... FAILED
+test mtime_preservation_for_identical_content ... FAILED
+test protoc_plugin_binary_outputs_error_response_on_invalid_stdin ... ok
+test tonic_compat_consumer_runs_all_four_shapes ... FAILED
+test transitive_proto_rebuild_directives_emitted ... FAILED
+test transitive_public_import_chain_compiles ... FAILED
+test unknown_requested_file_fails_with_diagnostic ... FAILED
+
+failures:
+
+---- descriptor_set_native_and_tonic_consumers_build_without_protoc stdout ----
+
+thread 'descriptor_set_native_and_tonic_consumers_build_without_protoc' (230950) panicked at tests/pbrs_build.rs:2337:5:
+adapter prebuild failed:
+status=exit status: 101
+stdout:
+
+stderr:
+error: failed to build archive at `/workspace/scratch/work/verify-main/target/integration-consumers/debug/deps/libtower-40e532b7c3c45403.rlib`: couldn't create a directory for the temp file: No space left on device (os error 28) at path "/workspace/scratch/work/verify-main/target/integration-consumers/debug/deps/.tmpI9BmkI.temp-archive"
+
+error: could not compile `tower` (lib) due to 1 previous error
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- descriptor_set_tracks_transitive_source_provenance stdout ----
+
+thread 'descriptor_set_tracks_transitive_source_provenance' (231076) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- error_invalid_protoc_path_diagnostics stdout ----
+
+thread 'error_invalid_protoc_path_diagnostics' (231078) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- error_missing_import_identifies_cause_and_path stdout ----
+
+thread 'error_missing_import_identifies_cause_and_path' (231080) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- error_missing_out_dir_identifies_cause stdout ----
+
+thread 'error_missing_out_dir_identifies_cause' (231081) panicked at tests/pbrs_build.rs:1094:9:
+status=exit status: 101
+stdout:
+
+running 1 test
+test error_missing_out_dir_identifies_cause ... FAILED
+
+failures:
+
+---- error_missing_out_dir_identifies_cause stdout ----
+
+thread 'error_missing_out_dir_identifies_cause' (231083) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    error_missing_out_dir_identifies_cause
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+
+stderr:
+
+
+---- error_syntax_error_identifies_cause_and_path stdout ----
+
+thread 'error_syntax_error_identifies_cause_and_path' (231084) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- error_unwritable_output_identifies_cause_and_path stdout ----
+
+thread 'error_unwritable_output_identifies_cause_and_path' (231085) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- generated_accessors_escape_runtime_and_helper_method_names stdout ----
+
+thread 'generated_accessors_escape_runtime_and_helper_method_names' (231086) panicked at tests/pbrs_build.rs:244:46:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- generated_serialization_uses_field_number_order_across_storage_classes stdout ----
+
+thread 'generated_serialization_uses_field_number_order_across_storage_classes' (231087) panicked at tests/pbrs_build.rs:354:46:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- mtime_preservation_for_identical_content stdout ----
+
+thread 'mtime_preservation_for_identical_content' (231088) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- tonic_compat_consumer_runs_all_four_shapes stdout ----
+
+thread 'tonic_compat_consumer_runs_all_four_shapes' (231091) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- transitive_proto_rebuild_directives_emitted stdout ----
+
+thread 'transitive_proto_rebuild_directives_emitted' (231092) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- transitive_public_import_chain_compiles stdout ----
+
+thread 'transitive_public_import_chain_compiles' (231093) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+---- unknown_requested_file_fails_with_diagnostic stdout ----
+
+thread 'unknown_requested_file_fails_with_diagnostic' (231094) panicked at tests/pbrs_build.rs:789:35:
+called `Result::unwrap()` on an `Err` value: Os { code: 28, kind: StorageFull, message: "No space left on device" }
+
+
+failures:
+    descriptor_set_native_and_tonic_consumers_build_without_protoc
+    descriptor_set_tracks_transitive_source_provenance
+    error_invalid_protoc_path_diagnostics
+    error_missing_import_identifies_cause_and_path
+    error_missing_out_dir_identifies_cause
+    error_syntax_error_identifies_cause_and_path
+    error_unwritable_output_identifies_cause_and_path
+    generated_accessors_escape_runtime_and_helper_method_names
+    generated_serialization_uses_field_number_order_across_storage_classes
+    mtime_preservation_for_identical_content
+    tonic_compat_consumer_runs_all_four_shapes
+    transitive_proto_rebuild_directives_emitted
+    transitive_public_import_chain_compiles
+    unknown_requested_file_fails_with_diagnostic
+
+test result: FAILED. 18 passed; 14 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.80s
+
+error: test failed, to rerun pass `-p pbrs --test pbrs_build`

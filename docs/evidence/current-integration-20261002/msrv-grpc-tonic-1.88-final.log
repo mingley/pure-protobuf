@@ -1,0 +1,3 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Checking pbrs-grpc v0.1.0-alpha.2 (/workspace/pure-protobuf/pbrs-grpc)
+    Finished `dev` profile [unoptimized] target(s) in 52.74s

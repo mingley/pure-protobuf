@@ -1,0 +1,180 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Finished `test` profile [unoptimized] target(s) in 0.05s
+     Running tests/pbrs_build.rs (target/debug/deps/pbrs_build-18737e9018dd5a0c)
+
+running 32 tests
+test ambiguous_stem_request_fails_with_diagnostic ... ok
+test atomic_write_on_failure_preserves_prior_output ... ok
+test builder_option_parity_client_only_and_tonic_codec_path ... ok
+test builder_option_parity_controls_output_and_protoc ... ok
+test builder_option_parity_emit_rerun_if_changed_false_is_quiet ... ok
+test byte_stability_across_input_permutations_and_no_host_paths ... ok
+test changed_input_updates_only_affected_outputs ... ok
+test checked_descriptor_messages_consumer_builds_without_protoc ... ok
+test codegen_error_converts_to_parse_error ... ok
+test compile_protos_consumer_parses_ada ... ok
+test compile_protos_defaults_to_kernel_stubs ... ok
+test compile_protos_multi_file_stem_collision_and_cross_package_references ... ok
+test custom_protoc_path_configuration ... ok
+test descriptor_set_errors_identify_input_and_preserve_output ... ok
+test descriptor_set_matches_compile_protos_layout_and_stub_modes ... ok
+test descriptor_set_native_and_tonic_consumers_build_without_protoc ... ok
+test descriptor_set_tracks_transitive_source_provenance ... ok
+test encode_code_generator_response_error_wire_format ... ok
+test error_invalid_protoc_path_diagnostics ... ok
+test error_malformed_descriptor_identifies_cause ... ok
+test error_missing_import_identifies_cause_and_path ... ok
+test error_missing_out_dir_identifies_cause ... ok
+test error_syntax_error_identifies_cause_and_path ... ok
+test error_unwritable_output_identifies_cause_and_path ... ok
+test generated_accessors_escape_runtime_and_helper_method_names ... ok
+test generated_serialization_uses_field_number_order_across_storage_classes ... ok
+test mtime_preservation_for_identical_content ... ok
+test protoc_plugin_binary_outputs_error_response_on_invalid_stdin ... ok
+test tonic_compat_consumer_runs_all_four_shapes ... ok
+test transitive_proto_rebuild_directives_emitted ... ok
+test transitive_public_import_chain_compiles ... ok
+test unknown_requested_file_fails_with_diagnostic ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.04s
+
+     Running tests/plugin.rs (target/debug/deps/plugin-3674a49d3087a490)
+
+running 48 tests
+test byte_stability_across_code_generator_request_input_permutations ... ok
+test config_and_plugin_inputs_produce_identical_output_per_mode ... ok
+test config_options_take_precedence_over_ambient_env ... ok
+test config_with_source_info_matches_plugin_bytes_exactly ... ok
+test direct_parameter_parsing_and_error_variants ... ok
+test direct_sequential_calls_isolate_thread_locals ... ok
+test edition2024_checked_closed_enum_reference_remains_fail_closed ... ok
+test edition2024_checked_generated_consumer_compiles_under_rust_2024_lints ... ok
+test edition2024_closed_enum_collections_fail_closed ... ok
+test edition2024_direct_generation_enforces_imported_visibility ... ok
+test edition2024_direct_generation_rejects_unknown_feature_and_bad_name ... ok
+test edition2024_extension_fields_remain_unknown_until_typed_api ... ok
+test edition2024_map_decoder_uses_entry_utf8_feature ... ok
+test edition2024_original_shared_extension_suite_is_empty_at_pin ... ok
+test edition2024_plugin_binary_advertises_2024_for_qualified_consumers ... ok
+test edition2024_plugin_binary_rejects_closed_collections_cleanly ... ok
+test edition2024_plugin_cap_is_2024 ... ok
+test edition2024_preview_descriptor_matches_pinned_source_compiler ... ignored, requires pinned libprotoc 36.1 to regenerate the checked Edition 2024 preview FDS
+test edition2024_protoc_negotiates_2024_plugin_support ... ok
+test edition2024_rejected_source_fixtures_fail_in_protoc ... ignored, requires protoc 36.1 for Edition 2024 source syntax; run explicitly with the pinned source compiler
+test gen_script_emits_person ... wrote /workspace/scratch/work/verify-main/target/plugin-test-gen-sh/person.rs
+ok
+test parallel_direct_calls_with_mixed_configs_are_isolated ... ok
+test plugin_generates_grpc_stubs ... ok
+test plugin_generates_test_all_types_proto3 ... ok
+test plugin_generates_tonic_stubs_when_env_is_tonic ... ok
+test plugin_parameter_shared_pool_and_no_reflect ... ok
+test plugin_parameter_stubs_kernel_selects_kernel_stubs ... ok
+test plugin_parameter_stubs_none_omits_stubs ... ok
+test plugin_parameter_stubs_tonic_selects_tonic_stubs ... ok
+test plugin_parameter_takes_precedence_over_ambient_env ... ok
+test plugin_proto2_none_parses_non_utf8_proto3_rejects ... ok
+test plugin_rejects_invalid_parameter_value ... ok
+test plugin_rejects_unknown_parameter ... ok
+test plugin_repeated_string_same_tag_parses_32 ... ok
+test protoc_plugin_conflicting_and_malformed_mappings_diagnostics ... ok
+test protoc_plugin_custom_runtime_and_adapter_crate_aliases ... ok
+test protoc_plugin_deprecated_enums_keep_implementation_lints_scoped ... ok
+test protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings ... ok
+test protoc_plugin_enum_deprecation_is_independent_of_allow_alias ... ok
+test protoc_plugin_extern_path_across_two_modules_without_duplicates ... ok
+test protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_restriction ... ok
+test protoc_plugin_generated_messages_compile_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_generated_tonic_compiles_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_generates_and_roundtrips ... ok
+test protoc_plugin_multi_file_stem_collision_and_cross_package_references ... ok
+test protoc_plugin_separate_processes_yield_identical_bytes ... ok
+test sequential_calls_with_alternating_configs_are_isolated ... ok
+
+test result: ok. 46 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 43.17s
+
+     Running tests/runtime.rs (target/debug/deps/runtime-37e69c51829856ce)
+
+running 26 tests
+test alignment_and_endianness_safety ... ok
+test bytes_setter_shares_without_copy ... ok
+test generated_wkt_duration_any_empty_mask ... ok
+test generated_wkt_timestamp_roundtrip ... ok
+test hybrid_map_generated_string_keys_at_scale ... ok
+test hybrid_map_generated_wire_order_dups_and_reserialize ... ok
+test inner_proto_string_raw_parts_are_reclaimed_with_arena ... ok
+test invalidation_safety_cached_size_and_dirty_tracking ... ok
+test lazy_str_span_survives_parent_wire_drop ... ok
+test map_and_repeated_message_arena_adoption_fusion ... ok
+test message_set_item_roundtrip ... ok
+test nested_merge_second_empty_does_not_wipe ... ok
+test packed_fixed_matches_big_endian_fallback_algorithm ... ok
+test packed_parse_roundtrip_without_touching_getters ... ok
+test packed_truncated_is_err ... ok
+test parse_bytes_matches_parse ... ok
+test raw_message_ptr_survives_arena_growth_and_fusion ... ok
+test raw_message_strings_survive_slot_and_owner_growth ... ok
+test small_bytes_field_does_not_pin_shared_frame ... ok
+test string_view_empty_reads_as_empty_slice ... ok
+test tat_default_is_empty_and_zeroed ... ok
+test view_reads_string_and_nested_without_owned_child ... ok
+test wire_window_outlives_parent_frame ... ok
+test wire_window_past_end_panics_private - should panic ... ok
+test wire_window_past_end_panics_shared - should panic ... ok
+test zeroed_primitives_are_valid_defaults ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/string_arm.rs (target/debug/deps/string_arm-f05beaffcc3b0dae)
+
+running 2 tests
+test fourk_string_vs_bytes_parse_components ... ok
+test kernel_strings_case_roundtrip ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.74s
+
+     Running tests/table_parse.rs (target/debug/deps/table_parse-99299215c0b8abe5)
+
+running 4 tests
+test conformance_tables_are_sorted_and_searchable ... ok
+test correct_schema_fixtures_agree ... ok
+test every_payload_sweep_agrees ... ok
+test typed_table_matches_hand_inline_on_every_payload ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/typed.rs (target/debug/deps/typed-ccab1827810df664)
+
+running 5 tests
+test implicit_presence_omits_defaults ... ok
+test parse_trait_is_v4_shaped ... ok
+test proto_macro_roundtrip_bytes ... ok
+test repeated_and_map ... ok
+test unknown_fields_roundtrip ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/upb_kernel.rs (target/debug/deps/upb_kernel-1142239f50f827df)
+
+running 18 tests
+test arena::fuse_is_idempotent_and_self_safe ... ok
+test arena::new_and_default_allocate ... ok
+test array::empty_array_has_no_items ... ok
+test array::inner_repeated_mut_carries_raw_and_arena ... ok
+test decode::decode_area_is_wired ... ok
+test encode::encode_area_is_wired ... ok
+test extension::extension_pointers_are_thin ... ok
+test layout::dangling_table_and_alias_shape ... ok
+test layout::empty_string_view_refers_to_nothing ... ok
+test layout::string_view_round_trips_bytes ... ok
+test map::closed_enum_map_uses_checked_typed_conversion ... ok
+test map::closed_repeated_enum_rejects_invalid_discriminants ... ok
+test map::empty_map_has_no_entries ... ok
+test map::inner_map_mut_carries_raw_and_arena ... ok
+test mini_table::address_table_has_one_string_field ... ok
+test mini_table::enum_table_build_returns_owned_validation_metadata ... ok
+test mini_table::link_tolerates_empty_subtables ... ok
+test reflect::inner_proto_string_round_trips_bytes ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

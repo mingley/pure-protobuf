@@ -1,0 +1,192 @@
+{
+  "schema": "pbrs-current-integrated-gates/1",
+  "performance_qualified": false,
+  "complete_workspace_green": false,
+  "gates": [
+    {
+      "log": "main-gn11-all-features.log",
+      "sha256": "74ba47e9cf412a5da4a67fa673d0abfdfda2c71aff1f63869321789d2d7727a0",
+      "source_commit": null,
+      "source_pin_note": "first gate exact source SHA was not captured in its log; do not infer it",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs",
+        "--all-features",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "tier": "first broader source gate; builder and nested child failures are ENOSPC, retained",
+      "summary_row_count": 23,
+      "summary_totals_including_nested_children": {
+        "passed": 333,
+        "failed": 15,
+        "ignored": 1
+      }
+    },
+    {
+      "log": "main-gn11-remaining.log",
+      "sha256": "f7b8b367c5b21d0ef4c448d24da7e5fb948a20be305e789220a46513bad5c0f5",
+      "source_commit": "ab69cbe9",
+      "source_pin_note": "coordinator retained source for this run",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs",
+        "--all-features",
+        "--test",
+        "pbrs_build",
+        "--test",
+        "plugin",
+        "--test",
+        "runtime",
+        "--test",
+        "string_arm",
+        "--test",
+        "table_parse",
+        "--test",
+        "typed",
+        "--test",
+        "upb_kernel",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "tier": "failed builder and remaining targets after reclaiming only completed caches",
+      "summary_row_count": 7,
+      "summary_totals_including_nested_children": {
+        "passed": 133,
+        "failed": 0,
+        "ignored": 2
+      }
+    },
+    {
+      "log": "main-tc30a-all-features.log",
+      "sha256": "acf23894aa2c5ec8db9e2355f061babddebc8c2d49b6a4434420274ecf40760b",
+      "source_commit": "de0bcdf2dd55fa7f436139813a87b967187c8f5d",
+      "source_pin_note": "coordinator retained source for this run",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "tier": "real queued-deadline failure; deterministic protocol proof retained separately",
+      "summary_row_count": 44,
+      "summary_totals_including_nested_children": {
+        "passed": 1428,
+        "failed": 1,
+        "ignored": 1
+      }
+    },
+    {
+      "log": "main-tc30a-remaining.log",
+      "sha256": "243c038eaff17170d0c45d20937d92d3fc8d15ea5acebe0f32dac0b88e4cb8e4",
+      "source_commit": "de0bcdf2dd55fa7f436139813a87b967187c8f5d",
+      "source_pin_note": "coordinator retained source for this run",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "rpc",
+        "--test",
+        "service_config",
+        "--test",
+        "serving",
+        "--test",
+        "static_routing",
+        "--test",
+        "sv09_streaming",
+        "--test",
+        "telemetry",
+        "--test",
+        "tls",
+        "--test",
+        "tonic_behavior",
+        "--test",
+        "tonic_server",
+        "--test",
+        "tonic_service_transport",
+        "--test",
+        "tonic_transport",
+        "--test",
+        "tower_client",
+        "--test",
+        "tower_server",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "tier": "all13 subsequent integration targets; no deadline assertion repeated or waived",
+      "summary_row_count": 13,
+      "summary_totals_including_nested_children": {
+        "passed": 1232,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  ],
+  "limits": [
+    "Logged counts include nested consumer summaries; they are not a deduplicated test inventory.",
+    "Original failures and optional ignores are retained, not silently excluded.",
+    "Core doc tests and later feature/codegen additions require their separate source-pinned gates.",
+    "Queued expired requests can still reach the peer; CL-07a remains open.",
+    "These correctness runs cannot establish performance leadership or production soak qualification."
+  ],
+  "minimum_rust_feature_compile": [
+    {
+      "source_commit": "f511936038cba0949da1c42c11546921ee0c62e3",
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--features",
+        "tonic",
+        "--all-targets"
+      ],
+      "exit_code": 0,
+      "log": "msrv-grpc-tonic-1.88.log",
+      "sha256": "2928602c22a3ef8dcd8155025f972a621a08fe1d03d93c5f858146cf00977fa2",
+      "scope": "feature-enabled minimum-Rust compile, not a test run",
+      "notes": "Passed; one inactive copy-counts fixture import warning retained"
+    },
+    {
+      "source_commit": "5d5f1f77860988b5360c04e0de8fe018a94f142e",
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--features",
+        "tonic",
+        "--all-targets"
+      ],
+      "exit_code": 0,
+      "log": "msrv-grpc-tonic-1.88-final.log",
+      "sha256": "fb7280e5051f4c81b6bf4580b0343d46bead1c59da00ab29280676df48c7b511",
+      "scope": "feature-enabled minimum-Rust compile, not a test run",
+      "notes": "Passed after cfg-gating the test-only import with its existing copy-counts feature"
+    }
+  ]
+}
