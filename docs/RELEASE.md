@@ -126,7 +126,9 @@ temporary directory and fails on binding drift without editing those files.
 Both modes reject source SHA, source cleanliness, build stamp, or compiler
 version mismatches. They use `target/conformance-build/protoc`, never an
 arbitrary compiler from `PATH`. For regeneration, `CARGO_TARGET_DIR` controls
-only the Rust plugin's build artifacts.
+only the Rust plugin's build artifacts. The plugin executable comes from
+Cargo's current build-artifact record, so a configured Cargo target cannot
+silently select an older plugin from the default target directory.
 
 Superseded direct `main`/PR CI runs cancel to avoid spending runner time on
 outdated SHAs. The reusable CI invoked by `Release` is not cancelled by a later

@@ -15,7 +15,8 @@ modified tracked source and untracked proto inputs, verifies the existing
 conformance build stamp, and verifies `libprotoc 35.1`. It invokes
 `target/conformance-build/protoc` directly; a compiler on `PATH` cannot
 substitute for that build. The Rust plugin is built from this checkout with
-the locked dependency graph. `CARGO_TARGET_DIR` may relocate the Rust build
+the locked dependency graph and selected from Cargo's current executable
+artifact record. `CARGO_TARGET_DIR` may relocate the Rust build
 without changing the pinned C++ compiler location.
 
 All 13 input protos retain the previous per-file, shared-pool profile,
@@ -28,7 +29,7 @@ symlinks fail before any binding is copied. Generated hierarchy and registry
 files remain temporary. Only changed registered files are copied; public
 `src/generated/mod.rs` and unrelated files are preserved.
 
-The required CI conformance job now runs
+The required CI conformance job explicitly installs rustfmt and now runs
 `./scripts/regen-generated.sh --check` after `scripts/conformance.sh`
 provisions the source, compiler and provenance stamp. The test job also runs
 the focused regeneration contracts without needing Rust builds or protoc.
@@ -51,13 +52,23 @@ bash -n scripts/regen-generated.sh
 git diff --check
 ```
 
-All nine tests passed, as did shell syntax and whitespace validation. They
+All eleven tests passed, as did shell syntax and whitespace validation. They
 check every registered binding, byte-identical repeated generation without
 mtime changes, successful and failing non-mutating checks, untracked files
 (including a Rust source and an existing hierarchy), source/compiler
 provenance, incomplete output, registry coverage, a custom Cargo target with
 an unusable `PATH` compiler, protection against symlink writes, and invalid
 command arguments.
+
+Independent review reproduced an additional provenance defect in the initial
+repair: with `CARGO_BUILD_TARGET` set, Cargo built a target-specific current
+plugin while the script selected a stale default-directory executable. Two
+new tests failed before the follow-up repair, demonstrating stale selection
+and fallback when no executable artifact was reported. The repaired script
+parses Cargo's JSON `compiler-artifact` record for this manifest's
+`protoc-gen-pbrs` binary and rejects missing or ambiguous executable records.
+The target-specific test verifies all 13 generation requests use the current
+reported artifact while leaving the stale default executable untouched.
 
 ## Pinned generation and final gates
 

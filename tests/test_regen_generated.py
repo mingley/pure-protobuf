@@ -52,10 +52,22 @@ elif [[ "$*" == *"ls-files"* ]]; then
   printf '%s' "${FAKE_UNTRACKED_PROTO:-}"
 fi
 """)
-        self.write_executable(self.bin / "cargo", """#!/usr/bin/env bash
-mkdir -p "$CARGO_TARGET_DIR/debug"
-printf '#!/usr/bin/env bash\\nexit 0\\n' > "$CARGO_TARGET_DIR/debug/protoc-gen-pbrs"
-chmod +x "$CARGO_TARGET_DIR/debug/protoc-gen-pbrs"
+        self.write_executable(self.bin / "cargo", """#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+target = Path(os.environ['CARGO_TARGET_DIR'])
+if os.environ.get('CARGO_BUILD_TARGET'):
+    target /= os.environ['CARGO_BUILD_TARGET']
+plugin = target / 'debug/protoc-gen-pbrs'
+plugin.parent.mkdir(parents=True, exist_ok=True)
+plugin.write_text('#!/usr/bin/env bash\\nexit 0\\n')
+plugin.chmod(0o755)
+if not os.environ.get('FAKE_MISSING_PLUGIN_ARTIFACT'):
+    print(json.dumps({'reason': 'compiler-artifact',
+                      'manifest_path': str(Path.cwd() / 'Cargo.toml'),
+                      'target': {'name': 'protoc-gen-pbrs', 'kind': ['bin']},
+                      'executable': str(plugin)}))
 """)
         self.write_executable(self.bin / "rustfmt", "#!/usr/bin/env bash\nexit 0\n")
         self.write_executable(self.build / "protoc", """#!/usr/bin/env python3
@@ -65,6 +77,10 @@ from pathlib import Path
 if sys.argv[1:] == ['--version']:
     print(os.environ.get('FAKE_PROTOC_VERSION', 'libprotoc 35.1'))
     sys.exit(0)
+if os.environ.get('FAKE_PLUGIN_SELECTION_LOG'):
+    selected = next(arg.split('=', 2)[2] for arg in sys.argv if arg.startswith('--plugin='))
+    with Path(os.environ['FAKE_PLUGIN_SELECTION_LOG']).open('a') as log:
+        log.write(selected + '\\n')
 out_argument = next(arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--pbrs_out='))
 out = Path(out_argument.rsplit(':', 1)[-1])
 proto = Path(sys.argv[-1])
@@ -202,6 +218,32 @@ hierarchy.mkdir(parents=True, exist_ok=True)
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertIn("usage", result.stderr)
                 self.assertEqual(before, self.snapshot())
+
+    def test_target_specific_current_plugin_cannot_fall_back_to_stale_default(self):
+        self.install_fresh_bindings()
+        stale = self.target / "debug/protoc-gen-pbrs"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        self.write_executable(stale, "#!/usr/bin/env bash\n# stale default plugin\nexit 0\n")
+        selections = self.root / "plugin-selections.txt"
+        triple = "x86_64-unknown-linux-gnu"
+        before = self.snapshot()
+        result = self.run_script("--check", CARGO_BUILD_TARGET=triple,
+                                 FAKE_PLUGIN_SELECTION_LOG=str(selections))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        current = self.target / triple / "debug/protoc-gen-pbrs"
+        self.assertTrue(current.is_file())
+        self.assertEqual(set(selections.read_text().splitlines()), {str(current)})
+        self.assertEqual(stale.read_text(), "#!/usr/bin/env bash\n# stale default plugin\nexit 0\n")
+        self.assertEqual(before, self.snapshot())
+
+    def test_missing_cargo_artifact_cannot_fall_back_to_stale_default(self):
+        stale = self.target / "debug/protoc-gen-pbrs"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        self.write_executable(stale, "#!/usr/bin/env bash\nexit 0\n")
+        before = self.snapshot()
+        result = self.run_script(FAKE_MISSING_PLUGIN_ARTIFACT="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(before, self.snapshot())
 
 
 if __name__ == "__main__":

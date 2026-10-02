@@ -239,6 +239,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - name: Install cmake (not protobuf-compiler)
         run: |
           sudo apt-get update

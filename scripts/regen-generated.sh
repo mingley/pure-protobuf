@@ -86,11 +86,34 @@ PY
 for variable in "${!PURE_PROTOBUF_@}"; do
   unset "$variable"
 done
-cargo build --locked --bin protoc-gen-pbrs --target-dir "$TARGET"
-PLUGIN="$TARGET/debug/protoc-gen-pbrs"
-[[ -x "$PLUGIN" ]] || fail "built plugin is missing at $PLUGIN"
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/pbrs-regen.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
+# Cargo configuration or CARGO_BUILD_TARGET may put the current executable in
+# a target-specific directory. Use its artifact record, never a guessed path
+# that might still contain a stale executable from an earlier build.
+cargo build --locked --bin protoc-gen-pbrs --target-dir "$TARGET" \
+  --message-format=json > "$STAGE/cargo-artifacts.json"
+PLUGIN="$(python3 - "$STAGE/cargo-artifacts.json" "$ROOT/Cargo.toml" <<'PY'
+import json
+import sys
+from pathlib import Path
+manifest = Path(sys.argv[2]).resolve()
+executables = set()
+for line in Path(sys.argv[1]).read_text().splitlines():
+    artifact = json.loads(line)
+    target = artifact.get('target', {})
+    if (artifact.get('reason') == 'compiler-artifact'
+            and target.get('name') == 'protoc-gen-pbrs'
+            and 'bin' in target.get('kind', [])
+            and Path(artifact['manifest_path']).resolve() == manifest
+            and artifact.get('executable')):
+        executables.add(artifact['executable'])
+if len(executables) != 1:
+    raise SystemExit('pbrs regen: Cargo did not report exactly one current plugin executable')
+print(executables.pop())
+PY
+)"
+[[ -x "$PLUGIN" ]] || fail "built plugin is missing at $PLUGIN"
 for proto in "${PROTOS[@]}"; do
   "$PROTOC" --plugin=protoc-gen-pbrs="$PLUGIN" \
     --pbrs_out="shared_pool=true:$STAGE" \
