@@ -16,8 +16,8 @@ mod common;
 use common::{Echo, name_of, req};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer};
 use pbrs_grpc::{
-    ByteBudgetTracker, CallLabels, Channel, Code, LifecycleObserver, Request, Server, ServerConfig,
-    Status,
+    ByteBudgetTracker, CallLabels, Channel, ChannelConfig, Code, LifecycleObserver, Request,
+    Server, ServerConfig, Status,
 };
 use serde_json::json;
 use std::fs::OpenOptions;
@@ -234,13 +234,18 @@ async fn current_h2_resource_smoke() {
                 })
                 .await
         });
-        let channel = Channel::connect(addr)
-            .await
-            .expect("connect")
-            .max_decoding_message_size(64 * 1024)
-            .max_encoding_message_size(64 * 1024)
-            .max_send_buffer_size(SEND_BUFFER)
-            .with_byte_budget_tracker(client_tracker.clone());
+        let channel = Channel::connect_with(
+            addr,
+            ChannelConfig::default()
+                .initial_stream_window_size(1024)
+                .initial_connection_window_size(4096),
+        )
+        .await
+        .expect("connect")
+        .max_decoding_message_size(64 * 1024)
+        .max_encoding_message_size(64 * 1024)
+        .max_send_buffer_size(SEND_BUFFER)
+        .with_byte_budget_tracker(client_tracker.clone());
         let client = GreeterClient::new(channel.clone());
         let label = format!("seed-{seed}-cycle-{cycle}");
         let reply = client
@@ -267,6 +272,11 @@ async fn current_h2_resource_smoke() {
             .expect("slow reader")
             .into_inner();
         tokio::time::sleep(Duration::from_millis(60)).await;
+        assert_eq!(
+            calls.active.load(Ordering::SeqCst),
+            1,
+            "slow consumer must hold the response stream open"
+        );
         record(&snapshot(
             "slow_reader",
             cycle,

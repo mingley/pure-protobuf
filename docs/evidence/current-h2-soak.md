@@ -41,6 +41,11 @@ at 64 KiB, sets a 16 KiB per-stream send threshold and independently attaches
 response messages. The seed identifies deterministic request labels; this is
 not a randomized fault campaign.
 
+The client advertises a 1 KiB stream receive window and 4 KiB connection receive
+window at connection establishment. The deliberately paused consumer must
+leave its server-streaming call active, exercising flow-control backpressure
+rather than merely postponing reads after the whole response has been queued.
+
 Each cycle records warmup, slow reader, overload, cancellation, deadline,
 successful recovery probe and drain, following one initial process baseline.
 Two unending uploads occupy both server RPC slots and a third unary call must

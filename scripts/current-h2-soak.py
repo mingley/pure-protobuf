@@ -28,6 +28,7 @@ SETTINGS = {"transport": "tcp_loopback_plaintext", "compression": "none", "runti
             "max_connections": 4, "max_h2_streams_per_connection": 8, "max_active_rpcs": 2,
             "max_message_bytes": 65536, "per_stream_send_buffer_bytes": 16384,
             "client_byte_budget_bytes": 262144, "server_byte_budget_bytes": 262144,
+            "client_stream_receive_window_bytes": 1024, "client_connection_receive_window_bytes": 4096,
             "server_deadline_ms": 300, "drain_grace_ms": 150,
             "slow_reader_hold_ms": 60, "slow_reader_responses": 16,
             "slow_reader_response_bytes": 2048,
