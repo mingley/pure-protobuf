@@ -1,0 +1,13 @@
+[self-test] PASS hpack-literal 00073a6d6574686f6404504f5354
+[self-test] PASS h2-frame 0000020104000000016162
+[self-test] PASS bidi-block 
+[self-test] PASS os-limits nofile_soft=16384
+[self-test] PASS rss-self rss=19124224
+[self-test] PASS preflight-fd-invalid os-limit preflight: 10000 conns need ~20256 fds (opener + server) but RLIMIT_NOF
+[self-test] PASS preflight-100k-topology topology preflight: 100000 TCP connections cannot use one source address and one
+[self-test] PASS preflight-small 
+[self-test] PASS classify-emfile 
+[self-test] PASS classify-refused-live 
+[self-test] PASS classify-refused-dead 
+[self-test] PASS stub-preface-roundtrip 
+[self-test] 0 failure(s)

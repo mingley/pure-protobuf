@@ -4,6 +4,11 @@ Status: delivered implementation and local wiring evidence; SB-24 remains in pro
 The required Go/C++ comparisons, full effective-setting exports and dedicated-host
 resource/headroom evidence are incomplete. These results establish no performance win.
 
+The [cumulative CPU window correction](sb24-counter-window-20261002.md) uses
+endpoint counter deltas over actual endpoint snapshot intervals for headroom;
+the unweighted sample mean and monitor/probe wall timers remain diagnostic.
+Missing or invalid windows fail closed. This does not qualify setup/drain alignment.
+
 ## Delivered on 2026-09-29
 
 - `run.py --scenario PATH` validates frozen parameters, cell ids, and every repeat

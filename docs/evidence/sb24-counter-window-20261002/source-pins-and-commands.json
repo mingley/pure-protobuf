@@ -1,0 +1,73 @@
+{
+  "source_commit": "cbf72722fbebe4bff090c5c1e44658a8e46c4df9",
+  "source_sha256": {
+    "scripts/rpc-bench-matrix.py": "c5afb70d6c04215f82d7d8704ac22da8e1fde02614ea14e0070c9bc9a0c4987e",
+    "bench/stack-matrix/run.py": "a05baf4491de340b335711d848d2cef2a9e7e1183cd9928b539bf747bbb4b50a",
+    "tests/interop/test_bench_matrix.py": "66990699d40c6a2b4393d46156a4cf4a292a1570ca4ddb9e44007664dc871df4",
+    "tests/interop/test_stack_matrix.py": "0cd296fc4069e612e2481774df117ffd545c1bff7126c7ea55b23f3fcc29b0a2"
+  },
+  "python_binary": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+  "python_binary_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+  "python_version": "3.12.14",
+  "functional_fixture": {
+    "command": "python3 work/sb24/host-capacity-fixture.py",
+    "source_clean": true,
+    "rpc_workload": false,
+    "duration_seconds": 0.2,
+    "headroom_qualified": false
+  },
+  "checks": [
+    {
+      "command": "python3 -m unittest discover -s tests/interop -p test_bench_matrix.py",
+      "before": {
+        "exit": 1,
+        "tests": 37,
+        "failures": 3
+      },
+      "after": {
+        "exit": 0,
+        "tests": 40
+      }
+    },
+    {
+      "command": "python3 -m unittest discover -s tests/interop -p test_stack_matrix.py",
+      "before": {
+        "exit": 1,
+        "tests": 42,
+        "failures": 4,
+        "skips": 2
+      },
+      "after": {
+        "exit": 0,
+        "tests": 42,
+        "skips": 2
+      }
+    },
+    {
+      "command": "python3 bench/stack-matrix/scenarios/extended_cells.py --self-test",
+      "exit": 0
+    },
+    {
+      "command": "python3 bench/stack-matrix/scenarios/conn_scale.py --self-test",
+      "exit": 0
+    },
+    {
+      "command": "python3 -m py_compile scripts/rpc-bench-matrix.py bench/stack-matrix/run.py tests/interop/test_bench_matrix.py tests/interop/test_stack_matrix.py",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    }
+  ],
+  "preserved_invocation_errors": [
+    {
+      "command": "python3 bench/stack-matrix/scenarios/extended_cells.py --selftest",
+      "exit": 2
+    },
+    {
+      "command": "python3 bench/stack-matrix/scenarios/conn_scale.py --selftest",
+      "exit": 2
+    }
+  ]
+}

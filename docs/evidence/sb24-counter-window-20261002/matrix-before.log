@@ -1,0 +1,29 @@
+....F....F....F......................
+======================================================================
+FAIL: test_endpoint_snapshot_interval_is_not_monitor_wall_duration (test_bench_matrix.CpuCapacityTest.test_endpoint_snapshot_interval_is_not_monitor_wall_duration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 189, in test_endpoint_snapshot_interval_is_not_monitor_wall_duration
+    self.assertEqual(saturation["avg_cpu_pct"], 50.0)
+AssertionError: 10.0 != 50.0
+
+======================================================================
+FAIL: test_long_busy_interval_cannot_be_hidden_by_many_short_idle_samples (test_bench_matrix.CpuCapacityTest.test_long_busy_interval_cannot_be_hidden_by_many_short_idle_samples)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 180, in test_long_busy_interval_cannot_be_hidden_by_many_short_idle_samples
+    self.assertTrue(saturation["saturated"])
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_nonpositive_endpoint_interval_cannot_certify_cpu_headroom (test_bench_matrix.CpuCapacityTest.test_nonpositive_endpoint_interval_cannot_certify_cpu_headroom)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 196, in test_nonpositive_endpoint_interval_cannot_certify_cpu_headroom
+    self.assertIsNone(saturation["avg_cpu_pct"])
+AssertionError: 96.0 is not None
+
+----------------------------------------------------------------------
+Ran 37 tests in 0.067s
+
+FAILED (failures=3)
