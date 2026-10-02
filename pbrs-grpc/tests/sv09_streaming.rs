@@ -195,3 +195,63 @@ async fn cancellation_wakes_a_producer_waiting_after_its_first_reply() {
         .expect("producer woke on cancellation")
         .unwrap();
 }
+
+struct WireEcho;
+
+impl Service for WireEcho {
+    const NAME: &'static str = "sv09.WireEcho";
+
+    async fn call(&self, rpc: Rpc) {
+        rpc.bidi_streaming(|request: Request<Streaming<HelloRequest>>| async move {
+            // Returning the inbound stream directly keeps the server response
+            // backed by the wire, rather than an application channel.
+            Ok::<_, Status>(Response::new(request.into_inner()))
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn wire_backed_bidi_echo_keeps_progressing_and_cancels_its_sender() {
+    let (channel, _server) = connect(WireEcho).await;
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloRequest>("/sv09.WireEcho/Echo", Request::new(()));
+    let mut inbound = call.await.unwrap().into_inner();
+    for index in 0..129 {
+        tx.send(req(&index.to_string())).await.unwrap();
+        let message = tokio::time::timeout(Duration::from_secs(2), inbound.message())
+            .await
+            .expect("wire echo made progress")
+            .unwrap()
+            .unwrap();
+        assert_eq!(message.name().to_str().unwrap(), index.to_string());
+    }
+    drop(tx);
+    assert!(
+        tokio::time::timeout(Duration::from_secs(2), inbound.message())
+            .await
+            .expect("half-closed wire echo completed")
+            .unwrap()
+            .is_none()
+    );
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloRequest>("/sv09.WireEcho/Echo", Request::new(()));
+    let mut inbound = call.await.unwrap().into_inner();
+    tx.send(req("cancel")).await.unwrap();
+    assert_eq!(
+        inbound
+            .message()
+            .await
+            .unwrap()
+            .unwrap()
+            .name()
+            .to_str()
+            .unwrap(),
+        "cancel"
+    );
+    drop(inbound);
+    tokio::time::timeout(Duration::from_secs(2), tx.closed())
+        .await
+        .expect("wire response cancellation closed the request sender");
+}
