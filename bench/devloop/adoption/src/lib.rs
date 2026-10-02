@@ -50,6 +50,8 @@ mod fresh;
 pub use fresh::*;
 pub mod rpc;
 pub mod workloads;
+#[cfg(feature = "bridge")]
+pub mod bridge;
 
 #[cfg(test)]
 mod generated_ownership_tests {
