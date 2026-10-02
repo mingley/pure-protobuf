@@ -63,6 +63,17 @@ Allocation counts and semantic checks are separate evidence. SB-31 owns the
 reproducibility repair and replay measurements; shipping map changes remain
 subject to the unchanged performance and equal-wire gates.
 
+The corpus test `map_input_bytes_match_independent_processes` compares complete
+8/64/512-entry input bytes in twelve fresh processes, each with an independent
+HashMap seed. Collector tests also parse legacy reports and reject missing or
+unequal fingerprints in new comparisons. For auditable replay measurements,
+`capture-callgrind.py` can wrap the real Valgrind executable and retain each
+N/2N child's complete stderr and JSON without changing its arguments or result.
+Set `PBRS_REPLAY_VALGRIND` to the real executable and `PBRS_REPLAY_RAW` to the
+JSONL destination, then put a symlink named `valgrind` to this executable first
+on `PATH`. [SB-31 evidence](../../../docs/evidence/sb-31.md) records the pinned
+binary, commands, same-binary replay deltas and remaining measurement limits.
+
 The tests cover all sparse fields with explicitly present defaults, every
 typed oneof's present default, exact query depths, all predicate kinds,
 modified bytes in the last entity and changed/reordered map entries. Every

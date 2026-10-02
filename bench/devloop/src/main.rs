@@ -2455,7 +2455,67 @@ fn main() {
 
 #[cfg(test)]
 mod input_tests {
-    use super::assert_adoption_input;
+    use super::{Report, assert_adoption_input, compare_reports};
+
+    fn report(fingerprint: Option<&str>) -> Report {
+        let metric = serde_json::json!({"status": "not_run", "data": {"reason": "test"}});
+        let mut report = serde_json::json!({
+            "schema": "devloop/1", "devloop_commit": "test",
+            "host": {"os": "test", "arch": "test", "cpu": "test", "rustc": "test",
+                     "perf": false, "strace": false, "valgrind": false},
+            "cells": [{
+                "id": "codec.adoption.pbrs.maps.n8.read_all", "kind": "codec", "codec": "pbrs",
+                "iters": 16, "repeats": 3, "instructions": metric,
+                "allocs": metric, "alloc_bytes": metric, "syscalls": metric, "wall_ns": metric,
+                "wall_cv": null,
+            }],
+        });
+        if let Some(value) = fingerprint {
+            report["cells"][0]["input_wire_fingerprint"] = value.into();
+        }
+        serde_json::from_value(report).unwrap()
+    }
+
+    #[test]
+    fn report_comparison_accepts_matching_inputs_and_readable_legacy_reports() {
+        assert!(compare_reports(
+            &report(Some("same")),
+            &report(Some("same")),
+            false
+        ));
+        let legacy = report(None);
+        assert!(legacy.cells[0].input_wire_fingerprint.is_none());
+        assert_eq!(legacy.cells[0].instruction_method, "whole_process_legacy");
+        assert!(compare_reports(&legacy, &legacy, false));
+    }
+
+    #[test]
+    fn report_comparison_rejects_missing_or_unequal_inputs_in_either_direction() {
+        for (first, second) in [
+            (None, Some("same")),
+            (Some("same"), None),
+            (Some("first"), Some("second")),
+        ] {
+            assert!(
+                std::panic::catch_unwind(|| {
+                    compare_reports(&report(first), &report(second), false)
+                })
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn differential_collection_rejects_every_missing_fingerprint_combination() {
+        for (first, second) in [(None, None), (None, Some("same")), (Some("same"), None)] {
+            assert!(
+                std::panic::catch_unwind(|| {
+                    assert_adoption_input("codec.adoption.pbrs.maps.n8.read_all", first, second);
+                })
+                .is_err()
+            );
+        }
+    }
 
     #[test]
     fn matching_input_and_legacy_non_adoption_cells_are_accepted() {
