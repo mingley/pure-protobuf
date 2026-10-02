@@ -3179,7 +3179,7 @@ fn parse_enum_options(
                 read_len_bytes(bytes, &mut pos)?,
                 FeatureTarget::Enum,
             )?);
-        } else if n == 2 && w == WIRE_VARINT {
+        } else if n == 3 && w == WIRE_VARINT {
             deprecated = decode_varint(bytes, &mut pos)? != 0;
         } else {
             options.push(DescriptorOption {

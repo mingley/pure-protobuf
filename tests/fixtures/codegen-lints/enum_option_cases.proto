@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package test.codegen_lints;
+
+// Real deprecation must work without allow_alias being present.
+enum UnaliasedDeprecatedEnum {
+  option deprecated = true;
+
+  UNALIASED_DEPRECATED_ENUM_ZERO = 0;
+  UNALIASED_DEPRECATED_ENUM_ONE = 1;
+}
+
+// Allowing aliases does not deprecate the enum.
+enum AliasedActiveEnum {
+  option allow_alias = true;
+
+  ALIASED_ACTIVE_ENUM_ZERO = 0;
+  ALIASED_ACTIVE_ENUM_ONE = 1;
+  ALIASED_ACTIVE_ENUM_ONE_ALIAS = 1;
+}

@@ -2283,6 +2283,42 @@ fn tempfile_dir_lints() -> PathBuf {
 }
 
 #[test]
+fn protoc_plugin_enum_deprecation_is_independent_of_allow_alias() {
+    let tmp = tempfile_dir_lints();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/codegen-lints/enum_option_cases.proto");
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("--pbrs_opt=stubs=none")
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg(&proto)
+        .status()
+        .expect("generate enum option fixture");
+    assert!(
+        status.success(),
+        "protoc plugin failed on enum_option_cases.proto"
+    );
+    let generated = std::fs::read_to_string(tmp.join("enum_option_cases.rs"))
+        .expect("read enum option fixture");
+    let deprecated_type = "#[deprecated]\n#[repr(transparent)]\n#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]\npub struct UnaliasedDeprecatedEnum";
+    assert!(
+        generated.contains(deprecated_type),
+        "actual enum deprecation was lost:\n{generated}"
+    );
+    assert_eq!(
+        generated.matches("#[deprecated]").count(),
+        1,
+        "allow_alias must not deprecate AliasedActiveEnum"
+    );
+    assert!(generated.contains("pub const OneAlias: AliasedActiveEnum = AliasedActiveEnum(1);"));
+}
+
+#[test]
 fn protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_restriction() {
     let tmp = tempfile_dir_lints();
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

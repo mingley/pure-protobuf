@@ -248,6 +248,68 @@ fn file_descriptor_set_bootstrap() {
 }
 
 #[test]
+fn enum_deprecation_is_independent_of_alias_options() {
+    // Pinned descriptor.proto: EnumOptions.allow_alias = 2; deprecated = 3.
+    for syntax in ["proto2", "proto3"] {
+        for allow_alias in [None, Some(false), Some(true)] {
+            for deprecated in [None, Some(false), Some(true)] {
+                let mut file = Vec::new();
+                protobuf_test_encode_string(&mut file, 1, "enum_options.proto");
+                protobuf_test_encode_string(&mut file, 2, "example");
+                protobuf_test_encode_string(&mut file, 12, syntax);
+                let mut enum_ty = Vec::new();
+                protobuf_test_encode_string(&mut enum_ty, 1, "Kind");
+                let mut value = Vec::new();
+                protobuf_test_encode_string(&mut value, 1, "ZERO");
+                protobuf_test_encode_varint(&mut value, 2, 0);
+                protobuf_test_encode_len(&mut enum_ty, 2, &value);
+                let mut options = Vec::new();
+                if let Some(enabled) = allow_alias {
+                    protobuf_test_encode_varint(&mut options, 2, u64::from(enabled));
+                }
+                if let Some(enabled) = deprecated {
+                    protobuf_test_encode_varint(&mut options, 3, u64::from(enabled));
+                }
+                protobuf_test_encode_len(&mut options, 50002, b"custom enum option");
+                protobuf_test_encode_len(&mut enum_ty, 3, &options);
+                protobuf_test_encode_len(&mut file, 5, &enum_ty);
+                let mut fds = Vec::new();
+                protobuf_test_encode_len(&mut fds, 1, &file);
+
+                let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("enum options");
+                let desc = pool.get_enum("example.Kind").expect("Kind");
+                assert_eq!(
+                    desc.is_deprecated(),
+                    deprecated.unwrap_or(false),
+                    "{syntax}: allow_alias={allow_alias:?}, deprecated={deprecated:?}"
+                );
+                assert_eq!(desc.closed, syntax == "proto2");
+                assert_eq!(
+                    desc.custom_option(50002),
+                    Some(b"custom enum option".as_slice())
+                );
+
+                let generated = pbrs::codegen::generate_from_file_descriptor_set(
+                    &fds,
+                    &["enum_options.proto".to_string()],
+                )
+                .expect("generate enum options");
+                let content = &generated
+                    .iter()
+                    .find(|(name, _)| name.ends_with("enum_options.rs"))
+                    .expect("generated enum options file")
+                    .1;
+                assert_eq!(
+                    content.contains("#[deprecated]\n#[repr(transparent)]"),
+                    deprecated.unwrap_or(false),
+                    "generated {syntax}: allow_alias={allow_alias:?}, deprecated={deprecated:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn file_descriptor_set_keeps_custom_options() {
     // FileDescriptorProto.options is field 8 (FileOptions).
     // DescriptorProto.options is field 7 (MessageOptions).
@@ -445,7 +507,7 @@ fn build_source_info_file_and_fds() -> (Vec<u8>, Vec<u8>) {
     let mut top_enum = Vec::new();
     protobuf_test_encode_string(&mut top_enum, 1, "TopEnum");
     let mut enum_opts = Vec::new();
-    protobuf_test_encode_varint(&mut enum_opts, 2, 1);
+    protobuf_test_encode_varint(&mut enum_opts, 3, 1); // EnumOptions.deprecated
     protobuf_test_encode_len(&mut enum_opts, 50002, b"en");
     protobuf_test_encode_len(&mut top_enum, 3, &enum_opts);
     let mut ev0 = Vec::new();
