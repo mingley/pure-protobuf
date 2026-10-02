@@ -1,0 +1,82 @@
+{
+  "schema": "cl08-cold-primary-capture/1",
+  "scope": [
+    "rpc.prost.server_stream"
+  ],
+  "iters": 200,
+  "repeats": 3,
+  "preparation_iters": 400,
+  "wall": "shared-host diagnostic only",
+  "launches": [
+    {
+      "revision": "before",
+      "source": "cf3eee22c6b06324e299f81b76915651471d8025",
+      "binary": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+      "launch_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "command": [
+        "/workspace/scratch/work/sv09/work/bin/devloop-before",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-primary/before.json"
+      ],
+      "started_monotonic": 19447.37180817,
+      "finished_monotonic": 19454.108775627,
+      "returncode": 0,
+      "after_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "stdout": "",
+      "stderr": "",
+      "started_utc_reconstructed": "2026-10-02T21:06:32.632023+00:00",
+      "finished_utc_reconstructed": "2026-10-02T21:06:39.368991+00:00"
+    },
+    {
+      "revision": "after",
+      "source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+      "binary": "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+      "launch_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "command": [
+        "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-primary/after.json"
+      ],
+      "started_monotonic": 19454.143384601,
+      "finished_monotonic": 19460.534003113,
+      "returncode": 0,
+      "after_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "stdout": "",
+      "stderr": "",
+      "started_utc_reconstructed": "2026-10-02T21:06:39.403600+00:00",
+      "finished_utc_reconstructed": "2026-10-02T21:06:45.794218+00:00"
+    }
+  ],
+  "frozen_compare": {
+    "command": [
+      "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+      "compare",
+      "--baseline",
+      "work/profiles/cold-primary/before.json",
+      "--current",
+      "work/profiles/cold-primary/after.json"
+    ],
+    "returncode": 1,
+    "stdout": "rpc.prost.server_stream instructions: improved 158677.4 -> 147353.7 (-7.14%)\nrpc.prost.server_stream alloc_bytes: improved 62632.6 -> 56992.6 (-9.00%)\nrpc.prost.server_stream locks: REGRESSED 14.8 -> 15.3 (+3.41%, limit 2%)\n",
+    "stderr": ""
+  },
+  "utc_anchor": {
+    "utc": "2026-10-02T21:08:10.973222+00:00",
+    "monotonic": 19545.713006945,
+    "method": "post-capture anchor reconstructs monotonic launch/finish UTC; wall remains diagnostic"
+  }
+}

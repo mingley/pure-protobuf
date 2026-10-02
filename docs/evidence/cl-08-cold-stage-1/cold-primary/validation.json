@@ -1,0 +1,49 @@
+{
+  "schema": "cl08-cold-primary-validation/1",
+  "rows": [
+    {
+      "metric": "instructions",
+      "before": 158677.43,
+      "after": 147353.745,
+      "delta": -0.07136292162029595,
+      "original_limit": 0.02,
+      "exceeds_original_limit": false
+    },
+    {
+      "metric": "allocs",
+      "before": 57.025,
+      "after": 57.025,
+      "delta": 0.0,
+      "original_limit": 0.02,
+      "exceeds_original_limit": false
+    },
+    {
+      "metric": "alloc_bytes",
+      "before": 62632.64,
+      "after": 56992.64,
+      "delta": -0.09004889463385225,
+      "original_limit": 0.02,
+      "exceeds_original_limit": false
+    },
+    {
+      "metric": "syscalls",
+      "before": 30.635,
+      "after": 31.01,
+      "delta": 0.01224090093030847,
+      "original_limit": 0.02,
+      "exceeds_original_limit": false
+    },
+    {
+      "metric": "locks",
+      "before": 14.81,
+      "after": 15.315,
+      "delta": 0.03409858203916266,
+      "original_limit": 0.02,
+      "exceeds_original_limit": true
+    }
+  ],
+  "raw_children": 12,
+  "frozen_compare_exit": 1,
+  "integration": "not_qualified",
+  "instructions_scope": "single registered streaming primary; no all-cell claim"
+}

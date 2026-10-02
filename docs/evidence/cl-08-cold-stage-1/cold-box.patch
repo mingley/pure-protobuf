@@ -1,0 +1,13 @@
+diff --git a/pbrs-grpc/src/client/pool.rs b/pbrs-grpc/src/client/pool.rs
+index faa6f195..d0d47a16 100644
+--- a/pbrs-grpc/src/client/pool.rs
++++ b/pbrs-grpc/src/client/pool.rs
+@@ -841,7 +841,7 @@ impl ChannelInner {
+             drop(lease);
+             let dial_start = tokio::time::Instant::now();
+             self.note_channel_dial_start();
+-            match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
++            match Box::pin(handshake(&self.endpoint, self.dial, self.tls.as_ref())).await {
+                 Ok(dialed) => {
+                     if let Some(obs) = observer {
+                         if r#gen > 0 || attempt > 0 {

@@ -1,0 +1,151 @@
+{
+  "schema": "cl08-cold-self-controls/1",
+  "scope": [
+    "rpc.prost.server_stream"
+  ],
+  "iters": 200,
+  "repeats": 3,
+  "preparation_iters": 400,
+  "purpose": "quantify unchanged lock stability against original1percentcontrolrule; originalfailedpairretained",
+  "wall": "shared-host diagnostic only",
+  "launches": [
+    {
+      "label": "before-1",
+      "revision": "before",
+      "source": "cf3eee22c6b06324e299f81b76915651471d8025",
+      "binary": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+      "launch_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "command": [
+        "/workspace/scratch/work/sv09/work/bin/devloop-before",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-self-controls/before-1.json"
+      ],
+      "started_monotonic": 19640.167334542,
+      "started_utc": "2026-10-02T21:09:45.427573+00:00",
+      "finished_monotonic": 19647.160319392,
+      "finished_utc": "2026-10-02T21:09:52.420542+00:00",
+      "returncode": 0,
+      "after_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "before-2",
+      "revision": "before",
+      "source": "cf3eee22c6b06324e299f81b76915651471d8025",
+      "binary": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+      "launch_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "command": [
+        "/workspace/scratch/work/sv09/work/bin/devloop-before",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-self-controls/before-2.json"
+      ],
+      "started_monotonic": 19647.199108284,
+      "started_utc": "2026-10-02T21:09:52.459334+00:00",
+      "finished_monotonic": 19654.224397871,
+      "finished_utc": "2026-10-02T21:09:59.484620+00:00",
+      "returncode": 0,
+      "after_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "after-1",
+      "revision": "after",
+      "source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+      "binary": "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+      "launch_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "command": [
+        "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-self-controls/after-1.json"
+      ],
+      "started_monotonic": 19654.265430347,
+      "started_utc": "2026-10-02T21:09:59.525653+00:00",
+      "finished_monotonic": 19661.131883233,
+      "finished_utc": "2026-10-02T21:10:06.392105+00:00",
+      "returncode": 0,
+      "after_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "after-2",
+      "revision": "after",
+      "source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+      "binary": "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+      "launch_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "command": [
+        "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+        "run",
+        "--cells",
+        "rpc.prost.server_stream",
+        "--iters",
+        "200",
+        "--repeats",
+        "3",
+        "--out",
+        "work/profiles/cold-self-controls/after-2.json"
+      ],
+      "started_monotonic": 19661.170629487,
+      "started_utc": "2026-10-02T21:10:06.430852+00:00",
+      "finished_monotonic": 19667.988564448,
+      "finished_utc": "2026-10-02T21:10:13.248786+00:00",
+      "returncode": 0,
+      "after_sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "comparisons": [
+    {
+      "revision": "before",
+      "command": [
+        "/workspace/scratch/work/sv09/work/bin/devloop-before",
+        "compare",
+        "--baseline",
+        "work/profiles/cold-self-controls/before-1.json",
+        "--current",
+        "work/profiles/cold-self-controls/before-2.json"
+      ],
+      "returncode": 0,
+      "stdout": "rpc.prost.server_stream syscalls: improved 30.6 -> 29.6 (-3.52%)\nrpc.prost.server_stream locks: improved 14.7 -> 14.3 (-2.75%)\n",
+      "stderr": ""
+    },
+    {
+      "revision": "after",
+      "command": [
+        "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+        "compare",
+        "--baseline",
+        "work/profiles/cold-self-controls/after-1.json",
+        "--current",
+        "work/profiles/cold-self-controls/after-2.json"
+      ],
+      "returncode": 1,
+      "stdout": "rpc.prost.server_stream syscalls: REGRESSED 30.1 -> 31.3 (+3.79%, limit 2%)\nrpc.prost.server_stream locks: REGRESSED 14.6 -> 15.2 (+3.83%, limit 2%)\n",
+      "stderr": ""
+    }
+  ]
+}

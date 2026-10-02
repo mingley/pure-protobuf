@@ -1,0 +1,18 @@
+{
+  "source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+  "pins": [
+    {
+      "path": "bench/devloop/src/main.rs",
+      "sha256": "163e699803214eb098d5236cba8ee8f8ad6cf927245a0c953303dc226240c9c8"
+    },
+    {
+      "path": "bench/devloop/src/counters.rs",
+      "sha256": "b0a5363df464ce826338f095d3d9cf8ce3f5473b27579df59129864c1bc72728"
+    },
+    {
+      "path": "bench/devloop/adoption/capture-callgrind.py",
+      "sha256": "3655030fd4fbf64f6354e97144ea08042f20bf07c6de52dcc3523a7a80c8cd56"
+    }
+  ],
+  "scope": "read-only frozen collector audit"
+}

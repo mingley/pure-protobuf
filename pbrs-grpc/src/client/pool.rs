@@ -3492,6 +3492,10 @@ pub(crate) fn attach_conn<T>(
 }
 
 #[cfg(test)]
+#[path = "cl08_future_sizes.rs"]
+mod cl08_future_sizes;
+
+#[cfg(test)]
 mod tests {
     use super::{Channel, ConnSlot, RrTable, reconcile_rr};
     use crate::resolver::ResolvedAddress;

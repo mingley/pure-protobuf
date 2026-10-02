@@ -1,0 +1,42 @@
+{
+  "schema": "cl08-cold-future-size/1",
+  "records": [
+    {
+      "acquire_bytes": 8032,
+      "grab_in_bytes": 8504,
+      "handshake_bytes": 7784,
+      "public_call_wrapper_bytes": 32,
+      "boxed_rpc_body_bytes": null,
+      "polled": false,
+      "phase": "before",
+      "source": "ea3089b69fc20d64048973bc5f787dda1d266988",
+      "log": "work/logs/cl08-cold-before-size.log",
+      "log_sha256": "b25d5cf0b6c8ccd536707aa6474e9f21d99dcf02891538f6e1987934ddf2d00e"
+    },
+    {
+      "acquire_bytes": 2344,
+      "grab_in_bytes": 2816,
+      "handshake_bytes": 7784,
+      "public_call_wrapper_bytes": 32,
+      "boxed_rpc_body_bytes": null,
+      "polled": false,
+      "phase": "after",
+      "source": "6a4d06200ade81eb4831db6cecf6f05d539cc5c8",
+      "log": "work/logs/cl08-cold-after-size.log",
+      "log_sha256": "4eda92fc40fc10cf02b6c0870935f073d5302ecd1683694e86a2403adfb7a205"
+    }
+  ],
+  "scope": "unpolled default acquire/grab and cold handshake future; erased public Call wrapper reported separately",
+  "profile": "test unoptimized",
+  "features": [
+    "prost",
+    "copy-counts"
+  ],
+  "compiler": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "target": "x86_64-unknown-linux-gnu",
+  "boxed_rpc_body": "not_measured",
+  "comparative_wall": "not_run",
+  "instructions": "not_run",
+  "allocation_counts": "not_measured; one cold Box follows from source, no measured allocator claim",
+  "integration": "not_qualified"
+}
