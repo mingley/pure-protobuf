@@ -1,0 +1,23 @@
+
+running 1 test
+before deadline: Frame { kind: 8, flags: 0, stream: 0, payload: [0, 255, 0, 1] }
+before deadline: Frame { kind: 4, flags: 1, stream: 0, payload: [] }
+before deadline: Frame { kind: 1, flags: 4, stream: 1, payload: [131, 134, 65, 134, 160, 228, 29, 19, 157, 9, 4, 149, 98, 114, 209, 65, 252, 30, 202, 36, 95, 21, 133, 42, 75, 99, 27, 135, 235, 25, 104, 160, 255, 95, 139, 29, 117, 208, 98, 13, 38, 61, 76, 77, 101, 100, 64, 130, 73, 127, 134, 77, 131, 53, 5, 177, 31, 64, 142, 154, 202, 200, 176, 200, 66, 214, 149, 139, 81, 15, 33, 170, 155, 148, 52, 133, 169, 38, 79, 175, 169, 189, 154, 191, 169, 11, 45, 3, 73, 126, 189, 161, 50, 127, 122, 145, 174, 59, 16, 180, 214, 86, 70, 0, 184, 87, 2, 195, 162, 185, 198, 184, 191] }
+before deadline: Frame { kind: 0, flags: 1, stream: 1, payload: [0, 0, 0, 0, 0] }
+after deadline: Frame { kind: 4, flags: 1, stream: 0, payload: [] }
+after deadline: Frame { kind: 1, flags: 4, stream: 3, payload: [131, 134, 194, 4, 149, 98, 114, 209, 65, 252, 30, 202, 36, 95, 21, 133, 42, 75, 99, 27, 135, 235, 25, 104, 160, 255, 193, 192, 191, 64, 137, 154, 202, 200, 178, 77, 73, 79, 106, 127, 131, 108, 20, 255, 191] }
+after deadline: Frame { kind: 0, flags: 1, stream: 3, payload: [0, 0, 0, 0, 0] }
+after deadline: Frame { kind: 3, flags: 0, stream: 3, payload: [0, 0, 0, 8] }
+
+thread 'expired_queued_unary_never_emits_request_after_peer_capacity_grows' (271458) panicked at /workspace/scratch/work/deadline-admission/pbrs-grpc/tests/deadline_admission.rs:94:5:
+expired RPC emitted stream frames after capacity became available: [Frame { kind: 4, flags: 1, stream: 0, payload: [] }, Frame { kind: 1, flags: 4, stream: 3, payload: [131, 134, 194, 4, 149, 98, 114, 209, 65, 252, 30, 202, 36, 95, 21, 133, 42, 75, 99, 27, 135, 235, 25, 104, 160, 255, 193, 192, 191, 64, 137, 154, 202, 200, 178, 77, 73, 79, 106, 127, 131, 108, 20, 255, 191] }, Frame { kind: 0, flags: 1, stream: 3, payload: [0, 0, 0, 0, 0] }, Frame { kind: 3, flags: 0, stream: 3, payload: [0, 0, 0, 8] }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test expired_queued_unary_never_emits_request_after_peer_capacity_grows ... FAILED
+
+failures:
+
+failures:
+    expired_queued_unary_never_emits_request_after_peer_capacity_grows
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

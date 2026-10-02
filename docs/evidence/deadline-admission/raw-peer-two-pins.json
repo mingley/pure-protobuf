@@ -1,0 +1,24 @@
+{
+  "test_source_base": "bac42c8ea250c6a1d0ddcf24e61f7d6bb39107d8",
+  "argv": [
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof-two",
+    "--nocapture"
+  ],
+  "exit_code": 101,
+  "before": {
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof-two": "52acad789e1d56b5729679a2cb10cd859fcd8edcd441be006acd87757a3b2581",
+    "/workspace/scratch/work/deadline-admission/pbrs-grpc/tests/deadline_admission.rs": "dcd06a39f82d1c4269687fb2170d094ffdb26e25b964d2cc555c40a04f923a1d",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libpbrs_grpc-c5f7b84c09a7121a.rlib": "69f87c4eccacb0828ed809bc8f251d60e2a4067b0f7bb2d42f0b3f8d2fd42a65",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libtokio-d60741ff1b43c85b.rlib": "19317ec4fa2e37c904ffcb1a2eb963a2b99a10d89dda67fc3ddf701312e2ea3f"
+  },
+  "after": {
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof-two": "52acad789e1d56b5729679a2cb10cd859fcd8edcd441be006acd87757a3b2581",
+    "/workspace/scratch/work/deadline-admission/pbrs-grpc/tests/deadline_admission.rs": "dcd06a39f82d1c4269687fb2170d094ffdb26e25b964d2cc555c40a04f923a1d",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libpbrs_grpc-c5f7b84c09a7121a.rlib": "69f87c4eccacb0828ed809bc8f251d60e2a4067b0f7bb2d42f0b3f8d2fd42a65",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libtokio-d60741ff1b43c85b.rlib": "19317ec4fa2e37c904ffcb1a2eb963a2b99a10d89dda67fc3ddf701312e2ea3f"
+  },
+  "unchanged": true,
+  "clock": "Tokio paused current-thread; no wall timing claim",
+  "compiler_command": "rustc --edition=2024 --test pbrs-grpc/tests/deadline_admission.rs -L dependency=/workspace/scratch/work/verify-main/target/debug/deps --extern pbrs_grpc=/workspace/scratch/work/verify-main/target/debug/deps/libpbrs_grpc-c5f7b84c09a7121a.rlib --extern tokio=/workspace/scratch/work/verify-main/target/debug/deps/libtokio-d60741ff1b43c85b.rlib -C debuginfo=0 -o work/deadline-admission/raw-peer-proof-two",
+  "compiler_exit": 0
+}
