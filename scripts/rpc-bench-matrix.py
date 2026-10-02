@@ -349,6 +349,41 @@ def collect_process_cpu_capacity(pid: int, proc_root: Path = Path("/proc")) -> D
     return proof
 
 
+def finite_cpu_delta(initial: float, final: float) -> float:
+    """Retain bounded diagnostic counters; verification is a separate guard."""
+    delta = final - initial
+    return max(0.0, delta) if math.isfinite(delta) else 0.0
+
+
+def cpu_counter_window(initial, final) -> Dict[str, Any]:
+    """Prove the interval belonging to a cumulative endpoint CPU delta."""
+    def value(snapshot, name):
+        number = getattr(snapshot, name, None)
+        return number if isinstance(number, (int, float)) and math.isfinite(number) else None
+
+    start = value(initial, "timestamp")
+    end = value(final, "timestamp")
+    duration = end - start if start is not None and end is not None else None
+    if duration is not None and not math.isfinite(duration):
+        duration = None
+    counters = {f"{endpoint}_{name}_seconds": value(snapshot, attribute)
+                for endpoint, snapshot in (("initial", initial), ("final", final))
+                for name, attribute in (("user", "user_s"), ("system", "sys_s"))}
+    reason = ""
+    if initial is None or final is None:
+        reason = "initial or final endpoint CPU snapshot missing"
+    elif duration is None or duration <= 0:
+        reason = "endpoint CPU snapshot timestamps are nonfinite or nonmonotonic"
+    elif any(c is None or c < 0 for c in counters.values()):
+        reason = "endpoint CPU counters are nonfinite or negative"
+    elif (final.user_s < initial.user_s or final.sys_s < initial.sys_s
+          or not math.isfinite(final.total_cpu_s - initial.total_cpu_s)):
+        reason = "endpoint CPU counters are nonmonotonic or overflowed"
+    return {"verified": not reason, "start_monotonic_s": start,
+            "end_monotonic_s": end, "duration_seconds": duration,
+            **counters, "reason": reason}
+
+
 class ProcessResourceMonitor:
     """Monitors, polls, and attributes CPU and memory to client and server processes."""
 
@@ -384,6 +419,7 @@ class ProcessResourceMonitor:
         self.client_cpu_samples: List[float] = []
         self._client_last_snap: Optional[ProcessSnapshot] = None
         self._capacity_samples: Dict[str, List[Dict[str, Any]]] = {"client": [], "server": []}
+        self._counter_errors: Dict[str, List[str]] = {"client": [], "server": []}
 
         # Capture server initial baseline immediately upon monitor creation
         self.server_initial = sample_process(self.server_pid)
@@ -453,6 +489,7 @@ class ProcessResourceMonitor:
             if self.client_pid:
                 snap = sample_process(self.client_pid)
                 if snap:
+                    self._check_counter_transition("client", self._client_last_snap, snap)
                     self._observe_capacity("client", self.client_pid)
                     self.client_peak_rss = max(self.client_peak_rss, snap.rss_bytes)
                     self.client_max_threads = max(self.client_max_threads, snap.thread_count)
@@ -468,6 +505,7 @@ class ProcessResourceMonitor:
             if self.server_pid:
                 snap = sample_process(self.server_pid)
                 if snap:
+                    self._check_counter_transition("server", self._server_last_snap, snap)
                     self._observe_capacity("server", self.server_pid)
                     self.server_peak_rss = max(self.server_peak_rss, snap.rss_bytes)
                     self.server_max_threads = max(self.server_max_threads, snap.thread_count)
@@ -481,6 +519,12 @@ class ProcessResourceMonitor:
 
             self._stop_event.wait(self.poll_interval_s)
 
+    def _check_counter_transition(self, endpoint: str, initial, final) -> None:
+        if initial is not None:
+            window = cpu_counter_window(initial, final)
+            if not window["verified"]:
+                self._counter_errors[endpoint].append(window["reason"])
+
     def stop(self) -> Tuple[Dict, Dict, Dict]:
         self._stop_event.set()
         if self._worker_thread and self._worker_thread.is_alive():
@@ -491,6 +535,7 @@ class ProcessResourceMonitor:
         if self.client_pid:
             final_c = sample_process(self.client_pid)
             if final_c:
+                self._check_counter_transition("client", self._client_last_snap, final_c)
                 self._observe_capacity("client", self.client_pid)
                 self.client_final = final_c
                 self.client_peak_rss = max(self.client_peak_rss, final_c.rss_bytes)
@@ -499,12 +544,11 @@ class ProcessResourceMonitor:
         if self.server_pid:
             final_s = sample_process(self.server_pid)
             if final_s:
+                self._check_counter_transition("server", self._server_last_snap, final_s)
                 self._observe_capacity("server", self.server_pid)
                 self.server_final = final_s
                 self.server_peak_rss = max(self.server_peak_rss, final_s.rss_bytes)
                 self.server_max_threads = max(self.server_max_threads, final_s.thread_count)
-
-        duration_s = max(0.001, self.end_time - self.start_time)
 
         # 1. Compute client metrics
         c_init_user = self.client_initial.user_s if self.client_initial else 0.0
@@ -512,8 +556,8 @@ class ProcessResourceMonitor:
         c_final_user = self.client_final.user_s if self.client_final else (self._client_last_snap.user_s if self._client_last_snap else c_init_user)
         c_final_sys = self.client_final.sys_s if self.client_final else (self._client_last_snap.sys_s if self._client_last_snap else c_init_sys)
 
-        client_user_s = max(0.0, c_final_user - c_init_user)
-        client_sys_s = max(0.0, c_final_sys - c_init_sys)
+        client_user_s = finite_cpu_delta(c_init_user, c_final_user)
+        client_sys_s = finite_cpu_delta(c_init_sys, c_final_sys)
         client_total_s = client_user_s + client_sys_s
         client_peak_rss = max(self.client_peak_rss, 1024)
         client_threads = max(self.client_max_threads, 1)
@@ -524,8 +568,8 @@ class ProcessResourceMonitor:
         s_final_user = self.server_final.user_s if self.server_final else (self._server_last_snap.user_s if self._server_last_snap else s_init_user)
         s_final_sys = self.server_final.sys_s if self.server_final else (self._server_last_snap.sys_s if self._server_last_snap else s_init_sys)
 
-        server_user_s = max(0.0, s_final_user - s_init_user)
-        server_sys_s = max(0.0, s_final_sys - s_init_sys)
+        server_user_s = finite_cpu_delta(s_init_user, s_final_user)
+        server_sys_s = finite_cpu_delta(s_init_sys, s_final_sys)
         server_total_s = server_user_s + server_sys_s
         server_peak_rss = max(self.server_peak_rss, 1024)
         server_threads = max(self.server_max_threads, 1)
@@ -533,23 +577,23 @@ class ProcessResourceMonitor:
         # 3. Client saturation verification
         # Raw CPU percentage is core-seconds per wall-second. Thread count is
         # diagnostic only: extra threads cannot create extra CPU capacity.
-        overall_utilization_pct = (client_total_s / duration_s) * 100.0
-        if self.client_cpu_samples:
-            avg_cpu_pct = sum(self.client_cpu_samples) / len(self.client_cpu_samples)
-            peak_cpu_pct = max(self.client_cpu_samples)
-        else:
-            avg_cpu_pct = overall_utilization_pct
-            peak_cpu_pct = overall_utilization_pct
-
         client_capacity = self._capacity_proof("client")
         server_capacity = self._capacity_proof("server")
-        client_end = self.client_final or self._client_last_snap
-        server_end = self.server_final or self._server_last_snap
-        def verified_delta(initial, final):
-            return bool(initial and final and final.timestamp > initial.timestamp
-                        and final.user_s >= initial.user_s and final.sys_s >= initial.sys_s)
-        client_delta_verified = verified_delta(self.client_initial, client_end)
-        server_delta_verified = verified_delta(self.server_initial, server_end)
+        client_window = cpu_counter_window(self.client_initial, self.client_final)
+        server_window = cpu_counter_window(self.server_initial, self.server_final)
+        for endpoint, window in (("client", client_window), ("server", server_window)):
+            window["observed_transition_errors"] = self._counter_errors[endpoint]
+            if self._counter_errors[endpoint]:
+                window.update(verified=False, reason=self._counter_errors[endpoint][0])
+        client_delta_verified = client_window["verified"]
+        server_delta_verified = server_window["verified"]
+        # Weight every CPU second by the same endpoint's actual counter window.
+        # Equal weighting of sampled percentages can hide a long busy interval.
+        avg_cpu_pct = (client_total_s / client_window["duration_seconds"] * 100.0
+                       if client_delta_verified else None)
+        finite_samples = [s for s in self.client_cpu_samples if math.isfinite(s)]
+        sample_mean_pct = sum(finite_samples) / len(finite_samples) if finite_samples else None
+        peak_cpu_pct = max(finite_samples) if finite_samples else avg_cpu_pct
         headroom_verified = bool(client_capacity["verified"] and client_delta_verified)
         effective_capacity = client_capacity.get("effective_cpu_capacity")
         utilization_pct = avg_cpu_pct / effective_capacity if headroom_verified else None
@@ -558,7 +602,7 @@ class ProcessResourceMonitor:
         is_saturated = not headroom_verified or utilization_pct >= self.saturation_threshold_pct
         saturation_status = "FAIL (UNVERIFIED)" if not headroom_verified else ("FAIL (SATURATED)" if is_saturated else "PASS")
         if not headroom_verified:
-            saturation_message = f"Client CPU headroom unverified: {client_capacity.get('reason') or 'CPU counter interval unavailable'}"
+            saturation_message = f"Client CPU headroom unverified: {client_capacity.get('reason') or client_window['reason']}"
         elif is_saturated:
             saturation_message = (
                 f"Client load generator reached {avg_cpu_pct:.1f}% CPU utilization "
@@ -591,6 +635,7 @@ class ProcessResourceMonitor:
             "thread_count": client_threads,
             "cpu_capacity": client_capacity,
             "cpu_delta_verified": client_delta_verified,
+            "cpu_counter_window": client_window,
             "cpu_seconds_per_rpc": None,
             "method": client_method,
             "supported": client_supported,
@@ -608,6 +653,7 @@ class ProcessResourceMonitor:
             "thread_count": server_threads,
             "cpu_capacity": server_capacity,
             "cpu_delta_verified": server_delta_verified,
+            "cpu_counter_window": server_window,
             "cpu_seconds_per_rpc": None,
             "method": server_method,
             "supported": server_supported,
@@ -615,8 +661,11 @@ class ProcessResourceMonitor:
 
         saturation_dict = {
             "saturated": is_saturated,
-            "avg_cpu_pct": round(avg_cpu_pct, 1),
-            "peak_cpu_pct": round(peak_cpu_pct, 1),
+            "avg_cpu_pct": round(avg_cpu_pct, 1) if avg_cpu_pct is not None else None,
+            "sample_mean_cpu_pct": round(sample_mean_pct, 1) if sample_mean_pct is not None else None,
+            "peak_cpu_pct": round(peak_cpu_pct, 1) if peak_cpu_pct is not None else None,
+            "cpu_utilization_method": "cumulative_endpoint_delta_over_snapshot_interval",
+            "monitor_wall_seconds": self.end_time - self.start_time,
             "spare_capacity_pct": round(spare_capacity_pct, 1) if spare_capacity_pct is not None else None,
             "capacity_utilization_pct": round(utilization_pct, 1) if utilization_pct is not None else None,
             "effective_cpu_capacity": effective_capacity,
@@ -1031,6 +1080,10 @@ def aggregate_endpoint_resources(samples: List[Dict[str, Any]]) -> Dict[str, Any
     capacity["process_count"] = len(samples)
     combined["cpu_capacity"] = capacity
     combined["cpu_delta_verified"] = all(s.get("cpu_delta_verified") is True for s in samples)
+    # These are different processes and intervals. Never associate summed CPU
+    # counters with only the last process's snapshot timestamps.
+    combined.pop("cpu_counter_window", None)
+    combined["cpu_counter_windows"] = [s.get("cpu_counter_window") for s in samples]
     combined["method"] = f"sum-of-{len(samples)}-{samples[-1]['method']}"
     return combined
 
@@ -1365,8 +1418,11 @@ def run_single_benchmark(
             server_res = aggregate_endpoint_resources(server_samples)
             sat_check = {
                 "saturated": any(s["saturated"] for s in saturation_samples),
-                "avg_cpu_pct": max(s["avg_cpu_pct"] for s in saturation_samples),
-                "peak_cpu_pct": max(s["peak_cpu_pct"] for s in saturation_samples),
+                "avg_cpu_pct": max(s["avg_cpu_pct"] for s in saturation_samples)
+                    if all(s["avg_cpu_pct"] is not None for s in saturation_samples) else None,
+                "peak_cpu_pct": max((s["peak_cpu_pct"] for s in saturation_samples
+                                     if s["peak_cpu_pct"] is not None), default=None),
+                "endpoint_saturation_checks": saturation_samples,
                 "spare_capacity_pct": min(s["spare_capacity_pct"] for s in saturation_samples)
                     if all(s.get("headroom_verified") is True for s in saturation_samples) else None,
                 "headroom_verified": all(s.get("headroom_verified") is True for s in saturation_samples),
@@ -1454,6 +1510,7 @@ def run_single_benchmark(
             report_data["server_ceiling_reason"] = exclusion
 
         spare_label = f"{sat_check['spare_capacity_pct']:.1f}%" if sat_check["spare_capacity_pct"] is not None else "unverified"
+        avg_label = f"{sat_check['avg_cpu_pct']:.1f}%" if sat_check["avg_cpu_pct"] is not None else "unverified"
         res_summary = (
             f"[ENDPOINTS] Client ({client_peer}): codec={client_codec}, workload={client_workload}, binary={client_binary}\n"
             f"[ENDPOINTS] Server ({server_peer}): codec={server_codec}, binary={server_binary}\n"
@@ -1461,7 +1518,7 @@ def run_single_benchmark(
             f"peak_rss={client_res['peak_rss_mib']:.1f} MiB, threads={client_res['thread_count']}\n"
             f"[RESOURCES] Server ({server_peer}): user={server_res['user_cpu_seconds']:.4f}s, sys={server_res['system_cpu_seconds']:.4f}s, "
             f"peak_rss={server_res['peak_rss_mib']:.1f} MiB, threads={server_res['thread_count']}\n"
-            f"[SATURATION] Load generator: avg_cpu={sat_check['avg_cpu_pct']:.1f}%, "
+            f"[SATURATION] Load generator: avg_cpu={avg_label}, "
             f"spare_capacity={spare_label} -> {sat_check['status']}"
         )
         if sat_check["saturated"]:
