@@ -32,6 +32,7 @@ mod counters;
 mod map_cells;
 #[path = "../cells/text.rs"]
 mod text_cells;
+mod tonic_transport_rpc;
 use counters::{parse_callgrind_instructions, parse_perf_instructions, parse_strace_summary};
 
 /// Report schema version. Bump on any breaking JSON change.
@@ -1770,6 +1771,7 @@ fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
         out.push((cell.id, "codec", cell.codec.name()));
     }
     out.extend(adoption_rpc::cells());
+    out.extend(tonic_transport_rpc::cells());
     for (id, codec) in rpc_cells() {
         out.push((id, "rpc", codec));
     }
@@ -1878,7 +1880,7 @@ fn run_cell_process(
 
 /// Reject differential measurements prepared from different adoption inputs.
 fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>) {
-    if cell.starts_with("codec.adoption.") {
+    if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
         assert!(
             first.is_some() && second.is_some(),
             "adoption input fingerprint missing"
@@ -2000,7 +2002,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
-            if cell.starts_with("codec.adoption.") {
+            if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
                 assert!(
                     child.input_wire_fingerprint.is_some(),
                     "adoption input fingerprint missing"
@@ -2258,6 +2260,13 @@ fn cmd_run_cell(args: &[String]) {
                 _ => panic!("unknown lb cell {id}"),
             }
         });
+    } else if id.starts_with("rpc.tonic_transport.") {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("tonic transport runtime");
+        rt.block_on(tonic_transport_rpc::run(&id, iters, warmup));
     } else if id.starts_with("rpc.adoption.") {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
