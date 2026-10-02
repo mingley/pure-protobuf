@@ -682,3 +682,71 @@ async fn reset_in_partial_gzip_header_drops_reader_and_next_rpc_succeeds() {
     assert_eq!(terminal.get("grpc-status").expect("status"), "0");
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 2);
 }
+
+#[tokio::test]
+async fn zero_native_gzip_cap_distinguishes_identity_empty_member_and_missing_gzip_header() {
+    for (wire, status) in [
+        (Bytes::from_static(b"\0\0\0\0\0"), "0"),
+        (gzip_wire(b""), "8"),
+        (Bytes::from_static(b"\x01\0\0\0\0"), "13"),
+    ] {
+        let mut echo = probe(Vec::new());
+        echo.read_input = true;
+        let mut fixture = connect(
+            echo,
+            ServerConfig::default().max_decoding_message_size(0),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut()
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        let (bytes, terminal, _) = exchange(&mut fixture, req, vec![wire.clone()]).await;
+        assert_eq!(terminal.get("grpc-status").expect("status"), status);
+        if status == "0" {
+            assert_eq!(bytes, wire);
+        } else {
+            assert!(bytes.is_empty());
+        }
+    }
+}
+
+#[tokio::test]
+async fn deadline_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot() {
+    let wire = gzip_wire(&[7; 64]);
+    let mut tail = wire.to_vec();
+    tail.get_mut(1..5).expect("prefix").copy_from_slice(
+        &u32::try_from(wire.len() - 5 + 3)
+            .expect("small fixture")
+            .to_be_bytes(),
+    );
+    tail.extend_from_slice(&[255, 0, 123]);
+    let tail = Bytes::from(tail);
+    let mut echo = probe(Vec::new());
+    echo.read_input = true;
+    let mut fixture = connect(
+        echo,
+        ServerConfig::default()
+            .max_decoding_message_size(64)
+            .max_concurrent_rpcs(1),
+        65_535,
+    )
+    .await;
+    for (n, partial) in [wire.slice(..wire.len() - 4), tail.slice(..tail.len() - 1)]
+        .into_iter()
+        .enumerate()
+    {
+        let mut req = request();
+        req.headers_mut()
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        req.headers_mut()
+            .insert("grpc-timeout", http::HeaderValue::from_static("50m"));
+        let (response, mut send) = fixture.client.send_request(req, false).expect("request");
+        send.send_data(partial, false).expect("partial gzip");
+        let (bytes, terminal, _) = collect(response.await.expect("response")).await;
+        assert!(bytes.is_empty());
+        assert_eq!(terminal.get("grpc-status").expect("status"), "4");
+        wait_counter(&fixture.state.input_dropped, n + 1).await;
+        assert_eq!(fixture.state.calls.load(Ordering::SeqCst), n + 1);
+    }
+}

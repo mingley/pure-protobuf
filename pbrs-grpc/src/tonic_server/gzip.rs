@@ -464,13 +464,26 @@ mod tests {
         let original = Bytes::from([first.as_ref(), b"\0\0\0\0\x03abc", zero.as_ref()].concat());
         let ptr = original.as_ptr() as usize;
         let dropped = Arc::new(AtomicUsize::new(0));
-        let frames = (0..original.len())
+        let mut frames: Vec<_> = (0..original.len())
             .map(|n| Ok(Frame::data(original.slice(n..n + 1))))
             .collect();
+        frames.insert(0, Ok(Frame::data(Bytes::new())));
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+        trailers.insert("x-terminal", http::HeaderValue::from_static("retained"));
+        frames.push(Ok(Frame::trailers(trailers)));
         let mut body = body(frames, 64, dropped.clone());
         let mut got = Vec::new();
         while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
-            let bytes = frame.expect("valid frame").into_data().expect("data");
+            let frame = frame.expect("valid frame");
+            let bytes = match frame.into_data() {
+                Ok(bytes) => bytes,
+                Err(frame) => {
+                    let trailers = frame.into_trailers().expect("trailers");
+                    assert_eq!(trailers.get("x-terminal").expect("metadata"), "retained");
+                    continue;
+                }
+            };
             let start = bytes.as_ptr() as usize;
             assert!(start >= ptr && start + bytes.len() <= ptr + original.len());
             got.extend_from_slice(&bytes);
@@ -636,7 +649,10 @@ mod tests {
         ] {
             let original = frame(encoded);
             let dropped = Arc::new(AtomicUsize::new(0));
-            let mut body = body(vec![Ok(Frame::data(original.clone()))], 64, dropped.clone());
+            let frames = (0..original.len())
+                .map(|n| Ok(Frame::data(original.slice(n..n + 1))))
+                .collect();
+            let mut body = body(frames, 64, dropped.clone());
             let mut got = Vec::new();
             let mut error = None;
             while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
@@ -680,5 +696,70 @@ mod tests {
                 .await
                 .is_none()
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn inflating_yields_runtime_progress_before_prefix_and_replay_drop_frees_source() {
+        let original = wire(&vec![7; 1024 * 1024]);
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(
+            vec![Ok(Frame::data(original))],
+            2 * 1024 * 1024,
+            dropped.clone(),
+        );
+        let mut cx = Context::from_waker(Waker::noop());
+        assert!(Pin::new(&mut body).poll_frame(&mut cx).is_pending());
+        let progress = Arc::new(AtomicUsize::new(0));
+        let seen = progress.clone();
+        let pulse = tokio::spawn(async move {
+            seen.fetch_add(1, Ordering::SeqCst);
+        });
+        let first = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)),
+        )
+        .await
+        .expect("bounded inflation finishes")
+        .expect("prefix")
+        .expect("valid");
+        assert!(first.is_data());
+        assert_eq!(
+            progress.load(Ordering::SeqCst),
+            1,
+            "runtime progressed before prefix replay"
+        );
+        pulse.await.expect("pulse");
+        drop(body);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn dropping_during_inflate_releases_owned_original_backing() {
+        struct Owner(Vec<u8>, Arc<AtomicUsize>);
+        impl AsRef<[u8]> for Owner {
+            fn as_ref(&self) -> &[u8] {
+                &self.0
+            }
+        }
+        impl Drop for Owner {
+            fn drop(&mut self) {
+                self.1.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let backing = Arc::new(AtomicUsize::new(0));
+        let original =
+            Bytes::from_owner(Owner(wire(&vec![7; 1024 * 1024]).to_vec(), backing.clone()));
+        let mut body = body(
+            vec![Ok(Frame::data(original))],
+            2 * 1024 * 1024,
+            dropped.clone(),
+        );
+        let mut cx = Context::from_waker(Waker::noop());
+        assert!(Pin::new(&mut body).poll_frame(&mut cx).is_pending());
+        assert_eq!(backing.load(Ordering::SeqCst), 0);
+        drop(body);
+        assert_eq!(backing.load(Ordering::SeqCst), 1);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
     }
 }
