@@ -721,7 +721,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
         // request/response stream, say — and must not pay a turn of latency
         // for nothing.
         let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 && stream.may_refill_channel() {
+        if items.len() > 1 && room > 0 && stream.producer_may_advance() {
             let_producer_catch_up().await;
             stream.try_recv_many(&mut items, room);
         }
