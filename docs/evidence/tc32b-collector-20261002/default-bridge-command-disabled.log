@@ -1,0 +1,6 @@
+usage:
+  devloop list
+  devloop run-cell <id> --iters N [--warmup N] [--prepare-iters N]
+  devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]
+  devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]
+  devloop sizes

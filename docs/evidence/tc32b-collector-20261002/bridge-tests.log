@@ -1,0 +1,41 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc32b)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling prost-types v0.14.4
+   Compiling prost-build v0.14.4
+   Compiling tonic-prost-build v0.14.6
+   Compiling flate2 v1.1.10
+   Compiling tonic v0.14.6
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/tc32b/protobuf-tonic)
+   Compiling prost_tat v0.0.1 (/workspace/scratch/work/tc32b/prost_tat)
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/tc32b/bench/devloop/adoption)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc32b/pbrs-grpc)
+   Compiling v4_tat v0.0.1 (/workspace/scratch/work/tc32b/v4_tat)
+   Compiling devloop v0.1.0 (/workspace/scratch/work/tc32b/bench/devloop)
+   Compiling tonic-prost v0.14.6
+    Finished `test` profile [unoptimized] target(s) in 1m 24s
+     Running unittests src/main.rs (/workspace/scratch/work/sb32/target/debug/deps/devloop-e443ab2d00a6ad20)
+
+running 20 tests
+test bridge_registration_tests::bridge_collector_rejects_empty_missing_and_unequal_identities ... ok
+test counters::tests::callgrind_reads_summary_and_rejects_invalid_counts ... ok
+test counters::tests::perf_reads_event_after_empty_unit ... ok
+test counters::tests::perf_rejects_unavailable_nonfinite_ambiguous_or_wrong_events ... ok
+test counters::tests::strace_missing_or_malformed_summary_is_not_a_measured_zero ... ok
+test counters::tests::strace_total_is_last_column_with_optional_error_count ... ok
+test input_tests::different_inputs_reject_differential_counts - should panic ... ok
+test input_tests::differential_collection_rejects_every_missing_fingerprint_combination ... ok
+test input_tests::matching_input_and_legacy_non_adoption_cells_are_accepted ... ok
+test input_tests::missing_input_identifier_rejects_differential_counts - should panic ... ok
+test bridge_registration_tests::opt_in_registry_appends_all_actual_bridge_cells ... ok
+test input_tests::report_comparison_accepts_matching_inputs_and_readable_legacy_reports ... ok
+test input_tests::report_comparison_rejects_missing_or_unequal_inputs_in_either_direction ... ok
+test map_cells::tests::fixtures_exercise_every_entry_and_last_key ... ok
+test adoption_rpc::tests::tonic_listener_preserves_default_tcp_nodelay ... ok
+test tonic_transport_rpc::tests::matrix_preserves_old_ids_and_registers_every_frozen_specimen_shape_and_transport ... ok
+test tonic_transport_rpc::tests::new_profiles_reject_missing_or_changed_differential_inputs ... ok
+test text_cells::tests::all_cells_execute_against_round_tripping_fixtures ... ok
+test bridge_registration_tests::map_dispatch_rejects_before_zero_iteration_timing ... ok
+test tonic_transport_rpc::tests::complete_network_matrix_preflight_retains_all_24_original_map_blocks ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.07s
+
