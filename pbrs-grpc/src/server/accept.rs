@@ -1792,16 +1792,13 @@ pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
                             };
                             if let Some(io) = io {
                                 let identity = crate::tls::peer_identity_of(&io);
+                                let connection = ConnectionInfo::tls(peer, local, identity);
+                                #[cfg(feature = "tonic")]
+                                let connection = connection.with_tonic_tls(
+                                    tonic::transport::server::Connected::connect_info(&io),
+                                );
                                 drop(
-                                    serve_io(
-                                        dispatch,
-                                        io,
-                                        ConnectionInfo::tls(peer, local, identity),
-                                        config,
-                                        goaway,
-                                        rpcs,
-                                    )
-                                    .await,
+                                    serve_io(dispatch, io, connection, config, goaway, rpcs).await,
                                 );
                             }
                         }
@@ -1889,17 +1886,11 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
                 let rpcs = rpcs.clone();
                 let cred = peer_cred_of(&io);
                 drop(tokio::spawn(async move {
-                    drop(
-                        serve_io(
-                            dispatch,
-                            io,
-                            ConnectionInfo::unix(cred, Some(peer_addr)),
-                            config,
-                            goaway,
-                            rpcs,
-                        )
-                        .await,
-                    );
+                    let connection = ConnectionInfo::unix(cred, Some(peer_addr));
+                    #[cfg(feature = "tonic")]
+                    let connection = connection
+                        .with_tonic_uds(tonic::transport::server::Connected::connect_info(&io));
+                    drop(serve_io(dispatch, io, connection, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
