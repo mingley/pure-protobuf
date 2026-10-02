@@ -1,0 +1,280 @@
+{
+  "case_source": "bench/codegen/run.py CORPORA/DEFAULT_SEED/render_proto; no source info, as Config default",
+  "harness_sha256": "7e3cb6011a0303e50bbc454b053fb2dfc412e64ad9dd4cb1535ab65537e7f8b0",
+  "plugin_sha256": "d2d8c5ae1bfe4d7de84bbf5cbde0008531282b31941d458e6128e238f3df42ae",
+  "cases": {
+    "small": {
+      "messages": 6,
+      "requested_files": 2,
+      "files": {
+        "__pbrs_shared_descriptors.rs": {
+          "bytes": 7099,
+          "lines": 90,
+          "sha256": "2a38ca192eb7156536700f00f6a3c2a3e3e0d21688dd056fdf5a1fd19ba47691",
+          "raw_descriptor_literals": 1
+        },
+        "mod.rs": {
+          "bytes": 216,
+          "lines": 8,
+          "sha256": "8d9b5cdb16bdc914aa73701312915941c65d341d03d20ee1dd99482b23766a42",
+          "raw_descriptor_literals": 0
+        },
+        "part_00.rs": {
+          "bytes": 59835,
+          "lines": 1109,
+          "sha256": "f9b3d4a008a05992893b80a528670ee7af22c65fb7a71370bbfd67e508dd2cf5",
+          "raw_descriptor_literals": 0
+        },
+        "part_01.rs": {
+          "bytes": 62336,
+          "lines": 1050,
+          "sha256": "5358202aa3d09340bf36b826486d71fcde724613d67f17667a6239d54d34a45e",
+          "raw_descriptor_literals": 0
+        }
+      },
+      "total_bytes": 129486,
+      "total_lines": 2257,
+      "fds_sha256": "d892f8fcd283c3083c60308c2a834c485c9de358f2374278e58d4759099c6b21",
+      "protoc_command": [
+        "protoc",
+        "--include_imports",
+        "--descriptor_set_out=/workspace/scratch/work/gn03/work/source-volume/small/fixture.fds",
+        "-I/workspace/scratch/work/gn03/work/source-volume/small/proto",
+        "part_00.proto",
+        "part_01.proto"
+      ],
+      "options": "stubs=none,shared_descriptor_set=true"
+    },
+    "100": {
+      "messages": 100,
+      "requested_files": 5,
+      "files": {
+        "__pbrs_shared_descriptors.rs": {
+          "bytes": 91944,
+          "lines": 1088,
+          "sha256": "d3da6418fe0432bb0270889ccb640110f4ce76e24bd8813a8479113663ddaf97",
+          "raw_descriptor_literals": 1
+        },
+        "mod.rs": {
+          "bytes": 312,
+          "lines": 11,
+          "sha256": "11088b66ec6edbf9b22becda67b7a1a470137ff60799544afd47e74d0e488170",
+          "raw_descriptor_literals": 0
+        },
+        "part_00.rs": {
+          "bytes": 356080,
+          "lines": 6748,
+          "sha256": "d2e84cf54589e13ee5b6ed6c71a70d6e4bd51a57321b71a25ab49900e86d8607",
+          "raw_descriptor_literals": 0
+        },
+        "part_01.rs": {
+          "bytes": 378562,
+          "lines": 7024,
+          "sha256": "457612fdf014b9162d5c4f05e42335a3c1dd1083c436e49d294c5c161c858c13",
+          "raw_descriptor_literals": 0
+        },
+        "part_02.rs": {
+          "bytes": 377694,
+          "lines": 6919,
+          "sha256": "14b905394ea931c5b2bcba1f518273cba44259d67ee8f989c9c0a5fb0e8c10f0",
+          "raw_descriptor_literals": 0
+        },
+        "part_03.rs": {
+          "bytes": 375309,
+          "lines": 7000,
+          "sha256": "5d697b9bb2804bf5c8793ed6501c1d23c897689428d787543f16445ce3918203",
+          "raw_descriptor_literals": 0
+        },
+        "part_04.rs": {
+          "bytes": 367580,
+          "lines": 6814,
+          "sha256": "d0de757d3547a5ba18bf37682a974601a215a98ad503608bad4ff958038a5332",
+          "raw_descriptor_literals": 0
+        }
+      },
+      "total_bytes": 1947481,
+      "total_lines": 35604,
+      "fds_sha256": "fd5d0ab966f3729585f34be7490c0d84677ebae0202b39333012decb1cbc6f16",
+      "protoc_command": [
+        "protoc",
+        "--include_imports",
+        "--descriptor_set_out=/workspace/scratch/work/gn03/work/source-volume/100/fixture.fds",
+        "-I/workspace/scratch/work/gn03/work/source-volume/100/proto",
+        "part_00.proto",
+        "part_01.proto",
+        "part_02.proto",
+        "part_03.proto",
+        "part_04.proto"
+      ],
+      "options": "stubs=none,shared_descriptor_set=true"
+    },
+    "1000": {
+      "messages": 1000,
+      "requested_files": 20,
+      "files": {
+        "__pbrs_shared_descriptors.rs": {
+          "bytes": 867329,
+          "lines": 10210,
+          "sha256": "914cf33a273077ab6aad7ae8fee6c22bebd94318bedca49aa6779b2d4e3a320d",
+          "raw_descriptor_literals": 1
+        },
+        "mod.rs": {
+          "bytes": 792,
+          "lines": 26,
+          "sha256": "09c818f65aceeb9f776d0c82f323ad2dfcbcb1f3c85a85cf507cb393c26f674f",
+          "raw_descriptor_literals": 0
+        },
+        "part_00.rs": {
+          "bytes": 911182,
+          "lines": 17238,
+          "sha256": "1b9235a80cc1322081bdd624255609c2a373bc5bb352c47e354f4c1b1db90849",
+          "raw_descriptor_literals": 0
+        },
+        "part_01.rs": {
+          "bytes": 934101,
+          "lines": 17485,
+          "sha256": "25a275430d9ec9b999af388fab24a785994efd0edb4add0b522d420b16b5edc0",
+          "raw_descriptor_literals": 0
+        },
+        "part_02.rs": {
+          "bytes": 921842,
+          "lines": 17237,
+          "sha256": "a9ed3b3b373d129328fea9dfdd8a45fae02a1892604f7df1d363d222f2a4e1ce",
+          "raw_descriptor_literals": 0
+        },
+        "part_03.rs": {
+          "bytes": 899707,
+          "lines": 16981,
+          "sha256": "f4293f18fe28e25f34e5a3ba6ed35c7e1c1a20aa1e96b94a3429c03c5b995e17",
+          "raw_descriptor_literals": 0
+        },
+        "part_04.rs": {
+          "bytes": 902345,
+          "lines": 16955,
+          "sha256": "45f337f43dbad00743107da4d35bbcf21622f37dd9680129b79ec705688f659c",
+          "raw_descriptor_literals": 0
+        },
+        "part_05.rs": {
+          "bytes": 921744,
+          "lines": 17253,
+          "sha256": "6eb5a18ac8b9c52ec2cc21e5f9fceb9de89031302c5dd1c59f61bdc41441bfb4",
+          "raw_descriptor_literals": 0
+        },
+        "part_06.rs": {
+          "bytes": 904612,
+          "lines": 17044,
+          "sha256": "afba215eac296669bc167bdf87cd7f72d385da6c13c2782771d84374e168168c",
+          "raw_descriptor_literals": 0
+        },
+        "part_07.rs": {
+          "bytes": 886341,
+          "lines": 16706,
+          "sha256": "7b8597ed8ed3767b9362c5e514746e89f67c38e4f653d756c0fde920135e1187",
+          "raw_descriptor_literals": 0
+        },
+        "part_08.rs": {
+          "bytes": 920649,
+          "lines": 17245,
+          "sha256": "79e76df5150ac7bc1c02744734fad657848b561833aedb9db569df0d3ef38c23",
+          "raw_descriptor_literals": 0
+        },
+        "part_09.rs": {
+          "bytes": 932622,
+          "lines": 17432,
+          "sha256": "b76fc8eb9b80775d521e6eb36780dffb8ff4026b8247f7f79ff7ec873744b90c",
+          "raw_descriptor_literals": 0
+        },
+        "part_10.rs": {
+          "bytes": 939158,
+          "lines": 17514,
+          "sha256": "1abcbe3adbc0c4e39dd6226c9f8df29fad7b7772f4efefb4980ed709f2484991",
+          "raw_descriptor_literals": 0
+        },
+        "part_11.rs": {
+          "bytes": 927092,
+          "lines": 17372,
+          "sha256": "542379a3aaa61d1a38d1564991e7ccfe7c0514b7d3f7c44f36b8a663e5f58846",
+          "raw_descriptor_literals": 0
+        },
+        "part_12.rs": {
+          "bytes": 933070,
+          "lines": 17375,
+          "sha256": "9b0a5b52b5f327e26a4e6ca217458484a01dcd88f1f70518ab34720f173aedd6",
+          "raw_descriptor_literals": 0
+        },
+        "part_13.rs": {
+          "bytes": 939383,
+          "lines": 17565,
+          "sha256": "050e599074e20e2636b6461e3504965c640e8c722559fc41edbba059f82ccff0",
+          "raw_descriptor_literals": 0
+        },
+        "part_14.rs": {
+          "bytes": 928685,
+          "lines": 17389,
+          "sha256": "3678eeffa8d8f9716b102a4c77d6af51bfd76e9dd13a87d8b4a9a4e019b9a2ac",
+          "raw_descriptor_literals": 0
+        },
+        "part_15.rs": {
+          "bytes": 908080,
+          "lines": 17053,
+          "sha256": "c85959b3d82edb11818e9861fd0631c8e99d66d12565d55f9620339bb40b5142",
+          "raw_descriptor_literals": 0
+        },
+        "part_16.rs": {
+          "bytes": 947701,
+          "lines": 17607,
+          "sha256": "fc387fed6a125fa4060ae2b6ce9191aaf45abbb52dd6e65306b63482f0d77950",
+          "raw_descriptor_literals": 0
+        },
+        "part_17.rs": {
+          "bytes": 916543,
+          "lines": 17158,
+          "sha256": "f72d7aa3a104fa54e7d4ca166eac94261f25c5cbaa3dbbce897c9c0a446d78ce",
+          "raw_descriptor_literals": 0
+        },
+        "part_18.rs": {
+          "bytes": 921392,
+          "lines": 17270,
+          "sha256": "2c9108377ac0bdc306b11327accd3ea276c3ddd21d3dd5f947d3e39706c74110",
+          "raw_descriptor_literals": 0
+        },
+        "part_19.rs": {
+          "bytes": 946043,
+          "lines": 17530,
+          "sha256": "fcadf7525f0419c564509a5be6c59b4003e5df355ca193bf9d1ccb614f2f46bc",
+          "raw_descriptor_literals": 0
+        }
+      },
+      "total_bytes": 19310413,
+      "total_lines": 355645,
+      "fds_sha256": "cb2d308fd5c8e7769964f8656da25f32d0635ff4281e9a0f2e558367596e1fa0",
+      "protoc_command": [
+        "protoc",
+        "--include_imports",
+        "--descriptor_set_out=/workspace/scratch/work/gn03/work/source-volume/1000/fixture.fds",
+        "-I/workspace/scratch/work/gn03/work/source-volume/1000/proto",
+        "part_00.proto",
+        "part_01.proto",
+        "part_02.proto",
+        "part_03.proto",
+        "part_04.proto",
+        "part_05.proto",
+        "part_06.proto",
+        "part_07.proto",
+        "part_08.proto",
+        "part_09.proto",
+        "part_10.proto",
+        "part_11.proto",
+        "part_12.proto",
+        "part_13.proto",
+        "part_14.proto",
+        "part_15.proto",
+        "part_16.proto",
+        "part_17.proto",
+        "part_18.proto",
+        "part_19.proto"
+      ],
+      "options": "stubs=none,shared_descriptor_set=true"
+    }
+  }
+}

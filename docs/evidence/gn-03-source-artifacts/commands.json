@@ -1,0 +1,62 @@
+{
+  "environment": "source /workspace/pure-protobuf/work/toolchain/env.sh; CARGO_BUILD_JOBS=1; PATH work/jobs-one first for final gates to force nested Cargo jobs1 despite existing helper overrides",
+  "commands": [
+    {
+      "command": "cargo test --locked --offline --no-default-features --features codegen --target-dir target/base -p pbrs --test codegen_shared_descriptors -- --test-threads=1",
+      "result": "7 passed",
+      "log": "work/shared-descriptor-tests-freeze-final.log"
+    },
+    {
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test pbrs_build --test dynamic --test documentation -- --test-threads=1",
+      "result": "documentation25, dynamic36, pbrs_build32 passed",
+      "log": "work/build-dynamic-docs.log",
+      "phase": "initial implementation before active-only collision hardening; defaults identical at frozen source"
+    },
+    {
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test plugin -- --test-threads=1",
+      "result": "46 passed, 2 optional protoc36.1 cases ignored",
+      "log": "work/plugin.log"
+    },
+    {
+      "command": "cargo test --locked --offline --target-dir target/base -p pbrs --test onboarding -- --test-threads=1 --skip adapters_build_cold_from_descriptor_sets_without_protoc --skip packed_core_and_both_adapters_build_cold_without_protoc",
+      "result": "13 passed, 1 optional pinned35.1 case ignored, 2 cold cases explicitly deferred to root integrated acceptance",
+      "log": "work/onboarding-noncold.log"
+    },
+    {
+      "command": "cargo clippy --locked --offline --target-dir target/base -p pbrs --no-default-features --features codegen --lib --bin protoc-gen-pbrs --test codegen_shared_descriptors -- -D warnings",
+      "result": "passed",
+      "log": "work/clippy-final.log"
+    },
+    {
+      "command": "cargo clippy --offline --manifest-path <each GN03 consumer>/Cargo.toml --all-targets -- -D warnings",
+      "result": "7 profiles passed",
+      "log": "work/consumer-clippy.json"
+    },
+    {
+      "command": "RUSTDOCFLAGS='-D warnings' cargo doc --locked --offline --no-deps --target-dir target/base -p pbrs --no-default-features --features codegen",
+      "result": "passed",
+      "log": "work/rustdoc.log"
+    },
+    {
+      "command": "CARGO_TARGET_DIR=$PWD/target/base ./scripts/regen-generated.sh --check",
+      "result": "13 pinned35.1 bindings passed; no generated source changed",
+      "log": "work/regen-check.log"
+    },
+    {
+      "command": "cargo fmt --all; git diff --check",
+      "result": "passed",
+      "log": "work/format.log"
+    },
+    {
+      "command": "python3 -B work/record-source-volume.py <label> <frozen plugin> [stubs=none,shared_descriptor_set=true]",
+      "result": "three actual seeded SB09 corpus source-volume/hash sets; defaults exact, opt-in repeats exact",
+      "log": "work/source-volume-final-equality.log"
+    }
+  ],
+  "deferred": [
+    "adapters_build_cold_from_descriptor_sets_without_protoc",
+    "packed_core_and_both_adapters_build_cold_without_protoc",
+    "integrated conformance",
+    "actual SB09 cold check and release binary-size qualification"
+  ]
+}

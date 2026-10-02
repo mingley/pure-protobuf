@@ -380,6 +380,7 @@ pub(crate) struct ExplicitOptions {
     emit_deps: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
+    shared_descriptor_set: Option<bool>,
     no_reflect: Option<bool>,
     emit_json: Option<bool>,
     emit_text: Option<bool>,
@@ -410,6 +411,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) emit_deps: bool,
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
+    pub(crate) shared_descriptor_set: bool,
     pub(crate) no_reflect: bool,
     pub(crate) emit_json: bool,
     pub(crate) emit_text: bool,
@@ -489,6 +491,10 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "shared_pool" => {
                 explicit.shared_pool = Some(parse_bool_param("shared_pool", val)?);
+            }
+            "shared_descriptor_set" => {
+                explicit.shared_descriptor_set =
+                    Some(parse_bool_param("shared_descriptor_set", val)?);
             }
             "no_reflect" => {
                 explicit.no_reflect = Some(parse_bool_param("no_reflect", val)?);
@@ -828,6 +834,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         emit_deps,
         no_wkt,
         shared_pool,
+        shared_descriptor_set: explicit.shared_descriptor_set.unwrap_or(false),
         no_reflect,
         emit_json,
         emit_text,
@@ -987,6 +994,7 @@ pub struct Config {
     emit_deps: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
+    shared_descriptor_set: Option<bool>,
     no_reflect: Option<bool>,
     emit_json: Option<bool>,
     emit_text: Option<bool>,
@@ -1183,9 +1191,21 @@ impl Config {
         self
     }
 
-    /// Use a shared DescriptorPool instead of embedding the FileDescriptorSet.
+    /// Use the bundled conformance pool instead of embedding the FileDescriptorSet.
     pub fn shared_pool(&mut self, enable: bool) -> &mut Self {
         self.shared_pool = Some(enable);
+        self
+    }
+
+    /// Share embedded descriptor bytes and one lazy pool across generated files.
+    ///
+    /// This is an explicit opt-in for reflective multi-file generation. Include
+    /// the generated root registry at crate root, or supply its reserved
+    /// `__pbrs_shared_descriptors` module there when using flat includes.
+    /// Single-file and reflection-free generation remain unchanged. Active
+    /// sharing cannot be combined with [`Self::shared_pool`].
+    pub fn shared_descriptor_set(&mut self, enable: bool) -> &mut Self {
+        self.shared_descriptor_set = Some(enable);
         self
     }
 
@@ -1445,6 +1465,9 @@ impl Config {
         }
         if let Some(shared_pool) = self.shared_pool {
             opts.push(format!("shared_pool={shared_pool}"));
+        }
+        if let Some(shared_descriptor_set) = self.shared_descriptor_set {
+            opts.push(format!("shared_descriptor_set={shared_descriptor_set}"));
         }
         if let Some(no_reflect) = self.no_reflect {
             opts.push(format!("no_reflect={no_reflect}"));

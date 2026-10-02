@@ -382,6 +382,28 @@ mapped types.
 
 ---
 
+### 7.6 Opt-in Shared Descriptor Storage
+
+`Config::shared_descriptor_set(true)` and plugin `shared_descriptor_set=true`
+change metadata ownership for reflective requests with multiple generated
+sources. The compiler emits one `__pbrs_shared_descriptors.rs` and registers its
+private `__pbrs_shared_descriptors` module in the root include file. Consumers
+must include that registry at crate root, or explicitly include the helper
+under that reserved module name at crate root. Each source keeps its public
+`FILE_DESCRIPTOR_SET` as an alias to the same slice and delegates descriptor
+pool access to one lazy `OnceLock<Arc<DescriptorPool>>` in the helper.
+
+The option defaults off, without an ambient environment override. Default
+output, single-source output even with the option enabled, and reflection-free
+output retain their existing layout and standalone inclusion contracts.
+Reflection-free output emits no helper or metadata. Active sharing rejects the
+separate conformance `shared_pool` mode, registry/application output collisions,
+reserved output-path collisions, nested registry paths, and
+packages or emitted root items using the reserved module name. Message types, wire formats,
+reflection contents, JSON, and text behavior remain unchanged.
+
+---
+
 ## 8. Migration & Backwards Compatibility Guide
 
 | Use Case | Legacy Behavior | Contract Behavior | Migration Action |

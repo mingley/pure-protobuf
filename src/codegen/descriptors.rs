@@ -280,6 +280,46 @@ pub fn generate_from_code_generator_request(
     targets.sort();
     targets.dedup();
 
+    // Keep standalone single-file generation byte-identical, even when the
+    // option is enabled. Reflection-free output never needs a metadata owner.
+    let share_descriptors =
+        resolved.shared_descriptor_set && targets.len() > 1 && !resolved.no_reflect;
+    if share_descriptors {
+        if resolved.shared_pool {
+            return Err(CodegenError::InvalidParameter {
+                key: "shared_descriptor_set".to_string(),
+                detail: "cannot combine shared_descriptor_set with shared_pool".to_string(),
+            });
+        }
+        let mut registry_components = Path::new(&resolved.include_file)
+            .components()
+            .filter(|component| *component != std::path::Component::CurDir);
+        if !matches!(
+            registry_components.next(),
+            Some(std::path::Component::Normal(_))
+        ) || registry_components.next().is_some()
+            || resolved.include_file.contains('\\')
+            || resolved.include_file.ends_with('/')
+        {
+            return Err(CodegenError::InvalidParameter {
+                key: "shared_descriptor_set".to_string(),
+                detail: "shared_descriptor_set requires include_file to be a file name at the output root".to_string(),
+            });
+        }
+        for target in &targets {
+            let package = file_packages.get(target).map(String::as_str).unwrap_or("");
+            if package.split('.').next().map(mod_ident).as_deref() == Some(SHARED_DESCRIPTOR_MODULE)
+            {
+                return Err(CodegenError::InvalidParameter {
+                    key: "shared_descriptor_set".to_string(),
+                    detail: format!(
+                        "package {package:?} uses reserved root module {SHARED_DESCRIPTOR_MODULE}"
+                    ),
+                });
+            }
+        }
+    }
+
     let mut stem_counts: std::collections::BTreeMap<String, usize> =
         std::collections::BTreeMap::new();
     for target in &requested_targets {
@@ -374,6 +414,10 @@ use pbrs::UnknownFields;\n\n"
             src.push_str(
                 "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    pbrs::gencode::conformance_pool()\n}\n\n",
             );
+        } else if share_descriptors {
+            src.push_str(&format!(
+                "/// FileDescriptorSet bytes shared through the generated root registry.\npub const FILE_DESCRIPTOR_SET: &[u8] = crate::{SHARED_DESCRIPTOR_MODULE}::FILE_DESCRIPTOR_SET;\n\nfn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {{\n    crate::{SHARED_DESCRIPTOR_MODULE}::generated_pool()\n}}\n\n",
+            ));
         } else {
             src.push_str(
                 fds_block
@@ -457,6 +501,34 @@ use pbrs::UnknownFields;\n\n"
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
         IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
+        let root_package = file_packages.get(&norm_target).is_none_or(String::is_empty);
+        if share_descriptors && root_package {
+            let emitted_messages: std::collections::BTreeSet<&str> =
+                emit_names.iter().map(String::as_str).collect();
+            for name in &ident_names {
+                // All structs/enums are glob-exported from __gen_*. Nested
+                // aliases also introduce a module for their outermost parent.
+                let mut outer = name.as_str();
+                let mut root_module = None;
+                while let Some((parent, _)) = outer.rsplit_once('.') {
+                    if !emitted_messages.contains(parent) {
+                        break;
+                    }
+                    root_module = Some(to_snake(&ident_last(parent)));
+                    outer = parent;
+                }
+                if rust_ident(name) == SHARED_DESCRIPTOR_MODULE
+                    || root_module.as_deref() == Some(SHARED_DESCRIPTOR_MODULE)
+                {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "shared_descriptor_set".to_string(),
+                        detail: format!(
+                            "type {name:?} in {target:?} collides with reserved root module {SHARED_DESCRIPTOR_MODULE}"
+                        ),
+                    });
+                }
+            }
+        }
         if !resolved.emit_deps {
             emit_public_uses(&mut src, &pool, &direct_pub_files, &targets);
         }
@@ -528,6 +600,21 @@ use pbrs::UnknownFields;\n\n"
             }
         }
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
+        if share_descriptors
+            && root_package
+            && resolved.build_server
+            && resolved.stubs != StubStyle::None
+            && services
+                .iter()
+                .any(|service| rust_ident(&service.full_name) == SHARED_DESCRIPTOR_MODULE)
+        {
+            return Err(CodegenError::InvalidParameter {
+                key: "shared_descriptor_set".to_string(),
+                detail: format!(
+                    "service trait collides with reserved root module {SHARED_DESCRIPTOR_MODULE}"
+                ),
+            });
+        }
         match resolved.stubs {
             StubStyle::None => {}
             StubStyle::Tonic
@@ -654,7 +741,49 @@ use pbrs::UnknownFields;\n\n"
             out_files.extend(result?);
         }
     }
-    let mod_rs = emit_root_mod_rs(&targets, &file_packages, &pool);
+    let mut mod_rs = emit_root_mod_rs(&targets, &file_packages, &pool);
+    if share_descriptors {
+        let registry_name = normalize_proto_path_str(&resolved.include_file);
+        if out_files
+            .iter()
+            .any(|(name, _)| normalize_proto_path_str(name) == SHARED_DESCRIPTOR_FILE)
+            || registry_name == SHARED_DESCRIPTOR_FILE
+        {
+            return Err(CodegenError::InvalidParameter {
+                key: "shared_descriptor_set".to_string(),
+                detail: format!(
+                    "output path {SHARED_DESCRIPTOR_FILE:?} is reserved for shared_descriptor_set"
+                ),
+            });
+        }
+        if out_files
+            .iter()
+            .any(|(name, _)| normalize_proto_path_str(name) == registry_name)
+        {
+            return Err(CodegenError::InvalidParameter {
+                key: "shared_descriptor_set".to_string(),
+                detail: format!(
+                    "include_file {:?} collides with an application output",
+                    resolved.include_file
+                ),
+            });
+        }
+        let mut helper = shared_descriptor_source(
+            fds_block
+                .as_deref()
+                .expect("FDS block prebuilt for shared descriptors"),
+        );
+        if let Some(rc) = &resolved.runtime_crate {
+            if rc != "pbrs" {
+                helper = helper.replace("pbrs::", &format!("{rc}::"));
+            }
+        }
+        let _ = writeln!(
+            mod_rs,
+            "mod {SHARED_DESCRIPTOR_MODULE} {{ include!(\"{SHARED_DESCRIPTOR_FILE}\"); }}"
+        );
+        out_files.push((SHARED_DESCRIPTOR_FILE.to_string(), helper));
+    }
     out_files.push((resolved.include_file.clone(), mod_rs));
     out_files.sort_by(|a, b| a.0.cmp(&b.0));
     out_files.dedup_by(|a, b| a.0 == b.0);

@@ -1,0 +1,42 @@
+{
+  "check-source-volume.py": {
+    "bytes": 5140,
+    "sha256": "7e5b993108421e958f9aedc4fca948bc9a2dc35baedfd64e9832cbcfbf60a4db"
+  },
+  "commands.json": {
+    "bytes": 3167,
+    "sha256": "31ae0580be6d9580c1ef55d3d5ad920766e136dcb379bbc804e9b2aac745c97c"
+  },
+  "provenance.json": {
+    "bytes": 15772,
+    "sha256": "5ff6f2c3f5faefd45514eb676c50c42a835a99d208dead56496c91aa943e00c9"
+  },
+  "raw-artifacts.tar.gz": {
+    "bytes": 18136830,
+    "sha256": "8bbe3dff12b868bb27bee83bb2dae67be274635a5a44096d8dd8957c46282259"
+  },
+  "raw-member-sha256.json": {
+    "bytes": 48140,
+    "sha256": "139cfed4409ad93774cda0769fa790a3842f66be5f510eb35f575c170d19e691"
+  },
+  "record-source-volume.py": {
+    "bytes": 3359,
+    "sha256": "38815d8049d7fd1c79e025fedae09a997584d5fd7f6e13d247e1bdc2b51f1fff"
+  },
+  "volume-before.json": {
+    "bytes": 8979,
+    "sha256": "0fa79fcae090bed8a95ee48353e9840f8415b940518104997ab09eb001cccd5f"
+  },
+  "volume-default-final.json": {
+    "bytes": 8979,
+    "sha256": "4e07202f202bb2d6586f01124ab7af120b387745472ab6f615a811dc626cc1ba"
+  },
+  "volume-shared-final.json": {
+    "bytes": 9732,
+    "sha256": "6184aae0c6d6ebe8c2b0f466b57ea63bcc7278d039235ef39e40b8f87f78f32f"
+  },
+  "volume-shared-repeat.json": {
+    "bytes": 9732,
+    "sha256": "6184aae0c6d6ebe8c2b0f466b57ea63bcc7278d039235ef39e40b8f87f78f32f"
+  }
+}
