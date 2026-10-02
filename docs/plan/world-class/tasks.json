@@ -7120,7 +7120,11 @@
     "docs/evidence/sb21-accounting-smoke.json",
     "scripts/qps-go-overlay.py",
     "scripts/qps-go-accounting.go",
-    "tests/interop/test_qps_go_overlay.py"
+    "tests/interop/test_qps_go_overlay.py",
+    "rpc-bench/tests/load_shapes.rs",
+    "rpc-bench/tests/resources.rs",
+    "rpc-bench/src/resources.rs",
+    "rpc-bench/src/report.rs"
    ],
    "deliverable": "Define open-loop, contract-duration (15 s warmup, 60 s measurement, paired randomized runs) variants of the SB-10 official scenarios and the SB-17 grpc_bench workload, with offered-load and failure accounting, so E1/E2 claims do not rely on closed-loop diagnostic runs.",
    "accept": [
@@ -9548,7 +9552,12 @@
    ],
    "status": "in_progress",
    "implementer": "tonic_client_transport",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Functional integration qualified: 9 adapter + 15 unmodified consumer + 67 existing native tests and strict scoped lint/docs/feature-off checks. Retain in_progress until the unmodified tonic-codegen SB-26 transport profile is measured; native_prost is not a substitute.",
+   "evidence": [
+    "docs/evidence/tc-29.md",
+    "docs/evidence/tc-29/validation.json",
+    "pbrs-grpc/tests/tonic_transport.rs"
+   ]
   },
   {
    "id": "TC-30",
@@ -9559,7 +9568,9 @@
    "executor": "small",
    "size": "M",
    "depends_on": [
-    "TC-26"
+    "TC-26",
+    "TC-30a",
+    "TC-30b"
    ],
    "read": [
     "docs/plan/adoption/README.md",
@@ -9590,7 +9601,10 @@
    ],
    "relates": [
     "TC-29"
-   ]
+   ],
+   "status": "in_progress",
+   "implementer": "tonic_server_transport",
+   "notes": "Split bounded functional HTTP integration from full opaque-body limits/budget validation. Parent remains open for both policy coverage and the unmodified tonic-codegen SB-26 server performance profile. Native defaults, dependency versions and security/drain guarantees are preserved; unsupported configured typed policies fail closed in the initial leaf."
   },
   {
    "id": "CH-12",
@@ -10323,7 +10337,9 @@
     "bench/devloop/",
     "pbrs-grpc/src/wire/encode.rs",
     "pbrs-grpc/tests/cl08_prost_encoding.rs",
-    "docs/evidence/cl-08.md"
+    "docs/evidence/cl-08.md",
+    "pbrs-grpc/src/wire/cl08_contiguous_tests.rs",
+    "pbrs-grpc/tests/cl08_contiguous.rs"
    ],
    "deliverable": "With prost messages, pbrs-grpc allocates more bytes per RPC than tonic: 52,021 against 49,177 on unary, and 75,173 against 58,058 on server streaming (TC-03). Pre-size encode buffers from encoded_len, encode directly into the frame buffer, reuse per-stream buffers and remove double buffering on both client and server.",
    "accept": [
@@ -11864,6 +11880,90 @@
     "QG-06"
    ],
    "notes": "Split before work on 2026-10-02 under renewed execution authorization. Tooling/short diagnostics can proceed independently of the incomplete SB-24 campaign; production qualification remains with parent QG-06."
+  },
+  {
+   "id": "TC-30a",
+   "title": "Integrate unmodified tonic services through the native server transport",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "size": "M",
+   "depends_on": [
+    "TC-26"
+   ],
+   "status": "in_progress",
+   "implementer": "tonic_server_transport",
+   "read": [
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/tower_server.rs",
+    "tests/interop/tonic/"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/lib.rs",
+    "pbrs-grpc/tests/tonic_service_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30a.md"
+   ],
+   "deliverable": "Provide an opt-in direct HTTP-body adapter for NamedService tonic-generated servers, mixed with native Router services. Tonic owns codecs; retain native TLS/connect-info/deadline/cancellation/drain and fail before business dispatch for unsupported explicitly configured typed policies. No in-memory HTTP/2 bridge or dependency changes.",
+   "accept": [
+    "All four unmodified TC-22 generated service call shapes pass cross-stack tests, including tonic interceptor/layer metadata and kernel-stamped connection extensions.",
+    "Deadline, cancellation, shutdown/drain and TLS checks preserve existing guarantees; unsupported configured native message/compression/budget/logging/hooks fail closed with explicit documentation.",
+    "Exact source/command/raw evidence is retained; TC-30 performance and full opaque-policy coverage remain open."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "D4"
+   ],
+   "relates": [
+    "TC-30",
+    "TC-29"
+   ]
+  },
+  {
+   "id": "TC-30b",
+   "title": "Validate full native limits and budgets for opaque tonic service bodies",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "size": "M",
+   "depends_on": [
+    "TC-30a"
+   ],
+   "read": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/byte_budget.rs",
+    "pbrs-grpc/src/codec.rs",
+    "docs/resource-budgets.md"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/tests/tonic_service_transport.rs",
+    "docs/evidence/tc-30b.md"
+   ],
+   "deliverable": "Replace initial fail-closed opaque-policy boundaries with correctly accounted bounded validation for configured native message/compression/byte policies. Include compressed/decompressed caps, partial frames and retained decoder/body buffers; do not claim a transient DATA permit accounts all copied codec memory.",
+   "accept": [
+    "Each configured policy is enforced before the protected operation, or its explicitly reviewed unsupported disposition remains blocking for parent completion.",
+    "Boundary and hostile compressed/partial-body tests prove limits cannot be bypassed and cancellation/drain return held permits without corruption or lost acknowledged elements."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "D4",
+    "F2"
+   ],
+   "relates": [
+    "TC-30",
+    "QG-06a"
+   ]
   }
  ],
  "last_audit": {
