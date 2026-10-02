@@ -768,3 +768,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
 #[cfg(test)]
 #[path = "sv09_cancel_tests.rs"]
 mod sv09_cancel_tests;
+
+#[cfg(test)]
+#[path = "sv09_timeout_tests.rs"]
+mod sv09_timeout_tests;
