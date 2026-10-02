@@ -38,6 +38,21 @@ pub trait CodecMessage: Sized {
     /// Encode the uncompressed protobuf payload into `out`.
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status>;
 
+    /// Optionally append the uncompressed payload directly to a frame buffer.
+    ///
+    /// Return `None` without changing `out` to use [`Self::encode_payload`],
+    /// including its support for shared outbound segments. Return `Some` to
+    /// append only the payload after the existing bytes. Do not change or
+    /// remove those bytes. A failed append returns the same [`Status`] as
+    /// normal encoding; the transport discards the incomplete frame or rolls
+    /// back that append while retaining earlier complete batched messages.
+    ///
+    /// The default declines, preserving existing codec implementations.
+    #[inline]
+    fn encode_contiguous(&self, _out: &mut BytesMut) -> Option<Result<(), Status>> {
+        None
+    }
+
     /// Materialize the uncompressed protobuf payload for compressed sends.
     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
         let mut out = Vec::with_capacity(self.encoded_len());
