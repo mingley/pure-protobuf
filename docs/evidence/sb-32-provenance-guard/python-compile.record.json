@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-c",
+    "import ast,pathlib;[ast.parse(pathlib.Path(p).read_bytes(),filename=p) for p in ['bench/devloop/measure-tonic-transport.py', 'bench/devloop/check-tonic-transport-evidence.py', 'bench/devloop/test_tonic_transport_collectors.py']]"
+  ],
+  "cwd": "/workspace/scratch/work/sb32",
+  "started_utc": "2026-10-02T23:45:59.305947+00:00",
+  "finished_utc": "2026-10-02T23:45:59.340552+00:00",
+  "exit_code": 0,
+  "stdout_path": "python-compile.stdout",
+  "stderr_path": "python-compile.stderr",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

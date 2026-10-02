@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "bench/devloop/test_tonic_transport_collectors.py"
+  ],
+  "cwd": "/workspace/scratch/work/sb32",
+  "started_utc": "2026-10-02T23:45:57.908571+00:00",
+  "finished_utc": "2026-10-02T23:45:59.304682+00:00",
+  "exit_code": 0,
+  "stdout_path": "collector-tests.stdout",
+  "stderr_path": "collector-tests.stderr",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "c3ce0b9cf7627e3bf6fcffb11ff8e1106cf84aa47bb86e900886ce25164ad3cb"
+}
