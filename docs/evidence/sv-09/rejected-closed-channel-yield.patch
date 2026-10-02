@@ -1,0 +1,43 @@
+diff --git a/pbrs-grpc/src/server/drain.rs b/pbrs-grpc/src/server/drain.rs
+index ce572ab9..a9f1b26e 100644
+--- a/pbrs-grpc/src/server/drain.rs
++++ b/pbrs-grpc/src/server/drain.rs
+@@ -716,11 +716,12 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
+         }
+         // More than one message queued means the producer is running ahead of
+         // the network and is bounded by its channel depth, so one scheduling
+-        // turn lets it top the queue up and doubles the write size. Exactly one
+-        // means it is not ahead — a request/response stream, say — and must not
+-        // pay a turn of latency for nothing.
++        // turn lets it top the queue up and doubles the write size. A closed
++        // producer cannot refill it. Exactly one means it is not ahead — a
++        // request/response stream, say — and must not pay a turn of latency
++        // for nothing.
+         let room = OutBatch::BURST - items.len();
+-        if items.len() > 1 && room > 0 {
++        if items.len() > 1 && room > 0 && stream.producer_may_advance() {
+             let_producer_catch_up().await;
+             stream.try_recv_many(&mut items, room);
+         }
+diff --git a/pbrs-grpc/src/stream.rs b/pbrs-grpc/src/stream.rs
+index f7da63fd..24fecbd9 100644
+--- a/pbrs-grpc/src/stream.rs
++++ b/pbrs-grpc/src/stream.rs
+@@ -454,6 +454,17 @@ impl<T> Streaming<T> {
+         }
+         taken
+     }
++
++    /// Whether yielding can let the response producer make more progress.
++    ///
++    /// A closed channel may still contain messages, but no sender can add
++    /// more. A wire-backed stream can advance when its connection driver runs.
++    pub(crate) fn producer_may_advance(&self) -> bool {
++        match &self.source {
++            Source::Channel(rx) => !rx.is_closed(),
++            Source::Wire(_) => true,
++        }
++    }
+ }
+ 
+ impl<T> std::fmt::Debug for Streaming<T> {
