@@ -1,0 +1,38 @@
+{
+  "scenarios": [
+    {
+      "name": "claims_unary_poisson_5000qps",
+      "num_clients": 1,
+      "num_servers": 1,
+      "warmup_seconds": 1,
+      "benchmark_seconds": 2,
+      "spawn_local_worker_count": 0,
+      "client_config": {
+        "client_type": "ASYNC_CLIENT",
+        "client_channels": 1,
+        "outstanding_rpcs_per_channel": 64,
+        "async_client_threads": 1,
+        "rpc_type": "UNARY",
+        "load_params": {
+          "poisson": {
+            "offered_load": 5000.0
+          }
+        },
+        "payload_config": {
+          "simple_params": {
+            "req_size": 1024,
+            "resp_size": 1024
+          }
+        },
+        "histogram_params": {
+          "resolution": 0.01,
+          "max_possible": 60000000000.0
+        }
+      },
+      "server_config": {
+        "server_type": "ASYNC_SERVER",
+        "async_server_threads": 1
+      }
+    }
+  ]
+}

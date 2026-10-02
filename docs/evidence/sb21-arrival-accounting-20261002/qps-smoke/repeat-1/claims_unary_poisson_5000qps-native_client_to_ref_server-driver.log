@@ -1,0 +1,12 @@
+=== RUN SCENARIO: claims_unary_poisson_5000qps ===
+Server worker: 127.0.0.1:49379, Client worker: 127.0.0.1:55089
+PASS: claims_unary_poisson_5000qps
+  QPS:                  4887.5
+  QPS / server core:    977.5
+  Latency p50:          5144.61 us
+  Latency p90:          9761.76 us
+  Latency p99:          12688.62 us
+  Latency p99.9:        14023.12 us
+  Server CPU load:      User=27.3%, Sys=15.7%
+  Client CPU load:      User=88.8%, Sys=11.0%
+Wrote raw ScenarioResult JSON: work/sb21/qps-smoke/repeat-1/claims_unary_poisson_5000qps-native_client_to_ref_server-result.json (57769 bytes)

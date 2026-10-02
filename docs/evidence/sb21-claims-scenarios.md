@@ -183,3 +183,10 @@ The archived native and failed Go runs above remain unchanged and tested. The
 overlay is explicitly an **overlaid pinned grpc-go benchmark client**, not an
 unmodified official worker. Real two-harness smoke/headroom validation and all
 claim qualification requirements remain pending until recorded below.
+
+The [2026-10-02 aggregate-arrival diagnostic](sb21-arrival-accounting-20261002.md)
+records eight successful independent-accounting preflights, every rejected call,
+all ten invalid frozen stack rows, the current unmodified-Go diagnostic, exact
+source/binary/SDK pins and complete pre-existing strict-Clippy failures. Headroom
+and performance qualification remain blocked; the observed-thread-count CPU
+normalization defect is explicitly retained for SB-24.

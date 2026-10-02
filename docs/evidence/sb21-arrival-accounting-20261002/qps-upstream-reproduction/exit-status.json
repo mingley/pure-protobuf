@@ -1,0 +1,9 @@
+{
+  "driver": 0,
+  "proof": 0,
+  "worker": "unmodified pinned grpc-go; full 5000 QPS per slot",
+  "slot_count": 64,
+  "configured_aggregate_qps": 5000,
+  "nominal_upstream_aggregate_qps": 320000,
+  "claim_proof": 1
+}

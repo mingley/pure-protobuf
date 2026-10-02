@@ -1,0 +1,12 @@
+=== RUN SCENARIO: claims_streaming_ping_pong_1kb ===
+Server worker: 127.0.0.1:39897, Client worker: 127.0.0.1:54863
+PASS: claims_streaming_ping_pong_1kb
+  QPS:                  3942.1
+  QPS / server core:    985.5
+  Latency p50:          15368.98 us
+  Latency p90:          19497.88 us
+  Latency p99:          22170.68 us
+  Latency p99.9:        23765.57 us
+  Server CPU load:      User=83.2%, Sys=17.0%
+  Client CPU load:      User=40.4%, Sys=25.2%
+Wrote raw ScenarioResult JSON: work/sb21/qps-streaming/claims_streaming_ping_pong_1kb-ref_client_to_native_server-result.json (57631 bytes)

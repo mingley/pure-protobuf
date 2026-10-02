@@ -1,0 +1,38 @@
+================================================================================
+Official gRPC QPS Benchmark Scenario Driver & Interop Runner
+================================================================================
+Scenarios File:     rpc-bench/scenarios/claims.json
+Reference Peer:     go (v1.85.0-dev (dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef))
+Driver Binary:      /workspace/scratch/work/sb21/target/interop-go/qps-driver
+Driver SHA-256:     0a3781d54a2681670f07a20d28b0b6d5e5f3439dcfa20171cc3dd5fc0cc20577
+Driver Source Pin:  dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Native Worker SHA: 87dd1cfb477ede5e7399b67937c89904670a684b5c0734f59337fcb5e00fdfb3
+Native Source:     unverified (--skip-build) (dirty=0)
+Cargo Target:      /workspace/scratch/work/sb21/target/native (1 jobs)
+Reference Worker:  /workspace/scratch/work/sb21/target/interop-go/go-worker sha256:cf7492e173a815fce2857faf4b8f330ed8e24d1e141313530a6a8b0afcd567af source:dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Log Directory:      work/sb21/qps-reference-pair
+Scenarios Count:    1
+Directions:         ref_pair
+
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    1
+DIRECTION: ref_pair (Server: go, Client: go-accounting)
+PORTS:     Server worker=45749, Client worker=52077
+  PASS: claims_unary_poisson_5000qps (ref_pair)
+      QPS:                  5067.5
+      Latency p50:          235.29 us
+      Server CPU load:      User=22.4%, Sys=15.4%
+      Client CPU load:      User=31.0%, Sys=21.0%
+
+================================================================================
+SUMMARY RESULTS MATRIX
+================================================================================
+Scenario                               Direction                    Status QPS        p50        p99        Server CPU Client CPU
+----------------------------------------------------------------------------------------------------------------------------------------
+claims_unary_poisson_5000qps           ref_pair                     PASS   5067.5     235.3 us   880.0 us   37.8%      52.0%     
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Summary JSON written to: work/sb21/qps-reference-pair/summary.json
+Raw integrated-driver ScenarioResult JSON (or upstream C++ QPS-only metrics) saved in: work/sb21/qps-reference-pair/
+PASS: all QPS benchmark scenarios completed successfully across selected directions

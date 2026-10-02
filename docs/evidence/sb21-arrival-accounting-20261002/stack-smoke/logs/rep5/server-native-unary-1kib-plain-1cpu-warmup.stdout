@@ -1,0 +1,5 @@
+running load benchmark: distribution=poisson, rate=Some(500.0), duration=1.0s, max_in_flight=1000, shape=unary, transport=native, codec=pbrs, req_bytes=1024, resp_bytes=1024, stream_msgs=0, tls=false window_mode=default latency_rtt_ms=0
+offered_calls=520 dispatched_calls=520 completed_calls=520 successes=520 failures=0 timeouts=0 queue_overflows=0 throughput_qps=520.2
+scheduling_lag_nanos: p50=1045560 p99=2000387 max=2391171
+e2e_latency_nanos: p50=1733549 p90=2364679 p99=2988297 max=3921103
+saved metrics to work/sb21/stack-smoke/logs/rep5/server-native-unary-1kib-plain-1cpu-warmup.json

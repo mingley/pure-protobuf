@@ -1,0 +1,90 @@
+{
+  "driver": {
+    "binary": "/workspace/scratch/work/sb21/target/interop-go/qps-driver",
+    "kind": "go",
+    "sha256": "0a3781d54a2681670f07a20d28b0b6d5e5f3439dcfa20171cc3dd5fc0cc20577",
+    "source_pin": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef"
+  },
+  "native": {
+    "source_sha": null,
+    "binary_sha256": "87dd1cfb477ede5e7399b67937c89904670a684b5c0734f59337fcb5e00fdfb3",
+    "dirty_source": false,
+    "source_verified": false
+  },
+  "reference_worker": {
+    "binary": "/workspace/scratch/work/sb21/target/interop-go/go-worker",
+    "sha256": "cf7492e173a815fce2857faf4b8f330ed8e24d1e141313530a6a8b0afcd567af",
+    "source_pin": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef"
+  },
+  "reference_poisson_client_overlay_manifest": "go-accounting-overlay-manifest.json",
+  "runs": [
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "4887.5",
+      "latency_p50": "5144.6 us",
+      "latency_p99": "12688.6 us",
+      "server_cpu": "43.0%",
+      "client_cpu": "99.8%",
+      "repeat": 1
+    },
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "ref_client_to_native_server",
+      "status": "PASS",
+      "qps": "4916.8",
+      "latency_p50": "8551.8 us",
+      "latency_p99": "16201.2 us",
+      "server_cpu": "99.9%",
+      "client_cpu": "63.3%",
+      "repeat": 1
+    },
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_pair",
+      "status": "PASS",
+      "qps": "5029.4",
+      "latency_p50": "3219.8 us",
+      "latency_p99": "11283.9 us",
+      "server_cpu": "96.8%",
+      "client_cpu": "98.6%",
+      "repeat": 1
+    },
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_client_to_ref_server",
+      "status": "PASS",
+      "qps": "4842.3",
+      "latency_p50": "4877.1 us",
+      "latency_p99": "13010.9 us",
+      "server_cpu": "46.6%",
+      "client_cpu": "100.3%",
+      "repeat": 2
+    },
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "ref_client_to_native_server",
+      "status": "PASS",
+      "qps": "4954.9",
+      "latency_p50": "7808.9 us",
+      "latency_p99": "15337.1 us",
+      "server_cpu": "100.0%",
+      "client_cpu": "60.6%",
+      "repeat": 2
+    },
+    {
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_pair",
+      "status": "PASS",
+      "qps": "4992.6",
+      "latency_p50": "3644.2 us",
+      "latency_p99": "13867.8 us",
+      "server_cpu": "96.4%",
+      "client_cpu": "99.1%",
+      "repeat": 2
+    }
+  ],
+  "execution_plan": "execution-plan.json",
+  "claim_eligible": false
+}

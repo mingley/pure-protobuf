@@ -1,0 +1,93 @@
+================================================================================
+Official gRPC QPS Benchmark Scenario Driver & Interop Runner
+================================================================================
+Scenarios File:     rpc-bench/scenarios/claims.json
+Reference Peer:     go (v1.85.0-dev (dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef))
+Driver Binary:      /workspace/scratch/work/sb21/target/interop-go/qps-driver
+Driver SHA-256:     0a3781d54a2681670f07a20d28b0b6d5e5f3439dcfa20171cc3dd5fc0cc20577
+Driver Source Pin:  dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Native Worker SHA: 87dd1cfb477ede5e7399b67937c89904670a684b5c0734f59337fcb5e00fdfb3
+Native Source:     unverified (--skip-build) (dirty=0)
+Cargo Target:      /workspace/scratch/work/sb21/target/native (1 jobs)
+Reference Worker:  /workspace/scratch/work/sb21/target/interop-go/go-worker sha256:cf7492e173a815fce2857faf4b8f330ed8e24d1e141313530a6a8b0afcd567af source:dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Log Directory:      work/sb21/qps-smoke
+Scenarios Count:    1
+Directions:         native_pair native_client_to_ref_server ref_client_to_native_server
+
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    1
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=49379, Client worker=55089
+  PASS: claims_unary_poisson_5000qps (native_client_to_ref_server)
+      QPS:                  4887.5
+      Latency p50:          5144.61 us
+      Server CPU load:      User=27.3%, Sys=15.7%
+      Client CPU load:      User=88.8%, Sys=11.0%
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    1
+DIRECTION: ref_client_to_native_server (Server: native, Client: go-accounting)
+PORTS:     Server worker=34025, Client worker=55113
+  PASS: claims_unary_poisson_5000qps (ref_client_to_native_server)
+      QPS:                  4916.8
+      Latency p50:          8551.82 us
+      Server CPU load:      User=84.7%, Sys=15.2%
+      Client CPU load:      User=35.3%, Sys=28.0%
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    1
+DIRECTION: native_pair (Server: native, Client: native)
+PORTS:     Server worker=52869, Client worker=37895
+  PASS: claims_unary_poisson_5000qps (native_pair)
+      QPS:                  5029.4
+      Latency p50:          3219.79 us
+      Server CPU load:      User=89.2%, Sys=7.6%
+      Client CPU load:      User=91.9%, Sys=6.8%
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    2
+DIRECTION: native_client_to_ref_server (Server: go, Client: native)
+PORTS:     Server worker=43213, Client worker=37197
+  PASS: claims_unary_poisson_5000qps (native_client_to_ref_server)
+      QPS:                  4842.3
+      Latency p50:          4877.06 us
+      Server CPU load:      User=27.0%, Sys=19.6%
+      Client CPU load:      User=88.6%, Sys=11.8%
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    2
+DIRECTION: ref_client_to_native_server (Server: native, Client: go-accounting)
+PORTS:     Server worker=56711, Client worker=37151
+  PASS: claims_unary_poisson_5000qps (ref_client_to_native_server)
+      QPS:                  4954.9
+      Latency p50:          7808.92 us
+      Server CPU load:      User=83.8%, Sys=16.2%
+      Client CPU load:      User=36.8%, Sys=23.8%
+--------------------------------------------------------------------------------
+SCENARIO:  claims_unary_poisson_5000qps
+REPEAT:    2
+DIRECTION: native_pair (Server: native, Client: native)
+PORTS:     Server worker=48871, Client worker=34611
+  PASS: claims_unary_poisson_5000qps (native_pair)
+      QPS:                  4992.6
+      Latency p50:          3644.22 us
+      Server CPU load:      User=87.5%, Sys=8.9%
+      Client CPU load:      User=92.1%, Sys=6.9%
+
+================================================================================
+SUMMARY RESULTS MATRIX
+================================================================================
+Scenario                               Direction                    Status QPS        p50        p99        Server CPU Client CPU
+----------------------------------------------------------------------------------------------------------------------------------------
+claims_unary_poisson_5000qps           native_client_to_ref_server  PASS   4887.5     5144.6 us  12688.6 us 43.0%      99.8%     
+claims_unary_poisson_5000qps           ref_client_to_native_server  PASS   4916.8     8551.8 us  16201.2 us 99.9%      63.3%     
+claims_unary_poisson_5000qps           native_pair                  PASS   5029.4     3219.8 us  11283.9 us 96.8%      98.6%     
+claims_unary_poisson_5000qps           native_client_to_ref_server  PASS   4842.3     4877.1 us  13010.9 us 46.6%      100.3%    
+claims_unary_poisson_5000qps           ref_client_to_native_server  PASS   4954.9     7808.9 us  15337.1 us 100.0%     60.6%     
+claims_unary_poisson_5000qps           native_pair                  PASS   4992.6     3644.2 us  13867.8 us 96.4%      99.1%     
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Summary JSON written to: work/sb21/qps-smoke/summary.json
+Raw integrated-driver ScenarioResult JSON (or upstream C++ QPS-only metrics) saved in: work/sb21/qps-smoke/
+PASS: all QPS benchmark scenarios completed successfully across selected directions

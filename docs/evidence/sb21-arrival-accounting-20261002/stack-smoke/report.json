@@ -1,0 +1,2457 @@
+{
+  "schema": "stack-matrix/1",
+  "stage": "smoke",
+  "created_at": "2026-10-02T19:31:08Z",
+  "params": {
+    "warmup_s": 1.0,
+    "duration_s": 2.0,
+    "seed": 210021,
+    "slo_p99_s": 0.05,
+    "start_rate": 500.0,
+    "max_rate": 8000.0,
+    "growth": 2.0,
+    "max_steps": 6,
+    "matched_rate": 1000.0
+  },
+  "cpu_constraints": {
+    "effective_cpu_count": 5,
+    "affinity_cpus": null,
+    "affinity_count": null,
+    "cgroup_quota_millicpus": 4000,
+    "source": "os-cpu-count"
+  },
+  "pinning": {
+    "supported": true,
+    "method": "taskset -c 0-0",
+    "cpus": [
+      0
+    ],
+    "taskset": "/usr/bin/taskset"
+  },
+  "fairness_spec": {
+    "tcp_nodelay": true,
+    "stream_window": 16777216,
+    "conn_window": 16777216,
+    "frame_size": 1048576,
+    "max_streams": 256,
+    "adaptive_window": false,
+    "header_list": 16384,
+    "tls_cipher": "TLS_AES_128_GCM_SHA256",
+    "connections": 1,
+    "concurrency": 1
+  },
+  "qualification": "diagnostic-loopback",
+  "claim_eligible": false,
+  "scenario": {
+    "name": "grpc-bench-echo",
+    "path": "bench/stack-matrix/scenarios/grpc-bench-echo.json",
+    "sha256": "ffa2d850f8385ed212b3e8fd88af8731f2af83df57f7aaf9c749ffd71df9c9c9",
+    "params": {
+      "warmup_s": 15.0,
+      "duration_s": 60.0,
+      "seed": 210021,
+      "slo_p99_s": 0.01,
+      "start_rate": 1000.0,
+      "max_rate": 200000.0,
+      "growth": 2.0,
+      "max_steps": 12,
+      "matched_rate": 20000.0
+    },
+    "repeats": 5,
+    "filtered": true,
+    "order": {
+      "rep1": [
+        "server-native-unary-1kib-plain-1cpu",
+        "client-native-unary-1kib-plain-1cpu"
+      ],
+      "rep2": [
+        "client-native-unary-1kib-plain-1cpu",
+        "server-native-unary-1kib-plain-1cpu"
+      ],
+      "rep3": [
+        "server-native-unary-1kib-plain-1cpu",
+        "client-native-unary-1kib-plain-1cpu"
+      ],
+      "rep4": [
+        "client-native-unary-1kib-plain-1cpu",
+        "server-native-unary-1kib-plain-1cpu"
+      ],
+      "rep5": [
+        "client-native-unary-1kib-plain-1cpu",
+        "server-native-unary-1kib-plain-1cpu"
+      ]
+    }
+  },
+  "scenario_smoke": true,
+  "execution_order": [
+    {
+      "repeat": "rep1",
+      "id": "server-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep1",
+      "id": "client-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep2",
+      "id": "client-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep2",
+      "id": "server-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep3",
+      "id": "server-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep3",
+      "id": "client-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep4",
+      "id": "client-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep4",
+      "id": "server-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep5",
+      "id": "client-native-unary-1kib-plain-1cpu"
+    },
+    {
+      "repeat": "rep5",
+      "id": "server-native-unary-1kib-plain-1cpu"
+    }
+  ],
+  "peers": {
+    "native": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench"
+  },
+  "optional_peers": {
+    "connect-rust": {
+      "peer": "connect-rust",
+      "pin": {
+        "artifact": "connectrpc",
+        "version": "0.9.1"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/connect",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "cargo": "/workspace/pure-protobuf/work/toolchain/cargo/bin/cargo",
+          "protoc": "/workspace/pure-protobuf/target/conformance-build/protoc"
+        },
+        "missing": []
+      },
+      "build": "cargo build --locked --release --manifest-path tests/interop/connect/Cargo.toml --target-dir target",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/connect/ is not in the tree (followup outside the SB-18 write scope); build with `cargo build --locked --release --manifest-path tests/interop/connect/Cargo.toml --target-dir target`"
+    },
+    "google-grpc": {
+      "peer": "google-grpc",
+      "pin": {
+        "artifact": "grpc",
+        "version": "0.9.0"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/google-grpc",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "cargo": "/workspace/pure-protobuf/work/toolchain/cargo/bin/cargo",
+          "protoc": "/workspace/pure-protobuf/target/conformance-build/protoc"
+        },
+        "missing": []
+      },
+      "build": "cargo build --locked --release --manifest-path tests/interop/google-grpc/Cargo.toml --target-dir target",
+      "status": "not_run",
+      "reason": "upstream-incapable: pinned grpc 0.9.0 declares `pub(crate) mod server` (verified from crate source 2026-09-29); no usable server until an upstream release opens it"
+    },
+    "grpc-dotnet": {
+      "peer": "grpc-dotnet",
+      "pin": {
+        "artifact": "Grpc.AspNetCore",
+        "version": "2.84.0",
+        "tfm": "net9.0"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/grpc-dotnet",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "dotnet": null
+        },
+        "missing": [
+          "dotnet"
+        ]
+      },
+      "build": "cd tests/interop/grpc-dotnet && dotnet publish -c Release -p:GrpcAspNetCoreVersion=2.84.0 -o ../../../target/interop-dotnet",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/grpc-dotnet/ is not in the tree (followup outside the SB-18 write scope); build with `cd tests/interop/grpc-dotnet && dotnet publish -c Release -p:GrpcAspNetCoreVersion=2.84.0 -o ../../../target/interop-dotnet`; also missing toolchain: dotnet"
+    },
+    "grpc-java": {
+      "peer": "grpc-java",
+      "pin": {
+        "artifact": "io.grpc:grpc-netty",
+        "version": "1.84.0"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/grpc-java",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "java": "/usr/bin/java",
+          "mvn": null,
+          "gradle": null
+        },
+        "missing": [
+          "mvn/gradle"
+        ]
+      },
+      "build": "cd tests/interop/grpc-java && ./mvnw -q package -Dgrpc.version=1.84.0",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/grpc-java/ is not in the tree (followup outside the SB-18 write scope); build with `cd tests/interop/grpc-java && ./mvnw -q package -Dgrpc.version=1.84.0`; also missing toolchain: mvn/gradle"
+    },
+    "quarkus": {
+      "peer": "quarkus",
+      "pin": {
+        "artifact": "io.quarkus:quarkus-grpc",
+        "version": "3.1.2.Final",
+        "reference": "grpc_bench@48b6b95/java_quarkus_bench"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/quarkus",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "java": "/usr/bin/java",
+          "mvn": null
+        },
+        "missing": [
+          "mvn"
+        ]
+      },
+      "build": "cd tests/interop/quarkus && ./mvnw -q package -Dquarkus.platform.version=3.1.2.Final",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/quarkus/ is not in the tree (followup outside the SB-18 write scope); build with `cd tests/interop/quarkus && ./mvnw -q package -Dquarkus.platform.version=3.1.2.Final`; also missing toolchain: mvn"
+    },
+    "vertx": {
+      "peer": "vertx",
+      "pin": {
+        "artifact": "io.vertx:vertx-grpc-server",
+        "version": "4.4.4",
+        "grpc": "1.58.0",
+        "reference": "grpc_bench@48b6b95/java_vertx_grpc_bench"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/vertx",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "java": "/usr/bin/java",
+          "gradle": null
+        },
+        "missing": [
+          "gradle"
+        ]
+      },
+      "build": "cd tests/interop/vertx && ./gradlew -q installDist",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/vertx/ is not in the tree (followup outside the SB-18 write scope); build with `cd tests/interop/vertx && ./gradlew -q installDist`; also missing toolchain: gradle"
+    },
+    "volo-grpc": {
+      "peer": "volo-grpc",
+      "pin": {
+        "artifact": "volo-grpc",
+        "version": "0.12.2"
+      },
+      "harness": "/workspace/scratch/work/sb21/tests/interop/volo",
+      "harness_present": false,
+      "toolchain": {
+        "found": {
+          "cargo": "/workspace/pure-protobuf/work/toolchain/cargo/bin/cargo",
+          "protoc": "/workspace/pure-protobuf/target/conformance-build/protoc"
+        },
+        "missing": []
+      },
+      "build": "cargo build --locked --release --manifest-path tests/interop/volo/Cargo.toml --target-dir target",
+      "status": "not_run",
+      "reason": "harness-missing: tests/interop/volo/ is not in the tree (followup outside the SB-18 write scope); build with `cargo build --locked --release --manifest-path tests/interop/volo/Cargo.toml --target-dir target`"
+    }
+  },
+  "cells": [
+    {
+      "id": "server-native-unary-1kib-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177061's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:37157",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 520,
+          "dispatched": 520,
+          "completed": 520,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 520,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "server-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 520
+      },
+      "slo": {
+        "sustained_qps": 0.0,
+        "sustained_step": -1,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 1048,
+            "successful_calls": 1048,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 523.5744052146796,
+            "p99_s": 0.003126236,
+            "p50_s": 0.001789574,
+            "gen_saturated": true,
+            "valid": false,
+            "invalid_reason": "load generator saturated"
+          }
+        ],
+        "ceiling_reason": "rate 500: load generator saturated"
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 1048,
+            "dispatched": 1048,
+            "completed": 1048,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 1048,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.32,
+            "system_cpu_seconds": 0.08,
+            "peak_rss_bytes": 19316736,
+            "peak_rss_mib": 18.422,
+            "current_rss_bytes": 19316736,
+            "current_rss_mib": 18.422,
+            "user_cpu_nanos": 320000000,
+            "system_cpu_nanos": 80000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.27,
+            "system_cpu_seconds": 0.06,
+            "peak_rss_bytes": 20074496,
+            "peak_rss_mib": 19.145,
+            "current_rss_bytes": 20074496,
+            "current_rss_mib": 19.145,
+            "user_cpu_nanos": 269999999,
+            "system_cpu_nanos": 60000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 19.9,
+            "peak_cpu_pct": 39.7,
+            "spare_capacity_pct": 90.1,
+            "status": "PASS",
+            "message": "Client load generator maintained 90.1% spare CPU capacity (avg CPU: 19.9% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177067's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.021,
+          "metrics_file": "server-native-unary-1kib-plain-1cpu-step0-500qps.json"
+        }
+      ],
+      "reason": "no SLO-valid step: rate 500: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep1"
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177072's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:34155",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 1048,
+          "dispatched": 1048,
+          "completed": 1048,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 1048,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "client-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 1048
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 2054,
+            "dispatched": 2054,
+            "completed": 2054,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 2054,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.64,
+            "system_cpu_seconds": 0.07,
+            "peak_rss_bytes": 19644416,
+            "peak_rss_mib": 18.734,
+            "current_rss_bytes": 19644416,
+            "current_rss_mib": 18.734,
+            "user_cpu_nanos": 640000000,
+            "system_cpu_nanos": 70000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.49,
+            "system_cpu_seconds": 0.1,
+            "peak_rss_bytes": 20324352,
+            "peak_rss_mib": 19.383,
+            "current_rss_bytes": 20324352,
+            "current_rss_mib": 19.383,
+            "user_cpu_nanos": 490000000,
+            "system_cpu_nanos": 100000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 35.2,
+            "peak_cpu_pct": 59.6,
+            "spare_capacity_pct": 82.4,
+            "status": "PASS",
+            "message": "Client load generator maintained 82.4% spare CPU capacity (avg CPU: 35.2% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177078's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.021,
+          "metrics_file": "client-native-unary-1kib-plain-1cpu-matched.json"
+        }
+      ],
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 2054,
+        "successful_calls": 2054,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 1028.0449094721896,
+        "p99_s": 0.003331271,
+        "p50_s": 0.001697475,
+        "gen_saturated": true,
+        "valid": false,
+        "invalid_reason": "load generator saturated"
+      },
+      "reason": "matched probe invalid: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep1"
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177083's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:47255",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 1048,
+          "dispatched": 1048,
+          "completed": 1048,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 1048,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "client-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 1048
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 2054,
+            "dispatched": 2054,
+            "completed": 2054,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 2054,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.61,
+            "system_cpu_seconds": 0.1,
+            "peak_rss_bytes": 19202048,
+            "peak_rss_mib": 18.312,
+            "current_rss_bytes": 19202048,
+            "current_rss_mib": 18.312,
+            "user_cpu_nanos": 610000000,
+            "system_cpu_nanos": 100000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.49,
+            "system_cpu_seconds": 0.06,
+            "peak_rss_bytes": 20156416,
+            "peak_rss_mib": 19.223,
+            "current_rss_bytes": 20156416,
+            "current_rss_mib": 19.223,
+            "user_cpu_nanos": 490000000,
+            "system_cpu_nanos": 60000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 35.2,
+            "peak_cpu_pct": 59.6,
+            "spare_capacity_pct": 82.4,
+            "status": "PASS",
+            "message": "Client load generator maintained 82.4% spare CPU capacity (avg CPU: 35.2% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177089's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.023,
+          "metrics_file": "client-native-unary-1kib-plain-1cpu-matched.json"
+        }
+      ],
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 2054,
+        "successful_calls": 2054,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 1028.5826369029317,
+        "p99_s": 0.003564135,
+        "p50_s": 0.001744218,
+        "gen_saturated": true,
+        "valid": false,
+        "invalid_reason": "load generator saturated"
+      },
+      "reason": "matched probe invalid: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep2"
+    },
+    {
+      "id": "server-native-unary-1kib-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177094's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:55761",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 520,
+          "dispatched": 520,
+          "completed": 520,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 520,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "server-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 520
+      },
+      "slo": {
+        "sustained_qps": 0.0,
+        "sustained_step": -1,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 1048,
+            "successful_calls": 1048,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 523.5903724754312,
+            "p99_s": 0.002835778,
+            "p50_s": 0.001720184,
+            "gen_saturated": true,
+            "valid": false,
+            "invalid_reason": "load generator saturated"
+          }
+        ],
+        "ceiling_reason": "rate 500: load generator saturated"
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 1048,
+            "dispatched": 1048,
+            "completed": 1048,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 1048,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.33,
+            "system_cpu_seconds": 0.05,
+            "peak_rss_bytes": 19361792,
+            "peak_rss_mib": 18.465,
+            "current_rss_bytes": 19361792,
+            "current_rss_mib": 18.465,
+            "user_cpu_nanos": 330000000,
+            "system_cpu_nanos": 50000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.25,
+            "system_cpu_seconds": 0.05,
+            "peak_rss_bytes": 19861504,
+            "peak_rss_mib": 18.941,
+            "current_rss_bytes": 19861504,
+            "current_rss_mib": 18.941,
+            "user_cpu_nanos": 250000000,
+            "system_cpu_nanos": 50000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 18.9,
+            "peak_cpu_pct": 39.8,
+            "spare_capacity_pct": 90.6,
+            "status": "PASS",
+            "message": "Client load generator maintained 90.6% spare CPU capacity (avg CPU: 18.9% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177100's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.022,
+          "metrics_file": "server-native-unary-1kib-plain-1cpu-step0-500qps.json"
+        }
+      ],
+      "reason": "no SLO-valid step: rate 500: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep2"
+    },
+    {
+      "id": "server-native-unary-1kib-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177105's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:56871",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 520,
+          "dispatched": 520,
+          "completed": 520,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 520,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "server-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 520
+      },
+      "slo": {
+        "sustained_qps": 0.0,
+        "sustained_step": -1,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 1048,
+            "successful_calls": 1048,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 523.5985303032915,
+            "p99_s": 0.002870054,
+            "p50_s": 0.001783112,
+            "gen_saturated": true,
+            "valid": false,
+            "invalid_reason": "load generator saturated"
+          }
+        ],
+        "ceiling_reason": "rate 500: load generator saturated"
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 1048,
+            "dispatched": 1048,
+            "completed": 1048,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 1048,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.35,
+            "system_cpu_seconds": 0.06,
+            "peak_rss_bytes": 19304448,
+            "peak_rss_mib": 18.41,
+            "current_rss_bytes": 19304448,
+            "current_rss_mib": 18.41,
+            "user_cpu_nanos": 350000000,
+            "system_cpu_nanos": 60000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.3,
+            "system_cpu_seconds": 0.04,
+            "peak_rss_bytes": 20082688,
+            "peak_rss_mib": 19.152,
+            "current_rss_bytes": 20082688,
+            "current_rss_mib": 19.152,
+            "user_cpu_nanos": 300000000,
+            "system_cpu_nanos": 39999999,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 20.4,
+            "peak_cpu_pct": 39.8,
+            "spare_capacity_pct": 89.8,
+            "status": "PASS",
+            "message": "Client load generator maintained 89.8% spare CPU capacity (avg CPU: 20.4% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177111's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.021,
+          "metrics_file": "server-native-unary-1kib-plain-1cpu-step0-500qps.json"
+        }
+      ],
+      "reason": "no SLO-valid step: rate 500: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep3"
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177116's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:43083",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 1048,
+          "dispatched": 1048,
+          "completed": 1048,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 1048,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "client-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 1048
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 2054,
+            "dispatched": 2054,
+            "completed": 2054,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 2054,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.57,
+            "system_cpu_seconds": 0.12,
+            "peak_rss_bytes": 19210240,
+            "peak_rss_mib": 18.32,
+            "current_rss_bytes": 19210240,
+            "current_rss_mib": 18.32,
+            "user_cpu_nanos": 570000000,
+            "system_cpu_nanos": 120000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.5,
+            "system_cpu_seconds": 0.06,
+            "peak_rss_bytes": 20275200,
+            "peak_rss_mib": 19.336,
+            "current_rss_bytes": 20275200,
+            "current_rss_mib": 19.336,
+            "user_cpu_nanos": 500000000,
+            "system_cpu_nanos": 60000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 34.3,
+            "peak_cpu_pct": 59.6,
+            "spare_capacity_pct": 82.9,
+            "status": "PASS",
+            "message": "Client load generator maintained 82.9% spare CPU capacity (avg CPU: 34.3% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177122's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.023,
+          "metrics_file": "client-native-unary-1kib-plain-1cpu-matched.json"
+        }
+      ],
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 2054,
+        "successful_calls": 2054,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 1027.868021695972,
+        "p99_s": 0.003070878,
+        "p50_s": 0.001678883,
+        "gen_saturated": true,
+        "valid": false,
+        "invalid_reason": "load generator saturated"
+      },
+      "reason": "matched probe invalid: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep3"
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177127's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:50677",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 1048,
+          "dispatched": 1048,
+          "completed": 1048,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 1048,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "client-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 1048
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 2054,
+            "dispatched": 2054,
+            "completed": 2054,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 2054,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.61,
+            "system_cpu_seconds": 0.13,
+            "peak_rss_bytes": 19398656,
+            "peak_rss_mib": 18.5,
+            "current_rss_bytes": 19398656,
+            "current_rss_mib": 18.5,
+            "user_cpu_nanos": 610000000,
+            "system_cpu_nanos": 130000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.52,
+            "system_cpu_seconds": 0.07,
+            "peak_rss_bytes": 20058112,
+            "peak_rss_mib": 19.129,
+            "current_rss_bytes": 20058112,
+            "current_rss_mib": 19.129,
+            "user_cpu_nanos": 520000000,
+            "system_cpu_nanos": 70000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 36.7,
+            "peak_cpu_pct": 59.6,
+            "spare_capacity_pct": 81.6,
+            "status": "PASS",
+            "message": "Client load generator maintained 81.6% spare CPU capacity (avg CPU: 36.7% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177133's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.021,
+          "metrics_file": "client-native-unary-1kib-plain-1cpu-matched.json"
+        }
+      ],
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 2054,
+        "successful_calls": 2054,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 1027.9405357799633,
+        "p99_s": 0.004339327,
+        "p50_s": 0.001796582,
+        "gen_saturated": true,
+        "valid": false,
+        "invalid_reason": "load generator saturated"
+      },
+      "reason": "matched probe invalid: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep4"
+    },
+    {
+      "id": "server-native-unary-1kib-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177138's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:32953",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 520,
+          "dispatched": 520,
+          "completed": 520,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 520,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "server-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 520
+      },
+      "slo": {
+        "sustained_qps": 0.0,
+        "sustained_step": -1,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 1048,
+            "successful_calls": 1048,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 523.7704664971556,
+            "p99_s": 0.00326803,
+            "p50_s": 0.001772646,
+            "gen_saturated": true,
+            "valid": false,
+            "invalid_reason": "load generator saturated"
+          }
+        ],
+        "ceiling_reason": "rate 500: load generator saturated"
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 1048,
+            "dispatched": 1048,
+            "completed": 1048,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 1048,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.35,
+            "system_cpu_seconds": 0.06,
+            "peak_rss_bytes": 19230720,
+            "peak_rss_mib": 18.34,
+            "current_rss_bytes": 19230720,
+            "current_rss_mib": 18.34,
+            "user_cpu_nanos": 350000000,
+            "system_cpu_nanos": 60000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.28,
+            "system_cpu_seconds": 0.05,
+            "peak_rss_bytes": 20074496,
+            "peak_rss_mib": 19.145,
+            "current_rss_bytes": 20074496,
+            "current_rss_mib": 19.145,
+            "user_cpu_nanos": 280000000,
+            "system_cpu_nanos": 49999999,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 20.3,
+            "peak_cpu_pct": 39.8,
+            "spare_capacity_pct": 89.8,
+            "status": "PASS",
+            "message": "Client load generator maintained 89.8% spare CPU capacity (avg CPU: 20.3% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177144's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.022,
+          "metrics_file": "server-native-unary-1kib-plain-1cpu-step0-500qps.json"
+        }
+      ],
+      "reason": "no SLO-valid step: rate 500: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep4"
+    },
+    {
+      "id": "client-native-unary-1kib-plain-1cpu",
+      "role": "client",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177149's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:35581",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 1048,
+          "dispatched": 1048,
+          "completed": 1048,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 1048,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "client-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 1048
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 2054,
+            "dispatched": 2054,
+            "completed": 2054,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 2054,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.6,
+            "system_cpu_seconds": 0.09,
+            "peak_rss_bytes": 19292160,
+            "peak_rss_mib": 18.398,
+            "current_rss_bytes": 19292160,
+            "current_rss_mib": 18.398,
+            "user_cpu_nanos": 600000000,
+            "system_cpu_nanos": 90000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.51,
+            "system_cpu_seconds": 0.07,
+            "peak_rss_bytes": 20299776,
+            "peak_rss_mib": 19.359,
+            "current_rss_bytes": 20299776,
+            "current_rss_mib": 19.359,
+            "user_cpu_nanos": 510000000,
+            "system_cpu_nanos": 70000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 34.3,
+            "peak_cpu_pct": 59.6,
+            "spare_capacity_pct": 82.9,
+            "status": "PASS",
+            "message": "Client load generator maintained 82.9% spare CPU capacity (avg CPU: 34.3% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177155's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.021,
+          "metrics_file": "client-native-unary-1kib-plain-1cpu-matched.json"
+        }
+      ],
+      "probe": {
+        "offered_rate": 1000.0,
+        "offered_calls": 2054,
+        "successful_calls": 2054,
+        "failed_calls": 0,
+        "timed_out_calls": 0,
+        "rejected_calls": 0,
+        "success_qps": 1028.6657580656674,
+        "p99_s": 0.003222977,
+        "p50_s": 0.001718222,
+        "gen_saturated": true,
+        "valid": false,
+        "invalid_reason": "load generator saturated"
+      },
+      "reason": "matched probe invalid: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep5"
+    },
+    {
+      "id": "server-native-unary-1kib-plain-1cpu",
+      "role": "server",
+      "server_peer": "native",
+      "client_peer": "native",
+      "shape": "unary",
+      "payload": "1kib",
+      "tls": false,
+      "cpus": 1,
+      "compression": "identity",
+      "workload": "open-loop-load",
+      "status": "invalid",
+      "server_binary": "/workspace/scratch/work/sb21/target/native/debug/rpc-bench",
+      "server_codec": "pbrs",
+      "server_pin": {
+        "supported": true,
+        "method": "taskset -c 0-0",
+        "cpus": [
+          0
+        ],
+        "taskset": "/usr/bin/taskset",
+        "actual": {
+          "supported": true,
+          "affinity": "pid 177160's current affinity list: 0"
+        }
+      },
+      "addr": "127.0.0.1:48069",
+      "warmup": {
+        "accounting": {
+          "verified": true,
+          "window_kind": "arrival_window_with_terminal_drain",
+          "offered": 520,
+          "dispatched": 520,
+          "completed": 520,
+          "rejected": 0,
+          "timed_out": 0,
+          "unfinished": 0,
+          "latency_samples": 520,
+          "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+        },
+        "metrics_file": "server-native-unary-1kib-plain-1cpu-warmup.json",
+        "duration_s": 1.0,
+        "successful_rpcs": 520
+      },
+      "slo": {
+        "sustained_qps": 0.0,
+        "sustained_step": -1,
+        "steps": [
+          {
+            "offered_rate": 500.0,
+            "offered_calls": 1048,
+            "successful_calls": 1048,
+            "failed_calls": 0,
+            "timed_out_calls": 0,
+            "rejected_calls": 0,
+            "success_qps": 523.9549459001345,
+            "p99_s": 0.003406764,
+            "p50_s": 0.001788799,
+            "gen_saturated": true,
+            "valid": false,
+            "invalid_reason": "load generator saturated"
+          }
+        ],
+        "ceiling_reason": "rate 500: load generator saturated"
+      },
+      "probe_resources": [
+        {
+          "accounting": {
+            "verified": true,
+            "window_kind": "arrival_window_with_terminal_drain",
+            "offered": 1048,
+            "dispatched": 1048,
+            "completed": 1048,
+            "rejected": 0,
+            "timed_out": 0,
+            "unfinished": 0,
+            "latency_samples": 1048,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"
+          },
+          "client": {
+            "user_cpu_seconds": 0.37,
+            "system_cpu_seconds": 0.07,
+            "peak_rss_bytes": 19193856,
+            "peak_rss_mib": 18.305,
+            "current_rss_bytes": 19193856,
+            "current_rss_mib": 18.305,
+            "user_cpu_nanos": 370000000,
+            "system_cpu_nanos": 70000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "server": {
+            "user_cpu_seconds": 0.31,
+            "system_cpu_seconds": 0.03,
+            "peak_rss_bytes": 20398080,
+            "peak_rss_mib": 19.453,
+            "current_rss_bytes": 20398080,
+            "current_rss_mib": 19.453,
+            "user_cpu_nanos": 310000000,
+            "system_cpu_nanos": 30000000,
+            "thread_count": 2,
+            "cpu_seconds_per_rpc": null,
+            "method": "linux-procfs",
+            "supported": true
+          },
+          "saturation": {
+            "saturated": false,
+            "avg_cpu_pct": 21.8,
+            "peak_cpu_pct": 39.7,
+            "spare_capacity_pct": 89.1,
+            "status": "PASS",
+            "message": "Client load generator maintained 89.1% spare CPU capacity (avg CPU: 21.8% across 2 threads). Headroom alone does not establish a server ceiling.",
+            "schedule_lag_verified": true,
+            "schedule_lag_saturated": true
+          },
+          "client_pin": {
+            "supported": true,
+            "method": "taskset -c 1-1",
+            "cpus": [
+              1
+            ],
+            "taskset": "/usr/bin/taskset",
+            "actual": {
+              "supported": true,
+              "affinity": "pid 177166's current affinity list: 1"
+            }
+          },
+          "wall_s": 2.023,
+          "metrics_file": "server-native-unary-1kib-plain-1cpu-step0-500qps.json"
+        }
+      ],
+      "reason": "no SLO-valid step: rate 500: load generator saturated",
+      "fairness": {
+        "spec": "SB-01",
+        "server": {
+          "peer": "native",
+          "role": "server",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        },
+        "client": {
+          "peer": "native",
+          "role": "client",
+          "spec": "SB-01",
+          "fields": {
+            "tcp_nodelay": {
+              "value": true,
+              "provenance": "configured"
+            },
+            "stream_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "conn_window": {
+              "value": 16777216,
+              "provenance": "configured"
+            },
+            "frame_size": {
+              "value": 1048576,
+              "provenance": "configured"
+            },
+            "max_streams": {
+              "value": 256,
+              "provenance": "configured"
+            },
+            "adaptive_window": {
+              "value": false,
+              "provenance": "configured"
+            },
+            "header_list": {
+              "value": 16384,
+              "provenance": "configured"
+            },
+            "tls_cipher": {
+              "value": null,
+              "provenance": "n/a (plaintext cell)"
+            }
+          },
+          "matches_spec": true,
+          "note": "pbrs-grpc defaults equal the SB-01 spec; tcp::tune sets TCP_NODELAY on every socket"
+        }
+      },
+      "repeat": "rep5"
+    }
+  ],
+  "selection_complete": false,
+  "matrix_complete": false
+}
