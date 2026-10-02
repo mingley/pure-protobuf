@@ -2948,7 +2948,7 @@
     "docs/evidence/gn-03-reflection-options.md",
     "docs/evidence/gn-02-generated-shrink.md",
     "docs/evidence/gn-03-descriptor-sharing.md",
-    "docs/evidence/gn-03-shared-descriptor-helper.md"
+    "docs/evidence/gn-03-source-sharing.md"
    ]
   },
   {
@@ -12212,7 +12212,7 @@
    ],
    "notes": "Scope reviewed before editing. Existing TC30a unsupported-policy fixture moves only the two now-supported identity cap cases into meaningful cap tests; all other rejection assertions remain. Native finite-budget ownership and opaque codec inflation/recompression require separately qualified work. 2026-10-02: source d4a3d739 and evidence4afaaed9 integrated on main e2cfa7af; final6 private +22 native +29 unchanged-generated tests, strict native/consumer Clippy and docs/feature-off checks pass. Identity-only leaf closed; TC-30b remains open.",
    "evidence": [
-    "docs/evidence/tc-30b1.md"
+    "docs/evidence/tc30b1-identity-caps-20261002.md"
    ]
   },
   {
