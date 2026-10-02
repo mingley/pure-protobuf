@@ -1,0 +1,118 @@
+{
+  "card": "TC-29",
+  "status": "functional integration qualified; performance acceptance remains open",
+  "source_commit": "98e79816a874dd5a449b9c86c13509f899695274",
+  "base_commit": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "source_file_sha256": {
+    "pbrs-grpc/src/tower_client.rs": "f2db75a3f43440225a87c6649753030a28d3703c5bc3813329a124aad9dae503",
+    "pbrs-grpc/tests/tonic_transport.rs": "2f8b0344c91f3fe698108fb64c518f1103c1f58703f7e6245e72594871fcab6a",
+    "tests/interop/tonic/Cargo.toml": "bbc11491fcdd6816e34ae5b32b4351da02e083086ae7725cbf664f6507515011",
+    "tests/interop/tonic/Cargo.lock": "54ae424e91c4032d97306aea5464afe7a3d8f0137d65973023e15d3c14a70c19",
+    "tests/interop/tonic/tests/transport_clients.rs": "718479eb7329972a16983ae1cb287bfb0639b2da32c0be815e92b43dd19c8f44"
+  },
+  "validation_ran_before_commit_on_identical_source_bytes": true,
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "protoc": "35.1",
+    "tonic": "0.14.6",
+    "tonic-prost-build": "0.14.6",
+    "prost": "0.14.4"
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc29/target"
+  },
+  "checks": [
+    {
+      "id": "transport-tests",
+      "command": "cargo test --locked -p pbrs-grpc --features tonic --test tonic_transport",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/transport-tests.log",
+      "log_sha256": "d9bbe15ea756ef8841d99ba660c0fac3769a4b799a707d25f7d10f85f64effe8",
+      "tests_passed": 9
+    },
+    {
+      "id": "interop",
+      "command": "cargo test --locked --manifest-path tests/interop/tonic/Cargo.toml",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/interop.log",
+      "log_sha256": "5835b26d6b411e7e0191540458f64df5df3a71b7c21bec5390b4df9c22b49a44",
+      "tests_passed": 15
+    },
+    {
+      "id": "native-gates",
+      "command": "cargo test --locked -p pbrs-grpc --features tonic --test tower_client --test tonic_server --test retry_safety --test hostile",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/native-gates.log",
+      "log_sha256": "1528c534142ee494959f646cc25f901c0825a8a720d990c50b52a5d17ab2b0c8",
+      "tests_passed": 67
+    },
+    {
+      "id": "clippy-native",
+      "command": "cargo clippy --locked -p pbrs-grpc --features tonic --lib --test tonic_transport -- -D warnings",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/clippy-native.log",
+      "log_sha256": "f20a2d06612b5bc31b6ed970d53fc14765eed9d81620c02a3309808c3017abc1"
+    },
+    {
+      "id": "clippy-interop",
+      "command": "cargo clippy --locked --manifest-path tests/interop/tonic/Cargo.toml --all-targets -- -D warnings",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/clippy-interop.log",
+      "log_sha256": "699b4c865b5fac5a5e25f8b2a73baf2b24dfb82e9c9c8058f2a0b28f7fbb5c02"
+    },
+    {
+      "id": "rustdoc",
+      "command": "RUSTDOCFLAGS=-Dwarnings cargo doc --locked -p pbrs-grpc --features tonic --no-deps",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/rustdoc.log",
+      "log_sha256": "553a521634e4d9dbe2083638bb1e4c5dd5c42a637b7bd76ee51aa1e8c774ff8c"
+    },
+    {
+      "id": "feature-off",
+      "command": "cargo check --locked -p pbrs-grpc --no-default-features",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/feature-off.log",
+      "log_sha256": "68942c25bad3fb40cf1cd316efb4dec177bf9206a5b1920487b50ec8afc3e867"
+    },
+    {
+      "id": "feature-off-tree",
+      "command": "cargo tree --locked -p pbrs-grpc --no-default-features --edges normal",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/feature-off-tree.log",
+      "log_sha256": "2d6e7d716219bd960d65d6f5719ec75e342207f0a263d7d00e3c5ae79dffdd23"
+    },
+    {
+      "id": "format",
+      "command": "rustfmt --edition 2024 --check pbrs-grpc/src/tower_client.rs pbrs-grpc/tests/tonic_transport.rs tests/interop/tonic/tests/transport_clients.rs",
+      "exit_code": 0,
+      "tier": "local correctness/compatibility",
+      "log": "docs/evidence/tc-29/format.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "default_dependency_graph_unchanged": true,
+  "shipping_manifest_and_root_lock_unchanged": true,
+  "new_dependencies_or_versions": false,
+  "unsafe_added": false,
+  "peer_review": "GN-12 static review; early terminal rejection race fixed and deterministic test executed",
+  "limits": [
+    "No SB-26 unmodified tonic-codegen profile is measured",
+    "No performance or leadership claim",
+    "Native typed-call policies incompatible with opaque bodies fail before dispatch",
+    "Tonic decoder DATA-to-BytesMut copy retained relative to native complete-frame slicing",
+    "No full-workspace CI or production-soak result claimed"
+  ]
+}

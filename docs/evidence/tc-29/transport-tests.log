@@ -1,0 +1,18 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 1m 14s
+     Running tests/tonic_transport.rs (target/debug/deps/tonic_transport-0c3b97565e629ad8)
+
+running 9 tests
+test dropping_response_resets_stalled_peer ... ok
+test cancelling_future_before_headers_resets_peer ... ok
+test early_terminal_rejection_preserves_status_details_and_metadata_during_upload ... ok
+test dropping_response_releases_native_rpc_concurrency_slot ... ok
+test tonic_feature_exposes_the_transport_contract ... ok
+test unsupported_native_security_and_resource_policies_fail_before_dispatch ... ok
+test preframed_data_and_terminal_trailers_pass_without_codec_changes ... ok
+test channel_timeout_covers_stream_body_without_polling_and_resets_peer ... ok
+test grpc_timeout_covers_headers_and_resets_stream ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
