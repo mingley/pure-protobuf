@@ -94,6 +94,8 @@ def observe_process(pid, elapsed):
             if units != "kB":
                 raise ValueError("unexpected Linux memory unit")
             memory[key[:-1]] = int(value) * 1024
+    if set(memory) != {"VmRSS", "VmHWM", "VmSize"}:
+        raise ValueError("process exited or required Linux memory counters are missing")
     return {"elapsed_seconds": elapsed, "pid": pid, "memory_bytes": memory,
             "os_threads": len(list((Path("/proc") / str(pid) / "task").iterdir())),
             "file_descriptors": len(list((Path("/proc") / str(pid) / "fd").iterdir()))}
