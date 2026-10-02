@@ -1,0 +1,6 @@
+syntax = "proto3";
+package shared.b;
+import "google/protobuf/timestamp.proto";
+message EventB {
+  google.protobuf.Timestamp time = 1;
+}

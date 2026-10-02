@@ -359,10 +359,26 @@ protoc \
 
 `google.protobuf.*` types follow these ownership rules:
 
-1. **Default: private per-file copies.** Each generated file owns private copies of the Well-Known Types (WKTs) it references. They are emitted inside that file's own `__gen_*` module and referenced by bare local identifier, such as `pbrs::rt::LazyMsg<Timestamp>`. Copies in different files never collide and are never shared across files.
-2. **Non-WKT imports are not owned.** A referenced non-WKT type whose file is not in the compilation target set is **not** emitted into the referencing file. It is referenced through its `crate::` package path, which requires including the root `mod.rs` at the crate root (§3.2).
-3. **`no_wkt` suppresses local emission.** With `Config::no_wkt(true)`, or the `PURE_PROTOBUF_NO_WKT` plugin equivalent, no WKT struct is emitted. The consumer **MUST** supply the referenced types or the output will not compile.
-4. **`extern_path` remaps and suppresses.** A WKT package covered by `extern_path`, such as `.extern_path(".google.protobuf", "::pbrs::wkt")`, is referenced through the external path and never emitted locally.
+1. **Default: one owner in multi-file builds.** With multiple requested inputs, imported `google.protobuf.*` sources are added to the generated root registry once. For example, three option schemas importing `descriptor.proto` share `google/protobuf/descriptor.rs` instead of each containing a copy of `DescriptorProto`. References use `crate::google::protobuf` (or the source's actual package). Include the generated root `mod.rs` at crate root. Automatically added owner files do not also get a flat compatibility copy; explicitly requested inputs retain the unique-stem alias rule.
+2. **Single input remains self-contained.** A single application input retains private copies of imported WKTs inside its `__gen_*` module, with the same local public type names and field signatures. Its flat `stem.rs` remains includable inside an arbitrary Rust module. Single-file generation does not require the bundled `conformance` runtime feature.
+3. **Non-WKT imports are not owned.** A referenced non-WKT type whose file is not in the compilation target set is **not** emitted into the referencing file. It is referenced through its `crate::` package path, which requires including the root `mod.rs` at the crate root (§3.2).
+4. **`no_wkt` suppresses imported owners.** With `Config::no_wkt(true)`, or the `PURE_PROTOBUF_NO_WKT` plugin equivalent, imported WKTs are not emitted or automatically added. The consumer **MUST** supply them. An explicitly requested unmapped WKT source still generates its own types.
+5. **`extern_path` remaps and suppresses.** A mapped imported type is referenced through its external path and never emitted locally. Explicitly requesting a `google.protobuf` source whose types are also mapped is an error explaining which source/type conflicts with `extern_path`; remove that target or mapping instead of accepting silently empty output.
+
+The additive `::pbrs::wkt` module exists with the runtime `conformance` feature,
+which is enabled by default. It re-exports the bundled Any, Duration, Timestamp,
+Empty, FieldMask, Struct, ListValue, Value (named `PbValue`), NullValue, and scalar
+wrapper types, including their `View` and `Mut` companions. The `.google.protobuf`
+mapping shown above compiles for those standard schemas. With a trimmed runtime,
+enable `conformance` explicitly to use that mapping. `wkt` is a facade over the
+existing bindings; it adds no separate generated definitions.
+
+`::pbrs::wkt` does not include `descriptor.proto`, `api.proto`, `type.proto`, or
+other Google tooling schemas. Mapping those types to this bundled facade fails
+generation with a named unsupported-type error. Use the default multi-file
+ownership or generate those schemas separately and map their package to the
+resulting module. Custom external modules remain responsible for providing all
+mapped types.
 
 ---
 
@@ -372,6 +388,7 @@ protoc \
 |---|---|---|---|
 | Single file `proto/person.proto` | Emitted `OUT_DIR/person.rs` | Emits `OUT_DIR/person.rs` | None. Existing `include!(.../person.rs)` works as-is. |
 | Multi-file distinct stems (`a.proto`, `b.proto`) | Emitted `a.rs`, `b.rs` | Emits `a.rs`, `b.rs` + `mod.rs` | None required. You may optionally switch to `include!(.../mod.rs)`. |
+| Multiple inputs importing `google.protobuf` | Private imported copies inside each file | One generated owner per imported source, registered in `mod.rs` | Include `mod.rs` at crate root. Separate flat includes from a multi-input request must supply the generated package paths; a single-input request stays self-contained. |
 | Multi-file colliding stems (`pkg_a/common.proto`, `pkg_b/common.proto`) | Silently overwrote `common.rs` with the last file | Emits `pkg_a/common.rs` and `pkg_b/common.rs`; errors on bare `common.rs` | Include `mod.rs` or specific subpaths. |
 | External crate types / WKTs | Environment variables (`PURE_PROTOBUF_NO_WKT`) | Typed `.extern_path(...)` | Use `Config::extern_path` in `build.rs`. |
 | Renamed `pbrs` crate | Broken imports | `.runtime_crate("::renamed")` | Configure `runtime_crate` in `Config`. |
