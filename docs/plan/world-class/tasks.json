@@ -11986,7 +11986,8 @@
    "priority": "P0",
    "size": "M",
    "depends_on": [
-    "TC-30a"
+    "TC-30a",
+    "TC-30b1"
    ],
    "read": [
     "pbrs-grpc/src/tonic_server.rs",
@@ -12017,7 +12018,9 @@
    "relates": [
     "TC-30",
     "QG-06a"
-   ]
+   ],
+   "status": "in_progress",
+   "notes": " Bounded identity message-cap enforcement is split into TC-30b1. Full native compressed-size/preference/level and retained tonic buffer-budget policy remain unresolved and explicitly rejected; transient DATA permits cannot certify private tonic codec buffers."
   },
   {
    "id": "SB-32",
@@ -12144,6 +12147,53 @@
    ],
    "checks": [],
    "notes": "Implementation follows TC-32a and is serialized with SB-32 parent main/manifest/lock ownership; measurement requires root quiet lease and sufficient disk. No invented paired codec baseline or static allocation-total claim."
+  },
+  {
+   "id": "TC-30b1",
+   "title": "Enforce configured native message caps on identity-coded tonic bodies",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "production_resources",
+   "depends_on": [
+    "TC-30a"
+   ],
+   "read": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/limits.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "pbrs-grpc/tests/tonic_service_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30b1.md"
+   ],
+   "deliverable": "Add opt-in prefix-only native per-message caps to identity-coded opaque bodies, forwarding original Bytes slices without protobuf decoding or a DATA carry copy. Preserve the default path and existing unsupported compression/budget/hooks policy.",
+   "accept": [
+    "Validate and withhold each five-byte prefix before forwarding it; enforce per-message caps under every prefix split/coalescence, zero-length/multiple messages, EOF/trailers and cap boundaries. Retain earlier valid messages when a later message fails.",
+    "Actual all-four-shape generated fixtures, tiny-window flow-credit, pointer spans, cancellation/deadline/reset/admission and feature-off/strict checks pass with exact source/raw evidence.",
+    "Unsupported inbound coding rejects before readiness; unsupported response coding rejects after handler before response headers. Document those different stages accurately. Default gzip remains unchanged; full TC-30b budgets/compression stay open.",
+    "Keep opt-in framing state out of the default body/future layout where feasible; no extra default allocation/dependency/provider/codec/default policy changes."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "clippy"
+   ],
+   "scoreboard": [
+    "D4"
+   ],
+   "relates": [
+    "TC-30b",
+    "SB-32"
+   ],
+   "notes": "Scope reviewed before editing. Existing TC30a unsupported-policy fixture moves only the two now-supported identity cap cases into meaningful cap tests; all other rejection assertions remain. Native finite-budget ownership and opaque codec inflation/recompression require separately qualified work."
   }
  ],
  "last_audit": {
