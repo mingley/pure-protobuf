@@ -396,3 +396,289 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{GzipBody, QUANTUM};
+    use crate::MessageLimits;
+    use bytes::Bytes;
+    use http_body::{Body, Frame};
+    use std::collections::VecDeque;
+    use std::future::poll_fn;
+    use std::io::Write;
+    use std::pin::Pin;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::task::{Context, Poll, Waker};
+
+    struct Frames(
+        VecDeque<Result<Frame<Bytes>, tonic::Status>>,
+        Arc<AtomicUsize>,
+    );
+    impl Drop for Frames {
+        fn drop(&mut self) {
+            self.1.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+    impl Body for Frames {
+        type Data = Bytes;
+        type Error = tonic::Status;
+        fn poll_frame(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+        ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+            Poll::Ready(self.0.pop_front())
+        }
+    }
+    #[expect(clippy::expect_used, reason = "gzip test fixtures must encode")]
+    fn wire(payload: &[u8]) -> Bytes {
+        let encoded = crate::gzip::encode(payload).expect("gzip");
+        frame(encoded)
+    }
+    #[expect(clippy::expect_used, reason = "the test frame fits u32")]
+    fn frame(encoded: Vec<u8>) -> Bytes {
+        let mut wire = vec![1];
+        wire.extend_from_slice(
+            &u32::try_from(encoded.len())
+                .expect("small fixture")
+                .to_be_bytes(),
+        );
+        wire.extend_from_slice(&encoded);
+        Bytes::from(wire)
+    }
+    fn body(
+        frames: Vec<Result<Frame<Bytes>, tonic::Status>>,
+        max: usize,
+        dropped: Arc<AtomicUsize>,
+    ) -> GzipBody<Frames> {
+        GzipBody::new(
+            Frames(frames.into(), dropped),
+            MessageLimits::default().with_max_decoding(max),
+            max,
+        )
+    }
+    #[tokio::test]
+    async fn fragmented_mixed_messages_preserve_original_spans_and_per_message_cap() {
+        let first = wire(&[7; 64]);
+        let zero = wire(b"");
+        let original = Bytes::from([first.as_ref(), b"\0\0\0\0\x03abc", zero.as_ref()].concat());
+        let ptr = original.as_ptr() as usize;
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let frames = (0..original.len())
+            .map(|n| Ok(Frame::data(original.slice(n..n + 1))))
+            .collect();
+        let mut body = body(frames, 64, dropped.clone());
+        let mut got = Vec::new();
+        while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+            let bytes = frame.expect("valid frame").into_data().expect("data");
+            let start = bytes.as_ptr() as usize;
+            assert!(start >= ptr && start + bytes.len() <= ptr + original.len());
+            got.extend_from_slice(&bytes);
+        }
+        assert_eq!(got, original);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+    }
+    #[tokio::test]
+    async fn later_bomb_preserves_first_message_and_fuses_after_source_drop() {
+        let first = wire(&[7; 64]);
+        let second = wire(&[7; 65]);
+        let original = Bytes::from([first.as_ref(), second.as_ref()].concat());
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(vec![Ok(Frame::data(original))], 64, dropped.clone());
+        let mut got = Vec::new();
+        loop {
+            match poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .expect("error or data")
+            {
+                Ok(frame) => got.extend_from_slice(&frame.into_data().expect("data")),
+                Err(error) => {
+                    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+                    break;
+                }
+            }
+        }
+        assert_eq!(got, first);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+        assert!(
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .is_none()
+        );
+    }
+    #[tokio::test]
+    async fn single_member_and_encoded_tail_match_existing_decoders() {
+        let first = crate::gzip::encode(b"one").expect("first");
+        for tail in [
+            crate::gzip::encode(b"two").expect("second"),
+            vec![255, 0, 123],
+        ] {
+            let original = frame([first.as_slice(), tail.as_slice()].concat());
+            let mut body = body(
+                vec![Ok(Frame::data(original.clone()))],
+                64,
+                Arc::new(AtomicUsize::new(0)),
+            );
+            let mut got = Vec::new();
+            while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+                got.extend_from_slice(&frame.expect("accepted tail").into_data().expect("data"));
+            }
+            assert_eq!(got, original);
+        }
+    }
+    #[tokio::test]
+    async fn partial_gzip_producer_error_keeps_status_details_and_metadata() {
+        let mut error = tonic::Status::with_details(
+            tonic::Code::PermissionDenied,
+            "producer",
+            Bytes::from_static(b"details"),
+        );
+        error
+            .metadata_mut()
+            .insert("x-terminal", "retained".parse().expect("metadata"));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(
+            vec![
+                Ok(Frame::data(Bytes::from_static(b"\x01\0\0\0\x20\x1f\x8b"))),
+                Err(error),
+            ],
+            64,
+            dropped.clone(),
+        );
+        let error = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("error frame")
+            .expect_err("prefix withheld");
+        assert_eq!(error.code(), tonic::Code::PermissionDenied);
+        assert_eq!(error.details(), b"details");
+        assert_eq!(
+            error.metadata().get("x-terminal").expect("metadata"),
+            "retained"
+        );
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+    }
+    #[test]
+    fn optional_header_work_yields_and_cancellation_drops_retained_source() {
+        let mut encoder = flate2::GzBuilder::new()
+            .comment(vec![b'a'; 2 * QUANTUM + 17])
+            .write(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(b"abc").expect("write");
+        let original = frame(encoder.finish().expect("finish"));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(
+            vec![Ok(Frame::data(original))],
+            4 * QUANTUM,
+            dropped.clone(),
+        );
+        let mut cx = Context::from_waker(Waker::noop());
+        assert!(Pin::new(&mut body).poll_frame(&mut cx).is_pending());
+        assert!(Pin::new(&mut body).poll_frame(&mut cx).is_pending());
+        drop(body);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+    }
+    #[test]
+    fn optional_header_resumes_across_input_quotas_before_replaying() {
+        let mut encoder = flate2::GzBuilder::new()
+            .extra(vec![9; 2 * QUANTUM + 17])
+            .filename(vec![b'n'; QUANTUM + 11])
+            .comment(vec![b'c'; QUANTUM + 3])
+            .write(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(b"abc").expect("write");
+        let original = frame(encoder.finish().expect("finish"));
+        let mut body = body(
+            vec![Ok(Frame::data(original.clone()))],
+            8 * QUANTUM,
+            Arc::new(AtomicUsize::new(0)),
+        );
+        let mut cx = Context::from_waker(Waker::noop());
+        let mut got = Vec::new();
+        let mut yields = 0;
+        for _ in 0..32 {
+            match Pin::new(&mut body).poll_frame(&mut cx) {
+                Poll::Pending => yields += 1,
+                Poll::Ready(Some(Ok(frame))) => {
+                    got.extend_from_slice(&frame.into_data().expect("data"))
+                }
+                Poll::Ready(Some(Err(error))) => panic!("valid gzip: {error}"),
+                Poll::Ready(None) => {
+                    assert!(yields >= 4);
+                    assert_eq!(got, original);
+                    return;
+                }
+            }
+        }
+        panic!("bounded fixture failed to finish");
+    }
+    #[tokio::test]
+    async fn header_and_payload_checksums_validate_before_encoded_replay() {
+        let original = crate::gzip::encode(b"abc").expect("gzip");
+        let mut header = original.get(..10).expect("fixed header").to_vec();
+        *header.get_mut(3).expect("flags") |= 2;
+        let mut crc = !0u32;
+        for &byte in &header {
+            crc ^= u32::from(byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0u32.wrapping_sub(crc & 1) & 0xedb88320);
+            }
+        }
+        let mut with_header_crc = header;
+        with_header_crc.extend_from_slice((!crc).to_le_bytes().get(..2).expect("header CRC"));
+        with_header_crc.extend_from_slice(original.get(10..).expect("body and trailer"));
+        let mut bad_header = with_header_crc.clone();
+        *bad_header.get_mut(10).expect("checksum") ^= 1;
+        let mut bad_crc = original.clone();
+        let crc_offset = bad_crc.len() - 8;
+        *bad_crc.get_mut(crc_offset).expect("CRC") ^= 1;
+        for (encoded, valid) in [
+            (with_header_crc, true),
+            (bad_header, false),
+            (bad_crc, false),
+        ] {
+            let original = frame(encoded);
+            let dropped = Arc::new(AtomicUsize::new(0));
+            let mut body = body(vec![Ok(Frame::data(original.clone()))], 64, dropped.clone());
+            let mut got = Vec::new();
+            let mut error = None;
+            while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+                match frame {
+                    Ok(frame) => got.extend_from_slice(&frame.into_data().expect("data")),
+                    Err(e) => error = Some(e),
+                }
+            }
+            if valid {
+                assert!(error.is_none());
+                assert_eq!(got, original);
+            } else {
+                assert_eq!(
+                    error.expect("checksum rejected").code(),
+                    tonic::Code::Internal
+                );
+                assert!(got.is_empty());
+            }
+            assert_eq!(dropped.load(Ordering::SeqCst), 1);
+        }
+    }
+    #[tokio::test]
+    async fn trailers_cannot_turn_partial_gzip_into_success() {
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+        let mut body = body(
+            vec![
+                Ok(Frame::data(Bytes::from_static(b"\x01\0\0\0\x20\x1f\x8b"))),
+                Ok(Frame::trailers(trailers)),
+            ],
+            64,
+            Arc::new(AtomicUsize::new(0)),
+        );
+        let error = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("terminal error")
+            .expect_err("prefix withheld");
+        assert_eq!(error.code(), tonic::Code::Internal);
+        assert!(
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .is_none()
+        );
+    }
+}
