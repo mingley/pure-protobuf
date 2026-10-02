@@ -16,6 +16,8 @@ fn main() {
     let pbrs_out = out.join("pbrs");
     pbrs::codegen::Config::new()
         .out_dir(&pbrs_out)
+        .file_descriptor_set_path(out.join("native-core.fds"))
+        .extern_path(".google.protobuf", "crate::native_google::protobuf")
         .emit_deps(true)
         .compile_protos(&core, &includes)
         .expect("generate pbrs adoption messages");
@@ -33,6 +35,8 @@ fn main() {
     let pbrs_options = out.join("pbrs_options");
     pbrs::codegen::Config::new()
         .out_dir(&pbrs_options)
+        .file_descriptor_set_path(out.join("native-options.fds"))
+        .extern_path(".google.protobuf", "crate::native_google::protobuf")
         .compile_protos(&option_protos, &includes)
         .expect("generate pbrs option-heavy messages");
     let prost_options = out.join("prost_options");
@@ -41,6 +45,26 @@ fn main() {
         .out_dir(&prost_options)
         .compile_protos(&option_protos, &includes)
         .expect("generate prost option-heavy messages");
+    // Own each native Google source once using the corresponding application
+    // descriptor set. Any's reflection pool must retain adoption.Payload.
+    pbrs::codegen::Config::new()
+        .out_dir(out.join("pbrs_wkt/any"))
+        .emit_rerun_if_changed(false)
+        .compile_descriptor_set(
+            out.join("native-core.fds"),
+            &["google/protobuf/any.proto"],
+            &includes,
+        )
+        .expect("generate shared native Any");
+    pbrs::codegen::Config::new()
+        .out_dir(out.join("pbrs_wkt/descriptor"))
+        .emit_rerun_if_changed(false)
+        .compile_descriptor_set(
+            out.join("native-options.fds"),
+            &["google/protobuf/descriptor.proto"],
+            &includes,
+        )
+        .expect("generate shared native descriptor messages");
     // Compile all generated option-heavy outputs, rather than merely proving
     // that the generators returned success.
     let mut modules = String::new();

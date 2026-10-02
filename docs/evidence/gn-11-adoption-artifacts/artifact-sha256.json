@@ -1,0 +1,9 @@
+{
+  "check-inventories.py": "065d0f45c25758c83a888eb1fafbc86ea31cd10c86a25afb6430c40feff3313f",
+  "commands.json": "1c7bd2b9d4471a654e8a1f445a31c6552060403d19cc9df39ee8bb83ecce38a0",
+  "generated-ownership.json": "05abfef2c34b8f2a6f3d77e7183fcc209c56e4aa15595c6a112ff764d418e701",
+  "inventory-comparison.json": "4a7a7194bf6395297c7c306822606c4fde21e7d27486c70e182647c674369a30",
+  "provenance.json": "3ac20ef50bd2000db0f181eac2faa98d1ff5d604fc619ec88b3396518f31fe7d",
+  "raw-artifacts.tar.gz": "ed85bc714773727c79e70c779109c4d7f9fedab6b3f25998dc6e9b3d65ef260b",
+  "raw-member-sha256.json": "b2307df1e8df87b8a1f6ebfa35ed199569381fd290264ba2dd0f11e980c952d4"
+}
