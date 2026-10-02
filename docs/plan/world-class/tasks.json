@@ -9800,7 +9800,7 @@
     "docs/evidence/tc32-coexistence.md",
     "docs/guides/migration.md#keep-an-existing-tonic-prost-build-pipeline"
    ],
-   "notes": "Conversion APIs and mixed-runtime tests are implemented and pass. Static bridge cost is one encode, one decode and one owned wire allocation with no intermediate buffer copy. Full SB-26 corpus measurements remain pending because SB-26 has not landed its generated corpora or baseline JSON. Reconciled 2026-10-02: generated corpora and codec/RPC artifacts now exist via SB-26a/c/d. The full bridge-cost measurement remains open; 24 map RPC cells still fail equal-wire qualification pending PK-30. The parent SB-26 is not complete. Work split into TC-32a actualAPI semantic/inventory harness and TC-32b measured cost evidence.336 cells cover84 specimens (64 runtime+20 option-heavy)×2 directions×API-only/read-all. Static allocation wording is a code-path description, not a measured total.12 map timing rows remain blocked on actual wire/order qualification; semantic map round trips remain required."
+   "notes": "Shipping wire-buffer conversion APIs and mixed-runtime fixtures are implemented. Source has one source encode and target decode with owned wire-buffer handoff; this is not a measured allocation total. TC-32a is qualified at source754cb6c2:336 actualAPI cells across84specimens pass semantic/roundtrip/equality oracles;324wire guards pass and12mapcost rows remain blocked. TC-32b absolute allocation/byte/instruction measurements and replay qualification are in_progress; parent acceptance staysopen."
   },
   {
    "id": "AD-01",
@@ -10342,13 +10342,14 @@
    ],
    "status": "in_progress",
    "implementer": "server_streaming",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open. Inline-writer source1ea1d3a0 is rejected and reverted: primaryIR−0.362%, allocations−1.754% miss the unchanged≥2% target despite exactly3096B fewer bytes. Four cancellation/drop-order regressions plus narrowed fixture lint corrections remain; strictlib/all-testsClippy and4+5scoped regressions pass atb6c2c69f. Coordinator verifies33 primary-proof and7 restored-lint archive members. Runtime boxed helper is unchanged. New safe allocation-before-construction diagnostic is separate and unqualified.",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open. Inline-writer source1ea1d3a0 is rejected and reverted: primaryIR−0.362%, allocations−1.754% miss the unchanged≥2% target despite exactly3096B fewer bytes. Four cancellation/drop-order regressions plus narrowed fixture lint corrections remain; strictlib/all-testsClippy and4+5scoped regressions pass atb6c2c69f. Coordinator verifies33 primary-proof and7 restored-lint archive members. Runtime boxed helper is unchanged. New safe allocation-before-construction diagnostic is separate and unqualified. Diagnostic989fb406 is rejected before runtime mutation: actual native11536B servicefuture memcpy becomes11544B emptyOption memcpy plus8Bwrapper allocation. Fivepairedshape tests pass, but source prerequisite fails; all17archivedfiles/7symlinks verified. Borrowed unchanged timeout helper is next isolated diagnostic only, exact future-size/copy/drop-order prerequisite before any runtimecandidate.",
    "evidence": [
     "pbrs-grpc/tests/sv09_streaming.rs",
     "docs/evidence/current-improvements/integration.json",
     "docs/evidence/sv-09.md",
     "docs/evidence/sv-09/manifest.json",
-    "docs/evidence/sv-09-inline-writer.md"
+    "docs/evidence/sv-09-inline-writer.md",
+    "docs/evidence/sv-09-dispatch-slot.md"
    ],
    "reviewer": "coordinator"
   },
@@ -12070,8 +12071,13 @@
     "TC-30",
     "SB-26"
    ],
-   "notes": "Frozen before implementation during the current transport integration work. Benchmark-only existing dependency feature additions require graph/lock review; shipping manifests/default graphs and all original thresholds stay unchanged. Existing typed low-level RPC profiles remain distinct baselines. PK-30 map-policy review stays pending; do not bypass its equal-wire qualification. Claimed2026-10-02. Offline graph audit retains all153 package/version/source/checksum pins; only reviewed existing tonic/tower/TLS feature edges activate in the benchmark. Native custom Incoming will reproduce existing built-in TCP_NODELAY=true policy and read actual accepted socket state; report that observer scope explicitly rather than claiming built-in tuning telemetry.",
-   "implementer": "tonic_client_transport"
+   "notes": "Frozen before implementation during the current transport integration work. Benchmark-only existing dependency feature additions require graph/lock review; shipping manifests/default graphs and all original thresholds stay unchanged. Existing typed low-level RPC profiles remain distinct baselines. PK-30 map-policy review stays pending; do not bypass its equal-wire qualification. Claimed2026-10-02. Offline graph audit retains all153 package/version/source/checksum pins; only reviewed existing tonic/tower/TLS feature edges activate in the benchmark. Native custom Incoming will reproduce existing built-in TCP_NODELAY=true policy and read actual accepted socket state; report that observer scope explicitly rather than claiming built-in tuning telemetry. Source8ca03da5/proofb66382d5 integrated on main0282c7ed. Final17tests/strictalltargetsClippy pass;512new unchanged-tonic-codegen IDs,488actualnetwork qualified/24originalmap blocks. Coordinator independently verifies30hashes/all153package identities/complete512inventoryand488network equality/byte/read/socket facts. Original512typed IDs/corpus untouched. NumericN16/32x3 fullmatrix and two unchangedreference replays not_run; new raw-preserving driver underway, no performance claim.",
+   "implementer": "tonic_client_transport",
+   "evidence": [
+    "docs/evidence/sb-32.md",
+    "docs/evidence/sb-32/validation.json",
+    "docs/evidence/sb-32/preflight-inventory.json"
+   ]
   },
   {
    "lane": "TC",
@@ -12086,7 +12092,7 @@
    ],
    "id": "TC-32a",
    "title": "Exercise actual prost/pbrs bridges across the public adoption corpora",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "sb31_bridge",
    "depends_on": [
     "TC-28",
@@ -12110,7 +12116,13 @@
    "checks": [
     "codegen"
    ],
-   "notes": "Approved manifest/scope before resolution: optional protobuf-tonic path dependency under bridge feature, no new registry package/version relative to reviewed root graph. Up to three manual implementation areas: generator, bridge.rs, bridge-inventory.rs; routine wiring/tests/docs. No parent devloop edits."
+   "notes": "Source754cb6c2 and proof2314a5df integrated on main1d0f56bd. Coordinator independently verifies27 retained artifacts/9source hashes, all49old pins and111finalpackages/newregistry pins matching reviewedroot lock, and independent336cells/84specimens audit with324wire guards/12mapcost blocks/256retained runtimeoracles. Final21bridge/14default tests and strictClippy pass; all25old generated outputs byte-identical. Numeric cost not_run; parentTC-32 remainsopen.",
+   "reviewer": "coordinator",
+   "evidence": [
+    "docs/evidence/tc32a-bridge-qualification-20261002.md",
+    "docs/evidence/tc32a-bridge-qualification-20261002/artifact-sha256.json",
+    "bench/devloop/adoption/src/bridge.rs"
+   ]
   },
   {
    "lane": "TC",
@@ -12125,7 +12137,7 @@
    ],
    "id": "TC-32b",
    "title": "Measure actual prost/pbrs conversion costs with audited collectors",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "TC-32a",
     "SB-26c"
@@ -12149,7 +12161,8 @@
     "Map actual conversion order/default wire mismatches remain explicit blocked qualifications, without sorting/patching inside the bridge API. Parent TC-32 stays open until full cost acceptance is qualified."
    ],
    "checks": [],
-   "notes": "Implementation follows TC-32a and is serialized with SB-32 parent main/manifest/lock ownership; measurement requires root quiet lease and sufficient disk. No invented paired codec baseline or static allocation-total claim."
+   "notes": "Claimed after SB-32/TC-32a main integration1d0f56bd and explicit parent-file ownership handoff. Approved opt-in parent bridge feature(default=[]), cfg-gated new registry/dispatch, exact153old package pins retained and only existingroot protobuf-tonic path addition/requiredexistingedges. Offline default/enabled graph audit precedes compilation. Separate raw-preserving collector/independent auditor; no release/capture before coordinated quiet lease. Absolute actualAPI costs, 12map blocks, original1% replay controls retained.",
+   "implementer": "sb31_bridge"
   },
   {
    "id": "TC-30b1",
@@ -12238,7 +12251,12 @@
     "CL-07",
     "TC-29"
    ],
-   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention."
+   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved.",
+   "evidence": [
+    "docs/evidence/deadline-admission.md",
+    "docs/evidence/deadline-admission/raw-peer-two-red.log",
+    "docs/evidence/deadline-admission/raw-peer-two-pins.json"
+   ]
   }
  ],
  "last_audit": {
