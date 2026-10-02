@@ -2,6 +2,7 @@
 """Synthetic collector regressions; these execute no RPC/performance workload."""
 
 import gzip
+import functools
 import importlib.util
 import json
 from pathlib import Path
@@ -26,6 +27,110 @@ AUDIT = module("sb32_audit", "check-tonic-transport-evidence.py")
 
 
 class CollectorTests(unittest.TestCase):
+    def provenance_fixture(self, directory):
+        root, archive = directory / "checkout", directory / "archive"
+        root.mkdir()
+        archive.mkdir()
+        required = {"Cargo.toml", "vendor/google/conformance_fds.bin",
+                    "bench/corpora/otlp/protos/trace.proto", "support.py"}
+        contents = {path: ("source:" + path).encode() for path in required | {"outside/extra.rs"}}
+        contents.update({path: ("schema:" + path).encode() for path in DRIVER.SCHEMAS})
+        contents.update({"outside/a/extra.proto": b"first schema", "outside/b/extra.proto": b"second schema"})
+        for path, data in contents.items():
+            destination = root / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+        binary = root / "devloop"
+        binary.write_bytes(b"synthetic pinned release binary")
+        sources = {path: DRIVER.digest(contents[path]) for path in required}
+        build_sources = {path: checksum for path, checksum in sources.items() if not path.endswith(".py")}
+        build_sources["outside/extra.rs"] = DRIVER.digest(contents["outside/extra.rs"])
+        schemas = {path: DRIVER.digest(data) for path, data in contents.items() if path.endswith(".proto") and path not in required}
+        build = {"binary_sha256": DRIVER.digest(binary.read_bytes()), "profile": "release",
+                 "build_argv": ["synthetic-build"], "features": [], "tools": {"synthetic": True},
+                 "source_sha256": build_sources, "schema_sha256": schemas}
+        record = {"source_commit": "synthetic-commit", "source_sha256": {**sources, **build_sources},
+                  "schema_sha256": dict(schemas)}
+        return root, archive, binary, contents, required, sources, build, record
+
+    def test_build_sidecar_requires_otlp_fds_and_all_fourteen_schemas(self):
+        self.assertEqual(DRIVER.SCHEMAS, AUDIT.SCHEMAS)
+        self.assertEqual(len(DRIVER.SCHEMAS), 14)
+        self.assertEqual(DRIVER.SOURCE_ROOTS, AUDIT.SOURCE_ROOTS)
+        self.assertIn("bench/corpora/otlp/protos", DRIVER.SOURCE_ROOTS)
+        self.assertIn("vendor/google/conformance_fds.bin", DRIVER.SOURCE_ROOTS)
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _, binary, contents, _, sources, build, _ = self.provenance_fixture(Path(temporary))
+            with patch.object(DRIVER, "ROOT", root), patch.object(DRIVER, "source_hashes", return_value=sources), \
+                    patch.object(DRIVER, "git", side_effect=lambda *argv: contents[argv[1].split(":", 1)[1]]):
+                for path in ("vendor/google/conformance_fds.bin", "bench/corpora/otlp/protos/trace.proto"):
+                    checksum = build["source_sha256"].pop(path)
+                    with self.assertRaises((AssertionError, KeyError)):
+                        DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+                    build["source_sha256"][path] = checksum
+                for path in DRIVER.SCHEMAS:
+                    checksum = build["schema_sha256"].pop(path)
+                    with self.assertRaises(AssertionError):
+                        DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+                    build["schema_sha256"][path] = checksum
+
+    def test_build_sidecar_checks_extra_inputs_and_rechecks_source_drift(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _, binary, contents, _, sources, build, record = self.provenance_fixture(Path(temporary))
+            with patch.object(DRIVER, "ROOT", root), patch.object(DRIVER, "source_hashes", return_value=sources), \
+                    patch.object(DRIVER, "git", side_effect=lambda *argv: contents[argv[1].split(":", 1)[1]]):
+                checked, schemas = DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+                self.assertEqual(checked, record["source_sha256"])
+                self.assertEqual(set(schemas), set(build["schema_sha256"]))
+                self.assertEqual(DRIVER.live_source_hashes(build), checked)
+                extra = root / "outside/extra.rs"
+                extra.write_bytes(b"changed compiled input")
+                self.assertNotEqual(DRIVER.live_source_hashes(build), checked)
+                with self.assertRaises(AssertionError):
+                    DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+                build["source_sha256"]["outside/extra.rs"] = DRIVER.digest(extra.read_bytes())
+                with self.assertRaises(AssertionError):
+                    DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+                extra.write_bytes(contents["outside/extra.rs"])
+                build["source_sha256"]["outside/extra.rs"] = DRIVER.digest(extra.read_bytes())
+                (root / "outside/a/extra.proto").write_bytes(b"changed extra schema")
+                with self.assertRaises(AssertionError):
+                    DRIVER.compiled_inputs(build, "synthetic-commit", binary)
+
+    def test_independent_provenance_rejects_omitted_extra_pins_and_schema_corruption(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root, archive, _, contents, required, _, build, record = self.provenance_fixture(Path(temporary))
+            with patch.object(DRIVER, "ROOT", root):
+                DRIVER.archive_schemas(archive, {path: contents[path] for path in build["schema_sha256"]})
+            with patch.object(AUDIT, "source_paths", return_value=required):
+                AUDIT.compiled_provenance(archive, record, build)
+                for collection, path in (("source_sha256", "outside/extra.rs"), ("schema_sha256", "outside/a/extra.proto")):
+                    checksum = record[collection].pop(path)
+                    with self.assertRaises(AssertionError):
+                        AUDIT.compiled_provenance(archive, record, build)
+                    record[collection][path] = checksum
+                for collection, path in (("source_sha256", "bench/corpora/otlp/protos/trace.proto"),
+                                         ("schema_sha256", DRIVER.SCHEMAS[-1])):
+                    checksum = build[collection].pop(path)
+                    with self.assertRaises(AssertionError):
+                        AUDIT.compiled_provenance(archive, record, build)
+                    build[collection][path] = checksum
+                (archive / "schemas/outside/a/extra.proto").write_bytes(b"tampered archived input")
+                with self.assertRaises(AssertionError):
+                    AUDIT.compiled_provenance(archive, record, build)
+
+    def test_schema_archive_preserves_same_basename_inputs_and_rejects_escaping_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root, archive, _, contents, _, _, build, _ = self.provenance_fixture(Path(temporary))
+            with patch.object(DRIVER, "ROOT", root):
+                DRIVER.archive_schemas(archive, {path: contents[path] for path in build["schema_sha256"]})
+            self.assertEqual((archive / "schemas/outside/a/extra.proto").read_bytes(), b"first schema")
+            self.assertEqual((archive / "schemas/outside/b/extra.proto").read_bytes(), b"second schema")
+            for path in ("../escape.proto", "/absolute.proto", "a/../escape.proto", "a//b.proto"):
+                for checked in (DRIVER.relative_input, AUDIT.relative_input):
+                    with self.assertRaises(AssertionError):
+                        checked(path)
+
     def test_capture_retains_nonzero_exit_and_byte_exact_streams_before_parse(self):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "failure"
@@ -198,13 +303,16 @@ class CollectorTests(unittest.TestCase):
         inventory_bytes = (root / inventory_path).read_bytes()
         inventory = json.loads(inventory_bytes)
         oracle = {r["id"]: r for r in inventory["preflight_rows"]}
-        sources = {"Cargo.toml": AUDIT.sha((root / "Cargo.toml").read_bytes())}
-        build = {"source_sha256": sources, "binary_sha256": "synthetic", "profile": "release",
+        sources = {path: AUDIT.sha(AUDIT.git_file(commit, path)) for path in AUDIT.source_paths(commit)}
+        build = {"source_sha256": {path: checksum for path, checksum in sources.items() if not path.endswith(".py")},
+                 "binary_sha256": "synthetic", "profile": "release",
                  "build_argv": ["synthetic-build"], "features": [], "tools": {"synthetic": True}, "schema_sha256": {}}
         (directory / "schemas").mkdir()
         for schema in DRIVER.SCHEMAS:
             data = (root / schema).read_bytes()
-            (directory / "schemas" / Path(schema).name).write_bytes(data)
+            destination = directory / "schemas" / schema
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
             build["schema_sha256"][schema] = AUDIT.sha(data)
         build_bytes = json.dumps(build).encode()
         (directory / "release-build.json").write_bytes(build_bytes)
@@ -261,7 +369,8 @@ class CollectorTests(unittest.TestCase):
         return record
 
     def test_complete_inventory_and_provenance_audit_rejects_blocked_measurement_and_hidden_replay_loss(self):
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.object(AUDIT, "git_file", wraps=functools.lru_cache(maxsize=None)(AUDIT.git_file)):
             directory = Path(temporary)
             record = self.complete_archive(directory)
             # Counter reconstruction has independent raw fixtures above. Here
@@ -280,6 +389,16 @@ class CollectorTests(unittest.TestCase):
                 result = AUDIT.audit(directory)
                 self.assertEqual(result["original_baseline_replay_gate"], "failed")
                 self.assertTrue(result["baseline_replay_failures"])
+                for relative in ("raw/registry", "raw/preflight/" + next(iter(record["cells"]))):
+                    process = record["processes"][relative]
+                    original = process["argv"][0]
+                    process["argv"][0] = "/fake/foreign-devloop"
+                    (directory / relative / "process.json").write_text(json.dumps(process))
+                    (directory / "measurement.json").write_text(json.dumps(record))
+                    with self.assertRaises(AssertionError):
+                        AUDIT.audit(directory)
+                    process["argv"][0] = original
+                    (directory / relative / "process.json").write_text(json.dumps(process))
                 blocked = next(c for c in record["cells"] if ".maps." in c)
                 record["cells"][blocked]["measurement_status"] = "captured"
                 (directory / "measurement.json").write_text(json.dumps(record))

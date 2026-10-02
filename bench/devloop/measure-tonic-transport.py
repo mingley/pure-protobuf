@@ -24,6 +24,7 @@ PROFILES = ("reference_reference", "native_client_reference_server",
             "reference_client_native_server", "native_native")
 SHAPES = ("unary", "server_stream")
 SOURCE_ROOTS = ("src", "proto", "pbrs-grpc", "protobuf-tonic", "prost_tat", "v4_tat", "Cargo.toml", "Cargo.lock",
+                "vendor/google/conformance_fds.bin", "bench/corpora/otlp/protos",
                 "build.rs", "bench/devloop/src", "bench/devloop/proto",
                 "bench/devloop/build.rs", "bench/devloop/Cargo.toml",
                 "bench/devloop/Cargo.lock", "bench/devloop/adoption/src",
@@ -33,7 +34,19 @@ SOURCE_ROOTS = ("src", "proto", "pbrs-grpc", "protobuf-tonic", "prost_tat", "v4_
                 "bench/devloop/check-tonic-transport-evidence.py",
                 "bench/devloop/test_tonic_transport_collectors.py")
 SCHEMAS = ("third_party/protobuf/src/google/protobuf/any.proto",
-           "third_party/protobuf/src/google/protobuf/descriptor.proto")
+           "third_party/protobuf/src/google/protobuf/descriptor.proto",
+           "third_party/protobuf/src/google/protobuf/test_messages_proto2.proto",
+           "third_party/protobuf/src/google/protobuf/test_messages_proto3.proto",
+           "third_party/protobuf/src/google/protobuf/duration.proto",
+           "third_party/protobuf/src/google/protobuf/timestamp.proto",
+           "third_party/protobuf/src/google/protobuf/struct.proto",
+           "third_party/protobuf/src/google/protobuf/wrappers.proto",
+           "third_party/protobuf/src/google/protobuf/field_mask.proto",
+           "third_party/protobuf/src/google/protobuf/empty.proto",
+           "third_party/protobuf/conformance/test_protos/test_messages_edition2023.proto",
+           "third_party/protobuf/conformance/test_protos/test_messages_edition_unstable.proto",
+           "third_party/protobuf/editions/golden/test_messages_proto2_editions.proto",
+           "third_party/protobuf/editions/golden/test_messages_proto3_editions.proto")
 
 
 def digest(data):
@@ -126,6 +139,57 @@ def source_hashes():
     return {path: digest((ROOT / path).read_bytes()) for path in paths}
 
 
+def relative_input(path):
+    assert isinstance(path, str) and path and not Path(path).is_absolute()
+    assert ".." not in Path(path).parts and path == Path(path).as_posix() and path != "."
+    return ROOT / path
+
+
+def compiled_inputs(build, commit, binary):
+    """Validate every sidecar input, including inputs beyond the required subset."""
+    assert build["binary_sha256"] == digest(binary.read_bytes())
+    assert build["profile"] == "release"
+    assert build["build_argv"] and "features" in build and build["tools"]
+    build_sources, build_schemas = build["source_sha256"], build["schema_sha256"]
+    assert isinstance(build_sources, dict) and build_sources
+    assert isinstance(build_schemas, dict) and set(SCHEMAS) <= build_schemas.keys()
+    sources = dict(source_hashes())
+    for path, checksum in sources.items():
+        assert digest(git("show", f"{commit}:{path}")) == checksum, f"uncommitted source: {path}"
+        if not path.endswith(".py"):
+            assert build_sources[path] == checksum, f"release build source: {path}"
+    for path, checksum in build_sources.items():
+        assert digest(relative_input(path).read_bytes()) == checksum, f"release build input: {path}"
+        assert digest(git("show", f"{commit}:{path}")) == checksum, f"release build source commit: {path}"
+        if path in sources:
+            assert sources[path] == checksum
+        sources[path] = checksum
+    schema_bytes = {}
+    for path, checksum in build_schemas.items():
+        data = relative_input(path).read_bytes()
+        assert digest(data) == checksum, f"release build schema: {path}"
+        if path in sources:
+            assert sources[path] == checksum
+        schema_bytes[path] = data
+    return sources, schema_bytes
+
+
+def live_source_hashes(build):
+    sources = dict(source_hashes())
+    for path in build["source_sha256"]:
+        sources[path] = digest(relative_input(path).read_bytes())
+    return sources
+
+
+def archive_schemas(out, schema_bytes):
+    (out / "schemas").mkdir()
+    for path, data in schema_bytes.items():
+        relative_input(path)
+        destination = out / "schemas" / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+
+
 def marker(stderr, name):
     rows = [json.loads(line[len(name):]) for line in stderr.decode().splitlines()
             if line.startswith(name)]
@@ -171,22 +235,11 @@ def main():
                for r in frozen_specimens for s in SHAPES}
     assert len(old_ids) == 512
     commit = git("rev-parse", "HEAD").decode().strip()
-    sources = source_hashes()
-    schema_bytes = {path: (ROOT / path).read_bytes() for path in SCHEMAS}
-    schemas = {path: digest(data) for path, data in schema_bytes.items()}
-    for path, checksum in sources.items():
-        assert digest(git("show", f"{commit}:{path}")) == checksum, f"uncommitted source: {path}"
     assert digest(git("show", f"{commit}:{inventory_path.relative_to(ROOT)}")) == digest(inventory_path.read_bytes())
     build_bytes = args.build_record.resolve().read_bytes()
     build = json.loads(build_bytes)
-    assert build["binary_sha256"] == digest(binary.read_bytes())
-    assert build["profile"] == "release"
-    assert build["build_argv"] and "features" in build and build["tools"]
-    for path, checksum in sources.items():
-        if not path.endswith(".py"):
-            assert build["source_sha256"][path] == checksum, f"release build source: {path}"
-    for path, checksum in schemas.items():
-        assert build["schema_sha256"][path] == checksum, f"release build schema: {path}"
+    sources, schema_bytes = compiled_inputs(build, commit, binary)
+    schemas = {path: digest(data) for path, data in schema_bytes.items()}
     tools = {name: str(Path(path).resolve()) for name in ("perf", "valgrind", "strace")
              if (path := shutil.which(name)) is not None}
     # Preserve existing perf-first/Callgrind-fallback tool selection. Never
@@ -202,9 +255,7 @@ def main():
     else:
         out.mkdir(parents=True, exist_ok=False)
         (out / "release-build.json").write_bytes(build_bytes)
-        (out / "schemas").mkdir()
-        for path, data in schema_bytes.items():
-            (out / "schemas" / Path(path).name).write_bytes(data)
+        archive_schemas(out, schema_bytes)
         record = {"schema": "pbrs-sb32-measurement/1", "status": "qualifying",
                   "tier": "instrumented dev-loop diagnostic; no performance-leadership claim",
                   "source_commit": commit, "source_sha256": sources,
@@ -275,8 +326,8 @@ def main():
     for name, profile, shape in batches:
         if name in record["reports"]:
             continue
-        assert source_hashes() == sources and digest(binary.read_bytes()) == record["binary_sha256"]
-        assert {p: digest((ROOT / p).read_bytes()) for p in SCHEMAS} == schemas
+        assert live_source_hashes(build) == sources and digest(binary.read_bytes()) == record["binary_sha256"]
+        assert {p: digest(relative_input(p).read_bytes()) for p in schemas} == schemas
         selected = [i for i in ids if i.startswith(f"{PREFIX}{profile}.") and i.endswith(f".{shape}") and i not in blocked]
         assert len(selected) == 61
         relative = f"raw/collector/{name}-{time.time_ns()}"
@@ -301,8 +352,8 @@ def main():
                 record["cells"][cell]["measurement_status"] = "captured"
         write(out / "measurement.json", record)
         print(f"Captured {name}: 61 cells, all raw counters retained", flush=True)
-    assert source_hashes() == sources and digest(binary.read_bytes()) == record["binary_sha256"]
-    assert {p: digest((ROOT / p).read_bytes()) for p in SCHEMAS} == schemas
+    assert live_source_hashes(build) == sources and digest(binary.read_bytes()) == record["binary_sha256"]
+    assert {p: digest(relative_input(p).read_bytes()) for p in schemas} == schemas
     record["status"] = "captured; independent audit pending"
     record["finished_utc"] = utc()
     write(out / "measurement.json", record)

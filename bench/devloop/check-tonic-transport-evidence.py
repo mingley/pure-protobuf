@@ -23,6 +23,30 @@ PROFILES = ("reference_reference", "native_client_reference_server",
 SHAPES = ("unary", "server_stream")
 PRIMARY = ("instructions", "allocs", "alloc_bytes", "syscalls", "locks")
 SYSCALL_SCOPE = "strace -c -f N16-only whole-process counts divided by 16, including preparation, network oracle, 100-operation warmup and teardown; not hot-only or differential syscall cost; futex includes wakes/errors, not lock acquisitions"
+SOURCE_ROOTS = ("src", "proto", "pbrs-grpc", "protobuf-tonic", "prost_tat", "v4_tat", "Cargo.toml", "Cargo.lock",
+                "vendor/google/conformance_fds.bin", "bench/corpora/otlp/protos",
+                "build.rs", "bench/devloop/src", "bench/devloop/proto",
+                "bench/devloop/build.rs", "bench/devloop/Cargo.toml",
+                "bench/devloop/Cargo.lock", "bench/devloop/adoption/src",
+                "bench/devloop/adoption/proto", "bench/devloop/adoption/build.rs",
+                "bench/devloop/adoption/Cargo.toml", "bench/devloop/adoption/Cargo.lock",
+                "bench/devloop/measure-tonic-transport.py",
+                "bench/devloop/check-tonic-transport-evidence.py",
+                "bench/devloop/test_tonic_transport_collectors.py")
+SCHEMAS = ("third_party/protobuf/src/google/protobuf/any.proto",
+           "third_party/protobuf/src/google/protobuf/descriptor.proto",
+           "third_party/protobuf/src/google/protobuf/test_messages_proto2.proto",
+           "third_party/protobuf/src/google/protobuf/test_messages_proto3.proto",
+           "third_party/protobuf/src/google/protobuf/duration.proto",
+           "third_party/protobuf/src/google/protobuf/timestamp.proto",
+           "third_party/protobuf/src/google/protobuf/struct.proto",
+           "third_party/protobuf/src/google/protobuf/wrappers.proto",
+           "third_party/protobuf/src/google/protobuf/field_mask.proto",
+           "third_party/protobuf/src/google/protobuf/empty.proto",
+           "third_party/protobuf/conformance/test_protos/test_messages_edition2023.proto",
+           "third_party/protobuf/conformance/test_protos/test_messages_edition_unstable.proto",
+           "third_party/protobuf/editions/golden/test_messages_proto2_editions.proto",
+           "third_party/protobuf/editions/golden/test_messages_proto3_editions.proto")
 
 
 def sha(data):
@@ -31,6 +55,36 @@ def sha(data):
 
 def git_file(commit, path):
     return subprocess.check_output(["git", "show", f"{commit}:{path}"], cwd=ROOT)
+
+
+def source_paths(commit):
+    return set(subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", commit, "--", *SOURCE_ROOTS], cwd=ROOT,
+    ).decode().splitlines())
+
+
+def relative_input(path):
+    assert isinstance(path, str) and path and not Path(path).is_absolute()
+    assert ".." not in Path(path).parts and path == Path(path).as_posix() and path != "."
+    return Path(path)
+
+
+def compiled_provenance(directory, record, build):
+    required = source_paths(record["source_commit"])
+    sources, schemas = build["source_sha256"], build["schema_sha256"]
+    assert isinstance(sources, dict) and sources
+    assert isinstance(schemas, dict) and set(SCHEMAS) <= schemas.keys()
+    assert {path for path in required if not path.endswith(".py")} <= sources.keys()
+    assert set(record["source_sha256"]) == required | sources.keys(), "missing or unbound compiled source pin"
+    for path, checksum in sources.items():
+        relative_input(path)
+        assert record["source_sha256"][path] == checksum, f"sidecar source omitted or changed: {path}"
+    assert record["schema_sha256"] == schemas, "sidecar schema map omitted or changed"
+    for path, checksum in schemas.items():
+        relative = relative_input(path)
+        assert sha((directory / "schemas" / relative).read_bytes()) == checksum
+        if path in record["source_sha256"]:
+            assert record["source_sha256"][path] == checksum
 
 
 def integer(value):
@@ -227,20 +281,23 @@ def audit(directory):
     assert record["status"] == "captured; independent audit pending"
     assert (record["iters"], record["double_iters"], record["common_prepare_iters"], record["repeats"], record["warmup"], record["runtime_workers"], record["report_parallelism"]) == (16, 32, 32, 3, 100, 2, 1)
     assert record["syscall_scope"] == SYSCALL_SCOPE
-    for path, checksum in record["source_sha256"].items():
-        assert sha(git_file(record["source_commit"], path)) == checksum, f"source pin: {path}"
+    verified_commits = set()
+
+    def verify_commit(commit):
+        if commit in verified_commits:
+            return
+        for path, checksum in record["source_sha256"].items():
+            relative_input(path)
+            assert sha(git_file(commit, path)) == checksum, f"source pin: {path}"
+        verified_commits.add(commit)
+
+    verify_commit(record["source_commit"])
     build_bytes = (directory / "release-build.json").read_bytes()
     assert sha(build_bytes) == record["build_record_sha256"]
     build = json.loads(build_bytes)
     assert build["binary_sha256"] == record["binary_sha256"] and build["profile"] == "release"
     assert build["build_argv"] and "features" in build and build["tools"]
-    for path, checksum in record["source_sha256"].items():
-        if not path.endswith(".py"):
-            assert build["source_sha256"][path] == checksum
-    for path, checksum in record["schema_sha256"].items():
-        assert build["schema_sha256"][path] == checksum
-        assert sha((directory / "schemas" / Path(path).name).read_bytes()) == checksum
-    assert set(record["schema_sha256"]) == {"third_party/protobuf/src/google/protobuf/any.proto", "third_party/protobuf/src/google/protobuf/descriptor.proto"}
+    compiled_provenance(directory, record, build)
     binary = Path(record["binary"])
     binary_present = binary.is_file()
     if binary_present:
@@ -280,13 +337,14 @@ def audit(directory):
         executable = Path(record["tools"][tool])
         if executable.is_file():
             assert sha(executable.read_bytes()) == pin["executable_sha256"]
-    _, registered_stdout, _ = checked_process(directory, "raw/registry")
+    registry, registered_stdout, _ = checked_process(directory, "raw/registry")
+    assert registry["argv"] == [record["binary"], "list"] and registry["exit_code"] == 0
     assert {line.split()[0] for line in registered_stdout.decode().splitlines() if line.startswith(PREFIX)} == expected
     old_ids = {f"rpc.adoption.{p}.{s}.{k}" for p in ("native_pbrs", "native_prost", "tonic_pbrs", "tonic_prost") for s in specimens for k in SHAPES}
     assert {line.split()[0] for line in registered_stdout.decode().splitlines() if line.startswith("rpc.adoption.")} == old_ids
     for cell, state in record["cells"].items():
         process, _, stderr = checked_process(directory, state["preflight_process"])
-        assert process["argv"][1:] == ["run-cell", cell, "--iters", "1", "--prepare-iters", "32", "--warmup", "0"]
+        assert process["argv"] == [record["binary"], "run-cell", cell, "--iters", "1", "--prepare-iters", "32", "--warmup", "0"]
         if cell in blocked:
             assert state["status"] == state["measurement_status"] == "not_run" and process["exit_code"] != 0 and "RPC encoded bytes must agree" in stderr
         else:
@@ -308,8 +366,7 @@ def audit(directory):
         report = json.loads(content)
         assert report["schema"] == "devloop/1"
         report_commit = subprocess.check_output(["git", "rev-parse", report["devloop_commit"]], cwd=ROOT, text=True).strip()
-        for path, checksum in record["source_sha256"].items():
-            assert sha(git_file(report_commit, path)) == checksum
+        verify_commit(report_commit)
         profile, shape = name.removeprefix("matrix-").split("-") if name.startswith("matrix-") else ("reference_reference", name.rsplit("-", 1)[1])
         selected = {i for i in expected - blocked if i.startswith(f"{PREFIX}{profile}.") and i.endswith(f".{shape}")}
         assert len(report["cells"]) == 61 and {r["id"] for r in report["cells"]} == selected
