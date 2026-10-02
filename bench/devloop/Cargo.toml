@@ -10,7 +10,7 @@ exclude = ["adoption"]
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
-pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts", "prost"] }
+pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts", "prost", "tonic"] }
 pbrs-adoption-corpus = { path = "adoption" }
 prost = "0.14"
 prost013 = { package = "prost", version = "0.13" }

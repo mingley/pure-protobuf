@@ -1,0 +1,26 @@
+syntax = "proto3";
+package adoption.transport;
+
+// Service bindings only. Keep the frozen independently generated corpus types.
+import "adoption.proto";
+import "sparse.proto";
+
+service QueryEcho {
+  rpc Unary(adoption.Query) returns (adoption.Query);
+  rpc ServerStream(adoption.Query) returns (stream adoption.Query);
+}
+
+service EntityListEcho {
+  rpc Unary(adoption.EntityList) returns (adoption.EntityList);
+  rpc ServerStream(adoption.EntityList) returns (stream adoption.EntityList);
+}
+
+service SparseEcho {
+  rpc Unary(adoption.Sparse) returns (adoption.Sparse);
+  rpc ServerStream(adoption.Sparse) returns (stream adoption.Sparse);
+}
+
+service MapHeavyEcho {
+  rpc Unary(adoption.MapHeavy) returns (adoption.MapHeavy);
+  rpc ServerStream(adoption.MapHeavy) returns (stream adoption.MapHeavy);
+}

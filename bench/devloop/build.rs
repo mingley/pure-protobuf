@@ -15,6 +15,30 @@ fn main() {
         .compile_protos(&[&proto], &[&manifest.join("proto")])
         .expect("tonic-prost-build echo.proto");
 
+    // SB-32 emits unchanged tonic services around the existing prost corpus.
+    // Imported messages and well-known types retain their independent owner.
+    let transport = manifest.join("proto/tonic_transport.proto");
+    let corpus = manifest.join("adoption/proto");
+    let pinned_wkt = manifest.join("../../third_party/protobuf/src");
+    println!("cargo:rerun-if-changed={}", transport.display());
+    for imported in ["adoption.proto", "sparse.proto"] {
+        println!("cargo:rerun-if-changed={}", corpus.join(imported).display());
+    }
+    tonic_prost_build::configure()
+        .build_server(true)
+        .build_client(true)
+        .compile_well_known_types(true)
+        .extern_path(".adoption", "::pbrs_adoption_corpus::prost_types")
+        .extern_path(
+            ".google.protobuf",
+            "::pbrs_adoption_corpus::google::protobuf",
+        )
+        .compile_protos(
+            &[&transport],
+            &[&manifest.join("proto"), &corpus, &pinned_wkt],
+        )
+        .expect("tonic-prost-build corpus transport services");
+
     let blob = manifest.join("proto/blob.proto");
     println!("cargo:rerun-if-changed={}", blob.display());
     pbrs::codegen::Config::new()
