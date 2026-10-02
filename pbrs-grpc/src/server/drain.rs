@@ -15,9 +15,8 @@ use crate::wire::{
     select_outbound_codec, select_stream_codec, send_frame, send_ok_headers, send_trailers_only,
 };
 use std::future::{Future, poll_fn};
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::Poll;
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -82,33 +81,42 @@ impl Drop for CancelOnDrop {
 
 /// Keep [`CancelOnDrop`] alive across `write`.
 ///
-/// Locals not named in the write future can be dropped at `.await` (NLL).
-/// A manual future holds the guard as a field so it cannot drop until `write`
-/// completes — `write.await; drop(cancel)` is not enough.
-pub(crate) fn hold_cancel<F: Future<Output = ()>>(cancel: CancelOnDrop, write: F) -> HoldCancel<F> {
-    HoldCancel {
-        write: Box::pin(write),
+/// The polling closure owns the guard while borrowing the pinned writer.
+/// Taking the guard on completion signals cancellation before the writer is
+/// dropped. Capturing the initial state whole also preserves that order if
+/// the returned future is dropped before its first poll.
+pub(crate) fn hold_cancel<F: Future<Output = ()>>(
+    cancel: CancelOnDrop,
+    write: F,
+) -> impl Future<Output = ()> {
+    let held = HoldCancel {
         cancel: Some(cancel),
-    }
-}
-
-/// [`hold_cancel`]'s state: poll `write`, drop the guard only when it finishes.
-pub(crate) struct HoldCancel<F> {
-    cancel: Option<CancelOnDrop>,
-    write: Pin<Box<F>>,
-}
-
-impl<F: Future<Output = ()>> Future for HoldCancel<F> {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        match self.write.as_mut().poll(cx) {
+        write,
+    };
+    async move {
+        let (cancel, write) = held.into_parts();
+        tokio::pin!(write);
+        let mut cancel = cancel;
+        poll_fn(move |cx| match write.as_mut().poll(cx) {
             Poll::Ready(()) => {
-                self.cancel.take();
+                cancel.take();
                 Poll::Ready(())
             }
             Poll::Pending => Poll::Pending,
-        }
+        })
+        .await;
+    }
+}
+
+/// Initial owned state; declaration order keeps cancellation before writer drop.
+struct HoldCancel<F> {
+    cancel: Option<CancelOnDrop>,
+    write: F,
+}
+
+impl<F> HoldCancel<F> {
+    fn into_parts(self) -> (Option<CancelOnDrop>, F) {
+        (self.cancel, self.write)
     }
 }
 
