@@ -190,6 +190,35 @@ application-retained data can still occupy memory while the peer sends more.
 Adding one connection window per connection is therefore not a proof of the
 total memory bound.
 
+### Builder ordering and current-h2 diagnostics
+
+The current `Server` and `Router` builders couple the HTTP/2 send threshold to
+aggregate byte admission in a way that depends on the entry point. A fresh
+builder and `.config(ServerConfig::default())` keep an unlimited tracker.
+Calling `.max_send_buffer_size(1024 * 1024)` explicitly sets a 1 MiB tracker,
+even though the HTTP/2 setting equals the default. A `.config(...)` with a
+nondefault send threshold replaces an attached tracker with a new tracker
+limited to that threshold. The default config preserves an attached tracker.
+These are existing compatibility behaviors, characterized in
+[`resource_qualification.rs`](../pbrs-grpc/tests/resource_qualification.rs);
+they do not imply that a per-stream threshold is a process-memory limit.
+
+For an independently chosen aggregate budget, apply the transport config
+first and call `.with_byte_budget_tracker(shared_tracker)` or `.byte_budget(...)`
+last. Preserve the shared tracker when cloning the server or router. Changing
+this historical coupling needs a compatibility review rather than a silent
+default change.
+
+[`current-h2-soak.py`](../scripts/current-h2-soak.py) freezes a clean commit,
+finite Linux process limits and a bounded workload before executing its test
+binary. It records RSS and process high-water separately from exact accounted
+transport bytes, byte-permit tokens and admitted-call counts. The diagnostic
+also samples OS threads, file descriptors and Tokio alive tasks through warmup,
+slow readers, overload, cancellation, deadline recovery and drain. See the
+[commands, recovery tolerances and limitations](evidence/current-h2-soak.md).
+Its result always remains `qualified: false`; QG-06's complete 24-hour campaign
+is a separate acceptance requirement.
+
 ### Message and queue accounting
 
 For each simultaneously active RPC, allow for the following lifetimes:
