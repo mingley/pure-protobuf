@@ -1142,6 +1142,13 @@ pub(crate) fn bytes_default_lit(f: &FieldDescriptor) -> String {
 
 pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let name = rust_ident(&ed.full_name);
+    // Keep caller diagnostics on the public type while allowing its own implementations
+    // to name that type and read its tuple field under a strict consumer lint policy.
+    let impl_deprecation_allowance = if ed.deprecated {
+        "#[allow(deprecated, reason = \"generated implementations must name their deprecated enum type\")]\n"
+    } else {
+        ""
+    };
     let values = rust_enum_values(&ed.name, &ed.listed);
     let first = ed.listed.first().map(|x| x.0).unwrap_or(0);
     let known = values
@@ -1171,7 +1178,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         src,
         "    #[allow(non_upper_case_globals, reason = \"protobuf enum names\")]"
     );
-    let _ = writeln!(src, "impl {name} {{");
+    let _ = writeln!(src, "{impl_deprecation_allowance}impl {name} {{");
     for v in &values {
         if let Some(c) = ed.value_comments(v.number) {
             emit_doc_comments(src, c, "    ");
@@ -1205,11 +1212,17 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let _ = writeln!(src, "        }})");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl From<{name}> for i32 {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl From<{name}> for i32 {{"
+    );
     let _ = writeln!(src, "    fn from(v: {name}) -> i32 {{ v.0 }}");
     let _ = writeln!(src, "}}");
     if ed.closed {
-        let _ = writeln!(src, "impl TryFrom<i32> for {name} {{");
+        let _ = writeln!(
+            src,
+            "{impl_deprecation_allowance}impl TryFrom<i32> for {name} {{"
+        );
         let _ = writeln!(src, "    type Error = UnknownEnumValue<Self>;");
         let _ = writeln!(
             src,
@@ -1222,14 +1235,23 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         let _ = writeln!(src, "    }}");
         let _ = writeln!(src, "}}");
     } else {
-        let _ = writeln!(src, "impl From<i32> for {name} {{");
+        let _ = writeln!(
+            src,
+            "{impl_deprecation_allowance}impl From<i32> for {name} {{"
+        );
         let _ = writeln!(src, "    fn from(val: i32) -> Self {{ Self(val) }}");
         let _ = writeln!(src, "}}");
     }
-    let _ = writeln!(src, "impl Default for {name} {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl Default for {name} {{"
+    );
     let _ = writeln!(src, "    fn default() -> Self {{ Self({first}) }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl std::fmt::Debug for {name} {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl std::fmt::Debug for {name} {{"
+    );
     let _ = writeln!(
         src,
         "    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"
@@ -1240,22 +1262,31 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl pbrs::__internal::SealedInternal for {name} {{}}");
     let _ = writeln!(
         src,
-        "impl pbrs::Proxied for {name} {{ type View<'msg> = {name}; }}"
+        "{impl_deprecation_allowance}impl pbrs::__internal::SealedInternal for {name} {{}}"
     );
-    let _ = writeln!(src, "impl pbrs::AsView for {name} {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl pbrs::Proxied for {name} {{ type View<'msg> = {name}; }}"
+    );
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl pbrs::AsView for {name} {{"
+    );
     let _ = writeln!(src, "    type Proxied = Self;");
     let _ = writeln!(src, "    fn as_view(&self) -> Self {{ *self }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<'msg> pbrs::IntoView<'msg> for {name} {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl<'msg> pbrs::IntoView<'msg> for {name} {{"
+    );
     let _ = writeln!(
         src,
         "    fn into_view<'shorter>(self) -> Self where 'msg: 'shorter {{ self }}"
     );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl Enum for {name} {{");
+    let _ = writeln!(src, "{impl_deprecation_allowance}impl Enum for {name} {{");
     let _ = writeln!(src, "    const NAME: &'static str = \"{name}\";");
     if known.is_empty() {
         let _ = writeln!(src, "    fn is_known(_: i32) -> bool {{ false }}");

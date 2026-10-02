@@ -50,5 +50,7 @@ passed. An earlier documentation run before protoc was available failed two
 syntax-validator tests with `failed to execute protoc`; the complete rerun
 above passed after provisioning the pinned compiler.
 
-Full codegen, core and regenerated pinned conformance gates are coordinated
+`cargo test --locked -p pbrs --lib` also passed all 96 core library tests.
+
+Full codegen and regenerated pinned conformance gates are coordinated
 with GN-13 and GN-12. This evidence alone does not close those integration gates.

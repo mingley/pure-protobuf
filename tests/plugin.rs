@@ -2573,6 +2573,175 @@ fn test_message_keywords_and_non_standard_casings() {{
 }
 
 #[test]
+fn protoc_plugin_deprecated_enums_keep_implementation_lints_scoped() {
+    let tmp = tempfile_dir_lints();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixtures = root.join("tests/fixtures/codegen-lints");
+    let mut modules = String::new();
+    let mut generated_enums = Vec::new();
+    for (module, stem, name) in [
+        ("open", "deprecated_open_enum", "DeprecatedOpenEnum"),
+        ("closed", "deprecated_closed_enum", "DeprecatedClosedEnum"),
+    ] {
+        let status = Command::new("protoc")
+            .arg(format!(
+                "--plugin=protoc-gen-pbrs={}",
+                plugin_bin().display()
+            ))
+            .arg(format!("--pbrs_out={}", tmp.display()))
+            .arg("--pbrs_opt=stubs=none")
+            .arg("-I")
+            .arg(&fixtures)
+            .arg(fixtures.join(format!("{stem}.proto")))
+            .status()
+            .expect("generate deprecated enum fixture");
+        assert!(status.success(), "protoc plugin failed on {stem}.proto");
+        let generated = std::fs::read_to_string(tmp.join(format!("{stem}.rs")))
+            .expect("read generated deprecated enum");
+        assert!(
+            generated.contains("#[deprecated]\n#[repr(transparent)]"),
+            "public enum type must retain its deprecated annotation: {name}"
+        );
+        assert!(
+            generated.contains("#[deprecated]\n    pub const Old:"),
+            "public enum value must retain its deprecated annotation: {name}"
+        );
+        modules.push_str(&format!("pub mod {module} {{\n{generated}\n}}\n"));
+        generated_enums.push(generated);
+    }
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"deprecated-enum-strict-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        format!(
+            r#"//! Strict consumer for deprecated enum implementations.
+#![deny(warnings, clippy::all, clippy::pedantic, clippy::nursery, clippy::expect_used)]
+{modules}
+
+#[test]
+#[allow(deprecated, clippy::expect_used, reason = "verify legacy enum behavior explicitly")]
+fn deprecated_enum_behavior() {{
+    use closed::DeprecatedClosedEnum as Closed;
+    use open::DeprecatedOpenEnum as Open;
+
+    assert_eq!(Open::default(), Open::Zero);
+    assert_eq!(Open::One, Open::OneAlias);
+    assert_eq!(Open::from(2), Open::Old);
+    assert_eq!(i32::from(Open::OneAlias), 1);
+    assert!(<Open as pbrs::Enum>::is_known(2));
+    assert!(!<Open as pbrs::Enum>::is_known(-9));
+    let unknown = Open::from(-9);
+    assert_eq!(i32::from(unknown), -9);
+    assert_eq!(format!("{{:?}}", Open::OneAlias), "DeprecatedOpenEnum::One");
+    assert_eq!(format!("{{unknown:?}}"), "DeprecatedOpenEnum::from(-9)");
+    assert_eq!(pbrs::AsView::as_view(&unknown), unknown);
+    assert_eq!(pbrs::IntoView::into_view(unknown), unknown);
+
+    assert_eq!(Closed::default(), Closed::Zero);
+    assert_eq!(Closed::One, Closed::OneAlias);
+    assert_eq!(Closed::try_from(2).expect("known legacy value"), Closed::Old);
+    assert_eq!(i32::from(Closed::OneAlias), 1);
+    assert!(<Closed as pbrs::Enum>::is_known(2));
+    assert!(!<Closed as pbrs::Enum>::is_known(-9));
+    let unknown = Closed::try_from(-9).expect_err("closed enum rejects unknown values");
+    assert_eq!(unknown.value(), -9);
+    assert_eq!(format!("{{:?}}", Closed::OneAlias), "DeprecatedClosedEnum::One");
+    assert_eq!(pbrs::AsView::as_view(&Closed::One), Closed::One);
+    assert_eq!(pbrs::IntoView::into_view(Closed::One), Closed::One);
+}}
+"#
+        ),
+    )
+    .unwrap();
+
+    for subcommand in ["clippy", "test", "doc"] {
+        let mut command = shared_consumer_cargo();
+        command
+            .args([subcommand, "--offline", "--quiet"])
+            .current_dir(&consumer);
+        match subcommand {
+            "clippy" => {
+                command.args(["--all-targets", "--", "-D", "warnings"]);
+            }
+            "doc" => {
+                command.arg("--no-deps").env("RUSTDOCFLAGS", "-D warnings");
+            }
+            _ => {}
+        }
+        let output = run_shared_consumer_cargo(&mut command).expect("check strict enum consumer");
+        assert!(
+            output.status.success(),
+            "strict deprecated enum consumer {subcommand} failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    for generated in &generated_enums {
+        let allowances = generated
+            .lines()
+            .zip(generated.lines().skip(1))
+            .filter(|(attribute, _)| attribute.trim_start().starts_with("#[allow(deprecated,"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            allowances.len(),
+            10,
+            "each generated enum impl needs its own allowance"
+        );
+        for (attribute, next) in allowances {
+            assert!(attribute.contains("reason = "), "{attribute}");
+            assert!(
+                next.starts_with("impl"),
+                "deprecated allowance escaped an impl: {next}"
+            );
+        }
+    }
+
+    // Check the public API from a separate crate so impl allowances cannot hide caller warnings.
+    let caller = tmp.join("caller");
+    std::fs::create_dir_all(caller.join("src")).unwrap();
+    std::fs::write(
+        caller.join("Cargo.toml"),
+        "[package]\nname = \"deprecated-enum-external-caller\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nlegacy = { package = \"deprecated-enum-strict-consumer\", path = \"../consumer\" }\n",
+    )
+    .unwrap();
+    for (module, name) in [
+        ("open", "DeprecatedOpenEnum"),
+        ("closed", "DeprecatedClosedEnum"),
+    ] {
+        std::fs::write(
+            caller.join("src/lib.rs"),
+            format!(
+                "#![deny(deprecated)]\npub fn value() -> i32 {{ i32::from(legacy::{module}::{name}::OneAlias) }}\n"
+            ),
+        )
+        .unwrap();
+        let output = run_shared_consumer_cargo(
+            shared_consumer_cargo()
+                .args(["check", "--offline", "--quiet"])
+                .current_dir(&caller),
+        )
+        .expect("check external caller deprecation diagnostics");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !output.status.success(),
+            "external use of {name} must be deprecated"
+        );
+        assert!(stderr.contains("use of deprecated struct"), "{stderr}");
+        assert!(stderr.contains(name), "{stderr}");
+    }
+}
+
+#[test]
 fn protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_policy() {
     let tmp = tempfile_dir_lints();
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

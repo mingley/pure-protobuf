@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package test.codegen_lints;
+
+enum DeprecatedClosedEnum {
+  option deprecated = true;
+  option allow_alias = true;
+
+  DEPRECATED_CLOSED_ENUM_ZERO = 0;
+  DEPRECATED_CLOSED_ENUM_ONE = 1;
+  DEPRECATED_CLOSED_ENUM_ONE_ALIAS = 1;
+  DEPRECATED_CLOSED_ENUM_OLD = 2 [deprecated = true];
+}
