@@ -66,6 +66,38 @@ are still emitted unless you opt out. `no_reflect=true` remains supported as a
 shorthand for disabling reflection and, unless separately requested, generated
 JSON/text methods.
 
+### Shared descriptor storage
+
+With `Config::shared_descriptor_set(true)` (plugin
+`shared_descriptor_set=true`), reflective multi-file generation emits one
+`__pbrs_shared_descriptors.rs` helper. The root registry includes its private
+`__pbrs_shared_descriptors` module; each file retains the public
+`FILE_DESCRIPTOR_SET` constant as an alias and obtains the same lazily initialized
+`Arc<DescriptorPool>` from that helper. Include the registry at crate root:
+
+```rust
+include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+```
+
+This option is off by default and has no environment-variable equivalent.
+Single-file requests remain byte-identical and self-contained, including with
+the option enabled. Reflection-free generation emits no helper or descriptor
+bytes. For multi-file flat includes, supply the helper module at crate root:
+
+```rust
+mod __pbrs_shared_descriptors {
+    include!(concat!(env!("OUT_DIR"), "/__pbrs_shared_descriptors.rs"));
+}
+```
+
+Active sharing requires `include_file` to name a registry file at the output
+root (for example, `registry.rs`); nested registry paths are rejected. The
+helper file and module names are reserved in this mode; conflicting output
+paths, root packages, or emitted root items fail generation. The separate `shared_pool=true` option
+uses the bundled conformance pool and cannot be combined with active shared
+descriptor-set generation. This option changes descriptor storage only; wire
+formats, message APIs, JSON, and text behavior remain the same.
+
 ### Basic Compilation
 
 Compile your `.proto` files during the build:
@@ -307,6 +339,7 @@ follows the sharing rule above; explicit external mappings remain available.
 | `file_descriptor_set_path` | `Config::file_descriptor_set_path` | Supported; writes the compiled descriptor bytes. |
 | `protoc_arg` | `Config::protoc_arg` | Supported for direct `.proto` compilation. |
 | `emit_rerun_if_changed` | `Config::emit_rerun_if_changed` | Supported; defaults on. |
+| Shared embedded metadata | `Config::shared_descriptor_set` / `--pbrs_opt=shared_descriptor_set=true` | Opt-in for reflective multi-file output using its crate-root registry; defaults off. |
 | `include_file` | `Config::include_file` | Supported; defaults to `mod.rs`. |
 | `extern_path` | `Config::extern_path` / `--pbrs_opt=extern_path=.pkg=crate::pkg` | Supported with longest-prefix matching. |
 | `compile_well_known_types` | `Config::compile_well_known_types`; inverse of `Config::no_wkt` | Supported. Default is to generate pbrs WKTs. |
