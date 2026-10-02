@@ -764,3 +764,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     permits.clear();
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "sv09_cancel_tests.rs"]
+mod sv09_cancel_tests;
