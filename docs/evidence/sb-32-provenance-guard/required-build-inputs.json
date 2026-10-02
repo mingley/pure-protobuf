@@ -1,0 +1,103 @@
+{
+  "schema": "pbrs-sb32-required-build-inputs/1",
+  "source_commit": "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b",
+  "build_recipe_sha256": {
+    "build.rs": "7367a734873d20be313352978bebf890d281fdca089b0d3e07db333ce9f3c31d",
+    "prost_tat/build.rs": "a3c97064f86ac805e01e631f795f89a30fcc1e853553eacc657bf3655beaabb7",
+    "v4_tat/build.rs": "041f98d5e30171fa30d787b027a7463ec11acb8282d2fd562efa018101d85d87",
+    "bench/devloop/build.rs": "38a5d085246cc60c8377ea6a28fe308b13d9e4fdfd20cab45c12d684acf84fdc",
+    "bench/devloop/adoption/build.rs": "0626540536f8260dc1b68c9a655494342f2f465f95f68588c54532944b8f3d7f"
+  },
+  "required_schema_sha256": {
+    "third_party/protobuf/src/google/protobuf/any.proto": "8e56f61e3078e9232d39ce1b1bab28613783af8191f93a910c3617933f87a179",
+    "third_party/protobuf/src/google/protobuf/descriptor.proto": "f46ec56fc26c48433f4cebfdc98cf1cdd5ae15f129f150256dfa82c1ec77e0a3",
+    "third_party/protobuf/src/google/protobuf/test_messages_proto2.proto": "8e6dd24e2eb255f589e16d383147404e9c08ae72ba41470af01caad8981f9893",
+    "third_party/protobuf/src/google/protobuf/test_messages_proto3.proto": "c3c6fd3959fe767f00c19bcb79e71bc4ca2b51769b7f49a14b24e9b24e152873",
+    "third_party/protobuf/src/google/protobuf/duration.proto": "a3f7301ff2956ec2e30c2241ece07197e4a86c752348d5607224819d4921c9fe",
+    "third_party/protobuf/src/google/protobuf/timestamp.proto": "fa6c44dca2c90a2aaf3a1e4776cef2e9177f70fba365f236269f0f41ac166c96",
+    "third_party/protobuf/src/google/protobuf/struct.proto": "4f46aa6248ddcd0ac820aab2ffd4f4e02c5bcd09596edc763fa6764f74deb785",
+    "third_party/protobuf/src/google/protobuf/wrappers.proto": "6878dc7534cf9805eee56345cdc38b5e9ca39dece246710c663c7007a67fef49",
+    "third_party/protobuf/src/google/protobuf/field_mask.proto": "9f031219ae54383afa84299fdd747e119b5f83c8e3dab060930ebb126af4460f",
+    "third_party/protobuf/src/google/protobuf/empty.proto": "ecef3d54cc9e079673b9816c67bac770f7f3bf6dada2d4596ba69d71daa971e6",
+    "third_party/protobuf/conformance/test_protos/test_messages_edition2023.proto": "df6733f20e3ad24d414f1edc0b6a2bb6ac1fe280598c2333604f9e1af6b05c00",
+    "third_party/protobuf/conformance/test_protos/test_messages_edition_unstable.proto": "b80919cfdbd97b7448c1387efa2a61a192b4c00aeac7ba1f3aaba085dcfd00a2",
+    "third_party/protobuf/editions/golden/test_messages_proto2_editions.proto": "2c8dae300244d326137540444de1dd4396d01ba7100e1b1373307b4f2c0a81bf",
+    "third_party/protobuf/editions/golden/test_messages_proto3_editions.proto": "87df6c6f4871967a9ee25148dc6ab0a66c816ae3a372558ed6858b6b8ee9cce6"
+  },
+  "required_schema_consumers": {
+    "third_party/protobuf/src/google/protobuf/any.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)",
+      "bench/devloop/adoption/build.rs (core schema import)",
+      "bench/devloop/build.rs (transport corpus import)"
+    ],
+    "third_party/protobuf/src/google/protobuf/descriptor.proto": [
+      "bench/devloop/adoption/build.rs (option schema import)"
+    ],
+    "third_party/protobuf/src/google/protobuf/test_messages_proto2.proto": [
+      "build.rs"
+    ],
+    "third_party/protobuf/src/google/protobuf/test_messages_proto3.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/duration.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/timestamp.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/struct.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/wrappers.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/field_mask.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/src/google/protobuf/empty.proto": [
+      "build.rs",
+      "prost_tat/build.rs (root or import)",
+      "v4_tat/build.rs (root)"
+    ],
+    "third_party/protobuf/conformance/test_protos/test_messages_edition2023.proto": [
+      "build.rs"
+    ],
+    "third_party/protobuf/conformance/test_protos/test_messages_edition_unstable.proto": [
+      "build.rs"
+    ],
+    "third_party/protobuf/editions/golden/test_messages_proto2_editions.proto": [
+      "build.rs"
+    ],
+    "third_party/protobuf/editions/golden/test_messages_proto3_editions.proto": [
+      "build.rs"
+    ]
+  },
+  "additional_tracked_source_roots": [
+    "bench/corpora/otlp/protos",
+    "vendor/google/conformance_fds.bin"
+  ],
+  "tracked_otlp_schema_sha256": {
+    "bench/corpora/otlp/protos/opentelemetry/proto/common/v1/common.proto": "620560f3ad4c45d606f8a9c455f2b98089f0d511c5859c3eadd3ee630ae0d4d8",
+    "bench/corpora/otlp/protos/opentelemetry/proto/logs/v1/logs.proto": "6b2e1eba0c01ae2da47927c63eabfaf3f151ee7ad846f2cdf3b2b71fb61004fe",
+    "bench/corpora/otlp/protos/opentelemetry/proto/metrics/v1/metrics.proto": "68cf07fe34bc5111d7873b5547ca41f0312dc8976d2635d81fac553d5ba98757",
+    "bench/corpora/otlp/protos/opentelemetry/proto/resource/v1/resource.proto": "e0a7cdc0ffcfeffaa2606e8611839735ebffaa2d6acdf33e9356f2c48ae692d3",
+    "bench/corpora/otlp/protos/opentelemetry/proto/trace/v1/trace.proto": "c3fb1385c90b8bc08a2a462e28b5d0c422c7b524a839f75f75e3cd9f64f36956"
+  },
+  "fallback_descriptor_sha256": "03b4f586925bb91792337b844fa50f5a623232603b83eecf2e31fb6f0700c40a",
+  "third_party_commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "scope": "Current build recipe roots and their schema import closure; no Rust build or code generation run. Every additional source/schema entry supplied by the root-owned build sidecar must also be validated and retained."
+}

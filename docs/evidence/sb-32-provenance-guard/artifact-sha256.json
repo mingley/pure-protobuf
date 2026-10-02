@@ -1,0 +1,46 @@
+{
+  "collector-tests.record.json": {
+    "sha256": "161b413bfdc441e5f92a23ebb6ebbf9c5da3de67cf76476d00ab0c63ead09896",
+    "bytes": 592
+  },
+  "collector-tests.stderr": {
+    "sha256": "c3ce0b9cf7627e3bf6fcffb11ff8e1106cf84aa47bb86e900886ce25164ad3cb",
+    "bytes": 111
+  },
+  "collector-tests.stdout": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "python-compile.record.json": {
+    "sha256": "45f3fac19c729fa53c7dba836e55830acc48bdd256ed6f3678d7d166da7a2bfa",
+    "bytes": 770
+  },
+  "python-compile.stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "python-compile.stdout": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "required-build-inputs.json": {
+    "sha256": "66de4d651b761b2c50fa5173354b7ca8f41abb116153cd91662f3fb3bc447328",
+    "bytes": 6023
+  },
+  "source-whitespace.record.json": {
+    "sha256": "3a0bdc9015fdfb0281ffc548868888f3cfa3bc4f670fc2f727d9700426bcac08",
+    "bytes": 584
+  },
+  "source-whitespace.stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "source-whitespace.stdout": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "validation.json": {
+    "sha256": "62b954a859133a942d5ba0d80e51fe5c44a883db1bf2373b669d60f8fce5b9d8",
+    "bytes": 3891
+  }
+}

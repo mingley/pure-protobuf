@@ -1,0 +1,82 @@
+{
+  "schema": "pbrs-sb32-provenance-guard-functional/1",
+  "source_commit": "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b",
+  "source_sha256": {
+    "bench/devloop/measure-tonic-transport.py": "5541586388e7b6383c5cf1209c2d4931453d64b1c9fccc741e681c2fc154cc8f",
+    "bench/devloop/check-tonic-transport-evidence.py": "c59fa8248c98c63c55802cdadace3ba1a79f9de020670450e1164c03a72682d7",
+    "bench/devloop/test_tonic_transport_collectors.py": "8f53c9b2540e4cb3fc7c35fdb2f37c0d38d98ac854e0036cb02039dd9c1a7179"
+  },
+  "status": "12 synthetic functional tests passed; no live capture or numeric qualification",
+  "previous": {
+    "source_commit": "61e6f9f18f14d28e14da1e5f12294513cc6503c3",
+    "evidence_commit": "f5f69afb7d0634f66ad82531335bbe1b527fe67f",
+    "validation": "../sb-32-driver/validation.json",
+    "tests": "8 passed, retained without changes"
+  },
+  "tests": {
+    "result": "12 passed",
+    "record": "collector-tests.record.json",
+    "tier": "synthetic correctness; no RPC/performance workload"
+  },
+  "python": {
+    "version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7"
+  },
+  "gates": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "bench/devloop/test_tonic_transport_collectors.py"
+      ],
+      "cwd": "/workspace/scratch/work/sb32",
+      "started_utc": "2026-10-02T23:45:57.908571+00:00",
+      "finished_utc": "2026-10-02T23:45:59.304682+00:00",
+      "exit_code": 0,
+      "stdout_path": "collector-tests.stdout",
+      "stderr_path": "collector-tests.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "c3ce0b9cf7627e3bf6fcffb11ff8e1106cf84aa47bb86e900886ce25164ad3cb"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-c",
+        "import ast,pathlib;[ast.parse(pathlib.Path(p).read_bytes(),filename=p) for p in ['bench/devloop/measure-tonic-transport.py', 'bench/devloop/check-tonic-transport-evidence.py', 'bench/devloop/test_tonic_transport_collectors.py']]"
+      ],
+      "cwd": "/workspace/scratch/work/sb32",
+      "started_utc": "2026-10-02T23:45:59.305947+00:00",
+      "finished_utc": "2026-10-02T23:45:59.340552+00:00",
+      "exit_code": 0,
+      "stdout_path": "python-compile.stdout",
+      "stderr_path": "python-compile.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b^",
+        "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b",
+        "--check"
+      ],
+      "cwd": "/workspace/scratch/work/sb32",
+      "started_utc": "2026-10-02T23:45:59.340687+00:00",
+      "finished_utc": "2026-10-02T23:45:59.343758+00:00",
+      "exit_code": 0,
+      "stdout_path": "source-whitespace.stdout",
+      "stderr_path": "source-whitespace.stderr",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "required_build_inputs": "required-build-inputs.json",
+  "scope": "Three benchmark Python scripts and additive evidence only; workloads, runtime, controls, numeric thresholds, manifests and dependency pins unchanged",
+  "open": [
+    "Root-owned common release build with complete sidecar input maps",
+    "Live complete 512-state capture with 24 blocked map exits",
+    "Original RPC 2% unchanged replay qualification and all numeric measurements"
+  ]
+}
