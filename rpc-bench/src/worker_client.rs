@@ -23,8 +23,13 @@ pub use proto::*;
 
 use std::collections::BTreeMap;
 use std::future::Future;
+use std::sync::Arc;
+#[expect(
+    clippy::disallowed_types,
+    reason = "benchmark completion-mark locks are synchronous; no guard crosses an await"
+)]
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use pbrs_grpc::{Request, Response, Status, Streaming};
@@ -186,6 +191,10 @@ impl Histogram {
 }
 
 /// Thread-safe accumulator for client latency histogram and error code counts.
+#[expect(
+    clippy::disallowed_types,
+    reason = "synchronous lock preserves atomic completion-window snapshot and reset; no guard crosses an await"
+)]
 pub struct ClientStatsTracker {
     state: Mutex<ClientStatsWindow>,
 }
@@ -210,6 +219,10 @@ struct ClientStatsWindow {
 
 impl ClientStatsTracker {
     /// Create a new tracker wrapping the configured histogram.
+    #[expect(
+        clippy::disallowed_types,
+        reason = "construct synchronous benchmark accounting lock without changing measurement boundaries"
+    )]
     pub fn new(histogram: Histogram) -> Self {
         Self {
             state: Mutex::new(ClientStatsWindow {

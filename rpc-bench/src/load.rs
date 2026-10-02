@@ -27,8 +27,13 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::future::Future;
 use std::str::FromStr;
+use std::sync::Arc;
+#[expect(
+    clippy::disallowed_types,
+    reason = "benchmark sample locks are synchronous; no guard crosses an await"
+)]
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -337,6 +342,10 @@ impl LoadRecord {
     }
 }
 
+#[expect(
+    clippy::disallowed_types,
+    reason = "benchmark sample locks preserve atomic sample commit before in-flight release; no guard crosses an await"
+)]
 struct GeneratorState {
     collect_samples: bool,
     offered_calls: AtomicU64,
@@ -356,6 +365,10 @@ struct GeneratorState {
 }
 
 impl GeneratorState {
+    #[expect(
+        clippy::disallowed_types,
+        reason = "construct synchronous benchmark sample locks without changing instrumentation"
+    )]
     fn new(collect_samples: bool) -> Self {
         Self {
             collect_samples,
@@ -547,11 +560,11 @@ impl LoadGenerator {
 
             handles.spawn(async move {
                 while running.load(Ordering::Relaxed) {
-                    if let Some(max) = max_calls {
-                        if state.offered_calls.load(Ordering::Relaxed) >= max {
-                            running.store(false, Ordering::Relaxed);
-                            break;
-                        }
+                    if let Some(max) = max_calls
+                        && state.offered_calls.load(Ordering::Relaxed) >= max
+                    {
+                        running.store(false, Ordering::Relaxed);
+                        break;
                     }
                     if Instant::now() >= end_time {
                         running.store(false, Ordering::Relaxed);
@@ -616,10 +629,10 @@ impl LoadGenerator {
 
         while Instant::now() < end_time {
             reap_finished_calls(&mut handles);
-            if let Some(max) = self.cfg.max_calls {
-                if count >= max {
-                    break;
-                }
+            if let Some(max) = self.cfg.max_calls
+                && count >= max
+            {
+                break;
             }
 
             let t_sched = start_time + Duration::from_nanos(scheduled_offset_nanos);
@@ -702,10 +715,10 @@ impl LoadGenerator {
 
         while Instant::now() < end_time {
             reap_finished_calls(&mut handles);
-            if let Some(max) = self.cfg.max_calls {
-                if count >= max {
-                    break;
-                }
+            if let Some(max) = self.cfg.max_calls
+                && count >= max
+            {
+                break;
             }
 
             let interval_nanos = rng.next_exponential_nanos(rate_qps);
