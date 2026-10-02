@@ -62,8 +62,10 @@ qualifies all 336 direction/mode cells across 84 specimens for semantics;
 existing default-value and order policy. The benchmark-only bridge feature is
 optional and leaves the default dependency graph unchanged.
 
-Numeric allocation/byte/instruction costs remain `not_run`. TC32b must
-integrate the existing exact allocation and N/2N instruction collectors,
-retain source/binary/fingerprint guards and unchanged-binary replay failures,
-and record absolute API costs before the parent TC32 acceptance can close.
-The semantic inventory does not establish performance or headroom.
+Numeric allocation/byte/instruction costs remain `not_run`.
+[TC32b's opt-in parent registration and raw-preserving collectors](tc32-bridge-cost.md)
+now retain source/binary/fingerprint guards and reconstruct absolute operation
+costs. Actual source-pinned captures and unchanged-binary replay, with all
+original controls and failures preserved, are still required before the parent
+TC32 acceptance can close. The semantic inventory does not establish
+performance or headroom.

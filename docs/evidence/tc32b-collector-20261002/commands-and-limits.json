@@ -1,0 +1,70 @@
+{
+  "source_commit": "d9a7c323586e11e649c40e605ff13b45b2a8b013",
+  "environment": {
+    "setup": "source /workspace/pure-protobuf/work/toolchain/env.sh",
+    "CARGO_BUILD_JOBS": "1",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "1",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/sb32/target",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "gates": [
+    {
+      "command": "cargo test --offline --locked --manifest-path bench/devloop/Cargo.toml --features bridge",
+      "log": "bridge-tests.log",
+      "result": "20 tests passed; complete existing SB32 network preflight retained488 eligible/24blocked",
+      "compiled_rust_source_commit": "5a263139f0963488bab9e34b5282803abc3d9138"
+    },
+    {
+      "command": "cargo test --offline --locked --manifest-path bench/devloop/Cargo.toml",
+      "log": "default-tests.log",
+      "result": "17 original tests passed",
+      "compiled_rust_source_commit": "5a263139f0963488bab9e34b5282803abc3d9138"
+    },
+    {
+      "command": "cargo clippy --offline --locked --manifest-path bench/devloop/Cargo.toml --features bridge --all-targets -- -D warnings",
+      "log": "bridge-clippy.log",
+      "result": "passed"
+    },
+    {
+      "command": "cargo build --offline --locked --manifest-path bench/devloop/Cargo.toml --bin devloop",
+      "log": "default-cli-build.log",
+      "result": "passed; debug correctness executable only"
+    },
+    {
+      "command": "cargo build --offline --locked --manifest-path bench/devloop/Cargo.toml --features bridge --bin devloop",
+      "log": "bridge-cli-build.log",
+      "result": "passed; debug correctness executable only"
+    },
+    {
+      "command": "devloop list (both feature states); devloop bridge-inventory (bridge enabled)",
+      "result": "1634 original registry rows byte-identical after filtering enabled336 append;336 parent semantic/oracle checks pass;324wireguards/12mapblocks",
+      "record": "enabled-cli-proof.json"
+    },
+    {
+      "command": "python3 tests/bench/test_tc32_bridge_collectors.py",
+      "log": "collector-tests-final.log",
+      "result": "15 corruption/guard tests passed; fixtures are synthetic and never measurement evidence"
+    },
+    {
+      "command": "python3 bench/devloop/adoption/generate.py --check",
+      "log": "generate-check.log",
+      "result": "passed"
+    },
+    {
+      "command": "rustfmt --edition 2024 --check bench/devloop/src/main.rs",
+      "log": "fmt-check.log",
+      "result": "passed"
+    }
+  ],
+  "source_consistency": "Every tracked Rust source, Cargo manifest and Cargo lock at finald9a7c323 is byte-identical to gated5a263139. Later source commits only strengthen the Python collector/auditor/tests, whose final15 tests pass.",
+  "operational_limits": [
+    "Shared completed SB32 debug target ownership was transferred exclusively; original SB32 unit executable and generated service output hashes were verified and copies preserved before reuse. No old binary was relabeled.",
+    "Combined debug cache1950040186bytes remains below2GiB; free disk stayed above2GiB. Builds ran jobs1.",
+    "An initial evidence tool-pin collection omitted sourcing env.sh and failed finding rustc before writing tool pins. Repeating with the recorded environment produced the actual executable hashes. This was an evidence-assembly error, not a failed or passed Rust gate.",
+    "No release build, performance capture, allocation ledger, differential instruction report or unchanged-binary replay was run. Missing cost acceptance remains open."
+  ],
+  "numeric_cost": "not_run",
+  "performance_qualification": false
+}

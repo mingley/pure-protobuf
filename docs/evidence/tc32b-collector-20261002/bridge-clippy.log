@@ -1,0 +1,12 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Checking flate2 v1.1.10
+    Checking tonic v0.14.6
+    Checking pbrs v0.2.0 (/workspace/scratch/work/tc32b)
+    Checking protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/tc32b/protobuf-tonic)
+   Compiling devloop v0.1.0 (/workspace/scratch/work/tc32b/bench/devloop)
+    Checking pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc32b/pbrs-grpc)
+    Checking pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/tc32b/bench/devloop/adoption)
+    Checking prost_tat v0.0.1 (/workspace/scratch/work/tc32b/prost_tat)
+    Checking v4_tat v0.0.1 (/workspace/scratch/work/tc32b/v4_tat)
+    Checking tonic-prost v0.14.6
+    Finished `dev` profile [unoptimized] target(s) in 30.71s
